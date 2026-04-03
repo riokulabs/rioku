@@ -1,0 +1,70 @@
+# Binaries
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go
+/vendor/
+go.work.sum
+*.test
+*.out
+*.prof
+*.pprof
+coverage.txt
+coverage.html
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Proto generated code
+packages/proto/gen/
+
+# SvelteKit / Node
+node_modules/
+.svelte-kit/
+packages/web/build/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# PKI / secrets (never commit)
+*.key
+*.pem
+*.crt
+*.csr
+!*_test.crt
+!*_test.key
+
+# IDE / local tool settings
+.idea/
+.vscode/
+.claude/settings.local.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Temporary files
+/tmp/
+*.tmp
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
