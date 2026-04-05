@@ -1,6 +1,7 @@
-go 1.24
+go 1.26.1
 
 use (
-	./packages/daemon
 	./packages/build-service
+	./packages/daemon
+	./packages/proto/gen/go
 )
