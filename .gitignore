@@ -24,10 +24,10 @@ coverage.html
 # Proto generated code
 packages/proto/gen/
 
-# SvelteKit / Node
+# Node / Web
 node_modules/
-.svelte-kit/
 packages/web/build/
+packages/web/src/routeTree.gen.ts
 
 # Database files
 *.db

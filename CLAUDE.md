@@ -16,7 +16,7 @@ Open-source, AI-native API gateway platform built on Caddy. No feature paywalls.
 packages/
   daemon/          -- Go module: core daemon binary (cmd + internal + pkg)
   proto/           -- Protobuf definitions + buf config (generates Go + OpenAPI)
-  web/             -- SvelteKit admin panel (go:embed into daemon binary)
+  web/             -- React admin panel (go:embed into daemon binary)
   build-service/   -- Separate Go binary for hosted xcaddy builds
   plugins/         -- First-party plugin modules (rate-limit, auth, LLM proxy, etc.)
 docs/              -- User-facing documentation
@@ -32,7 +32,7 @@ tmp/               -- Working design documents (not committed)
 - **External API**: REST via grpc-gateway (thin translation layer, no business logic)
 - **Live events**: SSE (translated from gRPC server-streaming at REST layer)
 - **Config store**: SQLite (default), Postgres, MySQL/MariaDB (Galera for HA)
-- **Admin panel**: SvelteKit 5 with adapter-static (go:embed)
+- **Admin panel**: React 19 + TanStack Router/Query, Vite (go:embed)
 - **Proto codegen**: buf (buf.build)
 
 ## Architecture Principles

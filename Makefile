@@ -75,7 +75,7 @@ web-dev:
 
 ## clean: Remove build artifacts
 clean:
-	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/build $(PKG)/web/.svelte-kit
+	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/build
 
 ## lint-commit: Validate a commit message (usage: make lint-commit MSG="feat: add thing")
 lint-commit:
