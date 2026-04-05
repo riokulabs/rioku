@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Git pre-commit hook — runs fast checks on staged files.
+# Install with: make hooks
+
+set -euo pipefail
+
+STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+STAGED_PROTO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.proto$' || true)
+
+# Go formatting check
+if [ -n "$STAGED_GO" ]; then
+  UNFORMATTED=$(gofmt -l $STAGED_GO 2>/dev/null || true)
+  if [ -n "$UNFORMATTED" ]; then
+    echo "ERROR: Go files not formatted. Run: gofmt -w"
+    echo "$UNFORMATTED"
+    exit 1
+  fi
+
+  # Go vet (fast, catches common mistakes)
+  echo "Running go vet..."
+  cd packages/daemon && go vet ./... 2>&1 || exit 1
+  cd ../..
+fi
+
+# Proto lint
+if [ -n "$STAGED_PROTO" ]; then
+  if command -v buf &>/dev/null; then
+    echo "Running buf lint..."
+    cd packages/proto && buf lint || exit 1
+    cd ../..
+  fi
+fi

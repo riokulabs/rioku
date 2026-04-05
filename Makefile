@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-service proto proto-lint test test-race lint clean web web-build help
+.PHONY: all build build-daemon build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build hooks help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -76,6 +76,20 @@ web-dev:
 ## clean: Remove build artifacts
 clean:
 	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/build $(PKG)/web/.svelte-kit
+
+## lint-commit: Validate a commit message (usage: make lint-commit MSG="feat: add thing")
+lint-commit:
+	@.githooks/lint-commit.sh "$(MSG)"
+
+## lint-spell: Run spell checker
+lint-spell:
+	npx cspell "**/*.{go,md,proto,yaml,yml}" --no-progress
+
+## hooks: Install git hooks
+hooks:
+	@echo "Installing git hooks..."
+	@git config core.hooksPath .githooks
+	@echo "Git hooks installed (.githooks/)"
 
 ## dev: Run daemon in development mode
 dev: build-daemon

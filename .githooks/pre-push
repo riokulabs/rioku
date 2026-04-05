@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Git pre-push hook — runs full lint and tests before pushing.
+# Install with: make hooks
+
+set -euo pipefail
+
+echo "Running pre-push checks..."
+
+# Go lint (if golangci-lint is available)
+if command -v golangci-lint &>/dev/null; then
+  echo "Running golangci-lint..."
+  cd packages/daemon && golangci-lint run ./... || exit 1
+  cd ../..
+  cd packages/build-service && golangci-lint run ./... || exit 1
+  cd ../..
+else
+  echo "SKIP: golangci-lint not installed"
+fi
+
+# Tests with race detector
+echo "Running tests with race detector..."
+cd packages/daemon && go test -race -count=1 ./... || exit 1
+cd ../..
+cd packages/build-service && go test -race -count=1 ./... || exit 1
+cd ../..
+
+echo "All pre-push checks passed."

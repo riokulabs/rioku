@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Git commit-msg hook — validates commit message format.
+# Install with: make hooks
+
+exec "$(dirname "$0")/lint-commit.sh" "$1"

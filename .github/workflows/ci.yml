@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commit-lint:
+    name: Commit Lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          ERRORS=0
+          while IFS= read -r sha; do
+            MSG=$(git log --format=%s -n 1 "$sha")
+            if ! .githooks/lint-commit.sh <(echo "$MSG") 2>&1; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(git rev-list "$BASE".."$HEAD")
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "Found $ERRORS commit(s) with invalid messages."
+            exit 1
+          fi
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/daemon/go.mod
+
+      - name: Go vet
+        run: |
+          cd packages/daemon && go vet ./...
+          cd ../build-service && go vet ./...
+
+      - name: golangci-lint (daemon)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: packages/daemon
+
+      - name: golangci-lint (build-service)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: packages/build-service
+
+  proto:
+    name: Proto Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          input: packages/proto
+          lint: true
+          breaking: false
+
+  spell:
+    name: Spell Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run cspell
+        uses: streetsidesoftware/cspell-action@v6
+        with:
+          config: cspell.config.yaml
+          files: "**/*.{go,md,proto,yaml,yml}"
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/daemon/go.mod
+
+      - name: Test daemon (race)
+        run: cd packages/daemon && go test -race -count=1 -timeout=300s ./...
+
+      - name: Test build-service (race)
+        run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...
