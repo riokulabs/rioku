@@ -55,6 +55,15 @@ make web-build        # Build the admin panel SPA
 make dev              # Build + run daemon in dev mode
 ```
 
+## Git Practices
+
+- **Branching**: Feature branches + PRs for all changes. Direct main commits acceptable during early solo development only.
+- **Commits**: Conventional Commits required (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`). No AI tool references in commit messages (no `Co-Authored-By` AI lines, no mentions of claude/anthropic/copilot/ai).
+- **Merging**: Squash merge always. One clean commit per PR.
+- **Signing**: Commits must be signed (SSH or GPG).
+- **CI**: All checks must pass before merge.
+- **Planning**: All work tracked in GitHub Projects/Issues. Bugs, features, and roadmap items managed in the open at the `riokulabs` org level.
+
 ## Coding Conventions
 
 - **Go**: Standard library preferred. No ORM (raw SQL per-dialect). No external test libraries.
