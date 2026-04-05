@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+// ---- Entities ----
+
+message Route {
+  string   id       = 1;
+  string   name     = 2;
+  repeated Matcher matchers = 3;
+  oneof target {
+    string         service_id = 4;
+    DirectUpstream upstream   = 5;
+  }
+  repeated string  policy_ids = 6;
+  bool             enabled    = 7;
+  Labels           labels     = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message Matcher {
+  repeated string        hosts   = 1;
+  repeated PathMatcher   paths   = 2;
+  repeated string        methods = 3;
+  repeated HeaderMatcher headers = 4;
+}
+
+message PathMatcher {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_EXACT       = 1;
+    TYPE_PREFIX      = 2;
+    TYPE_REGEXP      = 3;
+  }
+  Type   type  = 1;
+  string value = 2;
+}
+
+message HeaderMatcher {
+  string name   = 1;
+  string value  = 2;
+  bool   invert = 3;
+}
+
+message DirectUpstream {
+  string  address = 1;
+  TLSMode tls     = 2;
+}
+
+message Service {
+  string                    id          = 1;
+  string                    name        = 2;
+  repeated Upstream         upstreams   = 3;
+  LoadBalancingPolicy       lb_policy   = 4;
+  HealthCheck               health_check = 5;
+  Labels                    labels      = 6;
+  google.protobuf.Timestamp created_at  = 7;
+  google.protobuf.Timestamp updated_at  = 8;
+}
+
+message Upstream {
+  string  id       = 1;
+  string  address  = 2;
+  int32   weight   = 3;
+  TLSMode tls      = 4;
+  bool    healthy  = 5;
+  string  dial_err = 6;
+}
+
+enum LoadBalancingPolicy {
+  LB_POLICY_UNSPECIFIED          = 0;
+  LB_POLICY_ROUND_ROBIN         = 1;
+  LB_POLICY_RANDOM              = 2;
+  LB_POLICY_LEAST_CONN          = 3;
+  LB_POLICY_IP_HASH             = 4;
+  LB_POLICY_WEIGHTED_ROUND_ROBIN = 5;
+}
+
+message HealthCheck {
+  bool           enabled             = 1;
+  string         path                = 2;
+  int32          interval_seconds    = 3;
+  int32          timeout_seconds     = 4;
+  int32          unhealthy_threshold = 5;
+  int32          healthy_threshold   = 6;
+  repeated int32 expected_statuses   = 7;
+}
+
+message Policy {
+  string                    id         = 1;
+  string                    name       = 2;
+  PolicyType                type       = 3;
+  google.protobuf.Struct    config     = 4;
+  Labels                    labels     = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+enum PolicyType {
+  POLICY_TYPE_UNSPECIFIED  = 0;
+  POLICY_TYPE_RATE_LIMIT   = 1;
+  POLICY_TYPE_AUTH_API_KEY = 2;
+  POLICY_TYPE_AUTH_JWT     = 3;
+  POLICY_TYPE_TRANSFORM   = 4;
+  POLICY_TYPE_ALLOW_LIST   = 5;
+  POLICY_TYPE_BLOCK_LIST   = 6;
+}
+
+// ---- Config Operations ----
+
+message ConfigSnapshot {
+  int64                     version     = 1;
+  repeated Route            routes      = 2;
+  repeated Service          services    = 3;
+  repeated Policy           policies    = 4;
+  google.protobuf.Timestamp snapshot_at = 5;
+}
+
+message GetConfigRequest { int64 version = 1; }
+
+message ConfigChange {
+  oneof operation {
+    RouteOp   route   = 1;
+    ServiceOp service = 2;
+    PolicyOp  policy  = 3;
+  }
+  int64 expected_version = 10;
+}
+
+message RouteOp {
+  enum Action { ACTION_UNSPECIFIED = 0; UPSERT = 1; DELETE = 2; }
+  Action action = 1;
+  Route  route  = 2;
+  string id     = 3;
+}
+
+message ServiceOp {
+  enum Action { ACTION_UNSPECIFIED = 0; UPSERT = 1; DELETE = 2; }
+  Action  action  = 1;
+  Service service = 2;
+  string  id      = 3;
+}
+
+message PolicyOp {
+  enum Action { ACTION_UNSPECIFIED = 0; UPSERT = 1; DELETE = 2; }
+  Action action = 1;
+  Policy policy = 2;
+  string id     = 3;
+}
+
+message ApplyResult {
+  MutationMeta    meta     = 1;
+  repeated string warnings = 2;
+}
+
+message WatchRequest { int64 since_version = 1; }
+
+message ConfigEvent {
+  enum Type {
+    TYPE_UNSPECIFIED      = 0;
+    TYPE_ROUTE_UPSERTED   = 1;
+    TYPE_ROUTE_DELETED    = 2;
+    TYPE_SERVICE_UPSERTED = 3;
+    TYPE_SERVICE_DELETED  = 4;
+    TYPE_POLICY_UPSERTED  = 5;
+    TYPE_POLICY_DELETED   = 6;
+    TYPE_SNAPSHOT          = 7;
+  }
+  Type                      type        = 1;
+  int64                     version     = 2;
+  string                    actor       = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  ConfigSnapshot            snapshot    = 5;
+  oneof entity {
+    Route   route   = 6;
+    Service service = 7;
+    Policy  policy  = 8;
+  }
+}
+
+// ---- Audit ----
+
+message AuditQuery {
+  string                    actor       = 1;
+  string                    entity_type = 2;
+  string                    entity_id   = 3;
+  google.protobuf.Timestamp since       = 4;
+  google.protobuf.Timestamp until       = 5;
+  PageRequest               page        = 6;
+}
+
+message AuditEntry {
+  string                    id             = 1;
+  string                    actor          = 2;
+  string                    entity_type    = 3;
+  string                    entity_id      = 4;
+  string                    operation      = 5;
+  string                    diff           = 6;
+  int64                     config_version = 7;
+  google.protobuf.Timestamp occurred_at    = 8;
+}
+
+// ---- Import/Export ----
+
+message ExportRequest { int64 version = 1; bool include_audit_log = 2; }
+message ConfigChunk   { int32 sequence = 1; bool last = 2; bytes data = 3; }
+message ImportResult {
+  MutationMeta    meta              = 1;
+  int32           routes_imported   = 2;
+  int32           services_imported = 3;
+  int32           policies_imported = 4;
+  repeated string warnings          = 5;
+}
+
+// ---- Service ----
+
+service ConfigService {
+  rpc GetConfig(GetConfigRequest) returns (ConfigSnapshot) {
+    option (google.api.http) = { get: "/api/v1/config" };
+  }
+  rpc ApplyChange(ConfigChange) returns (ApplyResult) {
+    option (google.api.http) = { post: "/api/v1/config" body: "*" };
+  }
+  // SSE at REST: GET /api/v1/events/config
+  rpc WatchChanges(WatchRequest) returns (stream ConfigEvent);
+  rpc GetAuditLog(AuditQuery) returns (stream AuditEntry) {
+    option (google.api.http) = { get: "/api/v1/audit" };
+  }
+  rpc ExportConfig(ExportRequest) returns (stream ConfigChunk) {
+    option (google.api.http) = { post: "/api/v1/config/export" body: "*" };
+  }
+  rpc ImportConfig(stream ConfigChunk) returns (ImportResult) {
+    option (google.api.http) = { post: "/api/v1/config/import" body: "*" };
+  }
+}

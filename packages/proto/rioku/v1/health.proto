@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+message HealthRequest  { bool verbose = 1; }
+
+message HealthStatus {
+  HealthState               overall        = 1;
+  SubsystemHealth           store          = 2;
+  SubsystemHealth           caddy          = 3;
+  SubsystemHealth           cluster        = 4;
+  SubsystemHealth           certmgr        = 5;
+  string                    version        = 6;
+  int64                     uptime_seconds = 7;
+  google.protobuf.Timestamp checked_at     = 8;
+}
+
+message SubsystemHealth {
+  HealthState            state   = 1;
+  string                 message = 2;
+  map<string, string>    detail  = 3;
+}
+
+message CaddyStatusRequest {}
+
+message CaddyStatus {
+  HealthState               state                = 1;
+  string                    version              = 2;
+  bool                      running              = 3;
+  int32                     pid                  = 4;
+  int64                     loaded_config_version = 5;
+  int32                     upstreams_healthy    = 6;
+  int32                     upstreams_total      = 7;
+  google.protobuf.Timestamp checked_at           = 8;
+}
+
+service HealthService {
+  rpc GetHealth(HealthRequest) returns (HealthStatus) {
+    option (google.api.http) = { get: "/api/v1/health" };
+  }
+  rpc GetCaddyStatus(CaddyStatusRequest) returns (CaddyStatus) {
+    option (google.api.http) = { get: "/api/v1/health/caddy" };
+  }
+}

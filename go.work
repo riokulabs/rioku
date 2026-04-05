@@ -1,0 +1,6 @@
+go 1.24
+
+use (
+	./packages/daemon
+	./packages/build-service
+)

@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+enum NodeRole {
+  NODE_ROLE_UNSPECIFIED = 0;
+  NODE_ROLE_BOOTSTRAP   = 1;
+  NODE_ROLE_MEMBER      = 2;
+}
+
+enum NodeState {
+  NODE_STATE_UNSPECIFIED = 0;
+  NODE_STATE_JOINING     = 1;
+  NODE_STATE_ACTIVE      = 2;
+  NODE_STATE_DEGRADED    = 3;
+  NODE_STATE_LEAVING     = 4;
+  NODE_STATE_UNREACHABLE = 5;
+}
+
+message Node {
+  string                    id              = 1;
+  string                    name            = 2;
+  string                    address         = 3;
+  NodeRole                  role            = 4;
+  NodeState                 state           = 5;
+  string                    caddy_version   = 6;
+  string                    daemon_version  = 7;
+  string                    store_mode      = 8;
+  bool                      is_leader       = 9;
+  HealthState               health          = 10;
+  string                    cert_fingerprint = 11;
+  Labels                    labels          = 12;
+  google.protobuf.Timestamp joined_at       = 13;
+  google.protobuf.Timestamp last_seen_at    = 14;
+}
+
+message JoinRequest {
+  string node_address  = 1;
+  string node_name     = 2;
+  bytes  csr_pem       = 3;
+  string ca_fingerprint = 4;
+}
+
+message JoinResult {
+  bytes          node_cert_pem = 1;
+  bytes          ca_cert_pem   = 2;
+  string         node_id       = 3;
+  repeated Node  members       = 4;
+}
+
+message LeaveRequest { string node_id = 1; bool deregister = 2; }
+message LeaveResult  { MutationMeta meta = 1; }
+
+message ListNodesRequest { NodeState state = 1; PageRequest page = 2; }
+message NodeList         { repeated Node nodes = 1; PageResponse page = 2; }
+
+message SyncRequest { string node_id = 1; int64 synced_version = 2; HealthState caddy_health = 3; }
+message SyncResult  { int64 leader_version = 1; bool full_sync_required = 2; }
+
+message ClusterEvent {
+  enum Type {
+    TYPE_UNSPECIFIED       = 0;
+    TYPE_NODE_JOINED       = 1;
+    TYPE_NODE_LEFT         = 2;
+    TYPE_NODE_STATE_CHANGE = 3;
+    TYPE_LEADER_CHANGE     = 4;
+    TYPE_QUORUM_LOST       = 5;
+    TYPE_QUORUM_RESTORED   = 6;
+  }
+  Type                      type                 = 1;
+  string                    node_id              = 2;
+  NodeState                 old_state            = 3;
+  NodeState                 new_state            = 4;
+  string                    new_leader_id        = 5;
+  int32                     cluster_size         = 6;
+  int32                     expected_cluster_size = 7;
+  string                    message              = 8;
+  google.protobuf.Timestamp occurred_at          = 9;
+}
+
+message WatchClusterRequest {}
+
+service ClusterService {
+  rpc Join(JoinRequest) returns (JoinResult) {
+    option (google.api.http) = { post: "/api/v1/cluster/join" body: "*" };
+  }
+  rpc Leave(LeaveRequest) returns (LeaveResult) {
+    option (google.api.http) = { post: "/api/v1/cluster/leave" body: "*" };
+  }
+  rpc ListNodes(ListNodesRequest) returns (NodeList) {
+    option (google.api.http) = { get: "/api/v1/cluster/nodes" };
+  }
+  // Internal only -- no REST annotation.
+  rpc SyncState(SyncRequest) returns (SyncResult);
+  // SSE at REST: GET /api/v1/events/cluster
+  rpc WatchCluster(WatchClusterRequest) returns (stream ClusterEvent);
+}

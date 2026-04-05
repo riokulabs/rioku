@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+message PageRequest {
+  int32  page_size  = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+  int64  total           = 2; // -1 if unknown
+}
+
+message Labels {
+  map<string, string> labels = 1;
+}
+
+message MutationMeta {
+  int64                     config_version = 1;
+  string                    actor          = 2;
+  google.protobuf.Timestamp mutated_at     = 3;
+}
+
+enum HealthState {
+  HEALTH_STATE_UNSPECIFIED = 0;
+  HEALTH_STATE_OK         = 1;
+  HEALTH_STATE_DEGRADED   = 2;
+  HEALTH_STATE_UNHEALTHY  = 3;
+}
+
+enum TLSMode {
+  TLS_MODE_UNSPECIFIED = 0;
+  TLS_MODE_OFF         = 1;
+  TLS_MODE_AUTO        = 2;
+  TLS_MODE_CUSTOM      = 3;
+  TLS_MODE_INTERNAL    = 4;
+}

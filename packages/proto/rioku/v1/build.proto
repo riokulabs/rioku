@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+enum BuildTarget {
+  BUILD_TARGET_UNSPECIFIED = 0;
+  BUILD_TARGET_CADDY       = 1;
+  BUILD_TARGET_DAEMON      = 2;
+}
+
+enum BuildState {
+  BUILD_STATE_UNSPECIFIED  = 0;
+  BUILD_STATE_IDLE         = 1;
+  BUILD_STATE_TRIGGERED    = 2;
+  BUILD_STATE_FETCHING_DEPS = 3;
+  BUILD_STATE_BUILDING     = 4;
+  BUILD_STATE_TESTING      = 5;
+  BUILD_STATE_SWAPPING     = 6;
+  BUILD_STATE_COMPLETE     = 7;
+  BUILD_STATE_FAILED       = 8;
+}
+
+message BuildRecord {
+  string                    id            = 1;
+  BuildTarget               target        = 2;
+  BuildState                state         = 3;
+  repeated string           plugin_ids    = 4;
+  string                    artifact_hash = 5;
+  string                    log           = 6;
+  string                    error         = 7;
+  string                    build_service = 8;
+  google.protobuf.Timestamp triggered_at  = 9;
+  google.protobuf.Timestamp completed_at  = 10;
+}
+
+message BuildRequest { BuildTarget target = 1; repeated string plugin_ids = 2; bool force = 3; }
+
+message BuildEvent {
+  BuildState                state       = 1;
+  string                    message     = 2;
+  string                    log_line    = 3;
+  string                    error       = 4;
+  BuildRecord               record      = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+}
+
+message BuildStatusRequest { string build_id = 1; }
+message BuildStatus        { BuildRecord caddy_build = 1; BuildRecord daemon_build = 2; }
+
+message SwapRequest { string build_id = 1; bool dry_run = 2; }
+message SwapResult {
+  bool                      success    = 1;
+  string                    error      = 2;
+  string                    build_id   = 3;
+  string                    prior_hash = 4;
+  string                    new_hash   = 5;
+  google.protobuf.Timestamp swapped_at = 6;
+}
+
+service BuildService {
+  rpc TriggerBuild(BuildRequest) returns (stream BuildEvent) {
+    option (google.api.http) = { post: "/api/v1/build" body: "*" };
+  }
+  rpc GetBuildStatus(BuildStatusRequest) returns (BuildStatus) {
+    option (google.api.http) = { get: "/api/v1/build" };
+  }
+  rpc SwapBinary(SwapRequest) returns (SwapResult) {
+    option (google.api.http) = { post: "/api/v1/build/{build_id}/swap" body: "*" };
+  }
+}

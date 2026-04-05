@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+enum PluginType {
+  PLUGIN_TYPE_UNSPECIFIED = 0;
+  PLUGIN_TYPE_TRAFFIC     = 1;
+  PLUGIN_TYPE_MIDDLEWARE  = 2;
+  PLUGIN_TYPE_CLI         = 3;
+  PLUGIN_TYPE_WEB         = 4;
+  PLUGIN_TYPE_AGENTIC     = 5;
+}
+
+enum PluginStatus {
+  PLUGIN_STATUS_UNSPECIFIED = 0;
+  PLUGIN_STATUS_INSTALLING  = 1;
+  PLUGIN_STATUS_ACTIVE      = 2;
+  PLUGIN_STATUS_DISABLED    = 3;
+  PLUGIN_STATUS_ERROR       = 4;
+  PLUGIN_STATUS_REBUILDING  = 5;
+}
+
+message Plugin {
+  string                    id            = 1;
+  string                    name          = 2;
+  string                    version       = 3;
+  PluginType                type          = 4;
+  repeated string           caddy_deps    = 5;
+  google.protobuf.Struct    config_schema = 6;
+  google.protobuf.Struct    config        = 7;
+  PluginStatus              status        = 8;
+  string                    module_path   = 9;
+  Labels                    labels        = 10;
+  google.protobuf.Timestamp installed_at  = 11;
+  google.protobuf.Timestamp updated_at    = 12;
+}
+
+message ListPluginsRequest {
+  PluginType   type   = 1;
+  PluginStatus status = 2;
+  PageRequest  page   = 3;
+}
+
+message PluginList { repeated Plugin plugins = 1; PageResponse page = 2; }
+
+message InstallRequest {
+  string                 module_path    = 1;
+  google.protobuf.Struct initial_config = 2;
+  bool                   defer_build    = 3;
+}
+
+message InstallEvent {
+  enum Stage {
+    STAGE_UNSPECIFIED = 0;
+    STAGE_RESOLVING   = 1;
+    STAGE_FETCHING    = 2;
+    STAGE_VALIDATING  = 3;
+    STAGE_BUILDING    = 4;
+    STAGE_SWAPPING    = 5;
+    STAGE_COMPLETE    = 6;
+    STAGE_FAILED      = 7;
+  }
+  Stage                     stage       = 1;
+  string                    message     = 2;
+  string                    error       = 3;
+  Plugin                    plugin      = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+}
+
+message RemoveRequest  { string plugin_id = 1; bool purge_config = 2; bool defer_build = 3; }
+message RemoveResult   { MutationMeta meta = 1; bool rebuild_triggered = 2; }
+
+message PluginConfigRequest { string plugin_id = 1; }
+message PluginConfig {
+  string                    plugin_id  = 1;
+  google.protobuf.Struct    config     = 2;
+  google.protobuf.Struct    schema     = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message SetPluginConfigRequest {
+  string                 plugin_id = 1;
+  google.protobuf.Struct config    = 2;
+  bool                   merge     = 3;
+}
+
+message SetResult {
+  MutationMeta           meta   = 1;
+  google.protobuf.Struct config = 2;
+}
+
+service PluginService {
+  rpc ListPlugins(ListPluginsRequest) returns (PluginList) {
+    option (google.api.http) = { get: "/api/v1/plugins" };
+  }
+  rpc InstallPlugin(InstallRequest) returns (stream InstallEvent) {
+    option (google.api.http) = { post: "/api/v1/plugins" body: "*" };
+  }
+  rpc RemovePlugin(RemoveRequest) returns (RemoveResult) {
+    option (google.api.http) = { delete: "/api/v1/plugins/{plugin_id}" };
+  }
+  rpc GetPluginConfig(PluginConfigRequest) returns (PluginConfig) {
+    option (google.api.http) = { get: "/api/v1/plugins/{plugin_id}/config" };
+  }
+  rpc SetPluginConfig(SetPluginConfigRequest) returns (SetResult) {
+    option (google.api.http) = { put: "/api/v1/plugins/{plugin_id}/config" body: "*" };
+  }
+}

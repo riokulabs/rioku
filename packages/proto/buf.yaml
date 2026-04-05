@@ -1,0 +1,18 @@
+version: v2
+
+modules:
+  - path: .
+
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/protocolbuffers/wellknowntypes
+
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX
+
+breaking:
+  use:
+    - FILE
