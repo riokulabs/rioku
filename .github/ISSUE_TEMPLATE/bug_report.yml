@@ -1,0 +1,80 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the sections below.
+  - type: input
+    id: version
+    attributes:
+      label: Rioku Version
+      description: Output of `rku status` or `rioku --version`
+      placeholder: "v0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of Rioku is affected?
+      options:
+        - Daemon
+        - CLI (`rku`)
+        - Admin Panel
+        - Plugin System
+        - Config Store
+        - Cluster / Sync
+        - Build Service
+        - gRPC / REST API
+        - PKI / Certificates
+        - AI / LLM Proxy
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the behavior.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened. Include error messages, logs, or screenshots if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, config store backend, deployment method, etc.
+      placeholder: |
+        OS: Ubuntu 24.04
+        Arch: amd64
+        Store: PostgreSQL 16
+        Deployment: Docker
+    validations:
+      required: false

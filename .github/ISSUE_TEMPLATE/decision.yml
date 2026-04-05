@@ -1,0 +1,52 @@
+name: Decision Proposal
+description: Propose an architectural or project decision for discussion
+labels: ["decision", "discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose a decision that affects architecture, tooling, process, or project direction. Decisions will be discussed in the issue and recorded in `contrib-docs/decisions/decision-log.md` once resolved.
+  - type: input
+    id: title
+    attributes:
+      label: Decision Title
+      description: A short, descriptive name for the decision.
+      placeholder: "Use DuckDB for production trace store"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What is the background? Why does this decision need to be made now?
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options Considered
+      description: List the options with pros and cons for each.
+      value: |
+        **Option A:**
+        - Pros:
+        - Cons:
+
+        **Option B:**
+        - Pros:
+        - Cons:
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation
+      description: Which option do you recommend and why?
+    validations:
+      required: false
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What does this affect? Is it reversible?
+    validations:
+      required: false

@@ -1,0 +1,47 @@
+[changelog]
+header = """
+# Changelog
+
+All notable changes to Rioku are documented in this file.
+This changelog is automatically generated from [Conventional Commits](https://www.conventionalcommits.org/).\n
+"""
+body = """
+{%- macro remote_url() -%}
+  https://github.com/riokulabs/rioku
+{%- endmacro -%}
+
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | upper_first | trim }}\
+  {% if commit.scope %} **({{ commit.scope }})** {% endif %}\
+  ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))\
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^test", group = "Testing" },
+  { message = "^ci", group = "CI/CD" },
+  { message = "^chore", group = "Miscellaneous" },
+]
+filter_commits = false
+tag_pattern = "v[0-9].*"
+sort_commits = "newest"
