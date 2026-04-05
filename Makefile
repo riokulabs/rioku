@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build hooks help
+.PHONY: all build build-daemon build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build hooks setup help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -84,6 +84,10 @@ lint-commit:
 ## lint-spell: Run spell checker
 lint-spell:
 	npx cspell "**/*.{go,md,proto,yaml,yml}" --no-progress
+
+## setup: Set up development environment (installs tools, hooks, dependencies)
+setup:
+	@./scripts/setup.sh
 
 ## hooks: Install git hooks
 hooks:

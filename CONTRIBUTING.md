@@ -25,7 +25,7 @@ Use prefixed branch names:
 
 We use [Conventional Commits](https://www.conventionalcommits.org/). Every commit message must follow this format:
 
-```
+```text
 type(scope): description
 
 [optional body]
@@ -50,10 +50,20 @@ Examples:
 
 ## Development Setup
 
+### Prerequisites
+
+- macOS or Linux
+- [mise](https://mise.jdx.dev) (recommended) or manually install: Go 1.24+, Node.js 22+, buf, golangci-lint, cspell, git-cliff
+
+### Quick Start
+
 ```bash
 # Clone the repo
 git clone https://github.com/riokulabs/rioku.git
 cd rioku
+
+# Set up everything (tools, hooks, dependencies)
+make setup
 
 # Build
 make build-daemon
@@ -64,6 +74,8 @@ make test-race
 # Generate proto code
 make proto
 ```
+
+`make setup` will install tools via mise (or check for them manually), set up git hooks, and download Go dependencies. Run it once after cloning.
 
 ## Code Style
 
