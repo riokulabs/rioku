@@ -712,7 +712,103 @@ Keyed by client IP. Applied before authentication (protects against credential s
 
 ---
 
-## Part 8: Security Headers
+## Part 8: Admin Serving via Caddy
+
+Currently the REST API and admin panel are served by a raw Go `net/http` server on `:7778`, bypassing Caddy entirely. This means no auto-TLS, no HTTP/2, and the `Secure` cookie flag is useless without manual cert configuration.
+
+### Architecture Change
+
+The daemon compiles **two Caddy server blocks** instead of one:
+
+1. **Traffic server** — user-defined routes proxying to upstreams (existing behavior)
+2. **Admin server** — reverse proxies to the internal Go `net/http` gateway, serves admin panel with auto-TLS
+
+The Go `net/http` server becomes internal-only, bound to `127.0.0.1` on a random high port. It is never exposed directly to the network. All external access goes through Caddy.
+
+```
+External traffic:
+
+  Browser → Caddy (:443 or :7778) → localhost:<internal> → Go net/http (API + SPA)
+  Client  → Caddy (:443)          → upstream services (user-defined routes)
+
+Internal only:
+
+  CLI     → Caddy (:443 or :7778) → localhost:<internal> → Go net/http (API)
+  Node    → gRPC (:7777, mTLS)    → Go gRPC server
+```
+
+### Caddy Config Compilation
+
+The config engine currently compiles user-defined routes into a single Caddy server block. This expands to produce two blocks:
+
+```json
+{
+  "apps": {
+    "http": {
+      "servers": {
+        "traffic": {
+          "listen": [":443"],
+          "routes": [
+            /* user-defined routes compiled from config store */
+          ]
+        },
+        "admin": {
+          "listen": [":7778"],
+          "routes": [
+            {
+              "handle": [{
+                "handler": "reverse_proxy",
+                "upstreams": [{"dial": "127.0.0.1:<internal_port>"}]
+              }]
+            }
+          ],
+          "tls_connection_policies": [{}]
+        }
+      }
+    }
+  }
+}
+```
+
+### Configuration
+
+```yaml
+listen:
+  grpc: ":7777"           # gRPC, node-to-node, mTLS (unchanged)
+  rest: ":7778"            # admin API + panel port via Caddy (default)
+  admin_domain: ""         # optional: dedicated domain for admin (e.g. "admin.example.com")
+```
+
+**Default (separate port):** Admin served on `:7778` via Caddy. Traffic on `:443`. Simple, works for local dev and small deployments. Access at `https://rioku-host:7778`.
+
+**With `admin_domain`:** Admin served on `admin.example.com:443` via Caddy (auto-TLS from Let's Encrypt). Traffic on `*.example.com:443` or any other configured domains. Enterprise setup with proper DNS.
+
+### Dev Mode
+
+In `--dev` mode:
+- Caddy serves admin on `:7778` without TLS (HTTP only)
+- No auto-TLS (avoids ACME requests during development)
+- The `Secure` cookie flag is omitted (matches existing dev behavior)
+- Vite dev proxy still works: `localhost:5173` → `localhost:7778`
+
+### Isolation Guarantees
+
+- User-defined routes CANNOT shadow admin routes — they're in separate Caddy server blocks on different listeners
+- A misconfigured user route matching `/*` only affects the traffic server, not the admin server
+- The internal Go `net/http` server is bound to `127.0.0.1` — not accessible from the network even if Caddy is misconfigured
+- The admin server block can have its own rate limiting, access restrictions, and TLS policy independent of user traffic
+
+### Migration Impact
+
+- The `caddy/compiler.go` changes to produce two server blocks instead of one
+- The `gateway/gateway.go` binds to `127.0.0.1:0` (OS-assigned port) instead of `:7778`
+- The daemon passes the internal port to the Caddy compiler so it can build the reverse proxy upstream
+- The Makefile `dev` target continues to work — `--dev` mode adjusts Caddy config accordingly
+- CLI tools and API clients talk to `:7778` as before — they don't know Caddy is in front
+
+---
+
+## Part 9: Security Headers
 
 Middleware applied to all responses.
 
@@ -744,7 +840,7 @@ Middleware applied to all responses.
 
 ---
 
-## Part 9: Route Loaders (Frontend)
+## Part 10: Route Loaders (Frontend)
 
 ### Pattern Change
 
@@ -828,7 +924,7 @@ beforeLoad: async ({ context, location }) => {
 
 ---
 
-## Part 10: Event Subscription Abstraction (SSE)
+## Part 11: Event Subscription Abstraction (SSE)
 
 Client-side subscription interface abstracted for future WebSocket transport:
 
@@ -847,7 +943,7 @@ Wraps `EventSource` today. Transport-agnostic for consumers.
 
 ---
 
-## Part 11: Admin Panel Session Management
+## Part 12: Admin Panel Session Management
 
 ### Endpoints
 
@@ -910,7 +1006,7 @@ Every auth event creates an audit entry:
 
 ---
 
-## Part 12: Additional Security Hardening
+## Part 13: Additional Security Hardening
 
 ### Account Enumeration Prevention
 
@@ -1125,6 +1221,15 @@ User list/detail endpoints return a sanitized view without sensitive fields.
 - [ ] SSE works with cookie auth
 - [ ] Logout redirects to login, clears cookie
 - [ ] Force password change redirects to change-password form
+
+### Admin Serving via Caddy
+- [ ] Admin panel served through Caddy with TLS (not raw net/http)
+- [ ] Go net/http server bound to 127.0.0.1 only (not network-accessible)
+- [ ] User-defined routes cannot shadow admin routes (separate server blocks)
+- [ ] Admin accessible on default port :7778 via Caddy
+- [ ] `admin_domain` config option routes admin to dedicated domain with auto-TLS
+- [ ] Dev mode: admin served over HTTP without TLS on :7778
+- [ ] CLI tools work against :7778 as before (transparent Caddy proxy)
 
 ### Security Hardening
 - [ ] Login with non-existent username → same error + same timing as wrong password
