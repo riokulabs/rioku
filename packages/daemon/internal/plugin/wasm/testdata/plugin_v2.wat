@@ -1,0 +1,33 @@
+(module
+  (import "rioku" "get_request_header" (func $get_request_header (param i32 i32) (result i32 i32)))
+  (import "rioku" "set_request_header" (func $set_request_header (param i32 i32 i32 i32)))
+  (import "rioku" "get_request_path" (func $get_request_path (result i32 i32)))
+  (import "rioku" "get_request_method" (func $get_request_method (result i32 i32)))
+  (import "rioku" "set_response_status" (func $set_response_status (param i32)))
+  (import "rioku" "set_response_header" (func $set_response_header (param i32 i32 i32 i32)))
+  (import "rioku" "set_response_body" (func $set_response_body (param i32 i32)))
+  (import "rioku" "log_info" (func $log_info (param i32 i32)))
+  (import "rioku" "get_plugin_config" (func $get_plugin_config (result i32 i32)))
+
+  (memory (export "memory") 1 16)
+  (global $bump_ptr (mut i32) (i32.const 1024))
+
+  (func (export "malloc") (param $size i32) (result i32)
+    (local $ptr i32)
+    (local.set $ptr (global.get $bump_ptr))
+    (global.set $bump_ptr (i32.add (global.get $bump_ptr) (local.get $size)))
+    (local.get $ptr)
+  )
+
+  (data (i32.const 100) "X-Plugin")
+  (data (i32.const 110) "test-v2")
+  (data (i32.const 120) "plugin v2 invoked")
+
+  (func (export "handle_request") (result i32)
+    (drop (call $get_request_path))
+    (drop)
+    (call $set_response_header (i32.const 100) (i32.const 8) (i32.const 110) (i32.const 7))
+    (call $log_info (i32.const 120) (i32.const 17))
+    (i32.const 0)
+  )
+)
