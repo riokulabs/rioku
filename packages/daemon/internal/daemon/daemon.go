@@ -138,7 +138,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			log.Printf("web: admin panel not available: %v", err)
 		}
 
-		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.engine, d.store, spaFS)
+		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, nil, d.engine, d.store, spaFS)
 		if err != nil {
 			log.Printf("rest: failed to start: %v", err)
 		} else {

@@ -31,6 +31,7 @@ func NewGateway(
 	configSvc riokuv1.ConfigServiceServer,
 	healthSvc riokuv1.HealthServiceServer,
 	a *auth.Auth,
+	sm *auth.SessionManager,
 	engine *config.Engine,
 	st store.Driver,
 	spaFS fs.FS,
@@ -74,7 +75,7 @@ func NewGateway(
 
 	// Apply middleware stack (outermost first).
 	var handler http.Handler = topMux
-	handler = AuthMiddleware(a)(handler)
+	handler = AuthMiddleware(a, sm)(handler)
 	handler = RequestIDMiddleware(handler)
 
 	return &Gateway{
