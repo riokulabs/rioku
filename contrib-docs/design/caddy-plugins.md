@@ -25,6 +25,8 @@ These ship in every Rioku Caddy binary. Selected because they close competitive 
 | `http.handlers.cache` | `caddyserver/cache-handler` | 376 | Apache-2.0 | RFC-7234 HTTP response cache | All competitors have response caching |
 | `http.handlers.grpc_web` | `mholt/caddy-grpc-web` | 32 | Apache-2.0 | gRPC-Web to gRPC translation | APISIX/Kong/Envoy gRPC support |
 | `security` | `greenpau/caddy-security` | 2,119 | Apache-2.0 | OIDC/OAuth2/SAML/MFA auth | Kong/Traefik paywall enterprise auth |
+| `http.handlers.realip` | `kirsch33/realip` | 45 | MIT | Extract real client IP from X-Forwarded-For | Correct client IP for rate limiting, WAF, audit |
+| `http.handlers.proxyprotocol` | `mastercactapus/caddy2-proxyprotocol` | 66 | MIT | PROXY protocol v1/v2 support | Real client IP behind AWS ALB/NLB, GCP LB, HAProxy |
 
 ### caddy-security Configuration
 
@@ -50,8 +52,6 @@ Available via `rku plugin install <name>`. Not in the default build to keep bina
 | `http.handlers.maxmind_geolocation` | `porech/caddy-maxmind-geolocation` | 204 | `rku plugin install geo-maxmind` | Geo-based routing/blocking |
 | `http.handlers.crowdsec` | `hslatman/caddy-crowdsec-bouncer` | 349 | `rku plugin install crowdsec` | CrowdSec threat intelligence |
 | `http.handlers.defender` | `JasonLovesDoggo/caddy-defender` | 512 | `rku plugin install ai-defender` | AI crawler blocking |
-| `http.handlers.realip` | `kirsch33/realip` | 45 | `rku plugin install realip` | Extract real client IP from X-Forwarded-For behind proxies |
-| `http.handlers.proxyprotocol` | `mastercactapus/caddy2-proxyprotocol` | 66 | `rku plugin install proxy-protocol` | PROXY protocol v1/v2 (AWS ALB/NLB, GCP LB, Cloudflare) |
 | `caddy.logging.encoders.transform` | `caddyserver/transform-encoder` | 111 | `rku plugin install transform-encoder` | Custom log formats for SIEM |
 | `pberkel/caddy-storage-redis` | `pberkel/caddy-storage-redis` | 88 | `rku plugin install storage-redis` | Shared TLS cert storage (Valkey/Redis) |
 
