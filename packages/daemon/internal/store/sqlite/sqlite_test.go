@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 1 {
-		t.Fatalf("expected version 1, got %d", v)
+	if v != 2 {
+		t.Fatalf("expected version 2, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -923,4 +923,599 @@ func TestRouteWithDirectUpstream(t *testing.T) {
 	if err := tx1.Commit(); err != nil {
 		t.Fatalf("Commit: %v", err)
 	}
+}
+
+// createTestUser is a helper that creates a user inside a committed transaction
+// and returns the persisted user.
+func createTestUser(t *testing.T, d *driver, username string) *store.User {
+	t.Helper()
+	ctx := context.Background()
+
+	email := username + "@example.com"
+	displayName := "Test " + username
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	u, err := tx1.CreateUser(ctx, &store.User{
+		Username:     username,
+		Email:        &email,
+		DisplayName:  &displayName,
+		PasswordHash: "$argon2id$v=19$hash",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	return u
+}
+
+func TestUserCRUD(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	email := "admin@example.com"
+	displayName := "Admin User"
+	totpSecret := "JBSWY3DPEHPK3PXP"
+
+	tests := []struct {
+		name string
+		fn   func(t *testing.T)
+	}{
+		{
+			name: "create and get by ID",
+			fn: func(t *testing.T) {
+				tx1, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				created, err := tx1.CreateUser(ctx, &store.User{
+					Username:            "Admin",
+					Email:               &email,
+					DisplayName:         &displayName,
+					PasswordHash:        "$argon2id$v=19$hash",
+					Status:              "active",
+					TOTPSecret:          &totpSecret,
+					TOTPEnabled:         true,
+					ForcePasswordChange: true,
+				})
+				if err != nil {
+					t.Fatalf("CreateUser: %v", err)
+				}
+				if created.ID == "" {
+					t.Fatal("expected non-empty user ID")
+				}
+				// Username should be stored lowercase.
+				if created.Username != "admin" {
+					t.Fatalf("expected username 'admin', got %q", created.Username)
+				}
+				if created.Email == nil || *created.Email != email {
+					t.Fatalf("expected email %q, got %v", email, created.Email)
+				}
+				if created.DisplayName == nil || *created.DisplayName != displayName {
+					t.Fatalf("expected display_name %q, got %v", displayName, created.DisplayName)
+				}
+				if created.Status != "active" {
+					t.Fatalf("expected status 'active', got %q", created.Status)
+				}
+				if created.TOTPSecret == nil || *created.TOTPSecret != totpSecret {
+					t.Fatalf("expected totp_secret %q, got %v", totpSecret, created.TOTPSecret)
+				}
+				if !created.TOTPEnabled {
+					t.Fatal("expected totp_enabled=true")
+				}
+				if !created.ForcePasswordChange {
+					t.Fatal("expected force_password_change=true")
+				}
+				if created.CreatedAt.IsZero() {
+					t.Fatal("expected non-zero CreatedAt")
+				}
+				if err := tx1.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				// Get by ID.
+				tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				got, err := tx2.GetUser(ctx, created.ID)
+				if err != nil {
+					t.Fatalf("GetUser: %v", err)
+				}
+				if got.Username != "admin" {
+					t.Fatalf("GetUser: expected username 'admin', got %q", got.Username)
+				}
+				if got.PasswordHash != "$argon2id$v=19$hash" {
+					t.Fatalf("GetUser: unexpected password_hash %q", got.PasswordHash)
+				}
+				tx2.Rollback()
+			},
+		},
+		{
+			name: "get by username case-insensitive",
+			fn: func(t *testing.T) {
+				tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				got, err := tx1.GetUserByUsername(ctx, "ADMIN")
+				if err != nil {
+					t.Fatalf("GetUserByUsername: %v", err)
+				}
+				if got.Username != "admin" {
+					t.Fatalf("expected username 'admin', got %q", got.Username)
+				}
+				tx1.Rollback()
+			},
+		},
+		{
+			name: "update email and display_name",
+			fn: func(t *testing.T) {
+				tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				existing, err := tx1.GetUserByUsername(ctx, "admin")
+				if err != nil {
+					t.Fatalf("GetUserByUsername: %v", err)
+				}
+				tx1.Rollback()
+
+				newEmail := "new@example.com"
+				newDisplay := "Updated Admin"
+				existing.Email = &newEmail
+				existing.DisplayName = &newDisplay
+
+				tx2, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				updated, err := tx2.UpdateUser(ctx, existing)
+				if err != nil {
+					t.Fatalf("UpdateUser: %v", err)
+				}
+				if updated.Email == nil || *updated.Email != newEmail {
+					t.Fatalf("expected email %q, got %v", newEmail, updated.Email)
+				}
+				if updated.DisplayName == nil || *updated.DisplayName != newDisplay {
+					t.Fatalf("expected display_name %q, got %v", newDisplay, updated.DisplayName)
+				}
+				if err := tx2.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+			},
+		},
+		{
+			name: "list users",
+			fn: func(t *testing.T) {
+				// Create a second user.
+				_ = createTestUser(t, d, "beta")
+
+				tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				users, err := tx1.ListUsers(ctx)
+				if err != nil {
+					t.Fatalf("ListUsers: %v", err)
+				}
+				if len(users) != 2 {
+					t.Fatalf("expected 2 users, got %d", len(users))
+				}
+				// Ordered by username: admin, beta.
+				if users[0].Username != "admin" {
+					t.Fatalf("expected first user 'admin', got %q", users[0].Username)
+				}
+				if users[1].Username != "beta" {
+					t.Fatalf("expected second user 'beta', got %q", users[1].Username)
+				}
+				tx1.Rollback()
+			},
+		},
+		{
+			name: "delete user",
+			fn: func(t *testing.T) {
+				tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				existing, err := tx1.GetUserByUsername(ctx, "beta")
+				if err != nil {
+					t.Fatalf("GetUserByUsername: %v", err)
+				}
+				tx1.Rollback()
+
+				tx2, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				if err := tx2.DeleteUser(ctx, existing.ID); err != nil {
+					t.Fatalf("DeleteUser: %v", err)
+				}
+				if err := tx2.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				// Verify deletion.
+				tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				_, err = tx3.GetUser(ctx, existing.ID)
+				if err == nil {
+					t.Fatal("expected error after delete")
+				}
+				tx3.Rollback()
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, tc.fn)
+	}
+}
+
+func TestSessionCRUD(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a user first.
+	user := createTestUser(t, d, "sessuser")
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	ip := "192.168.1.1"
+	ua := "TestAgent/1.0"
+
+	tests := []struct {
+		name string
+		fn   func(t *testing.T)
+	}{
+		{
+			name: "create and get session",
+			fn: func(t *testing.T) {
+				tx1, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				sess, err := tx1.CreateSession(ctx, &store.Session{
+					ID:          "sess-001",
+					UserID:      user.ID,
+					Fingerprint: "fp-abc",
+					CreatedAt:   now,
+					ExpiresAt:   now.Add(7 * 24 * time.Hour),
+					LastActive:  now,
+					IPAddress:   &ip,
+					UserAgent:   &ua,
+				})
+				if err != nil {
+					t.Fatalf("CreateSession: %v", err)
+				}
+				if sess.ID != "sess-001" {
+					t.Fatalf("expected session ID 'sess-001', got %q", sess.ID)
+				}
+				if sess.Fingerprint != "fp-abc" {
+					t.Fatalf("expected fingerprint 'fp-abc', got %q", sess.Fingerprint)
+				}
+				if sess.UserID != user.ID {
+					t.Fatalf("expected user_id %q, got %q", user.ID, sess.UserID)
+				}
+				if sess.IPAddress == nil || *sess.IPAddress != ip {
+					t.Fatalf("expected ip_address %q, got %v", ip, sess.IPAddress)
+				}
+				if sess.UserAgent == nil || *sess.UserAgent != ua {
+					t.Fatalf("expected user_agent %q, got %v", ua, sess.UserAgent)
+				}
+				if err := tx1.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				// Get by ID.
+				tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				got, err := tx2.GetSession(ctx, "sess-001")
+				if err != nil {
+					t.Fatalf("GetSession: %v", err)
+				}
+				if got.Fingerprint != "fp-abc" {
+					t.Fatalf("expected fingerprint 'fp-abc', got %q", got.Fingerprint)
+				}
+				tx2.Rollback()
+			},
+		},
+		{
+			name: "update last active",
+			fn: func(t *testing.T) {
+				newActive := now.Add(2 * time.Hour)
+				tx1, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				if err := tx1.UpdateSessionLastActive(ctx, "sess-001", newActive); err != nil {
+					t.Fatalf("UpdateSessionLastActive: %v", err)
+				}
+				if err := tx1.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				got, err := tx2.GetSession(ctx, "sess-001")
+				if err != nil {
+					t.Fatalf("GetSession: %v", err)
+				}
+				// Compare truncated to milliseconds (our time format).
+				if !got.LastActive.Equal(newActive.Truncate(time.Millisecond)) {
+					t.Fatalf("expected last_active %v, got %v", newActive, got.LastActive)
+				}
+				tx2.Rollback()
+			},
+		},
+		{
+			name: "delete session",
+			fn: func(t *testing.T) {
+				tx1, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				if err := tx1.DeleteSession(ctx, "sess-001"); err != nil {
+					t.Fatalf("DeleteSession: %v", err)
+				}
+				if err := tx1.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				// Verify gone.
+				tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				_, err = tx2.GetSession(ctx, "sess-001")
+				if err == nil {
+					t.Fatal("expected error after delete")
+				}
+				tx2.Rollback()
+			},
+		},
+		{
+			name: "delete sessions by user except",
+			fn: func(t *testing.T) {
+				// Create two sessions.
+				tx1, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				_, err = tx1.CreateSession(ctx, &store.Session{
+					ID: "sess-keep", UserID: user.ID, Fingerprint: "fp-1",
+					CreatedAt: now, ExpiresAt: now.Add(7 * 24 * time.Hour), LastActive: now,
+				})
+				if err != nil {
+					t.Fatalf("CreateSession(keep): %v", err)
+				}
+				_, err = tx1.CreateSession(ctx, &store.Session{
+					ID: "sess-delete", UserID: user.ID, Fingerprint: "fp-2",
+					CreatedAt: now, ExpiresAt: now.Add(7 * 24 * time.Hour), LastActive: now,
+				})
+				if err != nil {
+					t.Fatalf("CreateSession(delete): %v", err)
+				}
+				if err := tx1.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				// Delete all except sess-keep.
+				tx2, err := d.Begin(ctx, store.TxOptions{})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				if err := tx2.DeleteSessionsByUserExcept(ctx, user.ID, "sess-keep"); err != nil {
+					t.Fatalf("DeleteSessionsByUserExcept: %v", err)
+				}
+				if err := tx2.Commit(); err != nil {
+					t.Fatalf("Commit: %v", err)
+				}
+
+				// Verify sess-keep remains, sess-delete is gone.
+				tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+				if err != nil {
+					t.Fatalf("Begin: %v", err)
+				}
+				sessions, err := tx3.ListSessionsByUser(ctx, user.ID)
+				if err != nil {
+					t.Fatalf("ListSessionsByUser: %v", err)
+				}
+				if len(sessions) != 1 {
+					t.Fatalf("expected 1 session, got %d", len(sessions))
+				}
+				if sessions[0].ID != "sess-keep" {
+					t.Fatalf("expected session 'sess-keep', got %q", sessions[0].ID)
+				}
+				tx3.Rollback()
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, tc.fn)
+	}
+}
+
+func TestAccountLocking(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	user := createTestUser(t, d, "lockuser")
+
+	// Increment 4 times without lock.
+	for i := 0; i < 4; i++ {
+		tx1, err := d.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			t.Fatalf("Begin: %v", err)
+		}
+		if err := tx1.IncrementFailedAttempts(ctx, user.ID, nil); err != nil {
+			t.Fatalf("IncrementFailedAttempts[%d]: %v", i, err)
+		}
+		if err := tx1.Commit(); err != nil {
+			t.Fatalf("Commit: %v", err)
+		}
+	}
+
+	// Verify 4 failed attempts, status still active.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	u, err := tx2.GetUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if u.FailedAttempts != 4 {
+		t.Fatalf("expected 4 failed_attempts, got %d", u.FailedAttempts)
+	}
+	if u.Status != "active" {
+		t.Fatalf("expected status 'active', got %q", u.Status)
+	}
+	tx2.Rollback()
+
+	// 5th attempt with lock.
+	lockUntil := time.Now().UTC().Add(15 * time.Minute).Truncate(time.Millisecond)
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx3.IncrementFailedAttempts(ctx, user.ID, &lockUntil); err != nil {
+		t.Fatalf("IncrementFailedAttempts(lock): %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify locked.
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	u, err = tx4.GetUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if u.Status != "locked" {
+		t.Fatalf("expected status 'locked', got %q", u.Status)
+	}
+	if u.LockedUntil == nil {
+		t.Fatal("expected non-nil locked_until")
+	}
+	if u.FailedAttempts != 5 {
+		t.Fatalf("expected 5 failed_attempts, got %d", u.FailedAttempts)
+	}
+	tx4.Rollback()
+
+	// Reset.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.ResetFailedAttempts(ctx, user.ID); err != nil {
+		t.Fatalf("ResetFailedAttempts: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify reset.
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	u, err = tx6.GetUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if u.FailedAttempts != 0 {
+		t.Fatalf("expected 0 failed_attempts, got %d", u.FailedAttempts)
+	}
+	if u.LockedUntil != nil {
+		t.Fatalf("expected nil locked_until, got %v", u.LockedUntil)
+	}
+	if u.Status != "active" {
+		t.Fatalf("expected status 'active', got %q", u.Status)
+	}
+	tx6.Rollback()
+}
+
+func TestDeleteExpiredSessions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	user := createTestUser(t, d, "expuser")
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+
+	// Create an expired session (expires_at in the past).
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, err = tx1.CreateSession(ctx, &store.Session{
+		ID: "sess-expired", UserID: user.ID, Fingerprint: "fp-exp",
+		CreatedAt: now.Add(-48 * time.Hour), ExpiresAt: now.Add(-1 * time.Hour),
+		LastActive: now,
+	})
+	if err != nil {
+		t.Fatalf("CreateSession(expired): %v", err)
+	}
+
+	// Create a valid session.
+	_, err = tx1.CreateSession(ctx, &store.Session{
+		ID: "sess-valid", UserID: user.ID, Fingerprint: "fp-valid",
+		CreatedAt: now, ExpiresAt: now.Add(7 * 24 * time.Hour),
+		LastActive: now,
+	})
+	if err != nil {
+		t.Fatalf("CreateSession(valid): %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Delete expired.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	deleted, err := tx2.DeleteExpiredSessions(ctx)
+	if err != nil {
+		t.Fatalf("DeleteExpiredSessions: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected 1 deleted, got %d", deleted)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify valid session remains.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	sessions, err := tx3.ListSessionsByUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListSessionsByUser: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session remaining, got %d", len(sessions))
+	}
+	if sessions[0].ID != "sess-valid" {
+		t.Fatalf("expected session 'sess-valid', got %q", sessions[0].ID)
+	}
+	tx3.Rollback()
 }
