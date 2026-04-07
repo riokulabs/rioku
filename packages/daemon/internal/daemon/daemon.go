@@ -12,8 +12,10 @@ import (
 
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/config"
+	riokugrpc "github.com/riokulabs/rioku/internal/grpc"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
+	riokusync "github.com/riokulabs/rioku/internal/sync"
 
 	// Register store drivers.
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
@@ -25,6 +27,9 @@ type Daemon struct {
 	cfgPath   string
 	store     store.Driver
 	caddy     *caddy.Manager
+	engine    *config.Engine
+	grpc      *riokugrpc.Server
+	syncAgent *riokusync.Agent
 	pidFile   string
 	startedAt time.Time
 }
@@ -66,7 +71,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 	log.Printf("store: %s driver ready", d.cfg.Store.Driver)
 
-	// 3. Start Caddy child process (optional — warns if binary missing).
+	// 3. Create config engine.
+	compiler := caddy.NewCompiler()
+	d.engine = config.NewEngine(d.store, compiler)
+	log.Println("config: engine ready")
+
+	// 4. Start Caddy child process (optional — warns if binary missing).
 	d.caddy = caddy.NewManager(caddy.ManagerConfig{
 		Binary:    d.cfg.Caddy.Binary,
 		AdminAddr: d.cfg.Caddy.AdminAddr,
@@ -78,23 +88,54 @@ func (d *Daemon) Start(ctx context.Context) error {
 		log.Printf("caddy: child process started (admin: %s)", d.cfg.Caddy.AdminAddr)
 	}
 
-	// 4. Write PID file.
+	// 5. Start sync agent (watches config changes, pushes to Caddy).
+	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy)
+	d.syncAgent.Start(ctx)
+
+	// 6. Start gRPC server.
+	grpcAddr := d.cfg.Listen.GRPC
+	if grpcAddr == "" {
+		grpcAddr = ":7777"
+	}
+	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy)
+	if err != nil {
+		log.Printf("grpc: failed to start: %v", err)
+	} else {
+		d.grpc = grpcSrv
+		go func() {
+			if err := d.grpc.Start(); err != nil {
+				log.Printf("grpc: server error: %v", err)
+			}
+		}()
+	}
+
+	// 7. Write PID file.
 	if err := WritePIDFile(d.pidFile); err != nil {
 		log.Printf("warning: failed to write pid file: %v", err)
 	}
 
 	log.Printf("daemon: ready (pid file: %s)", d.pidFile)
 
-	// 5. Block until context is cancelled (signal handler).
+	// 8. Block until context is cancelled (signal handler).
 	<-ctx.Done()
 
-	// 6. Graceful shutdown.
+	// 9. Graceful shutdown.
 	return d.Stop(context.Background())
 }
 
 // Stop shuts down all subsystems in reverse order.
 func (d *Daemon) Stop(ctx context.Context) error {
 	log.Println("daemon: shutting down...")
+
+	// Stop gRPC server.
+	if d.grpc != nil {
+		d.grpc.Stop()
+	}
+
+	// Stop sync agent.
+	if d.syncAgent != nil {
+		d.syncAgent.Stop()
+	}
 
 	// Stop Caddy.
 	if d.caddy != nil {
