@@ -42,6 +42,7 @@ const (
 	errTypeUnprocess  = "https://rioku.dev/errors/unprocessable"
 	errTypeBadGateway = "https://rioku.dev/errors/bad-gateway"
 	errTypeTimeout    = "https://rioku.dev/errors/gateway-timeout"
+	errTypeLocked     = "https://rioku.dev/errors/account-locked"
 )
 
 // grpcToHTTP maps gRPC status codes to HTTP status + problem type.

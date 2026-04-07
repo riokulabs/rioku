@@ -34,6 +34,7 @@ func NewGateway(
 	sm *auth.SessionManager,
 	engine *config.Engine,
 	st store.Driver,
+	cfg *config.Config,
 	spaFS fs.FS,
 ) (*Gateway, error) {
 	ctx := context.Background()
@@ -55,7 +56,7 @@ func NewGateway(
 	topMux := http.NewServeMux()
 
 	// Auth routes (unauthenticated).
-	RegisterAuthRoutes(topMux, a)
+	RegisterAuthRoutes(topMux, a, sm, st, cfg)
 
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
