@@ -16,10 +16,26 @@ if [ -n "$STAGED_GO" ]; then
     exit 1
   fi
 
-  # Go vet (fast, catches common mistakes)
+  # Go vet — only run on modules that have staged files and can be vetted.
+  # Walks up from each staged file to find its go.mod, then vets that module.
+  # Uses GOWORK=off so modules not yet generated (e.g. proto/gen/go) don't block.
   echo "Running go vet..."
-  cd packages/daemon && go vet ./... 2>&1 || exit 1
-  cd ../..
+  REPO_ROOT=$(git rev-parse --show-toplevel)
+  declare -A VETTED_MODS
+  for f in $STAGED_GO; do
+    dir="$REPO_ROOT/$(dirname "$f")"
+    while [ "$dir" != "$REPO_ROOT" ] && [ "$dir" != "/" ]; do
+      if [ -f "$dir/go.mod" ]; then
+        if [ -z "${VETTED_MODS[$dir]+x}" ]; then
+          VETTED_MODS[$dir]=1
+          echo "  vet: $dir"
+          (cd "$dir" && GOWORK=off go vet ./... 2>&1) || exit 1
+        fi
+        break
+      fi
+      dir=$(dirname "$dir")
+    done
+  done
 fi
 
 # Proto lint
