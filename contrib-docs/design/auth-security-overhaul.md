@@ -157,11 +157,12 @@ When any of these change, ALL sessions for that user are revoked (except the cur
 | `POST /api/v1/auth/token` | POST | None | Token exchange (bootstrap token, API key) — backwards compat |
 | `POST /api/v1/auth/logout` | POST | Any session | Logout, clear session |
 | `GET /api/v1/auth/me` | GET | Any session | Current session + user info + permissions |
+| `PATCH /api/v1/auth/me` | PATCH | Any session | Update own profile (display_name, email) |
 | `POST /api/v1/auth/password` | POST | Any session | Change own password |
 | `GET /api/v1/users` | GET | `users:read` | List all users |
 | `POST /api/v1/users` | POST | `users:create` | Create user |
 | `GET /api/v1/users/{id}` | GET | `users:read` | Get user details |
-| `PUT /api/v1/users/{id}` | PUT | `users:manage` | Update user (status, display name, etc.) |
+| `PATCH /api/v1/users/{id}` | PATCH | `users:manage` | Update user (status, display name, email) |
 | `DELETE /api/v1/users/{id}` | DELETE | `users:delete` | Delete user (cascades: revokes sessions, removes role assignments) |
 | `POST /api/v1/users/{id}/reset-password` | POST | `users:manage` | Force password reset (sets `force_password_change`) |
 | `POST /api/v1/users/{id}/unlock` | POST | `users:manage` | Manually unlock locked account |
@@ -477,7 +478,7 @@ Admins with `roles:manage` permission can:
 | `GET /api/v1/roles` | GET | `roles:read` | List all roles with their permissions |
 | `POST /api/v1/roles` | POST | `roles:manage` | Create custom role |
 | `GET /api/v1/roles/{id}` | GET | `roles:read` | Get role details + permissions |
-| `PUT /api/v1/roles/{id}` | PUT | `roles:manage` | Update custom role (add/remove permissions) |
+| `PATCH /api/v1/roles/{id}` | PATCH | `roles:manage` | Update custom role (name, description, add/remove scopes) |
 | `DELETE /api/v1/roles/{id}` | DELETE | `roles:manage` | Delete custom role (CASCADE removes assignments) |
 | `GET /api/v1/permissions` | GET | `roles:read` | List all available permissions |
 
