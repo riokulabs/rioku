@@ -1,0 +1,41 @@
+{
+  "title": "Dashboard",
+  "subtitle": "System overview and live metrics",
+  "description": "Overview of your API gateway",
+  "stats": {
+    "requestsPerSec": "Requests / sec",
+    "errorRate": "Error rate",
+    "activeNodes": "Active nodes",
+    "aiTokensPerMin": "AI tokens / min",
+    "totalRoutes": "Total Routes",
+    "activeServices": "Active Services",
+    "storeHealth": "Store Health",
+    "version": "Version"
+  },
+  "charts": {
+    "trafficOverview": "Traffic Overview",
+    "responseLatency": "Response Latency",
+    "requestRate": "Request rate",
+    "responseTime": "Response time",
+    "noTrafficData": "Traffic data will appear when the gateway receives requests",
+    "noLatencyData": "Latency data will appear when the gateway receives requests"
+  },
+  "widgets": {
+    "recentChanges": "Recent changes",
+    "caddyStatus": "Caddy status",
+    "clusterNodes": "Cluster nodes"
+  },
+  "recentChanges": {
+    "title": "Recent Changes",
+    "error": "Failed to load recent changes",
+    "empty": "No recent changes"
+  },
+  "systemStatus": {
+    "title": "System Status",
+    "storeHealth": "Store Health",
+    "caddyStatus": "Caddy Status",
+    "version": "Version",
+    "uptime": "Uptime",
+    "error": "Failed to load system status"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "create": "Create",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "reset": "Reset",
+    "export": "Export",
+    "import": "Import",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "enable": "Enable",
+    "disable": "Disable",
+    "copy": "Copy",
+    "download": "Download"
+  },
+  "labels": {
+    "name": "Name",
+    "type": "Type",
+    "status": "Status",
+    "created": "Created",
+    "updated": "Updated",
+    "actions": "Actions",
+    "description": "Description",
+    "id": "ID",
+    "version": "Version"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "healthy": "Healthy",
+    "degraded": "Degraded",
+    "unhealthy": "Unhealthy",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "pending": "Pending",
+    "error": "Error",
+    "unknown": "Unknown"
+  },
+  "pagination": {
+    "showing": "Showing",
+    "of": "of",
+    "page": "Page",
+    "next": "Next",
+    "previous": "Previous",
+    "perPage": "Per page",
+    "first": "First",
+    "last": "Last"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "tokenExpired": "Session expired. Please log in again.",
+    "unauthorized": "You are not authorized to perform this action."
+  },
+  "notifications": {
+    "success": "Success",
+    "error": "Error",
+    "info": "Info",
+    "warning": "Warning"
+  },
+  "empty": {
+    "noData": "No data available",
+    "noResults": "No results found"
+  },
+  "nav": {
+    "overview": "Overview",
+    "dashboard": "Dashboard",
+    "configuration": "Configuration",
+    "routes": "Routes",
+    "services": "Services",
+    "policies": "Policies",
+    "traffic": "Traffic",
+    "live": "Live",
+    "analytics": "Analytics",
+    "aiWorkloads": "AI Workloads",
+    "infrastructure": "Infrastructure",
+    "cluster": "Cluster",
+    "plugins": "Plugins",
+    "security": "Security",
+    "settings": "Settings"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "weeksAgo": "{{count}}w ago"
+  }
+}

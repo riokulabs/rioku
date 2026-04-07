@@ -1,0 +1,32 @@
+{
+  "title": "Routes",
+  "subtitle": "Manage gateway routing rules",
+  "table": {
+    "name": "Name",
+    "matchers": "Matchers",
+    "targetService": "Target service",
+    "status": "Status",
+    "updated": "Updated",
+    "actions": "Actions"
+  },
+  "form": {
+    "createRoute": "Create route",
+    "editRoute": "Edit route",
+    "routeName": "Route name",
+    "matchHost": "Match host",
+    "matchPath": "Match path",
+    "matchMethod": "Match method",
+    "targetService": "Target service",
+    "enabled": "Enabled"
+  },
+  "messages": {
+    "routeCreated": "Route created successfully",
+    "routeUpdated": "Route updated successfully",
+    "routeDeleted": "Route deleted successfully",
+    "confirmDelete": "Are you sure you want to delete this route?"
+  },
+  "empty": {
+    "noRoutes": "No routes configured",
+    "noRoutesDesc": "Create a route to start directing traffic to your services."
+  }
+}
