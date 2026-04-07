@@ -20,7 +20,8 @@ var skipAuthPaths = map[string]bool{
 func AuthMiddleware(a *auth.Auth) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if skipAuthPaths[r.URL.Path] {
+			// Skip auth for non-API paths (admin panel static assets).
+			if !strings.HasPrefix(r.URL.Path, "/api/") || skipAuthPaths[r.URL.Path] {
 				next.ServeHTTP(w, r)
 				return
 			}
