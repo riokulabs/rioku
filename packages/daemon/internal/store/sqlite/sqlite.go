@@ -102,33 +102,62 @@ func (d *driver) Migrate(ctx context.Context, direction store.MigrateDirection) 
 func (d *driver) migrateUp(ctx context.Context) error {
 	// Check if already at target version (idempotent).
 	current, _ := d.CurrentVersion(ctx)
-	if current >= 1 {
-		return nil
+
+	// Migration 1: initial schema.
+	if current < 1 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000001_initial.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 1: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 1: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (1, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 1: %w", err)
+		}
 	}
 
-	data, err := store.MigrationFS.ReadFile("migrations/sqlite/000001_initial.up.sql")
-	if err != nil {
-		return fmt.Errorf("sqlite: read up migration: %w", err)
+	// Migration 2: users and sessions tables.
+	if current < 2 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000002_auth_users_sessions.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 2: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 2: %w", err)
+		}
 	}
-	if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
-		return fmt.Errorf("sqlite: apply up migration: %w", err)
-	}
-	_, err = d.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (1, 0)`)
-	if err != nil {
-		return fmt.Errorf("sqlite: record schema version: %w", err)
-	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
-	data, err := store.MigrationFS.ReadFile("migrations/sqlite/000001_initial.down.sql")
-	if err != nil {
-		return fmt.Errorf("sqlite: read down migration: %w", err)
+	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 2 down: drop users and sessions tables.
+	if current >= 2 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000002_auth_users_sessions.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 2: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 2: %w", err)
+		}
 	}
-	if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
-		return fmt.Errorf("sqlite: apply down migration: %w", err)
+
+	// Migration 1 down: drop initial schema.
+	if current >= 1 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000001_initial.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 1: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 1: %w", err)
+		}
 	}
+
 	return nil
 }
 
