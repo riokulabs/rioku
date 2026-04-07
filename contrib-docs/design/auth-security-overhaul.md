@@ -333,7 +333,7 @@ CREATE INDEX idx_user_roles_role ON user_roles(role_id);
 - `ON DELETE CASCADE` on join tables — deleting a role automatically removes all assignments. Deleting a user removes their role assignments and sessions.
 - Composite primary keys on `role_permissions` and `user_roles` — these are pure relationship tables, no surrogate ID needed.
 - Indexes on FK columns match query patterns: "get all roles for user X" and "get all users with role Y".
-- `is_builtin` prevents accidental deletion of system roles.
+- `is_builtin` marks roles that shipped with Rioku. Only the `superadmin` role is protected (cannot be modified or deleted). Other built-in roles (admin, operator, viewer) can be customized or deleted by users with `roles:manage` permission.
 - `granted_by` tracks who assigned a role for audit trail.
 
 ### Seed Permissions
@@ -469,7 +469,7 @@ This means `admin` gets `config:read` + `config:write` + `config:import` + `conf
 Admins with `roles:manage` permission can:
 - Create custom roles with any subset of permissions
 - Assign custom roles to users (a user can have multiple roles)
-- Built-in roles cannot be modified or deleted (`is_builtin = true` enforced)
+- Only the `superadmin` role is protected — it cannot be modified, deleted, or have its `*` scope removed. Other built-in roles (admin, operator, viewer) can be freely customized or deleted.
 
 **Endpoints:**
 
@@ -1182,7 +1182,8 @@ User list/detail endpoints return a sanitized view without sensitive fields.
 - [ ] Multi-role: user with two roles gets union of permissions
 - [ ] Built-in roles seeded with correct permissions
 - [ ] Custom role: create role with subset of permissions → assign to user → permissions enforced
-- [ ] Built-in roles cannot be modified or deleted
+- [ ] Superadmin role cannot be modified or deleted
+- [ ] Other built-in roles (admin, operator, viewer) can be customized or deleted
 - [ ] Role assignment change → all sessions for user evicted from cache
 - [ ] Role permission change → all sessions for users with that role evicted
 - [ ] Role CRUD endpoints enforce `roles:manage` permission
