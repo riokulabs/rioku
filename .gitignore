@@ -75,3 +75,6 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+
+# Sandbox runtime data
+sandbox/.data/
