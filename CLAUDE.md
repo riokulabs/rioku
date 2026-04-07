@@ -45,9 +45,11 @@ tmp/               -- Working design documents (not committed)
 
 ## Build Commands
 
+**Always use `make` targets for building — never raw `go build`.** The Makefile outputs binaries to `bin/` with proper ldflags. Running `go build` directly drops binaries in the working directory.
+
 ```bash
-make build-daemon     # Build the rioku binary
-make build-service    # Build the build-service binary
+make build-daemon     # Build the rioku binary -> bin/rioku
+make build-service    # Build the build-service binary -> bin/rioku-build-service
 make proto            # Generate Go code from proto definitions
 make proto-lint       # Lint proto definitions
 make test-race        # Run tests with race detector (mandatory before merge)
