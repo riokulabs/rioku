@@ -155,6 +155,35 @@ func (a *Auth) RefreshTokens(ctx context.Context, refreshToken string) (*TokenPa
 	return a.IssueTokenPair(ctx, subject, roles)
 }
 
+// validateAPIKeyOnly validates an API key and returns claims without issuing tokens.
+// Used by ValidateBearer to avoid wasteful DB writes on every request.
+func (a *Auth) validateAPIKeyOnly(ctx context.Context, key string) (*Claims, error) {
+	hash := HashToken(key)
+
+	tx, err := a.store.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	apiKey, err := tx.GetAPIKeyByHash(ctx, hash)
+	if err != nil {
+		return nil, fmt.Errorf("api key not found")
+	}
+	if apiKey.RevokedAt != nil {
+		return nil, fmt.Errorf("api key has been revoked")
+	}
+	if apiKey.ExpiresAt != nil && time.Now().After(*apiKey.ExpiresAt) {
+		return nil, fmt.Errorf("api key has expired")
+	}
+
+	return &Claims{
+		Subject:   "apikey:" + apiKey.ID,
+		Roles:     apiKey.Scopes,
+		TokenType: TokenTypeAccess,
+	}, nil
+}
+
 // ValidateAPIKey validates an API key and issues a token pair.
 func (a *Auth) ValidateAPIKey(ctx context.Context, key string) (*TokenPair, error) {
 	hash := HashToken(key)
@@ -220,10 +249,8 @@ func (a *Auth) ValidateBearer(ctx context.Context, bearer string) (*Claims, erro
 		}
 	}
 
-	// Try as API key.
-	if pair, err := a.ValidateAPIKey(ctx, bearer); err == nil {
-		// Parse the claims from the just-issued access token.
-		claims, _ := a.ValidateAccessToken(pair.AccessToken)
+	// Try as API key (validate only, don't issue tokens).
+	if claims, err := a.validateAPIKeyOnly(ctx, bearer); err == nil {
 		return claims, nil
 	}
 

@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// httpClient is used for all Caddy admin API calls with a sensible timeout.
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
 // ManagerConfig holds settings for the Caddy process manager.
 // Mirrors config.CaddyConfig to avoid import cycles.
 type ManagerConfig struct {
@@ -28,6 +31,7 @@ type Manager struct {
 	cfg     ManagerConfig
 	cmd     *exec.Cmd
 	running bool
+	done    chan struct{} // closed when child process exits
 }
 
 // NewManager creates a new Caddy process manager.
@@ -71,6 +75,7 @@ func (m *Manager) Start(ctx context.Context) error {
 
 	m.cmd = cmd
 	m.running = true
+	m.done = make(chan struct{})
 
 	// Monitor child process in background.
 	go func() {
@@ -81,6 +86,7 @@ func (m *Manager) Start(ctx context.Context) error {
 		if err != nil {
 			log.Printf("caddy: process exited: %v", err)
 		}
+		close(m.done)
 	}()
 
 	// Wait for admin API to be ready.
@@ -105,23 +111,19 @@ func (m *Manager) Stop(ctx context.Context) error {
 		return fmt.Errorf("signal caddy: %w", err)
 	}
 
-	// Wait for exit with timeout.
-	done := make(chan error, 1)
-	go func() {
-		done <- m.cmd.Wait()
-	}()
-
+	// Wait for the monitoring goroutine to signal process exit.
 	select {
-	case <-done:
+	case <-m.done:
 		m.running = false
 		return nil
 	case <-time.After(10 * time.Second):
-		// Force kill.
 		m.cmd.Process.Kill()
+		<-m.done // wait for monitor goroutine to finish
 		m.running = false
 		return fmt.Errorf("caddy: force killed after timeout")
 	case <-ctx.Done():
 		m.cmd.Process.Kill()
+		<-m.done
 		m.running = false
 		return ctx.Err()
 	}
@@ -143,7 +145,7 @@ func (m *Manager) PushConfig(ctx context.Context, configJSON []byte) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("push config: %w", err)
 	}
@@ -163,7 +165,7 @@ func (m *Manager) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -176,7 +178,7 @@ func (m *Manager) waitReady(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		url := fmt.Sprintf("http://%s/config/", m.cfg.AdminAddr)
-		resp, err := http.Get(url)
+		resp, err := httpClient.Get(url)
 		if err == nil {
 			resp.Body.Close()
 			return nil

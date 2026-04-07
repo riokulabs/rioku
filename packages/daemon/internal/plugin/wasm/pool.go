@@ -98,10 +98,16 @@ func (p *InstancePool) Acquire(ctx context.Context) (*instance, error) {
 		return inst, nil
 	}
 
+	// Cap total instances at 4x pool size to prevent OOM under load.
+	maxInstances := p.size * 4
+	if p.inUse >= maxInstances {
+		p.mu.Unlock()
+		return nil, fmt.Errorf("pool exhausted: %d instances in use (max %d)", p.inUse, maxInstances)
+	}
+
 	p.inUse++
 	p.mu.Unlock()
 
-	// Pool exhausted — create a new instance on demand.
 	return p.createInstance(ctx)
 }
 

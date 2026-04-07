@@ -126,7 +126,7 @@ func TestConcurrentRequests(t *testing.T) {
 	defer host.Close(ctx)
 
 	wasmBytes := loadTestPlugin(t, "plugin_v1")
-	plugin, err := host.LoadPlugin(ctx, "concurrent-plugin", wasmBytes, nil, 4)
+	plugin, err := host.LoadPlugin(ctx, "concurrent-plugin", wasmBytes, nil, 32)
 	if err != nil {
 		t.Fatalf("load plugin: %v", err)
 	}

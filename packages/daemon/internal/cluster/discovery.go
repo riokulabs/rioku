@@ -66,7 +66,8 @@ type Discovery struct {
 	// delegate handles memberlist callbacks.
 	delegate *delegate
 
-	stopCh chan struct{}
+	stopCh   chan struct{}
+	stopOnce sync.Once
 }
 
 // New creates a new Discovery instance but does not start it.
@@ -130,8 +131,9 @@ func (d *Discovery) Start() error {
 }
 
 // Stop shuts down the memberlist and cancels pending timers.
+// Safe to call multiple times.
 func (d *Discovery) Stop() error {
-	close(d.stopCh)
+	d.stopOnce.Do(func() { close(d.stopCh) })
 
 	d.mu.Lock()
 	for _, t := range d.failTimers {

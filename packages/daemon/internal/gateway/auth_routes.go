@@ -17,8 +17,11 @@ type tokenExchangeRequest struct {
 	Token string `json:"token"` // bootstrap token or API key
 }
 
+const maxAuthBodySize = 4096 // 4KB is plenty for token exchange
+
 func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		var req tokenExchangeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.Header().Set("Content-Type", "application/problem+json")
@@ -83,6 +86,7 @@ type refreshRequest struct {
 
 func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		var req refreshRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.Header().Set("Content-Type", "application/problem+json")

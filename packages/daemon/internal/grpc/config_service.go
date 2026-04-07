@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
@@ -31,8 +30,10 @@ func (s *configService) GetConfig(ctx context.Context, req *riokuv1.GetConfigReq
 }
 
 func (s *configService) ApplyChange(ctx context.Context, req *riokuv1.ConfigChange) (*riokuv1.ApplyResult, error) {
-	// TODO: extract actor from auth context when auth is implemented
 	actor := "anonymous"
+	if claims := ClaimsFromContext(ctx); claims != nil {
+		actor = claims.Subject
+	}
 
 	result, err := s.engine.ApplyChange(ctx, req, actor)
 	if err != nil {
@@ -134,7 +135,8 @@ func (s *configService) ExportConfig(req *riokuv1.ExportRequest, stream grpc.Ser
 func (s *configService) ImportConfig(stream grpc.ClientStreamingServer[riokuv1.ConfigChunk, riokuv1.ImportResult]) error {
 	ctx := stream.Context()
 
-	// Reassemble chunks.
+	// Reassemble chunks with size limit.
+	const maxImportSize = 128 * 1024 * 1024 // 128MB
 	var data []byte
 	for {
 		chunk, err := stream.Recv()
@@ -142,6 +144,9 @@ func (s *configService) ImportConfig(stream grpc.ClientStreamingServer[riokuv1.C
 			return status.Errorf(codes.Internal, "receive chunk: %v", err)
 		}
 		data = append(data, chunk.GetData()...)
+		if len(data) > maxImportSize {
+			return status.Errorf(codes.InvalidArgument, "import data exceeds maximum size of %d bytes", maxImportSize)
+		}
 		if chunk.GetLast() {
 			break
 		}
@@ -166,6 +171,3 @@ func (s *configService) ImportConfig(stream grpc.ClientStreamingServer[riokuv1.C
 
 // Verify interface compliance at compile time.
 var _ riokuv1.ConfigServiceServer = (*configService)(nil)
-
-// Suppress unused import warning.
-var _ = fmt.Sprintf

@@ -373,6 +373,9 @@ func readEntity[T any](d *Driver, bucket, id string) (*T, error) {
 	var result T
 	err := d.readFSM(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return fmt.Errorf("bucket %q not found", bucket)
+		}
 		raw := b.Get([]byte(id))
 		if raw == nil {
 			return fmt.Errorf("%s %q not found", bucket, id)
@@ -390,6 +393,9 @@ func listEntities[T any](d *Driver, bucket string) ([]*T, error) {
 	var results []*T
 	err := d.readFSM(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return nil // bucket doesn't exist yet, return empty
+		}
 		return b.ForEach(func(k, v []byte) error {
 			var item T
 			if err := json.Unmarshal(v, &item); err != nil {

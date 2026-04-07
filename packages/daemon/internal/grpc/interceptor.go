@@ -92,7 +92,8 @@ func extractAndValidate(ctx context.Context, a *auth.Auth) (*auth.Claims, error)
 
 	claims, err := a.ValidateBearer(ctx, token)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+		// Never leak internal auth error details to the client.
+		return nil, status.Error(codes.Unauthenticated, "invalid or expired token")
 	}
 
 	return claims, nil

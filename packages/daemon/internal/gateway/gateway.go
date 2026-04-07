@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/riokulabs/rioku/internal/auth"
@@ -63,8 +64,11 @@ func NewGateway(
 
 	return &Gateway{
 		httpServer: &http.Server{
-			Addr:    addr,
-			Handler: handler,
+			Addr:         addr,
+			Handler:      handler,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 60 * time.Second, // longer for SSE streams
+			IdleTimeout:  120 * time.Second,
 		},
 		addr: addr,
 	}, nil

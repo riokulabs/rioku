@@ -10,9 +10,9 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
+	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	"github.com/spf13/cobra"
 
-	_ "github.com/riokulabs/rioku/internal/store/raft"
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
 
@@ -212,6 +212,31 @@ func openStoreForCLI() (store.Driver, func(), error) {
 	drv, err := store.New(cfg.Store.Driver)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create store: %w", err)
+	}
+
+	// Configure raft-specific settings.
+	if cfg.Store.Driver == "raft" {
+		if rd, ok := drv.(*raftstore.Driver); ok {
+			nodeID := cfg.Store.Raft.NodeID
+			if nodeID == "" {
+				nodeID = "node-0"
+			}
+			bindAddr := cfg.Store.Raft.BindAddr
+			if bindAddr == "" {
+				bindAddr = "127.0.0.1:7779"
+			}
+			dataDir := cfg.Store.Raft.DataDir
+			if dataDir == "" {
+				dataDir = cfg.DataDir + "/raft"
+			}
+			rd.SetRaftConfig(raftstore.RaftConfig{
+				NodeID:        nodeID,
+				DataDir:       dataDir,
+				BindAddr:      bindAddr,
+				AdvertiseAddr: bindAddr,
+				Bootstrap:     cfg.Store.Raft.Bootstrap,
+			})
+		}
 	}
 
 	ctx := context.Background()

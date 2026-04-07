@@ -11,7 +11,6 @@ import (
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/riokulabs/rioku/internal/store"
@@ -694,6 +693,3 @@ func getString(m map[string]interface{}, key string) string {
 	}
 	return ""
 }
-
-// Ensure unused imports are satisfied.
-var _ = structpb.Struct{}

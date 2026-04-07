@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/version"
 )
@@ -30,7 +31,8 @@ func DownloadBinary(destDir string, progress func(downloaded, total int64)) (str
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("Rioku/%s (github.com/riokulabs/rioku)", version.Version))
 
-	resp, err := http.DefaultClient.Do(req)
+	downloadClient := &http.Client{Timeout: 5 * time.Minute} // Caddy binary is ~50MB
+	resp, err := downloadClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("download caddy: %w", err)
 	}
