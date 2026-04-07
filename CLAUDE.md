@@ -75,6 +75,23 @@ make dev              # Build + run daemon in dev mode
 - **Migrations**: Per-dialect directories (sqlite/, postgres/, mysql/). Version numbers kept in sync across all three.
 - **Commit format**: Conventional Commits
 
+## Development Validation — Sandbox Required
+
+**All feature development MUST be validated through the sandbox.** The sandbox (`make sandbox`) provides a running Rioku instance with 5 upstream apps, seeded config, and test users. It is the standard environment for:
+
+- Manual testing during development
+- Automated smoke tests (`make sandbox-test-smoke`)
+- E2E browser tests (Playwright)
+- Load/performance testing
+
+**Development workflow:**
+1. `make sandbox` — start full environment
+2. Write code → `make sandbox-restart-daemon` — rebuild + restart daemon (~5s, upstream apps stay running)
+3. Validate against `localhost:7778` (curl, browser, smoke scripts)
+4. `make sandbox-stop` when done
+
+**If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
+
 ## Ports (configurable)
 
 - gRPC: `:7777` (internal only, mTLS required)
