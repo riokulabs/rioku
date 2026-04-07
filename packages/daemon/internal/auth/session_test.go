@@ -477,6 +477,76 @@ func TestHasPermission(t *testing.T) {
 	}
 }
 
+func TestCleanupWorker(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "cleanup_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+
+	// Create a valid session via the normal flow.
+	validSess, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession (valid): %v", err)
+	}
+
+	// Create an expired session: delete and recreate with expires_at in the past.
+	tempSess, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession (temp): %v", err)
+	}
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx.DeleteSession(ctx, tempSess.ID); err != nil {
+		tx.Rollback()
+		t.Fatalf("DeleteSession: %v", err)
+	}
+	expiredSess := &store.Session{
+		ID:          tempSess.ID,
+		UserID:      user.ID,
+		Fingerprint: tempSess.Fingerprint,
+		ExpiresAt:   time.Now().Add(-1 * time.Second).UTC(),
+		LastActive:  time.Now().Add(-1 * time.Second).UTC(),
+		IPAddress:   tempSess.IPAddress,
+		UserAgent:   tempSess.UserAgent,
+	}
+	if _, err := tx.CreateSession(ctx, expiredSess); err != nil {
+		tx.Rollback()
+		t.Fatalf("CreateSession (expired): %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Call CleanupExpired directly — should remove exactly 1 expired session.
+	n, err := sm.CleanupExpired(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpired: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("CleanupExpired deleted %d rows, want 1", n)
+	}
+
+	// Verify the valid session is still present.
+	txRead, err := drv.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin (read): %v", err)
+	}
+	got, err := txRead.GetSession(ctx, validSess.ID)
+	if err != nil {
+		txRead.Rollback()
+		t.Fatalf("GetSession (valid): %v", err)
+	}
+	txRead.Rollback()
+
+	if got.ID != validSess.ID {
+		t.Errorf("valid session ID = %q, want %q", got.ID, validSess.ID)
+	}
+}
+
 func TestComputeFingerprint(t *testing.T) {
 	fp1 := auth.ComputeFingerprint("Mozilla/5.0", "en-US")
 	fp2 := auth.ComputeFingerprint("Mozilla/5.0", "en-US")

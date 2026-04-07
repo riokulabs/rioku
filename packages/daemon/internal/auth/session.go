@@ -402,3 +402,25 @@ func (sm *SessionManager) CleanupExpired(ctx context.Context) (int64, error) {
 
 	return n, nil
 }
+
+// StartCleanupWorker starts a background goroutine that calls CleanupExpired every hour.
+// Cancel the context to stop it.
+func (sm *SessionManager) StartCleanupWorker(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				n, err := sm.CleanupExpired(ctx)
+				if err != nil {
+					// log, don't panic — cleanup failure is non-fatal
+					_ = err
+				}
+				_ = n
+			}
+		}
+	}()
+}
