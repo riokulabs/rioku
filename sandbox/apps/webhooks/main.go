@@ -108,6 +108,13 @@ func (r *Registry) get(channel string) *ChannelQueue {
 	return q
 }
 
+// lookup returns the queue for a channel if it already exists, or nil.
+func (r *Registry) lookup(channel string) *ChannelQueue {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.queues[channel]
+}
+
 // drain removes and returns all pending events from the channel queue.
 func (r *Registry) drain(channel string) []WebhookEvent {
 	r.mu.Lock()
@@ -383,7 +390,7 @@ func (s *Server) handleDrain(w http.ResponseWriter, r *http.Request) {
 	events := s.registry.drain(channel)
 	count := len(events)
 	s.metrics.processed.Add(int64(count))
-	if q, ok := s.registry.queues[channel]; ok {
+	if q := s.registry.lookup(channel); q != nil {
 		q.processed.Add(int64(count))
 	}
 
