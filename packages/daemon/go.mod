@@ -26,6 +26,7 @@ require (
 	github.com/hashicorp/memberlist v0.5.4 // indirect
 	github.com/hashicorp/raft v1.7.3 // indirect
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/maypok86/otter v1.2.4 // indirect
@@ -34,6 +35,8 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/segmentio/fasthash v1.0.3 // indirect
+	github.com/spf13/cobra v1.10.2 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
 	go.etcd.io/bbolt v1.4.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

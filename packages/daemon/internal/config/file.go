@@ -48,6 +48,15 @@ type StoreConfig struct {
 	SQLite   SQLiteConfig   `yaml:"sqlite"`
 	Postgres PostgresConfig `yaml:"postgres"`
 	MySQL    MySQLConfig    `yaml:"mysql"`
+	Raft     RaftConfig     `yaml:"raft"`
+}
+
+// RaftConfig holds settings for the embedded raft store driver.
+type RaftConfig struct {
+	NodeID    string `yaml:"node_id"`
+	DataDir   string `yaml:"data_dir"`
+	BindAddr  string `yaml:"bind_addr"`
+	Bootstrap bool   `yaml:"bootstrap"`
 }
 
 // SQLiteConfig holds settings for the SQLite store driver.
@@ -216,9 +225,14 @@ func Default() *Config {
 
 	return &Config{
 		Store: StoreConfig{
-			Driver: "sqlite",
+			Driver: "raft",
 			SQLite: SQLiteConfig{
 				Path: DefaultDataDir + "/rioku.db",
+			},
+			Raft: RaftConfig{
+				NodeID:    "node-0",
+				BindAddr:  "127.0.0.1:7779",
+				Bootstrap: true,
 			},
 			Postgres: PostgresConfig{
 				MaxOpenConns:    &maxOpenConns,
@@ -346,6 +360,17 @@ func applyDefaults(cfg *Config) {
 	if cfg.Store.Driver == "sqlite" && cfg.Store.SQLite.Path == "" {
 		cfg.Store.SQLite.Path = cfg.DataDir + "/rioku.db"
 	}
+	if cfg.Store.Driver == "raft" {
+		if cfg.Store.Raft.DataDir == "" {
+			cfg.Store.Raft.DataDir = cfg.DataDir + "/raft"
+		}
+		if cfg.Store.Raft.NodeID == "" {
+			cfg.Store.Raft.NodeID = "node-0"
+		}
+		if cfg.Store.Raft.BindAddr == "" {
+			cfg.Store.Raft.BindAddr = "127.0.0.1:7779"
+		}
+	}
 	if cfg.Caddy.DataDir == "" {
 		cfg.Caddy.DataDir = cfg.DataDir + "/caddy"
 	}
@@ -372,7 +397,7 @@ func applyDefaults(cfg *Config) {
 		cfg.LogLevel = "info"
 	}
 	if cfg.Store.Driver == "" {
-		cfg.Store.Driver = "sqlite"
+		cfg.Store.Driver = "raft"
 	}
 	if cfg.Traces.Store == "" {
 		cfg.Traces.Store = "sqlite"
@@ -409,6 +434,7 @@ func applyDefaults(cfg *Config) {
 
 // validStoreDrivers is the set of allowed store.driver values.
 var validStoreDrivers = map[string]bool{
+	"raft":     true,
 	"sqlite":   true,
 	"postgres": true,
 	"mysql":    true,
@@ -455,7 +481,7 @@ func validate(cfg *Config) error {
 	if cfg.Store.Driver == "" {
 		errs = append(errs, errors.New("store.driver is required"))
 	} else if !validStoreDrivers[cfg.Store.Driver] {
-		errs = append(errs, fmt.Errorf("store.driver %q is not valid; must be one of: sqlite, postgres, mysql", cfg.Store.Driver))
+		errs = append(errs, fmt.Errorf("store.driver %q is not valid; must be one of: raft, sqlite, postgres, mysql", cfg.Store.Driver))
 	}
 
 	// Driver-specific validation.
