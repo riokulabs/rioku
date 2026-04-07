@@ -72,3 +72,6 @@ Thumbs.db
 # DuckDB
 *.duckdb
 *.duckdb.wal
+
+# Worktrees
+.worktrees/
