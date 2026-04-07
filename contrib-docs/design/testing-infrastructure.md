@@ -1,0 +1,831 @@
+# Design: Testing Infrastructure — Full Coverage + Performance
+
+## Context
+
+Rioku has 8 Go test files (~3,850 lines) covering CRDT, cache, config engine, Caddy compiler, SQLite store, Raft, cluster discovery, and WASM plugins. The web panel has zero test infrastructure — no test framework, no test files, no test scripts. CI only runs Go tests.
+
+The sandbox environment (5 upstream apps, orchestration scripts) was built in the previous phase and provides a running Rioku instance with real routed traffic for integration and e2e testing.
+
+The auth security overhaul (see `contrib-docs/design/auth-security-overhaul.md`) is changing the auth flow to cookie-based sessions, route loaders, and security headers. All tests must exercise the new auth model.
+
+## Goals
+
+- 100% test coverage target across Go and frontend code
+- Performance regression detection on every PR
+- Four-layer Go testing: unit, integration, sandbox, benchmarks
+- Frontend testing: Vitest (unit/component) + Playwright (e2e)
+- CI enforcement of all test layers
+- Direct vs proxied latency comparison for Rioku overhead measurement
+
+---
+
+## Part 1: Go Unit Tests
+
+Standard library `testing.T`, table-driven, race detector mandatory. Every `internal/` package gets `*_test.go` coverage.
+
+### Coverage Gaps to Fill
+
+| Package | Status | Test Focus |
+|---|---|---|
+| `auth/` | NEW | Session CRUD (create, validate, revoke, cleanup), cookie generation, fingerprint computation + validation, JWT signing + verification, key rotation (validate with previous key), bootstrap token exchange, API key validation, `ValidateBearer` fallback chain (cookie → header → API key), sliding expiry update, absolute expiry enforcement, concurrent session limits |
+| `build/` | NEW | Build client request/response, error handling |
+| `cache/` | EXPAND | TTL expiry, eviction under memory pressure, concurrent get/set, LRU ordering, session cache specifically: evict on revocation, TTL-based re-validation, capacity limits |
+| `caddy/` | EXPAND | Config compilation edge cases, invalid route configs, disabled routes excluded, all matcher types (host, path prefix/exact/regexp, method, header, inverted header), all LB policies, health check generation, empty config |
+| `cli/` | NEW | Command parsing, flag validation, output formatting (table/json/yaml), exit codes, profile loading |
+| `cluster/crdt/` | EXPAND | Conflict resolution with concurrent updates, network partition simulation, merge idempotency |
+| `cluster/` | EXPAND | Join/leave membership, split-brain detection, quorum loss behavior |
+| `config/` | EXPAND | Concurrent mutations (parallel ApplyChange), optimistic locking (version conflict), validation for all entity types (route/service/policy), import/export round-trip, audit log query filters (actor, entity type, entity ID, time range), config change watcher (WatchChanges channel behavior), Caddy config compilation trigger |
+| `daemon/` | NEW | Lifecycle: start with all subsystems, graceful shutdown order, signal handling, PID file management, dev mode flags, data dir derivation |
+| `gateway/` | NEW | Auth middleware: cookie extraction, Bearer header fallback, skip paths, fingerprint validation, session claims injection. Security headers middleware: correct headers on admin vs API responses. SPA handler: serves static files, falls back to index.html, excludes /api/ paths. Request ID middleware. Error handler (RFC 7807 format). |
+| `grpc/` | NEW | Server setup, interceptors, TLS handshake, reflection enabled |
+| `keyring/` | NEW | Secret storage, rotation, encryption/decryption |
+| `mcp/` | NEW | MCP protocol handling |
+| `pki/` | NEW | CA operations, cert generation, validation, rotation scheduling, expiry detection |
+| `plugin/wasm/` | EXPAND | Malicious WASM rejection, resource limits enforcement, execution timeout |
+| `store/sqlite/` | EXPAND | Concurrent writes under race detector, WAL mode verification, large datasets (10K routes), session CRUD (new table), session cleanup query |
+| `store/postgres/` | NEW | Full CRUD (routes, services, policies, keys, sessions, audit), migrations up/down, connection pooling, concurrent access |
+| `store/mysql/` | NEW | Full CRUD, migrations, Galera compatibility mode |
+| `store/raft/` | EXPAND | Leader election, log compaction, snapshot save/restore |
+| `sync/` | NEW | Config change detection, Caddy push, retry on Caddy unavailable |
+| `tracestore/` | NEW | Trace recording, querying, retention enforcement, cleanup |
+| `version/` | NEW | Version string formatting with ldflags values |
+
+### Auth-Specific Test Requirements
+
+The auth package tests are critical and must be thorough:
+
+**Session tests:**
+- Create session → validate → returns claims
+- Create session → wait past sliding expiry → validate → rejected
+- Create session → wait past absolute expiry → validate → rejected
+- Create session → revoke → validate → rejected
+- Create session → validate with wrong fingerprint → rejected + audit entry
+- Create session on node A → revoke on node B → validate on node A → rejected (cluster invalidation)
+- Concurrent session creation for same subject → all valid
+- Cleanup goroutine removes expired sessions
+
+**Cookie tests:**
+- Generate cookie → attributes correct (HttpOnly, Secure, SameSite, Path, Max-Age)
+- Dev mode → Secure flag omitted
+- Clear cookie → Max-Age=0
+
+**Fingerprint tests:**
+- Same UA + Accept-Language → same hash
+- Different UA → different hash
+- Empty headers → deterministic hash (doesn't panic)
+
+**Migration tests:**
+- Sessions table created correctly in all 3 dialects
+- Indexes exist
+
+### Coverage Enforcement
+
+- All test runs include `-coverprofile=coverage.out`
+- `make test-coverage` generates HTML report via `go tool cover`
+- CI fails if total coverage drops below baseline
+- Baseline ratchets up as tests are added (stored in `packages/daemon/bench/coverage-baseline.txt`)
+
+---
+
+## Part 2: Go Integration Tests
+
+Build tag: `-tags integration`. These tests start a real daemon in-process and exercise the full stack.
+
+### REST API Integration
+
+Start daemon with test config (SQLite in `t.TempDir()`, random ports), exercise all endpoints:
+
+**Auth flow (cookie-based):**
+- `POST /api/v1/auth/token` with bootstrap token → receives `Set-Cookie` header
+- Subsequent requests with cookie → authenticated
+- `GET /api/v1/auth/me` → returns session info
+- `POST /api/v1/auth/logout` → cookie cleared, session deleted
+- Request after logout → 401
+- Request with expired session → 401
+- Request with wrong fingerprint (different User-Agent) → 401
+- `POST /api/v1/auth/token` with API key → receives cookie
+- `Authorization: Bearer` header with API key → still works (backwards compat)
+- `Authorization: Bearer` header with JWT → still works (backwards compat)
+
+**Session management:**
+- `GET /api/v1/auth/sessions` (admin) → lists active sessions
+- `DELETE /api/v1/auth/sessions/{id}` (admin) → revokes session, affected user gets 401
+- `DELETE /api/v1/auth/sessions?subject=X` (admin) → all sessions for user revoked
+- Non-admin trying session management → 403
+
+**Config CRUD round-trips:**
+- Create service → GET config → service present with correct fields
+- Create route referencing service → GET config → route present
+- Update route (change matchers, target) → GET → changes reflected
+- Delete route → GET → route absent
+- Create policy → attach to route → GET → policy attached
+- Detach policy → GET → policy detached
+- Delete policy → GET → policy absent
+- Enable/disable route → GET → enabled field toggled
+- Version increments on each mutation
+
+**Service CRUD:**
+- Create service with multiple upstreams → verify all stored
+- Update LB policy → verify change
+- Add/remove upstream → verify change
+- Delete service referenced by route → should error or cascade (verify which)
+
+**Policy CRUD:**
+- Create policy with JSON config → verify config stored correctly
+- Update policy config → verify change
+- Delete policy attached to routes → verify detachment or error
+
+**API Key lifecycle:**
+- `POST /api/v1/keys` → key returned once
+- Use key for auth (Bearer header) → works
+- `DELETE /api/v1/keys/{id}` → key revoked
+- Use revoked key → 401
+
+**Audit log:**
+- Perform mutations → `GET /api/v1/audit` → entries exist with correct actor, entity_type, entity_id, operation
+- Filter by actor → only that actor's entries
+- Filter by entity_type → only that type
+- Filter by time range → entries within range
+- Session events appear (login, logout, revoke)
+
+**SSE streaming:**
+- Connect to `GET /api/v1/events/config` with cookie → stream opens
+- Make config change → event received within 2 seconds
+- Multiple subscribers → all receive event
+- Disconnect and reconnect → stream resumes
+
+**Error handling:**
+- Malformed JSON body → 400 with RFC 7807 error
+- Missing required fields → 422 with details
+- Non-existent entity → 404
+- Unauthenticated → 401 with `WWW-Authenticate: Bearer`
+- Unauthorized (wrong role) → 403
+
+**Security headers:**
+- `GET /` (admin panel) → CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy present
+- `GET /api/v1/health` → X-Content-Type-Options, X-Frame-Options present, no CSP
+
+**Concurrent mutations:**
+- 10 parallel config writes → all succeed or get version conflicts → no lost updates
+- Read during write → consistent snapshot (no partial state)
+
+### Store Integration (per-dialect)
+
+Same test suite runs against all 3 backends via the `store.Driver` interface:
+
+- Full CRUD for all entity types: routes, services, policies, keys, sessions, audit entries
+- Migration up/down for all versions
+- Concurrent read/write under race detector
+- Large dataset behavior: 10K routes, 1K services
+- Transaction isolation: read during write returns consistent data
+- Connection pool exhaustion and recovery
+- Session-specific: create, validate, revoke, cleanup, list by subject
+- Notify channel: fires on insert/update/delete
+
+**CI matrix:**
+- SQLite: always runs (no external deps, uses `t.TempDir()`)
+- Postgres 17: `docker-compose.ci.yml` service
+- MariaDB 11: `docker-compose.ci.yml` service
+
+**Cross-store consistency:** Write entity to store A → read from store A → verify identical. Run the exact same test functions against all 3 backends to ensure behavioral parity.
+
+### Sandbox Integration Tests (`-tags sandbox`)
+
+Tests that exercise the full stack with real upstream apps. Require sandbox running.
+
+**Routing verification:**
+- Request to each of 5 routes through Rioku → correct upstream receives it
+- Path matching: exact, prefix, wildcard
+- Host matching: different hosts → different services
+- Method matching: GET vs POST to same path
+- Headers/body passthrough: request headers + body arrive at upstream intact
+- Response passthrough: upstream status code, headers, body arrive at client intact
+- Load balancing: round-robin distributes across upstreams (verify with request counting)
+
+**Policy enforcement:**
+- Rate limit: send N+1 requests → verify 429 on excess
+- Auth policy: no token → 401, valid token → proxied, expired token → 401
+- CORS: OPTIONS preflight → correct headers, POST from allowed origin → passes
+
+**Config propagation:**
+- Add new route via API → requests immediately route correctly
+- Disable route → 404
+- Change upstream → traffic shifts to new target
+- Measure propagation delay: config change timestamp → first successful request through new route
+
+**Resilience:**
+- Kill upstream app → Rioku returns 502/503
+- Restart upstream → traffic resumes within seconds
+- Slow upstream (media with bandwidth limit) → verify Rioku's timeout/proxy behavior
+
+---
+
+## Part 3: Frontend Vitest Tests
+
+### Setup
+
+**New dependencies:**
+```
+vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
+```
+
+**`vitest.config.ts`:**
+- Environment: `jsdom`
+- Path aliases matching `vite.config.ts` (`@/` → `src/`)
+- Setup file for `@testing-library/jest-dom` matchers
+- Coverage provider: `v8`
+- Coverage thresholds: enforced per-directory
+
+**New `package.json` scripts:**
+```json
+"test": "vitest run",
+"test:watch": "vitest",
+"test:coverage": "vitest run --coverage"
+```
+
+### Library Tests (`src/lib/__tests__/`)
+
+| File | Tests |
+|---|---|
+| `api.test.ts` | `fetch` mocked globally. GET/POST/PUT/DEL construct correct URLs and options. `credentials: 'include'` on every request. RFC 7807 error parsing (non-OK response throws with parsed body). Network error handling. Base URL handling. Query parameter serialization. |
+| `preferences.test.ts` | Get returns defaults when localStorage empty. Set persists and get retrieves. Reset clears to defaults. Invalid stored JSON handled gracefully (returns defaults). Type safety: setting wrong type fails at compile time (verify via test structure). |
+| `plugin-registry.test.ts` | Register plugin → getNavItems returns its items. Register multiple → items aggregated. getRoutes returns lazy components. getDashboardWidgets returns sized widgets. getInjections returns zone-filtered items sorted by priority. Duplicate plugin ID → overwrites. getConfigPanel by ID. |
+| `plugin-loader.test.ts` | Mock dynamic import → plugin registered. Manifest fetch → all plugins loaded. Failed import → error logged, other plugins unaffected. Invalid plugin (missing id) → rejected. |
+| `i18n.test.ts` | Initialization succeeds. Default namespace is 'common'. Missing key returns key string. Interpolation works (`t('key', { count: 5 })`). Namespace switching works. |
+| `utils.test.ts` | `cn()` merges classes correctly. Conflicting Tailwind classes: later wins. Empty inputs handled. |
+
+**Note on `auth.ts`:** This file is deleted in the auth overhaul. No tests needed. The new auth is cookie-based with no client-side token management.
+
+### Hook Tests (`src/hooks/__tests__/`)
+
+| File | Tests |
+|---|---|
+| `use-auth.test.ts` | Auth context provides session data after successful `/auth/me` fetch. Unauthenticated state when `/auth/me` returns 401. Login calls POST to `/auth/token` with `credentials: 'include'`, updates session state on success. Logout calls POST to `/auth/logout`, clears session state. Context throws when used outside provider. |
+| `use-theme.test.ts` | Default theme from preferences. Toggle cycles dark → light → system. `resolvedTheme` resolves 'system' based on `matchMedia`. Theme persists to preferences. `dark` class toggled on `document.documentElement`. |
+| `use-hotkeys.test.ts` | Register hotkey → fires callback on keydown. Platform detection: Mac → Meta, others → Control. Cleanup on unmount removes listener. Ignores events when focus in input/textarea. Multiple hotkeys registered independently. Registry returns all registered shortcuts. |
+| `use-events.test.ts` | (Replaces `use-sse.test.ts`) Creates EventSource with correct URL. `credentials: 'include'` behavior (EventSource sends cookies by default on same-origin). Parses incoming events, updates data state. Reconnects with exponential backoff on disconnect. Cleans up EventSource on unmount. `enabled: false` doesn't connect. |
+| `use-mobile.test.ts` | Returns true below breakpoint. Returns false above breakpoint. Updates on matchMedia change. |
+
+### Component Tests (`src/components/rioku/__tests__/`)
+
+| File | Tests |
+|---|---|
+| `stat-card.test.tsx` | Renders title, value, icon. Trend up shows green arrow + value. Trend down shows red arrow + value. No trend → no trend element. className passthrough to container. |
+| `data-table.test.tsx` | Renders column headers from config. Renders rows from data. Custom render function called with row data. Search input filters rows (case-insensitive across all columns). Pagination: shows correct page, next/prev work, page size selector. Sort: click header toggles asc/desc. Empty data → empty state rendered. Actions slot rendered in header. |
+| `page-header.test.tsx` | Renders title text. Renders description when provided. Renders actions slot. Missing description → no description element. |
+| `empty-state.test.tsx` | Renders icon, title, description, action. Missing optional props → no crash, elements absent. |
+| `status-badge.test.tsx` | Healthy → green dot + "Healthy". Degraded → yellow. Unhealthy → red. Unknown → gray. Custom label overrides default text. |
+| `code-block.test.tsx` | String input rendered as-is. Object input auto-stringified with formatting. Copy button click copies to clipboard (mock `navigator.clipboard`). Max height applied when provided. |
+| `sparkline.test.tsx` | SVG rendered with correct width/height. Polyline points computed from data. Empty data → renders without error. Color prop applied to stroke. |
+| `confirm-dialog.test.tsx` | Opens when `open=true`. Confirm button calls `onConfirm`. Cancel button calls `onOpenChange(false)`. Destructive variant: confirm button has red styling. Loading state: confirm button disabled with spinner. |
+| `time-ago.test.tsx` | Renders relative time string. Hover tooltip shows absolute date. Handles string and Date inputs. |
+
+### Plugin Component Tests (`src/components/plugin/__tests__/`)
+
+| File | Tests |
+|---|---|
+| `slot.test.tsx` | No injections → renders nothing (null). One injection → renders component. Multiple injections → sorted by priority (lower first). Context prop passed to injected components. |
+| `plugin-page.test.tsx` | Renders children normally. Child throws → error boundary catches, shows error UI with plugin ID. |
+
+### Layout Component Tests (`src/components/layout/__tests__/`)
+
+| File | Tests |
+|---|---|
+| `app-sidebar.test.tsx` | All nav sections render with correct links. Active route highlighted. Settings link in footer. Collapse behavior toggled. Logout button present and calls logout. |
+| `header.test.tsx` | Breadcrumb derives from current route path. Theme toggle switches dark/light. Search button shows correct modifier key label. |
+| `command-palette.test.tsx` | Opens on trigger. Items filtered by search text. Select item navigates. Groups items by section. Closes on escape. |
+| `keyboard-shortcut-help.test.tsx` | Displays all registered shortcuts. Groups by scope. Keys formatted with platform modifier. |
+
+---
+
+## Part 4: Playwright E2E Tests
+
+### Setup
+
+**New dependencies:**
+```
+@playwright/test @axe-core/playwright
+```
+
+**`playwright.config.ts`:**
+- Base URL: `http://localhost:7778` (sandbox daemon)
+- Projects: chromium, firefox, webkit
+- Global setup: start sandbox, wait for health
+- Global teardown: stop sandbox
+- Retries: 1 (flaky network)
+- Screenshots: on failure only
+- Video: retain on failure
+
+**Test data:** Sandbox provides seeded routes, services, policies, API keys. Tests use the bootstrap token for initial login.
+
+### Auth Flow (`e2e/auth.spec.ts`)
+
+- Navigate to `/` → redirected to `/login` (no session)
+- Enter bootstrap token → submit → redirected to dashboard
+- Cookie is HttpOnly (verify via `context.cookies()` — cookie present but value accessible since Playwright has privileged access)
+- Refresh page → still authenticated (cookie persists)
+- Navigate to all pages → no auth redirect (session valid)
+- Click logout → redirected to `/login`
+- Try to navigate to `/` after logout → redirected to `/login`
+- Enter invalid token → error message shown, stays on login page
+
+### Dashboard (`e2e/dashboard.spec.ts`)
+
+- Stat cards show real data (route count matches seeded config)
+- System status shows healthy
+- Charts render (SVG or canvas elements present)
+- Recent changes widget shows audit entries
+- Data loads without skeleton flash (route loader prefetched)
+- Plugin slots render without error
+
+### Route Management (`e2e/routes.spec.ts`)
+
+- List shows seeded routes
+- Search filters table by name
+- Create route: open form → fill name, matchers, target service → save → appears in list → toast shown
+- Edit route: click row → modify name → save → change reflected in list
+- Toggle enable/disable → status changes inline
+- Delete route: click delete → confirmation dialog → confirm → removed from list → toast shown
+- Pagination works (if enough routes)
+
+### Service Management (`e2e/services.spec.ts`)
+
+- List shows seeded services
+- Create: form with name, LB policy, upstream rows → save → appears
+- Edit: modify LB policy → save → reflected
+- Add/remove upstream rows in form
+- Delete with confirmation
+
+### Policy Management (`e2e/policies.spec.ts`)
+
+- List shows seeded policies
+- Create: name, type selector, JSON config textarea → save → appears
+- Edit: modify config JSON → save → reflected
+- Delete: warns if attached to routes → confirm → removed
+
+### API Keys (`e2e/security.spec.ts`)
+
+- List shows seeded keys
+- Create key: dialog → name, scopes, expiry → submit → key shown once with copy button
+- Copy button copies to clipboard
+- Revoke key: confirm dialog → removed from list
+- Certificate status section renders
+
+### Session Management (`e2e/security-sessions.spec.ts`)
+
+- Active sessions listed on Security page
+- Current session highlighted
+- Admin can revoke another session (not their own current session from this UI)
+
+### Live Traffic (`e2e/traffic-live.spec.ts`)
+
+- SSE stream connects (data elements appear)
+- Generate traffic to sandbox upstreams → events appear in table
+- Pause button stops updates
+- Resume button restarts updates
+- Filter by method → table filtered
+- Filter by status → table filtered
+- Click row → detail sheet opens
+
+### Analytics (`e2e/traffic-analytics.spec.ts`)
+
+- Time range tabs switch chart data
+- Charts render (SVG/canvas present)
+- Stat cards show values
+
+### Navigation (`e2e/navigation.spec.ts`)
+
+- Every sidebar link navigates to correct page (click each, verify URL + page title)
+- Command palette: Cmd+K opens → search "routes" → select → navigates to routes page
+- Sidebar collapse: Cmd+B toggles sidebar → verify collapsed/expanded
+- Keyboard shortcut help: press `?` → overlay opens showing shortcuts
+- Breadcrumbs update per page
+
+### Theme (`e2e/theme.spec.ts`)
+
+- Toggle dark → light → verify `<html>` class changes
+- Persist across page reload
+- System preference detection (mock via Playwright `emulateMedia`)
+
+### Responsive (`e2e/responsive.spec.ts`)
+
+- Desktop (1440px): full sidebar visible
+- Tablet (768px): sidebar collapsed (icons only)
+- Mobile (375px): no sidebar, hamburger menu, sheet forms
+- DataTable: horizontal scroll or card view on mobile
+
+### Accessibility (`e2e/a11y.spec.ts`)
+
+- Every page passes axe-core audit (no critical/serious violations)
+- Dialog focus trap: open dialog → tab cycles within dialog
+- Keyboard navigation: tab through sidebar links
+- Screen reader landmarks: main, nav, banner present
+
+### Performance (`e2e/performance.spec.ts`)
+
+- Measure page load time per route via Performance API (`performance.getEntriesByType('navigation')`)
+- Dashboard: DOMContentLoaded < 2s, full load < 4s
+- Table pages with data: render < 1s
+- Navigation transition (route change → new page painted) < 500ms
+- Baseline stored in `packages/web/e2e/perf-baseline.json`
+- CI compares and flags regressions > 20%
+
+---
+
+## Part 5: Go Performance Testing
+
+### Benchmarks (per-package)
+
+Every performance-critical function gets `Benchmark*` functions alongside its unit tests.
+
+| Package | Benchmarks |
+|---|---|
+| `config/` | CompileCaddyConfig at 10/100/1000 routes. ApplyChange single mutation. GetConfig snapshot read. |
+| `store/sqlite/` | Route create, read, list. Service create, read. Session create, validate, list. Audit append, query. Batch write (100 entities). |
+| `store/postgres/` | Same operations as SQLite. |
+| `store/mysql/` | Same operations as SQLite. |
+| `auth/` | Session validation (cache hit). Session validation (cache miss → DB). Fingerprint computation. JWT sign. JWT verify. |
+| `cache/` | LRU get (hit). LRU get (miss). LRU set. Eviction under pressure. |
+| `cluster/crdt/` | Counter merge. |
+| `store/raft/` | Log append. Commit. Snapshot. |
+| `plugin/wasm/` | WASM execution (simple function). Cold start vs warm. |
+| `gateway/` | Auth middleware overhead (cookie path). Auth middleware overhead (Bearer path). Security headers middleware. SPA handler (static file serve). |
+| `caddy/` | Compile config at varying sizes (10, 100, 1000 routes). |
+
+### Benchmark Regression Detection
+
+**Workflow:**
+1. `make bench` — runs all Go benchmarks, outputs to `packages/daemon/bench/results.txt`
+2. `make bench-compare` — uses `benchstat` to compare current vs `packages/daemon/bench/baseline.txt`
+3. `make bench-baseline` — saves current results as new baseline
+
+**CI integration:**
+- PR job runs benchmarks, compares against develop baseline
+- Posts PR comment with regression/improvement table via `benchstat`
+- Advisory only — does NOT fail the build
+- Baseline auto-updated when PR merges to develop
+
+**Example output:**
+```
+name                         old time/op  new time/op  delta
+ConfigCompile/10-8           12.3µs       14.1µs       +14.6% (p=0.002) REGRESSION
+ConfigCompile/100-8          98.4µs       95.2µs       -3.2%  (p=0.041) improvement
+SessionValidate/cache_hit-8  0.84µs       0.86µs       ~      (p=0.312)
+SessionValidate/cache_miss-8 45.0µs       38.0µs       -15.5% (p=0.001) improvement
+```
+
+### Load Testing (sandbox-based)
+
+**`sandbox/loadtest/main.go`** — Go-based load generator.
+
+**Two modes:**
+- `--mode=direct` — hits upstream apps directly (ports 9001-9005)
+- `--mode=proxied` — hits through Rioku routes (port 7778 with Host headers)
+
+The delta between direct and proxied isolates Rioku's proxy overhead per route.
+
+**Configuration:**
+- Target RPS, duration, concurrency, route distribution weights
+- Outputs structured JSON: actual RPS, latency percentiles (p50/p95/p99/p999), error rate, per-route breakdown
+
+**Load profiles** (`sandbox/loadtest/profiles/`):
+
+| Profile | Target RPS | Duration | Concurrency | Purpose |
+|---|---|---|---|---|
+| `standard.json` | 1,000 | 60s | 50 | Baseline throughput |
+| `stress.json` | 10,000 | 120s | 200 | Peak capacity |
+| `soak.json` | 1,000 | 600s | 50 | Memory leaks, connection exhaustion |
+| `spike.json` | 100→10,000→100 | 60s | 200 | Burst handling, recovery |
+| `config-change.json` | 1,000 | 60s | 50 | Apply config change at t=30s, measure disruption window |
+
+**Regression detection:**
+- `make sandbox-load` runs standard profile in both modes, saves results
+- `make sandbox-load-compare` compares against `sandbox/loadtest/baseline.json`
+- Key metrics: p50/p99 latency per route, max RPS achieved, error rate, Rioku overhead delta
+
+**Output format:**
+```json
+{
+  "profile": "standard",
+  "direct": {
+    "users": { "rps": 200, "p50_ms": 8, "p95_ms": 32, "p99_ms": 48, "errors": 2 },
+    "products": { "rps": 200, "p50_ms": 15, "p95_ms": 85, "p99_ms": 120, "errors": 8 }
+  },
+  "proxied": {
+    "users": { "rps": 200, "p50_ms": 9, "p95_ms": 34, "p99_ms": 51, "errors": 2 },
+    "products": { "rps": 200, "p50_ms": 16, "p95_ms": 87, "p99_ms": 123, "errors": 8 }
+  },
+  "overhead": {
+    "users": { "p50_delta_ms": 1, "p99_delta_ms": 3 },
+    "products": { "p50_delta_ms": 1, "p99_delta_ms": 3 }
+  }
+}
+```
+
+**Key scenarios to validate:**
+- Sustained throughput: Rioku sustains 10K RPS across 5 upstreams
+- Latency overhead: Rioku adds <1ms p50 to upstream latency
+- Config change under load: disruption window < 100ms
+- Connection scaling: ramp 10→1000 concurrent, measure degradation curve
+- Large config: 1000 routes + 200 services, config compilation + per-request routing latency
+
+---
+
+## Part 6: CI Updates
+
+### New Jobs in `.github/workflows/ci.yml`
+
+**test-web:**
+```yaml
+test-web:
+  runs-on: ubuntu-latest
+  defaults:
+    run:
+      working-directory: packages/web
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with: { node-version: 22 }
+    - run: npm ci
+    - run: npx vitest run --coverage
+    - uses: actions/upload-artifact@v4
+      with:
+        name: web-coverage
+        path: packages/web/coverage/
+```
+
+**test-e2e:**
+```yaml
+test-e2e:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with: { go-version-file: packages/daemon/go.mod }
+    - uses: actions/setup-node@v4
+      with: { node-version: 22 }
+    - run: make sandbox &
+    - run: sleep 10 && curl --retry 30 --retry-delay 1 -sf http://localhost:7778/api/v1/health
+    - run: cd packages/web && npx playwright install --with-deps && npx playwright test
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: playwright-report
+        path: packages/web/playwright-report/
+    - run: make sandbox-stop
+      if: always()
+```
+
+**bench:**
+```yaml
+bench:
+  runs-on: ubuntu-latest
+  if: github.event_name == 'pull_request'
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        ref: develop
+        path: baseline
+    - uses: actions/setup-go@v5
+      with: { go-version-file: packages/daemon/go.mod }
+    - run: cd packages/daemon && go test -bench=. -benchmem -count=5 ./... > bench-current.txt
+    - run: cd baseline/packages/daemon && go test -bench=. -benchmem -count=5 ./... > ../../packages/daemon/bench-baseline.txt
+    - run: go install golang.org/x/perf/cmd/benchstat@latest
+    - run: benchstat packages/daemon/bench-baseline.txt packages/daemon/bench-current.txt > bench-comparison.txt
+    - uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const body = fs.readFileSync('bench-comparison.txt', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '## Benchmark Comparison\n\n```\n' + body + '\n```'
+          });
+```
+
+### New File: `docker-compose.ci.yml`
+
+Used by `test-integration` job for multi-database testing:
+
+```yaml
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: rioku_test
+      POSTGRES_USER: rioku
+      POSTGRES_PASSWORD: test
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rioku"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: rioku_test
+      MARIADB_USER: rioku
+      MARIADB_PASSWORD: test
+      MARIADB_ROOT_PASSWORD: test
+    ports: ["3306:3306"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+```
+
+---
+
+## Part 7: Make Targets
+
+### New/Updated Targets
+
+```makefile
+# Testing
+test-web:            ## Run frontend unit/component tests (Vitest)
+test-web-coverage:   ## Run frontend tests with coverage report
+test-e2e:            ## Run Playwright e2e tests (starts/stops sandbox)
+test-all:            ## Run all tests: Go unit + integration + web + e2e
+test-coverage:       ## Generate combined coverage report (Go + web)
+
+# Benchmarks
+bench:               ## Run Go benchmarks
+bench-compare:       ## Compare benchmarks against baseline (benchstat)
+bench-baseline:      ## Save current benchmark results as baseline
+
+# Load testing
+sandbox-load:        ## Run standard load profile (direct + proxied)
+sandbox-load-compare: ## Compare load results against baseline
+```
+
+---
+
+## Part 8: File Organization
+
+```
+packages/daemon/
+  internal/
+    auth/
+      auth_test.go            (session, cookie, fingerprint, JWT tests)
+      auth_bench_test.go      (session validation, JWT signing benchmarks)
+    build/build_test.go
+    cache/
+      distributed_test.go     (expand existing)
+      cache_bench_test.go
+    caddy/
+      compiler_test.go        (expand existing)
+      compiler_bench_test.go
+    cli/cli_test.go
+    cluster/
+      crdt/counter_test.go    (expand existing)
+      discovery_test.go       (expand existing)
+    config/
+      engine_test.go          (expand existing)
+      engine_bench_test.go
+    daemon/daemon_test.go
+    gateway/
+      api_test.go             (-tags integration)
+      auth_middleware_test.go
+      security_headers_test.go
+      spa_test.go
+      sse_test.go             (-tags integration)
+      gateway_bench_test.go
+    grpc/server_test.go
+    keyring/keyring_test.go
+    mcp/mcp_test.go
+    pki/pki_test.go
+    plugin/wasm/
+      wasm_test.go            (expand existing)
+      wasm_bench_test.go
+    store/
+      sqlite/sqlite_test.go   (expand existing)
+      postgres/postgres_test.go (-tags integration)
+      mysql/mysql_test.go     (-tags integration)
+      raft/raft_test.go       (expand existing)
+      store_bench_test.go
+    sync/sync_test.go
+    tracestore/tracestore_test.go
+    version/version_test.go
+  bench/
+    baseline.txt
+    coverage-baseline.txt
+
+packages/web/
+  vitest.config.ts
+  playwright.config.ts
+  src/
+    lib/__tests__/
+      api.test.ts
+      preferences.test.ts
+      plugin-registry.test.ts
+      plugin-loader.test.ts
+      i18n.test.ts
+      utils.test.ts
+    hooks/__tests__/
+      use-auth.test.ts
+      use-theme.test.ts
+      use-hotkeys.test.ts
+      use-events.test.ts
+      use-mobile.test.ts
+    components/rioku/__tests__/
+      stat-card.test.tsx
+      data-table.test.tsx
+      page-header.test.tsx
+      empty-state.test.tsx
+      status-badge.test.tsx
+      code-block.test.tsx
+      sparkline.test.tsx
+      confirm-dialog.test.tsx
+      time-ago.test.tsx
+    components/plugin/__tests__/
+      slot.test.tsx
+      plugin-page.test.tsx
+    components/layout/__tests__/
+      app-sidebar.test.tsx
+      header.test.tsx
+      command-palette.test.tsx
+      keyboard-shortcut-help.test.tsx
+  e2e/
+    auth.spec.ts
+    dashboard.spec.ts
+    routes.spec.ts
+    services.spec.ts
+    policies.spec.ts
+    security.spec.ts
+    security-sessions.spec.ts
+    traffic-live.spec.ts
+    traffic-analytics.spec.ts
+    navigation.spec.ts
+    theme.spec.ts
+    responsive.spec.ts
+    a11y.spec.ts
+    performance.spec.ts
+    perf-baseline.json
+
+sandbox/
+  loadtest/
+    main.go
+    profiles/
+      standard.json
+      stress.json
+      soak.json
+      spike.json
+      config-change.json
+    baseline.json
+
+docker-compose.ci.yml
+```
+
+---
+
+## Verification Checklist
+
+### Go Tests
+- [ ] `make test` runs all unit tests with race detector, reports coverage
+- [ ] `make test-integration` runs against SQLite locally, all 3 DBs in CI
+- [ ] Auth tests: session create/validate/revoke/expire/fingerprint all covered
+- [ ] Gateway tests: cookie auth, Bearer fallback, security headers, SPA handler
+- [ ] Store tests: identical test suite passes on SQLite, Postgres, MySQL
+- [ ] Coverage does not drop below baseline on any PR
+
+### Frontend Tests
+- [ ] `make test-web` runs Vitest with coverage
+- [ ] All `lib/` modules tested (api, preferences, plugin-registry, i18n, utils)
+- [ ] All hooks tested (use-auth, use-theme, use-hotkeys, use-events, use-mobile)
+- [ ] All rioku components tested (stat-card, data-table, page-header, empty-state, status-badge, code-block, sparkline, confirm-dialog, time-ago)
+- [ ] Layout components tested (sidebar, header, command-palette, shortcut-help)
+- [ ] Plugin components tested (slot, plugin-page)
+
+### E2E Tests
+- [ ] `make test-e2e` starts sandbox, runs Playwright, stops sandbox
+- [ ] Auth flow: login, logout, redirect, invalid token
+- [ ] Cookie-based auth: HttpOnly cookie set, survives refresh, cleared on logout
+- [ ] CRUD on all entity types (routes, services, policies, keys)
+- [ ] Live traffic SSE streaming works
+- [ ] Navigation: sidebar, command palette, keyboard shortcuts
+- [ ] Theme toggle persists
+- [ ] Responsive: desktop, tablet, mobile viewports
+- [ ] Accessibility: axe-core passes on all pages
+- [ ] Performance: page loads within baseline thresholds
+- [ ] CI uploads Playwright screenshots on failure
+
+### Performance
+- [ ] `make bench` produces benchmark results
+- [ ] `make bench-compare` reports regressions via benchstat
+- [ ] `make sandbox-load` runs load profile in direct + proxied modes
+- [ ] `make sandbox-load-compare` reports overhead delta per route
+- [ ] CI posts benchmark comparison comment on PRs
+- [ ] Rioku proxy overhead < 1ms p50
+
+### CI
+- [ ] test-web job runs Vitest on PRs
+- [ ] test-e2e job runs Playwright on PRs
+- [ ] bench job posts comparison comment on PRs
+- [ ] test-integration runs against all 3 DB backends
+- [ ] docker-compose.ci.yml provisions Postgres + MariaDB
