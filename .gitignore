@@ -7,6 +7,10 @@
 *.so
 *.dylib
 
+# Go build output
+packages/daemon/rioku
+packages/build-service/rioku-build-service
+
 # Go
 /vendor/
 go.work.sum
