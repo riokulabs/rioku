@@ -42,9 +42,8 @@ func NewEngine(s store.Driver, c *caddy.Compiler) *Engine {
 // GetConfig returns the current config snapshot (all routes, services, and
 // policies) along with the latest config version.
 func (e *Engine) GetConfig(ctx context.Context) (*riokuv1.ConfigSnapshot, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
+	// No Go-level lock for reads — the store driver handles concurrency
+	// (SQLite WAL, raft FSM view, Postgres MVCC all support concurrent readers).
 	tx, err := e.store.Begin(ctx, store.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, fmt.Errorf("config: begin read tx: %w", err)
@@ -474,8 +473,11 @@ func applyRouteOp(ctx context.Context, tx store.Tx, op *riokuv1.RouteOp) (string
 
 	case riokuv1.RouteOp_DELETE:
 		id := op.GetId()
-		if id == "" {
+		if id == "" && op.GetRoute() != nil {
 			id = op.GetRoute().GetId()
+		}
+		if id == "" {
+			return "", "", fmt.Errorf("config: delete route: id is required")
 		}
 		if err := tx.DeleteRoute(ctx, id); err != nil {
 			return "", "", fmt.Errorf("config: delete route: %w", err)
@@ -513,8 +515,11 @@ func applyServiceOp(ctx context.Context, tx store.Tx, op *riokuv1.ServiceOp) (st
 
 	case riokuv1.ServiceOp_DELETE:
 		id := op.GetId()
-		if id == "" {
+		if id == "" && op.GetService() != nil {
 			id = op.GetService().GetId()
+		}
+		if id == "" {
+			return "", "", fmt.Errorf("config: delete service: id is required")
 		}
 		if err := tx.DeleteService(ctx, id); err != nil {
 			return "", "", fmt.Errorf("config: delete service: %w", err)
@@ -552,8 +557,11 @@ func applyPolicyOp(ctx context.Context, tx store.Tx, op *riokuv1.PolicyOp) (stri
 
 	case riokuv1.PolicyOp_DELETE:
 		id := op.GetId()
-		if id == "" {
+		if id == "" && op.GetPolicy() != nil {
 			id = op.GetPolicy().GetId()
+		}
+		if id == "" {
+			return "", "", fmt.Errorf("config: delete policy: id is required")
 		}
 		if err := tx.DeletePolicy(ctx, id); err != nil {
 			return "", "", fmt.Errorf("config: delete policy: %w", err)
@@ -698,6 +706,8 @@ func validatePolicyOp(op *riokuv1.PolicyOp) error {
 // --------------------------------------------------------------------------
 
 // deleteAll removes all routes, services, and policies from the store.
+// Uses individual deletes via the Tx interface. A future optimization would
+// add a BulkDelete method to Tx and use DELETE FROM <table> directly.
 func deleteAll(ctx context.Context, tx store.Tx) error {
 	routes, err := tx.ListRoutes(ctx)
 	if err != nil {

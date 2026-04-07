@@ -5,6 +5,7 @@ package caddy
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
@@ -71,7 +72,10 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 	caddyRoute := make(map[string]any)
 
 	// --- Matchers ---
-	matchSets := compileMatchers(route.GetMatchers())
+	matchSets, err := compileMatchers(route.GetMatchers())
+	if err != nil {
+		return nil, fmt.Errorf("compile matchers: %w", err)
+	}
 	if len(matchSets) > 0 {
 		caddyRoute["match"] = matchSets
 	}
@@ -88,7 +92,7 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 
 // compileMatchers converts proto Matchers into Caddy match sets.
 // Each proto Matcher becomes one match set (OR semantics between matchers).
-func compileMatchers(matchers []*riokuv1.Matcher) []map[string]any {
+func compileMatchers(matchers []*riokuv1.Matcher) ([]map[string]any, error) {
 	var sets []map[string]any
 	for _, m := range matchers {
 		set := make(map[string]any)
@@ -97,7 +101,10 @@ func compileMatchers(matchers []*riokuv1.Matcher) []map[string]any {
 			set["host"] = m.GetHosts()
 		}
 
-		paths, pathRegexp := compilePaths(m.GetPaths())
+		paths, pathRegexp, err := compilePaths(m.GetPaths())
+		if err != nil {
+			return nil, fmt.Errorf("compile paths: %w", err)
+		}
 		if len(paths) > 0 {
 			set["path"] = paths
 		}
@@ -117,21 +124,21 @@ func compileMatchers(matchers []*riokuv1.Matcher) []map[string]any {
 			sets = append(sets, set)
 		}
 	}
-	return sets
+	return sets, nil
 }
 
 // compilePaths separates prefix/exact paths (returned as string slice) from
 // regexp paths (returned as a path_regexp object). Only the first regexp
 // matcher is used because Caddy's path_regexp is a single object per match set.
-func compilePaths(paths []*riokuv1.PathMatcher) ([]string, map[string]any) {
+func compilePaths(paths []*riokuv1.PathMatcher) ([]string, map[string]any, error) {
 	var plain []string
-	var regexp map[string]any
+	var re map[string]any
+	regexpCount := 0
 
 	for _, p := range paths {
 		switch p.GetType() {
 		case riokuv1.PathMatcher_TYPE_PREFIX:
 			v := p.GetValue()
-			// Caddy prefix matching uses a trailing wildcard.
 			if !strings.HasSuffix(v, "*") {
 				v = strings.TrimSuffix(v, "/") + "/*"
 			}
@@ -139,17 +146,20 @@ func compilePaths(paths []*riokuv1.PathMatcher) ([]string, map[string]any) {
 		case riokuv1.PathMatcher_TYPE_EXACT:
 			plain = append(plain, p.GetValue())
 		case riokuv1.PathMatcher_TYPE_REGEXP:
-			// Caddy only supports one path_regexp per match set.
-			// Use the first one; additional regexp matchers should be
-			// expressed as separate Matchers (OR sets) on the route.
-			if regexp == nil {
-				regexp = map[string]any{
-					"pattern": p.GetValue(),
-				}
+			regexpCount++
+			if regexpCount > 1 {
+				return nil, nil, fmt.Errorf("only one regexp path matcher per match set is supported (got %d); split into separate matchers", regexpCount)
+			}
+			// Validate the regex compiles before sending to Caddy.
+			if _, err := regexp.Compile(p.GetValue()); err != nil {
+				return nil, nil, fmt.Errorf("invalid path regexp %q: %w", p.GetValue(), err)
+			}
+			re = map[string]any{
+				"pattern": p.GetValue(),
 			}
 		}
 	}
-	return plain, regexp
+	return plain, re, nil
 }
 
 // compileHeaders converts proto HeaderMatchers into Caddy header match format.

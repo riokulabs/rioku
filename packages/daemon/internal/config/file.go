@@ -323,6 +323,13 @@ func Load(path string) (*Config, error) {
 		path = DefaultConfigPath
 	}
 
+	// Warn if config file is world-readable (may contain DB credentials).
+	if info, err := os.Stat(path); err == nil {
+		if info.Mode().Perm()&0o004 != 0 {
+			fmt.Fprintf(os.Stderr, "warning: config file %s is world-readable (mode %o), consider chmod 640\n", path, info.Mode().Perm())
+		}
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("config: reading %s: %w", path, err)
@@ -486,6 +493,10 @@ func validate(cfg *Config) error {
 
 	// Driver-specific validation.
 	switch cfg.Store.Driver {
+	case "raft":
+		if cfg.Store.Raft.BindAddr == "" {
+			errs = append(errs, errors.New("store.raft.bind_addr is required when driver is raft"))
+		}
 	case "sqlite":
 		if cfg.Store.SQLite.Path == "" {
 			errs = append(errs, errors.New("store.sqlite.path is required when driver is sqlite"))

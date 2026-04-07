@@ -9,6 +9,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
@@ -252,11 +253,16 @@ type Driver interface {
 // Driver registration
 // ---------------------------------------------------------------------------
 
-var drivers = map[string]func() Driver{}
+var (
+	driversMu sync.RWMutex
+	drivers   = map[string]func() Driver{}
+)
 
 // Register makes a driver factory available by name.
 // It is intended to be called from init() in driver packages.
 func Register(name string, factory func() Driver) {
+	driversMu.Lock()
+	defer driversMu.Unlock()
 	drivers[name] = factory
 }
 
@@ -264,9 +270,11 @@ func Register(name string, factory func() Driver) {
 // Constructor
 // ---------------------------------------------------------------------------
 
-// New creates a Driver by name. Supported drivers: "sqlite", "postgres", "mysql".
+// New creates a Driver by name. Supported drivers: "raft", "sqlite", "postgres", "mysql".
 func New(name string) (Driver, error) {
+	driversMu.RLock()
 	factory, ok := drivers[name]
+	driversMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("unknown store driver: %q", name)
 	}

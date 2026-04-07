@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -99,6 +100,12 @@ func (d *driver) Migrate(ctx context.Context, direction store.MigrateDirection) 
 }
 
 func (d *driver) migrateUp(ctx context.Context) error {
+	// Check if already at target version (idempotent).
+	current, _ := d.CurrentVersion(ctx)
+	if current >= 1 {
+		return nil
+	}
+
 	data, err := store.MigrationFS.ReadFile("migrations/sqlite/000001_initial.up.sql")
 	if err != nil {
 		return fmt.Errorf("sqlite: read up migration: %w", err)
@@ -106,8 +113,8 @@ func (d *driver) migrateUp(ctx context.Context) error {
 	if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
 		return fmt.Errorf("sqlite: apply up migration: %w", err)
 	}
-	// Record version — create table if not exists is in the migration itself.
-	_, err = d.db.ExecContext(ctx, `INSERT INTO schema_versions (version, dirty) VALUES (1, 0)`)
+	_, err = d.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (1, 0)`)
 	if err != nil {
 		return fmt.Errorf("sqlite: record schema version: %w", err)
 	}
@@ -166,11 +173,12 @@ type tx struct {
 func (t *tx) Commit() error   { return t.sqlTx.Commit() }
 func (t *tx) Rollback() error { return t.sqlTx.Rollback() }
 
-// emit sends a non-blocking change event.
+// emit sends a non-blocking change event. Logs a warning if the channel is full.
 func (t *tx) emit(table, rowID, operation string) {
 	select {
 	case t.notify <- store.ChangeEvent{Table: table, RowID: rowID, Operation: operation}:
 	default:
+		log.Printf("sqlite: change event dropped (channel full): %s/%s %s", table, rowID, operation)
 	}
 }
 
@@ -234,7 +242,7 @@ func (t *tx) GetRoute(ctx context.Context, id string) (*riokuv1.Route, error) {
 func (t *tx) ListRoutes(ctx context.Context) ([]*riokuv1.Route, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
 		`SELECT id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at
-		 FROM routes`)
+		 FROM routes ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list routes: %w", err)
 	}
@@ -381,26 +389,65 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at FROM services`)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at FROM services ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
 	defer rows.Close()
 
 	var services []*riokuv1.Service
+	serviceIndex := make(map[string]*riokuv1.Service)
 	for rows.Next() {
 		svc, err := scanServiceRows(rows)
 		if err != nil {
 			return nil, err
 		}
-		upstreams, err := t.fetchUpstreams(ctx, svc.GetId())
+		services = append(services, svc)
+		serviceIndex[svc.GetId()] = svc
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Batch-fetch all upstreams in a single query (fixes N+1).
+	if len(services) > 0 {
+		uRows, err := t.sqlTx.QueryContext(ctx,
+			`SELECT id, service_id, address, weight, tls_mode, healthy, dial_err FROM upstreams ORDER BY service_id, id`)
 		if err != nil {
+			return nil, fmt.Errorf("sqlite: fetch all upstreams: %w", err)
+		}
+		defer uRows.Close()
+
+		for uRows.Next() {
+			var (
+				id        string
+				serviceID string
+				address   string
+				weight    int32
+				tlsMode   int32
+				healthy   int
+				dialErr   string
+			)
+			if err := uRows.Scan(&id, &serviceID, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+				return nil, fmt.Errorf("sqlite: scan upstream: %w", err)
+			}
+			if svc, ok := serviceIndex[serviceID]; ok {
+				svc.Upstreams = append(svc.Upstreams, &riokuv1.Upstream{
+					Id:      id,
+					Address: address,
+					Weight:  weight,
+					Tls:     riokuv1.TLSMode(tlsMode),
+					Healthy: healthy != 0,
+					DialErr: dialErr,
+				})
+			}
+		}
+		if err := uRows.Err(); err != nil {
 			return nil, err
 		}
-		svc.Upstreams = upstreams
-		services = append(services, svc)
 	}
-	return services, rows.Err()
+
+	return services, nil
 }
 
 func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.Service, error) {
@@ -543,7 +590,7 @@ func (t *tx) GetPolicy(ctx context.Context, id string) (*riokuv1.Policy, error) 
 
 func (t *tx) ListPolicies(ctx context.Context) ([]*riokuv1.Policy, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, type, config, labels, created_at, updated_at FROM policies`)
+		`SELECT id, name, type, config, labels, created_at, updated_at FROM policies ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list policies: %w", err)
 	}
@@ -606,7 +653,12 @@ func (t *tx) DeletePolicy(ctx context.Context, id string) error {
 // Policy Bindings
 // ---------------------------------------------------------------------------
 
+var validTargetTypes = map[string]bool{"route": true, "service": true}
+
 func (t *tx) AttachPolicy(ctx context.Context, policyID, targetType, targetID string) error {
+	if !validTargetTypes[targetType] {
+		return fmt.Errorf("sqlite: invalid target_type %q (must be 'route' or 'service')", targetType)
+	}
 	_, err := t.sqlTx.ExecContext(ctx,
 		`INSERT INTO policy_bindings (policy_id, target_type, target_id) VALUES (?, ?, ?)`,
 		policyID, targetType, targetID,
@@ -743,6 +795,8 @@ func (t *tx) RevokeAPIKey(ctx context.Context, id string) error {
 // Config Versions
 // ---------------------------------------------------------------------------
 
+const maxConfigVersions = 100
+
 func (t *tx) SaveConfigVersion(ctx context.Context, snapshot []byte, actor string) (int64, error) {
 	now := nowUTC()
 	res, err := t.sqlTx.ExecContext(ctx,
@@ -757,6 +811,13 @@ func (t *tx) SaveConfigVersion(ctx context.Context, snapshot []byte, actor strin
 		return 0, fmt.Errorf("sqlite: last insert id: %w", err)
 	}
 	t.emit("config_versions", fmt.Sprintf("%d", version), "INSERT")
+
+	// Prune old versions beyond the max retention.
+	_, _ = t.sqlTx.ExecContext(ctx,
+		`DELETE FROM config_versions WHERE version NOT IN (
+			SELECT version FROM config_versions ORDER BY version DESC LIMIT ?
+		)`, maxConfigVersions)
+
 	return version, nil
 }
 
@@ -858,10 +919,15 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 
 	q += ` ORDER BY occurred_at DESC`
 
-	if query.Limit > 0 {
-		q += ` LIMIT ?`
-		args = append(args, query.Limit)
+	// Enforce a maximum limit to prevent OOM on unbounded queries.
+	limit := query.Limit
+	if limit <= 0 || limit > 1000 {
+		limit = 1000
 	}
+	q += ` LIMIT ?`
+	args = append(args, limit)
+
+	// OFFSET only makes sense with LIMIT.
 	if query.Offset > 0 {
 		q += ` OFFSET ?`
 		args = append(args, query.Offset)
@@ -1207,6 +1273,9 @@ func nowUTC() string {
 }
 
 func parseTime(s string) time.Time {
-	t, _ := time.Parse(timeFormat, s)
+	t, err := time.Parse(timeFormat, s)
+	if err != nil && s != "" {
+		log.Printf("sqlite: warning: failed to parse time %q: %v", s, err)
+	}
 	return t
 }
