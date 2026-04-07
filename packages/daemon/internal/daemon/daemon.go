@@ -131,7 +131,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		restAddr = ":7778"
 	}
 	if d.grpc != nil {
-		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.engine)
+		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.engine, d.store)
 		if err != nil {
 			log.Printf("rest: failed to start: %v", err)
 		} else {

@@ -48,6 +48,10 @@ func newInitCmd() *cobra.Command {
 }
 
 func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInteractive, force bool) error {
+	if err := requireLocalNode("init"); err != nil {
+		return err
+	}
+
 	cfgPath := flagConfigFile
 	if cfgPath == "" {
 		cfgPath = config.DefaultConfigPath

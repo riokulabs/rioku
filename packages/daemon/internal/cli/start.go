@@ -25,6 +25,10 @@ func newStartCmd() *cobra.Command {
 }
 
 func runStart() error {
+	if err := requireLocalNode("start"); err != nil {
+		return err
+	}
+
 	cfgPath := flagConfigFile
 	if cfgPath == "" {
 		cfgPath = config.DefaultConfigPath

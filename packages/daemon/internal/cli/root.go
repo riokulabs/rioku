@@ -56,6 +56,12 @@ func init() {
 		newStatusCmd(),
 		newVersionCmd(),
 		newKeyCmd(),
+		newRouteCmd(),
+		newServiceCmd(),
+		newPolicyCmd(),
+		newConfigCmd(),
+		newAuditCmd(),
+		newMigrateCmd(),
 	)
 }
 

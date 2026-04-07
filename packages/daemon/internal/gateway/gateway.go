@@ -13,6 +13,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/store"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
@@ -29,6 +30,7 @@ func NewGateway(
 	healthSvc riokuv1.HealthServiceServer,
 	a *auth.Auth,
 	engine *config.Engine,
+	st store.Driver,
 ) (*Gateway, error) {
 	ctx := context.Background()
 
@@ -51,7 +53,10 @@ func NewGateway(
 	// Auth routes (unauthenticated).
 	RegisterAuthRoutes(topMux, a)
 
-	// SSE routes (auth checked per-path in middleware).
+	// Key management routes.
+	RegisterKeyRoutes(topMux, st)
+
+	// SSE routes.
 	RegisterSSERoutes(topMux, engine)
 
 	// grpc-gateway handles everything else under /api/v1/.

@@ -24,6 +24,10 @@ func newStopCmd() *cobra.Command {
 }
 
 func runStop() error {
+	if err := requireLocalNode("stop"); err != nil {
+		return err
+	}
+
 	cfg, dataDir := resolveDataDir()
 	_ = cfg
 
