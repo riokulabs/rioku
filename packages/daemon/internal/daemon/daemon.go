@@ -20,6 +20,7 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
+	riokuweb "github.com/riokulabs/rioku/web"
 
 	// Register store drivers.
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
@@ -131,7 +132,13 @@ func (d *Daemon) Start(ctx context.Context) error {
 		restAddr = ":7778"
 	}
 	if d.grpc != nil {
-		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.engine, d.store)
+		// Load embedded admin panel SPA.
+		spaFS, err := riokuweb.SPA()
+		if err != nil {
+			log.Printf("web: admin panel not available: %v", err)
+		}
+
+		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.engine, d.store, spaFS)
 		if err != nil {
 			log.Printf("rest: failed to start: %v", err)
 		} else {

@@ -32,6 +32,7 @@ packages/proto/gen/
 node_modules/
 packages/web/build/
 packages/web/src/routeTree.gen.ts
+packages/daemon/web/build/
 
 # Database files
 *.db

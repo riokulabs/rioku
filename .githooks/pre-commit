@@ -18,18 +18,26 @@ if [ -n "$STAGED_GO" ]; then
 
   # Go vet — only run on modules that have staged files and can be vetted.
   # Walks up from each staged file to find its go.mod, then vets that module.
-  # Uses GOWORK=off so modules not yet generated (e.g. proto/gen/go) don't block.
+  # Modules in go.work use workspace mode; standalone modules (sandbox) use GOWORK=off.
   echo "Running go vet..."
   REPO_ROOT=$(git rev-parse --show-toplevel)
   declare -A VETTED_MODS
+  GOWORK_FILE="$REPO_ROOT/go.work"
   for f in $STAGED_GO; do
     dir="$REPO_ROOT/$(dirname "$f")"
     while [ "$dir" != "$REPO_ROOT" ] && [ "$dir" != "/" ]; do
       if [ -f "$dir/go.mod" ]; then
         if [ -z "${VETTED_MODS[$dir]+x}" ]; then
           VETTED_MODS[$dir]=1
-          echo "  vet: $dir"
-          (cd "$dir" && GOWORK=off go vet ./... 2>&1) || exit 1
+          # Check if this module is listed in go.work
+          REL_DIR="${dir#"$REPO_ROOT/"}"
+          if [ -f "$GOWORK_FILE" ] && grep -q "$REL_DIR" "$GOWORK_FILE" 2>/dev/null; then
+            echo "  vet: $dir (workspace)"
+            (cd "$dir" && go vet ./... 2>&1) || exit 1
+          else
+            echo "  vet: $dir (standalone)"
+            (cd "$dir" && GOWORK=off go vet ./... 2>&1) || exit 1
+          fi
         fi
         break
       fi

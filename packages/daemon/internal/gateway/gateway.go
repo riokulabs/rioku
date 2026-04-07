@@ -6,6 +6,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"time"
@@ -24,6 +25,7 @@ type Gateway struct {
 }
 
 // NewGateway creates a REST gateway that translates HTTP+JSON to gRPC.
+// If spaFS is non-nil, the admin panel SPA is served at /.
 func NewGateway(
 	addr string,
 	configSvc riokuv1.ConfigServiceServer,
@@ -31,6 +33,7 @@ func NewGateway(
 	a *auth.Auth,
 	engine *config.Engine,
 	st store.Driver,
+	spaFS fs.FS,
 ) (*Gateway, error) {
 	ctx := context.Background()
 
@@ -59,8 +62,15 @@ func NewGateway(
 	// SSE routes.
 	RegisterSSERoutes(topMux, engine)
 
-	// grpc-gateway handles everything else under /api/v1/.
-	topMux.Handle("/", gwMux)
+	// grpc-gateway handles API routes.
+	topMux.Handle("/api/", gwMux)
+
+	// Serve admin panel SPA at / (if built).
+	if spaFS != nil {
+		topMux.Handle("/", newSPAHandler(spaFS))
+	} else {
+		topMux.Handle("/", gwMux)
+	}
 
 	// Apply middleware stack (outermost first).
 	var handler http.Handler = topMux

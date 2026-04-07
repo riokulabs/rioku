@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build hooks setup sandbox sandbox-stop sandbox-seed help
+.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build web-embed hooks setup sandbox sandbox-stop sandbox-seed help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -35,9 +35,18 @@ all: proto build web-build
 ## build: Build daemon and CLI (same binary)
 build: build-daemon
 
-## build-daemon: Build the rioku daemon binary
-build-daemon:
+## build-daemon: Build the rioku daemon binary (embeds admin panel)
+build-daemon: web-embed
 	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
+
+## web-embed: Copy web build into daemon for go:embed
+web-embed: web-build
+	@rm -rf $(PKG)/daemon/web/build
+	@cp -r $(PKG)/web/build $(PKG)/daemon/web/build
+
+## build-daemon-lean: Build daemon without admin panel (smaller binary for cluster members)
+build-daemon-lean:
+	cd $(PKG)/daemon && $(GO) build -tags noadmin -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
 
 ## build-service: Build the build service binary
 build-service:
