@@ -34,6 +34,7 @@ type Config struct {
 	PKI      PKIConfig    `yaml:"pki"`
 	Traces   TracesConfig `yaml:"traces"`
 	AI       AIConfig     `yaml:"ai"`
+	Auth     AuthConfig   `yaml:"auth"`
 	DataDir  string       `yaml:"data_dir"`
 	LogLevel string       `yaml:"log_level"`
 }
@@ -208,6 +209,35 @@ type AIPricingConfig struct {
 }
 
 // --------------------------------------------------------------------------
+// Auth
+// --------------------------------------------------------------------------
+
+// PasswordPolicy defines complexity and lifetime rules for user passwords.
+type PasswordPolicy struct {
+	MinLength        int  `yaml:"min_length"`
+	RequireUppercase bool `yaml:"require_uppercase"`
+	RequireLowercase bool `yaml:"require_lowercase"`
+	RequireDigit     bool `yaml:"require_digit"`
+	RequireSpecial   bool `yaml:"require_special"`
+	MaxAgeDays       int  `yaml:"max_age_days"`
+	HistoryCount     int  `yaml:"history_count"`
+}
+
+// LockoutPolicy defines account lockout behavior on repeated auth failures.
+type LockoutPolicy struct {
+	MaxAttempts     int           `yaml:"max_attempts"`
+	LockoutDuration time.Duration `yaml:"lockout_duration"`
+	ResetAfter      time.Duration `yaml:"reset_after"`
+}
+
+// AuthConfig holds all auth-related daemon configuration.
+type AuthConfig struct {
+	PasswordPolicy PasswordPolicy `yaml:"password_policy"`
+	Lockout        LockoutPolicy  `yaml:"lockout"`
+	DevMode        bool           `yaml:"dev_mode"`
+}
+
+// --------------------------------------------------------------------------
 // Defaults
 // --------------------------------------------------------------------------
 
@@ -304,6 +334,22 @@ func Default() *Config {
 				Overrides:      map[string]string{},
 				Custom:         []interface{}{},
 				Currency:       "USD",
+			},
+		},
+		Auth: AuthConfig{
+			PasswordPolicy: PasswordPolicy{
+				MinLength:        12,
+				RequireUppercase: true,
+				RequireLowercase: true,
+				RequireDigit:     true,
+				RequireSpecial:   false,
+				MaxAgeDays:       0,
+				HistoryCount:     0,
+			},
+			Lockout: LockoutPolicy{
+				MaxAttempts:     5,
+				LockoutDuration: 15 * time.Minute,
+				ResetAfter:      30 * time.Minute,
 			},
 		},
 		DataDir:  DefaultDataDir,
