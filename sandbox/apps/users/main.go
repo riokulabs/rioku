@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -140,7 +141,7 @@ func NewStore(seed []*User) *Store {
 	return s
 }
 
-func (s *Store) List(page, pageSize int, nameFilter, emailFilter string) ([]*User, int) {
+func (s *Store) List(page, pageSize int, nameFilter, emailFilter, sortBy string) ([]*User, int) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -159,6 +160,21 @@ func (s *Store) List(page, pageSize int, nameFilter, emailFilter string) ([]*Use
 			continue
 		}
 		matched = append(matched, u)
+	}
+
+	switch sortBy {
+	case "name":
+		sort.Slice(matched, func(i, j int) bool {
+			return strings.ToLower(matched[i].Name) < strings.ToLower(matched[j].Name)
+		})
+	case "email":
+		sort.Slice(matched, func(i, j int) bool {
+			return strings.ToLower(matched[i].Email) < strings.ToLower(matched[j].Email)
+		})
+	case "created_at":
+		sort.Slice(matched, func(i, j int) bool {
+			return matched[i].CreatedAt.Before(matched[j].CreatedAt)
+		})
 	}
 
 	total := len(matched)
@@ -375,6 +391,7 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	pageSize, _ := strconv.Atoi(q.Get("page_size"))
 	nameFilter := q.Get("name")
 	emailFilter := q.Get("email")
+	sortBy := q.Get("sort")
 
 	if pageSize <= 0 {
 		pageSize = 20
@@ -383,7 +400,7 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	users, total := s.store.List(page, pageSize, nameFilter, emailFilter)
+	users, total := s.store.List(page, pageSize, nameFilter, emailFilter, sortBy)
 
 	// Scale latency with result set size
 	scale := 0.2 + 0.8*float64(len(users))/float64(pageSize)
