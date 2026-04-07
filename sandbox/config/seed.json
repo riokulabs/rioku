@@ -1,0 +1,117 @@
+{
+  "_comment": "Sandbox seed configuration. Applied via POST /api/v1/config after daemon starts.",
+  "services": [
+    {
+      "name": "users-upstream",
+      "upstreams": [{"address": "localhost:9001"}],
+      "lbPolicy": "LB_POLICY_ROUND_ROBIN"
+    },
+    {
+      "name": "products-upstream",
+      "upstreams": [{"address": "localhost:9002"}],
+      "lbPolicy": "LB_POLICY_RANDOM"
+    },
+    {
+      "name": "webhooks-upstream",
+      "upstreams": [{"address": "localhost:9003"}],
+      "lbPolicy": "LB_POLICY_FIRST"
+    },
+    {
+      "name": "auth-upstream",
+      "upstreams": [{"address": "localhost:9004"}],
+      "lbPolicy": "LB_POLICY_LEAST_CONN"
+    },
+    {
+      "name": "media-upstream",
+      "upstreams": [{"address": "localhost:9005"}],
+      "lbPolicy": "LB_POLICY_FIRST"
+    }
+  ],
+  "routes": [
+    {
+      "name": "users-api",
+      "enabled": true,
+      "matchers": [
+        {
+          "hosts": ["api.local"],
+          "paths": [{"type": "TYPE_PREFIX", "value": "/v1/users"}]
+        }
+      ],
+      "serviceRef": "users-upstream"
+    },
+    {
+      "name": "products-api",
+      "enabled": true,
+      "matchers": [
+        {
+          "hosts": ["api.local"],
+          "paths": [{"type": "TYPE_PREFIX", "value": "/v1/products"}]
+        }
+      ],
+      "serviceRef": "products-upstream"
+    },
+    {
+      "name": "webhooks",
+      "enabled": true,
+      "matchers": [
+        {
+          "hosts": ["hooks.local"],
+          "paths": [{"type": "TYPE_PREFIX", "value": "/"}]
+        }
+      ],
+      "serviceRef": "webhooks-upstream"
+    },
+    {
+      "name": "auth",
+      "enabled": true,
+      "matchers": [
+        {
+          "hosts": ["auth.local"],
+          "paths": [{"type": "TYPE_PREFIX", "value": "/"}]
+        }
+      ],
+      "serviceRef": "auth-upstream"
+    },
+    {
+      "name": "media",
+      "enabled": true,
+      "matchers": [
+        {
+          "hosts": ["media.local"],
+          "paths": [{"type": "TYPE_PREFIX", "value": "/"}]
+        }
+      ],
+      "serviceRef": "media-upstream"
+    }
+  ],
+  "policies": [
+    {
+      "name": "rate-limit-products",
+      "type": "POLICY_TYPE_RATE_LIMIT",
+      "config": {
+        "requests_per_second": 100,
+        "burst": 20
+      }
+    },
+    {
+      "name": "auth-check",
+      "type": "POLICY_TYPE_AUTH_API_KEY",
+      "config": {
+        "validation_url": "http://localhost:9004/validate",
+        "header": "Authorization",
+        "scheme": "Bearer"
+      }
+    },
+    {
+      "name": "cors-allow-all",
+      "type": "POLICY_TYPE_TRANSFORM",
+      "config": {
+        "response_headers": {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "*",
+          "Access-Control-Allow-Headers": "*"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "keys": [
+    {"name": "sandbox-admin", "scopes": ["admin"], "expires": "never"},
+    {"name": "sandbox-monitor", "scopes": ["config:read", "traffic:read"], "expires": "never"}
+  ]
+}
