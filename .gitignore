@@ -51,6 +51,7 @@ packages/web/src/routeTree.gen.ts
 # IDE / local tool settings
 .idea/
 .vscode/
+.serena/
 .claude/settings.local.json
 *.swp
 *.swo
