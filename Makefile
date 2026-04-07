@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build hooks setup help
+.PHONY: all build build-daemon build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build hooks setup sandbox sandbox-stop sandbox-seed help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -11,6 +11,19 @@ LDFLAGS  = -X github.com/riokulabs/rioku/internal/version.Version=$(VERSION) \
 BIN_DIR  = bin
 GO       = go
 PKG      = packages
+
+## sandbox: Start sandbox environment
+.PHONY: sandbox sandbox-stop sandbox-seed
+sandbox: build-daemon
+	@bash sandbox/scripts/start.sh
+
+## sandbox-stop: Stop sandbox environment
+sandbox-stop:
+	@bash sandbox/scripts/stop.sh
+
+## sandbox-seed: Re-seed sandbox configuration
+sandbox-seed:
+	@echo "Re-seeding not yet implemented (restart sandbox instead)"
 
 ## help: Show this help message
 help:
