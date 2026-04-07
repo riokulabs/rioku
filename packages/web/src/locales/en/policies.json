@@ -1,0 +1,28 @@
+{
+  "title": "Policies",
+  "subtitle": "Manage rate limits, auth, and middleware policies",
+  "table": {
+    "name": "Name",
+    "type": "Type",
+    "attachedTo": "Attached to",
+    "updated": "Updated",
+    "actions": "Actions"
+  },
+  "form": {
+    "createPolicy": "Create policy",
+    "editPolicy": "Edit policy",
+    "policyName": "Policy name",
+    "policyType": "Policy type",
+    "policyConfig": "Policy configuration"
+  },
+  "messages": {
+    "policyCreated": "Policy created successfully",
+    "policyUpdated": "Policy updated successfully",
+    "policyDeleted": "Policy deleted successfully",
+    "confirmDelete": "Are you sure you want to delete this policy?"
+  },
+  "empty": {
+    "noPolicies": "No policies configured",
+    "noPoliciesDesc": "Create a policy to apply rate limits, authentication, or other middleware."
+  }
+}

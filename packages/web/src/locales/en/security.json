@@ -1,0 +1,25 @@
+{
+  "title": "Security",
+  "subtitle": "API keys and certificate management",
+  "keys": {
+    "apiKeys": "API Keys",
+    "createKey": "Create key",
+    "revokeKey": "Revoke key",
+    "keyName": "Key name",
+    "scopes": "Scopes",
+    "expiresAt": "Expires at",
+    "keyPrefix": "Key prefix",
+    "showOnce": "This key will only be shown once. Copy it now."
+  },
+  "messages": {
+    "keyCreated": "API key created successfully",
+    "keyRevoked": "API key revoked successfully",
+    "confirmRevoke": "Are you sure you want to revoke this key? This cannot be undone."
+  },
+  "certs": {
+    "certificateStatus": "Certificate status",
+    "caStatus": "CA status",
+    "nodeCert": "Node certificate",
+    "dbCert": "Database certificate"
+  }
+}

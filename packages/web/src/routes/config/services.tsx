@@ -1,66 +1,517 @@
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { DataTable } from '../../components/DataTable'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  ServerIcon,
+  MoreHorizontalIcon,
+  XIcon,
+} from 'lucide-react'
+
+import { apiClient } from '@/lib/api'
+import type { ConfigSnapshot, Service, Upstream } from '@/lib/api'
+
+import { PageHeader } from '@/components/rioku/page-header'
+import { DataTable } from '@/components/rioku/data-table'
+import { EmptyState } from '@/components/rioku/empty-state'
+import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
+import { StatusBadge } from '@/components/rioku/status-badge'
+import { TimeAgo } from '@/components/rioku/time-ago'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export const Route = createFileRoute('/config/services')({
   component: ConfigServices,
 })
 
-const sampleServices = [
-  {
-    name: 'backend-api',
-    upstreams: '10.0.1.10:8080, 10.0.1.11:8080',
-    lbPolicy: 'round-robin',
-    health: 'healthy',
-    updated: '3 hours ago',
-  },
-  {
-    name: 'frontend',
-    upstreams: '10.0.2.10:3000',
-    lbPolicy: 'random',
-    health: 'healthy',
-    updated: '1 day ago',
-  },
-  {
-    name: 'redirect-svc',
-    upstreams: '10.0.3.10:8080',
-    lbPolicy: 'first',
-    health: 'degraded',
-    updated: '2 days ago',
-  },
-]
+const LB_POLICIES = [
+  'round-robin',
+  'random',
+  'first',
+  'least-conn',
+  'ip-hash',
+] as const
+
+const TLS_MODES = ['none', 'tls', 'skip-verify'] as const
+
+interface UpstreamRow {
+  address: string
+  weight: number
+  tls_mode: string
+}
+
+interface ServiceFormState {
+  name: string
+  lbPolicy: string
+  upstreams: UpstreamRow[]
+}
+
+const defaultUpstream: UpstreamRow = {
+  address: '',
+  weight: 1,
+  tls_mode: 'none',
+}
+
+const emptyForm: ServiceFormState = {
+  name: '',
+  lbPolicy: 'round-robin',
+  upstreams: [{ ...defaultUpstream }],
+}
+
+function formFromService(service: Service): ServiceFormState {
+  return {
+    name: service.name,
+    lbPolicy: service.lb_policy,
+    upstreams:
+      service.upstreams.length > 0
+        ? service.upstreams.map((u) => ({
+            address: u.address,
+            weight: u.weight,
+            tls_mode: u.tls_mode,
+          }))
+        : [{ ...defaultUpstream }],
+  }
+}
 
 function ConfigServices() {
-  return (
-    <>
-      <div className="page-header">
-        <h1>Services</h1>
-        <p>Upstream service definitions and load balancing</p>
+  const { t } = useTranslation('services')
+  const queryClient = useQueryClient()
+
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingService, setEditingService] = useState<Service | null>(null)
+  const [form, setForm] = useState<ServiceFormState>(emptyForm)
+  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
+
+  const configQuery = useQuery({
+    queryKey: ['config'],
+    queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
+  })
+
+  const services = configQuery.data?.services ?? []
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: {
+      operation: 'create_service' | 'update_service'
+      service: Partial<Service>
+    }) => apiClient.post('/config', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+      toast.success(
+        editingService
+          ? t('messages.serviceUpdated')
+          : t('messages.serviceCreated'),
+      )
+      closeSheet()
+    },
+    onError: () => {
+      toast.error('Failed to save service')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post('/config', {
+        operation: 'delete_service',
+        service: { id },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+      toast.success(t('messages.serviceDeleted'))
+      setDeleteTarget(null)
+    },
+    onError: () => {
+      toast.error('Failed to delete service')
+    },
+  })
+
+  function openCreate() {
+    setEditingService(null)
+    setForm(emptyForm)
+    setSheetOpen(true)
+  }
+
+  function openEdit(service: Service) {
+    setEditingService(service)
+    setForm(formFromService(service))
+    setSheetOpen(true)
+  }
+
+  function closeSheet() {
+    setSheetOpen(false)
+    setEditingService(null)
+    setForm(emptyForm)
+  }
+
+  function addUpstream() {
+    setForm((prev) => ({
+      ...prev,
+      upstreams: [...prev.upstreams, { ...defaultUpstream }],
+    }))
+  }
+
+  function removeUpstream(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      upstreams: prev.upstreams.filter((_, i) => i !== index),
+    }))
+  }
+
+  function updateUpstream(index: number, field: keyof UpstreamRow, value: string | number) {
+    setForm((prev) => ({
+      ...prev,
+      upstreams: prev.upstreams.map((u, i) =>
+        i === index ? { ...u, [field]: value } : u,
+      ),
+    }))
+  }
+
+  function handleSave() {
+    const validUpstreams: Upstream[] = form.upstreams
+      .filter((u) => u.address.trim() !== '')
+      .map((u) => ({
+        address: u.address.trim(),
+        weight: u.weight,
+        tls_mode: u.tls_mode,
+      }))
+
+    const service: Partial<Service> = {
+      ...(editingService ? { id: editingService.id } : {}),
+      name: form.name,
+      lb_policy: form.lbPolicy,
+      upstreams: validUpstreams,
+    }
+
+    saveMutation.mutate({
+      operation: editingService ? 'update_service' : 'create_service',
+      service,
+    })
+  }
+
+  if (configQuery.isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-4 w-64" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
       </div>
+    )
+  }
+
+  const tableData = services.map((svc) => ({
+    ...svc,
+    _upstreamCount: svc.upstreams.length,
+    _upstreamPreview: svc.upstreams[0]?.address ?? '\u2014',
+  }))
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          <Button onClick={openCreate}>
+            <PlusIcon className="size-4" />
+            {t('form.createService')}
+          </Button>
+        }
+      />
 
       <DataTable
-        title="Services"
         columns={[
-          { key: 'name', header: 'Name', render: (r) => <span className="font-mono">{r.name as string}</span> },
-          { key: 'upstreams', header: 'Upstreams', render: (r) => <span className="font-mono text-muted text-xs">{r.upstreams as string}</span> },
-          { key: 'lbPolicy', header: 'LB Policy', render: (r) => <span className="badge badge-purple">{r.lbPolicy as string}</span> },
           {
-            key: 'health',
-            header: 'Health',
-            render: (r) => {
-              const h = r.health as string
-              return (
-                <span className="flex items-center gap-2">
-                  <span className={`status-dot ${h === 'healthy' ? 'green' : 'yellow'}`} />
-                  {h}
-                </span>
-              )
-            },
+            key: 'name',
+            header: t('table.name'),
+            sortable: true,
+            render: (r) => (
+              <span className="font-mono text-sm">{r.name}</span>
+            ),
           },
-          { key: 'updated', header: 'Updated' },
+          {
+            key: '_upstreamCount',
+            header: t('table.upstreams'),
+            render: (r) => (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">{r._upstreamCount}</Badge>
+                <span className="truncate text-xs text-muted-foreground font-mono">
+                  {r._upstreamPreview}
+                </span>
+              </div>
+            ),
+          },
+          {
+            key: 'lb_policy',
+            header: t('table.lbPolicy'),
+            render: (r) => (
+              <Badge variant="outline">{r.lb_policy}</Badge>
+            ),
+          },
+          {
+            key: '_health',
+            header: t('table.health'),
+            render: () => (
+              <StatusBadge status="healthy" />
+            ),
+          },
+          {
+            key: 'updated_at',
+            header: t('table.updated'),
+            sortable: true,
+            render: (r) =>
+              r.updated_at ? <TimeAgo date={r.updated_at} /> : '\u2014',
+          },
+          {
+            key: '_actions',
+            header: '',
+            render: (r) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="ghost" size="icon-sm" />}
+                >
+                  <MoreHorizontalIcon className="size-4" />
+                  <span className="sr-only">{t('table.actions')}</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEdit(r as Service)}>
+                    <PencilIcon className="size-4" />
+                    {t('form.editService')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setDeleteTarget(r as Service)}
+                  >
+                    <TrashIcon className="size-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ),
+          },
         ]}
-        data={sampleServices}
-        actions={<button className="btn btn-primary">+ Add Service</button>}
+        data={tableData}
+        searchable
+        searchPlaceholder="Search services..."
+        pageSize={10}
+        emptyState={
+          <EmptyState
+            icon={<ServerIcon className="size-5" />}
+            title={t('empty.noServices')}
+            description={t('empty.noServicesDesc')}
+            action={
+              <Button onClick={openCreate} size="sm">
+                <PlusIcon className="size-4" />
+                {t('form.createService')}
+              </Button>
+            }
+          />
+        }
       />
-    </>
+
+      {/* Create / Edit Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>
+              {editingService
+                ? t('form.editService')
+                : t('form.createService')}
+            </SheetTitle>
+            <SheetDescription>
+              {editingService
+                ? 'Modify the service configuration.'
+                : 'Define a new upstream service with load balancing.'}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex flex-col gap-5 px-4 pb-4 overflow-y-auto">
+            {/* Name */}
+            <div className="space-y-2">
+              <Label htmlFor="service-name">{t('form.serviceName')}</Label>
+              <Input
+                id="service-name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="backend-api"
+              />
+            </div>
+
+            {/* LB Policy */}
+            <div className="space-y-2">
+              <Label>{t('form.lbPolicy')}</Label>
+              <Select
+                value={form.lbPolicy}
+                onValueChange={(val) =>
+                  setForm((prev) => ({ ...prev, lbPolicy: val ?? 'round-robin' }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LB_POLICIES.map((policy) => (
+                    <SelectItem key={policy} value={policy}>
+                      {policy}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Upstreams */}
+            <fieldset className="space-y-3">
+              <div className="flex items-center justify-between">
+                <legend className="text-sm font-medium">
+                  {t('table.upstreams')}
+                </legend>
+                <Button variant="outline" size="xs" onClick={addUpstream}>
+                  <PlusIcon className="size-3" />
+                  {t('form.addUpstream')}
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {form.upstreams.map((upstream, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start gap-2 rounded-lg border p-3"
+                  >
+                    <div className="flex-1 space-y-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">{t('form.address')}</Label>
+                        <Input
+                          value={upstream.address}
+                          onChange={(e) =>
+                            updateUpstream(index, 'address', e.target.value)
+                          }
+                          placeholder="10.0.1.10:8080"
+                          className="h-7 text-xs"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">{t('form.weight')}</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={upstream.weight}
+                            onChange={(e) =>
+                              updateUpstream(
+                                index,
+                                'weight',
+                                parseInt(e.target.value, 10) || 0,
+                              )
+                            }
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">{t('form.tlsMode')}</Label>
+                          <Select
+                            value={upstream.tls_mode}
+                            onValueChange={(val) =>
+                              updateUpstream(index, 'tls_mode', val ?? 'none')
+                            }
+                          >
+                            <SelectTrigger className="h-7 w-full text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TLS_MODES.map((mode) => (
+                                <SelectItem key={mode} value={mode}>
+                                  {mode}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {form.upstreams.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => removeUpstream(index)}
+                        className="mt-5 shrink-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <XIcon className="size-3" />
+                        <span className="sr-only">{t('form.removeUpstream')}</span>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                onClick={handleSave}
+                disabled={
+                  saveMutation.isPending ||
+                  !form.name ||
+                  form.upstreams.every((u) => !u.address.trim())
+                }
+              >
+                {saveMutation.isPending ? 'Saving...' : 'Save'}
+              </Button>
+              <Button variant="outline" onClick={closeSheet}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        title="Delete Service"
+        description={t('messages.confirmDelete')}
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+        }}
+      />
+    </div>
   )
 }

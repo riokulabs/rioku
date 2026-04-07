@@ -1,0 +1,33 @@
+{
+  "title": "Services",
+  "subtitle": "Manage upstream service definitions",
+  "table": {
+    "name": "Name",
+    "upstreams": "Upstreams",
+    "lbPolicy": "LB policy",
+    "health": "Health",
+    "updated": "Updated",
+    "actions": "Actions"
+  },
+  "form": {
+    "createService": "Create service",
+    "editService": "Edit service",
+    "serviceName": "Service name",
+    "lbPolicy": "Load-balancing policy",
+    "addUpstream": "Add upstream",
+    "removeUpstream": "Remove upstream",
+    "address": "Address",
+    "weight": "Weight",
+    "tlsMode": "TLS mode"
+  },
+  "messages": {
+    "serviceCreated": "Service created successfully",
+    "serviceUpdated": "Service updated successfully",
+    "serviceDeleted": "Service deleted successfully",
+    "confirmDelete": "Are you sure you want to delete this service?"
+  },
+  "empty": {
+    "noServices": "No services configured",
+    "noServicesDesc": "Create a service to define upstream targets for your routes."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "title": "Cluster",
+  "subtitle": "Node membership and health",
+  "overview": "Cluster Overview",
+  "nodeCount": "Node Count",
+  "raftLeader": "Raft Leader",
+  "singleNodeNote": "Running in single-node mode. Add nodes to enable clustering.",
+  "labels": {
+    "nodeName": "Node name",
+    "role": "Role",
+    "health": "Health",
+    "daemonVersion": "Daemon version",
+    "caddyVersion": "Caddy version",
+    "storeMode": "Store mode",
+    "lastSeen": "Last seen"
+  },
+  "roles": {
+    "bootstrap": "Bootstrap",
+    "member": "Member"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Settings",
+  "subtitle": "Daemon and platform configuration",
+  "sections": {
+    "general": "General",
+    "store": "Store",
+    "pki": "PKI",
+    "ai": "AI",
+    "logging": "Logging"
+  },
+  "labels": {
+    "daemonAddress": "Daemon address",
+    "dataDirectory": "Data directory",
+    "driver": "Driver",
+    "connectionString": "Connection string",
+    "caAlgorithm": "CA algorithm",
+    "rotationThreshold": "Rotation threshold",
+    "certStatus": "Certificate status",
+    "traceStore": "Trace store",
+    "retentionPeriod": "Retention period",
+    "logLevel": "Log level"
+  },
+  "actions": {
+    "reset": "Reset",
+    "saveChanges": "Save Changes"
+  }
+}

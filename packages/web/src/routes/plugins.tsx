@@ -1,65 +1,109 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
+import { Puzzle } from 'lucide-react'
+
+import { PageHeader } from '@/components/rioku/page-header'
+import { EmptyState } from '@/components/rioku/empty-state'
+import { Slot } from '@/components/plugin/slot'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardAction,
+} from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Skeleton } from '@/components/ui/skeleton'
+import { apiClient } from '@/lib/api'
 
 export const Route = createFileRoute('/plugins')({
   component: Plugins,
 })
 
-const plugins = [
-  {
-    name: 'rate-limit',
-    type: 'Traffic',
-    status: 'Active',
-    version: 'v1.2.0',
-    description: 'Token bucket rate limiting per route or global',
-  },
-  {
-    name: 'auth-jwt',
-    type: 'Middleware',
-    status: 'Active',
-    version: 'v1.0.3',
-    description: 'JWT validation and claims extraction',
-  },
-  {
-    name: 'llm-proxy',
-    type: 'Traffic',
-    status: 'Active',
-    version: 'v0.9.1',
-    description: 'Multi-provider LLM request routing and token tracking',
-  },
-  {
-    name: 'agent-identity',
-    type: 'Middleware',
-    status: 'Disabled',
-    version: 'v0.1.0',
-    description: 'AI agent identity verification and attestation',
-  },
-]
+interface PluginInfo {
+  id: string
+  name: string
+  type: string
+  status: 'active' | 'disabled'
+  version: string
+  description: string
+}
 
 function Plugins() {
-  return (
-    <>
-      <div className="page-header">
-        <h1>Plugins</h1>
-        <p>Installed modules and extensions</p>
-      </div>
+  const { t } = useTranslation('plugins')
 
-      <div className="card-grid">
-        {plugins.map((plugin) => (
-          <div key={plugin.name} className="plugin-card">
-            <div className="plugin-card-header">
-              <span className="plugin-card-name">{plugin.name}</span>
-              <span className={`badge ${plugin.status === 'Active' ? 'badge-green' : 'badge-muted'}`}>
-                {plugin.status}
-              </span>
-            </div>
-            <p className="text-muted text-sm">{plugin.description}</p>
-            <div className="plugin-card-meta">
-              <span className="badge badge-purple">{plugin.type}</span>
-              <span className="badge badge-muted">{plugin.version}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+  const { data, isLoading } = useQuery<PluginInfo[]>({
+    queryKey: ['plugins'],
+    queryFn: () => apiClient.get<PluginInfo[]>('/plugins'),
+    retry: false,
+  })
+
+  const plugins = data ?? []
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title={t('title')} description={t('subtitle')} />
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <Skeleton className="h-44 rounded-xl" />
+          <Skeleton className="h-44 rounded-xl" />
+          <Skeleton className="h-44 rounded-xl" />
+        </div>
+      ) : plugins.length === 0 ? (
+        <EmptyState
+          icon={<Puzzle className="size-5" />}
+          title={t('empty.noPlugins')}
+          description={t('empty.noPluginsDesc')}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {plugins.map((plugin) => (
+            <PluginCard key={plugin.id} plugin={plugin} />
+          ))}
+        </div>
+      )}
+
+      {/* Plugin injection zone for settings */}
+      <Slot zone="settings.sections" />
+    </div>
+  )
+}
+
+function PluginCard({ plugin }: { plugin: PluginInfo }) {
+  const { t } = useTranslation('plugins')
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-mono">{plugin.name}</CardTitle>
+        <CardAction>
+          <Switch
+            checked={plugin.status === 'active'}
+            aria-label={`${t('labels.status')}: ${plugin.status}`}
+          />
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <CardDescription>{plugin.description}</CardDescription>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant={plugin.status === 'active' ? 'default' : 'secondary'}
+            className={
+              plugin.status === 'active'
+                ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-transparent'
+                : ''
+            }
+          >
+            {plugin.status === 'active' ? 'Active' : 'Disabled'}
+          </Badge>
+          <Badge variant="outline">{plugin.type}</Badge>
+          <Badge variant="secondary">{plugin.version}</Badge>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
