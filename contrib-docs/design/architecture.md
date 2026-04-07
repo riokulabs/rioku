@@ -59,8 +59,9 @@
 
 ### 3.1 Transport
 
-- **gRPC internally** (CLI <-> daemon, node <-> node)
-- **REST externally** (admin panel, operator tooling) via `grpc-gateway` generating REST from proto annotations — eliminates duplication
+- **gRPC internally** (node <-> node only)
+- **REST for all clients** (CLI, admin panel, operator tooling) via `grpc-gateway` generating REST from proto annotations — eliminates duplication
+- The CLI communicates with the daemon over REST (not gRPC). Same binary works locally (`http://localhost:7778`) or remotely (`https://gateway.prod.internal:7778`). This matches the industry pattern (kubectl, vault, consul all use REST)
 - **SSE** for live event streams (translated from gRPC server-streaming RPCs at the REST gateway layer)
 
 Ports (configurable):
@@ -114,7 +115,7 @@ service HealthService {
 Notes:
 - `WatchChanges` and `WatchCluster` are server-streaming RPCs -> translated to SSE at the REST layer for the admin SPA.
 - `InstallPlugin` and `TriggerBuild` stream progress events — these are long-running operations and the CLI must show live output.
-- The CLI communicates with the daemon **exclusively** over gRPC. It never touches the config store directly.
+- The CLI communicates with the daemon **exclusively** over REST. It never touches the config store directly. Node-local commands (init, start, stop, migrate) are the only exceptions — they access local filesystem and processes.
 
 ### 3.3 Node-to-Node mTLS
 
