@@ -184,6 +184,38 @@ type Tx interface {
 
 	AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) error
 	QueryAuditLog(ctx context.Context, query AuditQuery) ([]*riokuv1.AuditEntry, error)
+
+	// --- Users ---
+
+	CreateUser(ctx context.Context, u *User) (*User, error)
+	GetUser(ctx context.Context, id string) (*User, error)
+	GetUserByUsername(ctx context.Context, username string) (*User, error)
+	ListUsers(ctx context.Context) ([]*User, error)
+	UpdateUser(ctx context.Context, u *User) (*User, error)
+	DeleteUser(ctx context.Context, id string) error
+
+	// IncrementFailedAttempts increments failed_attempts and optionally sets
+	// locked_until + status='locked' if threshold is reached.
+	IncrementFailedAttempts(ctx context.Context, userID string, lockUntil *time.Time) error
+	// ResetFailedAttempts sets failed_attempts=0 and clears locked_until on successful login.
+	ResetFailedAttempts(ctx context.Context, userID string) error
+	// UpdateLastLogin sets last_login to now for the given user.
+	UpdateLastLogin(ctx context.Context, userID string) error
+
+	// --- Sessions ---
+
+	CreateSession(ctx context.Context, s *Session) (*Session, error)
+	GetSession(ctx context.Context, id string) (*Session, error)
+	ListSessionsByUser(ctx context.Context, userID string) ([]*Session, error)
+	DeleteSession(ctx context.Context, id string) error
+	DeleteSessionsByUser(ctx context.Context, userID string) error
+	// DeleteSessionsByUserExcept deletes all sessions for the user except the given session ID.
+	DeleteSessionsByUserExcept(ctx context.Context, userID, exceptSessionID string) error
+	// UpdateSessionLastActive sets last_active to the given time for the given session.
+	UpdateSessionLastActive(ctx context.Context, id string, t time.Time) error
+	// DeleteExpiredSessions hard deletes sessions where expires_at < now OR
+	// last_active < now-24h. Returns number of rows deleted.
+	DeleteExpiredSessions(ctx context.Context) (int64, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +252,37 @@ type AuditQuery struct {
 	Until      *time.Time
 	Limit      int
 	Offset     int
+}
+
+// User represents a daemon user account.
+type User struct {
+	ID                  string
+	Username            string
+	Email               *string
+	DisplayName         *string
+	PasswordHash        string
+	Status              string // "active", "suspended", "locked"
+	TOTPSecret          *string
+	TOTPEnabled         bool
+	ForcePasswordChange bool
+	FailedAttempts      int
+	LockedUntil         *time.Time
+	LastLogin           *time.Time
+	PasswordChangedAt   time.Time
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+// Session represents a server-side auth session.
+type Session struct {
+	ID          string
+	UserID      string
+	Fingerprint string
+	CreatedAt   time.Time
+	ExpiresAt   time.Time
+	LastActive  time.Time
+	IPAddress   *string
+	UserAgent   *string
 }
 
 // ---------------------------------------------------------------------------
