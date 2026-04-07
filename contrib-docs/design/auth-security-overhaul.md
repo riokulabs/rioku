@@ -910,6 +910,104 @@ Every auth event creates an audit entry:
 
 ---
 
+## Part 12: Additional Security Hardening
+
+### Account Enumeration Prevention
+
+The login endpoint must return the same error message and take the same time regardless of whether the username exists:
+
+- Username not found → still run argon2id hash against a dummy value (constant-time), return "Invalid credentials"
+- Wrong password → return "Invalid credentials"
+- Account locked → return 423 (this intentionally reveals the account exists, which is acceptable since the attacker already knows the username to have locked it)
+
+Never return "User not found" or "Invalid password" separately.
+
+### Constant-Time Comparisons
+
+All security-sensitive comparisons must use `crypto/subtle.ConstantTimeCompare` to prevent timing side-channels:
+
+- Session ID validation (comparing cookie value against DB/cache)
+- API key hash comparison
+- TOTP code comparison
+- CSRF token comparison (if added)
+
+Argon2id handles timing safety for password comparison internally.
+
+### CORS Configuration
+
+Explicit CORS policy on the REST gateway. Default: deny all cross-origin requests.
+
+```yaml
+auth:
+  cors:
+    allowed_origins: []        # empty = same-origin only (default)
+    allowed_methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    allowed_headers: ["Authorization", "Content-Type", "X-Request-ID"]
+    max_age: 3600              # preflight cache seconds
+```
+
+When `allowed_origins` is empty, no `Access-Control-Allow-Origin` header is set — browsers block cross-origin requests. Operators can add specific origins for deployments where the admin panel is served from a different domain.
+
+### Open Redirect Prevention
+
+After login, if a `?redirect=` parameter is present (for "redirect back to where you were"):
+
+1. Parse the redirect URL
+2. Reject if it contains a scheme (`https://`, `http://`) or starts with `//` (protocol-relative)
+3. Reject if it doesn't start with `/` (must be an absolute path)
+4. Allow only paths matching known routes (or at minimum, same-origin paths starting with `/`)
+
+### Log Sanitization
+
+Sensitive data must NEVER appear in logs. The logging layer must strip or redact:
+
+| Field | Log behavior |
+|---|---|
+| Passwords | Never logged under any circumstance |
+| Session IDs | Logged as `sid:<first 8 chars>...` (truncated for correlation, not exploitable) |
+| API keys | Logged as prefix only (`rku_key_****`) |
+| TOTP codes | Never logged |
+| TOTP secrets | Never logged |
+| Bootstrap tokens | Logged as prefix only (`rku_tok_****`) |
+| Request bodies to auth endpoints | Never logged |
+| Response bodies containing tokens | Never logged |
+
+All other request/response data can be logged at debug level.
+
+### Request Body Size Limits
+
+The HTTP server enforces maximum body sizes to prevent memory exhaustion:
+
+| Endpoint category | Max body size |
+|---|---|
+| Auth endpoints (login, password) | 4 KB |
+| Config mutations | 1 MB |
+| Config import | 10 MB |
+| All other API endpoints | 256 KB |
+| File uploads (future) | Configurable, default 10 MB |
+
+Enforced via `http.MaxBytesReader` in middleware. Returns 413 Payload Too Large when exceeded.
+
+### HTTPS Enforcement
+
+In production (when NOT running with `--dev`):
+
+- If the daemon detects it's serving HTTP (no TLS configured), log a warning: "REST API serving over HTTP without TLS — configure TLS or put behind a reverse proxy"
+- The `Secure` flag on cookies prevents them from being sent over HTTP, effectively breaking auth for non-TLS deployments (intentional safety net)
+- Recommended production setup: Caddy reverse-proxies the REST API with auto-TLS, or the daemon serves TLS directly using certs from the PKI subsystem
+
+### Sensitive Data in Responses
+
+No endpoint should ever return:
+- `password_hash` field on user objects
+- `totp_secret` field on user objects (only returned during TOTP setup, once)
+- Raw session IDs in list responses (only the current session's ID is exposed via `/auth/me`)
+- API key values after creation (shown once, then only the prefix)
+
+User list/detail endpoints return a sanitized view without sensitive fields.
+
+---
+
 ## Migration Path
 
 ### Server-Side (Go)
@@ -1027,6 +1125,17 @@ Every auth event creates an audit entry:
 - [ ] SSE works with cookie auth
 - [ ] Logout redirects to login, clears cookie
 - [ ] Force password change redirects to change-password form
+
+### Security Hardening
+- [ ] Login with non-existent username → same error + same timing as wrong password
+- [ ] Session ID comparison uses constant-time function
+- [ ] CORS: cross-origin request without configured origin → blocked
+- [ ] CORS: configured allowed origin → request succeeds
+- [ ] Login redirect param validated — rejects external URLs, protocol-relative, non-path values
+- [ ] Logs never contain passwords, raw tokens, TOTP codes, or secrets
+- [ ] Request body > limit → 413 response
+- [ ] User list/detail responses never include password_hash or totp_secret
+- [ ] Non-TLS production mode logs security warning
 
 ### Backwards Compatibility
 - [ ] CLI with `--token` flag still works (Bearer header)
