@@ -43,7 +43,6 @@ CREATE TABLE users (
     email               TEXT,
     display_name        TEXT,
     password_hash       TEXT NOT NULL,
-    role                TEXT NOT NULL DEFAULT 'viewer',
     status              TEXT NOT NULL DEFAULT 'active',
     totp_secret         TEXT,
     totp_enabled        BOOLEAN NOT NULL DEFAULT FALSE,
@@ -62,8 +61,8 @@ CREATE UNIQUE INDEX idx_users_username ON users(username);
 - `id`: UUID v4 (cryptographically random, not predictable)
 - `username`: Unique, case-insensitive (stored lowercase)
 - `password_hash`: Argon2id hash (see Password Security section)
-- `role`: One of the RBAC roles (see Part 3)
 - `status`: `active`, `suspended`, `locked` (locked = automatic from failed attempts, suspended = admin action)
+- Roles are assigned via the `user_roles` join table (see Part 3: RBAC), not stored on the user row
 - `totp_secret`: Base32-encoded TOTP shared secret (encrypted at rest via keyring)
 - `force_password_change`: Set on account creation and admin-triggered password resets
 - `failed_attempts`: Counter for account lockout (reset on successful login)
@@ -152,22 +151,24 @@ When any of these change, ALL sessions for that user are revoked (except the cur
 
 ### Auth Endpoints (User Accounts)
 
-| Endpoint | Method | Auth | Purpose |
+| Endpoint | Method | Permission | Purpose |
 |---|---|---|---|
 | `POST /api/v1/auth/login` | POST | None | Username/password login (+ optional TOTP code) |
 | `POST /api/v1/auth/token` | POST | None | Token exchange (bootstrap token, API key) — backwards compat |
-| `POST /api/v1/auth/logout` | POST | Session | Logout, clear session |
-| `GET /api/v1/auth/me` | GET | Session | Current session + user info |
-| `POST /api/v1/auth/password` | POST | Session | Change own password |
-| `GET /api/v1/users` | GET | Admin | List all users |
-| `POST /api/v1/users` | POST | Superadmin | Create user |
-| `GET /api/v1/users/{id}` | GET | Admin | Get user details |
-| `PUT /api/v1/users/{id}` | PUT | Admin | Update user (role, status, etc.) |
-| `DELETE /api/v1/users/{id}` | DELETE | Superadmin | Delete user (revokes all sessions) |
-| `POST /api/v1/users/{id}/reset-password` | POST | Admin | Force password reset (sets `force_password_change`) |
-| `POST /api/v1/users/{id}/unlock` | POST | Admin | Manually unlock locked account |
-| `POST /api/v1/users/{id}/suspend` | POST | Admin | Suspend user (revokes all sessions) |
-| `POST /api/v1/users/{id}/activate` | POST | Admin | Reactivate suspended user |
+| `POST /api/v1/auth/logout` | POST | Any session | Logout, clear session |
+| `GET /api/v1/auth/me` | GET | Any session | Current session + user info + permissions |
+| `POST /api/v1/auth/password` | POST | Any session | Change own password |
+| `GET /api/v1/users` | GET | `users:read` | List all users |
+| `POST /api/v1/users` | POST | `users:create` | Create user |
+| `GET /api/v1/users/{id}` | GET | `users:read` | Get user details |
+| `PUT /api/v1/users/{id}` | PUT | `users:manage` | Update user (status, display name, etc.) |
+| `DELETE /api/v1/users/{id}` | DELETE | `users:delete` | Delete user (cascades: revokes sessions, removes role assignments) |
+| `POST /api/v1/users/{id}/reset-password` | POST | `users:manage` | Force password reset (sets `force_password_change`) |
+| `POST /api/v1/users/{id}/unlock` | POST | `users:manage` | Manually unlock locked account |
+| `POST /api/v1/users/{id}/suspend` | POST | `users:manage` | Suspend user (revokes all sessions) |
+| `POST /api/v1/users/{id}/activate` | POST | `users:manage` | Reactivate suspended user |
+| `POST /api/v1/users/{id}/roles` | POST | `roles:manage` | Assign role to user |
+| `DELETE /api/v1/users/{id}/roles/{role_id}` | DELETE | `roles:manage` | Remove role from user |
 
 ### Login Flow
 
@@ -201,7 +202,8 @@ POST /api/v1/auth/login
     "id": "uuid",
     "username": "admin",
     "display_name": "Admin User",
-    "role": "superadmin",
+    "roles": ["superadmin"],
+    "permissions": ["config:read", "config:write", "users:create", "..."],
     "totp_enabled": false,
     "force_password_change": true
   },
@@ -277,52 +279,285 @@ The TOTP secret is encrypted at rest using the daemon's signing key (AES-256-GCM
 
 ## Part 3: Role-Based Access Control (RBAC)
 
-### Roles
+Proper relational RBAC with normalized tables, composite keys on join tables, and permission-based enforcement.
 
-| Role | Description | Permissions |
-|---|---|---|
-| `superadmin` | Root/system administrator | Everything. Can create/delete users, manage roles. Only role that can delete other superadmins. |
-| `admin` | Instance administrator | Manage config (routes, services, policies), manage API keys, view audit log, manage users (except superadmin), manage sessions. Cannot delete superadmin accounts. |
-| `operator` | Day-to-day operations | Manage config (routes, services, policies), view audit log, manage own API keys. Cannot manage users or sessions. |
-| `viewer` | Read-only access | View config, view traffic, view audit log. Cannot modify anything. |
+### Schema
 
-### Permission Matrix
+```sql
+-- Atomic permissions — the finest-grained access control unit.
+-- Seeded on migration, extensible by plugins.
+CREATE TABLE permissions (
+    id          TEXT PRIMARY KEY,     -- e.g. 'config:read', 'users:create'
+    resource    TEXT NOT NULL,        -- e.g. 'config', 'users', 'sessions'
+    action      TEXT NOT NULL,        -- e.g. 'read', 'write', 'create', 'delete', 'manage'
+    description TEXT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(resource, action)
+);
 
-| Resource | superadmin | admin | operator | viewer |
-|---|---|---|---|---|
-| Config: read | yes | yes | yes | yes |
-| Config: write | yes | yes | yes | no |
-| API keys: own | yes | yes | yes | no |
-| API keys: all | yes | yes | no | no |
-| Users: manage | yes | yes | no | no |
-| Users: create/delete | yes | no | no | no |
-| Sessions: manage | yes | yes | no | no |
-| Audit: read | yes | yes | yes | yes |
-| Settings: read | yes | yes | yes | yes |
-| Settings: write | yes | yes | no | no |
-| Traffic: read | yes | yes | yes | yes |
+-- Named collections of permissions.
+-- Built-in roles are seeded; admins can create custom roles.
+CREATE TABLE roles (
+    id          TEXT PRIMARY KEY,     -- UUID
+    name        TEXT NOT NULL UNIQUE, -- e.g. 'superadmin', 'operator', 'my-custom-role'
+    description TEXT NOT NULL,
+    is_builtin  BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-### Enforcement
+-- Many-to-many: which permissions each role grants.
+-- Composite PK — no surrogate ID on a pure relationship table.
+CREATE TABLE role_permissions (
+    role_id       TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id TEXT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, permission_id)
+);
+CREATE INDEX idx_role_permissions_role ON role_permissions(role_id);
 
-Permissions checked in the auth middleware after session validation. The claims context includes `role`, and each endpoint handler checks against the required permission level.
-
-A `RequireRole(minRole)` middleware helper simplifies this:
-```go
-// Usage in route registration
-mux.Handle("POST /api/v1/users", RequireRole("superadmin", handler))
-mux.Handle("DELETE /api/v1/keys/{id}", RequireRole("admin", handler))
-mux.Handle("POST /api/v1/config", RequireRole("operator", handler))
+-- Many-to-many: which roles each user has.
+-- Composite PK — no surrogate ID on a pure relationship table.
+CREATE TABLE user_roles (
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id    TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    granted_by TEXT REFERENCES users(id),            -- who assigned this role
+    granted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, role_id)
+);
+CREATE INDEX idx_user_roles_user ON user_roles(user_id);
+CREATE INDEX idx_user_roles_role ON user_roles(role_id);
 ```
 
-Role hierarchy: `superadmin > admin > operator > viewer`. `RequireRole("operator")` allows operator, admin, and superadmin.
+**Design notes:**
+- `ON DELETE CASCADE` on join tables — deleting a role automatically removes all assignments. Deleting a user removes their role assignments and sessions.
+- Composite primary keys on `role_permissions` and `user_roles` — these are pure relationship tables, no surrogate ID needed.
+- Indexes on FK columns match query patterns: "get all roles for user X" and "get all users with role Y".
+- `is_builtin` prevents accidental deletion of system roles.
+- `granted_by` tracks who assigned a role for audit trail.
 
-### Future: Custom Roles
+### Seed Permissions
 
-The current design uses fixed roles. A future module can extend this to custom roles with granular permissions. The RBAC enforcement layer is built to accept a permission check function, not just a role string, so it can be extended without rewriting the middleware.
+Seeded during migration. These are the atomic permission units:
+
+| ID | Resource | Action | Description |
+|---|---|---|---|
+| `config:read` | config | read | View routes, services, policies |
+| `config:write` | config | write | Create, update, delete routes/services/policies |
+| `config:import` | config | import | Import full config (replaces all) |
+| `config:export` | config | export | Export config snapshot |
+| `keys:own` | keys | own | Manage own API keys |
+| `keys:manage` | keys | manage | Manage all API keys |
+| `users:read` | users | read | View user list and details |
+| `users:manage` | users | manage | Update users, change roles, reset passwords |
+| `users:create` | users | create | Create new user accounts |
+| `users:delete` | users | delete | Delete user accounts |
+| `roles:read` | roles | read | View roles and permissions |
+| `roles:manage` | roles | manage | Create, update, delete custom roles |
+| `sessions:read` | sessions | read | View active sessions |
+| `sessions:manage` | sessions | manage | Revoke other users' sessions |
+| `audit:read` | audit | read | View audit log |
+| `settings:read` | settings | read | View daemon settings |
+| `settings:write` | settings | write | Modify daemon settings |
+| `traffic:read` | traffic | read | View live traffic and analytics |
+| `plugins:read` | plugins | read | View installed plugins |
+| `plugins:manage` | plugins | manage | Install, remove, configure plugins |
+| `cluster:read` | cluster | read | View cluster status |
+| `cluster:manage` | cluster | manage | Join/remove nodes |
+
+### Seed Roles
+
+Four built-in roles seeded during migration, marked `is_builtin = true`:
+
+**superadmin** — All permissions. The root account's default role.
+
+**admin** — Everything except `users:create`, `users:delete`, `roles:manage`, `cluster:manage`. Can manage existing users and sessions but cannot create/delete accounts or modify the role structure.
+
+**operator** — `config:read`, `config:write`, `config:import`, `config:export`, `keys:own`, `audit:read`, `settings:read`, `traffic:read`, `plugins:read`, `cluster:read`. Day-to-day operations without user/session management.
+
+**viewer** — `config:read`, `audit:read`, `settings:read`, `traffic:read`, `plugins:read`, `cluster:read`. Read-only everywhere.
+
+### Hierarchical Permissions (Scope-Based)
+
+Permissions follow a hierarchical `resource:action` pattern with wildcard support. A user granted `config:*` automatically has `config:read`, `config:write`, `config:import`, and `config:export`. The special `*` permission grants everything.
+
+**Hierarchy rules:**
+- `config:read` — matches exactly `config:read`
+- `config:*` — matches any permission starting with `config:`
+- `*` — matches all permissions (superadmin wildcard)
+
+**Storage:** The `role_permissions` table stores the granted scope strings. A role can have both granular (`config:read`) and wildcard (`config:*`) entries. The session cache resolves these into a flat set for fast lookup.
+
+**Resolution at session creation:**
+
+```sql
+-- Get all granted scopes for a user (across all roles)
+SELECT DISTINCT rp.permission_id 
+FROM user_roles ur
+JOIN role_permissions rp ON ur.role_id = rp.role_id
+WHERE ur.user_id = ?;
+```
+
+The resulting scope set is stored in the session cache. The `HasPermission` check expands wildcards:
+
+```go
+type SessionClaims struct {
+    SessionID   string
+    UserID      string
+    Username    string
+    Roles       []string          // role names for display
+    Scopes      []string          // raw granted scopes (may include wildcards)
+}
+
+// HasPermission checks if the user has the given permission,
+// either directly or via a wildcard scope.
+func (c *SessionClaims) HasPermission(perm string) bool {
+    for _, scope := range c.Scopes {
+        if scope == "*" {
+            return true
+        }
+        if scope == perm {
+            return true
+        }
+        // Wildcard: "config:*" matches "config:read", "config:write", etc.
+        if strings.HasSuffix(scope, ":*") {
+            prefix := strings.TrimSuffix(scope, "*")
+            if strings.HasPrefix(perm, prefix) {
+                return true
+            }
+        }
+    }
+    return false
+}
+```
+
+This is O(n) where n is the number of scopes for the user — typically 5-20 entries, so linear scan is faster than a map for this size. The check runs once per request from cached data (no DB hit).
+
+**Go middleware:**
+
+```go
+func RequirePermission(perm string, next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        claims := auth.ClaimsFromContext(r.Context())
+        if claims == nil || !claims.HasPermission(perm) {
+            writeError(w, r, 403, "Forbidden", "You do not have permission: "+perm)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+
+// Usage:
+mux.Handle("POST /api/v1/users", RequirePermission("users:create", handler))
+mux.Handle("POST /api/v1/config", RequirePermission("config:write", handler))
+mux.Handle("GET /api/v1/audit", RequirePermission("audit:read", handler))
+```
+
+### Built-In Role Scope Assignments
+
+| Role | Scopes |
+|---|---|
+| `superadmin` | `*` |
+| `admin` | `config:*`, `keys:*`, `users:read`, `users:manage`, `roles:read`, `sessions:*`, `audit:read`, `settings:*`, `traffic:read`, `plugins:*`, `cluster:read` |
+| `operator` | `config:*`, `keys:own`, `audit:read`, `settings:read`, `traffic:read`, `plugins:read`, `cluster:read` |
+| `viewer` | `config:read`, `audit:read`, `settings:read`, `traffic:read`, `plugins:read`, `cluster:read` |
+
+This means `admin` gets `config:read` + `config:write` + `config:import` + `config:export` through the single `config:*` wildcard — no need to enumerate every sub-permission.
+
+### Custom Roles
+
+Admins with `roles:manage` permission can:
+- Create custom roles with any subset of permissions
+- Assign custom roles to users (a user can have multiple roles)
+- Built-in roles cannot be modified or deleted (`is_builtin = true` enforced)
+
+**Endpoints:**
+
+| Endpoint | Method | Permission | Purpose |
+|---|---|---|---|
+| `GET /api/v1/roles` | GET | `roles:read` | List all roles with their permissions |
+| `POST /api/v1/roles` | POST | `roles:manage` | Create custom role |
+| `GET /api/v1/roles/{id}` | GET | `roles:read` | Get role details + permissions |
+| `PUT /api/v1/roles/{id}` | PUT | `roles:manage` | Update custom role (add/remove permissions) |
+| `DELETE /api/v1/roles/{id}` | DELETE | `roles:manage` | Delete custom role (CASCADE removes assignments) |
+| `GET /api/v1/permissions` | GET | `roles:read` | List all available permissions |
+
+### Session Claims Cache
+
+When a session is validated (cache hit or DB lookup), the resolved permission set is included:
+
+**Cache invalidation triggers:**
+
+- Role assignment changed (user granted/revoked a role) → evict all sessions for that user
+- Role scopes changed (role's scopes modified) → evict all sessions for all users with that role
+- Role deleted → CASCADE handles DB cleanup, evict affected sessions
+
+The `SessionClaims` struct and `HasPermission` method are defined in the Hierarchical Permissions section above.
 
 ---
 
-## Part 4: Session Store
+## Part 4: Data-at-Rest Encryption
+
+Sensitive fields in the database are encrypted using AES-256-GCM before storage. The encryption key is derived from the daemon's signing key (already stored at `<data-dir>/signing.key`).
+
+### Key Derivation
+
+The signing key (32 bytes, generated during `rioku init`) is used as input to HKDF-SHA256 to derive a separate encryption key. This ensures the signing key and encryption key are cryptographically independent even though they share a root secret.
+
+```go
+// Derive encryption key from signing key
+encKey := hkdf.New(sha256.New, signingKey, salt, []byte("rioku-data-encryption"))
+```
+
+- Salt: 16 bytes stored alongside the signing key (generated once during init)
+- Info string: `"rioku-data-encryption"` (domain separation)
+- Output: 32 bytes (AES-256 key)
+
+### Encrypted Fields
+
+| Table | Column | What's stored | Why encrypted |
+|---|---|---|---|
+| `users` | `totp_secret` | TOTP shared secret (base32) | Attacker with DB access could generate valid TOTP codes |
+| `users` | `email` | User email address | PII — regulatory compliance |
+| `api_keys` | `key_hash` | SHA-256 hash of API key | Already hashed, but encrypting the hash adds defense-in-depth |
+
+### Encryption Format
+
+Encrypted values stored as base64-encoded ciphertext with a version prefix:
+
+```
+v1:<base64(nonce + ciphertext + tag)>
+```
+
+- `v1:` prefix enables future algorithm rotation without breaking existing data
+- Nonce: 12 bytes (crypto/rand), unique per encryption
+- AES-256-GCM provides authenticated encryption (integrity + confidentiality)
+- Total overhead: ~45 bytes per encrypted field (12 nonce + 16 tag + prefix)
+
+### Key Rotation
+
+When the signing key is rotated (future feature):
+1. Derive new encryption key from new signing key
+2. Background job re-encrypts all encrypted fields with the new key
+3. Old key retained temporarily for decryption during migration
+4. Version prefix (`v1:`, `v2:`) identifies which key to use for decryption
+
+### What Is NOT Encrypted
+
+- `password_hash`: Already a one-way argon2id hash — encryption adds no value
+- `session.id`: Random UUID, no secret material
+- `session.fingerprint`: SHA-256 hash, not reversible
+- Config data (routes, services, policies): Not sensitive — this is operational config
+- Audit log entries: Must be readable for compliance
+
+### SQLite-Specific Considerations
+
+SQLite does not support Transparent Data Encryption (TDE). For full database-level encryption, users can use SQLCipher (a SQLite extension). This is outside Rioku's scope — we encrypt at the application layer for the fields that matter.
+
+Postgres and MySQL both support TDE and connection-level TLS. Rioku's application-layer encryption is defense-in-depth on top of whatever the database provides.
+
+---
+
+## Part 5: Session Store
 
 ### Sessions Table
 
@@ -397,7 +632,7 @@ On every request:
 
 ---
 
-## Part 5: Cookie Auth
+## Part 6: Cookie Auth
 
 ### Cookie Configuration
 
@@ -430,7 +665,7 @@ Both paths inject the same claims context (`user_id`, `username`, `role`). Downs
 
 ---
 
-## Part 6: Rate Limiting
+## Part 7: Rate Limiting
 
 ### Per-Session Rate Limiting
 
@@ -476,7 +711,7 @@ Keyed by client IP. Applied before authentication (protects against credential s
 
 ---
 
-## Part 7: Security Headers
+## Part 8: Security Headers
 
 Middleware applied to all responses.
 
@@ -508,7 +743,7 @@ Middleware applied to all responses.
 
 ---
 
-## Part 8: Route Loaders (Frontend)
+## Part 9: Route Loaders (Frontend)
 
 ### Pattern Change
 
@@ -592,7 +827,7 @@ beforeLoad: async ({ context, location }) => {
 
 ---
 
-## Part 9: Event Subscription Abstraction (SSE)
+## Part 10: Event Subscription Abstraction (SSE)
 
 Client-side subscription interface abstracted for future WebSocket transport:
 
@@ -611,17 +846,17 @@ Wraps `EventSource` today. Transport-agnostic for consumers.
 
 ---
 
-## Part 10: Admin Panel Session Management
+## Part 11: Admin Panel Session Management
 
 ### Endpoints
 
-| Endpoint | Method | Auth | Purpose |
+| Endpoint | Method | Permission | Purpose |
 |---|---|---|---|
-| `GET /api/v1/auth/me` | GET | Session | Current session + user info |
-| `POST /api/v1/auth/logout` | POST | Session | Delete session, clear cookie |
-| `GET /api/v1/auth/sessions` | GET | Admin | List all active sessions |
-| `DELETE /api/v1/auth/sessions/{id}` | DELETE | Admin | Revoke specific session |
-| `DELETE /api/v1/auth/sessions?user_id={id}` | DELETE | Admin | Revoke all sessions for user |
+| `GET /api/v1/auth/me` | GET | Any session | Current session + user info + permissions |
+| `POST /api/v1/auth/logout` | POST | Any session | Delete session, clear cookie |
+| `GET /api/v1/auth/sessions` | GET | `sessions:read` | List all active sessions |
+| `DELETE /api/v1/auth/sessions/{id}` | DELETE | `sessions:manage` | Revoke specific session |
+| `DELETE /api/v1/auth/sessions?user_id={id}` | DELETE | `sessions:manage` | Revoke all sessions for user |
 
 ### `/api/v1/auth/me` Response
 
@@ -639,7 +874,8 @@ Wraps `EventSource` today. Transport-agnostic for consumers.
     "username": "admin",
     "display_name": "Admin User",
     "email": "admin@example.com",
-    "role": "superadmin",
+    "roles": ["superadmin"],
+    "permissions": ["config:read", "config:write", "users:create", "..."],
     "totp_enabled": true,
     "force_password_change": false
   }
@@ -716,7 +952,6 @@ Every auth event creates an audit entry:
 ## Open Questions
 
 - **SSO module:** Basic username/password auth is the foundation. SSO (OIDC, SAML) can be added as a module that creates users on first login and maps external roles to Rioku roles. The user/session infrastructure supports this without changes.
-- **Custom RBAC:** Current fixed roles (superadmin/admin/operator/viewer) cover common cases. A future module can extend to custom roles with granular permissions. The middleware is built to accept a permission check function, not just role comparison.
 - **Plugin CSP:** When plugins load external scripts, CSP needs per-plugin relaxation. Deferred to plugin security design.
 - **WebSocket transport:** SSE covers current needs. `coder/websocket` recommended if bidirectional communication needed. Same `useEventSubscription` abstraction.
 - **Password breach checking:** Could integrate with HaveIBeenPwned API to check passwords against known breaches. Deferred — optional future enhancement.
@@ -748,11 +983,23 @@ Every auth event creates an audit entry:
 - [ ] TOTP secret encrypted at rest
 
 ### RBAC
-- [ ] Superadmin can access everything
-- [ ] Admin cannot delete superadmin accounts
-- [ ] Operator can manage config but not users
-- [ ] Viewer is read-only — all writes return 403
-- [ ] Role change → all sessions for user revoked
+- [ ] Permission check: user with `config:write` can POST config, user without cannot (403)
+- [ ] Multi-role: user with two roles gets union of permissions
+- [ ] Built-in roles seeded with correct permissions
+- [ ] Custom role: create role with subset of permissions → assign to user → permissions enforced
+- [ ] Built-in roles cannot be modified or deleted
+- [ ] Role assignment change → all sessions for user evicted from cache
+- [ ] Role permission change → all sessions for users with that role evicted
+- [ ] Role CRUD endpoints enforce `roles:manage` permission
+- [ ] `/api/v1/permissions` lists all available permissions
+- [ ] Hierarchical permissions: `config:*` grants all config sub-permissions
+
+### Data-at-Rest Encryption
+- [ ] TOTP secrets encrypted in DB (not readable as plaintext)
+- [ ] Email addresses encrypted in DB
+- [ ] Encryption key derived from signing key via HKDF (not the signing key itself)
+- [ ] Encrypted values use versioned format (`v1:...`)
+- [ ] Decryption works correctly after daemon restart
 
 ### Sessions
 - [ ] Cookie: HttpOnly, Secure (except dev), SameSite=Strict
