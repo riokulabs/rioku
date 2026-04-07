@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
@@ -21,19 +22,31 @@ type Server struct {
 	grpcServer *grpc.Server
 	listener   net.Listener
 	addr       string
+	configSvc  riokuv1.ConfigServiceServer
+	healthSvc  riokuv1.HealthServiceServer
 }
 
 // NewServer creates a gRPC server with ConfigService and HealthService registered.
-func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *caddy.Manager) (*Server, error) {
+func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *caddy.Manager, a *auth.Auth) (*Server, error) {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("grpc: listen %s: %w", addr, err)
 	}
 
-	gs := grpc.NewServer()
+	var opts []grpc.ServerOption
+	if a != nil {
+		opts = append(opts,
+			grpc.UnaryInterceptor(UnaryAuthInterceptor(a)),
+			grpc.StreamInterceptor(StreamAuthInterceptor(a)),
+		)
+	}
+	gs := grpc.NewServer(opts...)
 
-	riokuv1.RegisterConfigServiceServer(gs, newConfigService(engine))
-	riokuv1.RegisterHealthServiceServer(gs, newHealthService(st, caddyMgr))
+	cfgSvc := newConfigService(engine)
+	healthSvc := newHealthService(st, caddyMgr)
+
+	riokuv1.RegisterConfigServiceServer(gs, cfgSvc)
+	riokuv1.RegisterHealthServiceServer(gs, healthSvc)
 
 	// Enable reflection for grpcurl and debugging.
 	reflection.Register(gs)
@@ -42,6 +55,8 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		grpcServer: gs,
 		listener:   lis,
 		addr:       addr,
+		configSvc:  cfgSvc,
+		healthSvc:  healthSvc,
 	}, nil
 }
 
@@ -56,3 +71,9 @@ func (s *Server) Stop() {
 	log.Println("grpc: stopping...")
 	s.grpcServer.GracefulStop()
 }
+
+// ConfigService returns the registered ConfigService server implementation.
+func (s *Server) ConfigService() riokuv1.ConfigServiceServer { return s.configSvc }
+
+// HealthService returns the registered HealthService server implementation.
+func (s *Server) HealthService() riokuv1.HealthServiceServer { return s.healthSvc }

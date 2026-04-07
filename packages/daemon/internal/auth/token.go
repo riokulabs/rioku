@@ -5,21 +5,48 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 )
 
 const (
-	tokenPrefix    = "rku_tok_"
-	tokenRandBytes = 32
+	tokenPrefix      = "rku_tok_"
+	refreshPrefix    = "rku_ref_"
+	signingKeyPrefix = "rku_key_"
+	tokenRandBytes   = 32
 )
 
 // GenerateBootstrapToken generates a cryptographically random bootstrap token.
 // Format: rku_tok_<32 random bytes base64url encoded>
 func GenerateBootstrapToken() (string, error) {
+	return generateToken(tokenPrefix)
+}
+
+// GenerateRefreshToken generates a cryptographically random refresh token.
+// Format: rku_ref_<32 random bytes base64url encoded>
+func GenerateRefreshToken() (string, error) {
+	return generateToken(refreshPrefix)
+}
+
+// GenerateSigningKey generates a cryptographically random signing key.
+// Format: rku_key_<32 random bytes base64url encoded>
+func GenerateSigningKey() (string, error) {
+	return generateToken(signingKeyPrefix)
+}
+
+func generateToken(prefix string) (string, error) {
 	b := make([]byte, tokenRandBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("auth: generate token: %w", err)
 	}
-	return tokenPrefix + base64.RawURLEncoding.EncodeToString(b), nil
+	return prefix + base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// HashToken returns the SHA-256 hex hash of a token.
+// Used for storing tokens securely — the raw token is never persisted.
+func HashToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
 }

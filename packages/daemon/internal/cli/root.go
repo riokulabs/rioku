@@ -55,6 +55,7 @@ func init() {
 		newStopCmd(),
 		newStatusCmd(),
 		newVersionCmd(),
+		newKeyCmd(),
 	)
 }
 

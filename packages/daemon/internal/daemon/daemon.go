@@ -5,13 +5,17 @@ package daemon
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/gateway"
 	riokugrpc "github.com/riokulabs/rioku/internal/grpc"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
@@ -28,7 +32,9 @@ type Daemon struct {
 	store     store.Driver
 	caddy     *caddy.Manager
 	engine    *config.Engine
+	auth      *auth.Auth
 	grpc      *riokugrpc.Server
+	gateway   *gateway.Gateway
 	syncAgent *riokusync.Agent
 	pidFile   string
 	startedAt time.Time
@@ -76,6 +82,16 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.engine = config.NewEngine(d.store, compiler)
 	log.Println("config: engine ready")
 
+	// 4. Create auth.
+	signingKeyPath := filepath.Join(d.cfg.DataDir, "signing.key")
+	signingKey, err := loadOrCreateSigningKey(signingKeyPath)
+	if err != nil {
+		d.store.Close()
+		return fmt.Errorf("auth signing key: %w", err)
+	}
+	d.auth = auth.NewAuth(signingKey, d.store)
+	log.Println("auth: ready")
+
 	// 4. Start Caddy child process (optional — warns if binary missing).
 	d.caddy = caddy.NewManager(caddy.ManagerConfig{
 		Binary:    d.cfg.Caddy.Binary,
@@ -97,7 +113,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if grpcAddr == "" {
 		grpcAddr = ":7777"
 	}
-	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy)
+	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy, d.auth)
 	if err != nil {
 		log.Printf("grpc: failed to start: %v", err)
 	} else {
@@ -109,7 +125,26 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}()
 	}
 
-	// 7. Write PID file.
+	// 8. Start REST gateway.
+	restAddr := d.cfg.Listen.REST
+	if restAddr == "" {
+		restAddr = ":7778"
+	}
+	if d.grpc != nil {
+		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.engine)
+		if err != nil {
+			log.Printf("rest: failed to start: %v", err)
+		} else {
+			d.gateway = gw
+			go func() {
+				if err := d.gateway.Start(); err != nil {
+					log.Printf("rest: server error: %v", err)
+				}
+			}()
+		}
+	}
+
+	// 9. Write PID file.
 	if err := WritePIDFile(d.pidFile); err != nil {
 		log.Printf("warning: failed to write pid file: %v", err)
 	}
@@ -126,6 +161,13 @@ func (d *Daemon) Start(ctx context.Context) error {
 // Stop shuts down all subsystems in reverse order.
 func (d *Daemon) Stop(ctx context.Context) error {
 	log.Println("daemon: shutting down...")
+
+	// Stop REST gateway.
+	if d.gateway != nil {
+		if err := d.gateway.Stop(ctx); err != nil {
+			log.Printf("rest: stop error: %v", err)
+		}
+	}
 
 	// Stop gRPC server.
 	if d.grpc != nil {
@@ -224,4 +266,28 @@ func (d *Daemon) openStore(ctx context.Context) (store.Driver, error) {
 	}
 
 	return drv, nil
+}
+
+// loadOrCreateSigningKey loads the JWT signing key from disk, or generates
+// a new one if it doesn't exist.
+func loadOrCreateSigningKey(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err == nil && len(data) >= 32 {
+		return data, nil
+	}
+
+	// Generate a new 32-byte key.
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return nil, fmt.Errorf("generate signing key: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return nil, fmt.Errorf("create key dir: %w", err)
+	}
+	if err := os.WriteFile(path, key, 0600); err != nil {
+		return nil, fmt.Errorf("write signing key: %w", err)
+	}
+
+	return key, nil
 }

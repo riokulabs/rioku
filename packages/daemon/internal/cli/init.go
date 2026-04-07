@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
 	caddypkg "github.com/riokulabs/rioku/internal/caddy"
@@ -180,14 +181,46 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 		drv.Close()
 		return fmt.Errorf("migrate store: %w", err)
 	}
-	drv.Close()
 	fmt.Printf("  Store initialized (%s)\n", cfg.Store.Driver)
 
-	// 5. Generate bootstrap token.
+	// 5. Generate bootstrap token and store its hash.
 	token, err := auth.GenerateBootstrapToken()
 	if err != nil {
+		drv.Close()
 		return fmt.Errorf("generate token: %w", err)
 	}
+
+	// Wait for raft leader election if using raft store.
+	if cfg.Store.Driver == "raft" {
+		fmt.Print("  Waiting for store leader election... ")
+		for i := 0; i < 50; i++ {
+			h := drv.Health(ctx)
+			if h.OK && h.Mode == store.ModePrimary {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		fmt.Println("done")
+	}
+
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		drv.Close()
+		return fmt.Errorf("begin tx for bootstrap token: %w", err)
+	}
+	hash := auth.HashToken(token)
+	if _, err := tx.CreateAPIKey(ctx, "bootstrap", hash, []string{"admin"}, nil); err != nil {
+		tx.Rollback()
+		drv.Close()
+		return fmt.Errorf("store bootstrap token: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		drv.Close()
+		return fmt.Errorf("commit bootstrap token: %w", err)
+	}
+
+	drv.Close()
+
 	fmt.Printf("\n  Bootstrap token: %s\n", token)
 	fmt.Println("  Save this — it will not be shown again.")
 
