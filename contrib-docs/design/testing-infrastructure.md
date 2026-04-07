@@ -39,9 +39,35 @@ sandbox-test-smoke:       ## Run full smoke test suite against running sandbox
 sandbox-seed-users:       ## Seed test users with various roles
 ```
 
+### Process Management via Screen
+
+On Linux and macOS, the sandbox uses `screen` to manage processes. Each process runs in a named screen session:
+
+| Session name | Process |
+|---|---|
+| `rioku-daemon` | Rioku daemon |
+| `rioku-users` | Users app (:9001) |
+| `rioku-products` | Products app (:9002) |
+| `rioku-webhooks` | Webhooks app (:9003) |
+| `rioku-auth` | Auth-service app (:9004) |
+| `rioku-media` | Media app (:9005) |
+
+**Benefits:**
+- `screen -ls` shows all sandbox processes at a glance
+- `screen -r rioku-daemon` attaches to see live daemon logs
+- Processes survive terminal disconnect (remote dev)
+- Clean shutdown via `screen -S <name> -X quit`
+
+**Fallback:** If `screen` is not installed, falls back to background processes with log files (current behavior). A warning is printed: "screen not found — using background processes, install screen for better sandbox experience".
+
+**Platform notes:**
+- Linux: `screen` available via package manager (`apt install screen`, `dnf install screen`)
+- macOS: `screen` included with Xcode command line tools
+- Windows/WSL: `screen` available in WSL, not native Windows
+
 ### `make sandbox-restart-daemon`
 
-Rebuilds the daemon binary (`make build-daemon`), kills only the daemon process (reads PID from `.data/pids`), restarts it with the same config. Upstream apps on ports 9001-9005 are untouched. Health-checks the daemon before returning. Typical cycle: ~5 seconds from code change to running daemon.
+Rebuilds the daemon binary (`make build-daemon`), kills only the daemon screen session (`screen -S rioku-daemon -X quit`), restarts it in a new screen session with the same config. Upstream app sessions are untouched. Health-checks the daemon before returning. Typical cycle: ~5 seconds from code change to running daemon.
 
 ### Test User Seeding
 
