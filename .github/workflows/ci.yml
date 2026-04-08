@@ -101,3 +101,57 @@ jobs:
 
       - name: Test build-service (race)
         run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...
+
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/daemon/go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install web dependencies
+        run: cd packages/web && npm ci
+
+      - name: Start sandbox
+        run: make sandbox &
+
+      - name: Wait for sandbox health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf --max-time 2 http://localhost:7778/api/v1/health; then
+              echo "Sandbox is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Sandbox did not become healthy"
+          exit 1
+
+      - name: Run smoke tests
+        run: make sandbox-test-smoke
+
+      - name: Install Playwright browsers
+        run: cd packages/web && npx playwright install --with-deps
+
+      - name: Run Playwright E2E tests
+        run: cd packages/web && npx playwright test
+
+      - name: Upload Playwright report on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: packages/web/playwright-report/
+          retention-days: 7
+
+      - name: Stop sandbox
+        if: always()
+        run: make sandbox-stop

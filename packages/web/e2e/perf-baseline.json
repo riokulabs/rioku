@@ -1,0 +1,14 @@
+{
+  "_comment": "Performance baselines for Playwright E2E tests. Thresholds in milliseconds.",
+  "dashboard": {
+    "domContentLoaded": 2000,
+    "fullLoad": 4000
+  },
+  "tablePage": {
+    "render": 1000
+  },
+  "navigation": {
+    "transition": 500
+  },
+  "regressionThreshold": 0.20
+}
