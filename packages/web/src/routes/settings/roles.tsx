@@ -85,7 +85,7 @@ function RolesPage() {
   const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
-    scopes: [] as string[],
+    permissions: [] as string[],
   })
 
   const createMutation = useMutation({
@@ -94,7 +94,7 @@ function RolesPage() {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
       toast.success('Role created')
       setCreateOpen(false)
-      setCreateForm({ name: '', description: '', scopes: [] })
+      setCreateForm({ name: '', description: '', permissions: [] })
     },
     onError: (err: { detail?: string }) =>
       toast.error(err.detail ?? 'Failed to create role'),
@@ -158,12 +158,12 @@ function RolesPage() {
             ),
           },
           {
-            key: 'scopes',
-            header: 'Scopes',
+            key: 'permissions',
+            header: 'Permissions',
             render: (r) => (
               <span className="text-sm">
-                {(r.scopes as string[]).length} scope
-                {(r.scopes as string[]).length !== 1 ? 's' : ''}
+                {((r.permissions as string[]) ?? []).length} permission
+                {((r.permissions as string[]) ?? []).length !== 1 ? 's' : ''}
               </span>
             ),
           },
@@ -262,15 +262,15 @@ function RolesPage() {
                   <Button
                     key={p.id}
                     variant={
-                      createForm.scopes.includes(p.id) ? 'default' : 'outline'
+                      createForm.permissions.includes(p.id) ? 'default' : 'outline'
                     }
                     size="xs"
                     onClick={() =>
                       setCreateForm((prev) => ({
                         ...prev,
-                        scopes: prev.scopes.includes(p.id)
-                          ? prev.scopes.filter((s) => s !== p.id)
-                          : [...prev.scopes, p.id],
+                        permissions: prev.permissions.includes(p.id)
+                          ? prev.permissions.filter((s) => s !== p.id)
+                          : [...prev.permissions, p.id],
                       }))
                     }
                   >
@@ -289,7 +289,7 @@ function RolesPage() {
               disabled={
                 createMutation.isPending ||
                 !createForm.name ||
-                createForm.scopes.length === 0
+                createForm.permissions.length === 0
               }
             >
               {createMutation.isPending ? 'Creating...' : 'Create role'}
@@ -341,11 +341,11 @@ function EditRoleSheet({
   onClose,
 }: EditRoleSheetProps) {
   const queryClient = useQueryClient()
-  const [scopes, setScopes] = useState<string[]>(role.scopes)
+  const [scopes, setScopes] = useState<string[]>(role.permissions ?? [])
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      apiClient.patch(`/roles/${role.id}`, { scopes }),
+      apiClient.patch(`/roles/${role.id}`, { permissions: scopes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
       toast.success('Role updated')

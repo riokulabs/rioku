@@ -117,7 +117,7 @@ def api(method, path, payload=None):
         body = e.read()
         return e.code, json.loads(body) if body else {}
 
-service_ids = {}
+# Create services first.
 for svc in seed.get("services", []):
     change = {"service": {"action": "UPSERT", "service": {
         "name":      svc["name"],
@@ -125,20 +125,27 @@ for svc in seed.get("services", []):
         "lbPolicy":  svc["lbPolicy"],
     }}}
     status, resp = api("POST", "/api/v1/config", change)
-    svc_id = resp.get("id") or resp.get("service", {}).get("id", "")
-    service_ids[svc["name"]] = svc_id
     print(f"  service {svc['name']}: HTTP {status}")
 
+# Fetch the config to get generated service IDs (the create API doesn't return them).
+_, config_resp = api("GET", "/api/v1/config")
+service_ids = {}
+for svc in config_resp.get("services", []):
+    service_ids[svc["name"]] = svc["id"]
+
+# Create routes, resolving service names to IDs.
 for route in seed.get("routes", []):
-    svc_ref = route.pop("serviceRef", "")
+    svc_ref = route.get("serviceRef", "")
     svc_id  = service_ids.get(svc_ref, "")
+    if not svc_id:
+        print(f"  route {route['name']}: SKIP (service '{svc_ref}' not found)")
+        continue
     r = {
         "name":     route["name"],
         "enabled":  route.get("enabled", True),
         "matchers": route.get("matchers", []),
+        "serviceId": svc_id,
     }
-    if svc_id:
-        r["serviceId"] = svc_id
     status, _ = api("POST", "/api/v1/config", {"route": {"action": "UPSERT", "route": r}})
     print(f"  route {route['name']}: HTTP {status}")
 

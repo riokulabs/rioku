@@ -137,7 +137,7 @@ export interface Role {
   name: string
   description: string
   is_builtin: boolean
-  scopes: string[]
+  permissions: string[]
   created_at: string
   updated_at: string
 }

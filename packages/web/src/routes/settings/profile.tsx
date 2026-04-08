@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { QRCodeSVG } from 'qrcode.react'
 import { PageHeader } from '@/components/rioku/page-header'
 import {
   Card,
@@ -229,12 +230,12 @@ function ProfilePage() {
           ) : totpSetup ? (
             <div className="space-y-4">
               <p className="text-sm">
-                Scan this URI with your authenticator app, then enter the
+                Scan this QR code with your authenticator app, then enter the
                 6-digit code to confirm.
               </p>
-              <code className="block break-all rounded bg-muted px-3 py-2 text-xs">
-                {totpSetup.qr_uri}
-              </code>
+              <div className="flex justify-center rounded bg-white p-4">
+                <QRCodeSVG value={totpSetup.qr_uri} size={200} />
+              </div>
               <p className="text-xs text-muted-foreground">
                 Manual secret: <span className="font-mono">{totpSetup.secret}</span>
               </p>
