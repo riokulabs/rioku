@@ -88,6 +88,10 @@ func NewGateway(
 	// SSE routes.
 	RegisterSSERoutes(topMux, engine)
 
+	// Audit log endpoint (hand-written because gRPC-gateway cannot
+	// translate server-streaming RPCs in in-process mode).
+	RegisterAuditRoutes(topMux, st)
+
 	// grpc-gateway handles API routes.
 	topMux.Handle("/api/", gwMux)
 
