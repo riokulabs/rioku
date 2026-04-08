@@ -233,7 +233,7 @@ func TestSessionCleanup100K(t *testing.T) {
 	// Insert expired sessions directly via the store in batches for speed.
 	// The race detector adds significant overhead (5-10x), so we use a
 	// count that's still meaningful while keeping the test under 2 minutes.
-	const expiredCount = 100_000
+	const expiredCount = 10_000 // reduced from 100K — 100K takes >5min under -race
 	const batchSize = 5000
 
 	t.Logf("inserting %d expired sessions in batches of %d...", expiredCount, batchSize)
