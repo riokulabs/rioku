@@ -94,7 +94,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.sessions.StartCleanupWorker(ctx)
 	log.Println("sessions: manager ready")
 
-	// 4. Start Caddy child process (optional — warns if binary missing).
+	// 4. Create config engine with placeholder compiler (updated after gateway binds).
+	placeholderCompiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{})
+	d.engine = config.NewEngine(d.store, placeholderCompiler)
+	log.Println("config: engine ready (compiler will be updated after gateway binds)")
+
+	// 5. Start Caddy child process (optional — warns if binary missing).
 	d.caddy = caddy.NewManager(caddy.ManagerConfig{
 		Binary:    d.cfg.Caddy.Binary,
 		AdminAddr: d.cfg.Caddy.AdminAddr,
@@ -106,7 +111,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		log.Printf("caddy: child process started (admin: %s)", d.cfg.Caddy.AdminAddr)
 	}
 
-	// 5. Start gRPC server.
+	// 6. Start gRPC server.
 	grpcAddr := d.cfg.Listen.GRPC
 	if grpcAddr == "" {
 		grpcAddr = ":7777"
@@ -123,7 +128,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}()
 	}
 
-	// 6. Start REST gateway on loopback (OS-assigned port).
+	// 7. Start REST gateway on loopback (OS-assigned port).
 	if d.grpc != nil {
 		spaFS, err := riokuweb.SPA()
 		if err != nil {
@@ -144,7 +149,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}
 	}
 
-	// 7. Create config engine with Caddy compiler (needs gateway internal address).
+	// 8. Update compiler with the real admin config now that we know the gateway port.
 	adminListenAddr := d.cfg.Listen.REST
 	if adminListenAddr == "" {
 		adminListenAddr = ":7778"
@@ -153,14 +158,18 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if d.gateway != nil {
 		internalAddr = d.gateway.Addr()
 	}
-	compiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{
+	trafficAddrs := d.cfg.Caddy.TrafficAddrs
+	if len(trafficAddrs) == 0 {
+		trafficAddrs = []string{":443"}
+	}
+	compiler := caddy.NewCompiler(trafficAddrs, caddy.AdminConfig{
 		InternalAddr: internalAddr,
 		ListenAddr:   adminListenAddr,
 		Domain:       d.cfg.Listen.AdminDomain,
 		DevMode:      d.cfg.Auth.DevMode,
 	})
-	d.engine = config.NewEngine(d.store, compiler)
-	log.Println("config: engine ready")
+	d.engine.SetCompiler(compiler)
+	log.Println("config: compiler updated with admin config")
 
 	// 8. Start sync agent (watches config changes, pushes to Caddy).
 	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy)

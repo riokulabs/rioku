@@ -411,13 +411,17 @@ func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type meResponse struct {
-	ID                  string         `json:"id"`
-	Username            string         `json:"username"`
-	DisplayName         string         `json:"display_name,omitempty"`
-	Email               string         `json:"email,omitempty"`
-	ForcePasswordChange bool           `json:"force_password_change"`
-	TOTPEnabled         bool           `json:"totp_enabled"`
-	Session             *meSessionInfo `json:"session,omitempty"`
+	User    meUserInfo     `json:"user"`
+	Session *meSessionInfo `json:"session,omitempty"`
+}
+
+type meUserInfo struct {
+	ID                  string `json:"id"`
+	Username            string `json:"username"`
+	DisplayName         string `json:"display_name,omitempty"`
+	Email               string `json:"email,omitempty"`
+	ForcePasswordChange bool   `json:"force_password_change"`
+	TOTPEnabled         bool   `json:"totp_enabled"`
 }
 
 type meSessionInfo struct {
@@ -481,13 +485,15 @@ func handleMe(st store.Driver) http.HandlerFunc {
 		}
 
 		resp := meResponse{
-			ID:                  user.ID,
-			Username:            user.Username,
-			DisplayName:         displayName,
-			Email:               email,
-			ForcePasswordChange: user.ForcePasswordChange,
-			TOTPEnabled:         user.TOTPEnabled,
-			Session:             sessionInfo,
+			User: meUserInfo{
+				ID:                  user.ID,
+				Username:            user.Username,
+				DisplayName:         displayName,
+				Email:               email,
+				ForcePasswordChange: user.ForcePasswordChange,
+				TOTPEnabled:         user.TOTPEnabled,
+			},
+			Session: sessionInfo,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

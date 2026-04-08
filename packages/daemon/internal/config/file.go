@@ -110,9 +110,10 @@ type ListenConfig struct {
 
 // CaddyConfig controls the managed Caddy child process.
 type CaddyConfig struct {
-	Binary    string `yaml:"binary"`
-	AdminAddr string `yaml:"admin_addr"`
-	DataDir   string `yaml:"data_dir"`
+	Binary       string   `yaml:"binary"`
+	AdminAddr    string   `yaml:"admin_addr"`
+	DataDir      string   `yaml:"data_dir"`
+	TrafficAddrs []string `yaml:"traffic_addrs"` // listen addresses for user traffic server block (default: [":443"])
 }
 
 // --------------------------------------------------------------------------
@@ -302,9 +303,10 @@ func Default() *Config {
 			REST: ":7778",
 		},
 		Caddy: CaddyConfig{
-			Binary:    "caddy",
-			AdminAddr: "localhost:2019",
-			DataDir:   DefaultDataDir + "/caddy",
+			Binary:       "caddy",
+			AdminAddr:    "localhost:2019",
+			DataDir:      DefaultDataDir + "/caddy",
+			TrafficAddrs: []string{":443"},
 		},
 		PKI: PKIConfig{
 			Dir: DefaultDataDir + "/pki",

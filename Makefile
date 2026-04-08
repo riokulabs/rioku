@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build web-embed hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users help
+.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -67,6 +67,34 @@ sandbox-seed-users:
 	  exit 1; \
 	fi
 
+## test-e2e: Run Playwright E2E tests (requires running sandbox)
+test-e2e:
+	cd $(PKG)/web && npx playwright test
+
+## test-e2e-full: Start sandbox, run E2E tests, stop sandbox
+test-e2e-full: build-daemon
+	@echo "==> Starting sandbox for E2E tests..."
+	@bash sandbox/scripts/start.sh &
+	@echo "==> Waiting for sandbox health..."
+	@for i in $$(seq 1 30); do \
+	  if curl -sf --max-time 2 http://localhost:7778/api/v1/health >/dev/null 2>&1; then \
+	    echo "[OK]    sandbox is healthy"; \
+	    break; \
+	  fi; \
+	  if [ $$i -eq 30 ]; then \
+	    echo "[FAIL]  sandbox did not become healthy in 30s"; \
+	    bash sandbox/scripts/stop.sh 2>/dev/null; \
+	    exit 1; \
+	  fi; \
+	  sleep 1; \
+	done
+	@echo "==> Running smoke tests..."
+	@bash sandbox/scripts/test-smoke.sh
+	@echo "==> Running Playwright E2E tests..."
+	cd $(PKG)/web && npx playwright install --with-deps && npx playwright test
+	@echo "==> Stopping sandbox..."
+	@bash sandbox/scripts/stop.sh
+
 ## help: Show this help message
 help:
 	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## //' | column -t -s ':'
@@ -110,15 +138,96 @@ proto-breaking:
 test:
 	cd $(PKG)/daemon && $(GO) test ./...
 	cd $(PKG)/build-service && $(GO) test ./...
+	cd $(PKG)/web && npm test
 
 ## test-race: Run all tests with race detector
 test-race:
 	cd $(PKG)/daemon && $(GO) test -race ./...
 	cd $(PKG)/build-service && $(GO) test -race ./...
 
+## test-security: Run security test suite (injection, timing, fixation)
+test-security:
+	cd $(PKG)/daemon && $(GO) test -race -run 'TestTimingAttack|TestSessionFixation|TestCookieScope|TestSQLInjection|TestXSS|TestRequestSmuggling|TestPasswordPolicy' ./internal/gateway/ -v -timeout 120s
+
+## test-raft-cluster: Run raft 3-node cluster tests
+test-raft-cluster:
+	cd $(PKG)/daemon && $(GO) test -race -run 'TestCluster' ./internal/store/raft/ -v -timeout 120s
+
+## test-coverage: Run Go tests with coverage and check against baseline
+test-coverage:
+	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
+	@cd $(PKG)/daemon && COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%') && \
+		BASELINE=$$(cat bench/coverage-baseline.txt 2>/dev/null || echo "0") && \
+		echo "Coverage: $${COVERAGE}% (baseline: $${BASELINE}%)" && \
+		if [ "$$(echo "$${COVERAGE} < $${BASELINE} - 0.5" | bc)" = "1" ]; then \
+			echo "ERROR: Coverage dropped below baseline"; exit 1; \
+		fi
+
+## coverage-baseline: Update coverage baseline from current results
+coverage-baseline:
+	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
+	@cd $(PKG)/daemon && $(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%' > bench/coverage-baseline.txt
+	@echo "Coverage baseline updated to $$(cat $(PKG)/daemon/bench/coverage-baseline.txt)%"
+
 ## test-integration: Run integration tests (requires databases)
 test-integration:
 	cd $(PKG)/daemon && $(GO) test -tags integration -race ./...
+
+## bench: Run all Go benchmarks (output to packages/daemon/bench/results.txt)
+bench:
+	cd $(PKG)/daemon && $(GO) test -bench=. -benchmem -count=5 -run=^$$ ./... 2>&1 | tee bench/results.txt
+	@echo "Results saved to packages/daemon/bench/results.txt"
+
+## bench-baseline: Save current benchmark results as the new baseline
+bench-baseline: bench
+	cp $(PKG)/daemon/bench/results.txt $(PKG)/daemon/bench/baseline.txt
+	@echo "Baseline updated: packages/daemon/bench/baseline.txt"
+
+## bench-compare: Compare current benchmarks against baseline (requires benchstat)
+bench-compare: bench
+	@if ! command -v benchstat >/dev/null 2>&1; then \
+		echo "Installing benchstat..."; \
+		$(GO) install golang.org/x/perf/cmd/benchstat@latest; \
+	fi
+	benchstat $(PKG)/daemon/bench/baseline.txt $(PKG)/daemon/bench/results.txt
+
+## sandbox-load: Run standard load profile (direct + proxied), requires running sandbox
+sandbox-load:
+	@echo "Building load tester..."
+	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
+	@echo "Running standard load profile..."
+	./$(BIN_DIR)/rioku-loadtest \
+		--profile sandbox/loadtest/profiles/standard.json \
+		--mode both \
+		--output sandbox/loadtest/results.json
+	@echo "Results: sandbox/loadtest/results.json"
+
+## sandbox-load-monitor: Run soak load profile with resource monitoring
+sandbox-load-monitor:
+	@echo "Building load tester..."
+	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
+	@echo "Running soak profile with monitoring..."
+	./$(BIN_DIR)/rioku-loadtest \
+		--profile sandbox/loadtest/profiles/soak.json \
+		--mode proxied \
+		--monitor \
+		--pprof \
+		--output sandbox/loadtest/soak-results.json
+	@echo "Results: sandbox/loadtest/soak-results.json"
+	@echo "Profiles: sandbox/loadtest/heap-*.prof, goroutine-*.prof"
+
+## sandbox-load-compare: Compare load results against baseline
+sandbox-load-compare: sandbox-load
+	@if [ ! -f sandbox/loadtest/baseline.json ]; then \
+		echo "No baseline found. Run: cp sandbox/loadtest/results.json sandbox/loadtest/baseline.json"; \
+		exit 1; \
+	fi
+	@echo "==> Load test comparison (baseline vs current):"
+	@echo "Baseline:"
+	@cat sandbox/loadtest/baseline.json | python3 -m json.tool 2>/dev/null || cat sandbox/loadtest/baseline.json
+	@echo ""
+	@echo "Current:"
+	@cat sandbox/loadtest/results.json | python3 -m json.tool 2>/dev/null || cat sandbox/loadtest/results.json
 
 ## lint: Run linters
 lint:
@@ -136,6 +245,14 @@ web-build:
 ## web-dev: Run admin panel dev server
 web-dev:
 	cd $(PKG)/web && npm run dev
+
+## test-web: Run frontend Vitest tests
+test-web:
+	cd $(PKG)/web && npm test
+
+## test-web-coverage: Run frontend Vitest tests with coverage
+test-web-coverage:
+	cd $(PKG)/web && npm run test:coverage
 
 ## clean: Remove build artifacts
 clean:

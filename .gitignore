@@ -31,6 +31,7 @@ packages/proto/gen/
 # Node / Web
 node_modules/
 packages/web/build/
+packages/web/coverage/
 packages/web/src/routeTree.gen.ts
 packages/daemon/web/build/
 
