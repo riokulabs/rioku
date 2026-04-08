@@ -99,8 +99,9 @@ type MySQLNode struct {
 
 // ListenConfig defines the addresses the daemon binds to.
 type ListenConfig struct {
-	GRPC string `yaml:"grpc"`
-	REST string `yaml:"rest"`
+	GRPC        string `yaml:"grpc"`
+	REST        string `yaml:"rest"`
+	AdminDomain string `yaml:"admin_domain"` // optional; dedicated domain for admin with auto-TLS
 }
 
 // --------------------------------------------------------------------------
