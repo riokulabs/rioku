@@ -27,7 +27,7 @@ describe('PluginPage', () => {
     // Suppress React error boundary console output
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    function ThrowingComponent(): JSX.Element {
+    function ThrowingComponent(): React.ReactNode {
       throw new Error('Test crash')
     }
 
