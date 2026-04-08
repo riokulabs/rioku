@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race lint lint-commit lint-spell clean web web-build web-embed hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users help
+.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -115,6 +115,30 @@ test:
 test-race:
 	cd $(PKG)/daemon && $(GO) test -race ./...
 	cd $(PKG)/build-service && $(GO) test -race ./...
+
+## test-security: Run security test suite (injection, timing, fixation)
+test-security:
+	cd $(PKG)/daemon && $(GO) test -race -run 'TestTimingAttack|TestSessionFixation|TestCookieScope|TestSQLInjection|TestXSS|TestRequestSmuggling|TestPasswordPolicy' ./internal/gateway/ -v -timeout 120s
+
+## test-raft-cluster: Run raft 3-node cluster tests
+test-raft-cluster:
+	cd $(PKG)/daemon && $(GO) test -race -run 'TestCluster' ./internal/store/raft/ -v -timeout 120s
+
+## test-coverage: Run Go tests with coverage and check against baseline
+test-coverage:
+	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
+	@cd $(PKG)/daemon && COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%') && \
+		BASELINE=$$(cat bench/coverage-baseline.txt 2>/dev/null || echo "0") && \
+		echo "Coverage: $${COVERAGE}% (baseline: $${BASELINE}%)" && \
+		if [ "$$(echo "$${COVERAGE} < $${BASELINE} - 0.5" | bc)" = "1" ]; then \
+			echo "ERROR: Coverage dropped below baseline"; exit 1; \
+		fi
+
+## coverage-baseline: Update coverage baseline from current results
+coverage-baseline:
+	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
+	@cd $(PKG)/daemon && $(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%' > bench/coverage-baseline.txt
+	@echo "Coverage baseline updated to $$(cat $(PKG)/daemon/bench/coverage-baseline.txt)%"
 
 ## test-integration: Run integration tests (requires databases)
 test-integration:
