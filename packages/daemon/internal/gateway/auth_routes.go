@@ -13,6 +13,20 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 )
 
+// dummyPasswordHash is a pre-computed argon2id hash used to normalise the
+// timing of login attempts for non-existent usernames. Without this, an
+// attacker could distinguish "user not found" from "wrong password" by
+// measuring response latency.
+var dummyPasswordHash string
+
+func init() {
+	h, err := auth.HashPassword("timing-normalization-dummy")
+	if err != nil {
+		panic("auth: failed to compute dummy hash: " + err.Error())
+	}
+	dummyPasswordHash = h
+}
+
 // RegisterAuthRoutes registers the token exchange and session-based auth
 // endpoints on the mux. The encryptor is used to decrypt TOTP secrets
 // during login when two-factor authentication is enabled.
@@ -226,6 +240,11 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 		// Look up user (case-insensitive handled by store).
 		user, err := tx.GetUserByUsername(ctx, req.Username)
 		if err != nil {
+			// Hash the supplied password against the dummy hash so that the
+			// response time is indistinguishable from a real password check.
+			// This closes the timing side-channel for username enumeration.
+			auth.VerifyPassword(req.Password, dummyPasswordHash)
+
 			// Generic 401 to avoid username enumeration.
 			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
 				"Invalid username or password", r.URL.Path, nil)
