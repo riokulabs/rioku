@@ -87,9 +87,19 @@ func TestAuthIntegration(t *testing.T) {
 	// Build config with default password policy.
 	cfg := config.Default()
 
+	// Derive TOTP encryption key for auth routes.
+	encKey, err := auth.DeriveEncryptionKey(signingKey, []byte("rioku-totp-encryption-salt-v1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	enc, err := auth.NewEncryptor(encKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Set up HTTP server with middleware + routes.
 	mux := http.NewServeMux()
-	RegisterAuthRoutes(mux, a, sm, drv, cfg)
+	RegisterAuthRoutes(mux, a, sm, drv, cfg, enc)
 
 	var handler http.Handler = mux
 	handler = AuthMiddleware(a, sm)(handler)
