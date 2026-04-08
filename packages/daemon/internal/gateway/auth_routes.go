@@ -430,17 +430,22 @@ func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type meResponse struct {
-	User    meUserInfo     `json:"user"`
-	Session *meSessionInfo `json:"session,omitempty"`
+	User    meUserInfo    `json:"user"`
+	Session meSessionInfo `json:"session"`
 }
 
 type meUserInfo struct {
-	ID                  string `json:"id"`
-	Username            string `json:"username"`
-	DisplayName         string `json:"display_name,omitempty"`
-	Email               string `json:"email,omitempty"`
-	ForcePasswordChange bool   `json:"force_password_change"`
-	TOTPEnabled         bool   `json:"totp_enabled"`
+	ID                  string   `json:"id"`
+	Username            string   `json:"username"`
+	DisplayName         string   `json:"display_name,omitempty"`
+	Email               string   `json:"email,omitempty"`
+	Roles               []string `json:"roles"`
+	Permissions         []string `json:"permissions"`
+	Status              string   `json:"status"`
+	LastLogin           *string  `json:"last_login,omitempty"`
+	CreatedAt           string   `json:"created_at"`
+	ForcePasswordChange bool     `json:"force_password_change"`
+	TOTPEnabled         bool     `json:"totp_enabled"`
 }
 
 type meSessionInfo struct {
@@ -454,12 +459,12 @@ func handleMe(st store.Driver) http.HandlerFunc {
 
 		// Identify the caller — prefer session claims, fall back to bearer claims.
 		var userID string
-		var sessionInfo *meSessionInfo
+		var sessionInfo meSessionInfo
 
 		sc := auth.SessionClaimsFromContext(ctx)
 		if sc != nil {
 			userID = sc.UserID
-			sessionInfo = &meSessionInfo{ID: sc.SessionID}
+			sessionInfo.ID = sc.SessionID
 		} else {
 			bc := auth.ClaimsFromContext(ctx)
 			if bc == nil {
@@ -487,11 +492,20 @@ func handleMe(st store.Driver) http.HandlerFunc {
 		}
 
 		// If we have a session, enrich with expiry from the DB.
-		if sessionInfo != nil {
+		if sessionInfo.ID != "" {
 			sess, err := tx.GetSession(ctx, sessionInfo.ID)
 			if err == nil {
 				sessionInfo.ExpiresAt = sess.ExpiresAt
 			}
+		}
+
+		// Load roles and permissions for the user.
+		roles, permissions, _ := auth.LoadUserScopes(ctx, st, user.ID)
+		if roles == nil {
+			roles = []string{}
+		}
+		if permissions == nil {
+			permissions = []string{}
 		}
 
 		displayName := ""
@@ -503,12 +517,23 @@ func handleMe(st store.Driver) http.HandlerFunc {
 			email = *user.Email
 		}
 
+		var lastLogin *string
+		if user.LastLogin != nil {
+			s := user.LastLogin.Format(time.RFC3339)
+			lastLogin = &s
+		}
+
 		resp := meResponse{
 			User: meUserInfo{
 				ID:                  user.ID,
 				Username:            user.Username,
 				DisplayName:         displayName,
 				Email:               email,
+				Roles:               roles,
+				Permissions:         permissions,
+				Status:              user.Status,
+				LastLogin:           lastLogin,
+				CreatedAt:           user.CreatedAt.Format(time.RFC3339),
 				ForcePasswordChange: user.ForcePasswordChange,
 				TOTPEnabled:         user.TOTPEnabled,
 			},
