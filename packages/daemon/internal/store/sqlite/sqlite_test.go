@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 2 {
-		t.Fatalf("expected version 2, got %d", v)
+	if v != 4 {
+		t.Fatalf("expected version 4, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -1518,4 +1518,462 @@ func TestDeleteExpiredSessions(t *testing.T) {
 		t.Fatalf("expected session 'sess-valid', got %q", sessions[0].ID)
 	}
 	tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// RBAC Tests
+// ---------------------------------------------------------------------------
+
+func TestRBACRolesAndPermissions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// List built-in roles seeded by migration.
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	roles, err := tx1.ListRoles(ctx)
+	if err != nil {
+		t.Fatalf("ListRoles: %v", err)
+	}
+	if len(roles) != 4 {
+		t.Fatalf("expected 4 built-in roles, got %d", len(roles))
+	}
+
+	var foundSuperadmin bool
+	for _, r := range roles {
+		if r.Name == "superadmin" {
+			foundSuperadmin = true
+			if !r.IsBuiltin {
+				t.Error("superadmin must be is_builtin=true")
+			}
+			if len(r.Permissions) != 1 || r.Permissions[0] != "*" {
+				t.Errorf("superadmin should have ['*'], got %v", r.Permissions)
+			}
+		}
+	}
+	if !foundSuperadmin {
+		t.Fatal("superadmin role not found in seed data")
+	}
+	tx1.Rollback()
+
+	// List atomic permissions (excludes wildcards).
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	perms, err := tx2.ListPermissions(ctx)
+	if err != nil {
+		t.Fatalf("ListPermissions: %v", err)
+	}
+	if len(perms) != 22 {
+		t.Fatalf("expected 22 atomic permissions, got %d", len(perms))
+	}
+	tx2.Rollback()
+
+	// Create a custom role.
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	role, err := tx3.CreateRole(ctx, store.CreateRoleParams{
+		ID:          "role_custom_test",
+		Name:        "custom_test",
+		Description: "Test custom role",
+		Permissions: []string{"config:read", "audit:read"},
+	})
+	if err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+	if role.Name != "custom_test" {
+		t.Fatalf("expected role name 'custom_test', got %q", role.Name)
+	}
+	if role.IsBuiltin {
+		t.Error("custom role should not be builtin")
+	}
+	if len(role.Permissions) != 2 {
+		t.Fatalf("expected 2 permissions, got %d", len(role.Permissions))
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Update custom role: add a permission, change description.
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newDesc := "Updated test role"
+	updated, err := tx4.UpdateRole(ctx, "role_custom_test", store.UpdateRoleParams{
+		Description: &newDesc,
+		AddPerms:    []string{"traffic:read"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateRole: %v", err)
+	}
+	if updated.Description != newDesc {
+		t.Fatalf("expected updated description, got %q", updated.Description)
+	}
+	if len(updated.Permissions) != 3 {
+		t.Fatalf("expected 3 permissions after add, got %d", len(updated.Permissions))
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Delete custom role.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteRole(ctx, "role_custom_test"); err != nil {
+		t.Fatalf("DeleteRole: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify deletion.
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, err = tx6.GetRole(ctx, "role_custom_test")
+	if err != store.ErrRoleNotFound {
+		t.Fatalf("expected ErrRoleNotFound, got %v", err)
+	}
+	tx6.Rollback()
+}
+
+func TestRBACUserRoles(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a test user.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	user, err := tx1.CreateUser(ctx, &store.User{
+		Username:     "rbac_test_user",
+		PasswordHash: "hash_placeholder",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Assign viewer role to the user.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx2.AssignRole(ctx, user.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// List user roles.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	userRoles, err := tx3.ListUserRoles(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListUserRoles: %v", err)
+	}
+	if len(userRoles) != 1 {
+		t.Fatalf("expected 1 user role, got %d", len(userRoles))
+	}
+	if userRoles[0].RoleName != "viewer" {
+		t.Fatalf("expected role name 'viewer', got %q", userRoles[0].RoleName)
+	}
+	tx3.Rollback()
+
+	// List users with role.
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	userIDs, err := tx4.ListUsersWithRole(ctx, "role_viewer")
+	if err != nil {
+		t.Fatalf("ListUsersWithRole: %v", err)
+	}
+	if len(userIDs) != 1 || userIDs[0] != user.ID {
+		t.Fatalf("expected [%s], got %v", user.ID, userIDs)
+	}
+	tx4.Rollback()
+
+	// Revoke role.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.RevokeRole(ctx, user.ID, "role_viewer"); err != nil {
+		t.Fatalf("RevokeRole: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify role revoked.
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	userRoles, err = tx6.ListUserRoles(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListUserRoles: %v", err)
+	}
+	if len(userRoles) != 0 {
+		t.Fatalf("expected 0 user roles after revoke, got %d", len(userRoles))
+	}
+	tx6.Rollback()
+}
+
+func TestResolveUserPermissions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a test user with admin role.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	user, err := tx1.CreateUser(ctx, &store.User{
+		Username:     "admin_user",
+		PasswordHash: "hash_placeholder",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := tx1.AssignRole(ctx, user.ID, "role_admin", ""); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Get user scopes.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	scopes, err := tx2.GetUserScopes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUserScopes: %v", err)
+	}
+	// admin has: config:*, keys:*, users:read, users:manage, roles:read,
+	// sessions:*, audit:read, settings:*, traffic:read, plugins:*, cluster:read
+	if len(scopes) != 11 {
+		t.Fatalf("expected 11 admin scopes, got %d: %v", len(scopes), scopes)
+	}
+
+	// Verify wildcards are included.
+	scopeSet := make(map[string]bool)
+	for _, s := range scopes {
+		scopeSet[s] = true
+	}
+	expectedWildcards := []string{"config:*", "keys:*", "sessions:*", "settings:*", "plugins:*"}
+	for _, wc := range expectedWildcards {
+		if !scopeSet[wc] {
+			t.Errorf("expected wildcard scope %q in admin scopes", wc)
+		}
+	}
+	tx2.Rollback()
+
+	// Also test superadmin scopes (just '*').
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	superUser, err := tx3.CreateUser(ctx, &store.User{
+		Username:     "super_user",
+		PasswordHash: "hash_placeholder",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := tx3.AssignRole(ctx, superUser.ID, "role_superadmin", ""); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	superScopes, err := tx4.GetUserScopes(ctx, superUser.ID)
+	if err != nil {
+		t.Fatalf("GetUserScopes: %v", err)
+	}
+	if len(superScopes) != 1 || superScopes[0] != "*" {
+		t.Fatalf("expected ['*'] for superadmin, got %v", superScopes)
+	}
+	tx4.Rollback()
+}
+
+func TestDeleteRoleSuperadminImmutable(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	defer tx1.Rollback()
+
+	err = tx1.DeleteRole(ctx, "role_superadmin")
+	if err != store.ErrRoleImmutable {
+		t.Fatalf("expected ErrRoleImmutable, got %v", err)
+	}
+
+	// Also verify UpdateRole is blocked.
+	newName := "renamed_superadmin"
+	_, err = tx1.UpdateRole(ctx, "role_superadmin", store.UpdateRoleParams{Name: &newName})
+	if err != store.ErrRoleImmutable {
+		t.Fatalf("expected ErrRoleImmutable on update, got %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TOTP Backup Code Tests
+// ---------------------------------------------------------------------------
+
+func TestTOTPBackupCodes(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a test user.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	user, err := tx1.CreateUser(ctx, &store.User{
+		Username:     "totp_test_user",
+		PasswordHash: "hash_placeholder",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Create backup codes.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	codeHashes := []string{"hash_aaa", "hash_bbb", "hash_ccc"}
+	if err := tx2.CreateTOTPBackupCodes(ctx, user.ID, codeHashes); err != nil {
+		t.Fatalf("CreateTOTPBackupCodes: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// List unused codes.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	unused, err := tx3.ListUnusedTOTPBackupCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes: %v", err)
+	}
+	if len(unused) != 3 {
+		t.Fatalf("expected 3 unused codes, got %d", len(unused))
+	}
+	tx3.Rollback()
+
+	// Mark one code as used.
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.MarkTOTPBackupCodeUsed(ctx, unused[0].ID); err != nil {
+		t.Fatalf("MarkTOTPBackupCodeUsed: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// List unused should now be 2.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	unused, err = tx5.ListUnusedTOTPBackupCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes: %v", err)
+	}
+	if len(unused) != 2 {
+		t.Fatalf("expected 2 unused codes after marking one used, got %d", len(unused))
+	}
+	tx5.Rollback()
+
+	// Re-create codes (should replace old ones).
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newHashes := []string{"hash_xxx", "hash_yyy"}
+	if err := tx6.CreateTOTPBackupCodes(ctx, user.ID, newHashes); err != nil {
+		t.Fatalf("CreateTOTPBackupCodes: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// List should show 2 new unused codes.
+	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	unused, err = tx7.ListUnusedTOTPBackupCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes: %v", err)
+	}
+	if len(unused) != 2 {
+		t.Fatalf("expected 2 unused codes after re-creation, got %d", len(unused))
+	}
+	tx7.Rollback()
+
+	// Delete all codes.
+	tx8, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx8.DeleteTOTPBackupCodes(ctx, user.ID); err != nil {
+		t.Fatalf("DeleteTOTPBackupCodes: %v", err)
+	}
+	if err := tx8.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify all deleted.
+	tx9, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	unused, err = tx9.ListUnusedTOTPBackupCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes: %v", err)
+	}
+	if len(unused) != 0 {
+		t.Fatalf("expected 0 codes after deletion, got %d", len(unused))
+	}
+	tx9.Rollback()
 }

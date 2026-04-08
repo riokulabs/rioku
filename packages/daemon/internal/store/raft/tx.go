@@ -686,6 +686,82 @@ func (t *raftTx) DeleteExpiredSessions(_ context.Context) (int64, error) {
 }
 
 // ---------------------------------------------------------------------------
+// Roles (stubs)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateRole(_ context.Context, _ store.CreateRoleParams) (*store.Role, error) {
+	return nil, fmt.Errorf("raft: CreateRole not implemented")
+}
+
+func (t *raftTx) GetRole(_ context.Context, _ string) (*store.Role, error) {
+	return nil, fmt.Errorf("raft: GetRole not implemented")
+}
+
+func (t *raftTx) ListRoles(_ context.Context) ([]*store.Role, error) {
+	return nil, fmt.Errorf("raft: ListRoles not implemented")
+}
+
+func (t *raftTx) UpdateRole(_ context.Context, _ string, _ store.UpdateRoleParams) (*store.Role, error) {
+	return nil, fmt.Errorf("raft: UpdateRole not implemented")
+}
+
+func (t *raftTx) DeleteRole(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteRole not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Permissions (stubs)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) ListPermissions(_ context.Context) ([]*store.Permission, error) {
+	return nil, fmt.Errorf("raft: ListPermissions not implemented")
+}
+
+func (t *raftTx) GetUserScopes(_ context.Context, _ string) ([]string, error) {
+	return nil, fmt.Errorf("raft: GetUserScopes not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// User Roles (stubs)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) AssignRole(_ context.Context, _, _, _ string) error {
+	return fmt.Errorf("raft: AssignRole not implemented")
+}
+
+func (t *raftTx) RevokeRole(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: RevokeRole not implemented")
+}
+
+func (t *raftTx) ListUserRoles(_ context.Context, _ string) ([]*store.UserRole, error) {
+	return nil, fmt.Errorf("raft: ListUserRoles not implemented")
+}
+
+func (t *raftTx) ListUsersWithRole(_ context.Context, _ string) ([]string, error) {
+	return nil, fmt.Errorf("raft: ListUsersWithRole not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// TOTP Backup Codes (stubs)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateTOTPBackupCodes(_ context.Context, _ string, _ []string) error {
+	return fmt.Errorf("raft: CreateTOTPBackupCodes not implemented")
+}
+
+func (t *raftTx) ListUnusedTOTPBackupCodes(_ context.Context, _ string) ([]*store.TOTPBackupCode, error) {
+	return nil, fmt.Errorf("raft: ListUnusedTOTPBackupCodes not implemented")
+}
+
+func (t *raftTx) MarkTOTPBackupCodeUsed(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: MarkTOTPBackupCodeUsed not implemented")
+}
+
+func (t *raftTx) DeleteTOTPBackupCodes(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteTOTPBackupCodes not implemented")
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
