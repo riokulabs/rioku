@@ -1,7 +1,5 @@
 // Typed REST API client for the Rioku daemon.
 
-import { getAuthHeader } from '@/lib/auth'
-
 // ---------------------------------------------------------------------------
 // Domain types (matching proto JSON output)
 // ---------------------------------------------------------------------------
@@ -95,6 +93,55 @@ export interface ApiError {
   instance: string
 }
 
+// --- Auth / Session types ---
+
+export interface SessionInfo {
+  id: string
+  created_at: string
+  last_active: string
+  expires_at: string
+  ip_address: string
+  user_agent?: string
+}
+
+export interface UserInfo {
+  id: string
+  username: string
+  display_name: string | null
+  email: string | null
+  roles: string[]
+  permissions: string[]
+  totp_enabled: boolean
+  force_password_change: boolean
+  status: 'active' | 'suspended' | 'locked'
+  last_login: string | null
+  created_at: string
+}
+
+export interface MeResponse {
+  session: SessionInfo
+  user: UserInfo
+}
+
+// --- RBAC types ---
+
+export interface Permission {
+  id: string
+  resource: string
+  action: string
+  description: string
+}
+
+export interface Role {
+  id: string
+  name: string
+  description: string
+  is_builtin: boolean
+  scopes: string[]
+  created_at: string
+  updated_at: string
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
@@ -114,10 +161,7 @@ async function request<T>(
     }
   }
 
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-    ...getAuthHeader(),
-  }
+  const headers: Record<string, string> = { Accept: 'application/json' }
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
@@ -125,6 +169,7 @@ async function request<T>(
   const res = await fetch(url.toString(), {
     method,
     headers,
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
@@ -144,9 +189,7 @@ async function request<T>(
     throw error
   }
 
-  // 204 No Content
   if (res.status === 204) return undefined as T
-
   return res.json() as Promise<T>
 }
 
@@ -156,6 +199,9 @@ export const apiClient = {
   },
   post<T>(path: string, body?: unknown): Promise<T> {
     return request<T>('POST', path, body)
+  },
+  patch<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>('PATCH', path, body)
   },
   put<T>(path: string, body?: unknown): Promise<T> {
     return request<T>('PUT', path, body)

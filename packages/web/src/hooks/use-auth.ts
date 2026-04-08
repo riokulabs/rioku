@@ -1,86 +1,39 @@
-// Auth context and hook for React components.
+// Session hook — reads from /auth/me (cookie auth).
+// Used by root layout and sidebar to access current user info.
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
-  createElement,
-} from 'react'
-import {
-  authStore,
-  login as authLogin,
-  refreshAccessToken,
-} from '@/lib/auth'
+import { useQuery } from '@tanstack/react-query'
+import type { MeResponse } from '@/lib/api'
 
-interface AuthContextValue {
-  isAuthenticated: boolean | undefined
-  login: (token: string) => Promise<void>
-  logout: () => void
-  user: null // Placeholder for future user info
+export function useSession() {
+  return useQuery<MeResponse>({
+    queryKey: ['auth', 'me'],
+    queryFn: () =>
+      fetch('/api/v1/auth/me', { credentials: 'include' }).then((r) => {
+        if (!r.ok) throw new Error('Unauthenticated')
+        return r.json() as Promise<MeResponse>
+      }),
+    staleTime: 60_000,
+    retry: false,
+  })
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
+export function useCurrentUser() {
+  const { data } = useSession()
+  return data?.user ?? null
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  // Start as undefined while we check for existing tokens/refresh
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | undefined>(
-    authStore.isAuthenticated() ? true : undefined,
+export function usePermissions() {
+  const { data } = useSession()
+  return data?.user.permissions ?? []
+}
+
+export function useHasPermission(permission: string): boolean {
+  const permissions = usePermissions()
+  return (
+    permissions.includes('*') ||
+    permissions.includes(permission) ||
+    permissions.some(
+      (p) => p.endsWith(':*') && permission.startsWith(p.slice(0, -1)),
+    )
   )
-
-  // On mount, try refreshing if we have a refresh token
-  useEffect(() => {
-    if (authStore.isAuthenticated()) {
-      setIsAuthenticated(true)
-      return
-    }
-    if (authStore.refreshToken) {
-      refreshAccessToken()
-        .then((ok) => setIsAuthenticated(ok))
-        .catch(() => setIsAuthenticated(false))
-    } else {
-      setIsAuthenticated(false)
-    }
-  }, [])
-
-  // Listen for 401 responses globally to trigger logout
-  useEffect(() => {
-    const handler = (event: Event) => {
-      if (event instanceof CustomEvent && event.detail?.status === 401) {
-        authStore.clearTokens()
-        setIsAuthenticated(false)
-      }
-    }
-    window.addEventListener('rioku:unauthorized', handler)
-    return () => window.removeEventListener('rioku:unauthorized', handler)
-  }, [])
-
-  const login = useCallback(async (token: string) => {
-    await authLogin(token)
-    setIsAuthenticated(true)
-  }, [])
-
-  const logout = useCallback(() => {
-    authStore.clearTokens()
-    setIsAuthenticated(false)
-  }, [])
-
-  const value: AuthContextValue = {
-    isAuthenticated,
-    login,
-    logout,
-    user: null,
-  }
-
-  return createElement(AuthContext.Provider, { value }, children)
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return ctx
 }
