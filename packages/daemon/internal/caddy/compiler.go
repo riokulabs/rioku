@@ -11,16 +11,35 @@ import (
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
-// Compiler converts Rioku config into Caddy JSON.
-type Compiler struct {
-	listenAddrs []string
+// AdminConfig controls how the admin server block is compiled.
+type AdminConfig struct {
+	// InternalAddr is the loopback address the Go net/http gateway is bound to,
+	// e.g. "127.0.0.1:54321". The compiler uses this as the reverse_proxy upstream.
+	InternalAddr string
+
+	// ListenAddr is the external address Caddy listens on for admin traffic.
+	// Defaults to ":7778" when empty.
+	ListenAddr string
+
+	// Domain is the optional dedicated admin domain (e.g. "admin.example.com").
+	// When set, the admin server listens on ":443" and Caddy provisions auto-TLS.
+	Domain string
+
+	// DevMode disables TLS on the admin block (HTTP only).
+	DevMode bool
 }
 
-// NewCompiler creates a compiler with the given listen addresses.
-func NewCompiler(listenAddrs ...string) *Compiler {
-	addrs := make([]string, len(listenAddrs))
-	copy(addrs, listenAddrs)
-	return &Compiler{listenAddrs: addrs}
+// Compiler converts Rioku config into Caddy JSON.
+type Compiler struct {
+	trafficAddrs []string
+	admin        AdminConfig
+}
+
+// NewCompiler creates a compiler with the given traffic listen addresses and admin config.
+func NewCompiler(trafficAddrs []string, admin AdminConfig) *Compiler {
+	addrs := make([]string, len(trafficAddrs))
+	copy(addrs, trafficAddrs)
+	return &Compiler{trafficAddrs: addrs, admin: admin}
 }
 
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
@@ -49,15 +68,21 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		caddyRoutes = []map[string]any{}
 	}
 
+	servers := map[string]any{
+		"traffic": map[string]any{
+			"listen": c.trafficAddrs,
+			"routes": caddyRoutes,
+		},
+	}
+
+	if c.admin.InternalAddr != "" {
+		servers["admin"] = c.buildAdminServer()
+	}
+
 	config := map[string]any{
 		"apps": map[string]any{
 			"http": map[string]any{
-				"servers": map[string]any{
-					"rioku": map[string]any{
-						"listen": c.listenAddrs,
-						"routes": caddyRoutes,
-					},
-				},
+				"servers": servers,
 			},
 		},
 	}
@@ -263,6 +288,48 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 			"active": active,
 		}
 	}
+}
+
+// buildAdminServer creates the Caddy server block that reverse-proxies
+// to the internal Go gateway on loopback.
+func (c *Compiler) buildAdminServer() map[string]any {
+	listenAddr := c.admin.ListenAddr
+	if listenAddr == "" {
+		listenAddr = ":7778"
+	}
+
+	// Domain overrides port-based listening.
+	if c.admin.Domain != "" {
+		listenAddr = ":443"
+	}
+
+	server := map[string]any{
+		"listen": []string{listenAddr},
+		"routes": []map[string]any{
+			{
+				"handle": []map[string]any{
+					{
+						"handler": "reverse_proxy",
+						"upstreams": []map[string]any{
+							{"dial": c.admin.InternalAddr},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Add host matcher when a dedicated domain is configured.
+	if c.admin.Domain != "" {
+		server["routes"].([]map[string]any)[0]["match"] = []map[string]any{
+			{"host": []string{c.admin.Domain}},
+		}
+		if !c.admin.DevMode {
+			server["tls_connection_policies"] = []map[string]any{{}}
+		}
+	}
+
+	return server
 }
 
 // lbPolicyString maps a proto LoadBalancingPolicy enum to the Caddy

@@ -79,12 +79,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 	log.Printf("store: %s driver ready", d.cfg.Store.Driver)
 
-	// 3. Create config engine.
-	compiler := caddy.NewCompiler()
-	d.engine = config.NewEngine(d.store, compiler)
-	log.Println("config: engine ready")
-
-	// 4. Create auth.
+	// 3. Create auth.
 	signingKeyPath := filepath.Join(d.cfg.DataDir, "signing.key")
 	signingKey, err := loadOrCreateSigningKey(signingKeyPath)
 	if err != nil {
@@ -94,12 +89,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.auth = auth.NewAuth(signingKey, d.store)
 	log.Println("auth: ready")
 
-	// 4a. Create session manager.
+	// 3a. Create session manager.
 	d.sessions = auth.NewSessionManager(d.store, d.cfg.Auth.DevMode)
 	d.sessions.StartCleanupWorker(ctx)
 	log.Println("sessions: manager ready")
 
-	// 4b. Start Caddy child process (optional — warns if binary missing).
+	// 4. Start Caddy child process (optional — warns if binary missing).
 	d.caddy = caddy.NewManager(caddy.ManagerConfig{
 		Binary:    d.cfg.Caddy.Binary,
 		AdminAddr: d.cfg.Caddy.AdminAddr,
@@ -111,11 +106,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		log.Printf("caddy: child process started (admin: %s)", d.cfg.Caddy.AdminAddr)
 	}
 
-	// 5. Start sync agent (watches config changes, pushes to Caddy).
-	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy)
-	d.syncAgent.Start(ctx)
-
-	// 6. Start gRPC server.
+	// 5. Start gRPC server.
 	grpcAddr := d.cfg.Listen.GRPC
 	if grpcAddr == "" {
 		grpcAddr = ":7777"
@@ -132,23 +123,19 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}()
 	}
 
-	// 8. Start REST gateway.
-	restAddr := d.cfg.Listen.REST
-	if restAddr == "" {
-		restAddr = ":7778"
-	}
+	// 6. Start REST gateway on loopback (OS-assigned port).
 	if d.grpc != nil {
-		// Load embedded admin panel SPA.
 		spaFS, err := riokuweb.SPA()
 		if err != nil {
 			log.Printf("web: admin panel not available: %v", err)
 		}
 
-		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS)
+		gw, err := gateway.NewGateway("127.0.0.1:0", d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS)
 		if err != nil {
 			log.Printf("rest: failed to start: %v", err)
 		} else {
 			d.gateway = gw
+			log.Printf("rest: internal gateway bound to %s", d.gateway.Addr())
 			go func() {
 				if err := d.gateway.Start(); err != nil {
 					log.Printf("rest: server error: %v", err)
@@ -156,6 +143,28 @@ func (d *Daemon) Start(ctx context.Context) error {
 			}()
 		}
 	}
+
+	// 7. Create config engine with Caddy compiler (needs gateway internal address).
+	adminListenAddr := d.cfg.Listen.REST
+	if adminListenAddr == "" {
+		adminListenAddr = ":7778"
+	}
+	var internalAddr string
+	if d.gateway != nil {
+		internalAddr = d.gateway.Addr()
+	}
+	compiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{
+		InternalAddr: internalAddr,
+		ListenAddr:   adminListenAddr,
+		Domain:       d.cfg.Listen.AdminDomain,
+		DevMode:      d.cfg.Auth.DevMode,
+	})
+	d.engine = config.NewEngine(d.store, compiler)
+	log.Println("config: engine ready")
+
+	// 8. Start sync agent (watches config changes, pushes to Caddy).
+	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy)
+	d.syncAgent.Start(ctx)
 
 	// 9. Write PID file.
 	if err := WritePIDFile(d.pidFile); err != nil {

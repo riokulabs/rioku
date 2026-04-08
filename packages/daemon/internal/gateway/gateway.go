@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -26,7 +27,8 @@ var totpEncryptionSalt = []byte("rioku-totp-encryption-salt-v1")
 // Gateway wraps an HTTP server that serves the REST API.
 type Gateway struct {
 	httpServer *http.Server
-	addr       string
+	listener   net.Listener
+	addr       string // resolved address, e.g. "127.0.0.1:54321"
 }
 
 // NewGateway creates a REST gateway that translates HTTP+JSON to gRPC.
@@ -109,22 +111,33 @@ func NewGateway(
 	handler = AuthMiddleware(a, sm)(handler)
 	handler = RequestIDMiddleware(handler)
 
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("gateway: listen %s: %w", addr, err)
+	}
+
 	return &Gateway{
 		httpServer: &http.Server{
-			Addr:         addr,
 			Handler:      handler,
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 60 * time.Second, // longer for SSE streams
 			IdleTimeout:  120 * time.Second,
 		},
-		addr: addr,
+		listener: ln,
+		addr:     ln.Addr().String(),
 	}, nil
+}
+
+// Addr returns the resolved listen address (e.g. "127.0.0.1:54321").
+// Safe to call immediately after NewGateway.
+func (g *Gateway) Addr() string {
+	return g.addr
 }
 
 // Start begins serving HTTP requests. Blocks until Stop is called.
 func (g *Gateway) Start() error {
-	log.Printf("rest: listening on %s", g.addr)
-	err := g.httpServer.ListenAndServe()
+	log.Printf("rest: internal gateway listening on %s", g.addr)
+	err := g.httpServer.Serve(g.listener)
 	if err == http.ErrServerClosed {
 		return nil
 	}

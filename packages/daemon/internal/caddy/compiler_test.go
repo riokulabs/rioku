@@ -8,7 +8,7 @@ import (
 )
 
 func TestCompileSimpleRoute(t *testing.T) {
-	c := NewCompiler(":443", ":80")
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -57,7 +57,7 @@ func TestCompileSimpleRoute(t *testing.T) {
 	}
 
 	// Navigate to the route.
-	server := dig(t, cfg, "apps", "http", "servers", "rioku")
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	listen := server["listen"].([]any)
 	if len(listen) != 2 {
 		t.Fatalf("expected 2 listen addrs, got %d", len(listen))
@@ -125,7 +125,7 @@ func TestCompileSimpleRoute(t *testing.T) {
 }
 
 func TestCompileMultipleRoutes(t *testing.T) {
-	c := NewCompiler(":443")
+	c := NewCompiler([]string{":443"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -168,7 +168,7 @@ func TestCompileMultipleRoutes(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	server := dig(t, cfg, "apps", "http", "servers", "rioku")
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	routes := server["routes"].([]any)
 	if len(routes) != 2 {
 		t.Fatalf("expected 2 routes, got %d", len(routes))
@@ -185,7 +185,7 @@ func TestCompileMultipleRoutes(t *testing.T) {
 }
 
 func TestCompileDisabledRouteExcluded(t *testing.T) {
-	c := NewCompiler(":443")
+	c := NewCompiler([]string{":443"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -224,7 +224,7 @@ func TestCompileDisabledRouteExcluded(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	server := dig(t, cfg, "apps", "http", "servers", "rioku")
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	routes := server["routes"].([]any)
 	if len(routes) != 1 {
 		t.Fatalf("expected 1 route (disabled excluded), got %d", len(routes))
@@ -237,7 +237,7 @@ func TestCompileDisabledRouteExcluded(t *testing.T) {
 }
 
 func TestCompileDirectUpstream(t *testing.T) {
-	c := NewCompiler(":443")
+	c := NewCompiler([]string{":443"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -266,7 +266,7 @@ func TestCompileDirectUpstream(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	server := dig(t, cfg, "apps", "http", "servers", "rioku")
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	routes := server["routes"].([]any)
 	if len(routes) != 1 {
 		t.Fatalf("expected 1 route, got %d", len(routes))
@@ -296,7 +296,7 @@ func TestCompileDirectUpstream(t *testing.T) {
 }
 
 func TestCompileEmptyConfig(t *testing.T) {
-	c := NewCompiler(":443", ":80")
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{}
 
@@ -310,7 +310,7 @@ func TestCompileEmptyConfig(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	server := dig(t, cfg, "apps", "http", "servers", "rioku")
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	routes := server["routes"].([]any)
 	if len(routes) != 0 {
 		t.Fatalf("expected 0 routes, got %d", len(routes))
@@ -318,7 +318,7 @@ func TestCompileEmptyConfig(t *testing.T) {
 }
 
 func TestMatcherTypes(t *testing.T) {
-	c := NewCompiler(":443")
+	c := NewCompiler([]string{":443"}, AdminConfig{})
 
 	tests := []struct {
 		name    string
@@ -460,7 +460,7 @@ func TestMatcherTypes(t *testing.T) {
 				t.Fatalf("unmarshal: %v", err)
 			}
 
-			server := dig(t, cfg, "apps", "http", "servers", "rioku")
+			server := dig(t, cfg, "apps", "http", "servers", "traffic")
 			routes := server["routes"].([]any)
 			route := routes[0].(map[string]any)
 			matchSets := route["match"].([]any)
@@ -472,7 +472,7 @@ func TestMatcherTypes(t *testing.T) {
 }
 
 func TestCompileServiceNotFound(t *testing.T) {
-	c := NewCompiler(":443")
+	c := NewCompiler([]string{":443"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -491,7 +491,7 @@ func TestCompileServiceNotFound(t *testing.T) {
 }
 
 func TestCompileWeightedRoundRobin(t *testing.T) {
-	c := NewCompiler(":443")
+	c := NewCompiler([]string{":443"}, AdminConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -523,7 +523,7 @@ func TestCompileWeightedRoundRobin(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	server := dig(t, cfg, "apps", "http", "servers", "rioku")
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	route := server["routes"].([]any)[0].(map[string]any)
 	handler := route["handle"].([]any)[0].(map[string]any)
 	lb := handler["load_balancing"].(map[string]any)
@@ -540,6 +540,138 @@ func TestCompileWeightedRoundRobin(t *testing.T) {
 	// JSON numbers unmarshal to float64.
 	if weights[0].(float64) != 3 || weights[1].(float64) != 1 {
 		t.Errorf("weights = %v, want [3, 1]", weights)
+	}
+}
+
+func TestCompileTwoServerBlocks(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{
+		InternalAddr: "127.0.0.1:54321",
+		ListenAddr:   ":7778",
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	servers := dig(t, cfg, "apps", "http", "servers")
+
+	// traffic block
+	traffic := servers["traffic"].(map[string]any)
+	tListen := traffic["listen"].([]any)
+	if len(tListen) != 1 || tListen[0].(string) != ":443" {
+		t.Errorf("traffic listen = %v, want [:443]", tListen)
+	}
+
+	// admin block
+	admin, ok := servers["admin"].(map[string]any)
+	if !ok {
+		t.Fatal("admin server block missing")
+	}
+	aListen := admin["listen"].([]any)
+	if len(aListen) != 1 || aListen[0].(string) != ":7778" {
+		t.Errorf("admin listen = %v, want [:7778]", aListen)
+	}
+
+	routes := admin["routes"].([]any)
+	if len(routes) != 1 {
+		t.Fatalf("admin routes: expected 1, got %d", len(routes))
+	}
+	h := routes[0].(map[string]any)["handle"].([]any)[0].(map[string]any)
+	if h["handler"].(string) != "reverse_proxy" {
+		t.Errorf("admin handler = %v, want reverse_proxy", h["handler"])
+	}
+	upstreams := h["upstreams"].([]any)
+	if upstreams[0].(map[string]any)["dial"].(string) != "127.0.0.1:54321" {
+		t.Errorf("admin upstream dial = %v, want 127.0.0.1:54321", upstreams[0])
+	}
+}
+
+func TestCompileAdminDomain(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{
+		InternalAddr: "127.0.0.1:54321",
+		Domain:       "admin.example.com",
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	servers := dig(t, cfg, "apps", "http", "servers")
+	admin := servers["admin"].(map[string]any)
+
+	aListen := admin["listen"].([]any)
+	if aListen[0].(string) != ":443" {
+		t.Errorf("admin domain listen = %v, want :443", aListen)
+	}
+
+	route := admin["routes"].([]any)[0].(map[string]any)
+	match := route["match"].([]any)[0].(map[string]any)
+	hosts := match["host"].([]any)
+	if hosts[0].(string) != "admin.example.com" {
+		t.Errorf("admin domain host = %v, want admin.example.com", hosts[0])
+	}
+
+	if _, ok := admin["tls_connection_policies"]; !ok {
+		t.Error("admin domain block missing tls_connection_policies")
+	}
+}
+
+func TestCompileAdminDevMode(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{
+		InternalAddr: "127.0.0.1:54321",
+		Domain:       "admin.example.com",
+		DevMode:      true,
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	servers := dig(t, cfg, "apps", "http", "servers")
+	admin := servers["admin"].(map[string]any)
+
+	if _, ok := admin["tls_connection_policies"]; ok {
+		t.Error("dev mode admin block should not have tls_connection_policies")
+	}
+}
+
+func TestCompileNoAdminBlock(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	servers := dig(t, cfg, "apps", "http", "servers")
+	if _, ok := servers["admin"]; ok {
+		t.Error("expected no admin block when InternalAddr is empty")
+	}
+	if _, ok := servers["traffic"]; !ok {
+		t.Error("expected traffic block to exist")
 	}
 }
 

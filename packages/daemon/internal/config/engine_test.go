@@ -43,7 +43,7 @@ func newTestEngine(t *testing.T) *Engine {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	compiler := caddy.NewCompiler(":8080")
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{})
 	return NewEngine(d, compiler)
 }
 
@@ -707,13 +707,13 @@ func TestCompileCaddyConfig(t *testing.T) {
 	if !ok {
 		t.Fatal("expected apps.http.servers in Caddy config")
 	}
-	riokuServer, ok := servers["rioku"].(map[string]any)
+	trafficServer, ok := servers["traffic"].(map[string]any)
 	if !ok {
-		t.Fatal("expected apps.http.servers.rioku in Caddy config")
+		t.Fatal("expected apps.http.servers.traffic in Caddy config")
 	}
-	routes, ok := riokuServer["routes"].([]any)
+	routes, ok := trafficServer["routes"].([]any)
 	if !ok {
-		t.Fatal("expected apps.http.servers.rioku.routes in Caddy config")
+		t.Fatal("expected apps.http.servers.traffic.routes in Caddy config")
 	}
 	if len(routes) != 1 {
 		t.Fatalf("expected 1 compiled route, got %d", len(routes))
