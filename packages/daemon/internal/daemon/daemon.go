@@ -153,7 +153,11 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if d.gateway != nil {
 		internalAddr = d.gateway.Addr()
 	}
-	compiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{
+	trafficAddrs := d.cfg.Caddy.TrafficAddrs
+	if len(trafficAddrs) == 0 {
+		trafficAddrs = []string{":443"}
+	}
+	compiler := caddy.NewCompiler(trafficAddrs, caddy.AdminConfig{
 		InternalAddr: internalAddr,
 		ListenAddr:   adminListenAddr,
 		Domain:       d.cfg.Listen.AdminDomain,
