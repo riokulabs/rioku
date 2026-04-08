@@ -202,10 +202,10 @@ func TestAuthIntegration(t *testing.T) {
 		var me meResponse
 		decodeBody(t, resp, &me)
 
-		if me.Username != "root" {
-			t.Errorf("username = %q, want %q", me.Username, "root")
+		if me.User.Username != "root" {
+			t.Errorf("username = %q, want %q", me.User.Username, "root")
 		}
-		if !me.ForcePasswordChange {
+		if !me.User.ForcePasswordChange {
 			t.Error("expected force_password_change to be true")
 		}
 		if me.Session == nil {
