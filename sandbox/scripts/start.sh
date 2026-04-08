@@ -261,6 +261,7 @@ else
   LOGIN_RESP="$(curl -sf --max-time 10 \
     -c "${COOKIE_JAR}" \
     -H "Content-Type: application/json" \
+    -H "User-Agent: rioku-seed-script/1.0" \
     -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
     "${REST_BASE}/api/v1/auth/login" 2>/dev/null || true)"
 
@@ -298,6 +299,7 @@ def api(method, path, payload=None):
     data = json.dumps(payload).encode() if payload is not None else None
     req  = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "rioku-seed-script/1.0")
     if session_id:
         req.add_header("Cookie", f"rioku_sid={session_id}")
     try:
