@@ -257,14 +257,27 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			return
 		}
 
-		// Successful authentication — reset failed attempts.
+		// Successful authentication — reset failed attempts and update
+		// last login in the existing transaction, then commit it before
+		// creating the session. SessionManager.CreateSession opens its own
+		// transaction and SQLite cannot nest concurrent write transactions
+		// on the same goroutine.
 		if err := tx.ResetFailedAttempts(ctx, user.ID); err != nil {
 			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
 				"Failed to process login request", r.URL.Path, nil)
 			return
 		}
+		if err := tx.UpdateLastLogin(ctx, user.ID); err != nil {
+			// Non-fatal — best effort.
+			_ = err
+		}
+		if err := tx.Commit(); err != nil {
+			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
+				"Failed to process login request", r.URL.Path, nil)
+			return
+		}
 
-		// Create session.
+		// Create session (opens its own transaction internally).
 		session, err := sm.CreateSession(ctx, user.ID, r)
 		if err != nil {
 			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
@@ -274,19 +287,6 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 
 		// Set session cookie.
 		sm.SetCookie(w, session.ID)
-
-		// Update last login timestamp.
-		if err := tx.UpdateLastLogin(ctx, user.ID); err != nil {
-			// Non-fatal — log but continue.
-			_ = err
-		}
-
-		// Commit transaction.
-		if err := tx.Commit(); err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process login request", r.URL.Path, nil)
-			return
-		}
 
 		// Build display name.
 		displayName := ""
