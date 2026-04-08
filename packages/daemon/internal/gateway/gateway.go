@@ -97,7 +97,15 @@ func NewGateway(
 	}
 
 	// Apply middleware stack (outermost first).
+	// Order: RequestID → Auth → RateLimit → CORS → SecurityHeaders → handler
+	// RequestID is outermost (always applied). Auth extracts identity. RateLimit
+	// needs auth context for session/user keying. CORS handles preflight before
+	// the handler runs. SecurityHeaders is innermost (closest to response).
 	var handler http.Handler = topMux
+	handler = SecurityHeadersMiddleware(handler)
+	handler = CORSMiddleware(cfg.Auth.CORS)(handler)
+	rl := NewRateLimiter(cfg.Auth.RateLimit)
+	handler = rl.Middleware()(handler)
 	handler = AuthMiddleware(a, sm)(handler)
 	handler = RequestIDMiddleware(handler)
 
