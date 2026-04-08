@@ -39,10 +39,12 @@ interface SettingsData {
 
 export const Route = createFileRoute('/settings')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: ['settings'],
-      queryFn: () => apiClient.get<SettingsData>('/settings'),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: ['settings'],
+        queryFn: () => apiClient.get<SettingsData>('/settings'),
+      })
+      .catch(() => ({}) as SettingsData),
   component: Settings,
 })
 

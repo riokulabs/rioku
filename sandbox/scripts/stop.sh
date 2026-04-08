@@ -113,6 +113,17 @@ fi
 rm -f "${PID_FILE}"
 success "PID file removed"
 
+# Kill any stale Caddy processes from previous sandbox runs.
+if command -v pkill >/dev/null 2>&1; then
+    STALE=$(pgrep -f "caddy run.*config.*adapter" 2>/dev/null || true)
+    if [[ -n "${STALE}" ]]; then
+        echo "[INFO]  Killing stale Caddy processes: ${STALE}"
+        kill ${STALE} 2>/dev/null || true
+        sleep 1
+        kill -9 ${STALE} 2>/dev/null || true
+    fi
+fi
+
 echo ""
 echo -e "${BOLD}Sandbox stopped.${NC}"
 echo ""

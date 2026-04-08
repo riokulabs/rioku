@@ -13,6 +13,20 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 )
 
+// dummyPasswordHash is a pre-computed argon2id hash used to normalise the
+// timing of login attempts for non-existent usernames. Without this, an
+// attacker could distinguish "user not found" from "wrong password" by
+// measuring response latency.
+var dummyPasswordHash string
+
+func init() {
+	h, err := auth.HashPassword("timing-normalization-dummy")
+	if err != nil {
+		panic("auth: failed to compute dummy hash: " + err.Error())
+	}
+	dummyPasswordHash = h
+}
+
 // RegisterAuthRoutes registers the token exchange and session-based auth
 // endpoints on the mux. The encryptor is used to decrypt TOTP secrets
 // during login when two-factor authentication is enabled.
@@ -27,6 +41,10 @@ func RegisterAuthRoutes(mux *http.ServeMux, a *auth.Auth, sm *auth.SessionManage
 	mux.HandleFunc("GET /api/v1/auth/me", handleMe(st))
 	mux.HandleFunc("POST /api/v1/auth/password", handlePasswordChange(sm, st, cfg))
 	mux.HandleFunc("PATCH /api/v1/auth/me", handleUpdateProfile(sm, st))
+
+	// Session management endpoints.
+	mux.HandleFunc("GET /api/v1/auth/sessions", handleListSessions(st))
+	mux.HandleFunc("DELETE /api/v1/auth/sessions/{id}", handleRevokeSessionByID(sm, st))
 }
 
 type tokenExchangeRequest struct {
@@ -226,6 +244,11 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 		// Look up user (case-insensitive handled by store).
 		user, err := tx.GetUserByUsername(ctx, req.Username)
 		if err != nil {
+			// Hash the supplied password against the dummy hash so that the
+			// response time is indistinguishable from a real password check.
+			// This closes the timing side-channel for username enumeration.
+			auth.VerifyPassword(req.Password, dummyPasswordHash)
+
 			// Generic 401 to avoid username enumeration.
 			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
 				"Invalid username or password", r.URL.Path, nil)
@@ -411,17 +434,22 @@ func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type meResponse struct {
-	User    meUserInfo     `json:"user"`
-	Session *meSessionInfo `json:"session,omitempty"`
+	User    meUserInfo    `json:"user"`
+	Session meSessionInfo `json:"session"`
 }
 
 type meUserInfo struct {
-	ID                  string `json:"id"`
-	Username            string `json:"username"`
-	DisplayName         string `json:"display_name,omitempty"`
-	Email               string `json:"email,omitempty"`
-	ForcePasswordChange bool   `json:"force_password_change"`
-	TOTPEnabled         bool   `json:"totp_enabled"`
+	ID                  string   `json:"id"`
+	Username            string   `json:"username"`
+	DisplayName         string   `json:"display_name,omitempty"`
+	Email               string   `json:"email,omitempty"`
+	Roles               []string `json:"roles"`
+	Permissions         []string `json:"permissions"`
+	Status              string   `json:"status"`
+	LastLogin           *string  `json:"last_login,omitempty"`
+	CreatedAt           string   `json:"created_at"`
+	ForcePasswordChange bool     `json:"force_password_change"`
+	TOTPEnabled         bool     `json:"totp_enabled"`
 }
 
 type meSessionInfo struct {
@@ -435,12 +463,12 @@ func handleMe(st store.Driver) http.HandlerFunc {
 
 		// Identify the caller — prefer session claims, fall back to bearer claims.
 		var userID string
-		var sessionInfo *meSessionInfo
+		var sessionInfo meSessionInfo
 
 		sc := auth.SessionClaimsFromContext(ctx)
 		if sc != nil {
 			userID = sc.UserID
-			sessionInfo = &meSessionInfo{ID: sc.SessionID}
+			sessionInfo.ID = sc.SessionID
 		} else {
 			bc := auth.ClaimsFromContext(ctx)
 			if bc == nil {
@@ -468,11 +496,20 @@ func handleMe(st store.Driver) http.HandlerFunc {
 		}
 
 		// If we have a session, enrich with expiry from the DB.
-		if sessionInfo != nil {
+		if sessionInfo.ID != "" {
 			sess, err := tx.GetSession(ctx, sessionInfo.ID)
 			if err == nil {
 				sessionInfo.ExpiresAt = sess.ExpiresAt
 			}
+		}
+
+		// Load roles and permissions for the user.
+		roles, permissions, _ := auth.LoadUserScopes(ctx, st, user.ID)
+		if roles == nil {
+			roles = []string{}
+		}
+		if permissions == nil {
+			permissions = []string{}
 		}
 
 		displayName := ""
@@ -484,12 +521,23 @@ func handleMe(st store.Driver) http.HandlerFunc {
 			email = *user.Email
 		}
 
+		var lastLogin *string
+		if user.LastLogin != nil {
+			s := user.LastLogin.Format(time.RFC3339)
+			lastLogin = &s
+		}
+
 		resp := meResponse{
 			User: meUserInfo{
 				ID:                  user.ID,
 				Username:            user.Username,
 				DisplayName:         displayName,
 				Email:               email,
+				Roles:               roles,
+				Permissions:         permissions,
+				Status:              user.Status,
+				LastLogin:           lastLogin,
+				CreatedAt:           user.CreatedAt.Format(time.RFC3339),
 				ForcePasswordChange: user.ForcePasswordChange,
 				TOTPEnabled:         user.TOTPEnabled,
 			},
@@ -740,4 +788,141 @@ func writeProblem(w http.ResponseWriter, status int, errType, title, detail, ins
 		Instance: instance,
 		Errors:   errs,
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Session listing and revocation
+// ---------------------------------------------------------------------------
+
+type sessionResponse struct {
+	ID         string `json:"id"`
+	CreatedAt  string `json:"created_at"`
+	LastActive string `json:"last_active"`
+	ExpiresAt  string `json:"expires_at"`
+	IPAddress  string `json:"ip_address"`
+	UserAgent  string `json:"user_agent,omitempty"`
+}
+
+func handleListSessions(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Identify caller.
+		var userID string
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil {
+			userID = sc.UserID
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			userID = c.Subject
+		}
+		if userID == "" {
+			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
+				"No valid session or bearer token found", r.URL.Path, nil)
+			return
+		}
+
+		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer tx.Rollback()
+
+		sessions, err := tx.ListSessionsByUser(ctx, userID)
+		if err != nil {
+			writeInternalError(w, r, "list sessions")
+			return
+		}
+
+		result := make([]sessionResponse, 0, len(sessions))
+		for _, s := range sessions {
+			sr := sessionResponse{
+				ID:         s.ID,
+				CreatedAt:  s.CreatedAt.Format(time.RFC3339),
+				LastActive: s.LastActive.Format(time.RFC3339),
+				ExpiresAt:  s.ExpiresAt.Format(time.RFC3339),
+			}
+			if s.IPAddress != nil {
+				sr.IPAddress = *s.IPAddress
+			}
+			if s.UserAgent != nil {
+				sr.UserAgent = *s.UserAgent
+			}
+			result = append(result, sr)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		sessionID := r.PathValue("id")
+		if sessionID == "" {
+			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
+				"Session ID is required", r.URL.Path, nil)
+			return
+		}
+
+		// Identify caller.
+		var callerUserID string
+		var callerScopes *auth.SessionClaims
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil {
+			callerUserID = sc.UserID
+			callerScopes = sc
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			callerUserID = c.Subject
+		}
+		if callerUserID == "" {
+			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
+				"No valid session or bearer token found", r.URL.Path, nil)
+			return
+		}
+
+		// Load the target session to check ownership.
+		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer tx.Rollback()
+
+		targetSession, err := tx.GetSession(ctx, sessionID)
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Session not found",
+				"No session exists with the given ID", r.URL.Path, nil)
+			return
+		}
+
+		// Allow if caller owns the session or has sessions:manage permission.
+		ownsSession := targetSession.UserID == callerUserID
+		hasManagePerm := false
+		if callerScopes != nil {
+			hasManagePerm = callerScopes.HasPermission("sessions:manage")
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			// Bearer tokens with "admin" role have all permissions.
+			for _, role := range c.Roles {
+				if role == "admin" {
+					hasManagePerm = true
+					break
+				}
+			}
+		}
+
+		if !ownsSession && !hasManagePerm {
+			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Forbidden",
+				"You can only revoke your own sessions unless you have sessions:manage permission", r.URL.Path, nil)
+			return
+		}
+
+		if err := sm.RevokeSession(ctx, sessionID); err != nil {
+			writeInternalError(w, r, "revoke session")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	}
 }

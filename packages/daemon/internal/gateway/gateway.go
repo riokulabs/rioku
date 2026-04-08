@@ -82,11 +82,22 @@ func NewGateway(
 	// RBAC management routes (permission-gated).
 	RegisterRBACRoutes(topMux, st)
 
+	// User management routes (permission-gated).
+	RegisterUserRoutes(topMux, st, sm, cfg)
+
 	// TOTP management routes.
 	RegisterTOTPRoutes(topMux, st, a, sm, enc)
 
 	// SSE routes.
 	RegisterSSERoutes(topMux, engine)
+
+	// Audit log endpoint (hand-written because gRPC-gateway cannot
+	// translate server-streaming RPCs in in-process mode).
+	RegisterAuditRoutes(topMux, st)
+
+	// Stub routes for endpoints the frontend calls but that don't have
+	// real implementations yet (cluster, plugins, settings, traffic).
+	RegisterStubRoutes(topMux, cfg)
 
 	// grpc-gateway handles API routes.
 	topMux.Handle("/api/", gwMux)

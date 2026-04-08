@@ -41,10 +41,12 @@ interface AiMetrics {
 
 export const Route = createFileRoute('/traffic/ai')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: ['traffic', 'ai'],
-      queryFn: () => apiClient.get<AiMetrics>('/traffic/ai'),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: ['traffic', 'ai'],
+        queryFn: () => apiClient.get<AiMetrics>('/traffic/ai'),
+      })
+      .catch(() => null),
   component: TrafficAI,
 })
 

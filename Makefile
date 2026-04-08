@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -21,12 +21,43 @@ sandbox: build-daemon
 sandbox-stop:
 	@bash sandbox/scripts/stop.sh
 
-## sandbox-seed: Re-seed sandbox configuration
+## sandbox-seed: Re-seed sandbox configuration (requires running sandbox)
 sandbox-seed:
-	@echo "Re-seeding not yet implemented (restart sandbox instead)"
+	bash sandbox/scripts/seed-config.sh
+
+## sandbox-reset: Stop sandbox, wipe all data, restart fresh
+sandbox-reset: sandbox-stop
+	@echo "==> Wiping sandbox data..."
+	rm -rf sandbox/.data
+	@echo "==> Starting fresh sandbox..."
+	$(MAKE) sandbox
 
 ## sandbox-restart-daemon: Rebuild daemon + restart without touching upstream apps (~5s)
 sandbox-restart-daemon: build-daemon
+	@echo "==> Restarting daemon screen session..."
+	@if command -v screen >/dev/null 2>&1 && screen -ls 2>/dev/null | grep -q "rioku-daemon"; then \
+	  screen -S rioku-daemon -X quit 2>/dev/null || true; \
+	  sleep 1; \
+	  screen -dmS rioku-daemon -L -Logfile sandbox/.data/daemon.log \
+	    bin/rioku start --config-file sandbox/.data/rioku.yaml; \
+	  echo "  daemon restarted in screen session rioku-daemon"; \
+	else \
+	  echo "  screen not found or rioku-daemon session not running"; \
+	  echo "  stop and restart the sandbox with: make sandbox-stop && make sandbox"; \
+	  exit 1; \
+	fi
+	@echo "==> Waiting for daemon health..."
+	@for i in $$(seq 1 15); do \
+	  if curl -sf --max-time 2 http://localhost:7778/api/v1/health >/dev/null 2>&1; then \
+	    echo "[OK]    daemon is healthy"; \
+	    exit 0; \
+	  fi; \
+	  sleep 1; \
+	done; \
+	echo "[WARN]  daemon did not become healthy in 15s — check sandbox/.data/daemon.log"
+
+## sandbox-restart-daemon-fast: Rebuild daemon (skip web) + restart (~3s)
+sandbox-restart-daemon-fast: build-daemon-fast
 	@echo "==> Restarting daemon screen session..."
 	@if command -v screen >/dev/null 2>&1 && screen -ls 2>/dev/null | grep -q "rioku-daemon"; then \
 	  screen -S rioku-daemon -X quit 2>/dev/null || true; \
@@ -113,6 +144,10 @@ build-daemon: web-embed
 web-embed: web-build
 	@rm -rf $(PKG)/daemon/web/build
 	@cp -r $(PKG)/web/build $(PKG)/daemon/web/build
+
+## build-daemon-fast: Build daemon binary without rebuilding web SPA (faster iteration)
+build-daemon-fast:
+	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
 
 ## build-daemon-lean: Build daemon without admin panel (smaller binary for cluster members)
 build-daemon-lean:

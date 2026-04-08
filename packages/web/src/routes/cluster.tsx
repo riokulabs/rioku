@@ -35,10 +35,12 @@ interface ClusterData {
 
 export const Route = createFileRoute('/cluster')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: ['cluster'],
-      queryFn: () => apiClient.get<ClusterData>('/cluster'),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: ['cluster'],
+        queryFn: () => apiClient.get<ClusterData>('/cluster'),
+      })
+      .catch(() => ({ nodes: [] }) as ClusterData),
   component: Cluster,
 })
 

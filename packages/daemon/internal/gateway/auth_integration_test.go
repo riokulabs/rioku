@@ -208,7 +208,7 @@ func TestAuthIntegration(t *testing.T) {
 		if !me.User.ForcePasswordChange {
 			t.Error("expected force_password_change to be true")
 		}
-		if me.Session == nil {
+		if me.Session.ID == "" {
 			t.Error("expected session info in /me response")
 		}
 	})
