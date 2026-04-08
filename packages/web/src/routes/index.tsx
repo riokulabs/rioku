@@ -46,10 +46,12 @@ export const Route = createFileRoute('/')({
         queryKey: ['config'],
         queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
       }),
-      context.queryClient.ensureQueryData({
-        queryKey: ['audit', 'recent'],
-        queryFn: () => apiClient.get<AuditEntry[]>('/audit?limit=5'),
-      }),
+      context.queryClient
+        .ensureQueryData({
+          queryKey: ['audit', 'recent'],
+          queryFn: () => apiClient.get<AuditEntry[]>('/audit?limit=5'),
+        })
+        .catch(() => [] as AuditEntry[]),
     ]),
   component: Dashboard,
 })
