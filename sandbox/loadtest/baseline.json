@@ -1,0 +1,3 @@
+{
+  "_comment": "Load test baseline. Run: make sandbox-load && cp sandbox/loadtest/results.json sandbox/loadtest/baseline.json"
+}

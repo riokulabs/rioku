@@ -1,0 +1,43 @@
+{
+  "name": "standard",
+  "target_rps": 1000,
+  "duration": "60s",
+  "concurrency": 50,
+  "routes": [
+    {
+      "name": "users",
+      "direct_url": "http://127.0.0.1:9001/",
+      "proxied_url": "http://127.0.0.1:7778/",
+      "host": "users.local",
+      "weight": 3
+    },
+    {
+      "name": "products",
+      "direct_url": "http://127.0.0.1:9002/",
+      "proxied_url": "http://127.0.0.1:7778/",
+      "host": "products.local",
+      "weight": 3
+    },
+    {
+      "name": "webhooks",
+      "direct_url": "http://127.0.0.1:9003/",
+      "proxied_url": "http://127.0.0.1:7778/",
+      "host": "webhooks.local",
+      "weight": 2
+    },
+    {
+      "name": "auth-service",
+      "direct_url": "http://127.0.0.1:9004/",
+      "proxied_url": "http://127.0.0.1:7778/",
+      "host": "auth.local",
+      "weight": 1
+    },
+    {
+      "name": "media",
+      "direct_url": "http://127.0.0.1:9005/",
+      "proxied_url": "http://127.0.0.1:7778/",
+      "host": "media.local",
+      "weight": 1
+    }
+  ]
+}
