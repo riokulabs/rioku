@@ -83,7 +83,10 @@
     "cluster": "Cluster",
     "plugins": "Plugins",
     "security": "Security",
-    "settings": "Settings"
+    "settings": "Settings",
+    "users": "Users",
+    "roles": "Roles",
+    "profile": "Profile"
   },
   "time": {
     "justNow": "Just now",

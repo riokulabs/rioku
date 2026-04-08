@@ -104,18 +104,18 @@ function TrafficAnalytics() {
                 />
                 <StatCard
                   title={t('analytics.avgLatency')}
-                  value={data ? `${data.avgLatency}ms` : '--'}
+                  value={data?.avgLatency != null ? `${data.avgLatency}ms` : '--'}
                   icon={<Clock className="size-4" />}
                 />
                 <StatCard
                   title={t('analytics.p99Latency')}
-                  value={data ? `${data.p99Latency}ms` : '--'}
+                  value={data?.p99Latency != null ? `${data.p99Latency}ms` : '--'}
                   icon={<Gauge className="size-4" />}
                 />
                 <StatCard
                   title={t('analytics.errorRateStat')}
                   value={
-                    data ? `${data.errorRatePercent.toFixed(2)}%` : '--'
+                    data?.errorRatePercent != null ? `${data.errorRatePercent.toFixed(2)}%` : '--'
                   }
                   icon={<AlertTriangle className="size-4" />}
                 />

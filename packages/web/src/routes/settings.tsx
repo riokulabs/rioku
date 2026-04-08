@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { RotateCcw, Save } from 'lucide-react'
 
@@ -53,6 +53,13 @@ function Settings() {
 
   const data = Route.useLoaderData()
   const isLoading = false
+
+  // When a child route is active (e.g. /settings/users), render it via Outlet
+  // instead of the settings index content.
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  if (pathname !== '/settings') {
+    return <Outlet />
+  }
 
   return (
     <div className="space-y-6">

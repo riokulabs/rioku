@@ -201,14 +201,14 @@ function AppSidebar() {
           {currentUser && state === 'expanded' && (
             <SidebarMenuItem>
               <div className="flex items-center justify-between px-2 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
+                <Link to="/settings/profile" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
                   <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <UserIcon className="size-3.5" />
                   </div>
                   <span className="truncate text-sm font-medium">
                     {currentUser.display_name ?? currentUser.username}
                   </span>
-                </div>
+                </Link>
                 <Button
                   variant="ghost"
                   size="icon-sm"

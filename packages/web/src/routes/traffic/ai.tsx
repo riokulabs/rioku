@@ -94,7 +94,7 @@ function TrafficAI() {
             <StatCard
               title={t('ai.estimatedCost')}
               value={
-                data ? `$${data.estimatedCost.toFixed(2)}` : '$0.00'
+                data?.estimatedCost != null ? `$${data.estimatedCost.toFixed(2)}` : '$0.00'
               }
               icon={<DollarSign className="size-4" />}
             />
