@@ -34,6 +34,7 @@ type Daemon struct {
 	caddy     *caddy.Manager
 	engine    *config.Engine
 	auth      *auth.Auth
+	sessions  *auth.SessionManager
 	grpc      *riokugrpc.Server
 	gateway   *gateway.Gateway
 	syncAgent *riokusync.Agent
@@ -93,7 +94,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.auth = auth.NewAuth(signingKey, d.store)
 	log.Println("auth: ready")
 
-	// 4. Start Caddy child process (optional — warns if binary missing).
+	// 4a. Create session manager.
+	d.sessions = auth.NewSessionManager(d.store, d.cfg.Auth.DevMode)
+	d.sessions.StartCleanupWorker(ctx)
+	log.Println("sessions: manager ready")
+
+	// 4b. Start Caddy child process (optional — warns if binary missing).
 	d.caddy = caddy.NewManager(caddy.ManagerConfig{
 		Binary:    d.cfg.Caddy.Binary,
 		AdminAddr: d.cfg.Caddy.AdminAddr,
@@ -138,7 +144,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			log.Printf("web: admin panel not available: %v", err)
 		}
 
-		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, nil, d.engine, d.store, d.cfg, spaFS)
+		gw, err := gateway.NewGateway(restAddr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS)
 		if err != nil {
 			log.Printf("rest: failed to start: %v", err)
 		} else {

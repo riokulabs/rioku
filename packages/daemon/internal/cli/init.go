@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -223,11 +224,73 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 		return fmt.Errorf("commit bootstrap token: %w", err)
 	}
 
+	// Create root user.
+	rootPassword, err := createRootUser(ctx, drv)
+	if err != nil {
+		drv.Close()
+		return fmt.Errorf("create root user: %w", err)
+	}
+
 	drv.Close()
 
 	fmt.Printf("\n  Bootstrap token: %s\n", token)
 	fmt.Println("  Save this — it will not be shown again.")
-
-	fmt.Println("\nRun 'rku start' to launch the daemon.")
+	fmt.Println()
+	fmt.Println("  Root account created:")
+	fmt.Printf("    Username: root\n")
+	fmt.Printf("    Password: %s\n", rootPassword)
+	fmt.Println()
+	fmt.Println("  Save this — it will not be shown again.")
+	fmt.Println("  You will be required to change this password on first login.")
+	fmt.Println()
+	fmt.Println("Run 'rku start' to launch the daemon.")
 	return nil
+}
+
+// createRootUser creates the root account with a random password.
+// Returns the plaintext password (printed once, never stored).
+func createRootUser(ctx context.Context, drv store.Driver) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+	const pwLen = 24
+
+	buf := make([]byte, pwLen)
+	for i := range buf {
+		b := make([]byte, 1)
+		for {
+			if _, err := rand.Read(b); err != nil {
+				return "", fmt.Errorf("generate root password: %w", err)
+			}
+			if int(b[0]) < len(charset)*(256/len(charset)) {
+				buf[i] = charset[int(b[0])%len(charset)]
+				break
+			}
+		}
+	}
+	plaintext := string(buf)
+
+	hash, err := auth.HashPassword(plaintext)
+	if err != nil {
+		return "", fmt.Errorf("hash root password: %w", err)
+	}
+
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	now := time.Now().UTC()
+	_, err = tx.CreateUser(ctx, &store.User{
+		Username:            "root",
+		PasswordHash:        hash,
+		Status:              "active",
+		ForcePasswordChange: true,
+		PasswordChangedAt:   now,
+		CreatedAt:           now,
+		UpdatedAt:           now,
+	})
+	if err != nil {
+		tx.Rollback()
+		return "", fmt.Errorf("create root user: %w", err)
+	}
+	return plaintext, tx.Commit()
 }
