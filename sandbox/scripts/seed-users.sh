@@ -39,9 +39,11 @@ fi
 # Step 1: Login as root to get a session cookie
 # --------------------------------------------------------------------------
 info "Logging in as root..."
+SEED_UA="rioku-seed-script/1.0"
 login_resp="$(curl -sf --max-time 10 \
   -c "${COOKIE_JAR}" \
   -H "Content-Type: application/json" \
+  -H "User-Agent: ${SEED_UA}" \
   -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
   "${REST_BASE}/api/v1/auth/login" 2>/dev/null)" || \
   die "Login failed — is the daemon running at ${REST_BASE}?"
@@ -88,7 +90,7 @@ info "Seeding test users from ${TEST_USERS_FILE}..."
 # Track created user IDs for state file.
 declare -A USER_IDS
 
-export TEST_USERS_FILE REST_BASE COOKIE_JAR DATA_DIR
+export TEST_USERS_FILE REST_BASE COOKIE_JAR DATA_DIR SEED_UA
 
 python3 - <<'PYEOF'
 import json, os, sys
@@ -103,11 +105,14 @@ with open(test_users_file) as f:
 
 import urllib.request, urllib.error
 
+seed_ua = os.environ.get("SEED_UA", "rioku-seed-script/1.0")
+
 def api(method, path, payload=None):
     url = f"{rest_base}{path}"
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", seed_ua)
     # Read cookie jar for session cookie.
     session_id = ""
     try:

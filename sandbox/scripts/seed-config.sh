@@ -57,9 +57,11 @@ echo ""
 echo -e "${BOLD}==> Seeding configuration${NC}"
 
 info "Logging in as root for config seeding..."
+SEED_UA="rioku-seed-script/1.0"
 LOGIN_RESP="$(curl -sf --max-time 10 \
     -c "${COOKIE_JAR}" \
     -H "Content-Type: application/json" \
+    -H "User-Agent: ${SEED_UA}" \
     -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
     "${REST_BASE}/api/v1/auth/login" 2>/dev/null || true)"
 
@@ -77,7 +79,7 @@ success "Root login successful"
 # --------------------------------------------------------------------------
 info "Seeding services, routes, and policies from ${SEED_FILE} ..."
 seed_failed=0
-export SEED_FILE REST_BASE COOKIE_JAR
+export SEED_FILE REST_BASE COOKIE_JAR SEED_UA
 python3 - <<'PYEOF' 2>/dev/null || seed_failed=1
 import json, urllib.request, urllib.error, os
 
@@ -97,11 +99,14 @@ if cookie_jar and os.path.exists(cookie_jar):
 with open(seed_file) as f:
     seed = json.load(f)
 
+seed_ua = os.environ.get("SEED_UA", "rioku-seed-script/1.0")
+
 def api(method, path, payload=None):
     url  = f"{rest_base}{path}"
     data = json.dumps(payload).encode() if payload is not None else None
     req  = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", seed_ua)
     if session_id:
         req.add_header("Cookie", f"rioku_sid={session_id}")
     try:

@@ -279,7 +279,7 @@ func createRootUser(ctx context.Context, drv store.Driver) (string, error) {
 	}
 
 	now := time.Now().UTC()
-	_, err = tx.CreateUser(ctx, &store.User{
+	user, err := tx.CreateUser(ctx, &store.User{
 		Username:            "root",
 		PasswordHash:        hash,
 		Status:              "active",
@@ -292,5 +292,12 @@ func createRootUser(ctx context.Context, drv store.Driver) (string, error) {
 		tx.Rollback()
 		return "", fmt.Errorf("create root user: %w", err)
 	}
+
+	// Assign superadmin role to root user.
+	if err := tx.AssignRole(ctx, user.ID, "role_superadmin", user.ID); err != nil {
+		tx.Rollback()
+		return "", fmt.Errorf("assign superadmin role to root: %w", err)
+	}
+
 	return plaintext, tx.Commit()
 }
