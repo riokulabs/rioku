@@ -201,6 +201,15 @@ if [[ ! -f "${DAEMON_CONFIG}" ]]; then
   fi
   success "dev_mode enabled in ${DAEMON_CONFIG}"
 
+  # Use unprivileged port for Caddy traffic block (avoids needing root for :443).
+  if grep -q "traffic_addrs:" "${DAEMON_CONFIG}"; then
+    sed -i 's/- :443/- :8443/' "${DAEMON_CONFIG}"
+  fi
+
+  # Bind REST/admin to all interfaces for LAN access during development.
+  sed -i 's/rest: :7778/rest: 0.0.0.0:7778/' "${DAEMON_CONFIG}"
+  success "sandbox config patched (traffic :8443, REST 0.0.0.0:7778)"
+
   # Extract root password from init output.
   # Expected format:  "  Password: <password>"
   ROOT_PASSWORD="$(echo "${INIT_OUTPUT}" | grep -E '^\s+Password:' | awk '{print $NF}' || true)"
@@ -277,7 +286,7 @@ session_id = ""
 if cookie_jar and os.path.exists(cookie_jar):
     with open(cookie_jar) as cf:
         for line in cf:
-            if "rioku_session" in line:
+            if "rioku_sid" in line:
                 session_id = line.strip().split("\t")[-1]
                 break
 
@@ -290,7 +299,7 @@ def api(method, path, payload=None):
     req  = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
     if session_id:
-        req.add_header("Cookie", f"rioku_session={session_id}")
+        req.add_header("Cookie", f"rioku_sid={session_id}")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = resp.read()
