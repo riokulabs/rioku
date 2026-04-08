@@ -194,7 +194,7 @@ bench-compare: bench
 ## sandbox-load: Run standard load profile (direct + proxied), requires running sandbox
 sandbox-load:
 	@echo "Building load tester..."
-	cd sandbox/loadtest && $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
+	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
 	@echo "Running standard load profile..."
 	./$(BIN_DIR)/rioku-loadtest \
 		--profile sandbox/loadtest/profiles/standard.json \
@@ -205,7 +205,7 @@ sandbox-load:
 ## sandbox-load-monitor: Run soak load profile with resource monitoring
 sandbox-load-monitor:
 	@echo "Building load tester..."
-	cd sandbox/loadtest && $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
+	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
 	@echo "Running soak profile with monitoring..."
 	./$(BIN_DIR)/rioku-loadtest \
 		--profile sandbox/loadtest/profiles/soak.json \
