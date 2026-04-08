@@ -610,6 +610,82 @@ func (t *raftTx) QueryAuditLog(_ context.Context, query store.AuditQuery) ([]*ri
 }
 
 // ---------------------------------------------------------------------------
+// Users (stubs)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateUser(_ context.Context, _ *store.User) (*store.User, error) {
+	return nil, fmt.Errorf("raft: CreateUser not implemented")
+}
+
+func (t *raftTx) GetUser(_ context.Context, _ string) (*store.User, error) {
+	return nil, fmt.Errorf("raft: GetUser not implemented")
+}
+
+func (t *raftTx) GetUserByUsername(_ context.Context, _ string) (*store.User, error) {
+	return nil, fmt.Errorf("raft: GetUserByUsername not implemented")
+}
+
+func (t *raftTx) ListUsers(_ context.Context) ([]*store.User, error) {
+	return nil, fmt.Errorf("raft: ListUsers not implemented")
+}
+
+func (t *raftTx) UpdateUser(_ context.Context, _ *store.User) (*store.User, error) {
+	return nil, fmt.Errorf("raft: UpdateUser not implemented")
+}
+
+func (t *raftTx) DeleteUser(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteUser not implemented")
+}
+
+func (t *raftTx) IncrementFailedAttempts(_ context.Context, _ string, _ *time.Time) error {
+	return fmt.Errorf("raft: IncrementFailedAttempts not implemented")
+}
+
+func (t *raftTx) ResetFailedAttempts(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: ResetFailedAttempts not implemented")
+}
+
+func (t *raftTx) UpdateLastLogin(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: UpdateLastLogin not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Sessions (stubs)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateSession(_ context.Context, _ *store.Session) (*store.Session, error) {
+	return nil, fmt.Errorf("raft: CreateSession not implemented")
+}
+
+func (t *raftTx) GetSession(_ context.Context, _ string) (*store.Session, error) {
+	return nil, fmt.Errorf("raft: GetSession not implemented")
+}
+
+func (t *raftTx) ListSessionsByUser(_ context.Context, _ string) ([]*store.Session, error) {
+	return nil, fmt.Errorf("raft: ListSessionsByUser not implemented")
+}
+
+func (t *raftTx) DeleteSession(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteSession not implemented")
+}
+
+func (t *raftTx) DeleteSessionsByUser(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteSessionsByUser not implemented")
+}
+
+func (t *raftTx) DeleteSessionsByUserExcept(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteSessionsByUserExcept not implemented")
+}
+
+func (t *raftTx) UpdateSessionLastActive(_ context.Context, _ string, _ time.Time) error {
+	return fmt.Errorf("raft: UpdateSessionLastActive not implemented")
+}
+
+func (t *raftTx) DeleteExpiredSessions(_ context.Context) (int64, error) {
+	return 0, fmt.Errorf("raft: DeleteExpiredSessions not implemented")
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

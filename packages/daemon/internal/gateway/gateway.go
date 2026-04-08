@@ -31,8 +31,10 @@ func NewGateway(
 	configSvc riokuv1.ConfigServiceServer,
 	healthSvc riokuv1.HealthServiceServer,
 	a *auth.Auth,
+	sm *auth.SessionManager,
 	engine *config.Engine,
 	st store.Driver,
+	cfg *config.Config,
 	spaFS fs.FS,
 ) (*Gateway, error) {
 	ctx := context.Background()
@@ -54,7 +56,7 @@ func NewGateway(
 	topMux := http.NewServeMux()
 
 	// Auth routes (unauthenticated).
-	RegisterAuthRoutes(topMux, a)
+	RegisterAuthRoutes(topMux, a, sm, st, cfg)
 
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
@@ -74,7 +76,7 @@ func NewGateway(
 
 	// Apply middleware stack (outermost first).
 	var handler http.Handler = topMux
-	handler = AuthMiddleware(a)(handler)
+	handler = AuthMiddleware(a, sm)(handler)
 	handler = RequestIDMiddleware(handler)
 
 	return &Gateway{
