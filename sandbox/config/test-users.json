@@ -1,0 +1,49 @@
+{
+  "_comment": "Test users for sandbox development and smoke tests. Non-secret passwords — local dev only.",
+  "users": [
+    {
+      "username": "testadmin",
+      "password": "TestAdmin123!",
+      "roles": ["admin"],
+      "status": "active"
+    },
+    {
+      "username": "testoperator",
+      "password": "TestOp123!",
+      "roles": ["operator"],
+      "status": "active"
+    },
+    {
+      "username": "testviewer",
+      "password": "TestView123!",
+      "roles": ["viewer"],
+      "status": "active"
+    },
+    {
+      "username": "testmulti",
+      "password": "TestMulti123!",
+      "roles": ["operator", "auditor"],
+      "status": "active"
+    },
+    {
+      "username": "test2fa",
+      "password": "Test2FA123!",
+      "roles": ["admin"],
+      "status": "active",
+      "totp_enabled": false,
+      "_note": "TOTP enabled manually during test setup; totp_secret written to .data/test-users-state.json after seeding"
+    },
+    {
+      "username": "testlocked",
+      "password": "TestLocked123!",
+      "roles": ["viewer"],
+      "status": "locked"
+    },
+    {
+      "username": "testsuspended",
+      "password": "TestSusp123!",
+      "roles": ["viewer"],
+      "status": "suspended"
+    }
+  ]
+}

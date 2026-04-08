@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # sandbox/scripts/start.sh — Start the Rioku sandbox environment.
-# Builds all binaries, launches all 5 sandbox apps and the daemon, seeds config.
+# Builds all binaries, launches all processes (via screen if available),
+# seeds config, and seeds test users.
 set -euo pipefail
 
 # --------------------------------------------------------------------------
@@ -9,6 +10,7 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -27,14 +29,34 @@ SEED_FILE="${SANDBOX_DIR}/config/seed.json"
 API_KEYS_FILE="${SANDBOX_DIR}/config/api-keys.json"
 REST_ADDR="localhost:7778"
 REST_BASE="http://${REST_ADDR}"
+COOKIE_JAR="${DATA_DIR}/root-cookies.txt"
+
+# --------------------------------------------------------------------------
+# Detect screen availability
+# --------------------------------------------------------------------------
+USE_SCREEN=false
+if command -v screen >/dev/null 2>&1; then
+  USE_SCREEN=true
+else
+  echo -e "${YELLOW}[WARN]${NC}  screen not found — using background processes."
+  echo -e "         Install screen for a better sandbox experience:"
+  echo -e "           apt install screen   (Debian/Ubuntu)"
+  echo -e "           dnf install screen   (Fedora/RHEL)"
+  echo -e "           brew install screen  (macOS)"
+  echo ""
+fi
 
 # --------------------------------------------------------------------------
 # Trap ERR — cleanup on failure
 # --------------------------------------------------------------------------
 cleanup_on_error() {
   echo -e "\n${RED}[ERROR]${NC} Start failed. Cleaning up..."
+  if [[ "${USE_SCREEN}" == "true" ]]; then
+    for session in rioku-daemon rioku-users rioku-products rioku-webhooks rioku-auth rioku-media; do
+      screen -S "${session}" -X quit 2>/dev/null || true
+    done
+  fi
   if [[ -f "${PID_FILE}" ]]; then
-    # shellcheck disable=SC2034
     while IFS=' ' read -r pid name; do
       if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
         echo -e "  ${RED}killing${NC} ${name} (pid ${pid})"
@@ -43,6 +65,7 @@ cleanup_on_error() {
     done < "${PID_FILE}"
     rm -f "${PID_FILE}"
   fi
+  rm -f "${COOKIE_JAR}"
   exit 1
 }
 trap cleanup_on_error ERR
@@ -52,14 +75,14 @@ trap cleanup_on_error ERR
 # --------------------------------------------------------------------------
 info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
 success() { echo -e "${GREEN}[OK]${NC}    $*"; }
-warn()    { echo -e "${RED}[WARN]${NC}  $*"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 
 save_pid() {
   local pid="$1" name="$2"
   echo "${pid} ${name}" >> "${PID_FILE}"
 }
 
-# Health check with retry+backoff. Returns 0 when healthy.
+# Health check with retry+backoff. Returns 0 when healthy, 1 on timeout (non-fatal).
 wait_healthy() {
   local url="$1" name="$2"
   local max_attempts=30 attempt=0 delay=1
@@ -75,6 +98,23 @@ wait_healthy() {
   done
   warn "${name} did not become healthy after ${max_attempts} attempts (continuing)"
   return 1
+}
+
+# Start a process in a screen session (if USE_SCREEN=true) or background.
+# Usage: start_process <session-name> <log-file> <cmd> [args...]
+start_process() {
+  local session="$1" log_file="$2"
+  shift 2
+  if [[ "${USE_SCREEN}" == "true" ]]; then
+    # Kill existing session if running (idempotent restart).
+    screen -S "${session}" -X quit 2>/dev/null || true
+    screen -dmS "${session}" -L -Logfile "${log_file}" "$@"
+    # screen -dm does not give us a PID to track; record 0 as sentinel.
+    save_pid 0 "${session}"
+  else
+    "$@" >"${log_file}" 2>&1 &
+    save_pid "$!" "${session}"
+  fi
 }
 
 # --------------------------------------------------------------------------
@@ -119,70 +159,61 @@ rm -f "${PID_FILE}"
 info "Runtime directory: ${DATA_DIR}"
 
 # --------------------------------------------------------------------------
-# Step 4: Start sandbox apps in background, save PIDs
+# Step 4: Start sandbox apps
 # --------------------------------------------------------------------------
 echo ""
 echo -e "${BOLD}==> Step 4: Starting sandbox apps${NC}"
+if [[ "${USE_SCREEN}" == "true" ]]; then
+  info "Using screen sessions (screen -ls to list, screen -r <name> to attach)"
+fi
 
-start_app() {
-  local bin="$1" name="$2" port="$3"
-  shift 3
-  local log_file="${DATA_DIR}/${name}.log"
-  info "Starting ${name} on :${port} ..."
-  "${bin}" --port "${port}" "$@" >"${log_file}" 2>&1 &
-  save_pid "$!" "${name}"
-  success "${name} started (pid $!)"
-}
+start_process "rioku-users"    "${DATA_DIR}/users.log"    "${BIN_DIR}/users-svc"    --port 9001
+start_process "rioku-products" "${DATA_DIR}/products.log" "${BIN_DIR}/products-svc" --port 9002
+start_process "rioku-webhooks" "${DATA_DIR}/webhooks.log" "${BIN_DIR}/webhooks-svc" --port 9003
+start_process "rioku-auth"     "${DATA_DIR}/auth.log"     "${BIN_DIR}/auth-svc"     --port 9004
+start_process "rioku-media"    "${DATA_DIR}/media.log"    "${BIN_DIR}/media-svc"    --port 9005
 
-start_app "${BIN_DIR}/users-svc"    "users"    9001
-start_app "${BIN_DIR}/products-svc" "products" 9002
-start_app "${BIN_DIR}/webhooks-svc" "webhooks" 9003
-start_app "${BIN_DIR}/auth-svc"     "auth"     9004
-start_app "${BIN_DIR}/media-svc"    "media"    9005
+success "Sandbox apps started"
 
 # --------------------------------------------------------------------------
 # Step 5: Initialize and start the Rioku daemon
 # --------------------------------------------------------------------------
 echo ""
 echo -e "${BOLD}==> Step 5: Initializing and starting Rioku daemon${NC}"
-DAEMON_LOG="${DATA_DIR}/daemon.log"
 
-# Initialize if not already done (generates rioku.yaml + bootstrap token).
+ROOT_PASSWORD=""
 if [[ ! -f "${DAEMON_CONFIG}" ]]; then
   info "Running 'rioku init' (non-interactive, sqlite store) ..."
-  BOOTSTRAP_TOKEN="$( "${DAEMON_BIN}" init \
+  INIT_OUTPUT="$( "${DAEMON_BIN}" init \
     --config-file "${DAEMON_CONFIG}" \
     --data-dir    "${DATA_DIR}" \
     --store       sqlite \
     --listen      ":7778" \
     --non-interactive \
-    2>&1 | tee -a "${DATA_DIR}/init.log" \
-    | grep "Bootstrap token:" | awk '{print $NF}' )"
-  if [[ -z "${BOOTSTRAP_TOKEN}" ]]; then
-    warn "Could not capture bootstrap token from 'rioku init' output."
-    warn "Check ${DATA_DIR}/init.log for details."
-    BOOTSTRAP_TOKEN=""
+    2>&1 | tee -a "${DATA_DIR}/init.log" )"
+
+  # Extract root password from init output.
+  # Expected format:  "  Password: <password>"
+  ROOT_PASSWORD="$(echo "${INIT_OUTPUT}" | grep -E '^\s+Password:' | awk '{print $NF}' || true)"
+  if [[ -z "${ROOT_PASSWORD}" ]]; then
+    warn "Could not capture root password from 'rioku init' output."
+    warn "Check ${DATA_DIR}/init.log for the root credentials."
   else
-    echo "${BOOTSTRAP_TOKEN}" > "${DATA_DIR}/bootstrap-token"
-    success "Bootstrap token captured and saved to ${DATA_DIR}/bootstrap-token"
+    echo "${ROOT_PASSWORD}" > "${DATA_DIR}/root-password"
+    success "Root password saved to ${DATA_DIR}/root-password"
   fi
 else
   info "rioku.yaml already exists, skipping init"
-  if [[ -f "${DATA_DIR}/bootstrap-token" ]]; then
-    BOOTSTRAP_TOKEN="$(cat "${DATA_DIR}/bootstrap-token")"
-  else
-    BOOTSTRAP_TOKEN=""
+  if [[ -f "${DATA_DIR}/root-password" ]]; then
+    ROOT_PASSWORD="$(cat "${DATA_DIR}/root-password")"
   fi
 fi
 
-# Start daemon in the background.
+# Start daemon.
 info "Starting Rioku daemon ..."
-"${DAEMON_BIN}" start \
-  --config-file "${DAEMON_CONFIG}" \
-  >"${DAEMON_LOG}" 2>&1 &
-DAEMON_PID=$!
-save_pid "${DAEMON_PID}" "daemon"
-success "Daemon started (pid ${DAEMON_PID})"
+start_process "rioku-daemon" "${DATA_DIR}/daemon.log" \
+  "${DAEMON_BIN}" start --config-file "${DAEMON_CONFIG}"
+success "Daemon started"
 
 # --------------------------------------------------------------------------
 # Step 6: Health-check all 6 processes
@@ -198,67 +229,66 @@ wait_healthy "http://localhost:9005/health" "media"    || true
 wait_healthy "${REST_BASE}/api/v1/health"   "daemon"   || true
 
 # --------------------------------------------------------------------------
-# Step 7: Seed configuration via REST
+# Step 7: Seed configuration via REST (cookie auth)
 # --------------------------------------------------------------------------
 echo ""
 echo -e "${BOLD}==> Step 7: Seeding configuration${NC}"
 
-# Exchange bootstrap token for an access token.
-ACCESS_TOKEN=""
-if [[ -n "${BOOTSTRAP_TOKEN}" ]]; then
-  info "Exchanging bootstrap token for access token ..."
-  TOKEN_RESP="$(curl -sf --max-time 10 \
-    -H "Content-Type: application/json" \
-    -d "{\"token\": \"${BOOTSTRAP_TOKEN}\"}" \
-    "${REST_BASE}/api/v1/auth/token" 2>/dev/null || true)"
-
-  if [[ -n "${TOKEN_RESP}" ]]; then
-    ACCESS_TOKEN="$(echo "${TOKEN_RESP}" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4 || true)"
-    if [[ -n "${ACCESS_TOKEN}" ]]; then
-      success "Access token obtained"
-    else
-      warn "Could not extract access_token from response. Token exchange may have failed."
-      warn "Response: ${TOKEN_RESP}"
-    fi
-  else
-    warn "Token exchange request failed (daemon REST API may not be ready or endpoint not implemented yet)"
-  fi
+if [[ -z "${ROOT_PASSWORD}" ]]; then
+  warn "No root password available — skipping config seed and user seed"
+  warn "If the daemon was previously initialized, run 'make sandbox-seed-users' manually"
 else
-  warn "No bootstrap token available — skipping auth and config seed"
-fi
+  # Login as root to get a session cookie.
+  info "Logging in as root for config seeding..."
+  LOGIN_RESP="$(curl -sf --max-time 10 \
+    -c "${COOKIE_JAR}" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
+    "${REST_BASE}/api/v1/auth/login" 2>/dev/null || true)"
 
-# Apply seed config: services, routes, policies.
-if [[ -n "${ACCESS_TOKEN}" ]]; then
-  info "Seeding services, routes, and policies from ${SEED_FILE} ..."
+  if [[ -z "${LOGIN_RESP}" ]]; then
+    warn "Root login failed — daemon may not be ready yet. Skipping seed."
+    warn "Run 'make sandbox-seed-users' after daemon is healthy."
+  else
+    success "Root login successful"
 
-  seed_failed=0
+    # Apply seed config.
+    info "Seeding services, routes, and policies from ${SEED_FILE} ..."
+    seed_failed=0
+    export SEED_FILE REST_BASE COOKIE_JAR
+    python3 - <<'PYEOF' 2>/dev/null || seed_failed=1
+import json, urllib.request, urllib.error, os
 
-  # Seed each service.
-  service_count="$(python3 -c "import json,sys; d=json.load(open('${SEED_FILE}')); print(len(d.get('services',[])))" 2>/dev/null || echo 0)"
-  info "  Seeding ${service_count} services..."
-  python3 - <<'PYEOF' 2>/dev/null || seed_failed=1
-import json, sys, urllib.request, urllib.error
+seed_file  = os.environ.get("SEED_FILE",   "")
+rest_base  = os.environ.get("REST_BASE",   "http://localhost:7778")
+cookie_jar = os.environ.get("COOKIE_JAR",  "")
 
-seed_file = "${SEED_FILE}"
-base_url  = "${REST_BASE}"
-token     = "${ACCESS_TOKEN}"
+# Read session cookie from the curl cookie jar file.
+session_id = ""
+if cookie_jar and os.path.exists(cookie_jar):
+    with open(cookie_jar) as cf:
+        for line in cf:
+            if "rioku_session" in line:
+                session_id = line.strip().split("\t")[-1]
+                break
 
 with open(seed_file) as f:
     seed = json.load(f)
 
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {token}",
-}
-
-def post(path, payload):
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(f"{base_url}{path}", data=data, headers=headers, method="POST")
+def api(method, path, payload=None):
+    url  = f"{rest_base}{path}"
+    data = json.dumps(payload).encode() if payload is not None else None
+    req  = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Content-Type", "application/json")
+    if session_id:
+        req.add_header("Cookie", f"rioku_session={session_id}")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status, resp.read()
+            body = resp.read()
+            return resp.status, json.loads(body) if body else {}
     except urllib.error.HTTPError as e:
-        return e.code, e.read()
+        body = e.read()
+        return e.code, json.loads(body) if body else {}
 
 service_ids = {}
 for svc in seed.get("services", []):
@@ -267,9 +297,8 @@ for svc in seed.get("services", []):
         "upstreams": svc["upstreams"],
         "lbPolicy":  svc["lbPolicy"],
     }}}
-    status, body = post("/api/v1/config", change)
-    resp_data = json.loads(body) if body else {}
-    svc_id = resp_data.get("id") or resp_data.get("service", {}).get("id", "")
+    status, resp = api("POST", "/api/v1/config", change)
+    svc_id = resp.get("id") or resp.get("service", {}).get("id", "")
     service_ids[svc["name"]] = svc_id
     print(f"  service {svc['name']}: HTTP {status}")
 
@@ -283,32 +312,29 @@ for route in seed.get("routes", []):
     }
     if svc_id:
         r["serviceId"] = svc_id
-    change = {"route": {"action": "UPSERT", "route": r}}
-    status, body = post("/api/v1/config", change)
+    status, _ = api("POST", "/api/v1/config", {"route": {"action": "UPSERT", "route": r}})
     print(f"  route {route['name']}: HTTP {status}")
 
 for pol in seed.get("policies", []):
-    change = {"policy": {"action": "UPSERT", "policy": {
+    status, _ = api("POST", "/api/v1/config", {"policy": {"action": "UPSERT", "policy": {
         "name":   pol["name"],
         "type":   pol["type"],
         "config": pol.get("config", {}),
-    }}}
-    status, body = post("/api/v1/config", change)
+    }}})
     print(f"  policy {pol['name']}: HTTP {status}")
 PYEOF
 
-  if (( seed_failed )); then
-    warn "Config seed encountered errors (daemon API may not be fully implemented yet)"
-  else
-    success "Config seed complete"
-  fi
+    if (( seed_failed )); then
+      warn "Config seed encountered errors (daemon API may not be fully implemented yet)"
+    else
+      success "Config seed complete"
+    fi
 
-  # Create API keys.
-  info "Creating API keys from ${API_KEYS_FILE} ..."
-  keys_failed=0
-  while IFS= read -r key_name; do
-    scopes="$(python3 -c "
-import json, sys
+    # Create API keys.
+    info "Creating API keys from ${API_KEYS_FILE} ..."
+    while IFS= read -r key_name; do
+      scopes="$(python3 -c "
+import json
 d = json.load(open('${API_KEYS_FILE}'))
 for k in d['keys']:
     if k['name'] == '${key_name}':
@@ -316,37 +342,60 @@ for k in d['keys']:
         break
 " 2>/dev/null || echo "admin")"
 
-    resp="$(curl -sf --max-time 10 \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-      -d "{\"name\": \"${key_name}\", \"scopes\": \"${scopes}\"}" \
-      "${REST_BASE}/api/v1/keys" 2>/dev/null || true)"
+      resp="$(curl -sf --max-time 10 \
+        -b "${COOKIE_JAR}" -c "${COOKIE_JAR}" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"${key_name}\", \"scopes\": \"${scopes}\"}" \
+        "${REST_BASE}/api/v1/keys" 2>/dev/null || true)"
 
-    if [[ -n "${resp}" ]]; then
-      raw_key="$(echo "${resp}" | grep -o '"key":"[^"]*"' | cut -d'"' -f4 || true)"
-      success "  API key '${key_name}' created: ${raw_key}"
-    else
-      warn "  Failed to create API key '${key_name}' (endpoint may not be implemented yet)"
-      (( keys_failed++ )) || true
-    fi
-  done < <(python3 -c "
+      if [[ -n "${resp}" ]]; then
+        raw_key="$(echo "${resp}" | grep -o '"key":"[^"]*"' | cut -d'"' -f4 || true)"
+        success "  API key '${key_name}' created: ${raw_key}"
+      else
+        warn "  Failed to create API key '${key_name}'"
+      fi
+    done < <(python3 -c "
 import json
 d = json.load(open('${API_KEYS_FILE}'))
 for k in d['keys']:
     print(k['name'])
 " 2>/dev/null || true)
-else
-  warn "Skipping config seed (no access token)"
+
+    # Logout root session used for seeding.
+    curl -sf --max-time 5 -b "${COOKIE_JAR}" \
+      -X POST "${REST_BASE}/api/v1/auth/logout" >/dev/null 2>&1 || true
+    rm -f "${COOKIE_JAR}"
+    success "Root seeding session closed"
+  fi
 fi
 
 # --------------------------------------------------------------------------
-# Step 8: Summary table
+# Step 8: Seed test users
+# --------------------------------------------------------------------------
+echo ""
+echo -e "${BOLD}==> Step 8: Seeding test users${NC}"
+if [[ -n "${ROOT_PASSWORD}" ]]; then
+  bash "${SCRIPT_DIR}/seed-users.sh" "${ROOT_PASSWORD}" || \
+    warn "Test user seeding failed — run 'make sandbox-seed-users' manually"
+else
+  warn "Skipping test user seed (no root password)"
+fi
+
+# --------------------------------------------------------------------------
+# Step 9: Summary table
 # --------------------------------------------------------------------------
 echo ""
 echo -e "${BOLD}=======================================================${NC}"
 echo -e "${BOLD}  Rioku Sandbox — Running${NC}"
 echo -e "${BOLD}=======================================================${NC}"
 echo ""
+if [[ "${USE_SCREEN}" == "true" ]]; then
+  echo -e "  ${CYAN}Process management:${NC} screen"
+  echo -e "  ${CYAN}List sessions:${NC}  screen -ls"
+  echo -e "  ${CYAN}Attach daemon:${NC}  screen -r rioku-daemon"
+  echo -e "  ${CYAN}Detach:${NC}         Ctrl-A D"
+  echo ""
+fi
 echo -e "  ${CYAN}Service        Port   Log${NC}"
 echo -e "  ─────────────────────────────────────────────────────"
 echo -e "  users          9001   ${DATA_DIR}/users.log"
@@ -359,18 +408,22 @@ echo -e "  daemon (gRPC)  7777   ${DATA_DIR}/daemon.log"
 echo ""
 echo -e "  ${CYAN}Useful endpoints:${NC}"
 echo -e "  Health:  ${REST_BASE}/api/v1/health"
+echo -e "  Login:   POST ${REST_BASE}/api/v1/auth/login"
 echo -e "  Config:  ${REST_BASE}/api/v1/config"
 echo -e "  Keys:    ${REST_BASE}/api/v1/keys"
 echo ""
-if [[ -n "${BOOTSTRAP_TOKEN}" ]]; then
-echo -e "  ${CYAN}Bootstrap token:${NC} ${BOLD}${BOOTSTRAP_TOKEN}${NC}"
-echo -e "  (saved to ${DATA_DIR}/bootstrap-token)"
-fi
-if [[ -n "${ACCESS_TOKEN}" ]]; then
-echo -e "  ${CYAN}Access token:${NC}   ${BOLD}${ACCESS_TOKEN:0:40}...${NC}"
+if [[ -n "${ROOT_PASSWORD}" ]]; then
+  echo -e "  ${CYAN}Root credentials:${NC} root / ${BOLD}${ROOT_PASSWORD}${NC}"
+  echo -e "  (password saved to ${DATA_DIR}/root-password)"
 fi
 echo ""
-echo -e "  PIDs: ${PID_FILE}"
+echo -e "  ${CYAN}Test users:${NC} testadmin/TestAdmin123!, testviewer/TestView123!, ..."
+echo -e "  (full list: make sandbox-seed-users)"
+echo ""
+echo -e "  ${CYAN}Smoke tests:${NC}"
+echo -e "  make sandbox-test-auth    # auth flows only"
+echo -e "  make sandbox-test-smoke   # full stack"
+echo ""
 echo -e "  Stop: ${BOLD}make sandbox-stop${NC}  or  ${BOLD}bash sandbox/scripts/stop.sh${NC}"
 echo -e "${BOLD}=======================================================${NC}"
 echo ""
