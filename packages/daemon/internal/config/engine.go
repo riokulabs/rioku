@@ -35,6 +35,14 @@ func NewEngine(s store.Driver, c *caddy.Compiler) *Engine {
 	}
 }
 
+// SetCompiler replaces the Caddy compiler. Used when the compiler config
+// depends on runtime state (e.g., the gateway's OS-assigned port).
+func (e *Engine) SetCompiler(c *caddy.Compiler) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.compiler = c
+}
+
 // --------------------------------------------------------------------------
 // GetConfig
 // --------------------------------------------------------------------------
