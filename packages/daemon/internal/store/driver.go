@@ -15,6 +15,13 @@ import (
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
+// Sentinel errors for RBAC and TOTP operations.
+var (
+	ErrRoleImmutable      = fmt.Errorf("store: superadmin role cannot be modified or deleted")
+	ErrRoleNotFound       = fmt.Errorf("store: role not found")
+	ErrNoUnusedBackupCode = fmt.Errorf("store: no unused backup codes")
+)
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -216,6 +223,50 @@ type Tx interface {
 	// DeleteExpiredSessions hard deletes sessions where expires_at < now OR
 	// last_active < now-24h. Returns number of rows deleted.
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
+
+	// --- Roles ---
+
+	// CreateRole creates a custom role with the given permissions.
+	CreateRole(ctx context.Context, params CreateRoleParams) (*Role, error)
+	// GetRole returns a role by ID, including its permission list.
+	GetRole(ctx context.Context, id string) (*Role, error)
+	// ListRoles returns all roles with their permission lists.
+	ListRoles(ctx context.Context) ([]*Role, error)
+	// UpdateRole updates a role's name, description, or permission set.
+	// Returns ErrRoleImmutable if the role is the superadmin role.
+	UpdateRole(ctx context.Context, id string, params UpdateRoleParams) (*Role, error)
+	// DeleteRole deletes a custom role. Returns ErrRoleImmutable if the role is superadmin.
+	DeleteRole(ctx context.Context, id string) error
+
+	// --- Permissions ---
+
+	// ListPermissions returns all available atomic permissions.
+	ListPermissions(ctx context.Context) ([]*Permission, error)
+	// GetUserScopes returns all granted scope strings for a user (may include wildcards).
+	GetUserScopes(ctx context.Context, userID string) ([]string, error)
+
+	// --- User Roles ---
+
+	// AssignRole grants a role to a user. grantedBy is the actor's user ID.
+	AssignRole(ctx context.Context, userID, roleID, grantedBy string) error
+	// RevokeRole removes a role from a user.
+	RevokeRole(ctx context.Context, userID, roleID string) error
+	// ListUserRoles returns all roles assigned to a user.
+	ListUserRoles(ctx context.Context, userID string) ([]*UserRole, error)
+	// ListUsersWithRole returns all user IDs that have the given role.
+	ListUsersWithRole(ctx context.Context, roleID string) ([]string, error)
+
+	// --- TOTP Backup Codes ---
+
+	// CreateTOTPBackupCodes stores a set of hashed backup codes for a user.
+	// All existing unused codes for the user are deleted first.
+	CreateTOTPBackupCodes(ctx context.Context, userID string, codeHashes []string) error
+	// ListUnusedTOTPBackupCodes returns all unused backup codes for a user.
+	ListUnusedTOTPBackupCodes(ctx context.Context, userID string) ([]*TOTPBackupCode, error)
+	// MarkTOTPBackupCodeUsed marks a specific backup code (by ID) as used.
+	MarkTOTPBackupCodeUsed(ctx context.Context, codeID string) error
+	// DeleteTOTPBackupCodes removes all backup codes for a user (called on TOTP disable/reset).
+	DeleteTOTPBackupCodes(ctx context.Context, userID string) error
 }
 
 // ---------------------------------------------------------------------------
