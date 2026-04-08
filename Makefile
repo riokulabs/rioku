@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users help
+.PHONY: all build build-daemon build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-restart-daemon sandbox-test-auth sandbox-test-smoke sandbox-seed-users help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -110,6 +110,7 @@ proto-breaking:
 test:
 	cd $(PKG)/daemon && $(GO) test ./...
 	cd $(PKG)/build-service && $(GO) test ./...
+	cd $(PKG)/web && npm test
 
 ## test-race: Run all tests with race detector
 test-race:
@@ -160,6 +161,14 @@ web-build:
 ## web-dev: Run admin panel dev server
 web-dev:
 	cd $(PKG)/web && npm run dev
+
+## test-web: Run frontend Vitest tests
+test-web:
+	cd $(PKG)/web && npm test
+
+## test-web-coverage: Run frontend Vitest tests with coverage
+test-web-coverage:
+	cd $(PKG)/web && npm run test:coverage
 
 ## clean: Remove build artifacts
 clean:
