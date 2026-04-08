@@ -56,18 +56,24 @@ import {
 export const Route = createFileRoute('/security')({
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData({
-        queryKey: ['keys'],
-        queryFn: () => apiClient.get<ApiKey[]>('/keys'),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ['health'],
-        queryFn: () => apiClient.get<HealthStatus>('/health'),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ['sessions'],
-        queryFn: () => apiClient.get<SessionInfo[]>('/auth/sessions'),
-      }),
+      context.queryClient
+        .ensureQueryData({
+          queryKey: ['keys'],
+          queryFn: () => apiClient.get<ApiKey[]>('/keys'),
+        })
+        .catch(() => [] as ApiKey[]),
+      context.queryClient
+        .ensureQueryData({
+          queryKey: ['health'],
+          queryFn: () => apiClient.get<HealthStatus>('/health'),
+        })
+        .catch(() => null as HealthStatus | null),
+      context.queryClient
+        .ensureQueryData({
+          queryKey: ['sessions'],
+          queryFn: () => apiClient.get<SessionInfo[]>('/auth/sessions'),
+        })
+        .catch(() => [] as SessionInfo[]),
     ]),
   component: Security,
 })

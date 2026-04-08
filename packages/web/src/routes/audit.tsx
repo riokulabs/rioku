@@ -37,10 +37,12 @@ import { apiClient, type AuditEntry } from '@/lib/api'
 
 export const Route = createFileRoute('/audit')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: ['audit', { range: '24h' }],
-      queryFn: () => apiClient.get<AuditEntry[]>('/audit', { range: '24h' }),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: ['audit', { range: '24h' }],
+        queryFn: () => apiClient.get<AuditEntry[]>('/audit', { range: '24h' }),
+      })
+      .catch(() => [] as AuditEntry[]),
   component: Audit,
 })
 

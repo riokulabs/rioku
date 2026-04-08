@@ -42,11 +42,13 @@ interface AnalyticsData {
 
 export const Route = createFileRoute('/traffic/analytics')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: ['traffic', 'analytics', '24h'],
-      queryFn: () =>
-        apiClient.get<AnalyticsData>('/traffic/analytics', { range: '24h' }),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: ['traffic', 'analytics', '24h'],
+        queryFn: () =>
+          apiClient.get<AnalyticsData>('/traffic/analytics', { range: '24h' }),
+      })
+      .catch(() => null),
   component: TrafficAnalytics,
 })
 

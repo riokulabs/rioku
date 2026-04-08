@@ -28,10 +28,12 @@ interface PluginInfo {
 
 export const Route = createFileRoute('/plugins')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: ['plugins'],
-      queryFn: () => apiClient.get<PluginInfo[]>('/plugins'),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: ['plugins'],
+        queryFn: () => apiClient.get<PluginInfo[]>('/plugins'),
+      })
+      .catch(() => [] as PluginInfo[]),
   component: Plugins,
 })
 
