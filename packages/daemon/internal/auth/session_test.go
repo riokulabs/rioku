@@ -257,7 +257,9 @@ func TestSessionExpired(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	_, err = sm.ValidateSession(ctx, sess.ID, req)
+	// Use a fresh SessionManager so validation must hit the DB (cache miss).
+	sm2 := auth.NewSessionManager(drv, true)
+	_, err = sm2.ValidateSession(ctx, sess.ID, req)
 	if err == nil {
 		t.Fatal("expected expired session error, got nil")
 	}
@@ -415,8 +417,10 @@ func TestSessionUserSuspended(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	// Validate should fail — user is suspended.
-	_, err = sm.ValidateSession(ctx, sess.ID, req)
+	// Use a fresh SessionManager to force a cache miss — the suspended
+	// status is checked on DB read, not from the cached entry.
+	sm2 := auth.NewSessionManager(drv, true)
+	_, err = sm2.ValidateSession(ctx, sess.ID, req)
 	if err == nil {
 		t.Fatal("expected error for suspended user, got nil")
 	}

@@ -18,6 +18,11 @@ import (
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
+// totpEncryptionSalt is the HKDF salt used to derive the TOTP encryption key
+// from the daemon's JWT signing key. It is fixed so the derived key is stable
+// across daemon restarts.
+var totpEncryptionSalt = []byte("rioku-totp-encryption-salt-v1")
+
 // Gateway wraps an HTTP server that serves the REST API.
 type Gateway struct {
 	httpServer *http.Server
@@ -52,14 +57,31 @@ func NewGateway(
 		return nil, fmt.Errorf("register health service: %w", err)
 	}
 
+	// Derive the TOTP encryption key from the signing key.
+	signingKey := a.SigningKey()
+	encKey, err := auth.DeriveEncryptionKey(signingKey, totpEncryptionSalt)
+	if err != nil {
+		return nil, fmt.Errorf("derive TOTP encryption key: %w", err)
+	}
+	enc, err := auth.NewEncryptor(encKey)
+	if err != nil {
+		return nil, fmt.Errorf("create TOTP encryptor: %w", err)
+	}
+
 	// Build the HTTP handler chain.
 	topMux := http.NewServeMux()
 
 	// Auth routes (unauthenticated).
-	RegisterAuthRoutes(topMux, a, sm, st, cfg)
+	RegisterAuthRoutes(topMux, a, sm, st, cfg, enc)
 
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
+
+	// RBAC management routes (permission-gated).
+	RegisterRBACRoutes(topMux, st)
+
+	// TOTP management routes.
+	RegisterTOTPRoutes(topMux, st, a, sm, enc)
 
 	// SSE routes.
 	RegisterSSERoutes(topMux, engine)
@@ -75,7 +97,15 @@ func NewGateway(
 	}
 
 	// Apply middleware stack (outermost first).
+	// Order: RequestID → Auth → RateLimit → CORS → SecurityHeaders → handler
+	// RequestID is outermost (always applied). Auth extracts identity. RateLimit
+	// needs auth context for session/user keying. CORS handles preflight before
+	// the handler runs. SecurityHeaders is innermost (closest to response).
 	var handler http.Handler = topMux
+	handler = SecurityHeadersMiddleware(handler)
+	handler = CORSMiddleware(cfg.Auth.CORS)(handler)
+	rl := NewRateLimiter(cfg.Auth.RateLimit)
+	handler = rl.Middleware()(handler)
 	handler = AuthMiddleware(a, sm)(handler)
 	handler = RequestIDMiddleware(handler)
 

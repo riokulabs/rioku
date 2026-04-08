@@ -81,6 +81,17 @@ func NewAuth(signingKey []byte, st store.Driver) *Auth {
 	}
 }
 
+// SigningKey returns a copy of the current (primary) signing key.
+// This is used to derive encryption keys for TOTP secrets and other
+// data-at-rest encryption.
+func (a *Auth) SigningKey() []byte {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	key := make([]byte, len(a.signingKeys[0]))
+	copy(key, a.signingKeys[0])
+	return key
+}
+
 // RotateSigningKey adds a new signing key. The old key is kept for
 // validating existing tokens until they expire.
 func (a *Auth) RotateSigningKey(newKey []byte) {

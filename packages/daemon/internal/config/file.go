@@ -232,9 +232,28 @@ type LockoutPolicy struct {
 
 // AuthConfig holds all auth-related daemon configuration.
 type AuthConfig struct {
-	PasswordPolicy PasswordPolicy `yaml:"password_policy"`
-	Lockout        LockoutPolicy  `yaml:"lockout"`
-	DevMode        bool           `yaml:"dev_mode"`
+	PasswordPolicy PasswordPolicy  `yaml:"password_policy"`
+	Lockout        LockoutPolicy   `yaml:"lockout"`
+	DevMode        bool            `yaml:"dev_mode"`
+	RateLimit      RateLimitConfig `yaml:"rate_limit"`
+	CORS           CORSConfig      `yaml:"cors"`
+}
+
+// RateLimitConfig defines per-endpoint or global request rate limiting.
+type RateLimitConfig struct {
+	RequestsPerMinute int  `yaml:"requests_per_minute"`
+	BurstSize         int  `yaml:"burst_size"`
+	ByIP              bool `yaml:"by_ip"`
+	BySession         bool `yaml:"by_session"`
+	ByUser            bool `yaml:"by_user"`
+}
+
+// CORSConfig defines Cross-Origin Resource Sharing settings for the REST API.
+type CORSConfig struct {
+	AllowedOrigins []string `yaml:"allowed_origins"`
+	AllowedMethods []string `yaml:"allowed_methods"`
+	AllowedHeaders []string `yaml:"allowed_headers"`
+	MaxAge         int      `yaml:"max_age"` // seconds
 }
 
 // --------------------------------------------------------------------------
@@ -350,6 +369,19 @@ func Default() *Config {
 				MaxAttempts:     5,
 				LockoutDuration: 15 * time.Minute,
 				ResetAfter:      30 * time.Minute,
+			},
+			RateLimit: RateLimitConfig{
+				RequestsPerMinute: 60,
+				BurstSize:         10,
+				ByIP:              true,
+				BySession:         false,
+				ByUser:            false,
+			},
+			CORS: CORSConfig{
+				AllowedOrigins: []string{},
+				AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+				AllowedHeaders: []string{"Content-Type", "Authorization", "X-Request-ID"},
+				MaxAge:         3600,
 			},
 		},
 		DataDir:  DefaultDataDir,

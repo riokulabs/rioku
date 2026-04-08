@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,14 +14,15 @@ import (
 )
 
 // RegisterAuthRoutes registers the token exchange and session-based auth
-// endpoints on the mux.
-func RegisterAuthRoutes(mux *http.ServeMux, a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config) {
+// endpoints on the mux. The encryptor is used to decrypt TOTP secrets
+// during login when two-factor authentication is enabled.
+func RegisterAuthRoutes(mux *http.ServeMux, a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config, enc *auth.Encryptor) {
 	// Token exchange endpoints (bearer/API-key path).
 	mux.HandleFunc("POST /api/v1/auth/token", handleTokenExchange(a))
 	mux.HandleFunc("POST /api/v1/auth/refresh", handleTokenRefresh(a))
 
 	// Session-based endpoints.
-	mux.HandleFunc("POST /api/v1/auth/login", handleLogin(a, sm, st, cfg))
+	mux.HandleFunc("POST /api/v1/auth/login", handleLogin(a, sm, st, cfg, enc))
 	mux.HandleFunc("POST /api/v1/auth/logout", handleLogout(sm))
 	mux.HandleFunc("GET /api/v1/auth/me", handleMe(st))
 	mux.HandleFunc("POST /api/v1/auth/password", handlePasswordChange(sm, st, cfg))
@@ -157,8 +159,9 @@ func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string  `json:"username"`
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code"`
 }
 
 type loginResponse struct {
@@ -178,7 +181,14 @@ type loginSessionInfo struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config) http.HandlerFunc {
+// totpRequiredResponse is returned when the user has TOTP enabled but did
+// not provide a totp_code in the login request.
+type totpRequiredResponse struct {
+	RequiresTOTP bool   `json:"requires_totp"`
+	UserID       string `json:"user_id"`
+}
+
+func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config, enc *auth.Encryptor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 
@@ -257,6 +267,45 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			return
 		}
 
+		// ---------------------------------------------------------------
+		// TOTP verification (if enabled for this user).
+		// ---------------------------------------------------------------
+		if user.TOTPEnabled && user.TOTPSecret != nil {
+			if req.TotpCode == nil || *req.TotpCode == "" {
+				// Password is correct but TOTP is required. Signal the
+				// client to re-submit with a totp_code. No session is
+				// created yet.
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(totpRequiredResponse{
+					RequiresTOTP: true,
+					UserID:       user.ID,
+				})
+				return
+			}
+
+			// Decrypt the stored TOTP secret.
+			plainSecret, decErr := enc.Decrypt(*user.TOTPSecret)
+			if decErr != nil {
+				writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
+					"Failed to process login request", r.URL.Path, nil)
+				return
+			}
+
+			totpValid := auth.ValidateTOTPCode(plainSecret, *req.TotpCode, now)
+
+			// If TOTP code is invalid, try backup codes.
+			if !totpValid {
+				totpValid = tryBackupCode(ctx, tx, user.ID, *req.TotpCode)
+			}
+
+			if !totpValid {
+				writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
+					"Invalid TOTP code or backup code", r.URL.Path, nil)
+				return
+			}
+		}
+
 		// Successful authentication — reset failed attempts and update
 		// last login in the existing transaction, then commit it before
 		// creating the session. SessionManager.CreateSession opens its own
@@ -311,6 +360,25 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(resp)
 	}
+}
+
+// tryBackupCode iterates unused backup codes for the user and checks the
+// provided code against each hash. If a match is found, the code is marked
+// as used and the function returns true. This runs within the caller's
+// transaction.
+func tryBackupCode(ctx context.Context, tx store.Tx, userID, code string) bool {
+	codes, err := tx.ListUnusedTOTPBackupCodes(ctx, userID)
+	if err != nil || len(codes) == 0 {
+		return false
+	}
+	for _, bc := range codes {
+		match, err := auth.VerifyPassword(code, bc.CodeHash)
+		if err == nil && match {
+			_ = tx.MarkTOTPBackupCodeUsed(ctx, bc.ID)
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

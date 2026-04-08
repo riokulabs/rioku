@@ -160,6 +160,40 @@ func (sm *SessionManager) CreateSession(ctx context.Context, userID string, r *h
 		return nil, fmt.Errorf("session: commit: %w", err)
 	}
 
+	// Populate the LRU cache with resolved RBAC scopes so the first
+	// ValidateSession call is a cache hit.
+	roles, scopes, _ := LoadUserScopes(ctx, sm.store, userID)
+	if roles == nil {
+		roles = []string{}
+	}
+	if scopes == nil {
+		scopes = []string{}
+	}
+
+	// Look up the username for the claims. If the user was just
+	// authenticated we trust the session; a failure here is non-fatal.
+	username := ""
+	if rtx, err := sm.store.Begin(ctx, store.TxOptions{ReadOnly: true}); err == nil {
+		if u, err := rtx.GetUser(ctx, userID); err == nil {
+			username = u.Username
+		}
+		rtx.Rollback()
+	}
+
+	claims := &SessionClaims{
+		SessionID: created.ID,
+		UserID:    userID,
+		Username:  username,
+		Roles:     roles,
+		Scopes:    scopes,
+	}
+	entry := &sessionCacheEntry{
+		session:             created,
+		claims:              claims,
+		lastActiveUpdatedAt: now,
+	}
+	sm.cache.Set(created.ID, entry)
+
 	return created, nil
 }
 
@@ -242,13 +276,21 @@ func (sm *SessionManager) ValidateSession(ctx context.Context, sessionID string,
 		return nil, fmt.Errorf("session: fingerprint mismatch")
 	}
 
-	// Build claims — Roles/Scopes are empty for now (Plan 2 fills these).
+	// Resolve RBAC roles and scopes for the session.
+	roles, scopes, _ := LoadUserScopes(ctx, sm.store, user.ID)
+	if roles == nil {
+		roles = []string{}
+	}
+	if scopes == nil {
+		scopes = []string{}
+	}
+
 	claims := &SessionClaims{
 		SessionID: sess.ID,
 		UserID:    user.ID,
 		Username:  user.Username,
-		Roles:     []string{},
-		Scopes:    []string{},
+		Roles:     roles,
+		Scopes:    scopes,
 	}
 
 	// Store in cache.
@@ -315,12 +357,19 @@ func (sm *SessionManager) RevokeSession(ctx context.Context, sessionID string) e
 	return nil
 }
 
-// RevokeAllSessionsForUser deletes all sessions for the given user.
-// Individual cache entries expire naturally via the LRU TTL.
+// RevokeAllSessionsForUser deletes all sessions for the given user and
+// evicts them from the LRU cache.
 func (sm *SessionManager) RevokeAllSessionsForUser(ctx context.Context, userID string) error {
 	tx, err := sm.store.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("session: begin tx: %w", err)
+	}
+
+	// List sessions before deleting so we can evict cache entries.
+	sessions, err := tx.ListSessionsByUser(ctx, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("session: list by user: %w", err)
 	}
 
 	if err := tx.DeleteSessionsByUser(ctx, userID); err != nil {
@@ -328,15 +377,29 @@ func (sm *SessionManager) RevokeAllSessionsForUser(ctx context.Context, userID s
 		return fmt.Errorf("session: delete by user: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	for _, s := range sessions {
+		sm.cache.Delete(s.ID)
+	}
+	return nil
 }
 
 // RevokeOtherSessions deletes all sessions for the given user except the
-// specified session ID.
+// specified session ID and evicts the deleted sessions from the cache.
 func (sm *SessionManager) RevokeOtherSessions(ctx context.Context, userID, exceptSessionID string) error {
 	tx, err := sm.store.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("session: begin tx: %w", err)
+	}
+
+	// List sessions before deleting so we can evict cache entries.
+	sessions, err := tx.ListSessionsByUser(ctx, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("session: list by user: %w", err)
 	}
 
 	if err := tx.DeleteSessionsByUserExcept(ctx, userID, exceptSessionID); err != nil {
@@ -344,7 +407,16 @@ func (sm *SessionManager) RevokeOtherSessions(ctx context.Context, userID, excep
 		return fmt.Errorf("session: delete except: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	for _, s := range sessions {
+		if s.ID != exceptSessionID {
+			sm.cache.Delete(s.ID)
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

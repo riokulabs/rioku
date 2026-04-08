@@ -131,11 +131,55 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 3: RBAC tables (permissions, roles, role_permissions, user_roles).
+	if current < 3 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000003_rbac.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 3: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 3: %w", err)
+		}
+	}
+
+	// Migration 4: TOTP backup codes.
+	if current < 4 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000004_totp_backup.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 4: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 4: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 4 down: drop TOTP backup codes.
+	if current >= 4 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000004_totp_backup.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 4: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 4: %w", err)
+		}
+	}
+
+	// Migration 3 down: drop RBAC tables.
+	if current >= 3 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000003_rbac.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 3: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 3: %w", err)
+		}
+	}
 
 	// Migration 2 down: drop users and sessions tables.
 	if current >= 2 {
@@ -1355,6 +1399,338 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 		})
 	}
 	return entries, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// Roles
+// ---------------------------------------------------------------------------
+
+func (t *tx) CreateRole(ctx context.Context, params store.CreateRoleParams) (*store.Role, error) {
+	now := nowUTC()
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO roles (id, name, description, is_builtin, created_at, updated_at)
+		 VALUES (?, ?, ?, 0, ?, ?)`,
+		params.ID, params.Name, params.Description, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: create role: %w", err)
+	}
+	for _, permID := range params.Permissions {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)`,
+			params.ID, permID,
+		); err != nil {
+			return nil, fmt.Errorf("sqlite: assign permission %s to role: %w", permID, err)
+		}
+	}
+	t.emit("roles", params.ID, "INSERT")
+	return t.GetRole(ctx, params.ID)
+}
+
+func (t *tx) GetRole(ctx context.Context, id string) (*store.Role, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles WHERE id = ?`, id)
+	r := &store.Role{}
+	var isBuiltinInt int
+	var createdStr, updatedStr string
+	if err := row.Scan(&r.ID, &r.Name, &r.Description, &isBuiltinInt, &createdStr, &updatedStr); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, store.ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("sqlite: get role: %w", err)
+	}
+	r.IsBuiltin = isBuiltinInt == 1
+	r.CreatedAt = parseTime(createdStr)
+	r.UpdatedAt = parseTime(updatedStr)
+	perms, err := t.getRolePermissions(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	r.Permissions = perms
+	return r, nil
+}
+
+func (t *tx) getRolePermissions(ctx context.Context, roleID string) ([]string, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT permission_id FROM role_permissions WHERE role_id = ?`, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: get role permissions: %w", err)
+	}
+	defer rows.Close()
+	var perms []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		perms = append(perms, p)
+	}
+	return perms, rows.Err()
+}
+
+func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list roles: %w", err)
+	}
+	defer rows.Close()
+	var roles []*store.Role
+	for rows.Next() {
+		r := &store.Role{}
+		var isBuiltinInt int
+		var createdStr, updatedStr string
+		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &isBuiltinInt, &createdStr, &updatedStr); err != nil {
+			return nil, err
+		}
+		r.IsBuiltin = isBuiltinInt == 1
+		r.CreatedAt = parseTime(createdStr)
+		r.UpdatedAt = parseTime(updatedStr)
+		perms, err := t.getRolePermissions(ctx, r.ID)
+		if err != nil {
+			return nil, err
+		}
+		r.Permissions = perms
+		roles = append(roles, r)
+	}
+	return roles, rows.Err()
+}
+
+func (t *tx) UpdateRole(ctx context.Context, id string, params store.UpdateRoleParams) (*store.Role, error) {
+	if id == "role_superadmin" {
+		return nil, store.ErrRoleImmutable
+	}
+	now := nowUTC()
+	if params.Name != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE roles SET name = ?, updated_at = ? WHERE id = ?`,
+			*params.Name, now, id,
+		); err != nil {
+			return nil, fmt.Errorf("sqlite: update role name: %w", err)
+		}
+	}
+	if params.Description != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE roles SET description = ?, updated_at = ? WHERE id = ?`,
+			*params.Description, now, id,
+		); err != nil {
+			return nil, fmt.Errorf("sqlite: update role description: %w", err)
+		}
+	}
+	for _, permID := range params.AddPerms {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)`,
+			id, permID,
+		); err != nil {
+			return nil, fmt.Errorf("sqlite: add permission %s: %w", permID, err)
+		}
+	}
+	for _, permID := range params.RemovePerms {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`DELETE FROM role_permissions WHERE role_id = ? AND permission_id = ?`,
+			id, permID,
+		); err != nil {
+			return nil, fmt.Errorf("sqlite: remove permission %s: %w", permID, err)
+		}
+	}
+	t.emit("roles", id, "UPDATE")
+	return t.GetRole(ctx, id)
+}
+
+func (t *tx) DeleteRole(ctx context.Context, id string) error {
+	if id == "role_superadmin" {
+		return store.ErrRoleImmutable
+	}
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM roles WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("sqlite: delete role: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrRoleNotFound
+	}
+	t.emit("roles", id, "DELETE")
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Permissions
+// ---------------------------------------------------------------------------
+
+func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, resource, action, description FROM permissions
+		 WHERE id NOT LIKE '%:*' AND id != '*'
+		 ORDER BY resource, action`)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list permissions: %w", err)
+	}
+	defer rows.Close()
+	var perms []*store.Permission
+	for rows.Next() {
+		p := &store.Permission{}
+		if err := rows.Scan(&p.ID, &p.Resource, &p.Action, &p.Description); err != nil {
+			return nil, err
+		}
+		perms = append(perms, p)
+	}
+	return perms, rows.Err()
+}
+
+func (t *tx) GetUserScopes(ctx context.Context, userID string) ([]string, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT DISTINCT rp.permission_id
+		 FROM user_roles ur
+		 JOIN role_permissions rp ON ur.role_id = rp.role_id
+		 WHERE ur.user_id = ?`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: get user scopes: %w", err)
+	}
+	defer rows.Close()
+	var scopes []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		scopes = append(scopes, s)
+	}
+	return scopes, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// User Roles
+// ---------------------------------------------------------------------------
+
+func (t *tx) AssignRole(ctx context.Context, userID, roleID, grantedBy string) error {
+	var grantedByVal interface{}
+	if grantedBy != "" {
+		grantedByVal = grantedBy
+	}
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT OR IGNORE INTO user_roles (user_id, role_id, granted_by)
+		 VALUES (?, ?, ?)`,
+		userID, roleID, grantedByVal,
+	)
+	if err != nil {
+		return fmt.Errorf("sqlite: assign role: %w", err)
+	}
+	t.emit("user_roles", userID, "INSERT")
+	return nil
+}
+
+func (t *tx) RevokeRole(ctx context.Context, userID, roleID string) error {
+	_, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM user_roles WHERE user_id = ? AND role_id = ?`,
+		userID, roleID,
+	)
+	if err != nil {
+		return fmt.Errorf("sqlite: revoke role: %w", err)
+	}
+	t.emit("user_roles", userID, "DELETE")
+	return nil
+}
+
+func (t *tx) ListUserRoles(ctx context.Context, userID string) ([]*store.UserRole, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT ur.user_id, ur.role_id, r.name, COALESCE(ur.granted_by,''), ur.granted_at
+		 FROM user_roles ur
+		 JOIN roles r ON ur.role_id = r.id
+		 WHERE ur.user_id = ?`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list user roles: %w", err)
+	}
+	defer rows.Close()
+	var result []*store.UserRole
+	for rows.Next() {
+		ur := &store.UserRole{}
+		var grantedAtStr string
+		if err := rows.Scan(&ur.UserID, &ur.RoleID, &ur.RoleName, &ur.GrantedBy, &grantedAtStr); err != nil {
+			return nil, err
+		}
+		ur.GrantedAt = parseTime(grantedAtStr)
+		result = append(result, ur)
+	}
+	return result, rows.Err()
+}
+
+func (t *tx) ListUsersWithRole(ctx context.Context, roleID string) ([]string, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT user_id FROM user_roles WHERE role_id = ?`, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list users with role: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// TOTP Backup Codes
+// ---------------------------------------------------------------------------
+
+func (t *tx) CreateTOTPBackupCodes(ctx context.Context, userID string, codeHashes []string) error {
+	// Delete any existing codes first.
+	if _, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM totp_backup_codes WHERE user_id = ?`, userID,
+	); err != nil {
+		return fmt.Errorf("sqlite: clear backup codes: %w", err)
+	}
+	for _, h := range codeHashes {
+		id := uuid.New().String()
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`INSERT INTO totp_backup_codes (id, user_id, code_hash) VALUES (?, ?, ?)`,
+			id, userID, h,
+		); err != nil {
+			return fmt.Errorf("sqlite: insert backup code: %w", err)
+		}
+	}
+	return nil
+}
+
+func (t *tx) ListUnusedTOTPBackupCodes(ctx context.Context, userID string) ([]*store.TOTPBackupCode, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, user_id, code_hash FROM totp_backup_codes
+		 WHERE user_id = ? AND used_at IS NULL`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list backup codes: %w", err)
+	}
+	defer rows.Close()
+	var codes []*store.TOTPBackupCode
+	for rows.Next() {
+		c := &store.TOTPBackupCode{}
+		if err := rows.Scan(&c.ID, &c.UserID, &c.CodeHash); err != nil {
+			return nil, err
+		}
+		codes = append(codes, c)
+	}
+	return codes, rows.Err()
+}
+
+func (t *tx) MarkTOTPBackupCodeUsed(ctx context.Context, codeID string) error {
+	now := nowUTC()
+	_, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE totp_backup_codes SET used_at = ? WHERE id = ?`, now, codeID)
+	if err != nil {
+		return fmt.Errorf("sqlite: mark backup code used: %w", err)
+	}
+	return nil
+}
+
+func (t *tx) DeleteTOTPBackupCodes(ctx context.Context, userID string) error {
+	_, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM totp_backup_codes WHERE user_id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("sqlite: delete backup codes: %w", err)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
