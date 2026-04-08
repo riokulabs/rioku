@@ -192,6 +192,15 @@ if [[ ! -f "${DAEMON_CONFIG}" ]]; then
     --non-interactive \
     2>&1 | tee -a "${DATA_DIR}/init.log" )"
 
+  # Enable dev_mode for local development (SameSite=Lax cookies, no TLS on admin).
+  if grep -q "dev_mode:" "${DAEMON_CONFIG}"; then
+    sed -i 's/dev_mode: false/dev_mode: true/' "${DAEMON_CONFIG}"
+  else
+    # Insert dev_mode under the auth: section.
+    sed -i '/^auth:/a\  dev_mode: true' "${DAEMON_CONFIG}"
+  fi
+  success "dev_mode enabled in ${DAEMON_CONFIG}"
+
   # Extract root password from init output.
   # Expected format:  "  Password: <password>"
   ROOT_PASSWORD="$(echo "${INIT_OUTPUT}" | grep -E '^\s+Password:' | awk '{print $NF}' || true)"
