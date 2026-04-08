@@ -425,12 +425,16 @@ func (sm *SessionManager) RevokeOtherSessions(ctx context.Context, userID, excep
 
 // SetCookie writes the session cookie to the response.
 func (sm *SessionManager) SetCookie(w http.ResponseWriter, sessionID string) {
+	sameSite := http.SameSiteStrictMode
+	if sm.devMode {
+		sameSite = http.SameSiteLaxMode
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    sessionID,
 		HttpOnly: true,
 		Secure:   !sm.devMode,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: sameSite,
 		Path:     "/",
 		MaxAge:   86400,
 	})
@@ -438,12 +442,16 @@ func (sm *SessionManager) SetCookie(w http.ResponseWriter, sessionID string) {
 
 // ClearCookie removes the session cookie from the client.
 func (sm *SessionManager) ClearCookie(w http.ResponseWriter) {
+	sameSite := http.SameSiteStrictMode
+	if sm.devMode {
+		sameSite = http.SameSiteLaxMode
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    "",
 		HttpOnly: true,
 		Secure:   !sm.devMode,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: sameSite,
 		Path:     "/",
 		MaxAge:   -1,
 	})
