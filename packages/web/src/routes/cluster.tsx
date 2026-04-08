@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
 import { Server, ChevronDown, ChevronUp, Crown } from 'lucide-react'
 
 import { PageHeader } from '@/components/rioku/page-header'
@@ -17,12 +16,7 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient, type HealthStatus } from '@/lib/api'
-
-export const Route = createFileRoute('/cluster')({
-  component: Cluster,
-})
 
 interface NodeInfo {
   name: string
@@ -39,15 +33,19 @@ interface ClusterData {
   raft_leader?: string
 }
 
+export const Route = createFileRoute('/cluster')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['cluster'],
+      queryFn: () => apiClient.get<ClusterData>('/cluster'),
+    }),
+  component: Cluster,
+})
+
 function Cluster() {
   const { t } = useTranslation('cluster')
 
-  const { data, isLoading } = useQuery<ClusterData>({
-    queryKey: ['cluster'],
-    queryFn: () => apiClient.get<ClusterData>('/cluster'),
-    retry: false,
-  })
-
+  const data = Route.useLoaderData()
   const nodes = data?.nodes ?? []
   const isSingleNode = nodes.length <= 1
 
@@ -57,50 +55,33 @@ function Cluster() {
 
       {/* Cluster overview stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? (
-          <>
-            <Skeleton className="h-20 rounded-xl" />
-            <Skeleton className="h-20 rounded-xl" />
-          </>
-        ) : (
-          <>
-            <StatCard
-              title={t('nodeCount')}
-              value={String(nodes.length)}
-              icon={<Server className="size-4" />}
-            />
-            {data?.raft_leader && (
-              <StatCard
-                title={t('raftLeader')}
-                value={data.raft_leader}
-                icon={<Crown className="size-4" />}
-              />
-            )}
-          </>
+        <StatCard
+          title={t('nodeCount')}
+          value={String(nodes.length)}
+          icon={<Server className="size-4" />}
+        />
+        {data?.raft_leader && (
+          <StatCard
+            title={t('raftLeader')}
+            value={data.raft_leader}
+            icon={<Crown className="size-4" />}
+          />
         )}
       </div>
 
       {/* Single node notice */}
-      {!isLoading && isSingleNode && (
+      {isSingleNode && (
         <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
           {t('singleNodeNote')}
         </div>
       )}
 
       {/* Node cards grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Skeleton className="h-52 rounded-xl" />
-          <Skeleton className="h-52 rounded-xl" />
-          <Skeleton className="h-52 rounded-xl" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {nodes.map((node) => (
-            <NodeCard key={node.name} node={node} />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {nodes.map((node) => (
+          <NodeCard key={node.name} node={node} />
+        ))}
+      </div>
     </div>
   )
 }

@@ -36,6 +36,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient, type AuditEntry } from '@/lib/api'
 
 export const Route = createFileRoute('/audit')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['audit', { range: '24h' }],
+      queryFn: () => apiClient.get<AuditEntry[]>('/audit', { range: '24h' }),
+    }),
   component: Audit,
 })
 

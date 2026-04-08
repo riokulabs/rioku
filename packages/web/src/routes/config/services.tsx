@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
@@ -26,7 +26,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
   SheetContent,
@@ -49,6 +48,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export const Route = createFileRoute('/config/services')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['config'],
+      queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
+    }),
   component: ConfigServices,
 })
 
@@ -110,12 +114,8 @@ function ConfigServices() {
   const [form, setForm] = useState<ServiceFormState>(emptyForm)
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
 
-  const configQuery = useQuery({
-    queryKey: ['config'],
-    queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
-  })
-
-  const services = configQuery.data?.services ?? []
+  const config = Route.useLoaderData()
+  const services = config.services
 
   const saveMutation = useMutation({
     mutationFn: (payload: {
@@ -213,20 +213,6 @@ function ConfigServices() {
       operation: editingService ? 'update_service' : 'create_service',
       service,
     })
-  }
-
-  if (configQuery.isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-4 w-64" />
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      </div>
-    )
   }
 
   const tableData = services.map((svc) => ({

@@ -13,7 +13,8 @@ import {
 } from 'lucide-react'
 
 import { apiClient } from '@/lib/api'
-import type { ApiKey, HealthStatus } from '@/lib/api'
+import type { ApiKey, HealthStatus, SessionInfo, MeResponse } from '@/lib/api'
+import { useHasPermission } from '@/hooks/use-auth'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { DataTable } from '@/components/rioku/data-table'
@@ -53,6 +54,21 @@ import {
 } from '@/components/ui/select'
 
 export const Route = createFileRoute('/security')({
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData({
+        queryKey: ['keys'],
+        queryFn: () => apiClient.get<ApiKey[]>('/keys'),
+      }),
+      context.queryClient.ensureQueryData({
+        queryKey: ['health'],
+        queryFn: () => apiClient.get<HealthStatus>('/health'),
+      }),
+      context.queryClient.ensureQueryData({
+        queryKey: ['sessions'],
+        queryFn: () => apiClient.get<SessionInfo[]>('/auth/sessions'),
+      }),
+    ]),
   component: Security,
 })
 
@@ -87,6 +103,12 @@ function Security() {
   const { t } = useTranslation('security')
   const queryClient = useQueryClient()
 
+  const ctx = Route.useRouteContext() as { session: MeResponse }
+  const rootSession = ctx.session
+  const currentSessionId = rootSession.session.id
+  const canReadSessions = useHasPermission('sessions:read')
+  const canManageSessions = useHasPermission('sessions:manage')
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [keyForm, setKeyForm] = useState<CreateKeyFormState>(emptyKeyForm)
   const [generatedKey, setGeneratedKey] = useState<string | null>(null)
@@ -101,6 +123,22 @@ function Security() {
   const healthQuery = useQuery({
     queryKey: ['health'],
     queryFn: () => apiClient.get<HealthStatus>('/health'),
+  })
+
+  const sessionsQuery = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => apiClient.get<SessionInfo[]>('/auth/sessions'),
+  })
+  const sessions = sessionsQuery.data ?? []
+  const sessionsLoading = sessionsQuery.isLoading
+
+  const revokeSessionMutation = useMutation({
+    mutationFn: (id: string) => apiClient.del(`/auth/sessions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      toast.success('Session revoked')
+    },
+    onError: () => toast.error('Failed to revoke session'),
   })
 
   const createKeyMutation = useMutation({
@@ -207,6 +245,88 @@ function Security() {
         title={t('title')}
         description={t('subtitle')}
       />
+
+      {/* Session Management Section */}
+      {canReadSessions && (
+        <section className="space-y-4">
+          {sessionsLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-40" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : (
+            <DataTable
+              title="Active sessions"
+              columns={[
+                {
+                  key: 'id',
+                  header: 'Session',
+                  render: (r) => (
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs">
+                        {(r.id as string).slice(0, 8)}\u2026
+                      </span>
+                      {r.id === currentSessionId && (
+                        <Badge variant="secondary">current</Badge>
+                      )}
+                    </div>
+                  ),
+                },
+                {
+                  key: 'ip_address',
+                  header: 'IP address',
+                  render: (r) => (
+                    <span className="font-mono text-sm">
+                      {(r.ip_address as string) ?? '\u2014'}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'last_active',
+                  header: 'Last active',
+                  render: (r) => <TimeAgo date={r.last_active as string} />,
+                },
+                {
+                  key: 'expires_at',
+                  header: 'Expires',
+                  render: (r) => <TimeAgo date={r.expires_at as string} />,
+                },
+                {
+                  key: '_actions',
+                  header: '',
+                  render: (r) => {
+                    const isCurrent = r.id === currentSessionId
+                    if (!canManageSessions || isCurrent) return null
+                    return (
+                      <Button
+                        variant="destructive"
+                        size="xs"
+                        onClick={() =>
+                          revokeSessionMutation.mutate(r.id as string)
+                        }
+                        disabled={revokeSessionMutation.isPending}
+                      >
+                        Revoke
+                      </Button>
+                    )
+                  },
+                },
+              ]}
+              data={sessions as unknown as Record<string, unknown>[]}
+              pageSize={10}
+              emptyState={
+                <EmptyState
+                  icon={<ShieldCheckIcon className="size-5" />}
+                  title="No active sessions"
+                  description="No other sessions are currently active."
+                />
+              }
+            />
+          )}
+        </section>
+      )}
 
       {/* API Keys Section */}
       <section className="space-y-4">

@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react'
-import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router'
+import {
+  createRootRouteWithContext,
+  Outlet,
+  redirect,
+  useRouterState,
+} from '@tanstack/react-router'
+import type { QueryClient } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -7,20 +13,42 @@ import { AppSidebar } from '@/components/layout/app-sidebar'
 import { Header } from '@/components/layout/header'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { KeyboardShortcutHelp } from '@/components/layout/keyboard-shortcut-help'
-import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useHotkey } from '@/hooks/use-hotkeys'
 import { useTheme } from '@/hooks/use-theme'
+import type { MeResponse } from '@/lib/api'
 
-export const Route = createRootRoute({
+interface RouterContext {
+  queryClient: QueryClient
+}
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  beforeLoad: async ({ location }) => {
+    const unguarded = ['/login', '/change-password']
+    if (unguarded.includes(location.pathname)) return
+
+    const res = await fetch('/api/v1/auth/me', { credentials: 'include' })
+    if (!res.ok) {
+      throw redirect({ to: '/login' })
+    }
+    const data: MeResponse = await res.json()
+    if (
+      data.user.force_password_change &&
+      location.pathname !== '/change-password'
+    ) {
+      throw redirect({ to: '/change-password' })
+    }
+    return { session: data }
+  },
   component: RootLayout,
 })
 
 function RootLayout() {
   const routerState = useRouterState()
   const isLoginRoute = routerState.location.pathname === '/login'
+  const isChangePasswordRoute =
+    routerState.location.pathname === '/change-password'
 
-  // Login page renders without the app shell
-  if (isLoginRoute) {
+  if (isLoginRoute || isChangePasswordRoute) {
     return (
       <>
         <Outlet />
@@ -32,9 +60,7 @@ function RootLayout() {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <ProtectedRoute>
-          <AppShell />
-        </ProtectedRoute>
+        <AppShell />
         <Toaster position="bottom-right" richColors />
       </SidebarProvider>
     </TooltipProvider>
@@ -48,12 +74,14 @@ function AppShell() {
   const { resolvedTheme, setTheme } = useTheme()
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), [])
-  const toggleShortcutHelp = useCallback(() => setShortcutHelpOpen((prev) => !prev), [])
+  const toggleShortcutHelp = useCallback(
+    () => setShortcutHelpOpen((prev) => !prev),
+    [],
+  )
   const toggleTheme = useCallback(() => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
   }, [resolvedTheme, setTheme])
 
-  // Global hotkeys
   useHotkey('Mod+b', toggleSidebar, { scope: 'global' })
   useHotkey('Mod+k', openCommandPalette, { scope: 'global' })
   useHotkey('?', toggleShortcutHelp, { scope: 'global' })
@@ -68,8 +96,14 @@ function AppShell() {
           <Outlet />
         </div>
       </SidebarInset>
-      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
-      <KeyboardShortcutHelp open={shortcutHelpOpen} onOpenChange={setShortcutHelpOpen} />
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+      />
+      <KeyboardShortcutHelp
+        open={shortcutHelpOpen}
+        onOpenChange={setShortcutHelpOpen}
+      />
     </>
   )
 }

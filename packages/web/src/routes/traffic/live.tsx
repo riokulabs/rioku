@@ -44,6 +44,9 @@ import { CodeBlock } from '@/components/rioku/code-block'
 import { useSse } from '@/hooks/use-sse'
 
 export const Route = createFileRoute('/traffic/live')({
+  loader: () => {
+    // SSE-driven page — no initial data to prefetch
+  },
   component: TrafficLive,
 })
 

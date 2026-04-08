@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
 import { Puzzle } from 'lucide-react'
 
 import { PageHeader } from '@/components/rioku/page-header'
@@ -16,12 +15,7 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api'
-
-export const Route = createFileRoute('/plugins')({
-  component: Plugins,
-})
 
 interface PluginInfo {
   id: string
@@ -32,28 +26,25 @@ interface PluginInfo {
   description: string
 }
 
+export const Route = createFileRoute('/plugins')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['plugins'],
+      queryFn: () => apiClient.get<PluginInfo[]>('/plugins'),
+    }),
+  component: Plugins,
+})
+
 function Plugins() {
   const { t } = useTranslation('plugins')
 
-  const { data, isLoading } = useQuery<PluginInfo[]>({
-    queryKey: ['plugins'],
-    queryFn: () => apiClient.get<PluginInfo[]>('/plugins'),
-    retry: false,
-  })
-
-  const plugins = data ?? []
+  const plugins = Route.useLoaderData() ?? []
 
   return (
     <div className="space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Skeleton className="h-44 rounded-xl" />
-          <Skeleton className="h-44 rounded-xl" />
-          <Skeleton className="h-44 rounded-xl" />
-        </div>
-      ) : plugins.length === 0 ? (
+      {plugins.length === 0 ? (
         <EmptyState
           icon={<Puzzle className="size-5" />}
           title={t('empty.noPlugins')}

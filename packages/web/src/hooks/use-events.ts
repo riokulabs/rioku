@@ -1,34 +1,39 @@
-// SSE (Server-Sent Events) subscription hook with auto-reconnect.
-// Deprecated: prefer useEventSubscription from use-events.ts for new code.
+// Transport-agnostic event subscription hook.
+// Wraps EventSource today; interface is stable for future WebSocket migration.
 
 import { useEffect, useRef, useState } from 'react'
 
-type SseStatus = 'connecting' | 'open' | 'closed'
+type EventStatus = 'connecting' | 'open' | 'closed'
 
-interface UseSseOptions {
+interface UseEventSubscriptionOptions {
   enabled?: boolean
 }
 
-interface UseSseResult<T> {
+interface UseEventSubscriptionResult<T> {
   data: T | null
+  status: EventStatus
   error: Error | null
-  status: SseStatus
 }
 
-const MAX_BACKOFF_MS = 30_000
 const BASE_BACKOFF_MS = 1_000
+const MAX_BACKOFF_MS = 30_000
 
 /**
- * Subscribe to an SSE endpoint. Automatically reconnects on disconnect
- * with exponential backoff (capped at 30 s).
+ * Subscribe to a named event topic via SSE.
  *
- * Auth is passed via cookie (same-origin requests send rioku_sid automatically).
+ * Endpoint: GET /api/v1/events/{topic}
+ * Auth: rioku_sid cookie (sent automatically for same-origin requests).
+ *
+ * Topics: 'config.changes', 'traffic.live', 'audit.events'
  */
-export function useSse<T>(url: string, options?: UseSseOptions): UseSseResult<T> {
+export function useEventSubscription<T>(
+  topic: string,
+  options?: UseEventSubscriptionOptions,
+): UseEventSubscriptionResult<T> {
   const enabled = options?.enabled ?? true
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<Error | null>(null)
-  const [status, setStatus] = useState<SseStatus>('closed')
+  const [status, setStatus] = useState<EventStatus>('closed')
   const retriesRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -43,11 +48,10 @@ export function useSse<T>(url: string, options?: UseSseOptions): UseSseResult<T>
 
     function connect() {
       if (cancelled) return
-
-      const sseUrl = new URL(url, window.location.origin)
-
       setStatus('connecting')
-      es = new EventSource(sseUrl.toString(), { withCredentials: true })
+      es = new EventSource(`/api/v1/events/${encodeURIComponent(topic)}`, {
+        withCredentials: true,
+      })
 
       es.onopen = () => {
         if (cancelled) return
@@ -61,7 +65,9 @@ export function useSse<T>(url: string, options?: UseSseOptions): UseSseResult<T>
         try {
           setData(JSON.parse(event.data) as T)
         } catch (err) {
-          setError(err instanceof Error ? err : new Error('Failed to parse SSE data'))
+          setError(
+            err instanceof Error ? err : new Error('Failed to parse event data'),
+          )
         }
       }
 
@@ -69,8 +75,6 @@ export function useSse<T>(url: string, options?: UseSseOptions): UseSseResult<T>
         if (cancelled) return
         es?.close()
         setStatus('closed')
-
-        // Exponential backoff
         const delay = Math.min(
           BASE_BACKOFF_MS * 2 ** retriesRef.current,
           MAX_BACKOFF_MS,
@@ -88,7 +92,7 @@ export function useSse<T>(url: string, options?: UseSseOptions): UseSseResult<T>
       if (timerRef.current) clearTimeout(timerRef.current)
       setStatus('closed')
     }
-  }, [url, enabled])
+  }, [topic, enabled])
 
   return { data, error, status }
 }

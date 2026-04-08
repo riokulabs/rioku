@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   LayoutDashboard,
   Route as RouteIcon,
@@ -12,6 +12,10 @@ import {
   Puzzle,
   Lock,
   Settings,
+  User as UserIcon,
+  LogOut as LogOutIcon,
+  Users as UsersIcon,
+  Shield as ShieldIcon,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -28,12 +32,15 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { Slot } from '@/components/plugin/slot'
+import { Button } from '@/components/ui/button'
+import { useCurrentUser, useHasPermission } from '@/hooks/use-auth'
 import type { LucideIcon } from 'lucide-react'
 
 interface NavItem {
   label: string
   path: string
   icon: LucideIcon
+  permission?: string
 }
 
 interface NavSection {
@@ -75,6 +82,8 @@ const navSections: NavSection[] = [
     titleKey: 'nav.security',
     items: [
       { label: 'nav.security', path: '/security', icon: Lock },
+      { label: 'nav.users', path: '/settings/users', icon: UsersIcon, permission: 'users:read' },
+      { label: 'nav.roles', path: '/settings/roles', icon: ShieldIcon, permission: 'roles:read' },
     ],
   },
 ]
@@ -127,7 +136,26 @@ function AppSidebar() {
   const { t } = useTranslation()
   const { state } = useSidebar()
   const routerState = useRouterState()
+  const navigate = useNavigate()
   const currentPath = routerState.location.pathname
+  const currentUser = useCurrentUser()
+  const canViewUsers = useHasPermission('users:read')
+  const canViewRoles = useHasPermission('roles:read')
+
+  async function handleLogout() {
+    await fetch('/api/v1/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    })
+    await navigate({ to: '/login' })
+  }
+
+  function shouldShowItem(item: NavItem): boolean {
+    if (!item.permission) return true
+    if (item.permission === 'users:read') return canViewUsers
+    if (item.permission === 'roles:read') return canViewRoles
+    return true
+  }
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
@@ -147,6 +175,7 @@ function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
+                  if (!shouldShowItem(item)) return null
                   const Icon = item.icon
                   const active = isActive(item.path, currentPath)
                   return (
@@ -169,6 +198,29 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          {currentUser && state === 'expanded' && (
+            <SidebarMenuItem>
+              <div className="flex items-center justify-between px-2 py-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <UserIcon className="size-3.5" />
+                  </div>
+                  <span className="truncate text-sm font-medium">
+                    {currentUser.display_name ?? currentUser.username}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleLogout}
+                  title="Log out"
+                >
+                  <LogOutIcon className="size-3.5" />
+                  <span className="sr-only">Log out</span>
+                </Button>
+              </div>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={isActive('/settings', currentPath)}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
@@ -25,7 +25,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
   SheetContent,
@@ -48,6 +47,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export const Route = createFileRoute('/config/policies')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['config'],
+      queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
+    }),
   component: ConfigPolicies,
 })
 
@@ -101,13 +105,9 @@ function ConfigPolicies() {
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null)
 
-  const configQuery = useQuery({
-    queryKey: ['config'],
-    queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
-  })
-
-  const policies = configQuery.data?.policies ?? []
-  const routes = configQuery.data?.routes ?? []
+  const config = Route.useLoaderData()
+  const policies = config.policies
+  const routes = config.routes
 
   // Count routes that reference each policy
   function countAttachedRoutes(policyId: string): number {
@@ -200,20 +200,6 @@ function ConfigPolicies() {
       operation: editingPolicy ? 'update_policy' : 'create_policy',
       policy,
     })
-  }
-
-  if (configQuery.isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-4 w-64" />
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      </div>
-    )
   }
 
   const tableData = policies.map((p) => ({

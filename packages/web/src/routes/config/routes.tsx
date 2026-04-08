@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PlusIcon, PencilIcon, TrashIcon, RouteIcon, MoreHorizontalIcon } from 'lucide-react'
@@ -20,7 +20,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
   SheetContent,
@@ -43,6 +42,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export const Route = createFileRoute('/config/routes')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['config'],
+      queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
+    }),
   component: ConfigRoutes,
 })
 
@@ -87,13 +91,9 @@ function ConfigRoutes() {
   const [form, setForm] = useState<RouteFormState>(emptyForm)
   const [deleteTarget, setDeleteTarget] = useState<RouteType | null>(null)
 
-  const configQuery = useQuery({
-    queryKey: ['config'],
-    queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
-  })
-
-  const routes = configQuery.data?.routes ?? []
-  const services = configQuery.data?.services ?? []
+  const config = Route.useLoaderData()
+  const routes = config.routes
+  const services = config.services
 
   const saveMutation = useMutation({
     mutationFn: (payload: {
@@ -189,20 +189,6 @@ function ConfigRoutes() {
         ? prev.methods.filter((m) => m !== method)
         : [...prev.methods, method],
     }))
-  }
-
-  if (configQuery.isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-4 w-64" />
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      </div>
-    )
   }
 
   const tableData = routes.map((r) => ({

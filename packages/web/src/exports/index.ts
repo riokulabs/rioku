@@ -122,6 +122,7 @@ export type { ConfirmDialogProps } from '@/components/rioku/confirm-dialog'
 export type { TimeAgoProps } from '@/components/rioku/time-ago'
 
 // Hooks
-export { useAuth } from '@/hooks/use-auth'
+export { useSession, useCurrentUser, usePermissions, useHasPermission } from '@/hooks/use-auth'
 export { useTheme } from '@/hooks/use-theme'
 export { useSse } from '@/hooks/use-sse'
+export { useEventSubscription } from '@/hooks/use-events'

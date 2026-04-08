@@ -26,10 +26,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api'
 
-export const Route = createFileRoute('/traffic/analytics')({
-  component: TrafficAnalytics,
-})
-
 type TimeRange = '1h' | '6h' | '24h' | '7d'
 
 // Placeholder data structures for when the API exists
@@ -43,6 +39,16 @@ interface AnalyticsData {
   p99Latency: number
   errorRatePercent: number
 }
+
+export const Route = createFileRoute('/traffic/analytics')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['traffic', 'analytics', '24h'],
+      queryFn: () =>
+        apiClient.get<AnalyticsData>('/traffic/analytics', { range: '24h' }),
+    }),
+  component: TrafficAnalytics,
+})
 
 const STATUS_COLORS = ['#22c55e', '#3b82f6', '#eab308', '#ef4444']
 

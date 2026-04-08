@@ -1,13 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
 import {
   Route as RouteIcon,
   Server,
   Database,
   Hexagon,
   User,
-  AlertCircle,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -30,7 +28,6 @@ import { StatusBadge } from '@/components/rioku/status-badge'
 import type { Status } from '@/components/rioku/status-badge'
 import { TimeAgo } from '@/components/rioku/time-ago'
 import { Slot } from '@/components/plugin/slot'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Card,
   CardHeader,
@@ -39,6 +36,21 @@ import {
 } from '@/components/ui/card'
 
 export const Route = createFileRoute('/')({
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData({
+        queryKey: ['health'],
+        queryFn: () => apiClient.get<HealthStatus>('/health'),
+      }),
+      context.queryClient.ensureQueryData({
+        queryKey: ['config'],
+        queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
+      }),
+      context.queryClient.ensureQueryData({
+        queryKey: ['audit', 'recent'],
+        queryFn: () => apiClient.get<AuditEntry[]>('/audit?limit=5'),
+      }),
+    ]),
   component: Dashboard,
 })
 
@@ -81,32 +93,9 @@ function formatUptime(seconds: number | undefined): string {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StatCardSkeleton() {
-  return (
-    <Card className="gap-0 py-0">
-      <div className="flex items-center gap-4 px-4 py-4">
-        <Skeleton className="size-10 rounded-lg" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-6 w-16" />
-        </div>
-      </div>
-    </Card>
-  )
-}
-
 function ChartPlaceholder({ message }: { message: string }) {
   return (
     <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-      {message}
-    </div>
-  )
-}
-
-function ErrorCard({ message }: { message: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-      <AlertCircle className="size-4 shrink-0" />
       {message}
     </div>
   )
@@ -118,25 +107,7 @@ function ErrorCard({ message }: { message: string }) {
 
 function Dashboard() {
   const { t } = useTranslation('dashboard')
-
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: () => apiClient.get<HealthStatus>('/health'),
-  })
-
-  const configQuery = useQuery({
-    queryKey: ['config'],
-    queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
-  })
-
-  const auditQuery = useQuery({
-    queryKey: ['audit', 'recent'],
-    queryFn: () => apiClient.get<AuditEntry[]>('/audit?limit=5'),
-  })
-
-  const health = healthQuery.data
-  const config = configQuery.data
-  const audit = auditQuery.data
+  const [health, config, audit] = Route.useLoaderData()
 
   const trafficData = trafficPlaceholder
   const latencyData = latencyPlaceholder
@@ -155,78 +126,31 @@ function Dashboard() {
       {/* Top row: Stat cards                                                */}
       {/* ----------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {configQuery.isLoading ? (
-          <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </>
-        ) : configQuery.isError ? (
-          <>
-            <StatCard
-              title={t('stats.totalRoutes', 'Total Routes')}
-              value="--"
-              icon={<RouteIcon className="size-5" />}
+        <StatCard
+          title={t('stats.totalRoutes', 'Total Routes')}
+          value={config?.routes.length ?? 0}
+          icon={<RouteIcon className="size-5" />}
+        />
+        <StatCard
+          title={t('stats.activeServices', 'Active Services')}
+          value={config?.services.length ?? 0}
+          icon={<Server className="size-5" />}
+        />
+        <StatCard
+          title={t('stats.storeHealth', 'Store Health')}
+          value={
+            <StatusBadge
+              status={normalizeStatus(health?.store.status)}
+              label={health?.store.status ?? t('status.unknown', 'Unknown')}
             />
-            <StatCard
-              title={t('stats.activeServices', 'Active Services')}
-              value="--"
-              icon={<Server className="size-5" />}
-            />
-          </>
-        ) : (
-          <>
-            <StatCard
-              title={t('stats.totalRoutes', 'Total Routes')}
-              value={config?.routes.length ?? 0}
-              icon={<RouteIcon className="size-5" />}
-            />
-            <StatCard
-              title={t('stats.activeServices', 'Active Services')}
-              value={config?.services.length ?? 0}
-              icon={<Server className="size-5" />}
-            />
-          </>
-        )}
-
-        {healthQuery.isLoading ? (
-          <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </>
-        ) : healthQuery.isError ? (
-          <>
-            <StatCard
-              title={t('stats.storeHealth', 'Store Health')}
-              value={
-                <StatusBadge status="unknown" label={t('status.unknown', 'Unknown')} />
-              }
-              icon={<Database className="size-5" />}
-            />
-            <StatCard
-              title={t('stats.version', 'Version')}
-              value="--"
-              icon={<Hexagon className="size-5" />}
-            />
-          </>
-        ) : (
-          <>
-            <StatCard
-              title={t('stats.storeHealth', 'Store Health')}
-              value={
-                <StatusBadge
-                  status={normalizeStatus(health?.store.status)}
-                  label={health?.store.status ?? t('status.unknown', 'Unknown')}
-                />
-              }
-              icon={<Database className="size-5" />}
-            />
-            <StatCard
-              title={t('stats.version', 'Version')}
-              value={health?.version ?? '--'}
-              icon={<Hexagon className="size-5" />}
-            />
-          </>
-        )}
+          }
+          icon={<Database className="size-5" />}
+        />
+        <StatCard
+          title={t('stats.version', 'Version')}
+          value={health?.version ?? '--'}
+          icon={<Hexagon className="size-5" />}
+        />
       </div>
 
       {/* ----------------------------------------------------------------- */}
@@ -347,26 +271,7 @@ function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {auditQuery.isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="size-8 rounded-full" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : auditQuery.isError ? (
-              <ErrorCard
-                message={t(
-                  'recentChanges.error',
-                  'Failed to load recent changes',
-                )}
-              />
-            ) : !audit || audit.length === 0 ? (
+            {!audit || audit.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 {t('recentChanges.empty', 'No recent changes')}
               </p>
@@ -407,24 +312,7 @@ function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {healthQuery.isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-5 w-20" />
-                  </div>
-                ))}
-              </div>
-            ) : healthQuery.isError ? (
-              <ErrorCard
-                message={t(
-                  'systemStatus.error',
-                  'Failed to load system status',
-                )}
-              />
-            ) : (
-              <dl className="space-y-4">
+            <dl className="space-y-4">
                 <div className="flex items-center justify-between">
                   <dt className="text-sm text-muted-foreground">
                     {t('systemStatus.storeHealth', 'Store Health')}
@@ -464,7 +352,6 @@ function Dashboard() {
                   </dd>
                 </div>
               </dl>
-            )}
           </CardContent>
         </Card>
       </div>

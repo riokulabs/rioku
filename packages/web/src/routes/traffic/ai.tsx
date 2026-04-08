@@ -23,10 +23,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api'
 
-export const Route = createFileRoute('/traffic/ai')({
-  component: TrafficAI,
-})
-
 interface AiMetrics {
   totalTokens: number
   estimatedCost: number
@@ -42,6 +38,15 @@ interface AiMetrics {
   tokenUsageOverTime: Array<{ time: string; tokens: number }>
   costByModel: Array<{ model: string; cost: number }>
 }
+
+export const Route = createFileRoute('/traffic/ai')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['traffic', 'ai'],
+      queryFn: () => apiClient.get<AiMetrics>('/traffic/ai'),
+    }),
+  component: TrafficAI,
+})
 
 const MODEL_COLORS = [
   '#8b5cf6',
