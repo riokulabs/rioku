@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
 import { RotateCcw, Save } from 'lucide-react'
 
 import { PageHeader } from '@/components/rioku/page-header'
@@ -25,10 +24,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api'
 
-export const Route = createFileRoute('/settings')({
-  component: Settings,
-})
-
 interface SettingsData {
   daemon_address: string
   data_directory: string
@@ -42,14 +37,20 @@ interface SettingsData {
   log_level: string
 }
 
+export const Route = createFileRoute('/settings')({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ['settings'],
+      queryFn: () => apiClient.get<SettingsData>('/settings'),
+    }),
+  component: Settings,
+})
+
 function Settings() {
   const { t } = useTranslation('settings')
 
-  const { data, isLoading } = useQuery<SettingsData>({
-    queryKey: ['settings'],
-    queryFn: () => apiClient.get<SettingsData>('/settings'),
-    retry: false,
-  })
+  const data = Route.useLoaderData()
+  const isLoading = false
 
   return (
     <div className="space-y-6">
