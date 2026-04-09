@@ -35,8 +35,11 @@ COOKIE_JAR="${DATA_DIR}/root-cookies.txt"
 # Detect screen availability
 # --------------------------------------------------------------------------
 USE_SCREEN=false
-if command -v screen >/dev/null 2>&1; then
+if command -v screen >/dev/null 2>&1 && screen -dmS rioku-test-screen true 2>/dev/null && screen -ls 2>/dev/null | grep -q rioku-test-screen; then
+  screen -S rioku-test-screen -X quit 2>/dev/null || true
   USE_SCREEN=true
+elif command -v screen >/dev/null 2>&1; then
+  echo -e "${YELLOW}[WARN]${NC}  screen found but cannot create sessions (CI?) — using background processes."
 else
   echo -e "${YELLOW}[WARN]${NC}  screen not found — using background processes."
   echo -e "         Install screen for a better sandbox experience:"
@@ -174,7 +177,7 @@ mkdir -p "${BIN_DIR}"
 build_app() {
   local app_dir="$1" bin_name="$2"
   info "Building ${bin_name}..."
-  GOWORK=off go build -o "${BIN_DIR}/${bin_name}" "${app_dir}" 2>&1 | \
+  (cd "${app_dir}" && GOWORK=off go build -o "${BIN_DIR}/${bin_name}" .) 2>&1 | \
     sed "s/^/  [${bin_name}] /" || { warn "Failed to build ${bin_name}"; return 1; }
   success "Built ${bin_name}"
 }
