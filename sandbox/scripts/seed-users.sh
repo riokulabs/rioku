@@ -174,7 +174,7 @@ for user in config["users"]:
         for role_name in user.get("roles", []):
             # Find role ID.
             _, roles_resp = api("GET", "/api/v1/roles")
-            roles = roles_resp.get("roles", [])
+            roles = roles_resp if isinstance(roles_resp, list) else roles_resp.get("roles", [])
             role_id = next((r["id"] for r in roles if r["name"] == role_name), None)
             if role_id:
                 rs, _ = api("POST", f"/api/v1/users/{uid}/roles", {"role_id": role_id})
