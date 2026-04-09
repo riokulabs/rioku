@@ -62,11 +62,15 @@ jobs:
         with:
           working-directory: packages/daemon
           args: --build-tags noadmin
+          version: v2.11.4
+          install-mode: goinstall
 
       - name: golangci-lint (build-service)
         uses: golangci/golangci-lint-action@v6
         with:
           working-directory: packages/build-service
+          version: v2.11.4
+          install-mode: goinstall
 
   proto:
     name: Proto Lint
