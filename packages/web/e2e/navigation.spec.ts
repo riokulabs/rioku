@@ -37,8 +37,10 @@ adminTest.describe('Navigation', () => {
   adminTest('command palette: Mod+K opens, search "routes", select navigates', async ({ page }) => {
     await page.goto('/');
 
-    // Open command palette with keyboard shortcut — Mod maps to Control on Linux
-    await page.keyboard.press('Control+k');
+    // Dispatch Ctrl+K via JS to avoid Firefox intercepting the shortcut for its search bar
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    });
 
     // Command palette dialog should open (rendered via CommandDialog -> Dialog)
     const palette = page.locator('[role="dialog"]');

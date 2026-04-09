@@ -10,7 +10,9 @@ adminTest.describe('Theme', () => {
     const isDark = initialClass.includes('dark');
 
     // Toggle theme via keyboard shortcut — Mod maps to Control on Linux
-    await page.keyboard.press('Control+Shift+t');
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+    });
 
     // Wait for the class to actually change instead of a fixed timeout
     await page.waitForFunction(
@@ -30,7 +32,9 @@ adminTest.describe('Theme', () => {
     }
 
     // Toggle back
-    await page.keyboard.press('Control+Shift+t');
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+    });
 
     await page.waitForFunction(
       (wasDark) => {
@@ -52,7 +56,9 @@ adminTest.describe('Theme', () => {
     const html = page.locator('html');
     const initialClass = await html.getAttribute('class') ?? '';
     if (initialClass.includes('dark')) {
-      await page.keyboard.press('Control+Shift+t');
+      await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+    });
       await page.waitForFunction(
         () => !document.documentElement.className.includes('dark'),
         undefined,
@@ -80,7 +86,9 @@ adminTest.describe('Theme', () => {
     expect(afterReloadClass).not.toContain('dark');
 
     // Restore dark mode
-    await page.keyboard.press('Control+Shift+t');
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+    });
     await page.waitForFunction(
       () => document.documentElement.className.includes('dark'),
       undefined,
