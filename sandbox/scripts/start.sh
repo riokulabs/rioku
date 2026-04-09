@@ -250,6 +250,10 @@ if [[ ! -f "${DAEMON_CONFIG}" ]]; then
   fi
   success "dev_mode enabled in ${DAEMON_CONFIG}"
 
+  # Raise rate limit for development (default 60 req/min is too low for seeding + testing).
+  sed -i 's/requests_per_minute: 60/requests_per_minute: 6000/' "${DAEMON_CONFIG}"
+  sed -i 's/burst_size: 10/burst_size: 100/' "${DAEMON_CONFIG}"
+
   # Use unprivileged port for Caddy traffic block (avoids needing root for :443).
   if grep -q "traffic_addrs:" "${DAEMON_CONFIG}"; then
     sed -i 's/- :443/- :8443/' "${DAEMON_CONFIG}"
