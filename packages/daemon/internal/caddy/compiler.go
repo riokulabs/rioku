@@ -29,20 +29,29 @@ type AdminConfig struct {
 	DevMode bool
 }
 
+// TrustedProxiesConfig specifies CIDR ranges of trusted reverse proxies
+// so Caddy uses the correct client IP from X-Forwarded-For.
+type TrustedProxiesConfig struct {
+	Ranges []string // CIDR ranges, e.g. ["10.0.0.0/8", "172.16.0.0/12"]
+}
+
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
 	trafficAddrs    []string
 	admin           AdminConfig
 	traceSocketPath string
+	trustedProxies  *TrustedProxiesConfig
 }
 
 // NewCompiler creates a compiler with the given traffic listen addresses, admin config,
-// and optional trace socket path. When traceSocketPath is non-empty, the compiled
-// Caddy config will include a logging block that sends access logs to the socket.
-func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath string) *Compiler {
+// optional trace socket path, and optional trusted proxy config. When traceSocketPath
+// is non-empty, the compiled Caddy config will include a logging block that sends
+// access logs to the socket. When trustedProxies is non-nil with ranges, each server
+// block will include trusted_proxies for correct client IP resolution.
+func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath string, trustedProxies *TrustedProxiesConfig) *Compiler {
 	addrs := make([]string, len(trafficAddrs))
 	copy(addrs, trafficAddrs)
-	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath}
+	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath, trustedProxies: trustedProxies}
 }
 
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
@@ -94,6 +103,18 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		trafficSrv := servers["traffic"].(map[string]any)
 		trafficSrv["logs"] = map[string]any{
 			"default_logger_name": "rioku",
+		}
+	}
+
+	// Add trusted_proxies to all server blocks when configured.
+	if c.trustedProxies != nil && len(c.trustedProxies.Ranges) > 0 {
+		for _, srv := range servers {
+			if s, ok := srv.(map[string]any); ok {
+				s["trusted_proxies"] = map[string]any{
+					"source": "static",
+					"ranges": c.trustedProxies.Ranges,
+				}
+			}
 		}
 	}
 
