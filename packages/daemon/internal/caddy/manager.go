@@ -3,6 +3,7 @@ package caddy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -61,7 +62,9 @@ func (m *Manager) Start(ctx context.Context) error {
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, path, "run", "--config", "-", "--adapter", "")
+	// Use exec.Command (not CommandContext) so Stop() controls shutdown
+	// via SIGTERM rather than Go killing the process on context cancellation.
+	cmd := exec.Command(path, "run", "--config", "-", "--adapter", "")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -80,13 +83,14 @@ func (m *Manager) Start(ctx context.Context) error {
 	// Monitor child process in background.
 	go func() {
 		err := cmd.Wait()
-		m.mu.Lock()
-		m.running = false
-		m.mu.Unlock()
 		if err != nil {
 			log.Printf("caddy: process exited: %v", err)
 		}
+		// Close done first so Stop() can unblock, then update state.
 		close(m.done)
+		m.mu.Lock()
+		m.running = false
+		m.mu.Unlock()
 	}()
 
 	// Wait for admin API to be ready.
@@ -100,31 +104,28 @@ func (m *Manager) Start(ctx context.Context) error {
 // Stop gracefully stops the Caddy process.
 func (m *Manager) Stop(ctx context.Context) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.cmd == nil || m.cmd.Process == nil || !m.running {
+		m.mu.Unlock()
 		return nil
 	}
+	proc := m.cmd.Process
+	done := m.done
+	m.mu.Unlock()
 
-	// Send SIGTERM.
-	if err := m.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("signal caddy: %w", err)
-	}
+	// Send SIGTERM (may fail if process already exited — that's fine).
+	_ = proc.Signal(syscall.SIGTERM)
 
 	// Wait for the monitoring goroutine to signal process exit.
 	select {
-	case <-m.done:
-		m.running = false
+	case <-done:
 		return nil
 	case <-time.After(10 * time.Second):
-		_ = m.cmd.Process.Kill()
-		<-m.done // wait for monitor goroutine to finish
-		m.running = false
+		_ = proc.Kill()
+		<-done
 		return fmt.Errorf("caddy: force killed after timeout")
 	case <-ctx.Done():
-		_ = m.cmd.Process.Kill()
-		<-m.done
-		m.running = false
+		_ = proc.Kill()
+		<-done
 		return ctx.Err()
 	}
 }
@@ -136,10 +137,21 @@ func (m *Manager) IsRunning() bool {
 	return m.running
 }
 
-// PushConfig sends a full config to Caddy's admin API.
+// PushConfig sends config to Caddy's admin API. It extracts the "apps"
+// section and pushes to /config/apps so the admin listener is preserved.
 func (m *Manager) PushConfig(ctx context.Context, configJSON []byte) error {
-	url := fmt.Sprintf("http://%s/config/", m.cfg.AdminAddr)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(configJSON))
+	// Extract just the apps section to avoid overwriting admin config.
+	var full map[string]json.RawMessage
+	if err := json.Unmarshal(configJSON, &full); err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	apps, ok := full["apps"]
+	if !ok {
+		return fmt.Errorf("compiled config has no apps section")
+	}
+
+	url := fmt.Sprintf("http://%s/config/apps", m.cfg.AdminAddr)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(apps))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/caddy"
@@ -66,10 +67,21 @@ func (s *Server) Start() error {
 	return s.grpcServer.Serve(s.listener)
 }
 
-// Stop gracefully stops the gRPC server.
+// Stop gracefully stops the gRPC server with a 5-second deadline,
+// falling back to a hard stop if active streams don't drain in time.
 func (s *Server) Stop() {
 	log.Println("grpc: stopping...")
-	s.grpcServer.GracefulStop()
+	done := make(chan struct{})
+	go func() {
+		s.grpcServer.GracefulStop()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		log.Println("grpc: graceful stop timed out, forcing stop")
+		s.grpcServer.Stop()
+	}
 }
 
 // ConfigService returns the registered ConfigService server implementation.

@@ -199,8 +199,10 @@ func (d *Daemon) Start(ctx context.Context) error {
 	// 8. Block until context is cancelled (signal handler).
 	<-ctx.Done()
 
-	// 9. Graceful shutdown.
-	return d.Stop(context.Background())
+	// 9. Graceful shutdown with a hard deadline so tests don't hang.
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer stopCancel()
+	return d.Stop(stopCtx)
 }
 
 // Stop shuts down all subsystems in reverse order.

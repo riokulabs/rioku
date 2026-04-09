@@ -26,9 +26,10 @@ var totpEncryptionSalt = []byte("rioku-totp-encryption-salt-v1")
 
 // Gateway wraps an HTTP server that serves the REST API.
 type Gateway struct {
-	httpServer *http.Server
-	listener   net.Listener
-	addr       string // resolved address, e.g. "127.0.0.1:54321"
+	httpServer  *http.Server
+	listener    net.Listener
+	addr        string // resolved address, e.g. "127.0.0.1:54321"
+	rateLimiter *RateLimiter
 }
 
 // NewGateway creates a REST gateway that translates HTTP+JSON to gRPC.
@@ -134,8 +135,9 @@ func NewGateway(
 			WriteTimeout: 60 * time.Second, // longer for SSE streams
 			IdleTimeout:  120 * time.Second,
 		},
-		listener: ln,
-		addr:     ln.Addr().String(),
+		listener:    ln,
+		addr:        ln.Addr().String(),
+		rateLimiter: rl,
 	}, nil
 }
 
@@ -155,8 +157,11 @@ func (g *Gateway) Start() error {
 	return err
 }
 
-// Stop gracefully shuts down the HTTP server.
+// Stop gracefully shuts down the HTTP server and background goroutines.
 func (g *Gateway) Stop(ctx context.Context) error {
 	log.Println("rest: stopping...")
+	if g.rateLimiter != nil {
+		g.rateLimiter.Stop()
+	}
 	return g.httpServer.Shutdown(ctx)
 }

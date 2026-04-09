@@ -79,13 +79,14 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		servers["admin"] = c.buildAdminServer()
 	}
 
-	// When using non-standard ports (not :443/:80), disable Caddy's automatic
-	// HTTP-to-HTTPS redirect which would try to bind :80 and fail without root.
+	// When using non-standard ports (not :443/:80), disable auto-HTTPS
+	// entirely. ACME challenges need :80/:443, and internal/dev traffic
+	// ports should not provision TLS certificates for host matchers.
 	if !c.hasStandardPorts() {
 		for _, srv := range servers {
 			if s, ok := srv.(map[string]any); ok {
 				s["automatic_https"] = map[string]any{
-					"disable_redirects": true,
+					"disable": true,
 				}
 			}
 		}
