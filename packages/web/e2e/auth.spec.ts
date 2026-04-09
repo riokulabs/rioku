@@ -60,8 +60,11 @@ test.describe('Auth Flow', () => {
     await expect(page).toHaveURL('/');
   });
 
-  adminTest('cookie is HttpOnly (not accessible from JS)', async ({ context }) => {
-    const cookies = await context.cookies('http://localhost:7778');
+  adminTest('cookie is HttpOnly (not accessible from JS)', async ({ page }) => {
+    // The adminTest fixture logs in via `page`, so the session cookie is set
+    // on that page's browser context. Derive the context from the page.
+    const ctx = page.context();
+    const cookies = await ctx.cookies('http://localhost:7778');
     const sessionCookie = cookies.find((c) => c.name === 'rioku_sid');
     expect(sessionCookie).toBeDefined();
     expect(sessionCookie!.httpOnly).toBe(true);

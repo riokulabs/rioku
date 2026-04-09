@@ -9,9 +9,18 @@ adminTest.describe('Theme', () => {
     const initialClass = await html.getAttribute('class') ?? '';
     const isDark = initialClass.includes('dark');
 
-    // Toggle theme via keyboard shortcut (Mod+Shift+T)
-    await page.keyboard.press('Meta+Shift+t');
-    await page.waitForTimeout(300);
+    // Toggle theme via keyboard shortcut — Mod maps to Control on Linux
+    await page.keyboard.press('Control+Shift+t');
+
+    // Wait for the class to actually change instead of a fixed timeout
+    await page.waitForFunction(
+      (wasDark) => {
+        const cls = document.documentElement.className;
+        return wasDark ? !cls.includes('dark') : cls.includes('dark');
+      },
+      isDark,
+      { timeout: 5000 },
+    );
 
     const newClass = await html.getAttribute('class') ?? '';
     if (isDark) {
@@ -21,8 +30,16 @@ adminTest.describe('Theme', () => {
     }
 
     // Toggle back
-    await page.keyboard.press('Meta+Shift+t');
-    await page.waitForTimeout(300);
+    await page.keyboard.press('Control+Shift+t');
+
+    await page.waitForFunction(
+      (wasDark) => {
+        const cls = document.documentElement.className;
+        return wasDark ? cls.includes('dark') : !cls.includes('dark');
+      },
+      isDark,
+      { timeout: 5000 },
+    );
 
     const restoredClass = await html.getAttribute('class') ?? '';
     expect(restoredClass.includes('dark')).toBe(isDark);
@@ -31,12 +48,16 @@ adminTest.describe('Theme', () => {
   adminTest('theme persists across page reload', async ({ page }) => {
     await page.goto('/');
 
-    // Switch to light mode
+    // Switch to light mode if currently dark
     const html = page.locator('html');
     const initialClass = await html.getAttribute('class') ?? '';
     if (initialClass.includes('dark')) {
-      await page.keyboard.press('Meta+Shift+t');
-      await page.waitForTimeout(300);
+      await page.keyboard.press('Control+Shift+t');
+      await page.waitForFunction(
+        () => !document.documentElement.className.includes('dark'),
+        undefined,
+        { timeout: 5000 },
+      );
     }
 
     // Verify light mode
@@ -47,28 +68,56 @@ adminTest.describe('Theme', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
+    // Wait for theme to be applied after reload — preferences are loaded from
+    // localStorage and applied during useTheme mount.
+    await page.waitForFunction(
+      () => document.documentElement.className !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
+
     const afterReloadClass = await html.getAttribute('class') ?? '';
     expect(afterReloadClass).not.toContain('dark');
 
     // Restore dark mode
-    await page.keyboard.press('Meta+Shift+t');
+    await page.keyboard.press('Control+Shift+t');
+    await page.waitForFunction(
+      () => document.documentElement.className.includes('dark'),
+      undefined,
+      { timeout: 5000 },
+    );
   });
 
   adminTest('system preference detection via emulateMedia', async ({ page }) => {
-    // Clear any stored preference first
-    await page.evaluate(() => localStorage.removeItem('rioku-theme'));
+    // Clear any stored preference first — set to 'system' so the app respects
+    // OS preference via matchMedia.
+    await page.evaluate(() => {
+      const key = 'rioku-preferences';
+      const raw = localStorage.getItem(key);
+      const prefs = raw ? JSON.parse(raw) : {};
+      prefs.theme = 'system';
+      localStorage.setItem(key, JSON.stringify(prefs));
+    });
 
     // Emulate light color scheme
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
-    await page.waitForTimeout(500);
+    await page.waitForFunction(
+      () => document.documentElement.className !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
 
     const lightClass = await page.locator('html').getAttribute('class') ?? '';
 
     // Emulate dark color scheme
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/');
-    await page.waitForTimeout(500);
+    await page.waitForFunction(
+      () => document.documentElement.className !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
 
     const darkClass = await page.locator('html').getAttribute('class') ?? '';
 

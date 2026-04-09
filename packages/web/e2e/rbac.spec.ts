@@ -6,15 +6,22 @@ adminTest.describe('RBAC — Admin visibility', () => {
     await page.goto('/');
 
     const sidebar = page.locator('[data-sidebar="sidebar"]');
-    await expect(sidebar.getByText('Dashboard')).toBeVisible();
-    await expect(sidebar.getByText('Routes')).toBeVisible();
-    await expect(sidebar.getByText('Services')).toBeVisible();
-    await expect(sidebar.getByText('Policies')).toBeVisible();
-    await expect(sidebar.getByText('Security')).toBeVisible();
-    await expect(sidebar.getByText('Users')).toBeVisible();
-    await expect(sidebar.getByText('Roles')).toBeVisible();
-    await expect(sidebar.getByText('Live')).toBeVisible();
-    await expect(sidebar.getByText('Analytics')).toBeVisible();
+    // Core nav items from navSections (English translations in common.json)
+    await expect(sidebar.getByText('Dashboard', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Routes', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Services', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Policies', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Live', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Analytics', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('AI Workloads', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Cluster', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Plugins', { exact: true })).toBeVisible();
+    // Security section — the heading "Security" is the section label;
+    // "Security" also appears as a nav item. Use the menu-button locator to be precise.
+    await expect(sidebar.locator('[data-slot="sidebar-menu-button"]').filter({ hasText: 'Security' })).toBeVisible();
+    // Admin can see Users and Roles (permission-gated items)
+    await expect(sidebar.getByText('Users', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Roles', { exact: true })).toBeVisible();
   });
 });
 
@@ -23,21 +30,25 @@ viewerTest.describe('RBAC — Viewer visibility', () => {
     await page.goto('/');
 
     const sidebar = page.locator('[data-sidebar="sidebar"]');
-    await expect(sidebar.getByText('Dashboard')).toBeVisible();
-    await expect(sidebar.getByText('Routes')).toBeVisible();
-    await expect(sidebar.getByText('Users')).not.toBeVisible();
-    await expect(sidebar.getByText('Roles')).not.toBeVisible();
+    await expect(sidebar.getByText('Dashboard', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Routes', { exact: true })).toBeVisible();
+    // Users and Roles should be hidden for viewer (no users:read / roles:read permissions)
+    await expect(sidebar.getByText('Users', { exact: true })).not.toBeVisible();
+    await expect(sidebar.getByText('Roles', { exact: true })).not.toBeVisible();
   });
 
   viewerTest('viewer navigating directly to /settings/users is blocked', async ({ page }) => {
     await page.goto('/settings/users');
 
-    // Should either redirect away or show forbidden
+    // The UsersPage component checks useHasPermission('users:read') and renders
+    // an "Access denied" EmptyState if false. The route itself does not redirect.
     const url = page.url();
     const isForbidden =
       url.includes('/login') ||
       url === 'http://localhost:7778/' ||
-      (await page.getByText(/forbidden|not authorized|access denied/i).isVisible().catch(() => false));
+      (await page.getByText(/access denied/i).isVisible().catch(() => false)) ||
+      (await page.getByText(/not authorized/i).isVisible().catch(() => false)) ||
+      (await page.getByText(/do not have permission/i).isVisible().catch(() => false));
     expect(isForbidden).toBe(true);
   });
 });
@@ -47,10 +58,10 @@ operatorTest.describe('RBAC — Operator visibility', () => {
     await page.goto('/');
 
     const sidebar = page.locator('[data-sidebar="sidebar"]');
-    await expect(sidebar.getByText('Routes')).toBeVisible();
-    await expect(sidebar.getByText('Services')).toBeVisible();
-    await expect(sidebar.getByText('Policies')).toBeVisible();
-    await expect(sidebar.getByText('Users')).not.toBeVisible();
-    await expect(sidebar.getByText('Roles')).not.toBeVisible();
+    await expect(sidebar.getByText('Routes', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Services', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Policies', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Users', { exact: true })).not.toBeVisible();
+    await expect(sidebar.getByText('Roles', { exact: true })).not.toBeVisible();
   });
 });
