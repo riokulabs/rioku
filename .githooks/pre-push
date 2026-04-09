@@ -1,27 +1,24 @@
 #!/usr/bin/env bash
-# Git pre-push hook — runs full lint and tests before pushing.
+# Git pre-push hook — fast sanity checks only.
+# Full test suite runs in CI (go test -race, cspell, e2e, etc.)
 # Install with: make hooks
 
 set -euo pipefail
 
 echo "Running pre-push checks..."
 
-# Go lint (if golangci-lint is available)
-if command -v golangci-lint &>/dev/null; then
-  echo "Running golangci-lint..."
-  cd packages/daemon && golangci-lint run ./... || exit 1
-  cd ../..
-  cd packages/build-service && golangci-lint run ./... || exit 1
-  cd ../..
-else
-  echo "SKIP: golangci-lint not installed"
-fi
+# Go vet (~2s)
+echo "Running go vet..."
+cd packages/daemon && go vet ./... || exit 1
+cd ../..
+cd packages/build-service && go vet ./... || exit 1
+cd ../..
 
-# Tests with race detector
-echo "Running tests with race detector..."
-cd packages/daemon && go test -race -count=1 ./... || exit 1
-cd ../..
-cd packages/build-service && go test -race -count=1 ./... || exit 1
-cd ../..
+# TypeScript type check (~1s with incremental)
+if [ -f packages/web/package.json ]; then
+  echo "Running tsc --noEmit..."
+  cd packages/web && npx tsc --noEmit || exit 1
+  cd ../..
+fi
 
 echo "All pre-push checks passed."

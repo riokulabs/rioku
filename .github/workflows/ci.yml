@@ -54,13 +54,14 @@ jobs:
 
       - name: Go vet
         run: |
-          cd packages/daemon && go vet ./...
+          cd packages/daemon && go vet -tags noadmin ./...
           cd ../build-service && go vet ./...
 
       - name: golangci-lint (daemon)
         uses: golangci/golangci-lint-action@v6
         with:
           working-directory: packages/daemon
+          args: --build-tags noadmin
 
       - name: golangci-lint (build-service)
         uses: golangci/golangci-lint-action@v6
@@ -109,7 +110,7 @@ jobs:
         run: make proto
 
       - name: Test daemon (race)
-        run: cd packages/daemon && go test -race -count=1 -timeout=300s ./...
+        run: cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=300s ./...
 
       - name: Test build-service (race)
         run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...
@@ -149,7 +150,22 @@ jobs:
             fi
             sleep 2
           done
-          echo "Sandbox did not become healthy"
+          echo "::error::Sandbox did not become healthy after 120s"
+          echo "=== Diagnostic info ==="
+          echo "--- Listening ports ---"
+          ss -tlnp 2>/dev/null | grep -E '7777|7778|8443|9001|9002|9003|9004|9005|2019' || echo "No matching ports"
+          echo "--- Screen sessions ---"
+          screen -ls 2>/dev/null || echo "No screen sessions"
+          echo "--- Daemon log (last 30 lines) ---"
+          tail -30 sandbox/.data/daemon.log 2>/dev/null || echo "No daemon log"
+          echo "--- Daemon PID file ---"
+          cat sandbox/.data/rioku.pid 2>/dev/null || echo "No PID file"
+          echo "--- Init log ---"
+          tail -20 sandbox/.data/init.log 2>/dev/null || echo "No init log"
+          echo "--- Process list ---"
+          ps aux | grep -E 'rioku|caddy' | grep -v grep || echo "No rioku/caddy processes"
+          echo "--- curl verbose ---"
+          curl -v --max-time 5 http://localhost:7778/api/v1/health 2>&1 || true
           exit 1
 
       - name: Run smoke tests
