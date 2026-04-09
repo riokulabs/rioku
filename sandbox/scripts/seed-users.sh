@@ -40,15 +40,23 @@ fi
 # --------------------------------------------------------------------------
 info "Logging in as root..."
 SEED_UA="rioku-seed-script/1.0"
-login_resp="$(curl -sf --max-time 10 \
+login_resp="$(curl -s --max-time 10 \
   -c "${COOKIE_JAR}" \
+  -w "\nHTTP_CODE:%{http_code}" \
   -H "Content-Type: application/json" \
   -H "User-Agent: ${SEED_UA}" \
   -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
-  "${REST_BASE}/api/v1/auth/login" 2>/dev/null)" || \
-  die "Login failed — is the daemon running at ${REST_BASE}?"
+  "${REST_BASE}/api/v1/auth/login" 2>&1)" || \
+  die "Login failed — curl error"
 
-success "Root login successful"
+http_code="$(echo "${login_resp}" | grep 'HTTP_CODE:' | cut -d: -f2)"
+login_body="$(echo "${login_resp}" | grep -v 'HTTP_CODE:')"
+
+if [[ "${http_code}" != "200" ]]; then
+  die "Root login failed: HTTP ${http_code} — ${login_body}"
+fi
+
+success "Root login successful (HTTP ${http_code})"
 
 # --------------------------------------------------------------------------
 # Helper: make authenticated request with cookie jar
