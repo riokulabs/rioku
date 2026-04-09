@@ -133,13 +133,14 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 	if caddypkg.FindBinary(cfg.DataDir) == "" {
 		fmt.Print("  Downloading Caddy binary... ")
 		binDir := filepath.Join(cfg.DataDir, "bin")
-		path, err := caddypkg.DownloadBinary(binDir, nil)
+		result, err := caddypkg.DownloadBinary(binDir, "", nil)
 		if err != nil {
 			fmt.Printf("failed: %v\n", err)
 			fmt.Println("  (you can install Caddy manually later)")
 		} else {
-			cfg.Caddy.Binary = path
-			fmt.Printf("done (%s)\n", path)
+			cfg.Caddy.Binary = result.Path
+			fmt.Printf("done (%s)\n", result.Path)
+			fmt.Printf("  SHA256: %s\n", result.SHA256)
 		}
 	} else {
 		cfg.Caddy.Binary = caddypkg.FindBinary(cfg.DataDir)

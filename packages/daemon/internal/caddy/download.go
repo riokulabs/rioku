@@ -1,6 +1,8 @@
 package caddy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,11 +14,19 @@ import (
 	"github.com/riokulabs/rioku/internal/version"
 )
 
+// DownloadResult contains information about a downloaded binary.
+type DownloadResult struct {
+	Path   string // filesystem path to the binary
+	SHA256 string // hex-encoded SHA256 hash of the downloaded binary
+}
+
 // DownloadBinary downloads the Caddy binary for the current platform
-// to the specified directory. Returns the path to the downloaded binary.
-func DownloadBinary(destDir string, progress func(downloaded, total int64)) (string, error) {
+// to the specified directory. If expectedSHA256 is non-empty, the
+// download is verified against it and an error is returned on mismatch.
+// Returns the path and computed SHA256 hash of the downloaded binary.
+func DownloadBinary(destDir string, expectedSHA256 string, progress func(downloaded, total int64)) (*DownloadResult, error) {
 	if err := os.MkdirAll(destDir, 0750); err != nil {
-		return "", fmt.Errorf("create dir: %w", err)
+		return nil, fmt.Errorf("create dir: %w", err)
 	}
 
 	destPath := filepath.Join(destDir, "caddy")
@@ -27,32 +37,34 @@ func DownloadBinary(destDir string, progress func(downloaded, total int64)) (str
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("Rioku/%s (github.com/riokulabs/rioku)", version.Version))
 
 	downloadClient := &http.Client{Timeout: 5 * time.Minute} // Caddy binary is ~50MB
 	resp, err := downloadClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("download caddy: %w", err)
+		return nil, fmt.Errorf("download caddy: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("caddy download returned %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("caddy download returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	tmpPath := destPath + ".tmp"
 	f, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
-		return "", fmt.Errorf("create temp file: %w", err)
+		return nil, fmt.Errorf("create temp file: %w", err)
 	}
 
-	var reader io.Reader = resp.Body
+	// Compute SHA256 hash during download (tee into hasher).
+	hasher := sha256.New()
+	var reader io.Reader = io.TeeReader(resp.Body, hasher)
 	if progress != nil {
 		reader = &progressReader{
-			reader:   resp.Body,
+			reader:   reader,
 			total:    resp.ContentLength,
 			callback: progress,
 		}
@@ -61,20 +73,28 @@ func DownloadBinary(destDir string, progress func(downloaded, total int64)) (str
 	if _, err := io.Copy(f, reader); err != nil {
 		_ = f.Close()
 		_ = os.Remove(tmpPath)
-		return "", fmt.Errorf("write caddy binary: %w", err)
+		return nil, fmt.Errorf("write caddy binary: %w", err)
 	}
 	if err := f.Close(); err != nil {
 		_ = os.Remove(tmpPath)
-		return "", fmt.Errorf("close caddy binary: %w", err)
+		return nil, fmt.Errorf("close caddy binary: %w", err)
+	}
+
+	computedHash := hex.EncodeToString(hasher.Sum(nil))
+
+	// Verify hash if an expected value was provided.
+	if expectedSHA256 != "" && computedHash != expectedSHA256 {
+		_ = os.Remove(tmpPath)
+		return nil, fmt.Errorf("caddy binary hash mismatch: expected %s, got %s", expectedSHA256, computedHash)
 	}
 
 	// Atomic rename.
 	if err := os.Rename(tmpPath, destPath); err != nil {
 		_ = os.Remove(tmpPath)
-		return "", fmt.Errorf("rename caddy binary: %w", err)
+		return nil, fmt.Errorf("rename caddy binary: %w", err)
 	}
 
-	return destPath, nil
+	return &DownloadResult{Path: destPath, SHA256: computedHash}, nil
 }
 
 // FindBinary looks for a Caddy binary in standard locations.

@@ -199,14 +199,15 @@ func (e *Engine) WatchChanges(ctx context.Context, sinceVersion int64) (<-chan *
 	}
 
 	notify := e.store.Notify()
+	if notify == nil {
+		// Backend does not support change notifications — return a closed
+		// channel immediately so callers don't leak a goroutine waiting.
+		close(out)
+		return out, nil
+	}
+
 	go func() {
 		defer close(out)
-		if notify == nil {
-			// Backend does not support notifications; block until
-			// context cancellation.
-			<-ctx.Done()
-			return
-		}
 		for {
 			select {
 			case <-ctx.Done():
