@@ -4,36 +4,59 @@
 // Domain types (matching proto JSON output)
 // ---------------------------------------------------------------------------
 
+export interface PathMatcher {
+  type: string
+  value: string
+}
+
+export interface HeaderMatcher {
+  name: string
+  value: string
+  invert?: boolean
+}
+
 export interface Matcher {
-  host?: string[]
-  path?: string[]
-  method?: string[]
+  hosts?: string[]
+  paths?: PathMatcher[]
+  methods?: string[]
+  headers?: HeaderMatcher[]
 }
 
 export interface Route {
   id: string
   name: string
   matchers: Matcher[]
-  target_service: string
+  serviceId: string
+  policyIds: string[]
   enabled: boolean
-  policy_ids: string[]
-  created_at: string
-  updated_at: string
+  labels: Record<string, string> | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Upstream {
+  id: string
   address: string
   weight: number
-  tls_mode: string
+  tls: string
+  healthy: boolean
+}
+
+export interface HealthCheck {
+  enabled: boolean
+  path: string
+  intervalSeconds: number
+  timeoutSeconds: number
 }
 
 export interface Service {
   id: string
   name: string
   upstreams: Upstream[]
-  lb_policy: string
-  created_at: string
-  updated_at: string
+  lbPolicy: string
+  healthCheck: HealthCheck | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Policy {
@@ -41,12 +64,12 @@ export interface Policy {
   name: string
   type: string
   config: Record<string, unknown>
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ConfigSnapshot {
-  version: number
+  version: string
   routes: Route[]
   services: Service[]
   policies: Policy[]
@@ -70,8 +93,8 @@ export interface ApiKey {
   name: string
   prefix: string
   scopes: string[]
-  expires_at: string
-  created_at: string
+  expiresAt: string
+  createdAt: string
 }
 
 export interface AuditEntry {
@@ -97,25 +120,25 @@ export interface ApiError {
 
 export interface SessionInfo {
   id: string
-  created_at: string
-  last_active: string
-  expires_at: string
-  ip_address: string
-  user_agent?: string
+  createdAt: string
+  lastActive: string
+  expiresAt: string
+  ipAddress: string
+  userAgent?: string
 }
 
 export interface UserInfo {
   id: string
   username: string
-  display_name: string | null
+  displayName: string | null
   email: string | null
   roles: string[]
   permissions: string[]
-  totp_enabled: boolean
-  force_password_change: boolean
+  totpEnabled: boolean
+  forcePasswordChange: boolean
   status: 'active' | 'suspended' | 'locked'
-  last_login: string | null
-  created_at: string
+  lastLogin: string | null
+  createdAt: string
 }
 
 export interface MeResponse {
@@ -136,10 +159,10 @@ export interface Role {
   id: string
   name: string
   description: string
-  is_builtin: boolean
+  isBuiltin: boolean
   permissions: string[]
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 // ---------------------------------------------------------------------------

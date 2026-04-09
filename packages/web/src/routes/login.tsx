@@ -74,7 +74,7 @@ function LoginPage() {
         return
       }
 
-      // Root beforeLoad will handle force_password_change redirect
+      // Root beforeLoad will handle forcePasswordChange redirect
       await navigate({ to: '/' })
     } finally {
       setLoading(false)

@@ -140,7 +140,7 @@ function RolesPage() {
             render: (r) => (
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm">{r.name as string}</span>
-                {(r.is_builtin as boolean) && (
+                {(r.isBuiltin as boolean) && (
                   <Badge variant="secondary" className="text-xs">
                     built-in
                   </Badge>
@@ -187,7 +187,7 @@ function RolesPage() {
                       <PencilIcon className="size-4" />
                       Edit scopes
                     </DropdownMenuItem>
-                    {!role.is_builtin && (
+                    {!role.isBuiltin && (
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => setDeleteTarget(role)}

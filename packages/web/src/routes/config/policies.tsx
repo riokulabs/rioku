@@ -56,23 +56,23 @@ export const Route = createFileRoute('/config/policies')({
 })
 
 const POLICY_TYPES = [
-  'rate-limit',
-  'authentication',
-  'cors',
-  'circuit-breaker',
-  'retry',
-  'cache',
-  'transform',
+  'POLICY_TYPE_RATE_LIMIT',
+  'POLICY_TYPE_AUTHENTICATION',
+  'POLICY_TYPE_CORS',
+  'POLICY_TYPE_CIRCUIT_BREAKER',
+  'POLICY_TYPE_RETRY',
+  'POLICY_TYPE_CACHE',
+  'POLICY_TYPE_TRANSFORM',
 ] as const
 
 const policyTypeColors: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  'rate-limit': 'default',
-  'authentication': 'secondary',
-  'cors': 'outline',
-  'circuit-breaker': 'destructive',
-  'retry': 'secondary',
-  'cache': 'outline',
-  'transform': 'default',
+  'POLICY_TYPE_RATE_LIMIT': 'default',
+  'POLICY_TYPE_AUTHENTICATION': 'secondary',
+  'POLICY_TYPE_CORS': 'outline',
+  'POLICY_TYPE_CIRCUIT_BREAKER': 'destructive',
+  'POLICY_TYPE_RETRY': 'secondary',
+  'POLICY_TYPE_CACHE': 'outline',
+  'POLICY_TYPE_TRANSFORM': 'default',
 }
 
 interface PolicyFormState {
@@ -83,7 +83,7 @@ interface PolicyFormState {
 
 const emptyForm: PolicyFormState = {
   name: '',
-  type: 'rate-limit',
+  type: 'POLICY_TYPE_RATE_LIMIT',
   configJson: '{\n  \n}',
 }
 
@@ -111,13 +111,12 @@ function ConfigPolicies() {
 
   // Count routes that reference each policy
   function countAttachedRoutes(policyId: string): number {
-    return routes.filter((r: RouteType) => r.policy_ids.includes(policyId)).length
+    return routes.filter((r: RouteType) => (r.policyIds ?? []).includes(policyId)).length
   }
 
   const saveMutation = useMutation({
     mutationFn: (payload: {
-      operation: 'create_policy' | 'update_policy'
-      policy: Partial<Policy>
+      policy: { action: 'UPSERT'; policy: Partial<Policy> }
     }) => apiClient.post('/config', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
@@ -136,8 +135,7 @@ function ConfigPolicies() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       apiClient.post('/config', {
-        operation: 'delete_policy',
-        policy: { id },
+        policy: { action: 'DELETE', id },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
@@ -197,8 +195,7 @@ function ConfigPolicies() {
     }
 
     saveMutation.mutate({
-      operation: editingPolicy ? 'update_policy' : 'create_policy',
-      policy,
+      policy: { action: 'UPSERT', policy },
     })
   }
 
@@ -251,11 +248,11 @@ function ConfigPolicies() {
             ),
           },
           {
-            key: 'updated_at',
+            key: 'updatedAt',
             header: t('table.updated'),
             sortable: true,
             render: (r) =>
-              r.updated_at ? <TimeAgo date={r.updated_at} /> : '\u2014',
+              r.updatedAt ? <TimeAgo date={r.updatedAt} /> : '\u2014',
           },
           {
             key: '_actions',
@@ -340,7 +337,7 @@ function ConfigPolicies() {
               <Select
                 value={form.type}
                 onValueChange={(val) =>
-                  setForm((prev) => ({ ...prev, type: val ?? 'rate-limit' }))
+                  setForm((prev) => ({ ...prev, type: val ?? 'POLICY_TYPE_RATE_LIMIT' }))
                 }
               >
                 <SelectTrigger className="w-full">

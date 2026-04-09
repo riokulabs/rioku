@@ -18,23 +18,23 @@ function createWrapper() {
 const mockMeResponse: MeResponse = {
   session: {
     id: 'sess-1',
-    created_at: '2026-01-01T00:00:00Z',
-    last_active: '2026-01-01T01:00:00Z',
-    expires_at: '2026-01-02T00:00:00Z',
-    ip_address: '127.0.0.1',
+    createdAt: '2026-01-01T00:00:00Z',
+    lastActive: '2026-01-01T01:00:00Z',
+    expiresAt: '2026-01-02T00:00:00Z',
+    ipAddress: '127.0.0.1',
   },
   user: {
     id: 'user-1',
     username: 'testadmin',
-    display_name: 'Test Admin',
+    displayName: 'Test Admin',
     email: 'admin@test.com',
     roles: ['admin'],
     permissions: ['routes:read', 'routes:write', 'users:read', 'users:*'],
-    totp_enabled: false,
-    force_password_change: false,
+    totpEnabled: false,
+    forcePasswordChange: false,
     status: 'active',
-    last_login: '2026-01-01T00:00:00Z',
-    created_at: '2025-01-01T00:00:00Z',
+    lastLogin: '2026-01-01T00:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
   },
 }
 

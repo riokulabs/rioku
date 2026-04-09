@@ -27,12 +27,12 @@ function ProfilePage() {
   const queryClient = useQueryClient()
 
   // --- Profile form ---
-  const [displayName, setDisplayName] = useState(user.display_name ?? '')
+  const [displayName, setDisplayName] = useState(user.displayName ?? '')
   const [email, setEmail] = useState(user.email ?? '')
 
   const profileMutation = useMutation({
     mutationFn: () =>
-      apiClient.patch('/auth/me', { display_name: displayName, email }),
+      apiClient.patch('/auth/me', { displayName, email }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
       toast.success('Profile updated')
@@ -49,8 +49,8 @@ function ProfilePage() {
   const passwordMutation = useMutation({
     mutationFn: () =>
       apiClient.post('/auth/password', {
-        current_password: currentPw,
-        new_password: newPw,
+        currentPassword: currentPw,
+        newPassword: newPw,
       }),
     onSuccess: () => {
       toast.success('Password changed')
@@ -75,13 +75,13 @@ function ProfilePage() {
   // --- TOTP ---
   const [totpSetup, setTotpSetup] = useState<{
     secret: string
-    qr_uri: string
+    qrUri: string
   } | null>(null)
   const [totpVerifyCode, setTotpVerifyCode] = useState('')
 
   const totpSetupMutation = useMutation({
     mutationFn: () =>
-      apiClient.post<{ secret: string; qr_uri: string }>('/auth/totp/setup'),
+      apiClient.post<{ secret: string; qrUri: string }>('/auth/totp/setup'),
     onSuccess: (data) => setTotpSetup(data),
     onError: () => toast.error('Failed to start TOTP setup'),
   })
@@ -210,7 +210,7 @@ function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {user.totp_enabled ? (
+          {user.totpEnabled ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">Enabled</Badge>
@@ -234,7 +234,7 @@ function ProfilePage() {
                 6-digit code to confirm.
               </p>
               <div className="flex justify-center rounded bg-white p-4">
-                <QRCodeSVG value={totpSetup.qr_uri} size={200} />
+                <QRCodeSVG value={totpSetup.qrUri} size={200} />
               </div>
               <p className="text-xs text-muted-foreground">
                 Manual secret: <span className="font-mono">{totpSetup.secret}</span>

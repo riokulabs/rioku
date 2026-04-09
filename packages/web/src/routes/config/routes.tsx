@@ -74,10 +74,10 @@ function formFromRoute(route: RouteType): RouteFormState {
   const matcher = route.matchers[0]
   return {
     name: route.name,
-    hostPatterns: matcher?.host?.join(', ') ?? '',
-    pathPatterns: matcher?.path?.join(', ') ?? '',
-    methods: matcher?.method ?? [],
-    targetService: route.target_service,
+    hostPatterns: matcher?.hosts?.join(', ') ?? '',
+    pathPatterns: matcher?.paths?.map((p) => p.value).join(', ') ?? '',
+    methods: matcher?.methods ?? [],
+    targetService: route.serviceId,
     enabled: route.enabled,
   }
 }
@@ -97,8 +97,7 @@ function ConfigRoutes() {
 
   const saveMutation = useMutation({
     mutationFn: (payload: {
-      operation: 'create_route' | 'update_route'
-      route: Partial<RouteType>
+      route: { action: 'UPSERT'; route: Partial<RouteType> }
     }) => apiClient.post('/config', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
@@ -112,7 +111,7 @@ function ConfigRoutes() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiClient.post('/config', { operation: 'delete_route', route: { id } }),
+      apiClient.post('/config', { route: { action: 'DELETE', id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
       toast.success(t('messages.routeDeleted'))
@@ -126,8 +125,7 @@ function ConfigRoutes() {
   const toggleMutation = useMutation({
     mutationFn: (route: RouteType) =>
       apiClient.post('/config', {
-        operation: 'update_route',
-        route: { id: route.id, enabled: !route.enabled },
+        route: { action: 'UPSERT', route: { id: route.id, enabled: !route.enabled } },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
@@ -167,18 +165,19 @@ function ConfigRoutes() {
       name: form.name,
       matchers: [
         {
-          ...(hosts.length > 0 ? { host: hosts } : {}),
-          ...(paths.length > 0 ? { path: paths } : {}),
-          ...(form.methods.length > 0 ? { method: form.methods } : {}),
+          ...(hosts.length > 0 ? { hosts } : {}),
+          ...(paths.length > 0
+            ? { paths: paths.map((p) => ({ type: 'TYPE_PREFIX', value: p })) }
+            : {}),
+          ...(form.methods.length > 0 ? { methods: form.methods } : {}),
         },
       ],
-      target_service: form.targetService,
+      serviceId: form.targetService,
       enabled: form.enabled,
     }
 
     saveMutation.mutate({
-      operation: editingRoute ? 'update_route' : 'create_route',
-      route,
+      route: { action: 'UPSERT', route },
     })
   }
 
@@ -194,7 +193,7 @@ function ConfigRoutes() {
   const tableData = routes.map((r) => ({
     ...r,
     _matcherDisplay: r.matchers
-      .flatMap((m) => [...(m.host ?? []), ...(m.path ?? [])])
+      .flatMap((m) => [...(m.hosts ?? []), ...(m.paths ?? []).map((p) => p.value)])
       .join(', '),
   }))
 
@@ -227,14 +226,14 @@ function ConfigRoutes() {
             render: (r) => (
               <div className="flex flex-wrap gap-1">
                 {r.matchers.flatMap((m, mi) => [
-                  ...(m.host ?? []).map((h, hi) => (
+                  ...(m.hosts ?? []).map((h, hi) => (
                     <Badge key={`h-${mi}-${hi}`} variant="secondary">
                       {h}
                     </Badge>
                   )),
-                  ...(m.path ?? []).map((p, pi) => (
+                  ...(m.paths ?? []).map((p, pi) => (
                     <Badge key={`p-${mi}-${pi}`} variant="outline">
-                      {p}
+                      {p.value}
                     </Badge>
                   )),
                 ])}
@@ -242,11 +241,11 @@ function ConfigRoutes() {
             ),
           },
           {
-            key: 'target_service',
+            key: 'serviceId',
             header: t('table.targetService'),
             render: (r) => (
               <span className="font-mono text-sm text-muted-foreground">
-                {r.target_service}
+                {r.serviceId}
               </span>
             ),
           },
@@ -261,11 +260,11 @@ function ConfigRoutes() {
             ),
           },
           {
-            key: 'updated_at',
+            key: 'updatedAt',
             header: t('table.updated'),
             sortable: true,
             render: (r) =>
-              r.updated_at ? <TimeAgo date={r.updated_at} /> : '\u2014',
+              r.updatedAt ? <TimeAgo date={r.updatedAt} /> : '\u2014',
           },
           {
             key: '_actions',

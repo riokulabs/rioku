@@ -150,9 +150,9 @@ function Security() {
   const createKeyMutation = useMutation({
     mutationFn: (payload: {
       name: string
-      scopes: string[]
-      expiry: string
-    }) => apiClient.post<{ key: string; api_key: ApiKey }>('/keys', payload),
+      scopes: string
+      expires: string
+    }) => apiClient.post<{ key: string; apiKey: ApiKey }>('/keys', payload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
       toast.success(t('messages.keyCreated'))
@@ -201,8 +201,8 @@ function Security() {
   function handleCreateKey() {
     createKeyMutation.mutate({
       name: keyForm.name,
-      scopes: keyForm.scopes,
-      expiry: keyForm.expiry,
+      scopes: keyForm.scopes.join(','),
+      expires: keyForm.expiry,
     })
   }
 
@@ -281,23 +281,23 @@ function Security() {
                   ),
                 },
                 {
-                  key: 'ip_address',
+                  key: 'ipAddress',
                   header: 'IP address',
                   render: (r) => (
                     <span className="font-mono text-sm">
-                      {(r.ip_address as string) ?? '\u2014'}
+                      {(r.ipAddress as string) ?? '\u2014'}
                     </span>
                   ),
                 },
                 {
-                  key: 'last_active',
+                  key: 'lastActive',
                   header: 'Last active',
-                  render: (r) => <TimeAgo date={r.last_active as string} />,
+                  render: (r) => <TimeAgo date={r.lastActive as string} />,
                 },
                 {
-                  key: 'expires_at',
+                  key: 'expiresAt',
                   header: 'Expires',
-                  render: (r) => <TimeAgo date={r.expires_at as string} />,
+                  render: (r) => <TimeAgo date={r.expiresAt as string} />,
                 },
                 {
                   key: '_actions',
@@ -378,21 +378,21 @@ function Security() {
                 ),
               },
               {
-                key: 'expires_at',
+                key: 'expiresAt',
                 header: t('keys.expiresAt'),
                 render: (r) =>
-                  r.expires_at ? (
-                    <TimeAgo date={r.expires_at as string} />
+                  r.expiresAt ? (
+                    <TimeAgo date={r.expiresAt as string} />
                   ) : (
                     <span className="text-sm text-muted-foreground">Never</span>
                   ),
               },
               {
-                key: 'created_at',
+                key: 'createdAt',
                 header: 'Created',
                 sortable: true,
                 render: (r) =>
-                  r.created_at ? <TimeAgo date={r.created_at as string} /> : '\u2014',
+                  r.createdAt ? <TimeAgo date={r.createdAt as string} /> : '\u2014',
               },
               {
                 key: '_actions',

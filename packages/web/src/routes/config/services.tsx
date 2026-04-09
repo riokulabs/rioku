@@ -57,11 +57,11 @@ export const Route = createFileRoute('/config/services')({
 })
 
 const LB_POLICIES = [
-  'round-robin',
-  'random',
-  'first',
-  'least-conn',
-  'ip-hash',
+  'LB_POLICY_ROUND_ROBIN',
+  'LB_POLICY_RANDOM',
+  'LB_POLICY_FIRST',
+  'LB_POLICY_LEAST_CONN',
+  'LB_POLICY_IP_HASH',
 ] as const
 
 const TLS_MODES = ['none', 'tls', 'skip-verify'] as const
@@ -69,7 +69,7 @@ const TLS_MODES = ['none', 'tls', 'skip-verify'] as const
 interface UpstreamRow {
   address: string
   weight: number
-  tls_mode: string
+  tls: string
 }
 
 interface ServiceFormState {
@@ -81,25 +81,25 @@ interface ServiceFormState {
 const defaultUpstream: UpstreamRow = {
   address: '',
   weight: 1,
-  tls_mode: 'none',
+  tls: 'none',
 }
 
 const emptyForm: ServiceFormState = {
   name: '',
-  lbPolicy: 'round-robin',
+  lbPolicy: 'LB_POLICY_ROUND_ROBIN',
   upstreams: [{ ...defaultUpstream }],
 }
 
 function formFromService(service: Service): ServiceFormState {
   return {
     name: service.name,
-    lbPolicy: service.lb_policy,
+    lbPolicy: service.lbPolicy,
     upstreams:
       service.upstreams.length > 0
         ? service.upstreams.map((u) => ({
             address: u.address,
             weight: u.weight,
-            tls_mode: u.tls_mode,
+            tls: u.tls,
           }))
         : [{ ...defaultUpstream }],
   }
@@ -119,8 +119,7 @@ function ConfigServices() {
 
   const saveMutation = useMutation({
     mutationFn: (payload: {
-      operation: 'create_service' | 'update_service'
-      service: Partial<Service>
+      service: { action: 'UPSERT'; service: Partial<Service> }
     }) => apiClient.post('/config', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
@@ -139,8 +138,7 @@ function ConfigServices() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       apiClient.post('/config', {
-        operation: 'delete_service',
-        service: { id },
+        service: { action: 'DELETE', id },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
@@ -197,21 +195,22 @@ function ConfigServices() {
     const validUpstreams: Upstream[] = form.upstreams
       .filter((u) => u.address.trim() !== '')
       .map((u) => ({
+        id: '',
         address: u.address.trim(),
         weight: u.weight,
-        tls_mode: u.tls_mode,
+        tls: u.tls,
+        healthy: true,
       }))
 
     const service: Partial<Service> = {
       ...(editingService ? { id: editingService.id } : {}),
       name: form.name,
-      lb_policy: form.lbPolicy,
+      lbPolicy: form.lbPolicy,
       upstreams: validUpstreams,
     }
 
     saveMutation.mutate({
-      operation: editingService ? 'update_service' : 'create_service',
-      service,
+      service: { action: 'UPSERT', service },
     })
   }
 
@@ -257,10 +256,10 @@ function ConfigServices() {
             ),
           },
           {
-            key: 'lb_policy',
+            key: 'lbPolicy',
             header: t('table.lbPolicy'),
             render: (r) => (
-              <Badge variant="outline">{r.lb_policy}</Badge>
+              <Badge variant="outline">{r.lbPolicy}</Badge>
             ),
           },
           {
@@ -271,11 +270,11 @@ function ConfigServices() {
             ),
           },
           {
-            key: 'updated_at',
+            key: 'updatedAt',
             header: t('table.updated'),
             sortable: true,
             render: (r) =>
-              r.updated_at ? <TimeAgo date={r.updated_at} /> : '\u2014',
+              r.updatedAt ? <TimeAgo date={r.updatedAt} /> : '\u2014',
           },
           {
             key: '_actions',
@@ -360,7 +359,7 @@ function ConfigServices() {
               <Select
                 value={form.lbPolicy}
                 onValueChange={(val) =>
-                  setForm((prev) => ({ ...prev, lbPolicy: val ?? 'round-robin' }))
+                  setForm((prev) => ({ ...prev, lbPolicy: val ?? 'LB_POLICY_ROUND_ROBIN' }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -427,9 +426,9 @@ function ConfigServices() {
                         <div className="space-y-1">
                           <Label className="text-xs">{t('form.tlsMode')}</Label>
                           <Select
-                            value={upstream.tls_mode}
+                            value={upstream.tls}
                             onValueChange={(val) =>
-                              updateUpstream(index, 'tls_mode', val ?? 'none')
+                              updateUpstream(index, 'tls', val ?? 'none')
                             }
                           >
                             <SelectTrigger className="h-7 w-full text-xs">

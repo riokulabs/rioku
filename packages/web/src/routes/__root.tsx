@@ -62,7 +62,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     }
     const data: MeResponse = await res.json()
     if (
-      data.user.force_password_change &&
+      data.user.forcePasswordChange &&
       location.pathname !== '/change-password'
     ) {
       throw redirect({ to: '/change-password' })

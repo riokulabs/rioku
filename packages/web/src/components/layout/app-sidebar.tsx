@@ -206,7 +206,7 @@ function AppSidebar() {
                     <UserIcon className="size-3.5" />
                   </div>
                   <span className="truncate text-sm font-medium">
-                    {currentUser.display_name ?? currentUser.username}
+                    {currentUser.displayName ?? currentUser.username}
                   </span>
                 </Link>
                 <Button

@@ -96,7 +96,7 @@ function UsersPage() {
   // Create user form state
   const [createForm, setCreateForm] = useState({
     username: '',
-    display_name: '',
+    displayName: '',
     email: '',
     password: '',
   })
@@ -108,7 +108,7 @@ function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success('User created')
       setCreateOpen(false)
-      setCreateForm({ username: '', display_name: '', email: '', password: '' })
+      setCreateForm({ username: '', displayName: '', email: '', password: '' })
     },
     onError: (err: { detail?: string }) =>
       toast.error(err.detail ?? 'Failed to create user'),
@@ -180,11 +180,11 @@ function UsersPage() {
             ),
           },
           {
-            key: 'display_name',
+            key: 'displayName',
             header: 'Name',
             render: (r) => (
               <span className="text-sm">
-                {(r.display_name as string) ?? '\u2014'}
+                {(r.displayName as string) ?? '\u2014'}
               </span>
             ),
           },
@@ -211,11 +211,11 @@ function UsersPage() {
             ),
           },
           {
-            key: 'last_login',
+            key: 'lastLogin',
             header: 'Last login',
             render: (r) =>
-              r.last_login ? (
-                <TimeAgo date={r.last_login as string} />
+              r.lastLogin ? (
+                <TimeAgo date={r.lastLogin as string} />
               ) : (
                 <span className="text-sm text-muted-foreground">Never</span>
               ),
@@ -334,11 +334,11 @@ function UsersPage() {
               <Label htmlFor="new-display-name">Display name</Label>
               <Input
                 id="new-display-name"
-                value={createForm.display_name}
+                value={createForm.displayName}
                 onChange={(e) =>
                   setCreateForm((prev) => ({
                     ...prev,
-                    display_name: e.target.value,
+                    displayName: e.target.value,
                   }))
                 }
               />
@@ -427,13 +427,13 @@ interface EditUserSheetProps {
 
 function EditUserSheet({ user, roles, open, onClose }: EditUserSheetProps) {
   const queryClient = useQueryClient()
-  const [displayName, setDisplayName] = useState(user?.display_name ?? '')
+  const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
 
   const updateMutation = useMutation({
     mutationFn: () =>
       apiClient.patch(`/users/${user!.id}`, {
-        display_name: displayName,
+        displayName,
         email,
       }),
     onSuccess: () => {
@@ -446,7 +446,7 @@ function EditUserSheet({ user, roles, open, onClose }: EditUserSheetProps) {
 
   const assignRoleMutation = useMutation({
     mutationFn: (roleId: string) =>
-      apiClient.post(`/users/${user!.id}/roles`, { role_id: roleId }),
+      apiClient.post(`/users/${user!.id}/roles`, { roleId }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
     onError: () => toast.error('Failed to assign role'),
   })
