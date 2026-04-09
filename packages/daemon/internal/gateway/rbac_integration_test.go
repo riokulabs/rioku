@@ -33,7 +33,7 @@ func setupRBACTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatal(err)
@@ -57,14 +57,14 @@ func setupRBACTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 		PasswordChangedAt:   time.Now().UTC(),
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 
 	// Assign superadmin role to root user.
 	roles, err := tx.ListRoles(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	var superadminRoleID string
@@ -75,11 +75,11 @@ func setupRBACTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 		}
 	}
 	if superadminRoleID == "" {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal("superadmin role not found after migration")
 	}
 	if err := tx.AssignRole(ctx, rootUser.ID, superadminRoleID, ""); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -167,11 +167,11 @@ func TestRBACIntegration(t *testing.T) {
 			"username": "root",
 			"password": rootPassword,
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("root login: expected 200, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 	})
@@ -184,11 +184,11 @@ func TestRBACIntegration(t *testing.T) {
 			Description: "Can read roles and permissions but cannot manage them",
 			Permissions: []string{"roles:read"},
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusCreated {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("create role: expected 201, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 
@@ -222,7 +222,7 @@ func TestRBACIntegration(t *testing.T) {
 			PasswordChangedAt:   time.Now().UTC(),
 		})
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			t.Fatal(err)
 		}
 		newUserID = user.ID
@@ -236,11 +236,11 @@ func TestRBACIntegration(t *testing.T) {
 		resp := doJSON(t, rootClient, http.MethodPost, server.URL+"/api/v1/users/"+newUserID+"/roles", assignRoleRequest{
 			RoleID: editorRoleID,
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusCreated {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("assign role: expected 201, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 	})
@@ -257,11 +257,11 @@ func TestRBACIntegration(t *testing.T) {
 			"username": "editor-user",
 			"password": newUserPassword,
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("editor login: expected 200, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 	})
@@ -269,22 +269,22 @@ func TestRBACIntegration(t *testing.T) {
 	// Step 6: Verify the editor CAN access roles:read endpoints.
 	t.Run("editor_can_list_roles", func(t *testing.T) {
 		resp := doJSON(t, editorClient, http.MethodGet, server.URL+"/api/v1/roles", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("editor list roles: expected 200, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 	})
 
 	t.Run("editor_can_list_permissions", func(t *testing.T) {
 		resp := doJSON(t, editorClient, http.MethodGet, server.URL+"/api/v1/permissions", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("editor list permissions: expected 200, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 	})
@@ -296,7 +296,7 @@ func TestRBACIntegration(t *testing.T) {
 			Description: "This role creation should be forbidden",
 			Permissions: []string{"roles:read"},
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("editor create role: expected 403, got %d", resp.StatusCode)
@@ -305,7 +305,7 @@ func TestRBACIntegration(t *testing.T) {
 
 	t.Run("editor_cannot_delete_role", func(t *testing.T) {
 		resp := doJSON(t, editorClient, http.MethodDelete, server.URL+"/api/v1/roles/"+editorRoleID, nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("editor delete role: expected 403, got %d", resp.StatusCode)
@@ -316,7 +316,7 @@ func TestRBACIntegration(t *testing.T) {
 		resp := doJSON(t, editorClient, http.MethodPost, server.URL+"/api/v1/users/"+newUserID+"/roles", assignRoleRequest{
 			RoleID: editorRoleID,
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("editor assign role: expected 403, got %d", resp.StatusCode)
@@ -327,7 +327,7 @@ func TestRBACIntegration(t *testing.T) {
 	t.Run("revoke_and_verify_denied", func(t *testing.T) {
 		// Revoke role as root.
 		resp := doJSON(t, rootClient, http.MethodDelete, server.URL+"/api/v1/users/"+newUserID+"/roles/"+editorRoleID, nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusNoContent {
 			t.Fatalf("revoke role: expected 204, got %d", resp.StatusCode)
@@ -341,7 +341,7 @@ func TestRBACIntegration(t *testing.T) {
 			"username": "editor-user",
 			"password": newUserPassword,
 		})
-		defer loginResp.Body.Close()
+		defer func() { _ = loginResp.Body.Close() }()
 
 		if loginResp.StatusCode != http.StatusOK {
 			t.Fatalf("editor re-login: expected 200, got %d", loginResp.StatusCode)
@@ -349,7 +349,7 @@ func TestRBACIntegration(t *testing.T) {
 
 		// Now the editor should be denied because roles:read was revoked.
 		rolesResp := doJSON(t, editorClient2, http.MethodGet, server.URL+"/api/v1/roles", nil)
-		defer rolesResp.Body.Close()
+		defer func() { _ = rolesResp.Body.Close() }()
 
 		if rolesResp.StatusCode != http.StatusForbidden {
 			t.Fatalf("revoked editor list roles: expected 403, got %d", rolesResp.StatusCode)
@@ -376,7 +376,7 @@ func TestSecurityHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		checks := map[string]string{
 			"X-Content-Type-Options": "nosniff",
@@ -417,7 +417,7 @@ func TestSecurityHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusNoContent {
 			t.Fatalf("CORS preflight: expected 204, got %d", resp.StatusCode)
@@ -461,7 +461,7 @@ func TestSecurityHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Disallowed origin should not get CORS headers.
 		origin := resp.Header.Get("Access-Control-Allow-Origin")
@@ -483,7 +483,7 @@ func TestRateLimiting(t *testing.T) {
 	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatal(err)
@@ -528,7 +528,7 @@ func TestRateLimiting(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			// Verify rate limit headers are present.
 			if resp.Header.Get("X-RateLimit-Limit") != "5" {
@@ -545,7 +545,7 @@ func TestRateLimiting(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusTooManyRequests {
 			t.Fatalf("expected 429, got %d", resp.StatusCode)

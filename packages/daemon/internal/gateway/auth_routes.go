@@ -60,7 +60,7 @@ func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Invalid request body",
 				Status:   400,
@@ -73,7 +73,7 @@ func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 		if req.Token == "" {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Validation failed",
 				Status:   400,
@@ -98,7 +98,7 @@ func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeUnauth,
 				Title:    "Authentication failed",
 				Status:   401,
@@ -110,7 +110,7 @@ func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(pair)
+		_ = json.NewEncoder(w).Encode(pair)
 	}
 }
 
@@ -125,7 +125,7 @@ func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Invalid request body",
 				Status:   400,
@@ -138,7 +138,7 @@ func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 		if req.RefreshToken == "" {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Validation failed",
 				Status:   400,
@@ -156,7 +156,7 @@ func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeUnauth,
 				Title:    "Refresh failed",
 				Status:   401,
@@ -168,7 +168,7 @@ func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(pair)
+		_ = json.NewEncoder(w).Encode(pair)
 	}
 }
 
@@ -239,7 +239,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 				"Failed to process login request", r.URL.Path, nil)
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		// Look up user (case-insensitive handled by store).
 		user, err := tx.GetUserByUsername(ctx, req.Username)
@@ -247,7 +247,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			// Hash the supplied password against the dummy hash so that the
 			// response time is indistinguishable from a real password check.
 			// This closes the timing side-channel for username enumeration.
-			auth.VerifyPassword(req.Password, dummyPasswordHash)
+			_, _ = auth.VerifyPassword(req.Password, dummyPasswordHash)
 
 			// Generic 401 to avoid username enumeration.
 			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
@@ -300,7 +300,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 				// created yet.
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(totpRequiredResponse{
+				_ = json.NewEncoder(w).Encode(totpRequiredResponse{
 					RequiresTOTP: true,
 					UserID:       user.ID,
 				})
@@ -381,7 +381,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -415,7 +415,7 @@ func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
 			// No cookie — idempotent success.
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+			_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 			return
 		}
 
@@ -425,7 +425,7 @@ func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -486,7 +486,7 @@ func handleMe(st store.Driver) http.HandlerFunc {
 				"Failed to load user", r.URL.Path, nil)
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
@@ -546,7 +546,7 @@ func handleMe(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -608,7 +608,7 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 				"Failed to process password change", r.URL.Path, nil)
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
@@ -663,7 +663,7 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -717,7 +717,7 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerF
 				"Failed to process profile update", r.URL.Path, nil)
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
@@ -765,7 +765,7 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerF
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -780,7 +780,7 @@ func writeProblem(w http.ResponseWriter, status int, errType, title, detail, ins
 		w.Header().Set("WWW-Authenticate", "Bearer")
 	}
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(ProblemDetail{
+	_ = json.NewEncoder(w).Encode(ProblemDetail{
 		Type:     errType,
 		Title:    title,
 		Status:   status,
@@ -825,7 +825,7 @@ func handleListSessions(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		sessions, err := tx.ListSessionsByUser(ctx, userID)
 		if err != nil {
@@ -851,7 +851,7 @@ func handleListSessions(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -886,7 +886,7 @@ func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.Hand
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		targetSession, err := tx.GetSession(ctx, sessionID)
 		if err != nil {
@@ -923,6 +923,6 @@ func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.Hand
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }

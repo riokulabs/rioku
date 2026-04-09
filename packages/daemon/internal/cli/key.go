@@ -52,7 +52,7 @@ func newKeyCreateCmd() *cobra.Command {
 				ID  string `json:"id"`
 				Key string `json:"key"`
 			}
-			json.Unmarshal(data, &result)
+			_ = json.Unmarshal(data, &result)
 
 			fmt.Printf("API key created:\n")
 			fmt.Printf("  ID:  %s\n", result.ID)
@@ -65,7 +65,7 @@ func newKeyCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "key name (required)")
 	cmd.Flags().StringVar(&scopes, "scopes", "admin", "comma-separated scopes")
 	cmd.Flags().StringVar(&expires, "expires", "", "expiration duration (e.g. 30d, 8760h)")
-	cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("name")
 
 	return cmd
 }
@@ -89,7 +89,7 @@ func newKeyListCmd() *cobra.Command {
 				Scopes    []string `json:"scopes"`
 				CreatedAt string   `json:"created_at"`
 			}
-			json.Unmarshal(data, &keys)
+			_ = json.Unmarshal(data, &keys)
 
 			headers := []string{"ID", "NAME", "SCOPES", "CREATED"}
 			var rows [][]string

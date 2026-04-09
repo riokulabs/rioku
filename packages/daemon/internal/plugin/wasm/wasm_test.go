@@ -35,7 +35,7 @@ func TestLoadAndInvokePlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	wasmBytes := loadTestPlugin(t, "plugin_v1")
 	plugin, err := host.LoadPlugin(ctx, "test-plugin", wasmBytes, []byte(`{"key":"value"}`), 2)
@@ -79,7 +79,7 @@ func TestHotSwap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	v1 := loadTestPlugin(t, "plugin_v1")
 	v2 := loadTestPlugin(t, "plugin_v2")
@@ -123,7 +123,7 @@ func TestConcurrentRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	wasmBytes := loadTestPlugin(t, "plugin_v1")
 	plugin, err := host.LoadPlugin(ctx, "concurrent-plugin", wasmBytes, nil, 32)
@@ -166,7 +166,7 @@ func TestUnloadPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	wasmBytes := loadTestPlugin(t, "plugin_v1")
 	_, err = host.LoadPlugin(ctx, "unload-me", wasmBytes, nil, 2)
@@ -193,7 +193,7 @@ func TestPoolDrain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	wasmBytes := loadTestPlugin(t, "plugin_v1")
 	plugin, err := host.LoadPlugin(ctx, "drain-plugin", wasmBytes, nil, 4)
@@ -231,7 +231,7 @@ func BenchmarkHandleRequest(b *testing.B) {
 	if err != nil {
 		b.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	wasmBytes, err := os.ReadFile("testdata/plugin_v1.wasm")
 	if err != nil {
@@ -247,7 +247,7 @@ func BenchmarkHandleRequest(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rc := NewRequestContext(req, nil)
-		plugin.HandleRequest(ctx, rc)
+		_, _ = plugin.HandleRequest(ctx, rc)
 	}
 }
 
@@ -257,7 +257,7 @@ func BenchmarkHandleRequestParallel(b *testing.B) {
 	if err != nil {
 		b.Fatalf("create host: %v", err)
 	}
-	defer host.Close(ctx)
+	defer func() { _ = host.Close(ctx) }()
 
 	wasmBytes, err := os.ReadFile("testdata/plugin_v1.wasm")
 	if err != nil {
@@ -274,7 +274,7 @@ func BenchmarkHandleRequestParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			rc := NewRequestContext(req, nil)
-			plugin.HandleRequest(ctx, rc)
+			_, _ = plugin.HandleRequest(ctx, rc)
 		}
 	})
 }

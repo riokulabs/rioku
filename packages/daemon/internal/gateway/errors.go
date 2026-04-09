@@ -105,7 +105,7 @@ func ErrorHandler(ctx context.Context, mux *runtime.ServeMux, _ runtime.Marshale
 
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(mapping.status)
-	json.NewEncoder(w).Encode(problem)
+	_ = json.NewEncoder(w).Encode(problem)
 }
 
 // getOrCreateRequestID returns the X-Request-ID from the request or generates one.

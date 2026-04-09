@@ -36,18 +36,18 @@ func printJSON(data any) error {
 func printYAML(data any) error {
 	enc := yaml.NewEncoder(os.Stdout)
 	enc.SetIndent(2)
-	defer enc.Close()
+	defer func() { _ = enc.Close() }()
 	return enc.Encode(data)
 }
 
 // printTable outputs aligned columns with headers.
 func printTable(headers []string, rows [][]string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, strings.Join(headers, "\t"))
+	_, _ = fmt.Fprintln(w, strings.Join(headers, "\t"))
 	for _, row := range rows {
-		fmt.Fprintln(w, strings.Join(row, "\t"))
+		_, _ = fmt.Fprintln(w, strings.Join(row, "\t"))
 	}
-	w.Flush()
+	_ = w.Flush()
 }
 
 // printText outputs tab-separated values (one record per line, no headers).
@@ -76,26 +76,6 @@ func printRows(headers []string, rows [][]string, rawData any) error {
 
 // printSingle prints a single resource in the appropriate format.
 // For table mode, prints key-value pairs.
-func printSingle(fields map[string]string, rawData any) error {
-	switch flagOutput {
-	case "json":
-		return printJSON(rawData)
-	case "yaml":
-		return printYAML(rawData)
-	case "text":
-		for _, v := range fields {
-			fmt.Println(v)
-		}
-		return nil
-	default: // table
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		for k, v := range fields {
-			fmt.Fprintf(w, "%s:\t%s\n", k, v)
-		}
-		w.Flush()
-		return nil
-	}
-}
 
 // truncate shortens a string to max length with ellipsis.
 func truncate(s string, max int) string {

@@ -53,7 +53,7 @@ func newRouteListCmd() *cobra.Command {
 			var routes []routeSummary
 			for _, raw := range snap.Routes {
 				var r routeSummary
-				json.Unmarshal(raw, &r)
+				_ = json.Unmarshal(raw, &r)
 				routes = append(routes, r)
 			}
 
@@ -84,13 +84,13 @@ func newRouteGetCmd() *cobra.Command {
 			var snap struct {
 				Routes []json.RawMessage `json:"routes"`
 			}
-			json.Unmarshal(data, &snap)
+			_ = json.Unmarshal(data, &snap)
 
 			for _, raw := range snap.Routes {
 				var r struct {
 					ID string `json:"id"`
 				}
-				json.Unmarshal(raw, &r)
+				_ = json.Unmarshal(raw, &r)
 				if r.ID == args[0] {
 					return printOutput(json.RawMessage(raw))
 				}
@@ -165,7 +165,7 @@ func newRouteCreateCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&matchMethod, "match-method", nil, "match HTTP methods")
 	cmd.Flags().StringVar(&serviceID, "service", "", "target service ID")
 	cmd.Flags().StringVar(&upstream, "upstream", "", "direct upstream address (alternative to --service)")
-	cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("name")
 
 	return cmd
 }

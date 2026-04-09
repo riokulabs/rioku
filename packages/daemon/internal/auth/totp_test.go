@@ -182,7 +182,7 @@ func TestGenerateBackupCodes(t *testing.T) {
 		}
 		// All chars must be [A-Z0-9].
 		for _, c := range code {
-			if !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			if (c < 'A' || c > 'Z') && (c < '0' || c > '9') {
 				t.Errorf("code[%d] contains invalid char %c: %q", i, c, code)
 			}
 		}

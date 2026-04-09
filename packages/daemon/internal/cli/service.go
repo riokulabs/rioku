@@ -39,7 +39,7 @@ func newServiceListCmd() *cobra.Command {
 			var snap struct {
 				Services []json.RawMessage `json:"services"`
 			}
-			json.Unmarshal(data, &snap)
+			_ = json.Unmarshal(data, &snap)
 
 			type svcSummary struct {
 				ID       string `json:"id"`
@@ -50,7 +50,7 @@ func newServiceListCmd() *cobra.Command {
 			var services []svcSummary
 			for _, raw := range snap.Services {
 				var s svcSummary
-				json.Unmarshal(raw, &s)
+				_ = json.Unmarshal(raw, &s)
 				services = append(services, s)
 			}
 
@@ -81,13 +81,13 @@ func newServiceGetCmd() *cobra.Command {
 			var snap struct {
 				Services []json.RawMessage `json:"services"`
 			}
-			json.Unmarshal(data, &snap)
+			_ = json.Unmarshal(data, &snap)
 
 			for _, raw := range snap.Services {
 				var s struct {
 					ID string `json:"id"`
 				}
-				json.Unmarshal(raw, &s)
+				_ = json.Unmarshal(raw, &s)
 				if s.ID == args[0] {
 					return printOutput(json.RawMessage(raw))
 				}
@@ -150,8 +150,8 @@ func newServiceCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "service name (required)")
 	cmd.Flags().StringSliceVar(&upstreams, "upstream", nil, "upstream address (repeatable)")
 	cmd.Flags().StringVar(&lbPolicy, "lb", "round-robin", "load balancing policy")
-	cmd.MarkFlagRequired("name")
-	cmd.MarkFlagRequired("upstream")
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("upstream")
 
 	return cmd
 }

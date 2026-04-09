@@ -39,7 +39,7 @@ func runStop() error {
 
 	if !daemon.IsProcessRunning(pid) {
 		// Stale PID file.
-		daemon.RemovePIDFile(pidFile)
+		_ = daemon.RemovePIDFile(pidFile)
 		return fmt.Errorf("daemon is not running (stale pid file, cleaned up)")
 	}
 
@@ -65,7 +65,7 @@ func runStop() error {
 
 	// Force kill.
 	fmt.Println("Daemon did not stop gracefully, sending SIGKILL...")
-	proc.Signal(syscall.SIGKILL)
+	_ = proc.Signal(syscall.SIGKILL)
 	return nil
 }
 

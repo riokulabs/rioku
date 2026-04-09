@@ -93,7 +93,7 @@ func newAuditListCmd() *cobra.Command {
 				}
 
 				var r auditRow
-				json.Unmarshal(entry, &r)
+				_ = json.Unmarshal(entry, &r)
 				parsed = append(parsed, r)
 				rows = append(rows, []string{
 					truncate(r.ID, 12),

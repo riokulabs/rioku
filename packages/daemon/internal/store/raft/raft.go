@@ -2,7 +2,6 @@ package raft
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -82,7 +81,7 @@ func (d *Driver) Open(ctx context.Context, cfg store.DriverConfig) error {
 
 	d.fsm = &fsm{db: fsmDB, notify: d.fsmChan}
 	if err := d.fsm.initBuckets(); err != nil {
-		fsmDB.Close()
+		_ = fsmDB.Close()
 		return fmt.Errorf("raft: init buckets: %w", err)
 	}
 
@@ -90,7 +89,7 @@ func (d *Driver) Open(ctx context.Context, cfg store.DriverConfig) error {
 	raftDBPath := filepath.Join(d.config.DataDir, "raft.db")
 	boltStore, err := raftboltdb.NewBoltStore(raftDBPath)
 	if err != nil {
-		fsmDB.Close()
+		_ = fsmDB.Close()
 		return fmt.Errorf("raft: open bolt store: %w", err)
 	}
 	d.logStore = boltStore
@@ -99,16 +98,16 @@ func (d *Driver) Open(ctx context.Context, cfg store.DriverConfig) error {
 	// Snapshot store.
 	d.snapStore, err = hraft.NewFileSnapshotStore(d.config.DataDir, 2, os.Stderr)
 	if err != nil {
-		boltStore.Close()
-		fsmDB.Close()
+		_ = boltStore.Close()
+		_ = fsmDB.Close()
 		return fmt.Errorf("raft: snapshot store: %w", err)
 	}
 
 	// Transport.
 	addr, err := net.ResolveTCPAddr("tcp", d.config.BindAddr)
 	if err != nil {
-		boltStore.Close()
-		fsmDB.Close()
+		_ = boltStore.Close()
+		_ = fsmDB.Close()
 		return fmt.Errorf("raft: resolve bind addr: %w", err)
 	}
 
@@ -125,8 +124,8 @@ func (d *Driver) Open(ctx context.Context, cfg store.DriverConfig) error {
 		os.Stderr,
 	)
 	if err != nil {
-		boltStore.Close()
-		fsmDB.Close()
+		_ = boltStore.Close()
+		_ = fsmDB.Close()
 		return fmt.Errorf("raft: transport: %w", err)
 	}
 	d.transport = transport
@@ -138,9 +137,9 @@ func (d *Driver) Open(ctx context.Context, cfg store.DriverConfig) error {
 	// Create raft instance.
 	d.raft, err = hraft.NewRaft(raftCfg, d.fsm, d.logStore, d.stableStore, d.snapStore, d.transport)
 	if err != nil {
-		d.transport.Close()
-		boltStore.Close()
-		fsmDB.Close()
+		_ = d.transport.Close()
+		_ = boltStore.Close()
+		_ = fsmDB.Close()
 		return fmt.Errorf("raft: create raft: %w", err)
 	}
 
@@ -369,41 +368,5 @@ func (d *Driver) relayEvents() {
 }
 
 // readEntity reads a single entity from a bucket by ID and unmarshals it.
-func readEntity[T any](d *Driver, bucket, id string) (*T, error) {
-	var result T
-	err := d.readFSM(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return fmt.Errorf("bucket %q not found", bucket)
-		}
-		raw := b.Get([]byte(id))
-		if raw == nil {
-			return fmt.Errorf("%s %q not found", bucket, id)
-		}
-		return json.Unmarshal(raw, &result)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
 
 // listEntities lists all entities from a bucket.
-func listEntities[T any](d *Driver, bucket string) ([]*T, error) {
-	var results []*T
-	err := d.readFSM(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return nil // bucket doesn't exist yet, return empty
-		}
-		return b.ForEach(func(k, v []byte) error {
-			var item T
-			if err := json.Unmarshal(v, &item); err != nil {
-				return err
-			}
-			results = append(results, &item)
-			return nil
-		})
-	})
-	return results, err
-}

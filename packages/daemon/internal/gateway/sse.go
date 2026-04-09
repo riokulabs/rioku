@@ -50,7 +50,7 @@ func handleConfigSSE(engine *config.Engine) http.HandlerFunc {
 					log.Printf("sse: marshal event: %v", err)
 					continue
 				}
-				fmt.Fprintf(w, "event: config_change\ndata: %s\n\n", data)
+				_, _ = fmt.Fprintf(w, "event: config_change\ndata: %s\n\n", data)
 				flusher.Flush()
 			}
 		}

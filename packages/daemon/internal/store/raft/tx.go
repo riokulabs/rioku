@@ -202,7 +202,7 @@ func (t *raftTx) ListServices(_ context.Context) ([]*riokuv1.Service, error) {
 
 			// Fetch upstreams for this service.
 			ub := tx.Bucket([]byte(bucketUpstreams))
-			ub.ForEach(func(uk, uv []byte) error {
+			_ = ub.ForEach(func(uk, uv []byte) error {
 				var entry struct {
 					ServiceID string `json:"service_id"`
 				}

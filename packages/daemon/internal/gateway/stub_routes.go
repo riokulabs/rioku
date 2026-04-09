@@ -44,21 +44,21 @@ func handleStubCluster(cfg *config.Config) http.HandlerFunc {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
 func handleStubEmptyObject() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("{}"))
+		_, _ = w.Write([]byte("{}"))
 	}
 }
 
 func handleStubEmptyArray() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("[]"))
+		_, _ = w.Write([]byte("[]"))
 	}
 }
 
@@ -77,7 +77,7 @@ func handleStubSettings(cfg *config.Config) http.HandlerFunc {
 			"log_level":              cfg.LogLevel,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 

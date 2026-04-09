@@ -34,7 +34,11 @@ func TestSingleNodeCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() {
+		if err := dc.Shutdown(ctx); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
 
 	// First get — should call getter.
 	data, err := dc.Get(ctx, "key1")
@@ -78,10 +82,16 @@ func TestCacheRemove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() {
+		if err := dc.Shutdown(ctx); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
 
 	// Populate.
-	dc.Get(ctx, "key1")
+	if _, err := dc.Get(ctx, "key1"); err != nil {
+		t.Fatalf("get: %v", err)
+	}
 	if getterCalls.Load() != 1 {
 		t.Fatalf("expected 1 getter call")
 	}
@@ -118,7 +128,11 @@ func TestCacheExplicitSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() {
+		if err := dc.Shutdown(ctx); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
 
 	// Explicitly set.
 	if err := dc.Set(ctx, "key1", []byte("explicit-value"), time.Minute); err != nil {
@@ -156,7 +170,7 @@ func TestSingleFlight(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() { _ = dc.Shutdown(ctx) }()
 
 	// Fire 50 concurrent requests for the same key.
 	const concurrent = 50
@@ -201,12 +215,18 @@ func TestCacheStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() { _ = dc.Shutdown(ctx) }()
 
 	// Populate and read.
-	dc.Get(ctx, "key1")
-	dc.Get(ctx, "key1") // L1 hit
-	dc.Get(ctx, "key2")
+	if _, err := dc.Get(ctx, "key1"); err != nil {
+		t.Fatalf("get key1: %v", err)
+	}
+	if _, err := dc.Get(ctx, "key1"); err != nil { // L1 hit
+		t.Fatalf("get key1 (L1 hit): %v", err)
+	}
+	if _, err := dc.Get(ctx, "key2"); err != nil {
+		t.Fatalf("get key2: %v", err)
+	}
 
 	stats := dc.Stats()
 	t.Logf("stats: gets=%d cacheHits=%d loads=%d L1Size=%d",
@@ -247,7 +267,7 @@ func TestThreeNodePeerFetch(t *testing.T) {
 	}
 	defer func() {
 		for _, c := range caches {
-			c.Shutdown(ctx)
+			_ = c.Shutdown(ctx)
 		}
 	}()
 
@@ -295,14 +315,16 @@ func BenchmarkL1Hit(b *testing.B) {
 	if err != nil {
 		b.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() { _ = dc.Shutdown(ctx) }()
 
 	// Warm L1.
-	dc.Get(ctx, "bench-key")
+	if _, err := dc.Get(ctx, "bench-key"); err != nil {
+		b.Fatalf("warm L1: %v", err)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		dc.Get(ctx, "bench-key")
+		_, _ = dc.Get(ctx, "bench-key")
 	}
 }
 
@@ -321,13 +343,15 @@ func BenchmarkGroupcacheHit(b *testing.B) {
 	if err != nil {
 		b.Fatalf("create cache: %v", err)
 	}
-	defer dc.Shutdown(ctx)
+	defer func() { _ = dc.Shutdown(ctx) }()
 
 	// Populate groupcache but use different keys to evict from L1.
-	dc.Get(ctx, "warmup")
+	if _, err := dc.Get(ctx, "warmup"); err != nil {
+		b.Fatalf("warmup: %v", err)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		dc.Get(ctx, fmt.Sprintf("key-%d", i%100))
+		_, _ = dc.Get(ctx, fmt.Sprintf("key-%d", i%100))
 	}
 }

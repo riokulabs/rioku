@@ -30,7 +30,7 @@ func benchEngine(b *testing.B) *Engine {
 	if err := d.Migrate(ctx, store.MigrateUp); err != nil {
 		b.Fatal(err)
 	}
-	b.Cleanup(func() { d.Close() })
+	b.Cleanup(func() { _ = d.Close() })
 
 	compiler := caddy.NewCompiler(
 		[]string{":443"},

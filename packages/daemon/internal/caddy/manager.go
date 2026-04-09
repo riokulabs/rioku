@@ -117,12 +117,12 @@ func (m *Manager) Stop(ctx context.Context) error {
 		m.running = false
 		return nil
 	case <-time.After(10 * time.Second):
-		m.cmd.Process.Kill()
+		_ = m.cmd.Process.Kill()
 		<-m.done // wait for monitor goroutine to finish
 		m.running = false
 		return fmt.Errorf("caddy: force killed after timeout")
 	case <-ctx.Done():
-		m.cmd.Process.Kill()
+		_ = m.cmd.Process.Kill()
 		<-m.done
 		m.running = false
 		return ctx.Err()
@@ -149,7 +149,7 @@ func (m *Manager) PushConfig(ctx context.Context, configJSON []byte) error {
 	if err != nil {
 		return fmt.Errorf("push config: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -169,7 +169,7 @@ func (m *Manager) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return nil
 }
 
@@ -180,7 +180,7 @@ func (m *Manager) waitReady(timeout time.Duration) error {
 		url := fmt.Sprintf("http://%s/config/", m.cfg.AdminAddr)
 		resp, err := httpClient.Get(url)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil
 		}
 		time.Sleep(100 * time.Millisecond)

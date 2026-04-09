@@ -55,7 +55,7 @@ func newInstancePool(ctx context.Context, rt wazero.Runtime, compiled wazero.Com
 		if err != nil {
 			// Close any already-created instances.
 			for _, existing := range p.free {
-				existing.mod.Close(ctx)
+				_ = existing.mod.Close(ctx)
 			}
 			return nil, fmt.Errorf("pre-warm instance %d: %w", i, err)
 		}
@@ -120,7 +120,7 @@ func (p *InstancePool) Release(inst *instance) {
 
 	if p.closed {
 		// Pool is draining — close the instance and signal if all done.
-		inst.mod.Close(context.Background())
+		_ = inst.mod.Close(context.Background())
 		if p.inUse == 0 {
 			select {
 			case <-p.drainCh:
@@ -135,7 +135,7 @@ func (p *InstancePool) Release(inst *instance) {
 	if len(p.free) < p.size {
 		p.free = append(p.free, inst)
 	} else {
-		inst.mod.Close(context.Background())
+		_ = inst.mod.Close(context.Background())
 	}
 }
 
@@ -151,7 +151,7 @@ func (p *InstancePool) Drain(ctx context.Context) {
 
 	// Close all free instances.
 	for _, inst := range p.free {
-		inst.mod.Close(ctx)
+		_ = inst.mod.Close(ctx)
 	}
 	p.free = nil
 

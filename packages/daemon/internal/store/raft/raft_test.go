@@ -105,21 +105,6 @@ func (c *testCluster) waitForLeader(nodeIdx int, timeout time.Duration) {
 	c.t.Fatalf("node %d did not become leader within %v", nodeIdx, timeout)
 }
 
-func (c *testCluster) waitForAnyLeader(timeout time.Duration) int {
-	c.t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		for i, n := range c.nodes {
-			if n.raft != nil && n.IsLeader() {
-				return i
-			}
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	c.t.Fatalf("no leader elected within %v", timeout)
-	return -1
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -173,7 +158,7 @@ func TestClusterBootstrapAndRoute(t *testing.T) {
 		if got.GetName() != "test-route" {
 			t.Errorf("node %d: expected name 'test-route', got %q", i, got.GetName())
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 	}
 }
 
@@ -197,7 +182,9 @@ func TestLeaderFailover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create route: %v", err)
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	// Wait for replication.
 	time.Sleep(500 * time.Millisecond)
@@ -243,7 +230,9 @@ func TestLeaderFailover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create route on new leader: %v", err)
 	}
-	tx2.Commit()
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	t.Logf("created route after failover: id=%s", route2.GetId())
 
@@ -253,7 +242,7 @@ func TestLeaderFailover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list routes: %v", err)
 	}
-	rtx.Rollback()
+	_ = rtx.Rollback()
 
 	if len(routes) != 2 {
 		t.Fatalf("expected 2 routes, got %d", len(routes))
@@ -278,7 +267,9 @@ func TestRouteListAndDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create route %d: %v", i, err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("commit route %d: %v", i, err)
+		}
 	}
 
 	// List routes.
@@ -287,7 +278,7 @@ func TestRouteListAndDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list routes: %v", err)
 	}
-	rtx.Rollback()
+	_ = rtx.Rollback()
 
 	if len(routes) != 5 {
 		t.Fatalf("expected 5 routes, got %d", len(routes))
@@ -298,12 +289,14 @@ func TestRouteListAndDelete(t *testing.T) {
 	if err := dtx.DeleteRoute(ctx, routes[0].GetId()); err != nil {
 		t.Fatalf("delete route: %v", err)
 	}
-	dtx.Commit()
+	if err := dtx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	// Verify 4 remain.
 	rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
 	routes2, _ := rtx2.ListRoutes(ctx)
-	rtx2.Rollback()
+	_ = rtx2.Rollback()
 
 	if len(routes2) != 4 {
 		t.Fatalf("expected 4 routes after delete, got %d", len(routes2))
@@ -348,7 +341,9 @@ func TestNotify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create route: %v", err)
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	select {
 	case evt := <-ch:
@@ -380,7 +375,7 @@ func BenchmarkWriteRoute(b *testing.B) {
 	if err := d.Open(ctx, store.DriverConfig{}); err != nil {
 		b.Fatalf("open: %v", err)
 	}
-	defer d.Close()
+	defer func() { _ = d.Close() }()
 
 	// Wait for leader.
 	deadline := time.Now().Add(10 * time.Second)
@@ -401,7 +396,7 @@ func BenchmarkWriteRoute(b *testing.B) {
 		if err != nil {
 			b.Fatalf("create route: %v", err)
 		}
-		tx.Commit()
+		_ = tx.Commit()
 	}
 }
 
@@ -421,7 +416,7 @@ func BenchmarkReadRoute(b *testing.B) {
 	if err := d.Open(ctx, store.DriverConfig{}); err != nil {
 		b.Fatalf("open: %v", err)
 	}
-	defer d.Close()
+	defer func() { _ = d.Close() }()
 
 	deadline := time.Now().Add(10 * time.Second)
 	for !d.IsLeader() && time.Now().Before(deadline) {
@@ -431,7 +426,7 @@ func BenchmarkReadRoute(b *testing.B) {
 	// Seed a route.
 	tx, _ := d.Begin(ctx, store.TxOptions{})
 	route, _ := tx.CreateRoute(ctx, &riokuv1.Route{Name: "bench-read", Enabled: true})
-	tx.Commit()
+	_ = tx.Commit()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -440,6 +435,6 @@ func BenchmarkReadRoute(b *testing.B) {
 		if err != nil {
 			b.Fatalf("get route: %v", err)
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 	}
 }

@@ -30,7 +30,7 @@ func createTestUserFast(t *testing.T, drv store.Driver, username, precomputedHas
 		Status:       "active",
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("CreateUser: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -254,7 +254,7 @@ func TestSessionCleanup100K(t *testing.T) {
 				LastActive:  time.Now().Add(-2 * time.Hour).UTC(),
 			})
 			if err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 				t.Fatalf("create expired session %d: %v", idx, err)
 			}
 		}

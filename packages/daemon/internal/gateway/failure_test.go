@@ -34,7 +34,7 @@ func TestKeyRotationDuringSessions(t *testing.T) {
 	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatal(err)
 	}
@@ -57,18 +57,18 @@ func TestKeyRotationDuringSessions(t *testing.T) {
 		PasswordChangedAt:   time.Now().UTC(),
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	roles, err := tx.ListRoles(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	for _, role := range roles {
 		if role.Name == "superadmin" {
 			if err := tx.AssignRole(ctx, rootUser.ID, role.ID, ""); err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 				t.Fatal(err)
 			}
 			break
@@ -107,7 +107,7 @@ func TestKeyRotationDuringSessions(t *testing.T) {
 	client := &http.Client{Jar: jar}
 
 	var buf bytes.Buffer
-	json.NewEncoder(&buf).Encode(map[string]string{
+	_ = json.NewEncoder(&buf).Encode(map[string]string{
 		"username": "root",
 		"password": rootPassword,
 	})
@@ -117,7 +117,7 @@ func TestKeyRotationDuringSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login: expected 200, got %d", resp.StatusCode)
 	}
@@ -139,7 +139,7 @@ func TestKeyRotationDuringSessions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer meResp.Body.Close()
+		defer func() { _ = meResp.Body.Close() }()
 
 		if meResp.StatusCode != http.StatusOK {
 			t.Fatalf("session should survive key rotation: expected 200, got %d", meResp.StatusCode)
@@ -230,7 +230,7 @@ func TestRateLimiterMemoryBounds(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	// Verify windows were populated.
@@ -290,7 +290,7 @@ func TestStartupWithActionableErrors(t *testing.T) {
 		// Open with a path that cannot be created.
 		err = drv.Open(ctx, store.DriverConfig{Path: "/nonexistent/deeply/nested/dir/test.db"})
 		if err == nil {
-			drv.Close()
+			_ = drv.Close()
 			t.Fatal("expected error for invalid path")
 		}
 

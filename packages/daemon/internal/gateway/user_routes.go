@@ -84,7 +84,7 @@ func handleListUsers(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		users, err := tx.ListUsers(ctx)
 		if err != nil {
@@ -99,7 +99,7 @@ func handleListUsers(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -171,7 +171,7 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		created, err := tx.CreateUser(ctx, user)
 		if err != nil {
@@ -186,7 +186,7 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(toUserResponse(created, []string{}, []string{}))
+		_ = json.NewEncoder(w).Encode(toUserResponse(created, []string{}, []string{}))
 	}
 }
 
@@ -209,7 +209,7 @@ func handleGetUser(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
@@ -221,7 +221,7 @@ func handleGetUser(st store.Driver) http.HandlerFunc {
 		roles, permissions, _ := auth.LoadUserScopes(ctx, st, user.ID)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(toUserResponse(user, roles, permissions))
+		_ = json.NewEncoder(w).Encode(toUserResponse(user, roles, permissions))
 	}
 }
 
@@ -257,7 +257,7 @@ func handleUpdateUser(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
@@ -287,7 +287,7 @@ func handleUpdateUser(st store.Driver) http.HandlerFunc {
 		roles, permissions, _ := auth.LoadUserScopes(ctx, st, updated.ID)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(toUserResponse(updated, roles, permissions))
+		_ = json.NewEncoder(w).Encode(toUserResponse(updated, roles, permissions))
 	}
 }
 
@@ -310,7 +310,7 @@ func handleSuspendUser(st store.Driver, sm *auth.SessionManager) http.HandlerFun
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
@@ -335,7 +335,7 @@ func handleSuspendUser(st store.Driver, sm *auth.SessionManager) http.HandlerFun
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -358,7 +358,7 @@ func handleActivateUser(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
@@ -380,7 +380,7 @@ func handleActivateUser(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -403,7 +403,7 @@ func handleUnlockUser(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.ResetFailedAttempts(ctx, id); err != nil {
 			writeInternalError(w, r, "reset failed attempts")
@@ -430,7 +430,7 @@ func handleUnlockUser(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -479,7 +479,7 @@ func handleResetPassword(st store.Driver, cfg *config.Config) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
@@ -504,6 +504,6 @@ func handleResetPassword(st store.Driver, cfg *config.Config) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"temporary_password": plaintext})
+		_ = json.NewEncoder(w).Encode(map[string]string{"temporary_password": plaintext})
 	}
 }

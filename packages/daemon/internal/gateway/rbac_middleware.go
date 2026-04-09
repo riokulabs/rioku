@@ -45,7 +45,7 @@ func RequirePermission(perm string) func(http.Handler) http.Handler {
 func writeForbidden(w http.ResponseWriter, r *http.Request, perm string) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusForbidden)
-	json.NewEncoder(w).Encode(ProblemDetail{
+	_ = json.NewEncoder(w).Encode(ProblemDetail{
 		Type:     errTypeForbidden,
 		Title:    "Forbidden",
 		Status:   403,

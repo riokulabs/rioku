@@ -183,7 +183,7 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 	}
 
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
-		drv.Close()
+		_ = drv.Close()
 		return fmt.Errorf("migrate store: %w", err)
 	}
 	fmt.Printf("  Store initialized (%s)\n", cfg.Store.Driver)
@@ -191,7 +191,7 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 	// 5. Generate bootstrap token and store its hash.
 	token, err := auth.GenerateBootstrapToken()
 	if err != nil {
-		drv.Close()
+		_ = drv.Close()
 		return fmt.Errorf("generate token: %w", err)
 	}
 
@@ -210,28 +210,28 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
-		drv.Close()
+		_ = drv.Close()
 		return fmt.Errorf("begin tx for bootstrap token: %w", err)
 	}
 	hash := auth.HashToken(token)
 	if _, err := tx.CreateAPIKey(ctx, "bootstrap", hash, []string{"admin"}, nil); err != nil {
-		tx.Rollback()
-		drv.Close()
+		_ = tx.Rollback()
+		_ = drv.Close()
 		return fmt.Errorf("store bootstrap token: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		drv.Close()
+		_ = drv.Close()
 		return fmt.Errorf("commit bootstrap token: %w", err)
 	}
 
 	// Create root user.
 	rootPassword, err := createRootUser(ctx, drv)
 	if err != nil {
-		drv.Close()
+		_ = drv.Close()
 		return fmt.Errorf("create root user: %w", err)
 	}
 
-	drv.Close()
+	_ = drv.Close()
 
 	fmt.Printf("\n  Bootstrap token: %s\n", token)
 	fmt.Println("  Save this — it will not be shown again.")
@@ -289,13 +289,13 @@ func createRootUser(ctx context.Context, drv store.Driver) (string, error) {
 		UpdatedAt:           now,
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return "", fmt.Errorf("create root user: %w", err)
 	}
 
 	// Assign superadmin role to root user.
 	if err := tx.AssignRole(ctx, user.ID, "role_superadmin", user.ID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return "", fmt.Errorf("assign superadmin role to root: %w", err)
 	}
 

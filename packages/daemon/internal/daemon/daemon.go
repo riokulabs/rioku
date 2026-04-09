@@ -74,7 +74,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 
 	// 2. Run migrations.
 	if err := d.store.Migrate(ctx, store.MigrateUp); err != nil {
-		d.store.Close()
+		_ = d.store.Close()
 		return fmt.Errorf("migrate: %w", err)
 	}
 	log.Printf("store: %s driver ready", d.cfg.Store.Driver)
@@ -83,7 +83,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	signingKeyPath := filepath.Join(d.cfg.DataDir, "signing.key")
 	signingKey, err := loadOrCreateSigningKey(signingKeyPath)
 	if err != nil {
-		d.store.Close()
+		_ = d.store.Close()
 		return fmt.Errorf("auth signing key: %w", err)
 	}
 	d.auth = auth.NewAuth(signingKey, d.store)
@@ -239,7 +239,7 @@ func (d *Daemon) Stop(ctx context.Context) error {
 	}
 
 	// Remove PID file.
-	RemovePIDFile(d.pidFile)
+	_ = RemovePIDFile(d.pidFile)
 
 	log.Println("daemon: stopped")
 	return nil

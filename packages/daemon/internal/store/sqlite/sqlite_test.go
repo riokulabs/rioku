@@ -24,7 +24,7 @@ func openTestDB(t *testing.T) *driver {
 	if err := d.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { d.Close() })
+	t.Cleanup(func() { _ = d.Close() })
 
 	if err := d.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatalf("Migrate: %v", err)
@@ -141,7 +141,7 @@ func TestRouteCRUD(t *testing.T) {
 	if got.GetName() != "test-route" {
 		t.Fatalf("GetRoute: expected name 'test-route', got %q", got.GetName())
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// List routes.
 	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -155,7 +155,7 @@ func TestRouteCRUD(t *testing.T) {
 	if len(routes) != 1 {
 		t.Fatalf("expected 1 route, got %d", len(routes))
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// Update route.
 	tx4, err := d.Begin(ctx, store.TxOptions{})
@@ -202,7 +202,7 @@ func TestRouteCRUD(t *testing.T) {
 	if len(routes) != 0 {
 		t.Fatalf("expected 0 routes after delete, got %d", len(routes))
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 }
 
 func TestServiceCRUD(t *testing.T) {
@@ -277,7 +277,7 @@ func TestServiceCRUD(t *testing.T) {
 	if !found {
 		t.Fatal("upstream 10.0.0.1:80 not found")
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// List.
 	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -291,7 +291,7 @@ func TestServiceCRUD(t *testing.T) {
 	if len(services) != 1 {
 		t.Fatalf("expected 1 service, got %d", len(services))
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// Update.
 	tx4, err := d.Begin(ctx, store.TxOptions{})
@@ -384,7 +384,7 @@ func TestPolicyCRUD(t *testing.T) {
 	if rps != 100 {
 		t.Fatalf("expected requests_per_second=100, got %v", rps)
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// List.
 	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -398,7 +398,7 @@ func TestPolicyCRUD(t *testing.T) {
 	if len(policies) != 1 {
 		t.Fatalf("expected 1 policy, got %d", len(policies))
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// Update.
 	tx4, err := d.Begin(ctx, store.TxOptions{})
@@ -459,7 +459,7 @@ func TestPolicyCRUD(t *testing.T) {
 	if len(policyIDs) != 1 || policyIDs[0] != created.GetId() {
 		t.Fatalf("expected [%s], got %v", created.GetId(), policyIDs)
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 
 	tx7, err := d.Begin(ctx, store.TxOptions{})
 	if err != nil {
@@ -483,7 +483,7 @@ func TestPolicyCRUD(t *testing.T) {
 	if len(policyIDs) != 0 {
 		t.Fatalf("expected 0 policy IDs after detach, got %d", len(policyIDs))
 	}
-	tx8.Rollback()
+	_ = tx8.Rollback()
 
 	// Delete.
 	tx9, err := d.Begin(ctx, store.TxOptions{})
@@ -541,7 +541,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if key.RevokedAt != nil {
 		t.Fatal("expected nil RevokedAt")
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// Get by hash.
 	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -555,7 +555,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if key2.ID != id {
 		t.Fatalf("expected ID=%q, got %q", id, key2.ID)
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// List (should only return non-revoked).
 	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -569,7 +569,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if len(keys) != 1 {
 		t.Fatalf("expected 1 key, got %d", len(keys))
 	}
-	tx4.Rollback()
+	_ = tx4.Rollback()
 
 	// Revoke.
 	tx5, err := d.Begin(ctx, store.TxOptions{})
@@ -595,7 +595,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if len(keys) != 0 {
 		t.Fatalf("expected 0 keys after revoke, got %d", len(keys))
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 
 	// Get by ID should still return the revoked key.
 	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -609,7 +609,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if revoked.RevokedAt == nil {
 		t.Fatal("expected non-nil RevokedAt after revoke")
 	}
-	tx7.Rollback()
+	_ = tx7.Rollback()
 }
 
 func TestAuditLog(t *testing.T) {
@@ -676,7 +676,7 @@ func TestAuditLog(t *testing.T) {
 	if all[0].GetOperation() != "UPDATE" {
 		t.Fatalf("expected first entry to be UPDATE, got %q", all[0].GetOperation())
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// Query by actor.
 	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -690,7 +690,7 @@ func TestAuditLog(t *testing.T) {
 	if len(adminEntries) != 2 {
 		t.Fatalf("expected 2 admin entries, got %d", len(adminEntries))
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// Query by entity_type.
 	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -704,7 +704,7 @@ func TestAuditLog(t *testing.T) {
 	if len(routeEntries) != 2 {
 		t.Fatalf("expected 2 route entries, got %d", len(routeEntries))
 	}
-	tx4.Rollback()
+	_ = tx4.Rollback()
 
 	// Query by entity_id.
 	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -718,7 +718,7 @@ func TestAuditLog(t *testing.T) {
 	if len(svcEntries) != 1 {
 		t.Fatalf("expected 1 svc-1 entry, got %d", len(svcEntries))
 	}
-	tx5.Rollback()
+	_ = tx5.Rollback()
 
 	// Query with time range.
 	since := now.Add(-90 * time.Minute)
@@ -733,7 +733,7 @@ func TestAuditLog(t *testing.T) {
 	if len(recentEntries) != 2 {
 		t.Fatalf("expected 2 recent entries, got %d", len(recentEntries))
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 }
 
 func TestConfigVersions(t *testing.T) {
@@ -791,7 +791,7 @@ func TestConfigVersions(t *testing.T) {
 	if string(cv.Snapshot) != `{"routes":[{"name":"r1"}]}` {
 		t.Fatalf("unexpected snapshot: %s", string(cv.Snapshot))
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// List.
 	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -812,7 +812,7 @@ func TestConfigVersions(t *testing.T) {
 	if versions[1].Version != 2 {
 		t.Fatalf("expected second version=2, got %d", versions[1].Version)
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// Latest.
 	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -826,7 +826,7 @@ func TestConfigVersions(t *testing.T) {
 	if latest != 3 {
 		t.Fatalf("expected latest=3, got %d", latest)
 	}
-	tx4.Rollback()
+	_ = tx4.Rollback()
 }
 
 func TestNotify(t *testing.T) {
@@ -1033,7 +1033,7 @@ func TestUserCRUD(t *testing.T) {
 				if got.PasswordHash != "$argon2id$v=19$hash" {
 					t.Fatalf("GetUser: unexpected password_hash %q", got.PasswordHash)
 				}
-				tx2.Rollback()
+				_ = tx2.Rollback()
 			},
 		},
 		{
@@ -1050,7 +1050,7 @@ func TestUserCRUD(t *testing.T) {
 				if got.Username != "admin" {
 					t.Fatalf("expected username 'admin', got %q", got.Username)
 				}
-				tx1.Rollback()
+				_ = tx1.Rollback()
 			},
 		},
 		{
@@ -1064,7 +1064,7 @@ func TestUserCRUD(t *testing.T) {
 				if err != nil {
 					t.Fatalf("GetUserByUsername: %v", err)
 				}
-				tx1.Rollback()
+				_ = tx1.Rollback()
 
 				newEmail := "new@example.com"
 				newDisplay := "Updated Admin"
@@ -1114,7 +1114,7 @@ func TestUserCRUD(t *testing.T) {
 				if users[1].Username != "beta" {
 					t.Fatalf("expected second user 'beta', got %q", users[1].Username)
 				}
-				tx1.Rollback()
+				_ = tx1.Rollback()
 			},
 		},
 		{
@@ -1128,7 +1128,7 @@ func TestUserCRUD(t *testing.T) {
 				if err != nil {
 					t.Fatalf("GetUserByUsername: %v", err)
 				}
-				tx1.Rollback()
+				_ = tx1.Rollback()
 
 				tx2, err := d.Begin(ctx, store.TxOptions{})
 				if err != nil {
@@ -1150,7 +1150,7 @@ func TestUserCRUD(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error after delete")
 				}
-				tx3.Rollback()
+				_ = tx3.Rollback()
 			},
 		},
 	}
@@ -1226,7 +1226,7 @@ func TestSessionCRUD(t *testing.T) {
 				if got.Fingerprint != "fp-abc" {
 					t.Fatalf("expected fingerprint 'fp-abc', got %q", got.Fingerprint)
 				}
-				tx2.Rollback()
+				_ = tx2.Rollback()
 			},
 		},
 		{
@@ -1256,7 +1256,7 @@ func TestSessionCRUD(t *testing.T) {
 				if !got.LastActive.Equal(newActive.Truncate(time.Millisecond)) {
 					t.Fatalf("expected last_active %v, got %v", newActive, got.LastActive)
 				}
-				tx2.Rollback()
+				_ = tx2.Rollback()
 			},
 		},
 		{
@@ -1282,7 +1282,7 @@ func TestSessionCRUD(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error after delete")
 				}
-				tx2.Rollback()
+				_ = tx2.Rollback()
 			},
 		},
 		{
@@ -1338,7 +1338,7 @@ func TestSessionCRUD(t *testing.T) {
 				if sessions[0].ID != "sess-keep" {
 					t.Fatalf("expected session 'sess-keep', got %q", sessions[0].ID)
 				}
-				tx3.Rollback()
+				_ = tx3.Rollback()
 			},
 		},
 	}
@@ -1383,7 +1383,7 @@ func TestAccountLocking(t *testing.T) {
 	if u.Status != "active" {
 		t.Fatalf("expected status 'active', got %q", u.Status)
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// 5th attempt with lock.
 	lockUntil := time.Now().UTC().Add(15 * time.Minute).Truncate(time.Millisecond)
@@ -1416,7 +1416,7 @@ func TestAccountLocking(t *testing.T) {
 	if u.FailedAttempts != 5 {
 		t.Fatalf("expected 5 failed_attempts, got %d", u.FailedAttempts)
 	}
-	tx4.Rollback()
+	_ = tx4.Rollback()
 
 	// Reset.
 	tx5, err := d.Begin(ctx, store.TxOptions{})
@@ -1448,7 +1448,7 @@ func TestAccountLocking(t *testing.T) {
 	if u.Status != "active" {
 		t.Fatalf("expected status 'active', got %q", u.Status)
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 }
 
 func TestDeleteExpiredSessions(t *testing.T) {
@@ -1517,7 +1517,7 @@ func TestDeleteExpiredSessions(t *testing.T) {
 	if sessions[0].ID != "sess-valid" {
 		t.Fatalf("expected session 'sess-valid', got %q", sessions[0].ID)
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 }
 
 // ---------------------------------------------------------------------------
@@ -1556,7 +1556,7 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if !foundSuperadmin {
 		t.Fatal("superadmin role not found in seed data")
 	}
-	tx1.Rollback()
+	_ = tx1.Rollback()
 
 	// List atomic permissions (excludes wildcards).
 	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -1570,7 +1570,7 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if len(perms) != 22 {
 		t.Fatalf("expected 22 atomic permissions, got %d", len(perms))
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// Create a custom role.
 	tx3, err := d.Begin(ctx, store.TxOptions{})
@@ -1643,7 +1643,7 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if err != store.ErrRoleNotFound {
 		t.Fatalf("expected ErrRoleNotFound, got %v", err)
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 }
 
 func TestRBACUserRoles(t *testing.T) {
@@ -1694,7 +1694,7 @@ func TestRBACUserRoles(t *testing.T) {
 	if userRoles[0].RoleName != "viewer" {
 		t.Fatalf("expected role name 'viewer', got %q", userRoles[0].RoleName)
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// List users with role.
 	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -1708,7 +1708,7 @@ func TestRBACUserRoles(t *testing.T) {
 	if len(userIDs) != 1 || userIDs[0] != user.ID {
 		t.Fatalf("expected [%s], got %v", user.ID, userIDs)
 	}
-	tx4.Rollback()
+	_ = tx4.Rollback()
 
 	// Revoke role.
 	tx5, err := d.Begin(ctx, store.TxOptions{})
@@ -1734,7 +1734,7 @@ func TestRBACUserRoles(t *testing.T) {
 	if len(userRoles) != 0 {
 		t.Fatalf("expected 0 user roles after revoke, got %d", len(userRoles))
 	}
-	tx6.Rollback()
+	_ = tx6.Rollback()
 }
 
 func TestResolveUserPermissions(t *testing.T) {
@@ -1787,7 +1787,7 @@ func TestResolveUserPermissions(t *testing.T) {
 			t.Errorf("expected wildcard scope %q in admin scopes", wc)
 		}
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 
 	// Also test superadmin scopes (just '*').
 	tx3, err := d.Begin(ctx, store.TxOptions{})
@@ -1820,7 +1820,7 @@ func TestResolveUserPermissions(t *testing.T) {
 	if len(superScopes) != 1 || superScopes[0] != "*" {
 		t.Fatalf("expected ['*'] for superadmin, got %v", superScopes)
 	}
-	tx4.Rollback()
+	_ = tx4.Rollback()
 }
 
 func TestDeleteRoleSuperadminImmutable(t *testing.T) {
@@ -1831,7 +1831,7 @@ func TestDeleteRoleSuperadminImmutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	defer tx1.Rollback()
+	defer func() { _ = tx1.Rollback() }()
 
 	err = tx1.DeleteRole(ctx, "role_superadmin")
 	if err != store.ErrRoleImmutable {
@@ -1896,7 +1896,7 @@ func TestTOTPBackupCodes(t *testing.T) {
 	if len(unused) != 3 {
 		t.Fatalf("expected 3 unused codes, got %d", len(unused))
 	}
-	tx3.Rollback()
+	_ = tx3.Rollback()
 
 	// Mark one code as used.
 	tx4, err := d.Begin(ctx, store.TxOptions{})
@@ -1922,7 +1922,7 @@ func TestTOTPBackupCodes(t *testing.T) {
 	if len(unused) != 2 {
 		t.Fatalf("expected 2 unused codes after marking one used, got %d", len(unused))
 	}
-	tx5.Rollback()
+	_ = tx5.Rollback()
 
 	// Re-create codes (should replace old ones).
 	tx6, err := d.Begin(ctx, store.TxOptions{})
@@ -1949,7 +1949,7 @@ func TestTOTPBackupCodes(t *testing.T) {
 	if len(unused) != 2 {
 		t.Fatalf("expected 2 unused codes after re-creation, got %d", len(unused))
 	}
-	tx7.Rollback()
+	_ = tx7.Rollback()
 
 	// Delete all codes.
 	tx8, err := d.Begin(ctx, store.TxOptions{})
@@ -1975,5 +1975,5 @@ func TestTOTPBackupCodes(t *testing.T) {
 	if len(unused) != 0 {
 		t.Fatalf("expected 0 codes after deletion, got %d", len(unused))
 	}
-	tx9.Rollback()
+	_ = tx9.Rollback()
 }

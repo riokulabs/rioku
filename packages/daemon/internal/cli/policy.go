@@ -40,7 +40,7 @@ func newPolicyListCmd() *cobra.Command {
 			var snap struct {
 				Policies []json.RawMessage `json:"policies"`
 			}
-			json.Unmarshal(data, &snap)
+			_ = json.Unmarshal(data, &snap)
 
 			type polSummary struct {
 				ID   string `json:"id"`
@@ -51,7 +51,7 @@ func newPolicyListCmd() *cobra.Command {
 			var policies []polSummary
 			for _, raw := range snap.Policies {
 				var p polSummary
-				json.Unmarshal(raw, &p)
+				_ = json.Unmarshal(raw, &p)
 				policies = append(policies, p)
 			}
 
@@ -82,13 +82,13 @@ func newPolicyGetCmd() *cobra.Command {
 			var snap struct {
 				Policies []json.RawMessage `json:"policies"`
 			}
-			json.Unmarshal(data, &snap)
+			_ = json.Unmarshal(data, &snap)
 
 			for _, raw := range snap.Policies {
 				var p struct {
 					ID string `json:"id"`
 				}
-				json.Unmarshal(raw, &p)
+				_ = json.Unmarshal(raw, &p)
 				if p.ID == args[0] {
 					return printOutput(json.RawMessage(raw))
 				}
@@ -163,8 +163,8 @@ func newPolicyCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "policy name (required)")
 	cmd.Flags().StringVar(&policyType, "type", "", "policy type (required)")
 	cmd.Flags().StringVar(&configStr, "config", "{}", "policy config JSON or @file")
-	cmd.MarkFlagRequired("name")
-	cmd.MarkFlagRequired("type")
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("type")
 
 	return cmd
 }

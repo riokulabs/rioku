@@ -84,7 +84,7 @@ func writeAuthError(w http.ResponseWriter, r *http.Request, detail string) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(ProblemDetail{
+	_ = json.NewEncoder(w).Encode(ProblemDetail{
 		Type:     errTypeUnauth,
 		Title:    "Authentication required",
 		Status:   401,

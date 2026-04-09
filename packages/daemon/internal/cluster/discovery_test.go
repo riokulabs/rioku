@@ -76,7 +76,11 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 	if err := d0.Start(); err != nil {
 		t.Fatalf("start node-0: %v", err)
 	}
-	defer d0.Stop()
+	defer func() {
+		if err := d0.Stop(); err != nil {
+			t.Logf("stop node-0: %v", err)
+		}
+	}()
 
 	// Node 1 — joins via node-0.
 	d1 := New(DiscoveryConfig{
@@ -94,7 +98,11 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 	if err := d1.Start(); err != nil {
 		t.Fatalf("start node-1: %v", err)
 	}
-	defer d1.Stop()
+	defer func() {
+		if err := d1.Stop(); err != nil {
+			t.Logf("stop node-1: %v", err)
+		}
+	}()
 
 	// Node 2 — joins via node-0.
 	d2 := New(DiscoveryConfig{
@@ -112,7 +120,11 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 	if err := d2.Start(); err != nil {
 		t.Fatalf("start node-2: %v", err)
 	}
-	defer d2.Stop()
+	defer func() {
+		if err := d2.Stop(); err != nil {
+			t.Logf("stop node-2: %v", err)
+		}
+	}()
 
 	// Wait for gossip to converge.
 	time.Sleep(2 * time.Second)
@@ -154,7 +166,11 @@ func TestDiscoveryNodeLeaveAndRemoval(t *testing.T) {
 	if err := d0.Start(); err != nil {
 		t.Fatalf("start node-a: %v", err)
 	}
-	defer d0.Stop()
+	defer func() {
+		if err := d0.Stop(); err != nil {
+			t.Logf("stop node-a: %v", err)
+		}
+	}()
 
 	d1 := New(DiscoveryConfig{
 		NodeMeta: NodeMeta{
@@ -180,7 +196,9 @@ func TestDiscoveryNodeLeaveAndRemoval(t *testing.T) {
 
 	// Shut down node-b.
 	t.Log("shutting down node-b")
-	d1.Stop()
+	if err := d1.Stop(); err != nil {
+		t.Logf("stop node-b: %v", err)
+	}
 
 	// Wait for memberlist to detect the failure (suspicion ~2s) + grace period (1s) + buffer.
 	time.Sleep(6 * time.Second)
@@ -221,7 +239,11 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 	if err := d0.Start(); err != nil {
 		t.Fatalf("start node-x: %v", err)
 	}
-	defer d0.Stop()
+	defer func() {
+		if err := d0.Stop(); err != nil {
+			t.Logf("stop node-x: %v", err)
+		}
+	}()
 
 	d1 := New(DiscoveryConfig{
 		NodeMeta: NodeMeta{
@@ -239,7 +261,9 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Kill node-y.
-	d1.Stop()
+	if err := d1.Stop(); err != nil {
+		t.Logf("stop node-y: %v", err)
+	}
 	time.Sleep(1 * time.Second)
 
 	// Rejoin before grace period expires.
@@ -255,7 +279,11 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 	if err := d1b.Start(); err != nil {
 		t.Fatalf("rejoin node-y: %v", err)
 	}
-	defer d1b.Stop()
+	defer func() {
+		if err := d1b.Stop(); err != nil {
+			t.Logf("stop node-y (rejoined): %v", err)
+		}
+	}()
 
 	// Wait past the original grace period.
 	time.Sleep(6 * time.Second)
@@ -280,7 +308,11 @@ func TestDiscoveryMemberlistStats(t *testing.T) {
 	if err := d.Start(); err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	defer d.Stop()
+	defer func() {
+		if err := d.Stop(); err != nil {
+			t.Logf("stop: %v", err)
+		}
+	}()
 
 	stats := d.MemberlistStats()
 	if stats == nil {

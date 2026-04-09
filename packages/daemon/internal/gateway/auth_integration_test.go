@@ -30,7 +30,7 @@ func TestAuthIntegration(t *testing.T) {
 	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatal(err)
@@ -54,7 +54,7 @@ func TestAuthIntegration(t *testing.T) {
 		PasswordChangedAt:   time.Now().UTC(),
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -72,7 +72,7 @@ func TestAuthIntegration(t *testing.T) {
 	}
 	_, err = tx2.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), []string{"admin"}, nil)
 	if err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 		t.Fatal(err)
 	}
 	if err := tx2.Commit(); err != nil {
@@ -140,7 +140,7 @@ func TestAuthIntegration(t *testing.T) {
 	// Helper to decode JSON response body.
 	decodeBody := func(t *testing.T, resp *http.Response, v any) {
 		t.Helper()
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
 			t.Fatalf("decode response body: %v", err)
 		}
@@ -153,11 +153,11 @@ func TestAuthIntegration(t *testing.T) {
 			"username": "root",
 			"password": rootPassword,
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 
@@ -218,7 +218,7 @@ func TestAuthIntegration(t *testing.T) {
 			"username": "root",
 			"password": "WrongPassword!",
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", resp.StatusCode)
@@ -239,7 +239,7 @@ func TestAuthIntegration(t *testing.T) {
 		var lastResp *http.Response
 		for i := 0; i < 4; i++ {
 			var buf bytes.Buffer
-			json.NewEncoder(&buf).Encode(map[string]string{
+			_ = json.NewEncoder(&buf).Encode(map[string]string{
 				"username": "root",
 				"password": "WrongPassword!",
 			})
@@ -253,14 +253,14 @@ func TestAuthIntegration(t *testing.T) {
 				t.Fatalf("request %d: %v", i, err)
 			}
 			lastResp = resp
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 
 		// The 4th request here is the 5th total failed attempt.
 		// After that, the account should be locked.
 		// Now try one more login — it should return 423 Locked.
 		var buf bytes.Buffer
-		json.NewEncoder(&buf).Encode(map[string]string{
+		_ = json.NewEncoder(&buf).Encode(map[string]string{
 			"username": "root",
 			"password": "WrongPassword!",
 		})
@@ -273,7 +273,7 @@ func TestAuthIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer lastResp.Body.Close()
+		defer func() { _ = lastResp.Body.Close() }()
 
 		if lastResp.StatusCode != http.StatusLocked {
 			t.Fatalf("expected 423 Locked, got %d", lastResp.StatusCode)
@@ -294,17 +294,17 @@ func TestAuthIntegration(t *testing.T) {
 		}
 		user, err := utx.GetUserByUsername(ctx, "root")
 		if err != nil {
-			utx.Rollback()
+			_ = utx.Rollback()
 			t.Fatalf("get root user: %v", err)
 		}
 		if err := utx.ResetFailedAttempts(ctx, user.ID); err != nil {
-			utx.Rollback()
+			_ = utx.Rollback()
 			t.Fatalf("reset failed attempts: %v", err)
 		}
 		user.Status = "active"
 		user.LockedUntil = nil
 		if _, err := utx.UpdateUser(ctx, user); err != nil {
-			utx.Rollback()
+			_ = utx.Rollback()
 			t.Fatalf("update user: %v", err)
 		}
 		if err := utx.Commit(); err != nil {
@@ -318,11 +318,11 @@ func TestAuthIntegration(t *testing.T) {
 			"current_password": rootPassword,
 			"new_password":     newPassword,
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
 			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 
@@ -339,7 +339,7 @@ func TestAuthIntegration(t *testing.T) {
 
 	t.Run("logout", func(t *testing.T) {
 		resp := doJSON(t, http.MethodPost, "/api/v1/auth/logout", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -355,7 +355,7 @@ func TestAuthIntegration(t *testing.T) {
 
 	t.Run("me_after_logout", func(t *testing.T) {
 		resp := doJSON(t, http.MethodGet, "/api/v1/auth/me", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", resp.StatusCode)
@@ -370,8 +370,8 @@ func TestAuthIntegration(t *testing.T) {
 
 		if resp.StatusCode != http.StatusOK {
 			var pd ProblemDetail
-			json.NewDecoder(resp.Body).Decode(&pd)
-			resp.Body.Close()
+			_ = json.NewDecoder(resp.Body).Decode(&pd)
+			_ = resp.Body.Close()
 			t.Fatalf("expected 200 from token exchange, got %d: %s", resp.StatusCode, pd.Detail)
 		}
 
@@ -409,7 +409,7 @@ func TestAuthIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer meResp.Body.Close()
+		defer func() { _ = meResp.Body.Close() }()
 
 		// 404 = auth passed, user not found (bootstrap subject is "admin", not a real user ID).
 		// 401 would mean the bearer token was rejected by middleware.
@@ -431,7 +431,7 @@ func TestAuthIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer badResp.Body.Close()
+		defer func() { _ = badResp.Body.Close() }()
 
 		if badResp.StatusCode != http.StatusUnauthorized {
 			t.Errorf("expected 401 for invalid bearer, got %d", badResp.StatusCode)

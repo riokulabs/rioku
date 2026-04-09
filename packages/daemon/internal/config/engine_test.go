@@ -37,7 +37,7 @@ func newTestEngine(t *testing.T) *Engine {
 	if err := d.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { d.Close() })
+	t.Cleanup(func() { _ = d.Close() })
 
 	if err := d.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatalf("Migrate: %v", err)

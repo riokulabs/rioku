@@ -36,7 +36,7 @@ func DownloadBinary(destDir string, progress func(downloaded, total int64)) (str
 	if err != nil {
 		return "", fmt.Errorf("download caddy: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -59,15 +59,18 @@ func DownloadBinary(destDir string, progress func(downloaded, total int64)) (str
 	}
 
 	if _, err := io.Copy(f, reader); err != nil {
-		f.Close()
-		os.Remove(tmpPath)
+		_ = f.Close()
+		_ = os.Remove(tmpPath)
 		return "", fmt.Errorf("write caddy binary: %w", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("close caddy binary: %w", err)
+	}
 
 	// Atomic rename.
 	if err := os.Rename(tmpPath, destPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return "", fmt.Errorf("rename caddy binary: %w", err)
 	}
 

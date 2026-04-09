@@ -254,6 +254,6 @@ func BenchmarkSerialize(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		snap := cs.Snapshot()
-		MarshalCounterSet(snap)
+		_, _ = MarshalCounterSet(snap)
 	}
 }

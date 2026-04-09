@@ -60,7 +60,7 @@ func handleTOTPSetup(st store.Driver, enc *auth.Encryptor) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
@@ -90,7 +90,7 @@ func handleTOTPSetup(st store.Driver, enc *auth.Encryptor) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(totpSetupResponse{
+		_ = json.NewEncoder(w).Encode(totpSetupResponse{
 			Secret: secret,
 			QRURI:  qrURI,
 		})
@@ -140,7 +140,7 @@ func handleTOTPVerify(st store.Driver, sm *auth.SessionManager, enc *auth.Encryp
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
@@ -205,7 +205,7 @@ func handleTOTPVerify(st store.Driver, sm *auth.SessionManager, enc *auth.Encryp
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(totpVerifyResponse{
+		_ = json.NewEncoder(w).Encode(totpVerifyResponse{
 			BackupCodes: plainCodes,
 		})
 	}
@@ -249,7 +249,7 @@ func handleTOTPDisable(st store.Driver, sm *auth.SessionManager, enc *auth.Encry
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
@@ -287,7 +287,7 @@ func handleTOTPDisable(st store.Driver, sm *auth.SessionManager, enc *auth.Encry
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -310,7 +310,7 @@ func handleTOTPReset(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, targetUserID)
 		if err != nil {
@@ -340,7 +340,7 @@ func handleTOTPReset(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 

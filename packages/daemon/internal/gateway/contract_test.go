@@ -39,7 +39,7 @@ func TestRESTContractFields(t *testing.T) {
 	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatal(err)
@@ -64,7 +64,7 @@ func TestRESTContractFields(t *testing.T) {
 		PasswordChangedAt:   time.Now().UTC(),
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -86,7 +86,7 @@ func TestRESTContractFields(t *testing.T) {
 		ConfigVersion: 1,
 		OccurredAt:    timestamppb.Now(),
 	}); err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 		t.Fatal(err)
 	}
 	if err := tx2.Commit(); err != nil {
@@ -183,16 +183,16 @@ func TestRESTContractFields(t *testing.T) {
 		"password": rootPassword,
 	})
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		t.Fatalf("login failed: status %d", resp.StatusCode)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// --- Contract subtests ---
 
 	t.Run("health_fields", func(t *testing.T) {
 		resp := doJSON(t, http.MethodGet, "/api/v1/health", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /api/v1/health: expected 200, got %d", resp.StatusCode)
@@ -213,7 +213,7 @@ func TestRESTContractFields(t *testing.T) {
 
 	t.Run("config_fields", func(t *testing.T) {
 		resp := doJSON(t, http.MethodGet, "/api/v1/config", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /api/v1/config: expected 200, got %d", resp.StatusCode)
@@ -231,7 +231,7 @@ func TestRESTContractFields(t *testing.T) {
 
 	t.Run("audit_fields", func(t *testing.T) {
 		resp := doJSON(t, http.MethodGet, "/api/v1/audit", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /api/v1/audit: expected 200, got %d", resp.StatusCode)
@@ -253,7 +253,7 @@ func TestRESTContractFields(t *testing.T) {
 
 	t.Run("auth_me_fields", func(t *testing.T) {
 		resp := doJSON(t, http.MethodGet, "/api/v1/auth/me", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /api/v1/auth/me: expected 200, got %d", resp.StatusCode)

@@ -112,7 +112,7 @@ func (f *fsm) Snapshot() (hraft.FSMSnapshot, error) {
 // It takes an exclusive write lock on dbMu to prevent concurrent reads
 // during the db file swap.
 func (f *fsm) Restore(rc io.ReadCloser) error {
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Read the entire snapshot into memory. Config store data is small
 	// (single-digit MB at most), so this is fine.
@@ -339,7 +339,7 @@ func (f *fsm) deleteUpstreamsForService(ub *bolt.Bucket, serviceID string) {
 		}
 	}
 	for _, k := range toDelete {
-		ub.Delete(k)
+		_ = ub.Delete(k)
 	}
 }
 
@@ -538,17 +538,17 @@ type fsmSnapshot struct {
 }
 
 func (s *fsmSnapshot) Persist(sink hraft.SnapshotSink) error {
-	defer s.tx.Rollback()
+	defer func() { _ = s.tx.Rollback() }()
 	_, err := s.tx.WriteTo(sink)
 	if err != nil {
-		sink.Cancel()
+		_ = sink.Cancel()
 		return fmt.Errorf("write snapshot: %w", err)
 	}
 	return sink.Close()
 }
 
 func (s *fsmSnapshot) Release() {
-	s.tx.Rollback()
+	_ = s.tx.Rollback()
 }
 
 // ---------------------------------------------------------------------------
@@ -576,7 +576,7 @@ func (f *fsm) emitEvent(table, rowID, operation string) {
 }
 
 func opToString(op CommandOp) string {
-	switch {
+	switch { //nolint:staticcheck // switch on string op is clearer than tagged switch here
 	case op == OpCreateRoute || op == OpCreateService || op == OpCreatePolicy:
 		return "INSERT"
 	case op == OpUpdateRoute || op == OpUpdateService || op == OpUpdatePolicy:

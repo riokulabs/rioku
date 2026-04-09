@@ -31,7 +31,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Invalid request",
 				Status:   400,
@@ -43,7 +43,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 		if req.Name == "" {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Validation failed",
 				Status:   400,
@@ -72,7 +72,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 			if err != nil {
 				w.Header().Set("Content-Type", "application/problem+json")
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ProblemDetail{
+				_ = json.NewEncoder(w).Encode(ProblemDetail{
 					Type:     errTypeValidation,
 					Title:    "Validation failed",
 					Status:   400,
@@ -95,7 +95,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 
 		id, err := tx.CreateAPIKey(ctx, req.Name, hash, scopes, expiresAt)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			writeInternalError(w, r, "create key")
 			return
 		}
@@ -106,7 +106,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id":  id,
 			"key": rawKey,
 		})
@@ -121,7 +121,7 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		keys, err := tx.ListAPIKeys(ctx)
 		if err != nil {
@@ -150,7 +150,7 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -161,7 +161,7 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 		if id == "" {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeValidation,
 				Title:    "Validation failed",
 				Status:   400,
@@ -179,10 +179,10 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 		}
 
 		if err := tx.RevokeAPIKey(ctx, id); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ProblemDetail{
+			_ = json.NewEncoder(w).Encode(ProblemDetail{
 				Type:     errTypeNotFound,
 				Title:    "Key not found",
 				Status:   404,
@@ -204,7 +204,7 @@ func writeInternalError(w http.ResponseWriter, r *http.Request, context string) 
 	requestID := r.Header.Get("X-Request-ID")
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(ProblemDetail{
+	_ = json.NewEncoder(w).Encode(ProblemDetail{
 		Type:     errTypeInternal,
 		Title:    "Internal server error",
 		Status:   500,

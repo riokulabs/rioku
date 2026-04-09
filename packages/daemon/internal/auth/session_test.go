@@ -34,7 +34,7 @@ func setupTestStore(t *testing.T) store.Driver {
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 	return drv
 }
 
@@ -58,7 +58,7 @@ func createTestUser(t *testing.T, drv store.Driver, username string) *store.User
 		Status:       "active",
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("CreateUser: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -221,7 +221,7 @@ func TestSessionExpired(t *testing.T) {
 	}
 	pastTime := time.Now().Add(-1 * time.Hour).UTC()
 	if err := tx.UpdateSessionLastActive(ctx, sess.ID, pastTime); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("UpdateSessionLastActive: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -237,7 +237,7 @@ func TestSessionExpired(t *testing.T) {
 	}
 	// Delete and recreate with expired time.
 	if err := tx2.DeleteSession(ctx, sess.ID); err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 		t.Fatalf("DeleteSession: %v", err)
 	}
 	expiredSess := &store.Session{
@@ -250,7 +250,7 @@ func TestSessionExpired(t *testing.T) {
 		UserAgent:   sess.UserAgent,
 	}
 	if _, err := tx2.CreateSession(ctx, expiredSess); err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 		t.Fatalf("CreateSession (expired): %v", err)
 	}
 	if err := tx2.Commit(); err != nil {
@@ -361,10 +361,10 @@ func TestLastActiveDebounce(t *testing.T) {
 	}
 	s1, err := tx1.GetSession(ctx, sess.ID)
 	if err != nil {
-		tx1.Rollback()
+		_ = tx1.Rollback()
 		t.Fatalf("GetSession: %v", err)
 	}
-	tx1.Rollback()
+	_ = tx1.Rollback()
 	lastActive1 := s1.LastActive
 
 	// Second validate within debounce window — should NOT update last_active.
@@ -379,10 +379,10 @@ func TestLastActiveDebounce(t *testing.T) {
 	}
 	s2, err := tx2.GetSession(ctx, sess.ID)
 	if err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 		t.Fatalf("GetSession: %v", err)
 	}
-	tx2.Rollback()
+	_ = tx2.Rollback()
 	lastActive2 := s2.LastActive
 
 	// last_active should not have changed on the second call (debounce).
@@ -410,7 +410,7 @@ func TestSessionUserSuspended(t *testing.T) {
 	}
 	user.Status = "suspended"
 	if _, err := tx.UpdateUser(ctx, user); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("UpdateUser: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -505,7 +505,7 @@ func TestCleanupWorker(t *testing.T) {
 		t.Fatalf("Begin: %v", err)
 	}
 	if err := tx.DeleteSession(ctx, tempSess.ID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("DeleteSession: %v", err)
 	}
 	expiredSess := &store.Session{
@@ -518,7 +518,7 @@ func TestCleanupWorker(t *testing.T) {
 		UserAgent:   tempSess.UserAgent,
 	}
 	if _, err := tx.CreateSession(ctx, expiredSess); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("CreateSession (expired): %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -541,10 +541,10 @@ func TestCleanupWorker(t *testing.T) {
 	}
 	got, err := txRead.GetSession(ctx, validSess.ID)
 	if err != nil {
-		txRead.Rollback()
+		_ = txRead.Rollback()
 		t.Fatalf("GetSession (valid): %v", err)
 	}
-	txRead.Rollback()
+	_ = txRead.Rollback()
 
 	if got.ID != validSess.ID {
 		t.Errorf("valid session ID = %q, want %q", got.ID, validSess.ID)

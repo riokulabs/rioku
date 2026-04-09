@@ -121,7 +121,7 @@ func (d *Discovery) Start() error {
 	if len(d.config.SeedAddrs) > 0 {
 		n, err := ml.Join(d.config.SeedAddrs)
 		if err != nil {
-			ml.Shutdown()
+			_ = ml.Shutdown()
 			return fmt.Errorf("discovery: join cluster: %w", err)
 		}
 		log.Printf("discovery: joined %d existing nodes", n)

@@ -54,7 +54,7 @@ func newMigrateVerifyCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&to, "to", "", "target store backend (required)")
 	cmd.Flags().StringVar(&dsn, "dsn", "", "target connection string")
-	cmd.MarkFlagRequired("to")
+	_ = cmd.MarkFlagRequired("to")
 
 	return cmd
 }
@@ -81,7 +81,7 @@ func newMigrateRunCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&to, "to", "", "target store backend (required)")
 	cmd.Flags().StringVar(&dsn, "dsn", "", "target connection string")
-	cmd.MarkFlagRequired("to")
+	_ = cmd.MarkFlagRequired("to")
 
 	return cmd
 }

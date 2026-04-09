@@ -36,7 +36,7 @@ func LoadUserScopes(ctx context.Context, st store.Driver, userID string) (roles 
 	if err != nil {
 		return nil, nil, fmt.Errorf("auth: begin tx for user scopes: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Load role assignments.
 	userRoles, err := tx.ListUserRoles(ctx, userID)

@@ -79,7 +79,7 @@ func BodyLimitMiddleware(maxBytes int64) func(http.Handler) http.Handler {
 			if r.Body != nil && r.ContentLength > maxBytes {
 				w.Header().Set("Content-Type", "application/problem+json")
 				w.WriteHeader(http.StatusRequestEntityTooLarge)
-				fmt.Fprintf(w, `{"type":"%s","title":"Request too large","status":413,"detail":"Request body exceeds maximum allowed size","instance":"%s"}`,
+				_, _ = fmt.Fprintf(w, `{"type":"%s","title":"Request too large","status":413,"detail":"Request body exceeds maximum allowed size","instance":"%s"}`,
 					errTypeValidation, r.URL.Path)
 				return
 			}

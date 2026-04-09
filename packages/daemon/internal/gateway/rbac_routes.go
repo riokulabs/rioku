@@ -63,7 +63,7 @@ func handleListRoles(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		roles, err := tx.ListRoles(ctx)
 		if err != nil {
@@ -77,7 +77,7 @@ func handleListRoles(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -112,7 +112,7 @@ func handleCreateRole(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		role, err := tx.CreateRole(ctx, store.CreateRoleParams{
 			ID:          uuid.New().String(),
@@ -132,7 +132,7 @@ func handleCreateRole(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(toRoleResponse(role))
+		_ = json.NewEncoder(w).Encode(toRoleResponse(role))
 	}
 }
 
@@ -151,7 +151,7 @@ func handleGetRole(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		role, err := tx.GetRole(ctx, id)
 		if err != nil {
@@ -161,7 +161,7 @@ func handleGetRole(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(toRoleResponse(role))
+		_ = json.NewEncoder(w).Encode(toRoleResponse(role))
 	}
 }
 
@@ -195,7 +195,7 @@ func handleUpdateRole(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		role, err := tx.UpdateRole(ctx, id, store.UpdateRoleParams{
 			Name:        req.Name,
@@ -224,7 +224,7 @@ func handleUpdateRole(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(toRoleResponse(role))
+		_ = json.NewEncoder(w).Encode(toRoleResponse(role))
 	}
 }
 
@@ -243,7 +243,7 @@ func handleDeleteRole(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.DeleteRole(ctx, id); err != nil {
 			if err == store.ErrRoleImmutable {
@@ -289,7 +289,7 @@ func handleListPermissions(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		perms, err := tx.ListPermissions(ctx)
 		if err != nil {
@@ -308,7 +308,7 @@ func handleListPermissions(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -338,7 +338,7 @@ func handleListUserRoles(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		roles, err := tx.ListUserRoles(ctx, userID)
 		if err != nil {
@@ -357,7 +357,7 @@ func handleListUserRoles(st store.Driver) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -399,7 +399,7 @@ func handleAssignRole(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.AssignRole(ctx, userID, req.RoleID, grantedBy); err != nil {
 			writeInternalError(w, r, "assign role")
@@ -413,7 +413,7 @@ func handleAssignRole(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	}
 }
 
@@ -433,7 +433,7 @@ func handleRevokeRole(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.RevokeRole(ctx, userID, roleID); err != nil {
 			writeInternalError(w, r, "revoke role")

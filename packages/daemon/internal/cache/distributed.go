@@ -92,7 +92,10 @@ func New(ctx context.Context, name string, getter GetterFunc, cfg Config) (*Dist
 			IsSelf:  addr == cfg.ListenAddr,
 		})
 	}
-	dc.instance.SetPeers(ctx, peers)
+	if err := dc.instance.SetPeers(ctx, peers); err != nil {
+		_ = daemon.Shutdown(ctx)
+		return nil, fmt.Errorf("cache: set peers: %w", err)
+	}
 
 	// Create the groupcache group with the getter.
 	gcGetter := groupcache.GetterFunc(func(ctx context.Context, key string, dest transport.Sink) error {
@@ -109,7 +112,7 @@ func New(ctx context.Context, name string, getter GetterFunc, cfg Config) (*Dist
 
 	group, err := dc.instance.NewGroup(name, cfg.MaxBytes, gcGetter)
 	if err != nil {
-		daemon.Shutdown(ctx)
+		_ = daemon.Shutdown(ctx)
 		return nil, fmt.Errorf("cache: create group: %w", err)
 	}
 	dc.group = group

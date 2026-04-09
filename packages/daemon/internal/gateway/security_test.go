@@ -34,7 +34,7 @@ func setupSecurityTestServer(t *testing.T) (*httptest.Server, store.Driver, stri
 	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { drv.Close() })
+	t.Cleanup(func() { _ = drv.Close() })
 
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		t.Fatal(err)
@@ -57,20 +57,20 @@ func setupSecurityTestServer(t *testing.T) (*httptest.Server, store.Driver, stri
 		PasswordChangedAt:   time.Now().UTC(),
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 
 	// Assign superadmin role.
 	roles, err := tx.ListRoles(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal(err)
 	}
 	for _, role := range roles {
 		if role.Name == "superadmin" {
 			if err := tx.AssignRole(ctx, rootUser.ID, role.ID, ""); err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 				t.Fatal(err)
 			}
 			break
@@ -167,7 +167,7 @@ func TestTimingAttackResistance(t *testing.T) {
 				"password": password,
 			})
 			durations[i] = time.Since(start)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		return durations
 	}
@@ -195,7 +195,7 @@ func TestTimingAttackResistance(t *testing.T) {
 				"username": tc.username,
 				"password": "WrongPassword123!",
 			})
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusUnauthorized {
 				t.Errorf("%s: expected 401, got %d", tc.name, resp.StatusCode)
@@ -240,7 +240,7 @@ func TestTimingAttackResistance(t *testing.T) {
 			if err := json.NewDecoder(resp.Body).Decode(&pd); err == nil {
 				msgs = append(msgs, pd.Detail)
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		if len(msgs) == 2 && msgs[0] != msgs[1] {
 			t.Errorf("error messages differ: existing=%q nonexistent=%q (enables enumeration)",
@@ -303,7 +303,7 @@ func TestSessionFixation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401 for fabricated session, got %d", resp.StatusCode)
@@ -318,7 +318,7 @@ func TestSessionFixation(t *testing.T) {
 			"username": "root",
 			"password": "TestPassword123!",
 		})
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("login failed: %d", resp.StatusCode)
@@ -357,7 +357,7 @@ func TestSessionFixation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer meResp.Body.Close()
+		defer func() { _ = meResp.Body.Close() }()
 
 		if meResp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401 for modified session cookie, got %d", meResp.StatusCode)
@@ -375,7 +375,7 @@ func TestCookieScopeValidation(t *testing.T) {
 		"username": "root",
 		"password": rootPassword,
 	})
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login failed: %d", resp.StatusCode)
@@ -444,7 +444,7 @@ func TestSQLInjectionAttempts(t *testing.T) {
 				"username": payload,
 				"password": "anything",
 			})
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			// Must return 400 or 401, never 500.
 			if resp.StatusCode >= 500 {
@@ -462,7 +462,7 @@ func TestSQLInjectionAttempts(t *testing.T) {
 				"username": payload,
 				"password": "anything",
 			})
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			var pd ProblemDetail
 			if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
@@ -491,7 +491,7 @@ func TestXSSPayloadStorage(t *testing.T) {
 		"username": "root",
 		"password": rootPassword,
 	})
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login failed: %d", resp.StatusCode)
 	}
@@ -522,10 +522,12 @@ func TestXSSPayloadStorage(t *testing.T) {
 				PasswordChangedAt: time.Now().UTC(),
 			})
 			if err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 				t.Fatalf("create user: %v", err)
 			}
-			tx.Commit()
+			if err := tx.Commit(); err != nil {
+				t.Fatalf("commit: %v", err)
+			}
 		})
 	}
 
@@ -533,7 +535,7 @@ func TestXSSPayloadStorage(t *testing.T) {
 	// security headers that prevent XSS execution.
 	t.Run("response_headers_prevent_xss", func(t *testing.T) {
 		resp := securityDoJSON(t, client, http.MethodGet, server.URL+"/api/v1/auth/me", nil)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		ct := resp.Header.Get("Content-Type")
 		if !strings.HasPrefix(ct, "application/") {
@@ -572,7 +574,7 @@ func TestRequestSmuggling(t *testing.T) {
 			t.Logf("transport error (acceptable): %v", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Should be 414 URI Too Long or 400 Bad Request, never 200.
 		if resp.StatusCode == http.StatusOK {
@@ -590,7 +592,7 @@ func TestRequestSmuggling(t *testing.T) {
 			t.Logf("transport error (acceptable): %v", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Must not return 200 with valid data.
 		if resp.StatusCode == http.StatusOK {
@@ -614,7 +616,7 @@ func TestRequestSmuggling(t *testing.T) {
 				t.Logf("path %q: transport error (acceptable): %v", path, err)
 				continue
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			// Should be 400, 401, or 404 -- never 200 with file contents.
 			if resp.StatusCode == http.StatusOK {
@@ -634,7 +636,7 @@ func TestRequestSmuggling(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Should still process the request (Go's json.Decoder doesn't require
 		// Content-Type) but the handler may reject or accept. The key assertion

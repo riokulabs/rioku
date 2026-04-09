@@ -62,7 +62,7 @@ func (d *driver) Open(_ context.Context, cfg store.DriverConfig) error {
 		"PRAGMA busy_timeout=5000",
 	} {
 		if _, err := db.Exec(pragma); err != nil {
-			db.Close()
+			_ = db.Close()
 			return fmt.Errorf("sqlite: %s: %w", pragma, err)
 		}
 	}
@@ -320,7 +320,7 @@ func (t *tx) ListRoutes(ctx context.Context) ([]*riokuv1.Route, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list routes: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var routes []*riokuv1.Route
 	for rows.Next() {
@@ -467,7 +467,7 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var services []*riokuv1.Service
 	serviceIndex := make(map[string]*riokuv1.Service)
@@ -490,7 +490,7 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 		if err != nil {
 			return nil, fmt.Errorf("sqlite: fetch all upstreams: %w", err)
 		}
-		defer uRows.Close()
+		defer func() { _ = uRows.Close() }()
 
 		for uRows.Next() {
 			var (
@@ -597,7 +597,7 @@ func (t *tx) fetchUpstreams(ctx context.Context, serviceID string) ([]*riokuv1.U
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: fetch upstreams: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var upstreams []*riokuv1.Upstream
 	for rows.Next() {
@@ -668,7 +668,7 @@ func (t *tx) ListPolicies(ctx context.Context) ([]*riokuv1.Policy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list policies: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var policies []*riokuv1.Policy
 	for rows.Next() {
@@ -768,7 +768,7 @@ func (t *tx) ListPoliciesByTarget(ctx context.Context, targetType, targetID stri
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list policies by target: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []string
 	for rows.Next() {
@@ -835,7 +835,7 @@ func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var keys []*store.APIKey
 	for rows.Next() {
@@ -959,7 +959,7 @@ func (t *tx) ListUsers(ctx context.Context) ([]*store.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list users: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var users []*store.User
 	for rows.Next() {
@@ -1151,7 +1151,7 @@ func (t *tx) ListSessionsByUser(ctx context.Context, userID string) ([]*store.Se
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list sessions by user: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var sessions []*store.Session
 	for rows.Next() {
@@ -1273,7 +1273,7 @@ func (t *tx) ListConfigVersions(ctx context.Context, limit int) ([]*store.Config
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list config_versions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var versions []*store.ConfigVersion
 	for rows.Next() {
@@ -1370,7 +1370,7 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: query audit log: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var entries []*riokuv1.AuditEntry
 	for rows.Next() {
@@ -1456,7 +1456,7 @@ func (t *tx) getRolePermissions(ctx context.Context, roleID string) ([]string, e
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: get role permissions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var perms []string
 	for rows.Next() {
 		var p string
@@ -1474,7 +1474,7 @@ func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list roles: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var roles []*store.Role
 	for rows.Next() {
 		r := &store.Role{}
@@ -1565,7 +1565,7 @@ func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list permissions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var perms []*store.Permission
 	for rows.Next() {
 		p := &store.Permission{}
@@ -1586,7 +1586,7 @@ func (t *tx) GetUserScopes(ctx context.Context, userID string) ([]string, error)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: get user scopes: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var scopes []string
 	for rows.Next() {
 		var s string
@@ -1640,7 +1640,7 @@ func (t *tx) ListUserRoles(ctx context.Context, userID string) ([]*store.UserRol
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list user roles: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var result []*store.UserRole
 	for rows.Next() {
 		ur := &store.UserRole{}
@@ -1660,7 +1660,7 @@ func (t *tx) ListUsersWithRole(ctx context.Context, roleID string) ([]string, er
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list users with role: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var ids []string
 	for rows.Next() {
 		var id string
@@ -1702,7 +1702,7 @@ func (t *tx) ListUnusedTOTPBackupCodes(ctx context.Context, userID string) ([]*s
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list backup codes: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var codes []*store.TOTPBackupCode
 	for rows.Next() {
 		c := &store.TOTPBackupCode{}

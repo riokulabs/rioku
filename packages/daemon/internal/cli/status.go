@@ -45,7 +45,7 @@ func runStatus() error {
 	}
 
 	if !daemon.IsProcessRunning(pid) {
-		daemon.RemovePIDFile(pidFile)
+		_ = daemon.RemovePIDFile(pidFile)
 		fmt.Println("Daemon: not running (stale pid file cleaned)")
 		os.Exit(ExitDaemonUnreachable)
 		return nil

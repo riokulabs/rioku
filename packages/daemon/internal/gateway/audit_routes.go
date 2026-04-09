@@ -69,7 +69,7 @@ func handleAuditQuery(st store.Driver) http.HandlerFunc {
 				"Failed to query audit log", r.URL.Path, nil)
 			return
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 
 		entries, err := tx.QueryAuditLog(ctx, query)
 		if err != nil {
@@ -83,19 +83,19 @@ func handleAuditQuery(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("["))
+		_, _ = w.Write([]byte("["))
 		for i, entry := range entries {
 			if i > 0 {
-				w.Write([]byte(","))
+				_, _ = w.Write([]byte(","))
 			}
 			data, err := marshaler.Marshal(entry)
 			if err != nil {
 				// Best effort — skip malformed entries.
 				continue
 			}
-			w.Write(data)
+			_, _ = w.Write(data)
 		}
-		w.Write([]byte("]"))
+		_, _ = w.Write([]byte("]"))
 	}
 }
 

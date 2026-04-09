@@ -45,7 +45,7 @@ func NewHost(ctx context.Context, memoryLimitPages uint32) (*Host, error) {
 
 	// Register the Rioku host module with all ABI functions.
 	if err := h.registerHostModule(ctx); err != nil {
-		rt.Close(ctx)
+		_ = rt.Close(ctx)
 		return nil, err
 	}
 
@@ -131,14 +131,14 @@ func (h *Host) LoadPlugin(ctx context.Context, name string, wasmBytes []byte, co
 
 	pool, err := newInstancePool(ctx, h.runtime, compiled, name, poolSize)
 	if err != nil {
-		compiled.Close(ctx)
+		_ = compiled.Close(ctx)
 		return nil, fmt.Errorf("wasm: create pool for %s: %w", name, err)
 	}
 	p.pool = pool
 
 	// Close any existing plugin with the same name (hot-swap).
 	if old, exists := h.plugins[name]; exists {
-		old.close(ctx)
+		_ = old.close(ctx)
 	}
 
 	h.plugins[name] = p
@@ -173,7 +173,7 @@ func (h *Host) Close(ctx context.Context) error {
 	h.closed = true
 
 	for name, p := range h.plugins {
-		p.close(ctx)
+		_ = p.close(ctx)
 		delete(h.plugins, name)
 	}
 	return h.runtime.Close(ctx)
@@ -219,7 +219,7 @@ func (p *Plugin) HotSwap(ctx context.Context, newWasmBytes []byte) error {
 
 	newPool, err := newInstancePool(ctx, p.host.runtime, compiled, p.name, p.pool.size)
 	if err != nil {
-		compiled.Close(ctx)
+		_ = compiled.Close(ctx)
 		return fmt.Errorf("wasm: create pool for hot-swap: %w", err)
 	}
 
@@ -233,7 +233,7 @@ func (p *Plugin) HotSwap(ctx context.Context, newWasmBytes []byte) error {
 
 	// Drain old pool — wait for in-flight requests to finish, then close.
 	oldPool.Drain(ctx)
-	oldCompiled.Close(ctx)
+	_ = oldCompiled.Close(ctx)
 
 	return nil
 }

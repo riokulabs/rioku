@@ -152,7 +152,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, userID string, r *h
 
 	created, err := tx.CreateSession(ctx, sess)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("session: create: %w", err)
 	}
 
@@ -177,7 +177,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, userID string, r *h
 		if u, err := rtx.GetUser(ctx, userID); err == nil {
 			username = u.Username
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 	}
 
 	claims := &SessionClaims{
@@ -244,7 +244,7 @@ func (sm *SessionManager) ValidateSession(ctx context.Context, sessionID string,
 	if err != nil {
 		return nil, fmt.Errorf("session: begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	sess, err := tx.GetSession(ctx, sessionID)
 	if err != nil {
@@ -326,10 +326,10 @@ func (sm *SessionManager) maybeUpdateLastActive(ctx context.Context, sessionID s
 		return
 	}
 	if err := tx.UpdateSessionLastActive(ctx, sessionID, now); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return
 	}
-	tx.Commit()
+	_ = tx.Commit()
 }
 
 // ---------------------------------------------------------------------------
@@ -345,7 +345,7 @@ func (sm *SessionManager) RevokeSession(ctx context.Context, sessionID string) e
 	}
 
 	if err := tx.DeleteSession(ctx, sessionID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("session: delete: %w", err)
 	}
 
@@ -368,12 +368,12 @@ func (sm *SessionManager) RevokeAllSessionsForUser(ctx context.Context, userID s
 	// List sessions before deleting so we can evict cache entries.
 	sessions, err := tx.ListSessionsByUser(ctx, userID)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("session: list by user: %w", err)
 	}
 
 	if err := tx.DeleteSessionsByUser(ctx, userID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("session: delete by user: %w", err)
 	}
 
@@ -398,12 +398,12 @@ func (sm *SessionManager) RevokeOtherSessions(ctx context.Context, userID, excep
 	// List sessions before deleting so we can evict cache entries.
 	sessions, err := tx.ListSessionsByUser(ctx, userID)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("session: list by user: %w", err)
 	}
 
 	if err := tx.DeleteSessionsByUserExcept(ctx, userID, exceptSessionID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("session: delete except: %w", err)
 	}
 
@@ -472,7 +472,7 @@ func (sm *SessionManager) CleanupExpired(ctx context.Context) (int64, error) {
 
 	n, err := tx.DeleteExpiredSessions(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return 0, fmt.Errorf("session: cleanup expired: %w", err)
 	}
 

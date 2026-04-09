@@ -37,7 +37,9 @@ func TestClusterRejoinAfterPartition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create route: %v", err)
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	time.Sleep(500 * time.Millisecond) // replication
 
@@ -66,7 +68,9 @@ func TestClusterRejoinAfterPartition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create route during partition: %v", err)
 	}
-	tx2.Commit()
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -99,7 +103,9 @@ func TestClusterRejoinAfterPartition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list routes on rejoined node: %v", err)
 	}
-	rtx.Rollback()
+	if err := rtx.Rollback(); err != nil {
+		t.Fatalf("rollback: %v", err)
+	}
 
 	if len(routes) != 2 {
 		t.Fatalf("rejoined node: expected 2 routes, got %d", len(routes))
@@ -147,7 +153,9 @@ func TestClusterSnapshotAndRestore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create route %d: %v", i, err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("commit route %d: %v", i, err)
+		}
 	}
 
 	time.Sleep(1 * time.Second) // replication
@@ -205,7 +213,9 @@ func TestClusterSnapshotAndRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list routes on restored node: %v", err)
 	}
-	rtx.Rollback()
+	if err := rtx.Rollback(); err != nil {
+		t.Fatalf("rollback: %v", err)
+	}
 
 	if len(routes) != 100 {
 		t.Fatalf("restored node: expected 100 routes, got %d", len(routes))
@@ -234,7 +244,9 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create route: %v", err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		if route.GetId() == "" {
 			t.Fatal("expected non-empty route ID")
@@ -252,7 +264,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if got.GetName() != "parity-route" {
 			t.Errorf("got name=%q, want %q", got.GetName(), "parity-route")
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 
 		// Update.
 		tx2, _ := node.Begin(ctx, store.TxOptions{})
@@ -264,19 +276,23 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if updated.GetName() != "parity-route-updated" {
 			t.Errorf("name=%q, want %q", updated.GetName(), "parity-route-updated")
 		}
-		tx2.Commit()
+		if err := tx2.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		// Delete.
 		dtx, _ := node.Begin(ctx, store.TxOptions{})
 		if err := dtx.DeleteRoute(ctx, route.GetId()); err != nil {
 			t.Fatalf("delete route: %v", err)
 		}
-		dtx.Commit()
+		if err := dtx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		// Verify deleted.
 		rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
 		_, err = rtx2.GetRoute(ctx, route.GetId())
-		rtx2.Rollback()
+		_ = rtx2.Rollback()
 		if err == nil {
 			t.Error("expected error getting deleted route")
 		}
@@ -294,7 +310,9 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create service: %v", err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		if svc.GetId() == "" {
 			t.Fatal("expected non-empty service ID")
@@ -312,7 +330,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if got.GetName() != "parity-service" {
 			t.Errorf("got name=%q, want %q", got.GetName(), "parity-service")
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 
 		// List.
 		ltx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -320,7 +338,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("list services: %v", err)
 		}
-		ltx.Rollback()
+		_ = ltx.Rollback()
 
 		found := false
 		for _, s := range services {
@@ -338,12 +356,14 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err := dtx.DeleteService(ctx, svc.GetId()); err != nil {
 			t.Fatalf("delete service: %v", err)
 		}
-		dtx.Commit()
+		if err := dtx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		// Verify deleted.
 		rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
 		_, err = rtx2.GetService(ctx, svc.GetId())
-		rtx2.Rollback()
+		_ = rtx2.Rollback()
 		if err == nil {
 			t.Error("expected error getting deleted service")
 		}
@@ -359,7 +379,9 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create policy: %v", err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		if pol.GetId() == "" {
 			t.Fatal("expected non-empty policy ID")
@@ -374,7 +396,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if got.GetName() != "parity-policy" {
 			t.Errorf("got name=%q, want %q", got.GetName(), "parity-policy")
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 
 		// Update.
 		tx2, _ := node.Begin(ctx, store.TxOptions{})
@@ -386,14 +408,18 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if updated.GetName() != "parity-policy-updated" {
 			t.Errorf("name=%q, want %q", updated.GetName(), "parity-policy-updated")
 		}
-		tx2.Commit()
+		if err := tx2.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		// Delete.
 		dtx, _ := node.Begin(ctx, store.TxOptions{})
 		if err := dtx.DeletePolicy(ctx, pol.GetId()); err != nil {
 			t.Fatalf("delete policy: %v", err)
 		}
-		dtx.Commit()
+		if err := dtx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 	})
 
 	// --- API Key CRUD ---
@@ -404,7 +430,9 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create api key: %v", err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		if keyID == "" {
 			t.Fatal("expected non-empty key ID")
@@ -419,7 +447,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if got.Name != "parity-key" {
 			t.Errorf("name=%q, want %q", got.Name, "parity-key")
 		}
-		rtx.Rollback()
+		_ = rtx.Rollback()
 
 		// Get by hash.
 		rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -430,7 +458,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if gotByHash.ID != keyID {
 			t.Errorf("id=%q, want %q", gotByHash.ID, keyID)
 		}
-		rtx2.Rollback()
+		_ = rtx2.Rollback()
 
 		// List.
 		ltx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -438,7 +466,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("list api keys: %v", err)
 		}
-		ltx.Rollback()
+		_ = ltx.Rollback()
 
 		found := false
 		for _, k := range keys {
@@ -456,7 +484,9 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err := rvtx.RevokeAPIKey(ctx, keyID); err != nil {
 			t.Fatalf("revoke api key: %v", err)
 		}
-		rvtx.Commit()
+		if err := rvtx.Commit(); err != nil {
+			t.Fatalf("commit: %v", err)
+		}
 
 		// Verify revoked (not in active list).
 		ltx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
@@ -464,7 +494,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("list api keys after revoke: %v", err)
 		}
-		ltx2.Rollback()
+		_ = ltx2.Rollback()
 
 		for _, k := range keys2 {
 			if k.ID == keyID {
@@ -484,6 +514,6 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 		if err == nil {
 			t.Error("expected not-implemented error from CreateUser")
 		}
-		tx.Rollback()
+		_ = tx.Rollback()
 	})
 }

@@ -103,7 +103,7 @@ func TestLoadUserScopes_WithRole(t *testing.T) {
 		t.Fatalf("Begin: %v", err)
 	}
 	if err := tx.AssignRole(ctx, user.ID, "role_viewer", ""); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("AssignRole: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -156,7 +156,7 @@ func TestLoadUserScopes_Superadmin(t *testing.T) {
 		t.Fatalf("Begin: %v", err)
 	}
 	if err := tx.AssignRole(ctx, user.ID, "role_superadmin", ""); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("AssignRole: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -197,11 +197,11 @@ func TestLoadUserScopes_MultipleRoles(t *testing.T) {
 		t.Fatalf("Begin: %v", err)
 	}
 	if err := tx.AssignRole(ctx, user.ID, "role_viewer", ""); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("AssignRole viewer: %v", err)
 	}
 	if err := tx.AssignRole(ctx, user.ID, "role_operator", ""); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("AssignRole operator: %v", err)
 	}
 	if err := tx.Commit(); err != nil {

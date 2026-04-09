@@ -35,7 +35,7 @@ func benchSQLiteStore(b *testing.B) store.Driver {
 	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
 		b.Fatal(err)
 	}
-	b.Cleanup(func() { drv.Close() })
+	b.Cleanup(func() { _ = drv.Close() })
 	return drv
 }
 
@@ -54,10 +54,12 @@ func benchCreateUser(b *testing.B, st store.Driver) string {
 		Status:       "active",
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		b.Fatal(err)
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		b.Fatal(err)
+	}
 	return user.ID
 }
 
@@ -100,15 +102,17 @@ func benchCreateUserWithRoles(b *testing.B, st store.Driver, numRoles, permsPerR
 			Permissions: perms,
 		})
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			b.Fatal(err)
 		}
 		if err := tx.AssignRole(ctx, userID, role.ID, ""); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			b.Fatal(err)
 		}
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		b.Fatal(err)
+	}
 	return userID
 }
 

@@ -175,7 +175,7 @@ func (a *Auth) validateAPIKeyOnly(ctx context.Context, key string) (*Claims, err
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	apiKey, err := tx.GetAPIKeyByHash(ctx, hash)
 	if err != nil {
@@ -203,7 +203,7 @@ func (a *Auth) ValidateAPIKey(ctx context.Context, key string) (*TokenPair, erro
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	apiKey, err := tx.GetAPIKeyByHash(ctx, hash)
 	if err != nil {
@@ -362,7 +362,7 @@ func (a *Auth) storeRefreshToken(ctx context.Context, token, subject string, rol
 
 	_, err = tx.CreateAPIKey(ctx, "refresh:"+subject, hash, scopes, &expiresAt)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 	return tx.Commit()
@@ -376,21 +376,21 @@ func (a *Auth) consumeRefreshToken(ctx context.Context, hash string) (string, []
 
 	key, err := tx.GetAPIKeyByHash(ctx, hash)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return "", nil, fmt.Errorf("refresh token not found")
 	}
 	if key.RevokedAt != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return "", nil, fmt.Errorf("refresh token has been revoked")
 	}
 	if key.ExpiresAt != nil && time.Now().After(*key.ExpiresAt) {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return "", nil, fmt.Errorf("refresh token has expired")
 	}
 
 	// Revoke the used refresh token (one-time use / rotation).
 	if err := tx.RevokeAPIKey(ctx, key.ID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return "", nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -416,7 +416,7 @@ func (a *Auth) validateStoredToken(ctx context.Context, name, hash string) error
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	key, err := tx.GetAPIKeyByHash(ctx, hash)
 	if err != nil {

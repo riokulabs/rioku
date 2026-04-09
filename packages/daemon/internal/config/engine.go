@@ -56,7 +56,7 @@ func (e *Engine) GetConfig(ctx context.Context) (*riokuv1.ConfigSnapshot, error)
 	if err != nil {
 		return nil, fmt.Errorf("config: begin read tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	snap, err := buildSnapshot(ctx, tx)
 	if err != nil {
@@ -88,7 +88,7 @@ func (e *Engine) ApplyChange(ctx context.Context, change *riokuv1.ConfigChange, 
 	if err != nil {
 		return nil, fmt.Errorf("config: begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Optimistic locking: if the caller provided an expected version,
 	// verify it matches the current latest before proceeding.
@@ -267,7 +267,7 @@ func (e *Engine) GetAuditLog(ctx context.Context, query store.AuditQuery) ([]*ri
 	if err != nil {
 		return nil, fmt.Errorf("config: begin read tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	entries, err := tx.QueryAuditLog(ctx, query)
 	if err != nil {
@@ -307,7 +307,7 @@ func (e *Engine) ImportConfig(ctx context.Context, snapshot *riokuv1.ConfigSnaps
 	if err != nil {
 		return nil, fmt.Errorf("config: begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Delete all existing entities.
 	if err := deleteAll(ctx, tx); err != nil {

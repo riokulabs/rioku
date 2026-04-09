@@ -88,7 +88,7 @@ func newConfigImportCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&file, "file", "", "config file to import (required)")
-	cmd.MarkFlagRequired("file")
+	_ = cmd.MarkFlagRequired("file")
 
 	return cmd
 }
@@ -111,7 +111,7 @@ func newConfigVersionsCmd() *cobra.Command {
 				Version    int64  `json:"version"`
 				SnapshotAt string `json:"snapshotAt"`
 			}
-			json.Unmarshal(data, &snap)
+			_ = json.Unmarshal(data, &snap)
 
 			fmt.Printf("Current version: %d (at %s)\n", snap.Version, snap.SnapshotAt)
 			return nil
