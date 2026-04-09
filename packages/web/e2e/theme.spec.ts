@@ -10,8 +10,12 @@ adminTest.describe('Theme', () => {
     const isDark = initialClass.includes('dark');
 
     // Toggle theme via keyboard shortcut — Mod maps to Control on Linux
+    // Dispatch with correct modifier — WebKit reports as Mac (metaKey), others use ctrlKey
     await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 't', ctrlKey: !isMac, metaKey: isMac, shiftKey: true, bubbles: true,
+      }));
     });
 
     // Wait for the class to actually change instead of a fixed timeout
@@ -32,8 +36,12 @@ adminTest.describe('Theme', () => {
     }
 
     // Toggle back
+    // Dispatch with correct modifier — WebKit reports as Mac (metaKey), others use ctrlKey
     await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 't', ctrlKey: !isMac, metaKey: isMac, shiftKey: true, bubbles: true,
+      }));
     });
 
     await page.waitForFunction(
@@ -56,8 +64,12 @@ adminTest.describe('Theme', () => {
     const html = page.locator('html');
     const initialClass = await html.getAttribute('class') ?? '';
     if (initialClass.includes('dark')) {
-      await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+      // Dispatch with correct modifier — WebKit reports as Mac (metaKey), others use ctrlKey
+    await page.evaluate(() => {
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 't', ctrlKey: !isMac, metaKey: isMac, shiftKey: true, bubbles: true,
+      }));
     });
       await page.waitForFunction(
         () => !document.documentElement.className.includes('dark'),
@@ -86,8 +98,12 @@ adminTest.describe('Theme', () => {
     expect(afterReloadClass).not.toContain('dark');
 
     // Restore dark mode
+    // Dispatch with correct modifier — WebKit reports as Mac (metaKey), others use ctrlKey
     await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, shiftKey: true, bubbles: true }));
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 't', ctrlKey: !isMac, metaKey: isMac, shiftKey: true, bubbles: true,
+      }));
     });
     await page.waitForFunction(
       () => document.documentElement.className.includes('dark'),

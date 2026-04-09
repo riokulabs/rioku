@@ -37,9 +37,13 @@ adminTest.describe('Navigation', () => {
   adminTest('command palette: Mod+K opens, search "routes", select navigates', async ({ page }) => {
     await page.goto('/');
 
-    // Dispatch Ctrl+K via JS to avoid Firefox intercepting the shortcut for its search bar
+    // Dispatch via JS to avoid Firefox/WebKit intercepting the shortcut.
+    // WebKit reports as Mac (needs metaKey), others use ctrlKey.
     await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'k', ctrlKey: !isMac, metaKey: isMac, bubbles: true,
+      }));
     });
 
     // Command palette dialog should open (rendered via CommandDialog -> Dialog)
@@ -69,7 +73,12 @@ adminTest.describe('Navigation', () => {
     const initialState = await sidebarSlot.getAttribute('data-state');
 
     // Toggle sidebar — Mod maps to Control on Linux
-    await page.keyboard.press('Control+b');
+    await page.evaluate(() => {
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'b', ctrlKey: !isMac, metaKey: isMac, bubbles: true,
+      }));
+    });
     await page.waitForFunction(
       (prev) => {
         const el = document.querySelector('[data-slot="sidebar"]');
@@ -83,7 +92,12 @@ adminTest.describe('Navigation', () => {
     expect(newState).not.toBe(initialState);
 
     // Toggle back
-    await page.keyboard.press('Control+b');
+    await page.evaluate(() => {
+      const isMac = /mac/i.test(navigator.platform);
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'b', ctrlKey: !isMac, metaKey: isMac, bubbles: true,
+      }));
+    });
     await page.waitForFunction(
       (prev) => {
         const el = document.querySelector('[data-slot="sidebar"]');
