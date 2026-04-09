@@ -133,7 +133,7 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 			ID        string   `json:"id"`
 			Name      string   `json:"name"`
 			Scopes    []string `json:"scopes"`
-			CreatedAt string   `json:"created_at"`
+			CreatedAt string   `json:"createdAt"`
 		}
 
 		var result []keyResponse

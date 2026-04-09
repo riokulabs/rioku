@@ -28,7 +28,7 @@ func RegisterTOTPRoutes(mux *http.ServeMux, st store.Driver, a *auth.Auth, sm *a
 
 type totpSetupResponse struct {
 	Secret string `json:"secret"`
-	QRURI  string `json:"qr_uri"`
+	QRURI  string `json:"qrUri"`
 }
 
 func handleTOTPSetup(st store.Driver, enc *auth.Encryptor) http.HandlerFunc {
@@ -106,7 +106,7 @@ type totpVerifyRequest struct {
 }
 
 type totpVerifyResponse struct {
-	BackupCodes []string `json:"backup_codes"`
+	BackupCodes []string `json:"backupCodes"`
 }
 
 func handleTOTPVerify(st store.Driver, sm *auth.SessionManager, enc *auth.Encryptor) http.HandlerFunc {
@@ -216,7 +216,7 @@ func handleTOTPVerify(st store.Driver, sm *auth.SessionManager, enc *auth.Encryp
 // ---------------------------------------------------------------------------
 
 type totpDisableRequest struct {
-	CurrentPassword string `json:"current_password"`
+	CurrentPassword string `json:"currentPassword"`
 }
 
 func handleTOTPDisable(st store.Driver, sm *auth.SessionManager, enc *auth.Encryptor) http.HandlerFunc {

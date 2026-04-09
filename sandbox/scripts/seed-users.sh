@@ -177,7 +177,7 @@ for user in config["users"]:
             roles = roles_resp if isinstance(roles_resp, list) else roles_resp.get("roles", [])
             role_id = next((r["id"] for r in roles if r["name"] == role_name), None)
             if role_id:
-                rs, _ = api("POST", f"/api/v1/users/{uid}/roles", {"role_id": role_id})
+                rs, _ = api("POST", f"/api/v1/users/{uid}/roles", {"roleId": role_id})
                 if rs in (200, 201, 204):
                     print(f"    assigned role {role_name}")
                 else:

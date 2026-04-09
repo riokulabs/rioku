@@ -315,8 +315,8 @@ func TestAuthIntegration(t *testing.T) {
 	t.Run("password_change", func(t *testing.T) {
 		newPassword := "NewSecurePass123!"
 		resp := doJSON(t, http.MethodPost, "/api/v1/auth/password", map[string]string{
-			"current_password": rootPassword,
-			"new_password":     newPassword,
+			"currentPassword": rootPassword,
+			"newPassword":     newPassword,
 		})
 		defer func() { _ = resp.Body.Close() }()
 

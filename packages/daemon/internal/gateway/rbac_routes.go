@@ -36,7 +36,7 @@ type roleResponse struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
-	IsBuiltin   bool     `json:"is_builtin"`
+	IsBuiltin   bool     `json:"isBuiltin"`
 	Permissions []string `json:"permissions"`
 }
 
@@ -168,8 +168,8 @@ func handleGetRole(st store.Driver) http.HandlerFunc {
 type updateRoleRequest struct {
 	Name        *string  `json:"name"`
 	Description *string  `json:"description"`
-	AddPerms    []string `json:"add_permissions"`
-	RemovePerms []string `json:"remove_permissions"`
+	AddPerms    []string `json:"addPermissions"`
+	RemovePerms []string `json:"removePermissions"`
 }
 
 func handleUpdateRole(st store.Driver) http.HandlerFunc {
@@ -317,10 +317,10 @@ func handleListPermissions(st store.Driver) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type userRoleResponse struct {
-	RoleID    string `json:"role_id"`
-	RoleName  string `json:"role_name"`
-	GrantedBy string `json:"granted_by,omitempty"`
-	GrantedAt string `json:"granted_at"`
+	RoleID    string `json:"roleId"`
+	RoleName  string `json:"roleName"`
+	GrantedBy string `json:"grantedBy,omitempty"`
+	GrantedAt string `json:"grantedAt"`
 }
 
 func handleListUserRoles(st store.Driver) http.HandlerFunc {
@@ -362,7 +362,7 @@ func handleListUserRoles(st store.Driver) http.HandlerFunc {
 }
 
 type assignRoleRequest struct {
-	RoleID string `json:"role_id"`
+	RoleID string `json:"roleId"`
 }
 
 func handleAssignRole(st store.Driver) http.HandlerFunc {

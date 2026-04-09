@@ -31,15 +31,15 @@ func RegisterUserRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionMan
 type userResponse struct {
 	ID                  string   `json:"id"`
 	Username            string   `json:"username"`
-	DisplayName         *string  `json:"display_name"`
+	DisplayName         *string  `json:"displayName"`
 	Email               *string  `json:"email"`
 	Roles               []string `json:"roles"`
 	Permissions         []string `json:"permissions"`
-	TOTPEnabled         bool     `json:"totp_enabled"`
-	ForcePasswordChange bool     `json:"force_password_change"`
+	TOTPEnabled         bool     `json:"totpEnabled"`
+	ForcePasswordChange bool     `json:"forcePasswordChange"`
 	Status              string   `json:"status"`
-	LastLogin           *string  `json:"last_login"`
-	CreatedAt           string   `json:"created_at"`
+	LastLogin           *string  `json:"lastLogin"`
+	CreatedAt           string   `json:"createdAt"`
 }
 
 func toUserResponse(user *store.User, roles, permissions []string) userResponse {
@@ -110,7 +110,7 @@ func handleListUsers(st store.Driver) http.HandlerFunc {
 type createUserRequest struct {
 	Username    string  `json:"username"`
 	Password    string  `json:"password"`
-	DisplayName *string `json:"display_name"`
+	DisplayName *string `json:"displayName"`
 	Email       *string `json:"email"`
 }
 
@@ -230,7 +230,7 @@ func handleGetUser(st store.Driver) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type updateUserRequest struct {
-	DisplayName *string `json:"display_name"`
+	DisplayName *string `json:"displayName"`
 	Email       *string `json:"email"`
 }
 

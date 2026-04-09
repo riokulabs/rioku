@@ -115,7 +115,7 @@ func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 }
 
 type refreshRequest struct {
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
@@ -179,7 +179,7 @@ func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
 type loginRequest struct {
 	Username string  `json:"username"`
 	Password string  `json:"password"`
-	TotpCode *string `json:"totp_code"`
+	TotpCode *string `json:"totpCode"`
 }
 
 type loginResponse struct {
@@ -190,20 +190,20 @@ type loginResponse struct {
 type loginUserInfo struct {
 	ID                  string `json:"id"`
 	Username            string `json:"username"`
-	DisplayName         string `json:"display_name,omitempty"`
-	ForcePasswordChange bool   `json:"force_password_change"`
+	DisplayName         string `json:"displayName,omitempty"`
+	ForcePasswordChange bool   `json:"forcePasswordChange"`
 }
 
 type loginSessionInfo struct {
 	ID        string    `json:"id"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 // totpRequiredResponse is returned when the user has TOTP enabled but did
 // not provide a totp_code in the login request.
 type totpRequiredResponse struct {
-	RequiresTOTP bool   `json:"requires_totp"`
-	UserID       string `json:"user_id"`
+	RequiresTOTP bool   `json:"requiresTotp"`
+	UserID       string `json:"userId"`
 }
 
 func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config, enc *auth.Encryptor) http.HandlerFunc {
@@ -441,20 +441,20 @@ type meResponse struct {
 type meUserInfo struct {
 	ID                  string   `json:"id"`
 	Username            string   `json:"username"`
-	DisplayName         string   `json:"display_name,omitempty"`
+	DisplayName         string   `json:"displayName,omitempty"`
 	Email               string   `json:"email,omitempty"`
 	Roles               []string `json:"roles"`
 	Permissions         []string `json:"permissions"`
 	Status              string   `json:"status"`
-	LastLogin           *string  `json:"last_login,omitempty"`
-	CreatedAt           string   `json:"created_at"`
-	ForcePasswordChange bool     `json:"force_password_change"`
-	TOTPEnabled         bool     `json:"totp_enabled"`
+	LastLogin           *string  `json:"lastLogin,omitempty"`
+	CreatedAt           string   `json:"createdAt"`
+	ForcePasswordChange bool     `json:"forcePasswordChange"`
+	TOTPEnabled         bool     `json:"totpEnabled"`
 }
 
 type meSessionInfo struct {
 	ID        string    `json:"id"`
-	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	ExpiresAt time.Time `json:"expiresAt,omitempty"`
 }
 
 func handleMe(st store.Driver) http.HandlerFunc {
@@ -555,8 +555,8 @@ func handleMe(st store.Driver) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type passwordChangeRequest struct {
-	CurrentPassword string `json:"current_password"`
-	NewPassword     string `json:"new_password"`
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
 }
 
 func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.Config) http.HandlerFunc {
@@ -672,14 +672,14 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 // ---------------------------------------------------------------------------
 
 type updateProfileRequest struct {
-	DisplayName *string `json:"display_name"`
+	DisplayName *string `json:"displayName"`
 	Email       *string `json:"email"`
 }
 
 type updateProfileResponse struct {
 	ID          string `json:"id"`
 	Username    string `json:"username"`
-	DisplayName string `json:"display_name,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
 	Email       string `json:"email,omitempty"`
 }
 
@@ -796,11 +796,11 @@ func writeProblem(w http.ResponseWriter, status int, errType, title, detail, ins
 
 type sessionResponse struct {
 	ID         string `json:"id"`
-	CreatedAt  string `json:"created_at"`
-	LastActive string `json:"last_active"`
-	ExpiresAt  string `json:"expires_at"`
-	IPAddress  string `json:"ip_address"`
-	UserAgent  string `json:"user_agent,omitempty"`
+	CreatedAt  string `json:"createdAt"`
+	LastActive string `json:"lastActive"`
+	ExpiresAt  string `json:"expiresAt"`
+	IPAddress  string `json:"ipAddress"`
+	UserAgent  string `json:"userAgent,omitempty"`
 }
 
 func handleListSessions(st store.Driver) http.HandlerFunc {
