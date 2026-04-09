@@ -61,15 +61,11 @@ jobs:
         with:
           working-directory: packages/daemon
           args: --build-tags noadmin
-          version: v2.11.4
-          install-mode: goinstall
 
       - name: golangci-lint (build-service)
         uses: golangci/golangci-lint-action@v9
         with:
           working-directory: packages/build-service
-          version: v2.11.4
-          install-mode: goinstall
 
   proto:
     name: Proto Lint
@@ -142,36 +138,7 @@ jobs:
         run: cd packages/web && npm ci
 
       - name: Start sandbox
-        run: make sandbox > sandbox-build.log 2>&1 &
-
-      - name: Wait for sandbox health
-        run: |
-          for i in $(seq 1 60); do
-            if curl -sf --max-time 2 http://localhost:7778/api/v1/health; then
-              echo "Sandbox is healthy"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::Sandbox did not become healthy after 120s"
-          echo "=== Diagnostic info ==="
-          echo "--- Listening ports ---"
-          ss -tlnp 2>/dev/null | grep -E '7777|7778|8443|9001|9002|9003|9004|9005|2019' || echo "No matching ports"
-          echo "--- Screen sessions ---"
-          screen -ls 2>/dev/null || echo "No screen sessions"
-          echo "--- Daemon log (last 30 lines) ---"
-          tail -30 sandbox/.data/daemon.log 2>/dev/null || echo "No daemon log"
-          echo "--- Daemon PID file ---"
-          cat sandbox/.data/rioku.pid 2>/dev/null || echo "No PID file"
-          echo "--- Init log ---"
-          tail -20 sandbox/.data/init.log 2>/dev/null || echo "No init log"
-          echo "--- Process list ---"
-          ps aux | grep -E 'rioku|caddy' | grep -v grep || echo "No rioku/caddy processes"
-          echo "--- curl verbose ---"
-          curl -v --max-time 5 http://localhost:7778/api/v1/health 2>&1 || true
-          echo "--- Sandbox build log (last 50 lines) ---"
-          tail -50 sandbox-build.log 2>/dev/null || echo "No sandbox build log"
-          exit 1
+        run: make sandbox
 
       - name: Run smoke tests
         run: make sandbox-test-smoke

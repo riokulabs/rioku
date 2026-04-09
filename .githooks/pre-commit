@@ -7,13 +7,14 @@ set -euo pipefail
 STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 STAGED_PROTO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.proto$' || true)
 
-# Go formatting check
+# Go formatting — auto-fix and re-stage
 if [ -n "$STAGED_GO" ]; then
   UNFORMATTED=$(gofmt -l $STAGED_GO 2>/dev/null || true)
   if [ -n "$UNFORMATTED" ]; then
-    echo "ERROR: Go files not formatted. Run: gofmt -w"
-    echo "$UNFORMATTED"
-    exit 1
+    echo "Formatting Go files..."
+    gofmt -w $UNFORMATTED
+    git add $UNFORMATTED
+    echo "  formatted and re-staged: $UNFORMATTED"
   fi
 
   # Go vet — only run on modules that have staged files and can be vetted.
