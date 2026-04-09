@@ -69,7 +69,7 @@ make dev              # Build + run daemon in dev mode
 ## Coding Conventions
 
 - **Go**: Standard library preferred. No ORM (raw SQL per-dialect). No external test libraries.
-- **Tests**: Always run with `-race`. Table-driven tests. Real databases for integration tests, not mocks.
+- **Tests**: Always run with `-race`. Table-driven tests. Real databases for integration tests, not mocks. **Every feature and bugfix must include tests** — Go unit/integration tests for backend changes, Vitest tests for frontend logic, Playwright E2E tests for user-facing behavior. Contract tests (`contract_test.go`) must be updated when REST API response shapes change. No code ships without corresponding test coverage.
 - **Errors**: Handle every error explicitly. Never discard.
 - **Proto package**: `rioku.v1` with `riokuv1` Go alias
 - **Migrations**: Per-dialect directories (sqlite/, postgres/, mysql/). Version numbers kept in sync across all three.
@@ -85,10 +85,11 @@ make dev              # Build + run daemon in dev mode
 - Load/performance testing
 
 **Development workflow:**
-1. `make sandbox` — start full environment
-2. Write code → `make sandbox-restart-daemon` — rebuild + restart daemon (~5s, upstream apps stay running)
-3. Validate against `localhost:7778` (curl, browser, smoke scripts)
-4. `make sandbox-stop` when done
+1. `SANDBOX_ROOT_PASSWORD=TestRoot1234! make sandbox` — start full environment (or `make sandbox-reset` for fresh)
+2. Write code → `make sandbox-restart-daemon` — rebuild + restart daemon (skips web rebuild if unchanged)
+3. `make sandbox-status` — check what's running
+4. Validate against `localhost:7778` (curl, browser, smoke scripts)
+5. `make sandbox-stop` when done
 
 **If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
 
