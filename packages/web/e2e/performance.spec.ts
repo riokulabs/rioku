@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { adminTest } from './fixtures';
-import baseline from './perf-baseline.json';
+import baseline from './perf-baseline.json' with { type: 'json' };
 
 adminTest.describe('Performance', () => {
   adminTest('dashboard: DOMContentLoaded < 2s, full load < 4s', async ({ page }) => {
