@@ -26,42 +26,52 @@ async function globalSetup(_config: FullConfig): Promise<void> {
   const context = await browser.newContext({ baseURL: 'http://localhost:7778' });
   const page = await context.newPage();
 
-  await page.goto('/login');
-  await page.getByLabel('Username').fill('testadmin');
-  await page.getByLabel('Password').fill('TestAdmin123!');
-  await page.getByRole('button', { name: 'Log in' }).click();
-  await page.waitForURL('/');
+  // Login via API and capture cookies (including HttpOnly session cookie).
+  // Playwright's storageState doesn't include HttpOnly cookies from browser login,
+  // so we use the API directly and build the storage state manually.
+  async function loginAndSave(username: string, password: string, path: string) {
+    const res = await fetch('http://localhost:7778/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) throw new Error(`Login failed for ${username}: ${res.status}`);
 
-  await context.storageState({ path: 'e2e/.auth/admin.json' });
+    // Extract Set-Cookie header to get the session cookie.
+    const setCookies = res.headers.getSetCookie();
+    const cookies: Array<{
+      name: string; value: string; domain: string; path: string;
+      httpOnly: boolean; secure: boolean; sameSite: 'Lax' | 'Strict' | 'None';
+    }> = [];
+
+    for (const sc of setCookies) {
+      const parts = sc.split(';').map(p => p.trim());
+      const [nameVal, ...attrs] = parts;
+      const [name, value] = nameVal.split('=', 2);
+      cookies.push({
+        name,
+        value,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: attrs.some(a => a.toLowerCase() === 'httponly'),
+        secure: attrs.some(a => a.toLowerCase() === 'secure'),
+        sameSite: 'Lax',
+      });
+    }
+
+    const fs = await import('fs');
+    fs.mkdirSync('e2e/.auth', { recursive: true });
+    fs.writeFileSync(path, JSON.stringify({
+      cookies,
+      origins: [],
+    }));
+  }
+
+  await loginAndSave('testadmin', 'TestAdmin123!', 'e2e/.auth/admin.json');
+  await loginAndSave('testviewer', 'TestView123!', 'e2e/.auth/viewer.json');
+  await loginAndSave('testoperator', 'TestOperator123!', 'e2e/.auth/operator.json');
+
   await browser.close();
-
-  // Pre-authenticate testviewer
-  const browser2 = await chromium.launch();
-  const ctx2 = await browser2.newContext({ baseURL: 'http://localhost:7778' });
-  const page2 = await ctx2.newPage();
-
-  await page2.goto('/login');
-  await page2.getByLabel('Username').fill('testviewer');
-  await page2.getByLabel('Password').fill('TestView123!');
-  await page2.getByRole('button', { name: 'Log in' }).click();
-  await page2.waitForURL('/');
-
-  await ctx2.storageState({ path: 'e2e/.auth/viewer.json' });
-  await browser2.close();
-
-  // Pre-authenticate testoperator
-  const browser3 = await chromium.launch();
-  const ctx3 = await browser3.newContext({ baseURL: 'http://localhost:7778' });
-  const page3 = await ctx3.newPage();
-
-  await page3.goto('/login');
-  await page3.getByLabel('Username').fill('testoperator');
-  await page3.getByLabel('Password').fill('TestOperator123!');
-  await page3.getByRole('button', { name: 'Log in' }).click();
-  await page3.waitForURL('/');
-
-  await ctx3.storageState({ path: 'e2e/.auth/operator.json' });
-  await browser3.close();
 }
 
 export default globalSetup;
