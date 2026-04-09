@@ -55,15 +55,16 @@ export const Route = createFileRoute('/config/policies')({
   component: ConfigPolicies,
 })
 
-const POLICY_TYPES = [
-  'POLICY_TYPE_RATE_LIMIT',
-  'POLICY_TYPE_AUTHENTICATION',
-  'POLICY_TYPE_CORS',
-  'POLICY_TYPE_CIRCUIT_BREAKER',
-  'POLICY_TYPE_RETRY',
-  'POLICY_TYPE_CACHE',
-  'POLICY_TYPE_TRANSFORM',
-] as const
+const POLICY_TYPES: Record<string, string> = {
+  POLICY_TYPE_RATE_LIMIT: 'Rate Limit',
+  POLICY_TYPE_AUTH_API_KEY: 'API Key Auth',
+  POLICY_TYPE_AUTHENTICATION: 'Authentication',
+  POLICY_TYPE_CORS: 'CORS',
+  POLICY_TYPE_CIRCUIT_BREAKER: 'Circuit Breaker',
+  POLICY_TYPE_RETRY: 'Retry',
+  POLICY_TYPE_CACHE: 'Cache',
+  POLICY_TYPE_TRANSFORM: 'Transform',
+}
 
 const policyTypeColors: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   'POLICY_TYPE_RATE_LIMIT': 'default',
@@ -231,8 +232,8 @@ function ConfigPolicies() {
             key: 'type',
             header: t('table.type'),
             render: (r) => (
-              <Badge variant={policyTypeColors[r.type] ?? 'outline'}>
-                {r.type}
+              <Badge variant={policyTypeColors[r.type as string] ?? 'outline'}>
+                {POLICY_TYPES[r.type as string] ?? r.type}
               </Badge>
             ),
           },
@@ -344,9 +345,9 @@ function ConfigPolicies() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {POLICY_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {Object.entries(POLICY_TYPES).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>

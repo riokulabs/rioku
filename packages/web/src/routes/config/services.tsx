@@ -56,15 +56,22 @@ export const Route = createFileRoute('/config/services')({
   component: ConfigServices,
 })
 
-const LB_POLICIES = [
-  'LB_POLICY_ROUND_ROBIN',
-  'LB_POLICY_RANDOM',
-  'LB_POLICY_FIRST',
-  'LB_POLICY_LEAST_CONN',
-  'LB_POLICY_IP_HASH',
-] as const
+const LB_POLICIES: Record<string, string> = {
+  LB_POLICY_UNSPECIFIED: 'None',
+  LB_POLICY_ROUND_ROBIN: 'Round Robin',
+  LB_POLICY_RANDOM: 'Random',
+  LB_POLICY_FIRST: 'First Available',
+  LB_POLICY_LEAST_CONN: 'Least Connections',
+  LB_POLICY_IP_HASH: 'IP Hash',
+  LB_POLICY_WEIGHTED_ROUND_ROBIN: 'Weighted Round Robin',
+}
 
-const TLS_MODES = ['none', 'tls', 'skip-verify'] as const
+const TLS_MODES: Record<string, string> = {
+  TLS_MODE_OFF: 'Off',
+  TLS_MODE_AUTO: 'Auto',
+  TLS_MODE_CUSTOM: 'Custom',
+  TLS_MODE_INTERNAL: 'Internal (mTLS)',
+}
 
 interface UpstreamRow {
   address: string
@@ -81,7 +88,7 @@ interface ServiceFormState {
 const defaultUpstream: UpstreamRow = {
   address: '',
   weight: 1,
-  tls: 'none',
+  tls: 'TLS_MODE_OFF',
 }
 
 const emptyForm: ServiceFormState = {
@@ -259,7 +266,7 @@ function ConfigServices() {
             key: 'lbPolicy',
             header: t('table.lbPolicy'),
             render: (r) => (
-              <Badge variant="outline">{r.lbPolicy}</Badge>
+              <Badge variant="outline">{LB_POLICIES[r.lbPolicy as string] ?? r.lbPolicy}</Badge>
             ),
           },
           {
@@ -366,9 +373,9 @@ function ConfigServices() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {LB_POLICIES.map((policy) => (
-                    <SelectItem key={policy} value={policy}>
-                      {policy}
+                  {Object.entries(LB_POLICIES).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -435,9 +442,9 @@ function ConfigServices() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {TLS_MODES.map((mode) => (
-                                <SelectItem key={mode} value={mode}>
-                                  {mode}
+                              {Object.entries(TLS_MODES).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
