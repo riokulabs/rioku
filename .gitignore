@@ -25,8 +25,9 @@ coverage.html
 *.tar.gz
 *.zip
 
-# Proto generated code
-packages/proto/gen/
+# Proto generated code — committed so CI doesn't need buf remote plugins.
+# Regenerate with: make proto
+# packages/proto/gen/
 
 # Node / Web
 node_modules/

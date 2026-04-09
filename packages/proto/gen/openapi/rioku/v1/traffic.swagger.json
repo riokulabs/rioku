@@ -1,0 +1,802 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "rioku/v1/traffic.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "TrafficService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/traffic/sessions": {
+      "get": {
+        "operationId": "TrafficService_ListSessions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SessionList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "activeOnly",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "agentId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "page.pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/sessions/{sessionId}": {
+      "get": {
+        "operationId": "TrafficService_GetSession",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SessionDetail"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/stats": {
+      "get": {
+        "operationId": "TrafficService_GetStats",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TrafficStats"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "interval",
+            "description": "\"minute\" | \"hour\" | \"day\"",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "routeIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/tokens": {
+      "get": {
+        "operationId": "TrafficService_GetTokenStats",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TokenStats"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/traces": {
+      "get": {
+        "operationId": "TrafficService_QueryTraces",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TraceQueryResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "routeIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "statusCodes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sessionId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "aiOnly",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "page.pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/traces/{traceId}": {
+      "get": {
+        "operationId": "TrafficService_GetTrace",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RequestTrace"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "description": "A URL/resource name that uniquely identifies the type of the serialized\nprotocol buffer message. This string must contain at least\none \"/\" character. The last segment of the URL's path must represent\nthe fully qualified name of the type (as in\n`path/google.protobuf.Duration`). The name should be in a canonical form\n(e.g., leading \".\" is not accepted).\n\nIn practice, teams usually precompile into the binary all types that they\nexpect it to use in the context of Any. However, for URLs which use the\nscheme `http`, `https`, or no scheme, one can optionally set up a type\nserver that maps type URLs to message definitions as follows:\n\n* If no scheme is provided, `https` is assumed.\n* An HTTP GET on the URL must yield a [google.protobuf.Type][]\n  value in binary format, or produce an error.\n* Applications are allowed to cache lookup results based on the\n  URL, or have them precompiled into a binary to avoid any\n  lookup. Therefore, binary compatibility needs to be preserved\n  on changes to types. (Use versioned type names to manage\n  breaking changes.)\n\nNote: this functionality is not currently available in the official\nprotobuf release, and it is not used for type URLs beginning with\ntype.googleapis.com. As of May 2023, there are no widely used type server\nimplementations and no plans to implement one.\n\nSchemes other than `http`, `https` (or the empty scheme) might be\nused with implementation specific semantics."
+        }
+      },
+      "additionalProperties": {},
+      "description": "`Any` contains an arbitrary serialized protocol buffer message along with a\nURL that describes the type of the serialized message.\n\nProtobuf library provides support to pack/unpack Any values in the form\nof utility functions or additional generated methods of the Any type.\n\nExample 1: Pack and unpack a message in C++.\n\n    Foo foo = ...;\n    Any any;\n    any.PackFrom(foo);\n    ...\n    if (any.UnpackTo(\u0026foo)) {\n      ...\n    }\n\nExample 2: Pack and unpack a message in Java.\n\n    Foo foo = ...;\n    Any any = Any.pack(foo);\n    ...\n    if (any.is(Foo.class)) {\n      foo = any.unpack(Foo.class);\n    }\n    // or ...\n    if (any.isSameTypeAs(Foo.getDefaultInstance())) {\n      foo = any.unpack(Foo.getDefaultInstance());\n    }\n\n Example 3: Pack and unpack a message in Python.\n\n    foo = Foo(...)\n    any = Any()\n    any.Pack(foo)\n    ...\n    if any.Is(Foo.DESCRIPTOR):\n      any.Unpack(foo)\n      ...\n\n Example 4: Pack and unpack a message in Go\n\n     foo := \u0026pb.Foo{...}\n     any, err := anypb.New(foo)\n     if err != nil {\n       ...\n     }\n     ...\n     foo := \u0026pb.Foo{}\n     if err := any.UnmarshalTo(foo); err != nil {\n       ...\n     }\n\nThe pack methods provided by protobuf library will by default use\n'type.googleapis.com/full.type.name' as the type URL and the unpack\nmethods only use the fully qualified type name after the last '/'\nin the type URL, for example \"foo.bar.com/x/y.z\" will yield type\nname \"y.z\".\n\nJSON\n====\nThe JSON representation of an `Any` value uses the regular\nrepresentation of the deserialized, embedded message, with an\nadditional field `@type` which contains the type URL. Example:\n\n    package google.profile;\n    message Person {\n      string first_name = 1;\n      string last_name = 2;\n    }\n\n    {\n      \"@type\": \"type.googleapis.com/google.profile.Person\",\n      \"firstName\": \u003cstring\u003e,\n      \"lastName\": \u003cstring\u003e\n    }\n\nIf the embedded message type is well-known and has a custom JSON\nrepresentation, that representation will be embedded adding a field\n`value` which holds the custom JSON in addition to the `@type`\nfield. Example (for message [google.protobuf.Duration][]):\n\n    {\n      \"@type\": \"type.googleapis.com/google.protobuf.Duration\",\n      \"value\": \"1.212s\"\n    }"
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1AITrace": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "inputTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "outputTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "cacheHitTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "estimatedCostUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "isStreaming": {
+          "type": "boolean"
+        },
+        "finishReason": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ToolCallTrace"
+          }
+        },
+        "contentTruncated": {
+          "type": "boolean"
+        },
+        "agentId": {
+          "type": "string"
+        },
+        "turnNumber": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "parentTraceId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AgentSession": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string"
+        },
+        "agentId": {
+          "type": "string"
+        },
+        "agentName": {
+          "type": "string"
+        },
+        "turnCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "estimatedCostUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "anomalous": {
+          "type": "boolean"
+        },
+        "anomalyReason": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastSeenAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1ModelBreakdown": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "totalTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "estimatedCostUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "requestCount": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1PageRequest": {
+      "type": "object",
+      "properties": {
+        "pageSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PageResponse": {
+      "type": "object",
+      "properties": {
+        "nextPageToken": {
+          "type": "string"
+        },
+        "total": {
+          "type": "string",
+          "format": "int64",
+          "title": "-1 if unknown"
+        }
+      }
+    },
+    "v1RequestTrace": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "type": "string"
+        },
+        "spanId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "durationMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "upstreamDurationMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "method": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "routeId": {
+          "type": "string"
+        },
+        "serviceId": {
+          "type": "string"
+        },
+        "upstreamAddr": {
+          "type": "string"
+        },
+        "statusCode": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "bytesSent": {
+          "type": "string",
+          "format": "int64"
+        },
+        "bytesRecv": {
+          "type": "string",
+          "format": "int64"
+        },
+        "actorId": {
+          "type": "string"
+        },
+        "actorType": {
+          "type": "string",
+          "title": "\"api_key\" | \"agent\" | \"anonymous\""
+        },
+        "policyIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rateLimitHit": {
+          "type": "boolean"
+        },
+        "authResult": {
+          "type": "string",
+          "title": "\"pass\" | \"fail\" | \"bypass\""
+        },
+        "ai": {
+          "$ref": "#/definitions/v1AITrace",
+          "title": "nil for non-AI requests"
+        }
+      }
+    },
+    "v1SessionDetail": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "$ref": "#/definitions/v1AgentSession"
+        },
+        "turns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RequestTrace"
+          }
+        }
+      }
+    },
+    "v1SessionList": {
+      "type": "object",
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1AgentSession"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1StatsBucket": {
+      "type": "object",
+      "properties": {
+        "bucketStart": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requestCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "errorCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "errorRate": {
+          "type": "number",
+          "format": "double"
+        },
+        "p50LatencyMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "p95LatencyMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "p99LatencyMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "bytesSent": {
+          "type": "string",
+          "format": "int64"
+        },
+        "bytesRecv": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1TokenBucket": {
+      "type": "object",
+      "properties": {
+        "bucketStart": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "inputTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "outputTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "estimatedCostUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "requestCount": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1TokenStats": {
+      "type": "object",
+      "properties": {
+        "buckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TokenBucket"
+          }
+        },
+        "totals": {
+          "$ref": "#/definitions/v1TokenTotals"
+        },
+        "modelBreakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ModelBreakdown"
+          }
+        }
+      }
+    },
+    "v1TokenTotals": {
+      "type": "object",
+      "properties": {
+        "inputTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "outputTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalTokens": {
+          "type": "string",
+          "format": "int64"
+        },
+        "estimatedCostUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "requestCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "budgetUsedPct": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1ToolCallTrace": {
+      "type": "object",
+      "properties": {
+        "toolName": {
+          "type": "string"
+        },
+        "toolId": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "v1TraceQueryResult": {
+      "type": "object",
+      "properties": {
+        "traces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RequestTrace"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1TrafficStats": {
+      "type": "object",
+      "properties": {
+        "buckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1StatsBucket"
+          }
+        }
+      }
+    }
+  }
+}
