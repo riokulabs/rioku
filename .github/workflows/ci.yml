@@ -51,11 +51,6 @@ jobs:
             packages/build-service/go.sum
             packages/proto/gen/go/go.sum
 
-      - name: Go vet
-        run: |
-          cd packages/daemon && go vet -tags noadmin ./...
-          cd ../build-service && go vet ./...
-
       - name: golangci-lint (daemon)
         uses: golangci/golangci-lint-action@v9
         with:

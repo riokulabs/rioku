@@ -98,22 +98,46 @@ info "Seeding test users from ${TEST_USERS_FILE}..."
 # Track created user IDs for state file.
 declare -A USER_IDS
 
-export TEST_USERS_FILE REST_BASE COOKIE_JAR DATA_DIR SEED_UA
+export TEST_USERS_FILE REST_BASE ROOT_PASSWORD DATA_DIR SEED_UA
 
 python3 - <<'PYEOF'
-import json, os, sys
+import json, os, sys, urllib.request, urllib.error
 
 test_users_file = os.environ["TEST_USERS_FILE"]
 rest_base       = os.environ["REST_BASE"]
-cookie_jar      = os.environ["COOKIE_JAR"]
+root_password   = os.environ["ROOT_PASSWORD"]
 data_dir        = os.environ["DATA_DIR"]
+seed_ua         = os.environ.get("SEED_UA", "rioku-seed-script/1.0")
 
 with open(test_users_file) as f:
     config = json.load(f)
 
-import urllib.request, urllib.error
+# Login via python (not curl) to reliably capture the session cookie.
+login_data = json.dumps({"username": "root", "password": root_password}).encode()
+login_req = urllib.request.Request(f"{rest_base}/api/v1/auth/login", data=login_data, method="POST")
+login_req.add_header("Content-Type", "application/json")
+login_req.add_header("User-Agent", seed_ua)
+try:
+    login_resp = urllib.request.urlopen(login_req, timeout=10)
+except urllib.error.HTTPError as e:
+    print(f"  FATAL: root login failed: HTTP {e.code} — {e.read().decode()}", file=sys.stderr)
+    sys.exit(1)
 
-seed_ua = os.environ.get("SEED_UA", "rioku-seed-script/1.0")
+# Extract session cookie from response headers.
+session_id = ""
+for header in login_resp.headers.get_all("Set-Cookie") or []:
+    for part in header.split(";"):
+        part = part.strip()
+        if part.startswith("rioku_sid="):
+            session_id = part.split("=", 1)[1]
+            break
+    if session_id:
+        break
+
+if not session_id:
+    print(f"  FATAL: login succeeded but no rioku_sid cookie in response", file=sys.stderr)
+    print(f"  Set-Cookie headers: {login_resp.headers.get_all('Set-Cookie')}", file=sys.stderr)
+    sys.exit(1)
 
 def api(method, path, payload=None):
     url = f"{rest_base}{path}"
@@ -121,26 +145,7 @@ def api(method, path, payload=None):
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
     req.add_header("User-Agent", seed_ua)
-    # Read cookie jar for session cookie.
-    session_id = ""
-    try:
-        with open(cookie_jar) as cf:
-            lines = cf.readlines()
-            for line in lines:
-                if "rioku_sid" in line:
-                    session_id = line.strip().split("\t")[-1]
-                    break
-            if not session_id:
-                print(f"  DEBUG: cookie jar has {len(lines)} lines, no rioku_sid found", file=sys.stderr)
-                for l in lines:
-                    if not l.startswith("#"):
-                        print(f"  DEBUG: cookie line: {l.rstrip()}", file=sys.stderr)
-    except FileNotFoundError:
-        print(f"  DEBUG: cookie jar not found: {cookie_jar}", file=sys.stderr)
-    if session_id:
-        req.add_header("Cookie", f"rioku_sid={session_id}")
-    else:
-        print(f"  DEBUG: no session_id, request will be unauthenticated", file=sys.stderr)
+    req.add_header("Cookie", f"rioku_sid={session_id}")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = resp.read()
