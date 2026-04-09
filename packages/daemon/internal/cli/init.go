@@ -23,11 +23,13 @@ import (
 
 func newInitCmd() *cobra.Command {
 	var (
-		storeDriver    string
-		dataDir        string
-		listenAddr     string
-		nonInteractive bool
-		force          bool
+		storeDriver           string
+		dataDir               string
+		listenAddr            string
+		nonInteractive        bool
+		force                 bool
+		rootPassword          string
+		noForcePasswordChange bool
 	)
 
 	cmd := &cobra.Command{
@@ -35,7 +37,7 @@ func newInitCmd() *cobra.Command {
 		Short: "Bootstrap a new Rioku instance",
 		Long:  `Generates rioku.yaml, initializes the config store, downloads Caddy, and prints the bootstrap token.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInit(cmd, storeDriver, dataDir, listenAddr, nonInteractive, force)
+			return runInit(cmd, storeDriver, dataDir, listenAddr, nonInteractive, force, rootPassword, noForcePasswordChange)
 		},
 	}
 
@@ -44,11 +46,13 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&listenAddr, "listen", "", "listen address for REST API")
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "suppress prompts, exit 2 on missing flags")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite existing config")
+	cmd.Flags().StringVar(&rootPassword, "root-password", "", "set root user password (default: auto-generated)")
+	cmd.Flags().BoolVar(&noForcePasswordChange, "no-force-password-change", false, "don't require password change on first login")
 
 	return cmd
 }
 
-func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInteractive, force bool) error {
+func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInteractive, force bool, rootPassword string, noForcePasswordChange bool) error {
 	if err := requireLocalNode("init"); err != nil {
 		return err
 	}
@@ -225,7 +229,8 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 	}
 
 	// Create root user.
-	rootPassword, err := createRootUser(ctx, drv)
+	forceChange := !noForcePasswordChange
+	generatedPw, err := createRootUser(ctx, drv, rootPassword, forceChange)
 	if err != nil {
 		_ = drv.Close()
 		return fmt.Errorf("create root user: %w", err)
@@ -238,35 +243,40 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 	fmt.Println()
 	fmt.Println("  Root account created:")
 	fmt.Printf("    Username: root\n")
-	fmt.Printf("    Password: %s\n", rootPassword)
+	fmt.Printf("    Password: %s\n", generatedPw)
 	fmt.Println()
 	fmt.Println("  Save this — it will not be shown again.")
-	fmt.Println("  You will be required to change this password on first login.")
+	if forceChange {
+		fmt.Println("  You will be required to change this password on first login.")
+	}
 	fmt.Println()
 	fmt.Println("Run 'rku start' to launch the daemon.")
 	return nil
 }
 
-// createRootUser creates the root account with a random password.
-// Returns the plaintext password (printed once, never stored).
-func createRootUser(ctx context.Context, drv store.Driver) (string, error) {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-	const pwLen = 24
+// createRootUser creates the root account. If password is empty, a random
+// password is generated. Returns the plaintext password.
+func createRootUser(ctx context.Context, drv store.Driver, password string, forcePasswordChange bool) (string, error) {
+	plaintext := password
+	if plaintext == "" {
+		const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+		const pwLen = 24
 
-	buf := make([]byte, pwLen)
-	for i := range buf {
-		b := make([]byte, 1)
-		for {
-			if _, err := rand.Read(b); err != nil {
-				return "", fmt.Errorf("generate root password: %w", err)
-			}
-			if int(b[0]) < len(charset)*(256/len(charset)) {
-				buf[i] = charset[int(b[0])%len(charset)]
-				break
+		buf := make([]byte, pwLen)
+		for i := range buf {
+			b := make([]byte, 1)
+			for {
+				if _, err := rand.Read(b); err != nil {
+					return "", fmt.Errorf("generate root password: %w", err)
+				}
+				if int(b[0]) < len(charset)*(256/len(charset)) {
+					buf[i] = charset[int(b[0])%len(charset)]
+					break
+				}
 			}
 		}
+		plaintext = string(buf)
 	}
-	plaintext := string(buf)
 
 	hash, err := auth.HashPassword(plaintext)
 	if err != nil {
@@ -283,7 +293,7 @@ func createRootUser(ctx context.Context, drv store.Driver) (string, error) {
 		Username:            "root",
 		PasswordHash:        hash,
 		Status:              "active",
-		ForcePasswordChange: true,
+		ForcePasswordChange: forcePasswordChange,
 		PasswordChangedAt:   now,
 		CreatedAt:           now,
 		UpdatedAt:           now,

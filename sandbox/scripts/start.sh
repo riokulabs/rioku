@@ -228,14 +228,18 @@ DESIRED_ROOT_PASSWORD="${SANDBOX_ROOT_PASSWORD:-}"
 
 ROOT_PASSWORD=""
 if [[ ! -f "${DAEMON_CONFIG}" ]]; then
+  INIT_ARGS=(
+    --config-file "${DAEMON_CONFIG}"
+    --data-dir    "${DATA_DIR}"
+    --store       sqlite
+    --listen      ":7778"
+    --non-interactive
+  )
+  if [[ -n "${DESIRED_ROOT_PASSWORD}" ]]; then
+    INIT_ARGS+=(--root-password "${DESIRED_ROOT_PASSWORD}" --no-force-password-change)
+  fi
   info "Running 'rioku init' (non-interactive, sqlite store) ..."
-  INIT_OUTPUT="$( "${DAEMON_BIN}" init \
-    --config-file "${DAEMON_CONFIG}" \
-    --data-dir    "${DATA_DIR}" \
-    --store       sqlite \
-    --listen      ":7778" \
-    --non-interactive \
-    2>&1 | tee -a "${DATA_DIR}/init.log" )"
+  INIT_OUTPUT="$( "${DAEMON_BIN}" init "${INIT_ARGS[@]}" 2>&1 | tee -a "${DATA_DIR}/init.log" )"
 
   # Enable dev_mode for local development (SameSite=Lax cookies, no TLS on admin).
   if grep -q "dev_mode:" "${DAEMON_CONFIG}"; then
@@ -290,37 +294,6 @@ wait_healthy "http://localhost:9003/health" "webhooks" || true
 wait_healthy "http://localhost:9004/health" "auth"     || true
 wait_healthy "http://localhost:9005/health" "media"    || true
 wait_healthy "${REST_BASE}/api/v1/health"   "daemon"   || true
-
-# --------------------------------------------------------------------------
-# Step 6b: Override root password if SANDBOX_ROOT_PASSWORD is set
-# --------------------------------------------------------------------------
-if [[ -n "${DESIRED_ROOT_PASSWORD}" ]] && [[ -n "${ROOT_PASSWORD}" ]] && [[ "${ROOT_PASSWORD}" != "${DESIRED_ROOT_PASSWORD}" ]]; then
-  info "Changing root password to SANDBOX_ROOT_PASSWORD..."
-  # Login with the generated password, then change it.
-  CHANGE_COOKIE="${DATA_DIR}/change-pw-cookies.txt"
-  curl -sf --max-time 10 \
-    -c "${CHANGE_COOKIE}" \
-    -H "Content-Type: application/json" \
-    -H "User-Agent: rioku-seed-script/1.0" \
-    -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
-    "${REST_BASE}/api/v1/auth/login" >/dev/null 2>&1 || { warn "Could not login to change root password"; }
-
-  CHANGE_RESP="$(curl -sf --max-time 10 \
-    -b "${CHANGE_COOKIE}" \
-    -H "Content-Type: application/json" \
-    -H "User-Agent: rioku-seed-script/1.0" \
-    -d "{\"currentPassword\": \"${ROOT_PASSWORD}\", \"newPassword\": \"${DESIRED_ROOT_PASSWORD}\"}" \
-    "${REST_BASE}/api/v1/auth/change-password" 2>/dev/null || true)"
-
-  if [[ -n "${CHANGE_RESP}" ]]; then
-    ROOT_PASSWORD="${DESIRED_ROOT_PASSWORD}"
-    echo "${ROOT_PASSWORD}" > "${DATA_DIR}/root-password"
-    success "Root password changed to SANDBOX_ROOT_PASSWORD"
-  else
-    warn "Failed to change root password — using generated password"
-  fi
-  rm -f "${CHANGE_COOKIE}"
-fi
 
 # --------------------------------------------------------------------------
 # Step 7: Seed configuration via REST (cookie auth)
