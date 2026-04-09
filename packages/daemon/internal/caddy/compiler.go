@@ -264,6 +264,11 @@ func compileHandler(route *riokuv1.Route, services map[string]*riokuv1.Service) 
 		"handler": "reverse_proxy",
 	}
 
+	// Flush immediately so streamed responses (SSE, LLM streaming) are not
+	// buffered by the reverse proxy. A value of -1 means "flush after every
+	// write" in Caddy's reverse_proxy.
+	handler["flush_interval"] = -1
+
 	switch t := route.GetTarget().(type) {
 	case *riokuv1.Route_ServiceId:
 		svc, ok := services[t.ServiceId]

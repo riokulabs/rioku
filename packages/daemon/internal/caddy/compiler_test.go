@@ -882,6 +882,55 @@ func TestCompile_NoTraceLoggerWhenPathEmpty(t *testing.T) {
 	}
 }
 
+func TestCompile_FlushInterval(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_Upstream{
+					Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"},
+				},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	routes := server["routes"].([]any)
+	route := routes[0].(map[string]any)
+	handlers := route["handle"].([]any)
+
+	// Find the reverse_proxy handler (last in chain).
+	proxy := handlers[len(handlers)-1].(map[string]any)
+	if proxy["handler"].(string) != "reverse_proxy" {
+		t.Fatalf("last handler = %v, want reverse_proxy", proxy["handler"])
+	}
+
+	fi, ok := proxy["flush_interval"]
+	if !ok {
+		t.Fatal("reverse_proxy handler missing flush_interval")
+	}
+	// JSON round-trip turns integers into float64.
+	if fi.(float64) != -1 {
+		t.Errorf("flush_interval = %v, want -1", fi)
+	}
+}
+
 // dig navigates nested maps by key. It fails the test if any key is missing.
 func dig(t *testing.T, m map[string]any, keys ...string) map[string]any {
 	t.Helper()
