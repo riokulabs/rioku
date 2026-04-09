@@ -71,6 +71,44 @@ cleanup_on_error() {
 trap cleanup_on_error ERR
 
 # --------------------------------------------------------------------------
+# Pre-flight: check for existing sandbox
+# --------------------------------------------------------------------------
+RUNNING_SESSIONS=()
+if command -v screen >/dev/null 2>&1; then
+  for session in rioku-daemon rioku-users rioku-products rioku-webhooks rioku-auth rioku-media; do
+    if screen -ls 2>/dev/null | grep -q "${session}"; then
+      RUNNING_SESSIONS+=("${session}")
+    fi
+  done
+fi
+
+if (( ${#RUNNING_SESSIONS[@]} > 0 )); then
+  # Check if processes are actually alive behind the screen sessions.
+  any_alive=false
+  for session in "${RUNNING_SESSIONS[@]}"; do
+    pid=$(screen -ls 2>/dev/null | grep "${session}" | awk '{print $1}' | cut -d. -f1)
+    if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
+      any_alive=true
+      break
+    fi
+  done
+
+  if [[ "${any_alive}" == "true" ]]; then
+    echo -e "${RED}[ERROR]${NC} Sandbox is already running."
+    echo -e "         Running sessions: ${RUNNING_SESSIONS[*]}"
+    echo -e "         Run ${BOLD}make sandbox-stop${NC} first, or ${BOLD}make sandbox-reset${NC} to wipe and restart."
+    exit 1
+  else
+    warn "Found stale screen sessions: ${RUNNING_SESSIONS[*]}"
+    info "Cleaning up stale sessions..."
+    for session in "${RUNNING_SESSIONS[@]}"; do
+      screen -S "${session}" -X quit 2>/dev/null || true
+    done
+    success "Stale sessions cleaned up"
+  fi
+fi
+
+# --------------------------------------------------------------------------
 # Helpers
 # --------------------------------------------------------------------------
 info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }

@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -11,6 +11,11 @@ LDFLAGS  = -X github.com/riokulabs/rioku/internal/version.Version=$(VERSION) \
 BIN_DIR  = bin
 GO       = go
 PKG      = packages
+
+# Use nvm's Node 22 for web targets (Vite 8 requires Node 20.19+ or 22.12+).
+NVM_DIR  ?= $(HOME)/.nvm
+NODE22   = $(NVM_DIR)/versions/node/$(shell ls $(NVM_DIR)/versions/node/ 2>/dev/null | grep '^v22' | tail -1)
+WEB_PATH = $(if $(wildcard $(NODE22)/bin/node),PATH=$(NODE22)/bin:$(PATH),)
 
 ## sandbox: Start sandbox environment
 .PHONY: sandbox sandbox-stop sandbox-seed
@@ -38,6 +43,12 @@ sandbox-restart-daemon: build-daemon
 	@if command -v screen >/dev/null 2>&1 && screen -ls 2>/dev/null | grep -q "rioku-daemon"; then \
 	  screen -S rioku-daemon -X quit 2>/dev/null || true; \
 	  sleep 1; \
+	  STALE_CADDY=$$(pgrep -f "caddy run" 2>/dev/null || true); \
+	  if [ -n "$${STALE_CADDY}" ]; then \
+	    echo "  killing stale Caddy process(es): $${STALE_CADDY}"; \
+	    kill $${STALE_CADDY} 2>/dev/null || true; \
+	    sleep 1; \
+	  fi; \
 	  screen -dmS rioku-daemon -L -Logfile sandbox/.data/daemon.log \
 	    bin/rioku start --config-file sandbox/.data/rioku.yaml; \
 	  echo "  daemon restarted in screen session rioku-daemon"; \
@@ -62,6 +73,12 @@ sandbox-restart-daemon-fast: build-daemon-fast
 	@if command -v screen >/dev/null 2>&1 && screen -ls 2>/dev/null | grep -q "rioku-daemon"; then \
 	  screen -S rioku-daemon -X quit 2>/dev/null || true; \
 	  sleep 1; \
+	  STALE_CADDY=$$(pgrep -f "caddy run" 2>/dev/null || true); \
+	  if [ -n "$${STALE_CADDY}" ]; then \
+	    echo "  killing stale Caddy process(es): $${STALE_CADDY}"; \
+	    kill $${STALE_CADDY} 2>/dev/null || true; \
+	    sleep 1; \
+	  fi; \
 	  screen -dmS rioku-daemon -L -Logfile sandbox/.data/daemon.log \
 	    bin/rioku start --config-file sandbox/.data/rioku.yaml; \
 	  echo "  daemon restarted in screen session rioku-daemon"; \
@@ -87,6 +104,10 @@ sandbox-test-auth:
 ## sandbox-test-smoke: Run full-stack smoke tests against running sandbox
 sandbox-test-smoke:
 	@bash sandbox/scripts/test-smoke.sh
+
+## sandbox-status: Show status of all sandbox components
+sandbox-status:
+	@bash sandbox/scripts/status.sh
 
 ## sandbox-seed-users: Seed test users into a running sandbox
 sandbox-seed-users:
@@ -141,7 +162,7 @@ build-daemon: web-embed
 	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
 
 ## web-embed: Copy web build into daemon for go:embed
-web-embed: web-build
+web-embed: web-build-if-changed
 	@rm -rf $(PKG)/daemon/web/build
 	@cp -r $(PKG)/web/build $(PKG)/daemon/web/build
 
@@ -271,23 +292,40 @@ lint:
 
 ## web: Install web dependencies
 web:
-	cd $(PKG)/web && npm install
+	cd $(PKG)/web && $(WEB_PATH) npm install
 
 ## web-build: Build the admin panel SPA
 web-build:
-	cd $(PKG)/web && npm run build
+	cd $(PKG)/web && $(WEB_PATH) npm run build
+
+## web-build-if-changed: Build web SPA only if source files changed (hash-based)
+WEB_HASH_FILE = packages/web/build/.build-hash
+
+web-build-if-changed:
+	@CURRENT_HASH=$$(find packages/web/src -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1); \
+	for f in packages/web/vite.config.ts packages/web/tsconfig.json packages/web/package.json; do \
+		CURRENT_HASH="$${CURRENT_HASH}$$(sha256sum "$$f" 2>/dev/null | cut -d' ' -f1)"; \
+	done; \
+	CURRENT_HASH=$$(echo "$${CURRENT_HASH}" | sha256sum | cut -d' ' -f1); \
+	if [ -f "$(WEB_HASH_FILE)" ] && [ "$$(cat $(WEB_HASH_FILE))" = "$${CURRENT_HASH}" ]; then \
+		echo "[OK]    web SPA unchanged — skipping rebuild"; \
+	else \
+		echo "==> Web SPA changed — rebuilding..."; \
+		cd packages/web && $(WEB_PATH) npm run build; \
+		echo "$${CURRENT_HASH}" > "../../$(WEB_HASH_FILE)"; \
+	fi
 
 ## web-dev: Run admin panel dev server
 web-dev:
-	cd $(PKG)/web && npm run dev
+	cd $(PKG)/web && $(WEB_PATH) npm run dev
 
 ## test-web: Run frontend Vitest tests
 test-web:
-	cd $(PKG)/web && npm test
+	cd $(PKG)/web && $(WEB_PATH) npm test
 
 ## test-web-coverage: Run frontend Vitest tests with coverage
 test-web-coverage:
-	cd $(PKG)/web && npm run test:coverage
+	cd $(PKG)/web && $(WEB_PATH) npm run test:coverage
 
 ## clean: Remove build artifacts
 clean:

@@ -99,9 +99,10 @@ type MySQLNode struct {
 
 // ListenConfig defines the addresses the daemon binds to.
 type ListenConfig struct {
-	GRPC        string `yaml:"grpc"`
-	REST        string `yaml:"rest"`
-	AdminDomain string `yaml:"admin_domain"` // optional; dedicated domain for admin with auto-TLS
+	GRPC         string `yaml:"grpc"`
+	REST         string `yaml:"rest"`
+	AdminDomain  string `yaml:"admin_domain"` // optional; dedicated domain for admin with auto-TLS
+	InternalPort int    `yaml:"internal_port"`
 }
 
 // --------------------------------------------------------------------------
@@ -299,8 +300,9 @@ func Default() *Config {
 			},
 		},
 		Listen: ListenConfig{
-			GRPC: ":7777",
-			REST: ":7778",
+			GRPC:         ":7777",
+			REST:         ":7778",
+			InternalPort: 7780,
 		},
 		Caddy: CaddyConfig{
 			Binary:       "caddy",

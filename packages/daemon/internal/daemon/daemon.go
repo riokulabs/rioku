@@ -135,7 +135,21 @@ func (d *Daemon) Start(ctx context.Context) error {
 			log.Printf("web: admin panel not available: %v", err)
 		}
 
-		gw, err := gateway.NewGateway("127.0.0.1:0", d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS)
+		basePort := d.cfg.Listen.InternalPort
+		if basePort == 0 {
+			basePort = 7780
+		}
+		var gw *gateway.Gateway
+		for attempt := 0; attempt < 10; attempt++ {
+			addr := fmt.Sprintf("127.0.0.1:%d", basePort+attempt)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS)
+			if err == nil {
+				break
+			}
+			if attempt == 9 {
+				log.Printf("rest: failed to bind internal gateway on ports %d-%d: %v", basePort, basePort+9, err)
+			}
+		}
 		if err != nil {
 			log.Printf("rest: failed to start: %v", err)
 		} else {
