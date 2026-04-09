@@ -424,10 +424,8 @@ func handleLockUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc {
 			return
 		}
 
-		// Revoke all sessions for the locked user.
-		if err := sm.RevokeAllSessionsForUser(ctx, id); err != nil {
-			// Non-fatal — user is locked but sessions may linger until expiry.
-		}
+		// Revoke all sessions for the locked user (non-fatal).
+		_ = sm.RevokeAllSessionsForUser(ctx, id)
 
 		w.WriteHeader(http.StatusNoContent)
 	}

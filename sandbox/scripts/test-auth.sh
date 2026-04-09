@@ -249,10 +249,10 @@ else
   status="$(curl -s -o /dev/null -w "%{http_code}" \
     -b "$(jar "revoker")" \
     -X DELETE \
-    "${BASE}/api/v1/sessions/${victim_session_id}")"
+    "${BASE}/api/v1/auth/sessions/${victim_session_id}")"
 
   if [[ "${status}" == "200" ]] || [[ "${status}" == "204" ]]; then
-    pass "DELETE /api/v1/sessions/${victim_session_id} as testadmin: HTTP ${status}"
+    pass "DELETE /api/v1/auth/sessions/${victim_session_id} as testadmin: HTTP ${status}"
 
     # Verify testviewer is now 401.
     status="$(do_get "victim" "/api/v1/auth/me")"
@@ -262,7 +262,7 @@ else
       fail "GET /api/v1/auth/me after session revocation: expected 401, got ${status}"
     fi
   else
-    fail "DELETE /api/v1/sessions/${victim_session_id}: expected 200/204, got ${status}"
+    fail "DELETE /api/v1/auth/sessions/${victim_session_id}: expected 200/204, got ${status}"
   fi
 fi
 

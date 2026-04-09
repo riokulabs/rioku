@@ -81,7 +81,7 @@ body="$(http_body "${resp}")"
 if [[ "${status}" == "200" ]]; then
   pass "GET /api/v1/health: 200"
   # Check for status: ok in body.
-  if echo "${body}" | grep -qi '"ok"'; then
+  if echo "${body}" | grep -qi 'HEALTH_STATE_OK'; then
     pass "GET /api/v1/health: body contains ok status"
   else
     fail "GET /api/v1/health: body does not indicate ok status — got: ${body}"
@@ -102,7 +102,7 @@ resp="$(api_post "/api/v1/config" '{
     "service": {
       "name": "smoke-svc",
       "upstreams": [{"address": "localhost:9001"}],
-      "lbPolicy": "round_robin"
+      "lbPolicy": "LB_POLICY_ROUND_ROBIN"
     }
   }
 }')"
@@ -111,7 +111,10 @@ body="$(http_body "${resp}")"
 
 if [[ "${status}" == "200" ]] || [[ "${status}" == "201" ]]; then
   pass "Create service smoke-svc: HTTP ${status}"
-  SMOKE_SVC_ID="$(echo "${body}" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+  # ApplyResult doesn't return the ID — fetch config to find it.
+  cfg_resp="$(api_get "/api/v1/config")"
+  cfg_body="$(http_body "${cfg_resp}")"
+  SMOKE_SVC_ID="$(echo "${cfg_body}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next((s["id"] for s in d.get("services",[]) if s["name"]=="smoke-svc"),""))' 2>/dev/null || true)"
 else
   fail "Create service smoke-svc: expected 200/201, got ${status}"
   SMOKE_SVC_ID=""
@@ -173,7 +176,7 @@ resp="$(api_post "/api/v1/config" '{
     "action": "UPSERT",
     "policy": {
       "name": "smoke-ratelimit",
-      "type": "rate_limit",
+      "type": "POLICY_TYPE_RATE_LIMIT",
       "config": {"requests_per_second": 100, "burst": 200}
     }
   }
@@ -278,16 +281,16 @@ echo -e "${BOLD}--- Part 9: SSE event stream ---${NC}"
 SSE_OUTPUT="$(curl -s --max-time 5 \
   -b "$(jar "admin")" \
   -H "Accept: text/event-stream" \
-  "${BASE}/api/v1/events" 2>/dev/null || true)"
+  "${BASE}/api/v1/events/config" 2>/dev/null || true)"
 
 if [[ -n "${SSE_OUTPUT}" ]]; then
   if echo "${SSE_OUTPUT}" | grep -q "data:"; then
-    pass "SSE /api/v1/events: received event data"
+    pass "SSE /api/v1/events/config: received event data"
   else
-    fail "SSE /api/v1/events: connected but no 'data:' lines received — output: ${SSE_OUTPUT}"
+    fail "SSE /api/v1/events/config: connected but no 'data:' lines received — output: ${SSE_OUTPUT}"
   fi
 else
-  fail "SSE /api/v1/events: no response (endpoint may not exist yet)"
+  fail "SSE /api/v1/events/config: no response (endpoint may not exist yet)"
 fi
 
 # --------------------------------------------------------------------------
