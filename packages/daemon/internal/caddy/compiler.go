@@ -79,6 +79,18 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		servers["admin"] = c.buildAdminServer()
 	}
 
+	// When using non-standard ports (not :443/:80), disable Caddy's automatic
+	// HTTP-to-HTTPS redirect which would try to bind :80 and fail without root.
+	if !c.hasStandardPorts() {
+		for _, srv := range servers {
+			if s, ok := srv.(map[string]any); ok {
+				s["automatic_https"] = map[string]any{
+					"disable_redirects": true,
+				}
+			}
+		}
+	}
+
 	config := map[string]any{
 		"apps": map[string]any{
 			"http": map[string]any{
@@ -330,6 +342,17 @@ func (c *Compiler) buildAdminServer() map[string]any {
 	}
 
 	return server
+}
+
+// hasStandardPorts returns true if the traffic addresses include :443 or :80,
+// meaning Caddy's auto-HTTPS redirect to port 80 would be appropriate.
+func (c *Compiler) hasStandardPorts() bool {
+	for _, addr := range c.trafficAddrs {
+		if addr == ":443" || addr == ":80" {
+			return true
+		}
+	}
+	return false
 }
 
 // lbPolicyString maps a proto LoadBalancingPolicy enum to the Caddy

@@ -38,14 +38,18 @@ import {
 export const Route = createFileRoute('/')({
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData({
-        queryKey: ['health'],
-        queryFn: () => apiClient.get<HealthStatus>('/health'),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ['config'],
-        queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
-      }),
+      context.queryClient
+        .ensureQueryData({
+          queryKey: ['health'],
+          queryFn: () => apiClient.get<HealthStatus>('/health'),
+        })
+        .catch(() => null as HealthStatus | null),
+      context.queryClient
+        .ensureQueryData({
+          queryKey: ['config'],
+          queryFn: () => apiClient.get<ConfigSnapshot>('/config'),
+        })
+        .catch(() => null as ConfigSnapshot | null),
       context.queryClient
         .ensureQueryData({
           queryKey: ['audit', 'recent'],
@@ -294,10 +298,10 @@ function Dashboard() {
                           {entry.operation}
                         </span>{' '}
                         <span className="font-mono text-xs">
-                          {entry.entity_type}/{entry.entity_id}
+                          {entry.entityType}/{entry.entityId}
                         </span>
                       </p>
-                      <TimeAgo date={entry.timestamp} />
+                      <TimeAgo date={entry.occurredAt} />
                     </div>
                   </li>
                 ))}
@@ -350,7 +354,7 @@ function Dashboard() {
                     {t('systemStatus.uptime', 'Uptime')}
                   </dt>
                   <dd className="text-sm font-mono">
-                    {formatUptime(health?.uptime)}
+                    {formatUptime(health?.uptimeSeconds)}
                   </dd>
                 </div>
               </dl>

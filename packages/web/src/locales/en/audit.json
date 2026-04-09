@@ -7,7 +7,7 @@
     "entityId": "Entity ID",
     "operation": "Operation",
     "timestamp": "Timestamp",
-    "requestId": "Request ID"
+    "configVersion": "Config version"
   },
   "filters": {
     "filterActor": "Filter by actor...",

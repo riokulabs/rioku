@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -149,6 +150,7 @@ func main() {
 			MaxIdleConns:        profile.Concurrency * 2,
 			MaxIdleConnsPerHost: profile.Concurrency,
 			IdleConnTimeout:     90 * time.Second,
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 

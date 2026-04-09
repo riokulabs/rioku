@@ -134,12 +134,12 @@ function Audit() {
         extension = 'json'
       } else {
         const headers = [
-          'timestamp',
+          'occurredAt',
           'actor',
-          'entity_type',
-          'entity_id',
+          'entityType',
+          'entityId',
           'operation',
-          'request_id',
+          'configVersion',
         ]
         const rows = entries.map((e) =>
           headers.map((h) => `"${String(e[h as keyof AuditEntry] ?? '')}"`).join(','),
@@ -247,29 +247,29 @@ function Audit() {
         <DataTable
           columns={[
             {
-              key: 'timestamp',
+              key: 'occurredAt',
               header: t('columns.timestamp'),
-              render: (row) => <TimeAgo date={row.timestamp as string} />,
+              render: (row) => <TimeAgo date={row.occurredAt as string} />,
             },
             {
               key: 'actor',
               header: t('columns.actor'),
             },
             {
-              key: 'entity_type',
+              key: 'entityType',
               header: t('columns.entityType'),
               render: (row) => (
                 <Badge variant="secondary">
-                  {t(`entityTypes.${row.entity_type as string}`)}
+                  {t(`entityTypes.${row.entityType as string}`)}
                 </Badge>
               ),
             },
             {
-              key: 'entity_id',
+              key: 'entityId',
               header: t('columns.entityId'),
               render: (row) => (
                 <span className="font-mono text-xs">
-                  {row.entity_id as string}
+                  {row.entityId as string}
                 </span>
               ),
             },
@@ -286,11 +286,11 @@ function Audit() {
               ),
             },
             {
-              key: 'request_id',
-              header: t('columns.requestId'),
+              key: 'configVersion',
+              header: t('columns.configVersion'),
               render: (row) => (
                 <span className="font-mono text-xs text-muted-foreground">
-                  {row.request_id as string}
+                  {String(row.configVersion ?? '')}
                 </span>
               ),
             },
@@ -315,8 +315,8 @@ function Audit() {
             <SheetTitle>{t('actions.viewDiff')}</SheetTitle>
             {selectedEntry && (
               <SheetDescription>
-                {selectedEntry.operation} {selectedEntry.entity_type}{' '}
-                {selectedEntry.entity_id}
+                {selectedEntry.operation} {selectedEntry.entityType}{' '}
+                {selectedEntry.entityId}
               </SheetDescription>
             )}
           </SheetHeader>
@@ -342,27 +342,20 @@ function Audit() {
                   {t('columns.entityType')}
                 </span>
                 <Badge variant="secondary" className="w-fit">
-                  {t(`entityTypes.${selectedEntry.entity_type}`)}
+                  {t(`entityTypes.${selectedEntry.entityType}`)}
                 </Badge>
 
                 <span className="text-muted-foreground">
                   {t('columns.entityId')}
                 </span>
                 <span className="font-mono text-xs">
-                  {selectedEntry.entity_id}
-                </span>
-
-                <span className="text-muted-foreground">
-                  {t('columns.requestId')}
-                </span>
-                <span className="font-mono text-xs">
-                  {selectedEntry.request_id}
+                  {selectedEntry.entityId}
                 </span>
 
                 <span className="text-muted-foreground">
                   {t('columns.timestamp')}
                 </span>
-                <TimeAgo date={selectedEntry.timestamp} />
+                <TimeAgo date={selectedEntry.occurredAt} />
               </div>
 
               {/* Diff */}

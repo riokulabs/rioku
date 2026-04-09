@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react'
 import {
   createRootRouteWithContext,
+  ErrorComponent,
   Outlet,
   redirect,
   useRouterState,
 } from '@tanstack/react-router'
+import type { ErrorComponentProps } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar'
@@ -21,7 +23,35 @@ interface RouterContext {
   queryClient: QueryClient
 }
 
+function RootErrorComponent({ error, reset }: ErrorComponentProps) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md space-y-4 text-center">
+        <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
+        <p className="text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : 'An unexpected error occurred'}
+        </p>
+        <div className="flex justify-center gap-3">
+          <button
+            onClick={reset}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Try again
+          </button>
+          <button
+            onClick={() => window.location.assign('/')}
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+          >
+            Go to dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
+  errorComponent: RootErrorComponent,
   beforeLoad: async ({ location }) => {
     const unguarded = ['/login', '/change-password']
     if (unguarded.includes(location.pathname)) return

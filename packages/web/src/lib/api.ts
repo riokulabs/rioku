@@ -62,7 +62,7 @@ export interface HealthStatus {
   store: SubsystemHealth
   caddy: SubsystemHealth
   version: string
-  uptime: number
+  uptimeSeconds: number
 }
 
 export interface ApiKey {
@@ -77,12 +77,12 @@ export interface ApiKey {
 export interface AuditEntry {
   id: string
   actor: string
-  entity_type: string
-  entity_id: string
+  entityType: string
+  entityId: string
   operation: string
   diff: Record<string, unknown> | null
-  timestamp: string
-  request_id: string
+  configVersion: number
+  occurredAt: string
 }
 
 export interface ApiError {
