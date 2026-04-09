@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version-file: packages/daemon/go.mod
+          go-version-file: go.work
           cache-dependency-path: |
             packages/daemon/go.sum
             packages/build-service/go.sum
@@ -105,7 +105,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version-file: packages/daemon/go.mod
+          go-version-file: go.work
           cache-dependency-path: |
             packages/daemon/go.sum
             packages/build-service/go.sum
@@ -126,7 +126,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version-file: packages/daemon/go.mod
+          go-version-file: go.work
           cache-dependency-path: |
             packages/daemon/go.sum
             packages/build-service/go.sum
