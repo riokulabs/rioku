@@ -9,7 +9,7 @@
     },
     {
       "username": "testoperator",
-      "password": "TestOp123!",
+      "password": "TestOperator123!",
       "roles": ["operator"],
       "status": "active"
     },
@@ -27,7 +27,7 @@
     },
     {
       "username": "test2fa",
-      "password": "Test2FA123!",
+      "password": "Test2Factor123!",
       "roles": ["admin"],
       "status": "active",
       "totp_enabled": false,

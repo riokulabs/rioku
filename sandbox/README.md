@@ -61,10 +61,10 @@ Seven test users are seeded automatically with different roles and statuses:
 | Username | Password | Roles | Status |
 |----------|----------|-------|--------|
 | testadmin | TestAdmin123! | admin | active |
-| testoperator | TestOp123! | operator | active |
+| testoperator | TestOperator123! | operator | active |
 | testviewer | TestView123! | viewer | active |
 | testmulti | TestMulti123! | operator, auditor | active |
-| test2fa | Test2FA123! | admin | active (TOTP not enabled) |
+| test2fa | Test2Factor123! | admin | active (TOTP not enabled) |
 | testlocked | TestLocked123! | viewer | locked |
 | testsuspended | TestSusp123! | viewer | suspended |
 

@@ -85,7 +85,7 @@ echo ""
 # --------------------------------------------------------------------------
 info "--- Login: happy paths ---"
 
-for pair in "testadmin:TestAdmin123!" "testoperator:TestOp123!" "testviewer:TestView123!"; do
+for pair in "testadmin:TestAdmin123!" "testoperator:TestOperator123!" "testviewer:TestView123!"; do
   user="${pair%%:*}"
   pass_="${pair##*:}"
   status="$(do_login "${user}" "${user}" "${pass_}")"

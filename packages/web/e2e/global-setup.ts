@@ -56,7 +56,7 @@ async function globalSetup(_config: FullConfig): Promise<void> {
 
   await page3.goto('/login');
   await page3.getByLabel('Username').fill('testoperator');
-  await page3.getByLabel('Password').fill('TestOp123!');
+  await page3.getByLabel('Password').fill('TestOperator123!');
   await page3.getByRole('button', { name: 'Log in' }).click();
   await page3.waitForURL('/');
 
