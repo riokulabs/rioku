@@ -143,7 +143,7 @@ jobs:
         run: cd packages/web && npm ci
 
       - name: Start sandbox
-        run: make sandbox &
+        run: make sandbox > sandbox-build.log 2>&1 &
 
       - name: Wait for sandbox health
         run: |
@@ -170,6 +170,8 @@ jobs:
           ps aux | grep -E 'rioku|caddy' | grep -v grep || echo "No rioku/caddy processes"
           echo "--- curl verbose ---"
           curl -v --max-time 5 http://localhost:7778/api/v1/health 2>&1 || true
+          echo "--- Sandbox build log (last 50 lines) ---"
+          tail -50 sandbox-build.log 2>/dev/null || echo "No sandbox build log"
           exit 1
 
       - name: Run smoke tests
