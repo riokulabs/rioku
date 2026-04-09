@@ -72,7 +72,7 @@ do_logout() {
 # Check cookie jar for presence of a session cookie.
 has_cookie() {
   local jar_id="$1"
-  grep -q "rioku_session" "$(jar "${jar_id}")" 2>/dev/null
+  grep -q "rioku_sid" "$(jar "${jar_id}")" 2>/dev/null
 }
 
 echo ""
@@ -236,7 +236,8 @@ info "--- Session revocation ---"
 # Login testviewer to get a session, then get its session ID.
 do_login "victim" "testviewer" "TestView123!" >/dev/null
 me_resp="$(curl -s -b "$(jar "victim")" "${BASE}/api/v1/auth/me" 2>/dev/null || true)"
-victim_session_id="$(echo "${me_resp}" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+# Extract session.id (not user.id) — the response is {"session":{"id":"..."},"user":{"id":"..."}}
+victim_session_id="$(echo "${me_resp}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("session",{}).get("id",""))' 2>/dev/null || true)"
 
 if [[ -z "${victim_session_id}" ]]; then
   fail "Session revocation: could not get testviewer session ID (GET /api/v1/auth/me may not include session.id)"

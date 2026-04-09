@@ -257,12 +257,17 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 
 		now := time.Now().UTC()
 
-		// Check locked status.
-		if user.Status == "locked" && user.LockedUntil != nil && now.Before(*user.LockedUntil) {
-			retryAfter := int(time.Until(*user.LockedUntil).Seconds()) + 1
-			w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
-			writeProblem(w, http.StatusLocked, errTypeLocked, "Account locked",
-				fmt.Sprintf("Account is temporarily locked. Try again in %d seconds", retryAfter), r.URL.Path, nil)
+		// Check locked status — either time-based (from failed attempts) or permanent (admin action).
+		if user.Status == "locked" {
+			if user.LockedUntil != nil && now.Before(*user.LockedUntil) {
+				retryAfter := int(time.Until(*user.LockedUntil).Seconds()) + 1
+				w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+				writeProblem(w, http.StatusLocked, errTypeLocked, "Account locked",
+					fmt.Sprintf("Account is temporarily locked. Try again in %d seconds", retryAfter), r.URL.Path, nil)
+			} else {
+				writeProblem(w, http.StatusLocked, errTypeLocked, "Account locked",
+					"Account is locked. Contact an administrator.", r.URL.Path, nil)
+			}
 			return
 		}
 
