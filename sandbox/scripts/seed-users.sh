@@ -163,6 +163,7 @@ for user in config["users"]:
         "username": username,
         "password": user["password"],
         "status":   user.get("status", "active"),
+        "forcePasswordChange": False,
     }
     status, resp = api("POST", "/api/v1/users", payload)
     if status in (200, 201):

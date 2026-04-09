@@ -109,10 +109,11 @@ func handleListUsers(st store.Driver) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 type createUserRequest struct {
-	Username    string  `json:"username"`
-	Password    string  `json:"password"`
-	DisplayName *string `json:"displayName"`
-	Email       *string `json:"email"`
+	Username            string  `json:"username"`
+	Password            string  `json:"password"`
+	DisplayName         *string `json:"displayName"`
+	Email               *string `json:"email"`
+	ForcePasswordChange *bool   `json:"forcePasswordChange"`
 }
 
 func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
@@ -153,6 +154,11 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
+		forceChange := true
+		if req.ForcePasswordChange != nil {
+			forceChange = *req.ForcePasswordChange
+		}
+
 		now := time.Now().UTC()
 		user := &store.User{
 			ID:                  uuid.New().String(),
@@ -161,7 +167,7 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 			Email:               req.Email,
 			PasswordHash:        hash,
 			Status:              "active",
-			ForcePasswordChange: true,
+			ForcePasswordChange: forceChange,
 			PasswordChangedAt:   now,
 			CreatedAt:           now,
 			UpdatedAt:           now,
