@@ -82,6 +82,13 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		servers["admin"] = c.buildAdminServer()
 	}
 
+	// Enable Prometheus metrics on all server blocks.
+	for _, srv := range servers {
+		if s, ok := srv.(map[string]any); ok {
+			s["metrics"] = map[string]any{}
+		}
+	}
+
 	// Enable access logging on the traffic server.
 	if c.traceSocketPath != "" {
 		trafficSrv := servers["traffic"].(map[string]any)

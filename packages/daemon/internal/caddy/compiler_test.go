@@ -882,6 +882,46 @@ func TestCompile_NoTraceLoggerWhenPathEmpty(t *testing.T) {
 	}
 }
 
+func TestCompile_MetricsEnabled(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{
+		InternalAddr: "127.0.0.1:54321",
+		ListenAddr:   ":7778",
+	}, "")
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	servers := dig(t, cfg, "apps", "http", "servers")
+
+	// Both traffic and admin server blocks must have "metrics": {}.
+	for _, name := range []string{"traffic", "admin"} {
+		srv, ok := servers[name].(map[string]any)
+		if !ok {
+			t.Fatalf("server %q not found", name)
+		}
+		m, ok := srv["metrics"]
+		if !ok {
+			t.Errorf("server %q missing metrics key", name)
+			continue
+		}
+		metrics, ok := m.(map[string]any)
+		if !ok {
+			t.Errorf("server %q metrics is %T, want map", name, m)
+			continue
+		}
+		if len(metrics) != 0 {
+			t.Errorf("server %q metrics = %v, want empty map", name, metrics)
+		}
+	}
+}
+
 func TestCompile_FlushInterval(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
