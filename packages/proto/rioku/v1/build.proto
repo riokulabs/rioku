@@ -6,7 +6,6 @@ option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "rioku/v1/common.proto";
 
 enum BuildTarget {
   BUILD_TARGET_UNSPECIFIED = 0;

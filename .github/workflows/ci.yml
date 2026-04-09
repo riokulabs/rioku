@@ -47,6 +47,11 @@ jobs:
         with:
           go-version-file: packages/daemon/go.mod
 
+      - uses: bufbuild/buf-setup-action@v1
+
+      - name: Generate proto code
+        run: make proto
+
       - name: Go vet
         run: |
           cd packages/daemon && go vet ./...
@@ -79,6 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Run cspell
         uses: streetsidesoftware/cspell-action@v6
@@ -95,6 +102,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: packages/daemon/go.mod
+
+      - uses: bufbuild/buf-setup-action@v1
+
+      - name: Generate proto code
+        run: make proto
 
       - name: Test daemon (race)
         run: cd packages/daemon && go test -race -count=1 -timeout=300s ./...
@@ -116,6 +128,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - uses: bufbuild/buf-setup-action@v1
+
+      - name: Generate proto code
+        run: make proto
 
       - name: Install web dependencies
         run: cd packages/web && npm ci

@@ -1,5 +1,12 @@
 version: "0.2"
-ignorePaths: []
+ignorePaths:
+  - "packages/proto/gen/**"
+  - "packages/web/node_modules/**"
+  - "packages/web/build/**"
+  - "packages/daemon/web/build/**"
+  - "packages/web/src/routeTree.gen.ts"
+  - "docs/superpowers/**"
+  - "**/package-lock.json"
 dictionaryDefinitions:
   - name: custom-dictionary
     path: ./.cspell/custom-dictionary.txt
