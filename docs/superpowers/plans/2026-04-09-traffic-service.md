@@ -404,11 +404,29 @@ Create `traffic_service.go` following the ConfigService pattern:
 Run: `cd packages/daemon && go vet ./internal/grpc/`
 Expected: Clean.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Write unit tests for all 7 RPCs**
+
+Create `packages/daemon/internal/grpc/traffic_service_test.go`:
+- `TestTrafficService_QueryTraces` — write 50 traces to SQLite store (mixed statuses, routes), query with various filters (status_code, route_id, time range), verify correct traces returned with pagination.
+- `TestTrafficService_GetTrace` — write one trace, get by ID, verify all fields. Get non-existent ID, verify `codes.NotFound`.
+- `TestTrafficService_GetStats` — write stats buckets to store, query time range, verify `TrafficStats` response contains correct buckets.
+- `TestTrafficService_GetTokenStats` — write model buckets, query, verify totals and model breakdown are computed correctly.
+- `TestTrafficService_ListSessions` — write traces with session_ids, list sessions, verify session count/summary.
+- `TestTrafficService_GetSession` — write session traces, get session detail, verify turns are returned in order.
+- `TestTrafficService_WatchTraffic` — push traces to ring buffer, verify streaming RPC receives them. Test filter by route_id and status_code.
+
+Each test creates a fresh SQLite store in `t.TempDir()` and a ring buffer, constructs the service via `newTrafficService()`, and calls RPCs directly (no gRPC server needed).
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `cd packages/daemon && go test -v -count=1 -race ./internal/grpc/ -run TestTrafficService`
+Expected: All PASS.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add packages/daemon/internal/grpc/traffic_service.go
-git commit -m "feat(grpc): implement TrafficService with 7 RPCs"
+git add packages/daemon/internal/grpc/traffic_service.go packages/daemon/internal/grpc/traffic_service_test.go
+git commit -m "feat(grpc): implement TrafficService with 7 RPCs and unit tests"
 ```
 
 ---
@@ -761,7 +779,61 @@ git commit -m "test: integration test for full trace pipeline"
 
 ---
 
-## Task 12: Update Contributor Documentation
+## Task 12: Benchmark Tests
+
+**Files:**
+- Create: `packages/daemon/internal/tracestore/ringbuffer_bench_test.go`
+- Create: `packages/daemon/internal/tracestore/sqlite/sqlite_bench_test.go`
+- Create: `packages/daemon/internal/tracestore/aggregator_bench_test.go`
+
+Following the project's established `*_bench_test.go` convention (see `compiler_bench_test.go`, `gateway_bench_test.go`, `auth_bench_test.go`).
+
+- [ ] **Step 1: Write ring buffer benchmarks**
+
+Create `ringbuffer_bench_test.go`:
+- `BenchmarkRingBufferPush` — single goroutine push, measure ns/op and allocs. Target: >100K ops/sec.
+- `BenchmarkRingBufferPushParallel` — concurrent push from `b.RunParallel`, measure contention. Target: >50K ops/sec under contention.
+- `BenchmarkRingBufferSnapshot` — push 10K items then snapshot, measure read cost.
+- `BenchmarkRingBufferSubscriberFanout` — push with 10 active subscribers, measure overhead per subscriber.
+
+Each benchmark creates a buffer with capacity 10,000 and uses realistic `*riokuv1.RequestTrace` protos.
+
+- [ ] **Step 2: Write SQLite driver benchmarks**
+
+Create `sqlite_bench_test.go`:
+- `BenchmarkSQLiteWriteBatch_100` — batch insert 100 traces per op. Target: >10K traces/sec.
+- `BenchmarkSQLiteWriteBatch_1000` — batch insert 1000 traces per op.
+- `BenchmarkSQLiteQueryTraces_TimeRange` — query traces within a 1-hour window on a DB with 100K rows. Target: <200ms.
+- `BenchmarkSQLiteGetTrace` — PK lookup on a DB with 100K rows. Target: <1ms.
+- `BenchmarkSQLiteGetStatsBuckets` — read 1440 stats buckets (24h). Target: <10ms.
+- `BenchmarkSQLitePrune` — prune 10K expired traces. Measure throughput.
+
+Benchmarks use `b.StopTimer()`/`b.StartTimer()` around setup to isolate measured work.
+
+- [ ] **Step 3: Write aggregator benchmarks**
+
+Create `aggregator_bench_test.go`:
+- `BenchmarkComputeStatsBucket` — compute stats from 10K traces (percentile calculation). Target: <10ms.
+- `BenchmarkComputeRouteBuckets` — compute route buckets from 10K traces across 50 routes.
+- `BenchmarkAggregatorCycle` — full cycle (snapshot + compute all buckets + write to SQLite). Target: <100ms.
+
+- [ ] **Step 4: Run all benchmarks**
+
+Run: `cd packages/daemon && go test -bench=. -benchmem -count=3 ./internal/tracestore/... 2>&1 | tee bench-trace.txt`
+Expected: All benchmarks complete. Review ns/op and allocs/op against targets.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/daemon/internal/tracestore/ringbuffer_bench_test.go \
+       packages/daemon/internal/tracestore/sqlite/sqlite_bench_test.go \
+       packages/daemon/internal/tracestore/aggregator_bench_test.go
+git commit -m "bench(tracestore): ring buffer, SQLite, and aggregator benchmarks"
+```
+
+---
+
+## Task 13: Update Contributor Documentation
 
 **Files:**
 - Create: `contrib-docs/operations/trace-storage.md`
@@ -802,7 +874,7 @@ git commit -m "docs: trace storage operational guide and architecture updates"
 
 ---
 
-## Task 13: Final Cleanup and Validation
+## Task 14: Final Cleanup and Validation
 
 - [ ] **Step 1: Run full test suite with race detector**
 
