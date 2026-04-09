@@ -1,23 +1,39 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
-/** Test fixture with admin authentication pre-loaded. */
+// Login helper — performs browser-based login and waits for dashboard.
+async function browserLogin(page: Page, username: string, password: string) {
+  await page.goto('/login');
+  await page.getByLabel('Username').fill(username);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.waitForURL('/', { timeout: 10_000 });
+}
+
+/** Test fixture with admin authentication — logs in via browser before each test. */
 export const adminTest = base.extend({
-  storageState: 'e2e/.auth/admin.json',
+  page: async ({ page }, use) => {
+    await browserLogin(page, 'testadmin', 'TestAdmin123!');
+    await use(page);
+  },
 });
 
-/** Test fixture with viewer authentication pre-loaded. */
+/** Test fixture with viewer authentication. */
 export const viewerTest = base.extend({
-  storageState: 'e2e/.auth/viewer.json',
+  page: async ({ page }, use) => {
+    await browserLogin(page, 'testviewer', 'TestView123!');
+    await use(page);
+  },
 });
 
-/** Test fixture with operator authentication pre-loaded. */
+/** Test fixture with operator authentication. */
 export const operatorTest = base.extend({
-  storageState: 'e2e/.auth/operator.json',
+  page: async ({ page }, use) => {
+    await browserLogin(page, 'testoperator', 'TestOperator123!');
+    await use(page);
+  },
 });
 
-/** Unauthenticated test (no stored session). */
-export const anonTest = base.extend({
-  storageState: { cookies: [], origins: [] },
-});
+/** Unauthenticated test (no login). */
+export const anonTest = base;
 
 export { expect };
