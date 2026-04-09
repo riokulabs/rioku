@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -41,16 +41,15 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: packages/daemon/go.mod
-
-      - uses: bufbuild/buf-setup-action@v1
-
-      - name: Generate proto code
-        run: make proto
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/build-service/go.sum
+            packages/proto/gen/go/go.sum
 
       - name: Go vet
         run: |
@@ -58,7 +57,7 @@ jobs:
           cd ../build-service && go vet ./...
 
       - name: golangci-lint (daemon)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: packages/daemon
           args: --build-tags noadmin
@@ -66,7 +65,7 @@ jobs:
           install-mode: goinstall
 
       - name: golangci-lint (build-service)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: packages/build-service
           version: v2.11.4
@@ -76,7 +75,7 @@ jobs:
     name: Proto Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: bufbuild/buf-action@v1
         with:
@@ -88,12 +87,12 @@ jobs:
     name: Spell Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Run cspell
-        uses: streetsidesoftware/cspell-action@v6
+        uses: streetsidesoftware/cspell-action@v8
         with:
           config: cspell.config.yaml
           files: "**/*.{go,md,proto,yaml,yml}"
@@ -102,16 +101,15 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: packages/daemon/go.mod
-
-      - uses: bufbuild/buf-setup-action@v1
-
-      - name: Generate proto code
-        run: make proto
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/build-service/go.sum
+            packages/proto/gen/go/go.sum
 
       - name: Test daemon (race)
         run: cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=300s ./...
@@ -124,20 +122,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: packages/daemon/go.mod
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/build-service/go.sum
+            packages/proto/gen/go/go.sum
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-
-      - uses: bufbuild/buf-setup-action@v1
-
-      - name: Generate proto code
-        run: make proto
+          cache: npm
+          cache-dependency-path: packages/web/package-lock.json
 
       - name: Install web dependencies
         run: cd packages/web && npm ci
@@ -184,7 +183,7 @@ jobs:
         run: cd packages/web && npx playwright test
 
       - name: Upload Playwright report on failure
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
