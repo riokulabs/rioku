@@ -33,6 +33,10 @@ type caddyLogEntry struct {
 	RouteID         string `json:"rioku_route_id"`
 	ServiceID       string `json:"rioku_service_id"`
 	UpstreamAddress string `json:"upstream_address"`
+
+	// TracingSpan is set automatically by Caddy's tracing handler when it is
+	// part of the handler chain. It contains the OTEL trace ID.
+	TracingSpan string `json:"tracing_span,omitempty"`
 }
 
 type caddyRequest struct {
@@ -64,8 +68,15 @@ func ParseLogLine(data []byte) (*riokuv1.RequestTrace, error) {
 	// duration_ms: Caddy logs duration in seconds; multiply by 1000 for ms.
 	durationMS := int64(entry.Duration * 1000)
 
+	// Prefer the OTEL trace ID from Caddy's tracing handler when available;
+	// fall back to a random UUID otherwise.
+	traceID := entry.TracingSpan
+	if traceID == "" {
+		traceID = uuid.New().String()
+	}
+
 	return &riokuv1.RequestTrace{
-		TraceId:      uuid.New().String(),
+		TraceId:      traceID,
 		StartedAt:    startedAt,
 		DurationMs:   durationMS,
 		Method:       entry.Request.Method,

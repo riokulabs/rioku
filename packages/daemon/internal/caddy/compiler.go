@@ -186,6 +186,13 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 		serviceID = t.ServiceId
 	}
 
+	// Tracing handler (OTEL) — placed first so the trace ID is available
+	// to all subsequent handlers and logged by the access logger.
+	tracingHandler := map[string]any{
+		"handler":   "tracing",
+		"span_name": "rioku",
+	}
+
 	// Use Caddy's built-in "vars" handler (http.handlers.vars) to set
 	// Rioku context variables. No custom module needed — native Caddy.
 	varsHandler := map[string]any{
@@ -193,7 +200,7 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 		"rioku_route_id":   route.GetId(),
 		"rioku_service_id": serviceID,
 	}
-	caddyRoute["handle"] = []map[string]any{varsHandler, handler}
+	caddyRoute["handle"] = []map[string]any{tracingHandler, varsHandler, handler}
 
 	return caddyRoute, nil
 }

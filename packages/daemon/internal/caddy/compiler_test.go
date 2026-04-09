@@ -85,16 +85,20 @@ func TestCompileSimpleRoute(t *testing.T) {
 		t.Errorf("path = %v, want /v1/*", paths[0])
 	}
 
-	// Check handlers (rioku_vars + reverse_proxy).
+	// Check handlers (tracing + rioku_vars + reverse_proxy).
 	handlers := route["handle"].([]any)
-	if len(handlers) != 2 {
-		t.Fatalf("expected 2 handlers, got %d", len(handlers))
+	if len(handlers) != 3 {
+		t.Fatalf("expected 3 handlers, got %d", len(handlers))
 	}
-	vars := handlers[0].(map[string]any)
+	tracing := handlers[0].(map[string]any)
+	if tracing["handler"].(string) != "tracing" {
+		t.Errorf("handlers[0] = %v, want tracing", tracing["handler"])
+	}
+	vars := handlers[1].(map[string]any)
 	if vars["handler"].(string) != "vars" {
-		t.Errorf("handlers[0] = %v, want vars", vars["handler"])
+		t.Errorf("handlers[1] = %v, want vars", vars["handler"])
 	}
-	h := handlers[1].(map[string]any)
+	h := handlers[2].(map[string]any)
 	if h["handler"].(string) != "reverse_proxy" {
 		t.Errorf("handler = %v, want reverse_proxy", h["handler"])
 	}
@@ -277,13 +281,16 @@ func TestCompileDirectUpstream(t *testing.T) {
 	}
 
 	handleChain := routes[0].(map[string]any)["handle"].([]any)
-	if len(handleChain) != 2 {
-		t.Fatalf("expected 2 handlers, got %d", len(handleChain))
+	if len(handleChain) != 3 {
+		t.Fatalf("expected 3 handlers, got %d", len(handleChain))
 	}
-	if handleChain[0].(map[string]any)["handler"].(string) != "vars" {
-		t.Errorf("handlers[0] = %v, want vars", handleChain[0].(map[string]any)["handler"])
+	if handleChain[0].(map[string]any)["handler"].(string) != "tracing" {
+		t.Errorf("handlers[0] = %v, want tracing", handleChain[0].(map[string]any)["handler"])
 	}
-	handler := handleChain[1].(map[string]any)
+	if handleChain[1].(map[string]any)["handler"].(string) != "vars" {
+		t.Errorf("handlers[1] = %v, want vars", handleChain[1].(map[string]any)["handler"])
+	}
+	handler := handleChain[2].(map[string]any)
 	if handler["handler"].(string) != "reverse_proxy" {
 		t.Errorf("handler = %v, want reverse_proxy", handler["handler"])
 	}
@@ -536,7 +543,7 @@ func TestCompileWeightedRoundRobin(t *testing.T) {
 
 	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	route := server["routes"].([]any)[0].(map[string]any)
-	handler := route["handle"].([]any)[1].(map[string]any) // [0] is rioku_vars
+	handler := route["handle"].([]any)[2].(map[string]any) // [0]=tracing, [1]=vars
 	lb := handler["load_balancing"].(map[string]any)
 	sp := lb["selection_policy"].(map[string]any)
 
@@ -725,26 +732,32 @@ func TestCompile_InjectsRiokuVars(t *testing.T) {
 	}
 
 	handlers := routes[0].(map[string]any)["handle"].([]any)
-	if len(handlers) != 2 {
-		t.Fatalf("expected 2 handlers (rioku_vars + reverse_proxy), got %d", len(handlers))
+	if len(handlers) != 3 {
+		t.Fatalf("expected 3 handlers (tracing + rioku_vars + reverse_proxy), got %d", len(handlers))
 	}
 
-	// First handler: rioku_vars with route_id and service_id.
-	vars := handlers[0].(map[string]any)
+	// First handler: tracing.
+	tracing := handlers[0].(map[string]any)
+	if tracing["handler"].(string) != "tracing" {
+		t.Errorf("handlers[0].handler = %v, want tracing", tracing["handler"])
+	}
+
+	// Second handler: rioku_vars with route_id and service_id.
+	vars := handlers[1].(map[string]any)
 	if vars["handler"].(string) != "vars" {
-		t.Errorf("handlers[0].handler = %v, want vars", vars["handler"])
+		t.Errorf("handlers[1].handler = %v, want vars", vars["handler"])
 	}
 	if vars["rioku_route_id"].(string) != "route-1" {
-		t.Errorf("handlers[0].rioku_route_id = %v, want route-1", vars["rioku_route_id"])
+		t.Errorf("handlers[1].rioku_route_id = %v, want route-1", vars["rioku_route_id"])
 	}
 	if vars["rioku_service_id"].(string) != "svc-1" {
-		t.Errorf("handlers[0].rioku_service_id = %v, want svc-1", vars["rioku_service_id"])
+		t.Errorf("handlers[1].rioku_service_id = %v, want svc-1", vars["rioku_service_id"])
 	}
 
-	// Second handler: reverse_proxy.
-	proxy := handlers[1].(map[string]any)
+	// Third handler: reverse_proxy.
+	proxy := handlers[2].(map[string]any)
 	if proxy["handler"].(string) != "reverse_proxy" {
-		t.Errorf("handlers[1].handler = %v, want reverse_proxy", proxy["handler"])
+		t.Errorf("handlers[2].handler = %v, want reverse_proxy", proxy["handler"])
 	}
 }
 
@@ -780,16 +793,16 @@ func TestCompile_InjectsRiokuVars_DirectUpstream(t *testing.T) {
 	routes := server["routes"].([]any)
 	handlers := routes[0].(map[string]any)["handle"].([]any)
 
-	vars := handlers[0].(map[string]any)
+	vars := handlers[1].(map[string]any)
 	if vars["handler"].(string) != "vars" {
-		t.Errorf("handlers[0].handler = %v, want vars", vars["handler"])
+		t.Errorf("handlers[1].handler = %v, want vars", vars["handler"])
 	}
 	if vars["rioku_route_id"].(string) != "route-2" {
-		t.Errorf("handlers[0].rioku_route_id = %v, want route-2", vars["rioku_route_id"])
+		t.Errorf("handlers[1].rioku_route_id = %v, want route-2", vars["rioku_route_id"])
 	}
 	// Direct upstream routes should have empty service_id.
 	if vars["rioku_service_id"].(string) != "" {
-		t.Errorf("handlers[0].rioku_service_id = %v, want empty string", vars["rioku_service_id"])
+		t.Errorf("handlers[1].rioku_service_id = %v, want empty string", vars["rioku_service_id"])
 	}
 }
 
@@ -1022,6 +1035,59 @@ func TestCompile_FlushInterval(t *testing.T) {
 	// JSON round-trip turns integers into float64.
 	if fi.(float64) != -1 {
 		t.Errorf("flush_interval = %v, want -1", fi)
+	}
+}
+
+func TestCompile_TracingHandler(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_Upstream{
+					Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"},
+				},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	routes := server["routes"].([]any)
+	route := routes[0].(map[string]any)
+	handlers := route["handle"].([]any)
+
+	// Handler chain must be [tracing, vars, reverse_proxy].
+	if len(handlers) != 3 {
+		t.Fatalf("expected 3 handlers, got %d", len(handlers))
+	}
+
+	wantOrder := []string{"tracing", "vars", "reverse_proxy"}
+	for i, want := range wantOrder {
+		got := handlers[i].(map[string]any)["handler"].(string)
+		if got != want {
+			t.Errorf("handlers[%d].handler = %v, want %v", i, got, want)
+		}
+	}
+
+	// Tracing handler must have span_name = "rioku".
+	tracing := handlers[0].(map[string]any)
+	if tracing["span_name"].(string) != "rioku" {
+		t.Errorf("tracing span_name = %v, want rioku", tracing["span_name"])
 	}
 }
 

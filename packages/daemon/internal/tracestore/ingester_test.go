@@ -111,6 +111,59 @@ func TestIngester_ParseLogLine(t *testing.T) {
 	}
 }
 
+// TestIngester_ParseLogLine_UsesTraceId verifies that when a log line contains
+// a tracing_span field, it is used as the trace ID instead of generating a UUID.
+func TestIngester_ParseLogLine_UsesTraceId(t *testing.T) {
+	line := []byte(`{
+		"level": "info",
+		"ts": 1700000000.500000,
+		"request": {
+			"method": "GET",
+			"host": "example.com",
+			"uri": "/api/v1"
+		},
+		"duration": 0.010,
+		"status": 200,
+		"size": 512,
+		"bytes_read": 64,
+		"rioku_route_id": "r1",
+		"rioku_service_id": "s1",
+		"upstream_address": "10.0.0.1:8080",
+		"tracing_span": "abc123def456"
+	}`)
+
+	trace, err := ParseLogLine(line)
+	if err != nil {
+		t.Fatalf("ParseLogLine error: %v", err)
+	}
+
+	if trace.TraceId != "abc123def456" {
+		t.Errorf("TraceId = %q, want %q", trace.TraceId, "abc123def456")
+	}
+}
+
+// TestIngester_ParseLogLine_FallbackUUID verifies that when tracing_span is
+// absent, a valid UUID is generated as the trace ID.
+func TestIngester_ParseLogLine_FallbackUUID(t *testing.T) {
+	// Use the standard caddyLogLine which has no tracing_span field.
+	trace, err := ParseLogLine(caddyLogLine())
+	if err != nil {
+		t.Fatalf("ParseLogLine error: %v", err)
+	}
+
+	if trace.TraceId == "" {
+		t.Fatal("TraceId should not be empty")
+	}
+
+	// Verify it looks like a UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).
+	if len(trace.TraceId) != 36 {
+		t.Errorf("TraceId = %q, expected UUID format (36 chars)", trace.TraceId)
+	}
+	if trace.TraceId[8] != '-' || trace.TraceId[13] != '-' || trace.TraceId[18] != '-' || trace.TraceId[23] != '-' {
+		t.Errorf("TraceId = %q, expected UUID format with dashes at positions 8,13,18,23", trace.TraceId)
+	}
+}
+
 // TestIngester_SamplingRate verifies that ShouldSample passes approximately
 // Rate fraction of traces for a given sampling rate.
 func TestIngester_SamplingRate(t *testing.T) {
