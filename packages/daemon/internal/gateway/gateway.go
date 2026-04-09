@@ -16,6 +16,7 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
+	"github.com/riokulabs/rioku/internal/tracestore"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
@@ -38,12 +39,14 @@ func NewGateway(
 	addr string,
 	configSvc riokuv1.ConfigServiceServer,
 	healthSvc riokuv1.HealthServiceServer,
+	trafficSvc riokuv1.TrafficServiceServer,
 	a *auth.Auth,
 	sm *auth.SessionManager,
 	engine *config.Engine,
 	st store.Driver,
 	cfg *config.Config,
 	spaFS fs.FS,
+	traceBuf *tracestore.RingBuffer,
 ) (*Gateway, error) {
 	ctx := context.Background()
 
@@ -58,6 +61,11 @@ func NewGateway(
 	}
 	if err := riokuv1.RegisterHealthServiceHandlerServer(ctx, gwMux, healthSvc); err != nil {
 		return nil, fmt.Errorf("register health service: %w", err)
+	}
+	if trafficSvc != nil {
+		if err := riokuv1.RegisterTrafficServiceHandlerServer(ctx, gwMux, trafficSvc); err != nil {
+			return nil, fmt.Errorf("register traffic service: %w", err)
+		}
 	}
 
 	// Derive the TOTP encryption key from the signing key.
@@ -89,8 +97,8 @@ func NewGateway(
 	// TOTP management routes.
 	RegisterTOTPRoutes(topMux, st, a, sm, enc)
 
-	// SSE routes.
-	RegisterSSERoutes(topMux, engine)
+	// SSE routes for live config change and traffic trace streams.
+	RegisterSSERoutes(topMux, engine, traceBuf)
 
 	// Audit log endpoint (hand-written because gRPC-gateway cannot
 	// translate server-streaming RPCs in in-process mode).

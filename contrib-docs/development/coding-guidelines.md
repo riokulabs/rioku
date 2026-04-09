@@ -5,7 +5,7 @@
 ### What AI Codes Well (Use Aggressively)
 
 - Proto definitions and generated code
-- SvelteKit admin panel components given a clear API spec
+- React + TanStack admin panel components given a clear API spec
 - SQL migrations given a clear schema spec
 - CLI command implementations given clear interface contracts
 - Configuration file parsing (`rioku.yaml`)

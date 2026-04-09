@@ -43,7 +43,7 @@ func newTestEngine(t *testing.T) *Engine {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{})
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{}, "")
 	return NewEngine(d, compiler)
 }
 
@@ -719,7 +719,7 @@ func TestCompileCaddyConfig(t *testing.T) {
 		t.Fatalf("expected 1 compiled route, got %d", len(routes))
 	}
 
-	// Verify the route has a reverse_proxy handler.
+	// Verify the route has a reverse_proxy handler (may be preceded by rioku_vars).
 	routeMap, ok := routes[0].(map[string]any)
 	if !ok {
 		t.Fatal("expected route to be a map")
@@ -728,11 +728,18 @@ func TestCompileCaddyConfig(t *testing.T) {
 	if !ok || len(handlers) == 0 {
 		t.Fatal("expected at least one handler")
 	}
-	handler, ok := handlers[0].(map[string]any)
-	if !ok {
-		t.Fatal("expected handler to be a map")
+	foundProxy := false
+	for _, h := range handlers {
+		hMap, ok := h.(map[string]any)
+		if !ok {
+			continue
+		}
+		if hMap["handler"] == "reverse_proxy" {
+			foundProxy = true
+			break
+		}
 	}
-	if handler["handler"] != "reverse_proxy" {
-		t.Fatalf("expected reverse_proxy handler, got %v", handler["handler"])
+	if !foundProxy {
+		t.Fatalf("expected reverse_proxy handler in route handlers, got %v", handlers)
 	}
 }

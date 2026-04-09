@@ -20,26 +20,34 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
+	"github.com/riokulabs/rioku/internal/tracestore"
 	riokuweb "github.com/riokulabs/rioku/web"
 
 	// Register store drivers.
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
+
+	// Register tracestore drivers.
+	_ "github.com/riokulabs/rioku/internal/tracestore/sqlite"
 )
 
 // Daemon orchestrates all subsystems.
 type Daemon struct {
-	cfg       *config.Config
-	cfgPath   string
-	store     store.Driver
-	caddy     *caddy.Manager
-	engine    *config.Engine
-	auth      *auth.Auth
-	sessions  *auth.SessionManager
-	grpc      *riokugrpc.Server
-	gateway   *gateway.Gateway
-	syncAgent *riokusync.Agent
-	pidFile   string
-	startedAt time.Time
+	cfg        *config.Config
+	cfgPath    string
+	store      store.Driver
+	caddy      *caddy.Manager
+	engine     *config.Engine
+	auth       *auth.Auth
+	sessions   *auth.SessionManager
+	grpc       *riokugrpc.Server
+	gateway    *gateway.Gateway
+	syncAgent  *riokusync.Agent
+	traceStore tracestore.Driver
+	ringBuffer *tracestore.RingBuffer
+	ingester   *tracestore.Ingester
+	aggregator *tracestore.Aggregator
+	pidFile    string
+	startedAt  time.Time
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -94,8 +102,33 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.sessions.StartCleanupWorker(ctx)
 	log.Println("sessions: manager ready")
 
+	// 3b. Open trace store.
+	traceDrv, err := tracestore.New(d.cfg.Traces.Store)
+	if err != nil {
+		log.Printf("tracestore: driver %q not available: %v", d.cfg.Traces.Store, err)
+	} else {
+		// Ensure trace store directory exists.
+		if err := os.MkdirAll(d.cfg.Traces.Path, 0750); err != nil {
+			log.Printf("tracestore: cannot create dir %s: %v", d.cfg.Traces.Path, err)
+		}
+		traceCfg := tracestore.DriverConfig{
+			Driver:    d.cfg.Traces.Store,
+			Path:      filepath.Join(d.cfg.Traces.Path, "traces.db"),
+			MaxSizeGB: d.cfg.Traces.MaxSizeGB,
+		}
+		if err := traceDrv.Open(ctx, traceCfg); err != nil {
+			log.Printf("tracestore: open failed: %v (traces unavailable)", err)
+		} else {
+			d.traceStore = traceDrv
+			log.Println("tracestore: ready")
+		}
+	}
+
+	// 3c. Create ring buffer.
+	d.ringBuffer = tracestore.NewRingBuffer(d.cfg.Traces.BufferSize)
+
 	// 4. Create config engine with placeholder compiler (updated after gateway binds).
-	placeholderCompiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{})
+	placeholderCompiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{}, "")
 	d.engine = config.NewEngine(d.store, placeholderCompiler)
 	log.Println("config: engine ready (compiler will be updated after gateway binds)")
 
@@ -111,12 +144,27 @@ func (d *Daemon) Start(ctx context.Context) error {
 		log.Printf("caddy: child process started (admin: %s)", d.cfg.Caddy.AdminAddr)
 	}
 
+	// 5a. Start log ingester.
+	socketPath := filepath.Join(d.cfg.DataDir, "trace.sock")
+	samplingCfg := tracestore.SamplingConfig{
+		Rate:            derefFloat64(d.cfg.Traces.Sampling.Rate, 1.0),
+		ErrorsAlways:    d.cfg.Traces.Sampling.ErrorsAlways,
+		AIAlways:        d.cfg.Traces.Sampling.AIAlways,
+		SlowThresholdMS: derefInt(d.cfg.Traces.Sampling.MinDurationMS, 0),
+	}
+	d.ingester = tracestore.NewIngester(socketPath, d.ringBuffer, samplingCfg)
+	if err := d.ingester.Start(ctx); err != nil {
+		log.Printf("tracestore: ingester failed: %v", err)
+	} else {
+		log.Println("tracestore: ingester ready")
+	}
+
 	// 6. Start gRPC server.
 	grpcAddr := d.cfg.Listen.GRPC
 	if grpcAddr == "" {
 		grpcAddr = ":7777"
 	}
-	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy, d.auth)
+	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy, d.auth, d.ringBuffer, d.traceStore)
 	if err != nil {
 		log.Printf("grpc: failed to start: %v", err)
 	} else {
@@ -142,7 +190,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		var gw *gateway.Gateway
 		for attempt := 0; attempt < 10; attempt++ {
 			addr := fmt.Sprintf("127.0.0.1:%d", basePort+attempt)
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer)
 			if err == nil {
 				break
 			}
@@ -181,13 +229,20 @@ func (d *Daemon) Start(ctx context.Context) error {
 		ListenAddr:   adminListenAddr,
 		Domain:       d.cfg.Listen.AdminDomain,
 		DevMode:      d.cfg.Auth.DevMode,
-	})
+	}, socketPath)
 	d.engine.SetCompiler(compiler)
 	log.Println("config: compiler updated with admin config")
 
 	// 8. Start sync agent (watches config changes, pushes to Caddy).
 	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy)
 	d.syncAgent.Start(ctx)
+
+	// 8a. Start aggregator.
+	if d.traceStore != nil {
+		d.aggregator = tracestore.NewAggregator(d.ringBuffer, d.traceStore, 60*time.Second)
+		d.aggregator.Start(ctx)
+		log.Println("tracestore: aggregator ready")
+	}
 
 	// 9. Write PID file.
 	if err := WritePIDFile(d.pidFile); err != nil {
@@ -230,6 +285,23 @@ func (d *Daemon) Stop(ctx context.Context) error {
 	if d.caddy != nil {
 		if err := d.caddy.Stop(ctx); err != nil {
 			log.Printf("caddy: stop error: %v", err)
+		}
+	}
+
+	// Stop aggregator.
+	if d.aggregator != nil {
+		d.aggregator.Stop()
+	}
+
+	// Stop ingester.
+	if d.ingester != nil {
+		d.ingester.Stop()
+	}
+
+	// Close trace store.
+	if d.traceStore != nil {
+		if err := d.traceStore.Close(); err != nil {
+			log.Printf("tracestore: close error: %v", err)
 		}
 	}
 
@@ -337,4 +409,20 @@ func loadOrCreateSigningKey(path string) ([]byte, error) {
 	}
 
 	return key, nil
+}
+
+// derefFloat64 returns *p if non-nil, otherwise def.
+func derefFloat64(p *float64, def float64) float64 {
+	if p != nil {
+		return *p
+	}
+	return def
+}
+
+// derefInt returns *p if non-nil, otherwise def.
+func derefInt(p *int, def int) int {
+	if p != nil {
+		return *p
+	}
+	return def
 }

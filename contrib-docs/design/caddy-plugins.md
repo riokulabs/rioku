@@ -18,6 +18,8 @@ Rioku ships a custom Caddy build that includes community plugins for functionali
 
 These ship in every Rioku Caddy binary. Selected because they close competitive gaps, are actively maintained, and don't conflict with Rioku's first-party plugins.
 
+### Traffic & Security
+
 | Module | Repo | Stars | License | Purpose | Competitive Gap Closed |
 |---|---|---|---|---|---|
 | `http.handlers.waf` | `corazawaf/coraza-caddy` | 601 | Apache-2.0 | OWASP WAF with Core Rule Set | Kong/Traefik paywall WAF; APISIX/Tyk have none |
@@ -25,8 +27,19 @@ These ship in every Rioku Caddy binary. Selected because they close competitive 
 | `http.handlers.cache` | `caddyserver/cache-handler` | 376 | Apache-2.0 | RFC-7234 HTTP response cache | All competitors have response caching |
 | `http.handlers.grpc_web` | `mholt/caddy-grpc-web` | 32 | Apache-2.0 | gRPC-Web to gRPC translation | APISIX/Kong/Envoy gRPC support |
 | `security` | `greenpau/caddy-security` | 2,119 | Apache-2.0 | OIDC/OAuth2/SAML/MFA auth | Kong/Traefik paywall enterprise auth |
-| `http.handlers.realip` | `kirsch33/realip` | 45 | MIT | Extract real client IP from X-Forwarded-For | Correct client IP for rate limiting, WAF, audit |
 | `http.handlers.proxyprotocol` | `mastercactapus/caddy2-proxyprotocol` | 66 | MIT | PROXY protocol v1/v2 support | Real client IP behind AWS ALB/NLB, GCP LB, HAProxy |
+
+> **Note:** `kirsch33/realip` was previously listed here but has been removed. Caddy v2.7+ provides native `trusted_proxies` with `{client_ip}` placeholder support, which fully replaces it. Rioku's Caddy config generator should set `trusted_proxies` directly.
+
+### DNS Provider (ACME DNS-01)
+
+Cloudflare is bundled by default — it covers ~40% of authoritative DNS hosting globally with negligible binary impact (thin REST wrapper, no vendor SDK). This gives most users wildcard TLS out of the box without requiring `rku plugin install` before their first wildcard cert.
+
+| Module | Repo | Stars | License | Purpose | Dep Weight |
+|---|---|---|---|---|---|
+| `dns.providers.cloudflare` | `caddy-dns/cloudflare` | 882 | MIT | Cloudflare DNS-01 challenges | Light (no vendor SDK) |
+
+Cloudflare can be removed via `rku plugin remove dns-cloudflare` if not needed. Additional DNS providers are available as optional installs (see Section 3).
 
 ### caddy-security Configuration
 
@@ -44,18 +57,35 @@ This plugin will be removed from the default build once first-party OIDC is impl
 
 Available via `rku plugin install <name>`. Not in the default build to keep binary size down.
 
+### General
+
 | Module | Repo | Stars | Install Command | Use Case |
 |---|---|---|---|---|
 | `http.handlers.forward_proxy` | `caddyserver/forwardproxy` | 701 | `rku plugin install forward-proxy` | Edge deployments, egress control |
-| `dns.providers.cloudflare` | `caddy-dns/cloudflare` | 878 | `rku plugin install dns-cloudflare` | Wildcard TLS via DNS-01 |
-| `dns.providers.route53` | `caddy-dns/route53` | 75 | `rku plugin install dns-route53` | AWS wildcard TLS via DNS-01 |
 | `http.handlers.maxmind_geolocation` | `porech/caddy-maxmind-geolocation` | 204 | `rku plugin install geo-maxmind` | Geo-based routing/blocking |
 | `http.handlers.crowdsec` | `hslatman/caddy-crowdsec-bouncer` | 349 | `rku plugin install crowdsec` | CrowdSec threat intelligence |
 | `http.handlers.defender` | `JasonLovesDoggo/caddy-defender` | 512 | `rku plugin install ai-defender` | AI crawler blocking |
 | `caddy.logging.encoders.transform` | `caddyserver/transform-encoder` | 111 | `rku plugin install transform-encoder` | Custom log formats for SIEM |
 | `pberkel/caddy-storage-redis` | `pberkel/caddy-storage-redis` | 88 | `rku plugin install storage-redis` | Shared TLS cert storage (Valkey/Redis) |
 
-Additional DNS providers available: digitalocean, hetzner, porkbun, namecheap, alidns, acmedns, dnspod, tencentcloud.
+### Additional DNS Providers
+
+Cloudflare is bundled by default (see Section 2). All other providers are optional installs. Cloud provider SDKs (Route53, GCP, Azure) add significant binary weight (+3-10MB each).
+
+| Module | Repo | Stars | Install Command | Use Case |
+|---|---|---|---|---|
+| `dns.providers.route53` | `caddy-dns/route53` | 75 | `rku plugin install dns-route53` | AWS Route 53 |
+| `dns.providers.googleclouddns` | `caddy-dns/googleclouddns` | 17 | `rku plugin install dns-googlecloud` | Google Cloud DNS |
+| `dns.providers.azure` | `caddy-dns/azure` | 12 | `rku plugin install dns-azure` | Azure DNS |
+| `dns.providers.digitalocean` | `caddy-dns/digitalocean` | 53 | `rku plugin install dns-digitalocean` | DigitalOcean DNS |
+| `dns.providers.hetzner` | `caddy-dns/hetzner` | 61 | `rku plugin install dns-hetzner` | Hetzner DNS (popular in EU) |
+| `dns.providers.acmedns` | `caddy-dns/acmedns` | 66 | `rku plugin install dns-acmedns` | Universal DNS-01 fallback via CNAME delegation |
+| `dns.providers.porkbun` | `caddy-dns/porkbun` | — | `rku plugin install dns-porkbun` | Porkbun registrar DNS |
+| `dns.providers.namecheap` | `caddy-dns/namecheap` | — | `rku plugin install dns-namecheap` | Namecheap registrar DNS |
+| `dns.providers.duckdns` | `caddy-dns/duckdns` | — | `rku plugin install dns-duckdns` | DuckDNS (home lab / self-hosting) |
+| `dns.providers.alidns` | `caddy-dns/alidns` | — | `rku plugin install dns-alidns` | Alibaba Cloud DNS |
+| `dns.providers.dnspod` | `caddy-dns/dnspod` | — | `rku plugin install dns-dnspod` | DNSPod (Tencent) |
+| `dns.providers.tencentcloud` | `caddy-dns/tencentcloud` | — | `rku plugin install dns-tencentcloud` | Tencent Cloud DNS |
 
 ---
 
@@ -76,37 +106,40 @@ These were evaluated and explicitly rejected. Use the stated first-party replace
 
 These capabilities have NO community Caddy plugin and MUST be built by Rioku. Ordered by competitive priority.
 
+> **Status key:** "Package only" = Go package declaration exists (2-5 lines), no logic. "Not started" = no directory exists. Also present: `rioku-vars` (44 lines, functional — provides Caddy placeholders for Rioku metadata).
+
 ### Phase 1-2 (Core Gateway)
 
 | Plugin | Type | Competitive Match | Status |
 |---|---|---|---|
-| **auth-jwt** | Middleware | All competitors | Stub exists |
-| **auth-apikey** | Middleware | All competitors | Stub exists |
-| **rate-limit** | Traffic | Kong, APISIX, Tyk (token-aware) | Stub exists |
-| **transform** | Traffic | Kong, Tyk, APISIX | Stub exists |
-| **circuit-breaker** | Traffic | Kong, APISIX, Traefik | Needs stub |
-| **cors** | Middleware | All competitors (table stakes) | Needs stub |
+| **auth-jwt** | Middleware | All competitors | Package only |
+| **auth-apikey** | Middleware | All competitors | Package only |
+| **rate-limit** | Traffic | Kong, APISIX, Tyk (token-aware) | Package only |
+| **transform** | Traffic | Kong, Tyk, APISIX | Package only |
+| **rioku-vars** | Middleware | Internal | Functional (44 lines) |
+| **circuit-breaker** | Traffic | Kong, APISIX, Traefik | Not started |
+| **cors** | Middleware | All competitors (table stakes) | Not started |
 | **ip-filter** | Config-layer | All competitors | Config wraps Caddy `remote_ip` matcher |
 
 ### Phase 3-4 (Advanced Gateway)
 
 | Plugin | Type | Competitive Match | Status |
 |---|---|---|---|
-| **canary** | Traffic | Kong, APISIX, Traefik Hub | Needs stub |
-| **traffic-mirror** | Traffic | Envoy, Ambassador | Needs stub |
-| **grpc-transcode** | Traffic | APISIX (standout), Envoy | Needs stub |
-| **oidc** | Middleware | Kong (paywalled), Tyk, Traefik Hub | Replaces caddy-security bridge |
+| **canary** | Traffic | Kong, APISIX, Traefik Hub | Not started |
+| **traffic-mirror** | Traffic | Envoy, Ambassador | Not started |
+| **grpc-transcode** | Traffic | APISIX (standout), Envoy | Not started |
+| **oidc** | Middleware | Kong (paywalled), Tyk, Traefik Hub | Not started (replaces caddy-security bridge) |
 
 ### Phase 5-6 (AI/Agentic)
 
 | Plugin | Type | Competitive Match | Status |
 |---|---|---|---|
-| **llm-proxy** | Traffic | Kong, APISIX, Tyk, LiteLLM, Portkey | Stub exists |
-| **agent-identity** | Middleware | Tyk (partial), Kong (partial) | Stub exists |
-| **tool-router** | Traffic | Kong MCP, Tyk MCP | Stub exists |
-| **pii-redact** | Middleware | Kong (20+ categories), Tyk, F5 | Needs stub |
-| **prompt-guard** | Middleware | Kong, Tyk, APISIX, Portkey | Needs stub |
-| **mcp-gateway** | Traffic | Kong, Tyk, APISIX, Traefik | Partially designed |
+| **llm-proxy** | Traffic | Kong, APISIX, Tyk, LiteLLM, Portkey | Package only |
+| **agent-identity** | Middleware | Tyk (partial), Kong (partial) | Package only |
+| **tool-router** | Traffic | Kong MCP, Tyk MCP | Package only |
+| **pii-redact** | Middleware | Kong (20+ categories), Tyk, F5 | Not started |
+| **prompt-guard** | Middleware | Kong, Tyk, APISIX, Portkey | Not started |
+| **mcp-gateway** | Traffic | Kong, Tyk, APISIX, Traefik | Not started (design in ai-and-agentic.md) |
 
 ### Deprioritized (Post-v1)
 
@@ -144,6 +177,7 @@ With the default build + Phase 1-2 first-party plugins, Rioku matches or exceeds
 | L4 TCP/UDP | Limited | Native | None | Native | **Default** |
 | Response cache | Plugin | Plugin | Plugin | None | **Default** |
 | gRPC-Web | Plugin | Plugin | Plugin | None | **Default** |
+| Wildcard TLS (DNS-01) | Plugin | Plugin | Plugin | Plugin | **Default (Cloudflare), 11 optional** |
 | Token rate limiting | Enterprise | Plugin | AI Studio | None | **First-party** |
 | LLM proxy | AI Gateway | Plugin | AI Studio | AI Gateway | **First-party** |
 | Zero-dep clustering | None | None | None | None | **First-party (unique)** |

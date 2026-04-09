@@ -2,7 +2,7 @@
 
 ## Context
 
-Rioku has Go test files covering CRDT, cache, config engine, Caddy compiler, SQLite store, Raft, cluster discovery, WASM plugins, and the full auth security overhaul (sessions, RBAC, TOTP, encryption, middleware, route handlers). The web panel has zero test infrastructure — no test framework, no test files, no test scripts. CI only runs Go tests.
+Rioku has Go test files covering CRDT, cache, config engine, Caddy compiler, SQLite store, Raft, cluster discovery, WASM plugins, TraceStore (ring buffer, ingester, aggregator), and the full auth security overhaul (sessions, RBAC, TOTP, encryption, middleware, route handlers). The web panel has Playwright E2E tests (18 spec files in `e2e/`) but no Vitest unit/component tests yet. Vitest is configured (`vitest.config.ts`) but has zero test files in `src/`.
 
 The sandbox environment (5 upstream apps, orchestration scripts, test users with RBAC roles, auth and full-stack smoke tests) was built in a previous phase and provides a running Rioku instance with real routed traffic for integration and e2e testing.
 

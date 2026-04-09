@@ -1,9 +1,9 @@
 # Rioku — Architecture Design Document
 
-**Version:** 0.3
-**Status:** Pre-implementation / Architecture
-**Last Updated:** 2026-04-02
-**Supersedes:** Design Doc v0.2
+**Version:** 0.4
+**Status:** Partially implemented (see inline notes)
+**Last Updated:** 2026-04-09
+**Supersedes:** Design Doc v0.3
 
 ---
 
@@ -34,7 +34,7 @@
 └──────────────────┘    └──────────────────┘    └──────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
-│  Admin SPA (SvelteKit, go:embed into daemon binary)     │
+│  Admin SPA (React 19 + TanStack, go:embed into daemon)  │
 │  Served by the daemon REST gateway — no separate        │
 │  web server process                                     │
 └─────────────────────────────────────────────────────────┘
@@ -70,7 +70,10 @@ Ports (configurable):
 
 ### 3.2 Service Definitions
 
+Six gRPC services are defined in proto. Implementation status noted inline.
+
 ```protobuf
+// IMPLEMENTED — registered with gRPC server
 service ConfigService {
   rpc GetConfig(GetConfigRequest) returns (ConfigSnapshot);
   rpc ApplyChange(ConfigChange) returns (ApplyResult);
@@ -80,7 +83,24 @@ service ConfigService {
   rpc ImportConfig(stream ConfigChunk) returns (ImportResult);
 }
 
+// IMPLEMENTED — registered with gRPC server
+service HealthService {
+  rpc GetHealth(HealthRequest) returns (HealthStatus);
+  rpc GetCaddyStatus(CaddyStatusRequest) returns (CaddyStatus);
+}
 
+// DEFINED — proto exists, not yet registered with gRPC server
+service TrafficService {
+  rpc WatchTraffic(WatchTrafficRequest) returns (stream RequestTrace);
+  rpc QueryTraces(TraceQuery) returns (TraceQueryResult);
+  rpc GetTrace(GetTraceRequest) returns (RequestTrace);
+  rpc GetStats(StatsQuery) returns (TrafficStats);
+  rpc GetTokenStats(TokenQuery) returns (TokenStats);
+  rpc ListSessions(SessionQuery) returns (SessionList);
+  rpc GetSession(GetSessionRequest) returns (SessionDetail);
+}
+
+// DEFINED — proto exists, not yet registered with gRPC server
 service PluginService {
   rpc ListPlugins(ListPluginsRequest) returns (PluginList);
   rpc InstallPlugin(InstallRequest) returns (stream InstallEvent);
@@ -89,26 +109,20 @@ service PluginService {
   rpc SetPluginConfig(SetPluginConfigRequest) returns (SetResult);
 }
 
-
+// DEFINED — proto exists, not yet registered with gRPC server
 service BuildService {
   rpc TriggerBuild(BuildRequest) returns (stream BuildEvent);
   rpc GetBuildStatus(BuildStatusRequest) returns (BuildStatus);
   rpc SwapBinary(SwapRequest) returns (SwapResult);
 }
 
-
+// DEFINED — proto exists, not yet registered with gRPC server
 service ClusterService {
   rpc Join(JoinRequest) returns (JoinResult);
   rpc Leave(LeaveRequest) returns (LeaveResult);
   rpc ListNodes(ListNodesRequest) returns (NodeList);
   rpc SyncState(SyncRequest) returns (SyncResult);
-  rpc WatchCluster(WatchRequest) returns (stream ClusterEvent);
-}
-
-
-service HealthService {
-  rpc GetHealth(HealthRequest) returns (HealthStatus);
-  rpc GetCaddyStatus(CaddyStatusRequest) returns (CaddyStatus);
+  rpc WatchCluster(WatchClusterRequest) returns (stream ClusterEvent);
 }
 ```
 
@@ -195,7 +209,7 @@ const (
 )
 ```
 
-Three concrete implementations: `sqliteDriver`, `postgresDriver`, `mysqlDriver`. None exposed outside the `store` package.
+Four concrete implementations: `sqliteDriver`, `postgresDriver`, `mysqlDriver`, `raftDriver`. None exposed outside the `store` package. The Raft driver provides embedded consensus-based replication for zero-dependency clustering.
 
 ### 5.2 Schema
 

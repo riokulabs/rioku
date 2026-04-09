@@ -16,8 +16,6 @@ import (
 // without hitting 404s or error boundaries.
 func RegisterStubRoutes(mux *http.ServeMux, cfg *config.Config) {
 	mux.HandleFunc("GET /api/v1/cluster", handleStubCluster(cfg))
-	mux.HandleFunc("GET /api/v1/traffic/analytics", handleStubEmptyObject())
-	mux.HandleFunc("GET /api/v1/traffic/ai", handleStubEmptyObject())
 	mux.HandleFunc("GET /api/v1/plugins", handleStubEmptyArray())
 	mux.HandleFunc("GET /api/v1/plugins/manifest", handleStubEmptyArray())
 	mux.HandleFunc("GET /api/v1/settings", handleStubSettings(cfg))

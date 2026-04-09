@@ -1,22 +1,29 @@
 # Rioku — AI-First Architecture & Admin Panel Design
 
-**Version:** 0.1
-**Status:** Pre-implementation / Design
-**Last Updated:** 2026-04-02
+**Version:** 0.2
+**Status:** Partially implemented (see inline status markers)
+**Last Updated:** 2026-04-09
 
 ---
 
 ## 1. Scope
 
-This document covers:
+This document covers the design for AI-related capabilities. Implementation status:
 
-- AI agent management of Rioku (MCP server)
-- Rioku as infrastructure for AI workloads (LLM proxy, semantic rate limiting, tool call routing, agent identity)
-- Request trace persistence (TraceStore)
-- AI pricing table (default + operator overrides)
-- TrafficService proto (complete field-level definitions)
-- Admin panel design (all five priority areas)
-- SvelteKit architecture decisions
+| Component | Status |
+|-----------|--------|
+| TraceStore interface + SQLite driver | ✅ Implemented |
+| TraceStore ring buffer + ingester + aggregator | ✅ Implemented |
+| AI pricing table | ✅ Implemented |
+| TrafficService proto | ✅ Defined (gRPC server registration in progress) |
+| Auth/session system with RBAC | ✅ Implemented |
+| Admin panel (React 19 + TanStack) | ✅ Implemented |
+| LLM proxy plugin | 🔲 Stub only |
+| Semantic rate limiting | 🔲 Stub only |
+| Tool call routing | 🔲 Stub only |
+| Agent identity | 🔲 Stub only |
+| MCP server | 🔲 Package declaration only (4 lines) |
+| RegistrationService | 🔲 Not yet in proto |
 
 ---
 
@@ -224,9 +231,9 @@ Audit log actor: "claude-agent-xyz"
 
 ---
 
-### 2.6 RegistrationService
+### 2.6 RegistrationService — 🔲 NOT YET IMPLEMENTED
 
-Applications self-registering their routes on startup.
+Applications self-registering their routes on startup. Proto not yet defined — design only.
 
 ```protobuf
 service RegistrationService {
@@ -294,12 +301,11 @@ type TraceStore interface {
 
 **Implementations:**
 
-| Implementation | Phase | Use case |
+| Implementation | Status | Use case |
 |---|---|---|
-| `sqliteTraceStore` | Phase 1 | Simple, in-process, good enough for low traffic |
-| `duckdbTraceStore` | Phase 2+ | Columnar, excellent analytics, production grade |
+| `sqliteTraceStore` | ✅ Implemented | In-process, good for low-to-moderate traffic |
 
-DuckDB is the right long-term answer — columnar analytical database, embeds as a library, designed for this workload. The CGo dependency is the only cost. SQLite gets Phase 1 working without blocking on DuckDB integration.
+> **Note:** DuckDB was originally planned as a Phase 2+ driver but was rejected (see decision log, 2026-04-09) due to CGo dependency. The TraceStore uses pre-aggregated buckets and ring buffer ingestion to achieve good analytics performance on SQLite. A future alternative analytical backend may be considered if SQLite proves insufficient at scale.
 
 ### 3.2 RequestTrace Schema
 

@@ -13,6 +13,7 @@ import (
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
+	"github.com/riokulabs/rioku/internal/tracestore"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -25,10 +26,12 @@ type Server struct {
 	addr       string
 	configSvc  riokuv1.ConfigServiceServer
 	healthSvc  riokuv1.HealthServiceServer
+	trafficSvc riokuv1.TrafficServiceServer
 }
 
-// NewServer creates a gRPC server with ConfigService and HealthService registered.
-func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *caddy.Manager, a *auth.Auth) (*Server, error) {
+// NewServer creates a gRPC server with ConfigService, HealthService, and
+// optionally TrafficService registered.
+func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *caddy.Manager, a *auth.Auth, traceBuf *tracestore.RingBuffer, traceStore tracestore.Driver) (*Server, error) {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("grpc: listen %s: %w", addr, err)
@@ -49,6 +52,12 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 	riokuv1.RegisterConfigServiceServer(gs, cfgSvc)
 	riokuv1.RegisterHealthServiceServer(gs, healthSvc)
 
+	var trafficSvc riokuv1.TrafficServiceServer
+	if traceBuf != nil && traceStore != nil {
+		trafficSvc = newTrafficService(traceBuf, traceStore)
+		riokuv1.RegisterTrafficServiceServer(gs, trafficSvc)
+	}
+
 	// Enable reflection for grpcurl and debugging.
 	reflection.Register(gs)
 
@@ -58,6 +67,7 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		addr:       addr,
 		configSvc:  cfgSvc,
 		healthSvc:  healthSvc,
+		trafficSvc: trafficSvc,
 	}, nil
 }
 
@@ -89,3 +99,7 @@ func (s *Server) ConfigService() riokuv1.ConfigServiceServer { return s.configSv
 
 // HealthService returns the registered HealthService server implementation.
 func (s *Server) HealthService() riokuv1.HealthServiceServer { return s.healthSvc }
+
+// TrafficService returns the registered TrafficService server implementation,
+// or nil if the tracestore was not configured.
+func (s *Server) TrafficService() riokuv1.TrafficServiceServer { return s.trafficSvc }

@@ -1,8 +1,8 @@
 # Rioku CLI Design Specification
 
-**Version:** 0.1  
-**Date:** 2026-04-03  
-**Status:** Design / Approved  
+**Version:** 0.2  
+**Date:** 2026-04-09  
+**Status:** Partially implemented (see inline status markers)  
 **Binary:** `rioku` — Short alias: `rku`  
 **Modelled on:** AWS CLI conventions
 
@@ -12,7 +12,7 @@
 
 The Rioku CLI is the primary operator interface for managing the Rioku API and AI gateway. It is modelled directly on the AWS CLI in structure, configuration, and output format conventions.
 
-The CLI communicates with the daemon exclusively over gRPC. It never touches the config store directly. All mutations go through the daemon's gRPC API, giving the daemon full control over validation, audit logging, and config sync.
+The CLI communicates with the daemon exclusively over REST (`http://localhost:7778` by default). It never touches the config store directly. All mutations go through the daemon's REST API, giving the daemon full control over validation, audit logging, and config sync.
 
 ---
 
@@ -108,7 +108,7 @@ Scripts branch on exit code without parsing output.
 
 ---
 
-## 5. `rku configure`
+## 5. `rku configure` — NOT YET IMPLEMENTED
 
 Manages the config file and profiles. Mirrors `aws configure` exactly. Never reads from environment variables — operates only on the config file.
 
@@ -158,7 +158,9 @@ rku init \
 
 ## 7. Full Command Surface
 
-### 7.1 Daemon Lifecycle
+> **Implementation status:** Commands marked ✅ are implemented. Commands marked 🔲 are designed but not yet implemented.
+
+### 7.1 Daemon Lifecycle ✅
 
 ```
 rku init          # first-run bootstrap
@@ -167,7 +169,7 @@ rku stop          # stop daemon
 rku status        # daemon, Caddy, store, cluster, and build health
 ```
 
-### 7.2 `rku route`
+### 7.2 `rku route` ✅
 
 ```
 rku route list
@@ -180,7 +182,7 @@ rku route enable <id>
 rku route disable <id>
 ```
 
-### 7.3 `rku service`
+### 7.3 `rku service` ✅
 
 ```
 rku service list
@@ -193,7 +195,7 @@ rku service upstream add <service-id> --addr <> [--weight <>] [--tls <>]
 rku service upstream remove <service-id> <upstream-id>
 ```
 
-### 7.4 `rku policy`
+### 7.4 `rku policy` ✅
 
 ```
 rku policy list
@@ -205,7 +207,7 @@ rku policy attach --route <id> --policy <id>   # or --service <id>
 rku policy detach --route <id> --policy <id>
 ```
 
-### 7.5 `rku key`
+### 7.5 `rku key` ✅
 
 ```
 rku key list
@@ -215,7 +217,7 @@ rku key revoke <id>
 rku key rotate <id>   # issues new token, revokes old
 ```
 
-### 7.6 `rku plugin`
+### 7.6 `rku plugin` 🔲
 
 ```
 rku plugin list [--type <>] [--status <>]
@@ -226,7 +228,7 @@ rku plugin config get <plugin-id>
 rku plugin config set <plugin-id> --config <json|@file> [--merge]
 ```
 
-### 7.7 `rku build`
+### 7.7 `rku build` 🔲
 
 ```
 rku build status
@@ -234,7 +236,7 @@ rku build logs [--follow]
 rku build history
 ```
 
-### 7.8 `rku cluster`
+### 7.8 `rku cluster` 🔲
 
 ```
 rku cluster list
@@ -242,7 +244,7 @@ rku cluster get <node-id>
 rku cluster remove <node-id>
 ```
 
-### 7.9 `rku config`
+### 7.9 `rku config` ✅
 
 Gateway config snapshot management. Not to be confused with `rku configure` (CLI config file).
 
@@ -252,7 +254,7 @@ rku config import --file <>
 rku config versions   # list snapshots available for rollback
 ```
 
-### 7.10 `rku migrate`
+### 7.10 `rku migrate` ✅
 
 Store backend migration. SQLite → Postgres or MariaDB. No manual intervention required beyond config changes.
 
@@ -262,7 +264,7 @@ rku migrate run    --to <backend> --dsn <>
 rku migrate status
 ```
 
-### 7.11 `rku audit`
+### 7.11 `rku audit` ✅
 
 ```
 rku audit list [--limit <>] [--since <>] [--actor <>] [--resource <>]

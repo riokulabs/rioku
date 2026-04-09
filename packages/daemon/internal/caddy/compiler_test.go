@@ -8,7 +8,7 @@ import (
 )
 
 func TestCompileSimpleRoute(t *testing.T) {
-	c := NewCompiler([]string{":443", ":80"}, AdminConfig{})
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -85,12 +85,16 @@ func TestCompileSimpleRoute(t *testing.T) {
 		t.Errorf("path = %v, want /v1/*", paths[0])
 	}
 
-	// Check handler.
+	// Check handlers (rioku_vars + reverse_proxy).
 	handlers := route["handle"].([]any)
-	if len(handlers) != 1 {
-		t.Fatalf("expected 1 handler, got %d", len(handlers))
+	if len(handlers) != 2 {
+		t.Fatalf("expected 2 handlers, got %d", len(handlers))
 	}
-	h := handlers[0].(map[string]any)
+	vars := handlers[0].(map[string]any)
+	if vars["handler"].(string) != "vars" {
+		t.Errorf("handlers[0] = %v, want vars", vars["handler"])
+	}
+	h := handlers[1].(map[string]any)
 	if h["handler"].(string) != "reverse_proxy" {
 		t.Errorf("handler = %v, want reverse_proxy", h["handler"])
 	}
@@ -125,7 +129,7 @@ func TestCompileSimpleRoute(t *testing.T) {
 }
 
 func TestCompileMultipleRoutes(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -185,7 +189,7 @@ func TestCompileMultipleRoutes(t *testing.T) {
 }
 
 func TestCompileDisabledRouteExcluded(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -237,7 +241,7 @@ func TestCompileDisabledRouteExcluded(t *testing.T) {
 }
 
 func TestCompileDirectUpstream(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -272,7 +276,14 @@ func TestCompileDirectUpstream(t *testing.T) {
 		t.Fatalf("expected 1 route, got %d", len(routes))
 	}
 
-	handler := routes[0].(map[string]any)["handle"].([]any)[0].(map[string]any)
+	handleChain := routes[0].(map[string]any)["handle"].([]any)
+	if len(handleChain) != 2 {
+		t.Fatalf("expected 2 handlers, got %d", len(handleChain))
+	}
+	if handleChain[0].(map[string]any)["handler"].(string) != "vars" {
+		t.Errorf("handlers[0] = %v, want vars", handleChain[0].(map[string]any)["handler"])
+	}
+	handler := handleChain[1].(map[string]any)
 	if handler["handler"].(string) != "reverse_proxy" {
 		t.Errorf("handler = %v, want reverse_proxy", handler["handler"])
 	}
@@ -296,7 +307,7 @@ func TestCompileDirectUpstream(t *testing.T) {
 }
 
 func TestCompileEmptyConfig(t *testing.T) {
-	c := NewCompiler([]string{":443", ":80"}, AdminConfig{})
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{}
 
@@ -318,7 +329,7 @@ func TestCompileEmptyConfig(t *testing.T) {
 }
 
 func TestMatcherTypes(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	tests := []struct {
 		name    string
@@ -472,7 +483,7 @@ func TestMatcherTypes(t *testing.T) {
 }
 
 func TestCompileServiceNotFound(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -491,7 +502,7 @@ func TestCompileServiceNotFound(t *testing.T) {
 }
 
 func TestCompileWeightedRoundRobin(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -525,7 +536,7 @@ func TestCompileWeightedRoundRobin(t *testing.T) {
 
 	server := dig(t, cfg, "apps", "http", "servers", "traffic")
 	route := server["routes"].([]any)[0].(map[string]any)
-	handler := route["handle"].([]any)[0].(map[string]any)
+	handler := route["handle"].([]any)[1].(map[string]any) // [0] is rioku_vars
 	lb := handler["load_balancing"].(map[string]any)
 	sp := lb["selection_policy"].(map[string]any)
 
@@ -547,7 +558,7 @@ func TestCompileTwoServerBlocks(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{
 		InternalAddr: "127.0.0.1:54321",
 		ListenAddr:   ":7778",
-	})
+	}, "")
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -596,7 +607,7 @@ func TestCompileAdminDomain(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{
 		InternalAddr: "127.0.0.1:54321",
 		Domain:       "admin.example.com",
-	})
+	}, "")
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -633,7 +644,7 @@ func TestCompileAdminDevMode(t *testing.T) {
 		InternalAddr: "127.0.0.1:54321",
 		Domain:       "admin.example.com",
 		DevMode:      true,
-	})
+	}, "")
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -654,7 +665,7 @@ func TestCompileAdminDevMode(t *testing.T) {
 }
 
 func TestCompileNoAdminBlock(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{})
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -672,6 +683,202 @@ func TestCompileNoAdminBlock(t *testing.T) {
 	}
 	if _, ok := servers["traffic"]; !ok {
 		t.Error("expected traffic block to exist")
+	}
+}
+
+func TestCompile_InjectsRiokuVars(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "route-1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_ServiceId{ServiceId: "svc-1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:        "svc-1",
+				Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	routes := server["routes"].([]any)
+	if len(routes) != 1 {
+		t.Fatalf("expected 1 route, got %d", len(routes))
+	}
+
+	handlers := routes[0].(map[string]any)["handle"].([]any)
+	if len(handlers) != 2 {
+		t.Fatalf("expected 2 handlers (rioku_vars + reverse_proxy), got %d", len(handlers))
+	}
+
+	// First handler: rioku_vars with route_id and service_id.
+	vars := handlers[0].(map[string]any)
+	if vars["handler"].(string) != "vars" {
+		t.Errorf("handlers[0].handler = %v, want vars", vars["handler"])
+	}
+	if vars["rioku_route_id"].(string) != "route-1" {
+		t.Errorf("handlers[0].rioku_route_id = %v, want route-1", vars["rioku_route_id"])
+	}
+	if vars["rioku_service_id"].(string) != "svc-1" {
+		t.Errorf("handlers[0].rioku_service_id = %v, want svc-1", vars["rioku_service_id"])
+	}
+
+	// Second handler: reverse_proxy.
+	proxy := handlers[1].(map[string]any)
+	if proxy["handler"].(string) != "reverse_proxy" {
+		t.Errorf("handlers[1].handler = %v, want reverse_proxy", proxy["handler"])
+	}
+}
+
+func TestCompile_InjectsRiokuVars_DirectUpstream(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "route-2",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"direct.example.com"}},
+				},
+				Target: &riokuv1.Route_Upstream{
+					Upstream: &riokuv1.DirectUpstream{Address: "192.168.1.1:3000"},
+				},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	routes := server["routes"].([]any)
+	handlers := routes[0].(map[string]any)["handle"].([]any)
+
+	vars := handlers[0].(map[string]any)
+	if vars["handler"].(string) != "vars" {
+		t.Errorf("handlers[0].handler = %v, want vars", vars["handler"])
+	}
+	if vars["rioku_route_id"].(string) != "route-2" {
+		t.Errorf("handlers[0].rioku_route_id = %v, want route-2", vars["rioku_route_id"])
+	}
+	// Direct upstream routes should have empty service_id.
+	if vars["rioku_service_id"].(string) != "" {
+		t.Errorf("handlers[0].rioku_service_id = %v, want empty string", vars["rioku_service_id"])
+	}
+}
+
+func TestCompile_ConfiguresTraceLogger(t *testing.T) {
+	socketPath := "/tmp/rioku-trace.sock"
+	c := NewCompiler([]string{":443"}, AdminConfig{}, socketPath)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_ServiceId{ServiceId: "svc-1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:        "svc-1",
+				Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	// Verify traffic server has access log config.
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	logs, ok := server["logs"].(map[string]any)
+	if !ok {
+		t.Fatal("traffic server missing logs config")
+	}
+	if logs["default_logger_name"].(string) != "rioku" {
+		t.Errorf("default_logger_name = %v, want rioku", logs["default_logger_name"])
+	}
+
+	// Verify top-level logging block.
+	logging := dig(t, cfg, "logging", "logs", "rioku_trace")
+
+	writer := logging["writer"].(map[string]any)
+	if writer["output"].(string) != "net" {
+		t.Errorf("writer.output = %v, want net", writer["output"])
+	}
+	expectedAddr := "unix/" + socketPath
+	if writer["address"].(string) != expectedAddr {
+		t.Errorf("writer.address = %v, want %v", writer["address"], expectedAddr)
+	}
+
+	encoder := logging["encoder"].(map[string]any)
+	if encoder["format"].(string) != "json" {
+		t.Errorf("encoder.format = %v, want json", encoder["format"])
+	}
+
+	include := logging["include"].([]any)
+	if len(include) != 1 || include[0].(string) != "http.log.access.rioku" {
+		t.Errorf("include = %v, want [http.log.access.rioku]", include)
+	}
+}
+
+func TestCompile_NoTraceLoggerWhenPathEmpty(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "")
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if _, ok := cfg["logging"]; ok {
+		t.Error("expected no logging block when traceSocketPath is empty")
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	if _, ok := server["logs"]; ok {
+		t.Error("expected no logs config on traffic server when traceSocketPath is empty")
 	}
 }
 

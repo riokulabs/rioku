@@ -164,12 +164,13 @@ type PKIDBConfig struct {
 
 // TracesConfig controls the request trace persistence layer.
 type TracesConfig struct {
-	Store     string          `yaml:"store"`
-	Path      string          `yaml:"path"`
-	Retention TracesRetention `yaml:"retention"`
-	Sampling  TracesSampling  `yaml:"sampling"`
-	Content   TracesContent   `yaml:"content"`
-	MaxSizeGB *float64        `yaml:"max_size_gb"`
+	Store      string          `yaml:"store"`
+	Path       string          `yaml:"path"`
+	BufferSize int             `yaml:"buffer_size"`
+	Retention  TracesRetention `yaml:"retention"`
+	Sampling   TracesSampling  `yaml:"sampling"`
+	Content    TracesContent   `yaml:"content"`
+	MaxSizeGB  *float64        `yaml:"max_size_gb"`
 }
 
 // TracesRetention defines how long different trace categories are kept.
@@ -182,6 +183,7 @@ type TracesRetention struct {
 // TracesSampling controls trace collection rates.
 type TracesSampling struct {
 	Rate          *float64 `yaml:"rate"`
+	ErrorsAlways  bool     `yaml:"errors_always"`
 	AIAlways      bool     `yaml:"ai_always"`
 	MinDurationMS *int     `yaml:"min_duration_ms"`
 }
@@ -329,8 +331,9 @@ func Default() *Config {
 			},
 		},
 		Traces: TracesConfig{
-			Store: "sqlite",
-			Path:  DefaultDataDir + "/traces",
+			Store:      "sqlite",
+			Path:       DefaultDataDir + "/traces",
+			BufferSize: 10000,
 			Retention: TracesRetention{
 				RequestTraces: 7 * 24 * time.Hour,  // 7d
 				AISessions:    30 * 24 * time.Hour, // 30d
@@ -338,6 +341,7 @@ func Default() *Config {
 			},
 			Sampling: TracesSampling{
 				Rate:          &samplingRate,
+				ErrorsAlways:  true,
 				AIAlways:      true,
 				MinDurationMS: &minDurationMS,
 			},
@@ -467,7 +471,7 @@ func applyDefaults(cfg *Config) {
 	if cfg.PKI.Dir == "" {
 		cfg.PKI.Dir = cfg.DataDir + "/pki"
 	}
-	if cfg.Traces.Path == "" {
+	if cfg.Traces.Path == "" || cfg.Traces.Path == DefaultDataDir+"/traces" {
 		cfg.Traces.Path = cfg.DataDir + "/traces"
 	}
 
@@ -491,6 +495,9 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Traces.Store == "" {
 		cfg.Traces.Store = "sqlite"
+	}
+	if cfg.Traces.BufferSize == 0 {
+		cfg.Traces.BufferSize = 10000
 	}
 	if cfg.PKI.CA.KeyAlgorithm == "" {
 		cfg.PKI.CA.KeyAlgorithm = "ecdsa-p256"

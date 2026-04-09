@@ -35,6 +35,7 @@ func benchEngine(b *testing.B) *Engine {
 	compiler := caddy.NewCompiler(
 		[]string{":443"},
 		caddy.AdminConfig{InternalAddr: "127.0.0.1:54321"},
+		"",
 	)
 	return NewEngine(d, compiler)
 }

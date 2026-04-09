@@ -31,15 +31,18 @@ type AdminConfig struct {
 
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
-	trafficAddrs []string
-	admin        AdminConfig
+	trafficAddrs    []string
+	admin           AdminConfig
+	traceSocketPath string
 }
 
-// NewCompiler creates a compiler with the given traffic listen addresses and admin config.
-func NewCompiler(trafficAddrs []string, admin AdminConfig) *Compiler {
+// NewCompiler creates a compiler with the given traffic listen addresses, admin config,
+// and optional trace socket path. When traceSocketPath is non-empty, the compiled
+// Caddy config will include a logging block that sends access logs to the socket.
+func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath string) *Compiler {
 	addrs := make([]string, len(trafficAddrs))
 	copy(addrs, trafficAddrs)
-	return &Compiler{trafficAddrs: addrs, admin: admin}
+	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath}
 }
 
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
@@ -79,6 +82,14 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		servers["admin"] = c.buildAdminServer()
 	}
 
+	// Enable access logging on the traffic server.
+	if c.traceSocketPath != "" {
+		trafficSrv := servers["traffic"].(map[string]any)
+		trafficSrv["logs"] = map[string]any{
+			"default_logger_name": "rioku",
+		}
+	}
+
 	// When using non-standard ports (not :443/:80), disable auto-HTTPS
 	// entirely. ACME challenges need :80/:443, and internal/dev traffic
 	// ports should not provision TLS certificates for host matchers.
@@ -98,6 +109,23 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 				"servers": servers,
 			},
 		},
+	}
+
+	if c.traceSocketPath != "" {
+		config["logging"] = map[string]any{
+			"logs": map[string]any{
+				"rioku_trace": map[string]any{
+					"writer": map[string]any{
+						"output":  "net",
+						"address": "unix/" + c.traceSocketPath,
+					},
+					"encoder": map[string]any{
+						"format": "json",
+					},
+					"include": []string{"http.log.access.rioku"},
+				},
+			},
+		}
 	}
 
 	return json.Marshal(config)
@@ -123,7 +151,21 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 	if err != nil {
 		return nil, err
 	}
-	caddyRoute["handle"] = []map[string]any{handler}
+
+	// Resolve the service ID for the vars handler.
+	var serviceID string
+	if t, ok := route.GetTarget().(*riokuv1.Route_ServiceId); ok {
+		serviceID = t.ServiceId
+	}
+
+	// Use Caddy's built-in "vars" handler (http.handlers.vars) to set
+	// Rioku context variables. No custom module needed — native Caddy.
+	varsHandler := map[string]any{
+		"handler":          "vars",
+		"rioku_route_id":   route.GetId(),
+		"rioku_service_id": serviceID,
+	}
+	caddyRoute["handle"] = []map[string]any{varsHandler, handler}
 
 	return caddyRoute, nil
 }

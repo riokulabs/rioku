@@ -1,7 +1,7 @@
 # Rioku — gRPC Proto Definitions
-**Version:** 0.1
-**Status:** Pre-implementation
-**Last Updated:** 2026-04-02
+**Version:** 0.2
+**Status:** Implemented
+**Last Updated:** 2026-04-09
 
 ---
 
@@ -12,7 +12,7 @@
 version: v2
 
 modules:
-  - path: proto
+  - path: .
 
 deps:
   - buf.build/googleapis/googleapis
@@ -23,6 +23,10 @@ lint:
     - STANDARD
   except:
     - PACKAGE_VERSION_SUFFIX
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - ENUM_VALUE_PREFIX
 
 breaking:
   use:
@@ -35,24 +39,24 @@ version: v2
 
 plugins:
   - remote: buf.build/protocolbuffers/go
-    out: proto/gen/go
+    out: gen/go
     opt:
       - paths=source_relative
 
   - remote: buf.build/grpc/go
-    out: proto/gen/go
+    out: gen/go
     opt:
       - paths=source_relative
       - require_unimplemented_servers=true
 
   - remote: buf.build/grpc-ecosystem/gateway
-    out: proto/gen/go
+    out: gen/go
     opt:
       - paths=source_relative
       - generate_unbound_methods=false
 
   - remote: buf.build/grpc-ecosystem/openapiv2
-    out: proto/gen/openapi
+    out: gen/openapi
 ```
 
 ---
@@ -648,9 +652,11 @@ service ClusterService {
   // Internal only — no REST annotation.
   rpc SyncState(SyncRequest) returns (SyncResult);
   // SSE at REST: GET /api/v1/events/cluster
-  rpc WatchCluster(WatchRequest) returns (stream ClusterEvent);
+  rpc WatchCluster(WatchClusterRequest) returns (stream ClusterEvent);
 }
 ```
+
+> **Note:** `WatchCluster` uses a dedicated `WatchClusterRequest` message (empty), not the shared `WatchRequest` from config.proto.
 
 ---
 
@@ -729,4 +735,20 @@ service HealthService {
 
 ---
 
-See [ai-and-agentic.md](ai-and-agentic.md) section 12 for TrafficService proto.
+## proto/traffic.proto
+
+TrafficService is fully defined — see [ai-and-agentic.md](ai-and-agentic.md) section 5 for the complete proto definition including `RequestTrace`, `AITrace`, `TrafficStats`, `TokenStats`, `AgentSession`, and all query/watch messages.
+
+The service exposes 7 RPCs:
+
+```protobuf
+service TrafficService {
+  rpc WatchTraffic(WatchTrafficRequest) returns (stream RequestTrace);
+  rpc QueryTraces(TraceQuery) returns (TraceQueryResult);
+  rpc GetTrace(GetTraceRequest) returns (RequestTrace);
+  rpc GetStats(StatsQuery) returns (TrafficStats);
+  rpc GetTokenStats(TokenQuery) returns (TokenStats);
+  rpc ListSessions(SessionQuery) returns (SessionList);
+  rpc GetSession(GetSessionRequest) returns (SessionDetail);
+}
+```

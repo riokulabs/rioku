@@ -142,7 +142,7 @@ A premature HN post with rough software produces: flood of bug reports, frustrat
 
 **Months 1–2:** Slower than expected. Go toolchain setup, understanding Caddy internals, AI-generated code with subtle bugs in concurrent parts. Store driver interface rewritten twice.
 
-**Months 3–6:** Phase 1 takes longer than planned. Caddy process management is finicky. AI-generated gRPC server code has connection leak issues taking a week to debug. SPA is actually fine — SvelteKit with AI assistance works well.
+**Months 3–6:** Phase 1 takes longer than planned. Caddy process management is finicky. AI-generated gRPC server code has connection leak issues taking a week to debug. SPA is actually fine — React + TanStack with AI assistance works well.
 
 **Months 6–9:** Phase 1 working but rough. Quiet public repo. 200 GitHub stars, 3 Discord members, one bug filed. Motivation dip. **This is the graveyard of open source projects.** You push through because you have stable income and don't need it to succeed immediately.
 

@@ -70,6 +70,7 @@ func BenchmarkCompile(b *testing.B) {
 			compiler := NewCompiler(
 				[]string{":443", ":80"},
 				AdminConfig{InternalAddr: "127.0.0.1:54321"},
+				"",
 			)
 			b.ResetTimer()
 			b.ReportAllocs()
@@ -84,7 +85,7 @@ func BenchmarkCompile(b *testing.B) {
 }
 
 func BenchmarkCompileRoute(b *testing.B) {
-	compiler := NewCompiler([]string{":443"}, AdminConfig{})
+	compiler := NewCompiler([]string{":443"}, AdminConfig{}, "")
 	services := map[string]*riokuv1.Service{
 		"svc-1": {
 			Id:   "svc-1",
@@ -130,6 +131,7 @@ func BenchmarkCompile_WithAdminBlock(b *testing.B) {
 			ListenAddr:   ":7778",
 			Domain:       "admin.example.com",
 		},
+		"",
 	)
 	b.ResetTimer()
 	b.ReportAllocs()

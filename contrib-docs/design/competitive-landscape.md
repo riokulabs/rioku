@@ -18,8 +18,8 @@ Rioku is a **fully open-source API + AI gateway platform** built on Caddy as its
 
 ### Name & Branding
 - **Product name:** Rioku (previously explored as Revyn during research)
-- **CLI binary:** `rioku` (working assumption — confirm)
-- **Short alias:** TBD (must avoid `rev` — system binary conflict on Linux/macOS)
+- **CLI binary:** `rioku`
+- **Short alias:** `rku`
 - **Tagline direction:** "The open, secure [API/AI] infrastructure" — declarative "The X" format, combining open source + security messaging
 
 ### Prior Architecture Work (from design doc v0.2)
@@ -505,21 +505,21 @@ The gap it fills:
 - LiteLLM and Portkey are LLM-only — they're not full API gateways
 - No player has built agentic-native primitives (agent identity, tool call routing, agentic observability) into an API gateway from the ground up
 
-### 4.2 Primary Differentiators (Target State)
+### 4.2 Primary Differentiators
 
 | Differentiator | Status | Notes |
 |---|---|---|
-| Caddy foundation (auto-HTTPS, live config, single binary) | ✅ Architecture decision | No competitor uses Caddy |
+| Caddy foundation (auto-HTTPS, live config, single binary) | ✅ Implemented | No competitor uses Caddy |
 | 100% open functional features | ✅ Core philosophy | Kong, Tyk fail here |
-| Plugin-extensible at every layer (traffic, CLI, admin UI, middleware) | 🎯 Target | Critical design requirement |
-| Agent identity + scoped tool access (first-class) | 🎯 Target | No player does this well |
-| Tool call routing (MCP/function-calling policy per-tool) | 🎯 Target | Nascent in Kong, Tyk; not from the ground up |
-| Semantic rate limiting (token-aware, not request-count) | 🎯 Target | Kong does this; others don't |
-| Agentic observability (multi-step traces, agent session correlation) | 🎯 Target | No one does this well |
-| LLM proxy + routing (at parity with Kong) | 🎯 Target | Needed for credibility |
-| Prompt/response policy middleware | 🎯 Target | Most players have this |
 | Auto-HTTPS | ✅ Via Caddy | Differentiator vs. Kong, APISIX |
 | Single binary distribution | ✅ Via Caddy | Matches Traefik, beats Kong/APISIX ops complexity |
+| Plugin-extensible at every layer (traffic, CLI, admin UI, middleware) | ✅ Architecture implemented | Plugin stubs exist, full plugin lifecycle not yet wired |
+| Agentic observability (multi-step traces, agent session correlation) | ✅ TraceStore + proto implemented | gRPC server registration in progress |
+| Agent identity + scoped tool access (first-class) | 🔲 Stub only | No player does this well |
+| Tool call routing (MCP/function-calling policy per-tool) | 🔲 Stub only | Nascent in Kong, Tyk; not from the ground up |
+| Semantic rate limiting (token-aware, not request-count) | 🔲 Stub only | Kong does this; others don't |
+| LLM proxy + routing (at parity with Kong) | 🔲 Stub only | Needed for credibility |
+| Prompt/response policy middleware | 🔲 Not started | Most players have this |
 
 ### 4.3 Features to Deprioritize (v1)
 
