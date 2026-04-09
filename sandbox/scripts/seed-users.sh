@@ -125,14 +125,22 @@ def api(method, path, payload=None):
     session_id = ""
     try:
         with open(cookie_jar) as cf:
-            for line in cf:
+            lines = cf.readlines()
+            for line in lines:
                 if "rioku_sid" in line:
                     session_id = line.strip().split("\t")[-1]
                     break
+            if not session_id:
+                print(f"  DEBUG: cookie jar has {len(lines)} lines, no rioku_sid found", file=sys.stderr)
+                for l in lines:
+                    if not l.startswith("#"):
+                        print(f"  DEBUG: cookie line: {l.rstrip()}", file=sys.stderr)
     except FileNotFoundError:
-        pass
+        print(f"  DEBUG: cookie jar not found: {cookie_jar}", file=sys.stderr)
     if session_id:
         req.add_header("Cookie", f"rioku_sid={session_id}")
+    else:
+        print(f"  DEBUG: no session_id, request will be unauthenticated", file=sys.stderr)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = resp.read()

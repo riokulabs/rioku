@@ -18,6 +18,9 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestClusterRejoinAfterPartition(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster test in short mode")
+	}
 	c := newTestCluster(t, 3)
 	c.start()
 	defer c.stop()
@@ -132,6 +135,9 @@ func TestClusterRejoinAfterPartition(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestClusterSnapshotAndRestore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster test in short mode")
+	}
 	c := newTestCluster(t, 3)
 	c.start()
 	defer c.stop()
@@ -227,6 +233,9 @@ func TestClusterSnapshotAndRestore(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestClusterStoreInterfaceParity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster test in short mode")
+	}
 	c := newTestCluster(t, 1)
 	c.start()
 	defer c.stop()

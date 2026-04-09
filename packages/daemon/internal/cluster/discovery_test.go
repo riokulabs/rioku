@@ -57,6 +57,9 @@ func basePort() int {
 }
 
 func TestDiscoveryThreeNodes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping discovery test in short mode")
+	}
 	port := basePort()
 	vm := &mockVoterManager{isLeader: true}
 
@@ -148,6 +151,9 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 }
 
 func TestDiscoveryNodeLeaveAndRemoval(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping discovery test in short mode")
+	}
 	port := basePort() + 20
 	vm := &mockVoterManager{isLeader: true}
 
@@ -223,6 +229,9 @@ func TestDiscoveryNodeLeaveAndRemoval(t *testing.T) {
 }
 
 func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping discovery test in short mode")
+	}
 	port := basePort() + 40
 	vm := &mockVoterManager{isLeader: true}
 
@@ -299,6 +308,9 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 }
 
 func TestDiscoveryMemberlistStats(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping discovery test in short mode")
+	}
 	port := basePort() + 60
 	d := New(DiscoveryConfig{
 		NodeMeta: NodeMeta{NodeID: "stats-node"},

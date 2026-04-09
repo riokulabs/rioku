@@ -41,6 +41,9 @@ func createTestUserFast(t *testing.T, drv store.Driver, username, precomputedHas
 
 func TestConcurrent10KSessions(t *testing.T) {
 	if testing.Short() {
+		t.Skip("skipping scale test in short mode")
+	}
+	if testing.Short() {
 		t.Skip("skipping 10K session test in short mode")
 	}
 
@@ -114,6 +117,9 @@ func TestConcurrent10KSessions(t *testing.T) {
 }
 
 func TestLRUCacheAtCapacity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping scale test in short mode")
+	}
 	drv := setupTestStore(t)
 	ctx := context.Background()
 
@@ -220,6 +226,9 @@ func TestConcurrentValidateSession(t *testing.T) {
 }
 
 func TestSessionCleanup100K(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping scale test in short mode")
+	}
 	if testing.Short() {
 		t.Skip("skipping 100K cleanup test in short mode")
 	}
