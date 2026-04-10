@@ -1,6 +1,7 @@
 package tracestore
 
 import (
+	"context"
 	"sort"
 	"testing"
 	"time"
@@ -162,6 +163,74 @@ func TestAggregator_ComputeStatusBuckets(t *testing.T) {
 	}
 }
 
+// noopDriver is a minimal Driver stub that records write calls for unit tests.
+type noopDriver struct{}
+
+func (n *noopDriver) Open(_ context.Context, _ DriverConfig) error { return nil }
+func (n *noopDriver) Close() error                                 { return nil }
+func (n *noopDriver) WriteBatch(_ context.Context, _ []*riokuv1.RequestTrace) error {
+	return nil
+}
+func (n *noopDriver) WriteStatsBucket(_ context.Context, _ StatsBucket) error   { return nil }
+func (n *noopDriver) WriteRouteBucket(_ context.Context, _ RouteBucket) error   { return nil }
+func (n *noopDriver) WriteStatusBucket(_ context.Context, _ StatusBucket) error { return nil }
+func (n *noopDriver) WriteModelBucket(_ context.Context, _ ModelBucket) error   { return nil }
+func (n *noopDriver) QueryTraces(_ context.Context, _ *riokuv1.TraceQuery) ([]*riokuv1.RequestTrace, int64, error) {
+	return nil, 0, nil
+}
+func (n *noopDriver) GetTrace(_ context.Context, _ string) (*riokuv1.RequestTrace, error) {
+	return nil, nil
+}
+func (n *noopDriver) GetStatsBuckets(_ context.Context, _, _ time.Time) ([]StatsBucket, error) {
+	return nil, nil
+}
+func (n *noopDriver) GetRouteBuckets(_ context.Context, _, _ time.Time) ([]RouteBucket, error) {
+	return nil, nil
+}
+func (n *noopDriver) GetStatusBuckets(_ context.Context, _, _ time.Time) ([]StatusBucket, error) {
+	return nil, nil
+}
+func (n *noopDriver) GetModelBuckets(_ context.Context, _, _ time.Time) ([]ModelBucket, error) {
+	return nil, nil
+}
+func (n *noopDriver) GetSessionTraces(_ context.Context, _ string) ([]*riokuv1.RequestTrace, error) {
+	return nil, nil
+}
+func (n *noopDriver) ListSessions(_ context.Context, _ bool, _ time.Time, _, _ int) ([]SessionSummary, int64, error) {
+	return nil, 0, nil
+}
+func (n *noopDriver) Prune(_ context.Context, _, _, _ time.Duration) (int64, error) {
+	return 0, nil
+}
+
+// TestAggregator_StartStop verifies Start launches a goroutine and Stop
+// terminates it cleanly without hanging.
+func TestAggregator_StartStop(t *testing.T) {
+	rb := NewRingBuffer(8)
+	agg := NewAggregator(rb, &noopDriver{}, 10*time.Millisecond)
+	ctx := context.Background()
+	agg.Start(ctx)
+	// Push a trace so the first tick does real work.
+	rb.Push(makeAggTrace(1, 200, "r", nil))
+	time.Sleep(30 * time.Millisecond) // let at least one cycle fire
+	agg.Stop()
+	// Calling Stop a second time must not panic.
+	agg.Stop()
+}
+
+// TestAggregator_ComputeStatsBucket_Empty covers the early-return path when
+// no traces are provided.
+func TestAggregator_ComputeStatsBucket_Empty(t *testing.T) {
+	now := time.Now()
+	b := ComputeStatsBucket(nil, now)
+	if b.BucketStart != now {
+		t.Errorf("BucketStart = %v, want %v", b.BucketStart, now)
+	}
+	if b.RequestCount != 0 {
+		t.Errorf("RequestCount = %d, want 0", b.RequestCount)
+	}
+}
+
 // TestAggregator_Percentile tests the Percentile helper on a known sorted slice.
 func TestAggregator_Percentile(t *testing.T) {
 	sorted := make([]int64, 100)
@@ -182,5 +251,77 @@ func TestAggregator_Percentile(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("Percentile(%v) = %d, want %d", tt.p, got, tt.want)
 		}
+	}
+}
+
+// TestAggregator_Percentile_EdgeCases covers the empty-slice and clamp paths.
+func TestAggregator_Percentile_EdgeCases(t *testing.T) {
+	// Empty slice returns 0.
+	if got := Percentile(nil, 0.99); got != 0 {
+		t.Errorf("Percentile(nil, 0.99) = %d, want 0", got)
+	}
+	// Single-element slice: idx clamp to 0 when p rounds negative.
+	if got := Percentile([]int64{42}, 0.0); got != 42 {
+		t.Errorf("Percentile([42], 0.0) = %d, want 42", got)
+	}
+	// idx >= n clamp: p > 1.0 clamps to last element.
+	if got := Percentile([]int64{1, 2, 3}, 2.0); got != 3 {
+		t.Errorf("Percentile([1,2,3], 2.0) = %d, want 3", got)
+	}
+}
+
+// TestAggregator_StatusClass covers 1xx, 3xx and the default case.
+func TestAggregator_StatusClass(t *testing.T) {
+	tests := []struct {
+		code int32
+		want string
+	}{
+		{100, "1xx"},
+		{301, "3xx"},
+		{0, "other"},
+	}
+	for _, tt := range tests {
+		got := statusClass(tt.code)
+		if got != tt.want {
+			t.Errorf("statusClass(%d) = %q, want %q", tt.code, got, tt.want)
+		}
+	}
+}
+
+// TestAggregator_ComputeModelBuckets covers the ai != nil path.
+func TestAggregator_ComputeModelBuckets(t *testing.T) {
+	now := time.Now()
+	traces := []*riokuv1.RequestTrace{
+		makeAggTrace(10, 200, "r", &riokuv1.AITrace{
+			Provider:         "openai",
+			Model:            "gpt-4",
+			TotalTokens:      500,
+			EstimatedCostUsd: 0.01,
+		}),
+		makeAggTrace(10, 200, "r", &riokuv1.AITrace{
+			Provider:         "openai",
+			Model:            "gpt-4",
+			TotalTokens:      300,
+			EstimatedCostUsd: 0.006,
+		}),
+		makeAggTrace(10, 200, "r", nil), // no AI — should be skipped
+	}
+
+	buckets := ComputeModelBuckets(traces, now)
+	if len(buckets) != 1 {
+		t.Fatalf("expected 1 model bucket, got %d", len(buckets))
+	}
+	b := buckets[0]
+	if b.Provider != "openai" {
+		t.Errorf("Provider = %q, want openai", b.Provider)
+	}
+	if b.Model != "gpt-4" {
+		t.Errorf("Model = %q, want gpt-4", b.Model)
+	}
+	if b.RequestCount != 2 {
+		t.Errorf("RequestCount = %d, want 2", b.RequestCount)
+	}
+	if b.TotalTokens != 800 {
+		t.Errorf("TotalTokens = %d, want 800", b.TotalTokens)
 	}
 }

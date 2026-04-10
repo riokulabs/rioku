@@ -420,6 +420,262 @@ func TestSQLite_Prune(t *testing.T) {
 	}
 }
 
+func TestSQLite_WriteAndReadStatusBuckets(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	base := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+
+	statusBuckets := []tracestore.StatusBucket{
+		{BucketStart: base, StatusClass: "2xx", RequestCount: 80},
+		{BucketStart: base, StatusClass: "4xx", RequestCount: 15},
+		{BucketStart: base, StatusClass: "5xx", RequestCount: 5},
+		{BucketStart: base.Add(time.Minute), StatusClass: "2xx", RequestCount: 90},
+		{BucketStart: base.Add(time.Minute), StatusClass: "4xx", RequestCount: 8},
+	}
+	for i, b := range statusBuckets {
+		if err := d.WriteStatusBucket(ctx, b); err != nil {
+			t.Fatalf("WriteStatusBucket(%d): %v", i, err)
+		}
+	}
+
+	results, err := d.GetStatusBuckets(ctx, base, base.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("GetStatusBuckets: %v", err)
+	}
+	if len(results) != 5 {
+		t.Fatalf("len = %d, want 5", len(results))
+	}
+
+	// First bucket should be base/2xx.
+	if results[0].StatusClass != "2xx" {
+		t.Errorf("results[0].StatusClass = %q, want %q", results[0].StatusClass, "2xx")
+	}
+	if results[0].RequestCount != 80 {
+		t.Errorf("results[0].RequestCount = %d, want 80", results[0].RequestCount)
+	}
+	// Verify the 5xx bucket is present.
+	found5xx := false
+	for _, b := range results {
+		if b.StatusClass == "5xx" && b.RequestCount == 5 {
+			found5xx = true
+		}
+	}
+	if !found5xx {
+		t.Error("5xx bucket with count 5 not found in results")
+	}
+}
+
+func TestSQLite_GetStatusBuckets_TimeRange(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	base := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+
+	// Write buckets at minute 0, 1, 2, 3.
+	for i := range 4 {
+		b := tracestore.StatusBucket{
+			BucketStart:  base.Add(time.Duration(i) * time.Minute),
+			StatusClass:  "2xx",
+			RequestCount: int64(10 + i),
+		}
+		if err := d.WriteStatusBucket(ctx, b); err != nil {
+			t.Fatalf("WriteStatusBucket(%d): %v", i, err)
+		}
+	}
+
+	// Query only minutes 1 and 2.
+	results, err := d.GetStatusBuckets(ctx, base.Add(time.Minute), base.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("GetStatusBuckets: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("len = %d, want 2", len(results))
+	}
+	if results[0].RequestCount != 11 {
+		t.Errorf("results[0].RequestCount = %d, want 11", results[0].RequestCount)
+	}
+	if results[1].RequestCount != 12 {
+		t.Errorf("results[1].RequestCount = %d, want 12", results[1].RequestCount)
+	}
+}
+
+func TestSQLite_GetStatusBuckets_Empty(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	base := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+	results, err := d.GetStatusBuckets(ctx, base, base.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("GetStatusBuckets empty: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("len = %d, want 0", len(results))
+	}
+}
+
+func TestSQLite_WriteAndReadModelBuckets(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	base := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+
+	modelBuckets := []tracestore.ModelBucket{
+		{BucketStart: base, Provider: "openai", Model: "gpt-4", RequestCount: 20, TotalTokens: 5000, EstimatedCostUSD: 0.15},
+		{BucketStart: base, Provider: "openai", Model: "gpt-3.5-turbo", RequestCount: 50, TotalTokens: 8000, EstimatedCostUSD: 0.008},
+		{BucketStart: base, Provider: "anthropic", Model: "claude-3", RequestCount: 10, TotalTokens: 2000, EstimatedCostUSD: 0.06},
+		{BucketStart: base.Add(time.Minute), Provider: "openai", Model: "gpt-4", RequestCount: 25, TotalTokens: 6000, EstimatedCostUSD: 0.18},
+	}
+	for i, b := range modelBuckets {
+		if err := d.WriteModelBucket(ctx, b); err != nil {
+			t.Fatalf("WriteModelBucket(%d): %v", i, err)
+		}
+	}
+
+	results, err := d.GetModelBuckets(ctx, base, base.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("GetModelBuckets: %v", err)
+	}
+	if len(results) != 4 {
+		t.Fatalf("len = %d, want 4", len(results))
+	}
+
+	// Find the gpt-4 bucket at base.
+	var gpt4 *tracestore.ModelBucket
+	for i := range results {
+		if results[i].Provider == "openai" && results[i].Model == "gpt-4" && results[i].RequestCount == 20 {
+			gpt4 = &results[i]
+			break
+		}
+	}
+	if gpt4 == nil {
+		t.Fatal("gpt-4 bucket (count=20) not found")
+	}
+	if gpt4.TotalTokens != 5000 {
+		t.Errorf("gpt4.TotalTokens = %d, want 5000", gpt4.TotalTokens)
+	}
+	if gpt4.EstimatedCostUSD != 0.15 {
+		t.Errorf("gpt4.EstimatedCostUSD = %f, want 0.15", gpt4.EstimatedCostUSD)
+	}
+}
+
+func TestSQLite_GetModelBuckets_TimeRange(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	base := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+
+	// Write buckets at minute 0, 1, 2, 3.
+	for i := range 4 {
+		b := tracestore.ModelBucket{
+			BucketStart:  base.Add(time.Duration(i) * time.Minute),
+			Provider:     "openai",
+			Model:        "gpt-4",
+			RequestCount: int64(5 + i),
+			TotalTokens:  int64(1000 * (i + 1)),
+		}
+		if err := d.WriteModelBucket(ctx, b); err != nil {
+			t.Fatalf("WriteModelBucket(%d): %v", i, err)
+		}
+	}
+
+	// Query only minutes 1 and 2.
+	results, err := d.GetModelBuckets(ctx, base.Add(time.Minute), base.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("GetModelBuckets: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("len = %d, want 2", len(results))
+	}
+	if results[0].RequestCount != 6 {
+		t.Errorf("results[0].RequestCount = %d, want 6", results[0].RequestCount)
+	}
+	if results[1].TotalTokens != 3000 {
+		t.Errorf("results[1].TotalTokens = %d, want 3000", results[1].TotalTokens)
+	}
+}
+
+func TestSQLite_GetModelBuckets_Empty(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	base := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+	results, err := d.GetModelBuckets(ctx, base, base.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("GetModelBuckets empty: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("len = %d, want 0", len(results))
+	}
+}
+
+func TestSQLite_GetSessionTraces(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+
+	traces := []*riokuv1.RequestTrace{
+		makeTrace("sess-t1", now, 200, "route-1", "session-xyz"),
+		makeTrace("sess-t2", now.Add(time.Second), 201, "route-2", "session-xyz"),
+		makeTrace("sess-t3", now.Add(2*time.Second), 500, "route-1", "session-xyz"),
+		makeTrace("other-t1", now.Add(3*time.Second), 200, "route-1", "session-other"),
+		makeTrace("no-sess", now.Add(4*time.Second), 200, "route-1", ""),
+	}
+	if err := d.WriteBatch(ctx, traces); err != nil {
+		t.Fatalf("WriteBatch: %v", err)
+	}
+
+	results, err := d.GetSessionTraces(ctx, "session-xyz")
+	if err != nil {
+		t.Fatalf("GetSessionTraces: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("len = %d, want 3", len(results))
+	}
+
+	// Results are ordered by started_at ASC.
+	if results[0].GetTraceId() != "sess-t1" {
+		t.Errorf("results[0].TraceId = %q, want %q", results[0].GetTraceId(), "sess-t1")
+	}
+	if results[1].GetTraceId() != "sess-t2" {
+		t.Errorf("results[1].TraceId = %q, want %q", results[1].GetTraceId(), "sess-t2")
+	}
+	if results[2].GetTraceId() != "sess-t3" {
+		t.Errorf("results[2].TraceId = %q, want %q", results[2].GetTraceId(), "sess-t3")
+	}
+	if results[2].GetStatusCode() != 500 {
+		t.Errorf("results[2].StatusCode = %d, want 500", results[2].GetStatusCode())
+	}
+	// Verify session_id is correctly stored.
+	for _, tr := range results {
+		if tr.GetSessionId() != "session-xyz" {
+			t.Errorf("session_id = %q, want %q", tr.GetSessionId(), "session-xyz")
+		}
+	}
+}
+
+func TestSQLite_GetSessionTraces_NoMatches(t *testing.T) {
+	d := openTestDriver(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+	traces := []*riokuv1.RequestTrace{
+		makeTrace("t1", now, 200, "route-1", "session-alpha"),
+	}
+	if err := d.WriteBatch(ctx, traces); err != nil {
+		t.Fatalf("WriteBatch: %v", err)
+	}
+
+	results, err := d.GetSessionTraces(ctx, "session-does-not-exist")
+	if err != nil {
+		t.Fatalf("GetSessionTraces: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("len = %d, want 0", len(results))
+	}
+}
+
 func TestSQLite_ListSessions(t *testing.T) {
 	d := openTestDriver(t)
 	ctx := context.Background()

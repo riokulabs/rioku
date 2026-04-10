@@ -222,9 +222,9 @@ func TestTimingAttackResistance(t *testing.T) {
 		// If this fails, the login handler should be hardened by performing a
 		// dummy argon2id hash on the non-existent-user path.
 		if diff > 50*time.Millisecond {
-			t.Logf("SECURITY NOTE: timing difference %v exceeds 50ms threshold; "+
-				"login handler does not perform dummy argon2id work for non-existent "+
-				"users, enabling username enumeration via timing side-channel", diff)
+			t.Errorf("SECURITY: timing difference %v exceeds 50ms threshold; "+
+				"login handler timing normalization (dummyPasswordHash) is not working "+
+				"correctly, enabling username enumeration via timing side-channel", diff)
 		}
 	})
 

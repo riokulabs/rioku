@@ -1082,6 +1082,51 @@ func TestCompile_TracingHandler(t *testing.T) {
 	}
 }
 
+// TestLbPolicyString covers the RANDOM, LEAST_CONN, and IP_HASH policy cases.
+func TestLbPolicyString(t *testing.T) {
+	tests := []struct {
+		policy riokuv1.LoadBalancingPolicy
+		want   string
+	}{
+		{riokuv1.LoadBalancingPolicy_LB_POLICY_RANDOM, "random"},
+		{riokuv1.LoadBalancingPolicy_LB_POLICY_LEAST_CONN, "least_conn"},
+		{riokuv1.LoadBalancingPolicy_LB_POLICY_IP_HASH, "ip_hash"},
+	}
+	for _, tt := range tests {
+		c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+		snapshot := &riokuv1.ConfigSnapshot{
+			Routes: []*riokuv1.Route{
+				{Id: "r1", Enabled: true, Target: &riokuv1.Route_ServiceId{ServiceId: "svc1"}},
+			},
+			Services: []*riokuv1.Service{
+				{
+					Id:       "svc1",
+					LbPolicy: tt.policy,
+					Upstreams: []*riokuv1.Upstream{
+						{Address: "10.0.0.1:8080"},
+					},
+				},
+			},
+		}
+		data, err := c.Compile(snapshot)
+		if err != nil {
+			t.Fatalf("policy %v: Compile: %v", tt.policy, err)
+		}
+		var cfg map[string]any
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			t.Fatalf("policy %v: unmarshal: %v", tt.policy, err)
+		}
+		server := dig(t, cfg, "apps", "http", "servers", "traffic")
+		route := server["routes"].([]any)[0].(map[string]any)
+		handler := route["handle"].([]any)[2].(map[string]any)
+		lb := handler["load_balancing"].(map[string]any)
+		sp := lb["selection_policy"].(map[string]any)
+		if sp["policy"].(string) != tt.want {
+			t.Errorf("policy %v: got %q, want %q", tt.policy, sp["policy"], tt.want)
+		}
+	}
+}
+
 // dig navigates nested maps by key. It fails the test if any key is missing.
 func dig(t *testing.T, m map[string]any, keys ...string) map[string]any {
 	t.Helper()

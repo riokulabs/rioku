@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
 // caddyLogLine returns a minimal Caddy structured JSON access log entry.
@@ -192,6 +194,33 @@ func TestIngester_SamplingRate(t *testing.T) {
 
 // TestIngester_ErrorsAlwaysSampled verifies that error traces (status >= 500)
 // are always sampled regardless of the rate.
+func TestShouldSample_SlowRequest(t *testing.T) {
+	cfg := SamplingConfig{Rate: 0.0, SlowThresholdMS: 100}
+	tr := &riokuv1.RequestTrace{DurationMs: 200, StatusCode: 200}
+	if !ShouldSample(tr, cfg) {
+		t.Error("expected slow request to always be sampled")
+	}
+}
+
+func TestShouldSample_AIAlways(t *testing.T) {
+	cfg := SamplingConfig{Rate: 0.0, AIAlways: true}
+	tr := &riokuv1.RequestTrace{
+		StatusCode: 200,
+		Ai:         &riokuv1.AITrace{Provider: "openai", Model: "gpt-4"},
+	}
+	if !ShouldSample(tr, cfg) {
+		t.Error("expected AI trace to always be sampled when AIAlways=true")
+	}
+}
+
+func TestShouldSample_ZeroRate(t *testing.T) {
+	cfg := SamplingConfig{Rate: 0.0}
+	tr := &riokuv1.RequestTrace{StatusCode: 200}
+	if ShouldSample(tr, cfg) {
+		t.Error("expected Rate=0 to reject all traces")
+	}
+}
+
 func TestIngester_ErrorsAlwaysSampled(t *testing.T) {
 	cfg := SamplingConfig{
 		Rate:         0.1,

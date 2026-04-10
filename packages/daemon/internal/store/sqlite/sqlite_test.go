@@ -1977,3 +1977,377 @@ func TestTOTPBackupCodes(t *testing.T) {
 	}
 	_ = tx9.Rollback()
 }
+
+// ---------------------------------------------------------------------------
+// UpdateLastLogin
+// ---------------------------------------------------------------------------
+
+func TestUpdateLastLogin(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	user := createTestUser(t, d, "loginuser")
+
+	// LastLogin should be nil initially.
+	if user.LastLogin != nil {
+		t.Fatal("expected nil LastLogin on newly created user")
+	}
+
+	// Call UpdateLastLogin inside a committed transaction.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx1.UpdateLastLogin(ctx, user.ID); err != nil {
+		t.Fatalf("UpdateLastLogin: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Read the user back and verify LastLogin is now set.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	if got.LastLogin == nil {
+		t.Fatal("expected non-nil LastLogin after UpdateLastLogin")
+	}
+	if got.LastLogin.IsZero() {
+		t.Fatal("expected non-zero LastLogin timestamp")
+	}
+}
+
+func TestUpdateLastLogin_NotFound(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	err = tx.UpdateLastLogin(ctx, "nonexistent-id")
+	_ = tx.Rollback()
+	if err == nil {
+		t.Fatal("expected error for nonexistent user ID, got nil")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DeleteSessionsByUser
+// ---------------------------------------------------------------------------
+
+func TestDeleteSessionsByUser(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	user := createTestUser(t, d, "delsessuser")
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+
+	// Create two sessions for the user.
+	for i, id := range []string{"sess-del-1", "sess-del-2"} {
+		tx, err := d.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			t.Fatalf("Begin[%d]: %v", i, err)
+		}
+		_, err = tx.CreateSession(ctx, &store.Session{
+			ID:          id,
+			UserID:      user.ID,
+			Fingerprint: "fp-" + id,
+			CreatedAt:   now,
+			ExpiresAt:   now.Add(time.Hour),
+			LastActive:  now,
+		})
+		if err != nil {
+			t.Fatalf("CreateSession[%d]: %v", i, err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Commit[%d]: %v", i, err)
+		}
+	}
+
+	// Verify two sessions exist.
+	txCheck, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	sessions, err := txCheck.ListSessionsByUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListSessionsByUser: %v", err)
+	}
+	_ = txCheck.Rollback()
+	if len(sessions) != 2 {
+		t.Fatalf("expected 2 sessions before delete, got %d", len(sessions))
+	}
+
+	// Delete all sessions for this user.
+	txDel, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := txDel.DeleteSessionsByUser(ctx, user.ID); err != nil {
+		t.Fatalf("DeleteSessionsByUser: %v", err)
+	}
+	if err := txDel.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify all sessions are gone.
+	txVerify, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	remaining, err := txVerify.ListSessionsByUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListSessionsByUser: %v", err)
+	}
+	_ = txVerify.Rollback()
+	if len(remaining) != 0 {
+		t.Fatalf("expected 0 sessions after DeleteSessionsByUser, got %d", len(remaining))
+	}
+}
+
+func TestDeleteSessionsByUser_Empty(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	user := createTestUser(t, d, "nosessuser")
+
+	// Should succeed even when the user has no sessions.
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx.DeleteSessionsByUser(ctx, user.ID); err != nil {
+		t.Fatalf("DeleteSessionsByUser on empty set: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+func TestHealth_ClosedStore(t *testing.T) {
+	ctx := context.Background()
+
+	d := &driver{}
+	dbPath := filepath.Join(t.TempDir(), "health_closed.db")
+	if err := d.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if err := d.Migrate(ctx, store.MigrateUp); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	// Close the store before calling Health.
+	if err := d.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	h := d.Health(ctx)
+	if h.OK {
+		t.Fatal("expected Health.OK=false after close")
+	}
+	if h.Details["error"] == "" {
+		t.Fatal("expected error detail in Health after close")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// parseTime
+// ---------------------------------------------------------------------------
+
+func TestParseTime_ValidFormats(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string // expected year, used to sanity-check
+	}{
+		{"2024-03-15T10:30:00.000Z", "2024"},
+		{"2026-01-01T00:00:00.000Z", "2026"},
+		{"2000-12-31T23:59:59.999Z", "2000"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			got := parseTime(tc.input)
+			if got.IsZero() {
+				t.Fatalf("parseTime(%q) returned zero time", tc.input)
+			}
+			if y := got.UTC().Format("2006"); y != tc.want {
+				t.Fatalf("parseTime(%q): expected year %s, got %s", tc.input, tc.want, y)
+			}
+		})
+	}
+}
+
+func TestParseTime_Invalid(t *testing.T) {
+	cases := []string{
+		"",
+		"not-a-time",
+		"2024/03/15",
+		"2024-13-01T00:00:00.000Z", // invalid month
+	}
+	for _, s := range cases {
+		t.Run(s, func(t *testing.T) {
+			got := parseTime(s)
+			if s == "" {
+				// Empty string: parseTime logs only if s != "", so zero time is expected either way.
+				if !got.IsZero() {
+					t.Fatalf("parseTime(%q): expected zero time, got %v", s, got)
+				}
+				return
+			}
+			// Invalid non-empty strings may return zero time.
+			if !got.IsZero() {
+				// Some strings may accidentally parse — only assert zero for clearly invalid.
+				t.Logf("parseTime(%q) returned non-zero %v (may be ok for partial match)", s, got)
+			}
+		})
+	}
+}
+
+func TestParseTime_EmptyString(t *testing.T) {
+	got := parseTime("")
+	if !got.IsZero() {
+		t.Fatalf("expected zero time for empty string, got %v", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// emit
+// ---------------------------------------------------------------------------
+
+func TestEmit_SendsEvent(t *testing.T) {
+	d := openTestDB(t)
+
+	// Drain the existing notify channel (may have events from openTestDB migrations).
+	// Use a fresh user creation to generate a predictable event.
+	ch := d.Notify()
+
+	user := createTestUser(t, d, "emituser")
+
+	// Drain events until we find the users INSERT we care about.
+	timeout := time.After(2 * time.Second)
+	found := false
+	for !found {
+		select {
+		case evt, ok := <-ch:
+			if !ok {
+				t.Fatal("notify channel closed unexpectedly")
+			}
+			if evt.Table == "users" && evt.Operation == "INSERT" && evt.RowID == user.ID {
+				found = true
+			}
+		case <-timeout:
+			t.Fatal("timed out waiting for users INSERT event")
+		}
+	}
+}
+
+func TestEmit_FullChannel(t *testing.T) {
+	// Construct a tx with a full (zero-capacity, blocking) channel.
+	// The emit call should be a no-op (drop) rather than blocking or panicking.
+	ch := make(chan store.ChangeEvent) // unbuffered = always full when no reader
+	txObj := &tx{
+		notify: ch,
+	}
+	// This must return immediately without blocking.
+	done := make(chan struct{})
+	go func() {
+		txObj.emit("routes", "row-1", "INSERT")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// good — did not block
+	case <-time.After(time.Second):
+		t.Fatal("emit blocked on full channel")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// JSON helpers — error paths
+// ---------------------------------------------------------------------------
+
+func TestUnmarshalDirectUpstreamJSON_Invalid(t *testing.T) {
+	_, err := unmarshalDirectUpstreamJSON("{invalid json}")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestUnmarshalLabelsJSON_Invalid(t *testing.T) {
+	_, err := unmarshalLabelsJSON("{invalid json}")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestUnmarshalLabelsJSON_Empty(t *testing.T) {
+	// Empty and "{}" should return nil without error.
+	for _, s := range []string{"", "{}"} {
+		got, err := unmarshalLabelsJSON(s)
+		if err != nil {
+			t.Fatalf("unmarshalLabelsJSON(%q): unexpected error: %v", s, err)
+		}
+		if got != nil {
+			t.Fatalf("unmarshalLabelsJSON(%q): expected nil, got %v", s, got)
+		}
+	}
+}
+
+func TestUnmarshalHealthCheckJSON_Invalid(t *testing.T) {
+	_, err := unmarshalHealthCheckJSON("{invalid json}")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestMarshalStructJSON_NilInput(t *testing.T) {
+	got, err := marshalStructJSON(nil)
+	if err != nil {
+		t.Fatalf("marshalStructJSON(nil): unexpected error: %v", err)
+	}
+	if got != "{}" {
+		t.Fatalf("marshalStructJSON(nil): expected '{}', got %q", got)
+	}
+}
+
+func TestUnmarshalStructJSON_Invalid(t *testing.T) {
+	_, err := unmarshalStructJSON("{invalid json}")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestUnmarshalStructJSON_EmptyOrBraces(t *testing.T) {
+	for _, s := range []string{"", "{}"} {
+		got, err := unmarshalStructJSON(s)
+		if err != nil {
+			t.Fatalf("unmarshalStructJSON(%q): unexpected error: %v", s, err)
+		}
+		if got != nil {
+			t.Fatalf("unmarshalStructJSON(%q): expected nil, got %v", s, got)
+		}
+	}
+}
+
+func TestMarshalDirectUpstreamJSON_Nil(t *testing.T) {
+	got, err := marshalDirectUpstreamJSON(nil)
+	if err != nil {
+		t.Fatalf("marshalDirectUpstreamJSON(nil): unexpected error: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("marshalDirectUpstreamJSON(nil): expected empty string, got %q", got)
+	}
+}

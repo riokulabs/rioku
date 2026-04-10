@@ -44,6 +44,27 @@ func TestPNCounterMerge(t *testing.T) {
 	}
 }
 
+func TestPNCounterMerge_NegativeSide(t *testing.T) {
+	// Verify that the N (decrement) side of Merge takes element-wise max.
+	a := NewPNCounter()
+	a.Increment("node-0", 20)
+	a.Decrement("node-0", 3) // a.N["node-0"] = 3
+
+	b := NewPNCounter()
+	b.Increment("node-0", 20)
+	b.Decrement("node-0", 7) // b.N["node-0"] = 7 — larger, should win
+
+	a.Merge(b)
+
+	// Value = P - N = 20 - 7 = 13.
+	if v := a.Value(); v != 13 {
+		t.Errorf("expected 13, got %d", v)
+	}
+	if a.N["node-0"] != 7 {
+		t.Errorf("N[node-0] should be 7, got %d", a.N["node-0"])
+	}
+}
+
 func TestPNCounterMergeIdempotent(t *testing.T) {
 	a := NewPNCounter()
 	a.Increment("node-0", 10)

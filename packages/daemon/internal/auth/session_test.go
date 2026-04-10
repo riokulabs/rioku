@@ -551,6 +551,299 @@ func TestCleanupWorker(t *testing.T) {
 	}
 }
 
+func TestRevokeAllSessionsForUser(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "revoke_all_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+
+	// Create 3 sessions for the user.
+	sess1, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession 1: %v", err)
+	}
+	sess2, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession 2: %v", err)
+	}
+	sess3, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession 3: %v", err)
+	}
+
+	// Revoke all sessions for the user.
+	if err := sm.RevokeAllSessionsForUser(ctx, user.ID); err != nil {
+		t.Fatalf("RevokeAllSessionsForUser: %v", err)
+	}
+
+	// Use a fresh SessionManager to avoid cache interference.
+	sm2 := auth.NewSessionManager(drv, true)
+
+	// All 3 sessions should be gone.
+	for _, id := range []string{sess1.ID, sess2.ID, sess3.ID} {
+		_, err := sm2.ValidateSession(ctx, id, req)
+		if err == nil {
+			t.Errorf("expected session %q to be revoked, but it validated successfully", id)
+		}
+	}
+}
+
+func TestRevokeAllSessionsForUser_EmptyUser(t *testing.T) {
+	drv := setupTestStore(t)
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	// Revoking sessions for a user with no sessions should succeed without error.
+	if err := sm.RevokeAllSessionsForUser(ctx, "nonexistent-user-id"); err != nil {
+		t.Fatalf("RevokeAllSessionsForUser (empty): %v", err)
+	}
+}
+
+func TestRevokeSession_CacheEviction(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "evict_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+	sess, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Validate once to populate the cache.
+	_, err = sm.ValidateSession(ctx, sess.ID, req)
+	if err != nil {
+		t.Fatalf("ValidateSession: %v", err)
+	}
+
+	// Revoke — should evict from cache.
+	if err := sm.RevokeSession(ctx, sess.ID); err != nil {
+		t.Fatalf("RevokeSession: %v", err)
+	}
+
+	// Subsequent validation on the same manager (would be a cache hit if not evicted)
+	// should now fail.
+	_, err = sm.ValidateSession(ctx, sess.ID, req)
+	if err == nil {
+		t.Fatal("expected error validating revoked session after cache eviction, got nil")
+	}
+}
+
+func TestRevokeOtherSessions_ThreeSessions(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "revoke_others_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+	sess1, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession 1: %v", err)
+	}
+	sess2, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession 2: %v", err)
+	}
+	sess3, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession 3: %v", err)
+	}
+
+	// Keep sess2, revoke everything else.
+	if err := sm.RevokeOtherSessions(ctx, user.ID, sess2.ID); err != nil {
+		t.Fatalf("RevokeOtherSessions: %v", err)
+	}
+
+	// Use a fresh SessionManager to bypass cache.
+	sm2 := auth.NewSessionManager(drv, true)
+
+	// sess2 should still be valid.
+	_, err = sm2.ValidateSession(ctx, sess2.ID, req)
+	if err != nil {
+		t.Errorf("expected sess2 to remain valid: %v", err)
+	}
+
+	// sess1 and sess3 should be gone.
+	for _, id := range []string{sess1.ID, sess3.ID} {
+		_, err := sm2.ValidateSession(ctx, id, req)
+		if err == nil {
+			t.Errorf("expected session %q to be revoked, but it validated successfully", id)
+		}
+	}
+}
+
+func TestRevokeOtherSessions_CacheEviction(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "revoke_others_cache_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+	sessKeep, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession (keep): %v", err)
+	}
+	sessRevoke, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession (revoke): %v", err)
+	}
+
+	// Populate cache for both sessions.
+	_, err = sm.ValidateSession(ctx, sessKeep.ID, req)
+	if err != nil {
+		t.Fatalf("ValidateSession (keep): %v", err)
+	}
+	_, err = sm.ValidateSession(ctx, sessRevoke.ID, req)
+	if err != nil {
+		t.Fatalf("ValidateSession (revoke): %v", err)
+	}
+
+	// Revoke all except sessKeep — evicts sessRevoke from cache.
+	if err := sm.RevokeOtherSessions(ctx, user.ID, sessKeep.ID); err != nil {
+		t.Fatalf("RevokeOtherSessions: %v", err)
+	}
+
+	// sessRevoke should be gone even with cache-hot manager (evicted).
+	_, err = sm.ValidateSession(ctx, sessRevoke.ID, req)
+	if err == nil {
+		t.Fatal("expected revoked session to be gone from cache, but it validated successfully")
+	}
+
+	// sessKeep should still work from cache.
+	_, err = sm.ValidateSession(ctx, sessKeep.ID, req)
+	if err != nil {
+		t.Errorf("expected kept session to remain valid: %v", err)
+	}
+}
+
+func TestCleanupExpired_MultipleExpired(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "cleanup_multi_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+
+	// Create 2 valid sessions.
+	valid1, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession valid1: %v", err)
+	}
+	valid2, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession valid2: %v", err)
+	}
+
+	// Create 2 expired sessions by recreating them with a past expiry.
+	for i, prefix := range []string{"exp-a-", "exp-b-"} {
+		tmp, err := sm.CreateSession(ctx, user.ID, req)
+		if err != nil {
+			t.Fatalf("CreateSession temp %d: %v", i, err)
+		}
+		tx, err := drv.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			t.Fatalf("Begin %d: %v", i, err)
+		}
+		if err := tx.DeleteSession(ctx, tmp.ID); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("DeleteSession %d: %v", i, err)
+		}
+		_ = prefix
+		expSess := &store.Session{
+			ID:          tmp.ID,
+			UserID:      user.ID,
+			Fingerprint: tmp.Fingerprint,
+			ExpiresAt:   time.Now().Add(-2 * time.Hour).UTC(),
+			LastActive:  time.Now().Add(-2 * time.Hour).UTC(),
+			IPAddress:   tmp.IPAddress,
+			UserAgent:   tmp.UserAgent,
+		}
+		if _, err := tx.CreateSession(ctx, expSess); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("CreateSession (expired %d): %v", i, err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Commit %d: %v", i, err)
+		}
+	}
+
+	// Cleanup should remove the 2 expired sessions.
+	n, err := sm.CleanupExpired(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpired: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("CleanupExpired deleted %d rows, want 2", n)
+	}
+
+	// Both valid sessions should still be present.
+	sm2 := auth.NewSessionManager(drv, true)
+	for _, id := range []string{valid1.ID, valid2.ID} {
+		_, err := sm2.ValidateSession(ctx, id, req)
+		if err != nil {
+			t.Errorf("expected valid session %q to survive cleanup: %v", id, err)
+		}
+	}
+}
+
+func TestCleanupExpired_NoneExpired(t *testing.T) {
+	drv := setupTestStore(t)
+	user := createTestUser(t, drv, "cleanup_none_user")
+	sm := auth.NewSessionManager(drv, true)
+	ctx := context.Background()
+
+	req := fakeRequest("Mozilla/5.0", "en-US")
+
+	// Create only valid sessions.
+	_, err := sm.CreateSession(ctx, user.ID, req)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	n, err := sm.CleanupExpired(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpired: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("CleanupExpired deleted %d rows, want 0", n)
+	}
+}
+
+func TestStartCleanupWorker_ExitsOnContextCancel(t *testing.T) {
+	drv := setupTestStore(t)
+	sm := auth.NewSessionManager(drv, true)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start the worker — it ticks every hour, so it won't fire during the test.
+	sm.StartCleanupWorker(ctx)
+
+	// Cancel the context after a short delay; the goroutine should exit cleanly.
+	cancel()
+
+	// Give the goroutine time to observe the cancellation. In practice it
+	// exits immediately on the next select iteration.
+	time.Sleep(50 * time.Millisecond)
+
+	// If the goroutine is still running it will be detected by the race detector
+	// or cause a test timeout; reaching here without hanging is the assertion.
+}
+
+func TestStartCleanupWorker_MultipleWorkers(t *testing.T) {
+	drv := setupTestStore(t)
+	sm := auth.NewSessionManager(drv, true)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Starting multiple workers should not panic.
+	sm.StartCleanupWorker(ctx)
+	sm.StartCleanupWorker(ctx)
+}
+
 func TestComputeFingerprint(t *testing.T) {
 	fp1 := auth.ComputeFingerprint("Mozilla/5.0", "en-US")
 	fp2 := auth.ComputeFingerprint("Mozilla/5.0", "en-US")

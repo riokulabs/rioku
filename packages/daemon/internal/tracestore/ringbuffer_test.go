@@ -266,3 +266,61 @@ done:
 		t.Error("expected at least some traces in ring buffer after concurrent pushes")
 	}
 }
+
+// TestRingBuffer_NewPanicsOnZeroCapacity verifies that NewRingBuffer panics
+// when capacity is <= 0.
+func TestRingBuffer_NewPanicsOnZeroCapacity(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for capacity=0")
+		}
+	}()
+	NewRingBuffer(0)
+}
+
+// TestRingBuffer_Snapshot_Empty verifies that Snapshot on an empty buffer
+// returns nil (covers the n==0 early-return path).
+func TestRingBuffer_Snapshot_Empty(t *testing.T) {
+	rb := NewRingBuffer(8)
+	if got := rb.Snapshot(10); got != nil {
+		t.Errorf("expected nil snapshot on empty buffer, got %v", got)
+	}
+}
+
+// TestRingBuffer_Snapshot_Partial verifies that passing limit < count returns
+// only the most recent limit traces.
+func TestRingBuffer_Snapshot_Partial(t *testing.T) {
+	rb := NewRingBuffer(8)
+	now := time.Now()
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		rb.Push(makeTrace(id, now))
+	}
+
+	// Ask for only 2 most-recent entries.
+	got := rb.Snapshot(2)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 traces, got %d", len(got))
+	}
+	// Most recent are "d" and "e".
+	if got[0].TraceId != "d" || got[1].TraceId != "e" {
+		t.Errorf("got IDs %v, want [d e]", traceIDs(got))
+	}
+}
+
+// TestRingBuffer_Subscribe_DefaultBufSize verifies that a non-positive bufSize
+// is replaced by the default (64).
+func TestRingBuffer_Subscribe_DefaultBufSize(t *testing.T) {
+	rb := NewRingBuffer(4)
+	ch, unsub := rb.Subscribe(0) // bufSize=0 → should use default of 64
+	defer unsub()
+	// Push one trace and verify it's received.
+	rb.Push(makeTrace("x", time.Now()))
+	select {
+	case tr := <-ch:
+		if tr.TraceId != "x" {
+			t.Errorf("got trace %q, want x", tr.TraceId)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("timed out waiting for trace from subscriber")
+	}
+}
