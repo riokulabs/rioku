@@ -248,7 +248,7 @@ func TestIngester_UnixgramSocket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Dial unixgram: %v", err)
 	}
-	defer clientConn.Close()
+	defer func() { _ = clientConn.Close() }()
 
 	line := caddyLogLine()
 	if _, err := clientConn.Write(line); err != nil {

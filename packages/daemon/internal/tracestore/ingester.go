@@ -175,7 +175,7 @@ func (ing *Ingester) Stop() {
 		close(ing.stopCh)
 		// Closing the connection causes any blocking ReadFrom to return an error,
 		// which causes the read loop to notice stopCh is closed and exit.
-		ing.conn.Close()
+		_ = ing.conn.Close()
 	})
 	<-ing.done
 }

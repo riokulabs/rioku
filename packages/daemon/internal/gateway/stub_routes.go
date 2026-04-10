@@ -46,13 +46,6 @@ func handleStubCluster(cfg *config.Config) http.HandlerFunc {
 	}
 }
 
-func handleStubEmptyObject() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("{}"))
-	}
-}
-
 func handleStubEmptyArray() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
