@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/tracestore"
@@ -85,7 +86,17 @@ func handleTrafficSSE(buf *tracestore.RingBuffer) http.HandlerFunc {
 				if !ok {
 					return
 				}
-				data, err := protojson.Marshal(trace)
+				evt := map[string]any{
+					"id":         trace.GetTraceId(),
+					"timestamp":  trace.GetStartedAt().AsTime().Format(time.RFC3339Nano),
+					"method":     trace.GetMethod(),
+					"path":       trace.GetPath(),
+					"status":     trace.GetStatusCode(),
+					"latency_ms": trace.GetDurationMs(),
+					"upstream":   trace.GetUpstreamAddr(),
+					"route_id":   trace.GetRouteId(),
+				}
+				data, err := json.Marshal(evt)
 				if err != nil {
 					log.Printf("sse: marshal trace: %v", err)
 					continue

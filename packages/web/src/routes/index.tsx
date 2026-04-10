@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 import {
   Route as RouteIcon,
   Server,
@@ -61,16 +62,48 @@ export const Route = createFileRoute('/')({
 })
 
 // ---------------------------------------------------------------------------
-// Placeholder chart data (proper shape for when the API connects)
+// Traffic stats response shape (from /api/v1/traffic/stats)
 // ---------------------------------------------------------------------------
 
-const trafficPlaceholder: { time: string; requests: number; errors: number }[] =
-  []
+interface StatsBucket {
+  bucketStart: string
+  requestCount: number
+  errorCount: number
+  errorRate: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  bytesSent: number
+  bytesRecv: number
+}
 
-const latencyPlaceholder: {
-  bin: string
-  count: number
-}[] = []
+interface TrafficStatsResponse {
+  buckets: StatsBucket[]
+}
+
+function toTrafficData(
+  buckets: StatsBucket[],
+): { time: string; requests: number; errors: number }[] {
+  return buckets.map((b) => ({
+    time: new Date(b.bucketStart).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    requests: b.requestCount ?? 0,
+    errors: b.errorCount ?? 0,
+  }))
+}
+
+function toLatencyData(
+  buckets: StatsBucket[],
+): { bin: string; count: number }[] {
+  if (buckets.length === 0) return []
+  return [
+    { bin: 'p50', count: buckets[buckets.length - 1]?.p50LatencyMs ?? 0 },
+    { bin: 'p95', count: buckets[buckets.length - 1]?.p95LatencyMs ?? 0 },
+    { bin: 'p99', count: buckets[buckets.length - 1]?.p99LatencyMs ?? 0 },
+  ]
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,8 +148,23 @@ function Dashboard() {
   const { t } = useTranslation('dashboard')
   const [health, config, audit] = Route.useLoaderData()
 
-  const trafficData = trafficPlaceholder
-  const latencyData = latencyPlaceholder
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const until = new Date().toISOString()
+
+  const { data: statsData } = useQuery<TrafficStatsResponse>({
+    queryKey: ['traffic', 'stats', 'dashboard', since.slice(0, 13)],
+    queryFn: () =>
+      apiClient.get<TrafficStatsResponse>('/traffic/stats', {
+        since,
+        until,
+        interval: 'minute',
+      }),
+    refetchInterval: 60000,
+    retry: false,
+  })
+
+  const trafficData = toTrafficData(statsData?.buckets ?? [])
+  const latencyData = toLatencyData(statsData?.buckets ?? [])
 
   return (
     <div className="space-y-6">

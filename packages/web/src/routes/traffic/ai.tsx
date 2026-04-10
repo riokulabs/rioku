@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -23,6 +24,40 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api'
 
+// API response shape from /api/v1/traffic/tokens (proto: TokenStats)
+interface TokenBucket {
+  bucketStart: string
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  estimatedCostUsd: number
+  requestCount: number
+}
+
+interface TokenTotals {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  estimatedCostUsd: number
+  requestCount: number
+  budgetUsedPct: number
+}
+
+interface ModelBreakdownEntry {
+  provider: string
+  model: string
+  totalTokens: number
+  estimatedCostUsd: number
+  requestCount: number
+}
+
+interface TokenStatsResponse {
+  buckets: TokenBucket[]
+  totals: TokenTotals
+  modelBreakdown: ModelBreakdownEntry[]
+}
+
+// Internal shape consumed by the page
 interface AiMetrics {
   totalTokens: number
   estimatedCost: number
@@ -39,14 +74,55 @@ interface AiMetrics {
   costByModel: Array<{ model: string; cost: number }>
 }
 
+function transformTokenStats(resp: TokenStatsResponse): AiMetrics {
+  const totals = resp.totals ?? ({} as TokenTotals)
+  const buckets = resp.buckets ?? []
+  const breakdown = resp.modelBreakdown ?? []
+
+  return {
+    totalTokens: totals.totalTokens ?? 0,
+    estimatedCost: totals.estimatedCostUsd ?? 0,
+    activeSessions: 0, // requires ListSessions RPC — not available from this endpoint
+    modelsUsed: breakdown.length,
+    models: breakdown.map((m) => ({
+      model: m.model,
+      provider: m.provider,
+      requests: m.requestCount ?? 0,
+      tokens: m.totalTokens ?? 0,
+      cost: m.estimatedCostUsd ?? 0,
+    })),
+    tokenUsageOverTime: buckets.map((b) => ({
+      time: new Date(b.bucketStart).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      tokens: b.totalTokens ?? 0,
+    })),
+    costByModel: breakdown.map((m) => ({
+      model: m.model,
+      cost: m.estimatedCostUsd ?? 0,
+    })),
+  }
+}
+
+const AI_STATS_RANGE_MS = 24 * 60 * 60 * 1000
+
 export const Route = createFileRoute('/traffic/ai')({
-  loader: ({ context }) =>
-    context.queryClient
+  loader: ({ context }) => {
+    const since = new Date(Date.now() - AI_STATS_RANGE_MS).toISOString()
+    const until = new Date().toISOString()
+    return context.queryClient
       .ensureQueryData({
-        queryKey: ['traffic', 'ai'],
-        queryFn: () => apiClient.get<AiMetrics>('/traffic/ai'),
+        queryKey: ['traffic', 'tokens'],
+        queryFn: () =>
+          apiClient.get<TokenStatsResponse>('/traffic/tokens', {
+            since,
+            until,
+            interval: 'hour',
+          }),
       })
-      .catch(() => null),
+      .catch(() => null)
+  },
   component: TrafficAI,
 })
 
@@ -62,11 +138,25 @@ const MODEL_COLORS = [
 function TrafficAI() {
   const { t } = useTranslation('traffic')
 
-  const { data, isLoading } = useQuery<AiMetrics>({
-    queryKey: ['traffic', 'ai'],
-    queryFn: () => apiClient.get<AiMetrics>('/traffic/ai'),
+  const since = new Date(Date.now() - AI_STATS_RANGE_MS).toISOString()
+  const until = new Date().toISOString()
+
+  const { data: rawTokenStats, isLoading } = useQuery<TokenStatsResponse>({
+    queryKey: ['traffic', 'tokens'],
+    queryFn: () =>
+      apiClient.get<TokenStatsResponse>('/traffic/tokens', {
+        since,
+        until,
+        interval: 'hour',
+      }),
+    refetchInterval: 60000,
     retry: false,
   })
+
+  const data = useMemo(
+    () => (rawTokenStats ? transformTokenStats(rawTokenStats) : undefined),
+    [rawTokenStats],
+  )
 
   return (
     <div className="space-y-6">

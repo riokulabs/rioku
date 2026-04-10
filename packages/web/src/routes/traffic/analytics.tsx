@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -28,7 +28,24 @@ import { apiClient } from '@/lib/api'
 
 type TimeRange = '1h' | '6h' | '24h' | '7d'
 
-// Placeholder data structures for when the API exists
+// Stats API response shape (from /api/v1/traffic/stats)
+interface StatsBucket {
+  bucketStart: string
+  requestCount: number
+  errorCount: number
+  errorRate: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  bytesSent: number
+  bytesRecv: number
+}
+
+interface TrafficStatsResponse {
+  buckets: StatsBucket[]
+}
+
+// Internal shape consumed by the page
 interface AnalyticsData {
   requestRate: Array<{ time: string; requests: number }>
   errorRate: Array<{ time: string; errors: number }>
@@ -40,15 +57,85 @@ interface AnalyticsData {
   errorRatePercent: number
 }
 
+const TIME_RANGE_MS: Record<TimeRange, number> = {
+  '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+}
+
+const TIME_RANGE_INTERVAL: Record<TimeRange, string> = {
+  '1h': 'minute',
+  '6h': 'minute',
+  '24h': 'hour',
+  '7d': 'day',
+}
+
+function transformStats(resp: TrafficStatsResponse): AnalyticsData {
+  const buckets = resp.buckets ?? []
+
+  const totalRequests = buckets.reduce((s, b) => s + (b.requestCount ?? 0), 0)
+  const totalErrors = buckets.reduce((s, b) => s + (b.errorCount ?? 0), 0)
+  const avgLatency =
+    buckets.length > 0
+      ? Math.round(
+          buckets.reduce((s, b) => s + (b.p50LatencyMs ?? 0), 0) /
+            buckets.length,
+        )
+      : 0
+  const p99Latency =
+    buckets.length > 0
+      ? Math.max(...buckets.map((b) => b.p99LatencyMs ?? 0))
+      : 0
+  const errorRatePercent =
+    totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0
+
+  const requestRate = buckets.map((b) => ({
+    time: new Date(b.bucketStart).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    requests: b.requestCount ?? 0,
+  }))
+
+  const errorRate = buckets.map((b) => ({
+    time: new Date(b.bucketStart).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    errors: b.errorCount ?? 0,
+  }))
+
+  return {
+    requestRate,
+    errorRate,
+    topRoutes: [], // requires a separate RPC — not yet available
+    statusBreakdown: [], // requires a separate RPC — not yet available
+    totalRequests,
+    avgLatency,
+    p99Latency,
+    errorRatePercent,
+  }
+}
+
 export const Route = createFileRoute('/traffic/analytics')({
-  loader: ({ context }) =>
-    context.queryClient
+  loader: ({ context }) => {
+    const since = new Date(
+      Date.now() - TIME_RANGE_MS['24h'],
+    ).toISOString()
+    const until = new Date().toISOString()
+    return context.queryClient
       .ensureQueryData({
-        queryKey: ['traffic', 'analytics', '24h'],
+        queryKey: ['traffic', 'stats', '24h'],
         queryFn: () =>
-          apiClient.get<AnalyticsData>('/traffic/analytics', { range: '24h' }),
+          apiClient.get<TrafficStatsResponse>('/traffic/stats', {
+            since,
+            until,
+            interval: TIME_RANGE_INTERVAL['24h'],
+          }),
       })
-      .catch(() => null),
+      .catch(() => null)
+  },
   component: TrafficAnalytics,
 })
 
@@ -58,12 +145,25 @@ function TrafficAnalytics() {
   const { t } = useTranslation('traffic')
   const [timeRange, setTimeRange] = useState<TimeRange>('24h')
 
-  const { data, isLoading } = useQuery<AnalyticsData>({
-    queryKey: ['traffic', 'analytics', timeRange],
+  const since = new Date(Date.now() - TIME_RANGE_MS[timeRange]).toISOString()
+  const until = new Date().toISOString()
+
+  const { data: rawStats, isLoading } = useQuery<TrafficStatsResponse>({
+    queryKey: ['traffic', 'stats', timeRange],
     queryFn: () =>
-      apiClient.get<AnalyticsData>('/traffic/analytics', { range: timeRange }),
+      apiClient.get<TrafficStatsResponse>('/traffic/stats', {
+        since,
+        until,
+        interval: TIME_RANGE_INTERVAL[timeRange],
+      }),
+    refetchInterval: 60000,
     retry: false,
   })
+
+  const data = useMemo(
+    () => (rawStats ? transformStats(rawStats) : undefined),
+    [rawStats],
+  )
 
   return (
     <div className="space-y-6">
