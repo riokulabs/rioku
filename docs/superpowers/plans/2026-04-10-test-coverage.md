@@ -1,6 +1,6 @@
 # Test Coverage Improvement Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Raise Go backend test coverage from 45.2% to 80%+ by filling critical gaps identified in the test audit.
 
@@ -67,7 +67,7 @@ packages/daemon/internal/gateway/failure_test.go              -- Fix documented 
 
 Security-critical code. 435 lines, 19 functions, 5% coverage.
 
-- [ ] **Step 1: Write JWT tests**
+- [x] **Step 1: Write JWT tests**
 
 Create `jwt_test.go` in `package auth_test` (external, black-box). Tests needed:
 
@@ -101,17 +101,17 @@ Create `jwt_test.go` in `package auth_test` (external, black-box). Tests needed:
 
 Each test creates a real SQLite store in `t.TempDir()` with a seeded user and API key. Use `auth.NewAuth(signingKey, store)` directly.
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 -race ./internal/auth/ -run TestJWT`
 Expected: All PASS.
 
-- [ ] **Step 3: Verify coverage improvement**
+- [x] **Step 3: Verify coverage improvement**
 
 Run: `go test -coverprofile=/tmp/jwt.out ./internal/auth/ && go tool cover -func=/tmp/jwt.out | grep jwt.go`
 Target: jwt.go functions should show 80%+ coverage.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "test(auth): comprehensive JWT unit tests — token lifecycle, API keys, rotation"
@@ -126,7 +126,7 @@ git commit -m "test(auth): comprehensive JWT unit tests — token lifecycle, API
 
 562 lines, 11 handlers, 0% coverage. Tests user CRUD, role management, password changes.
 
-- [ ] **Step 1: Write user route tests**
+- [x] **Step 1: Write user route tests**
 
 Create `user_routes_test.go` in `package gateway`. Follow the existing `auth_integration_test.go` pattern — it creates a real gateway with SQLite store and makes HTTP requests.
 
@@ -145,12 +145,12 @@ Tests needed:
 
 Each test needs an authenticated session (admin role). Use the existing test helper pattern from `auth_integration_test.go`.
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Run: `go test -v -count=1 -race ./internal/gateway/ -run TestUserRoutes`
 Target: user_routes.go at 70%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(gateway): user route handler tests — CRUD, roles, password changes"
@@ -165,7 +165,7 @@ git commit -m "test(gateway): user route handler tests — CRUD, roles, password
 
 364 lines, 6 handlers, 0% coverage.
 
-- [ ] **Step 1: Write TOTP route tests**
+- [x] **Step 1: Write TOTP route tests**
 
 Tests needed:
 - `TestTOTPRoutes_Setup` — POST /api/v1/auth/totp/setup, verify returns QR URI and backup codes
@@ -178,11 +178,11 @@ Tests needed:
 
 Use `auth.ComputeTOTPCode()` from the existing auth package to generate valid codes in tests.
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: totp_routes.go at 70%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(gateway): TOTP route handler tests — setup, verify, remove, backup codes"
@@ -197,7 +197,7 @@ git commit -m "test(gateway): TOTP route handler tests — setup, verify, remove
 
 214 lines, 5 handlers, 0% coverage.
 
-- [ ] **Step 1: Write API key route tests**
+- [x] **Step 1: Write API key route tests**
 
 Tests needed:
 - `TestKeyRoutes_CreateKey` — POST /api/v1/keys, verify returns key ID and raw key
@@ -207,11 +207,11 @@ Tests needed:
 - `TestKeyRoutes_RevokeKey_NotFound` — non-existent ID, verify 404
 - `TestKeyRoutes_AuthWithKey` — create key, use raw key as Bearer token, verify access works
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: key_routes.go at 75%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(gateway): API key route handler tests — create, list, revoke, auth"
@@ -226,7 +226,7 @@ git commit -m "test(gateway): API key route handler tests — create, list, revo
 
 933 lines, 6 handlers, 0% coverage. Note: some paths are already tested by `auth_integration_test.go` and `rbac_integration_test.go`. Focus on gaps.
 
-- [ ] **Step 1: Write auth route tests**
+- [x] **Step 1: Write auth route tests**
 
 Tests needed:
 - `TestAuthRoutes_Login_Success` — valid credentials, verify 200, verify cookies set
@@ -243,11 +243,11 @@ Tests needed:
 
 Check what `auth_integration_test.go` already covers to avoid duplication.
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: auth_routes.go at 60%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(gateway): auth route handler tests — login, logout, refresh, sessions"
@@ -262,7 +262,7 @@ git commit -m "test(gateway): auth route handler tests — login, logout, refres
 
 125 lines, 6 functions, 0% coverage. On the critical path — pushes config to Caddy.
 
-- [ ] **Step 1: Write sync agent tests**
+- [x] **Step 1: Write sync agent tests**
 
 Tests needed:
 - `TestAgent_StartStop` — start agent, stop it, verify clean shutdown (no goroutine leak)
@@ -277,11 +277,11 @@ Actually — looking at the agent code, it takes `*caddy.Manager` directly (conc
 
 Alternative: use a real Engine + real SQLite store + a test HTTP server that acts as Caddy's admin API (just accepts POST /config/apps and returns 200).
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: agent.go at 75%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(sync): agent tests — start/stop, sync, debounce, error handling"
@@ -296,7 +296,7 @@ git commit -m "test(sync): agent tests — start/stop, sync, debounce, error han
 
 173 lines, 7 RPC methods, 0% coverage.
 
-- [ ] **Step 1: Write ConfigService tests**
+- [x] **Step 1: Write ConfigService tests**
 
 Tests needed:
 - `TestConfigService_ApplyChange_CreateRoute` — create a route via ApplyChange, verify success response
@@ -307,11 +307,11 @@ Tests needed:
 
 Follow the same pattern as `traffic_service_test.go` — create real SQLite store, construct service directly.
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: config_service.go at 75%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(grpc): ConfigService RPC tests — apply changes, get config, watch"
@@ -326,18 +326,18 @@ git commit -m "test(grpc): ConfigService RPC tests — apply changes, get config
 
 93 lines, 2 RPC methods, 0% coverage.
 
-- [ ] **Step 1: Write HealthService tests**
+- [x] **Step 1: Write HealthService tests**
 
 Tests needed:
 - `TestHealthService_GetHealth` — create service with real store, call GetHealth, verify response includes store health and version
 - `TestHealthService_GetHealth_StoreDown` — store that returns unhealthy, verify reflected in response
 - `TestHealthService_WatchHealth` — subscribe, verify periodic health events arrive
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: health_service.go at 75%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(grpc): HealthService RPC tests — get health, watch health stream"
@@ -352,7 +352,7 @@ git commit -m "test(grpc): HealthService RPC tests — get health, watch health 
 
 671 lines, 43% coverage. Focus on uncovered validation paths.
 
-- [ ] **Step 1: Write config validation tests**
+- [x] **Step 1: Write config validation tests**
 
 Tests needed:
 - `TestConfig_Load_ValidFile` — write valid YAML to temp file, Load it, verify fields
@@ -366,11 +366,11 @@ Tests needed:
 - `TestConfig_ApplyDefaults_BufferSize` — verify default buffer_size is 10000
 - `TestConfig_Default` — verify Default() returns sensible config with all required fields
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: file.go at 70%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(config): config load, validate, and defaults tests"
@@ -384,19 +384,19 @@ git commit -m "test(config): config load, validate, and defaults tests"
 - Modify: `packages/daemon/internal/gateway/security_test.go`
 - Modify: `packages/daemon/internal/gateway/failure_test.go`
 
-- [ ] **Step 1: Fix timing attack test**
+- [x] **Step 1: Fix timing attack test**
 
 In `security_test.go`, the timing test at ~line 224 logs but doesn't fail. Change to either:
 - `t.Errorf` if timing difference > threshold (makes it a real regression test)
 - Or `t.Skip("timing attack test is informational — see #XX")` with a GitHub issue
 
-- [ ] **Step 2: Fix panic documentation test**
+- [x] **Step 2: Fix panic documentation test**
 
 In `failure_test.go` ~line 335, the `migrate_without_open` subtest catches a panic silently. Either:
 - File a GitHub issue for the panic
 - Change the test to `t.Skip("known issue: migrate on unopened driver panics — see #XX")`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "fix(test): make timing attack test actionable, track migrate panic as issue"
@@ -411,7 +411,7 @@ git commit -m "fix(test): make timing attack test actionable, track migrate pani
 
 Tests for error formatting, CORS middleware, and security headers.
 
-- [ ] **Step 1: Write middleware tests**
+- [x] **Step 1: Write middleware tests**
 
 Tests needed:
 - `TestCORSMiddleware_AllowedOrigin` — request with allowed origin, verify CORS headers in response
@@ -421,11 +421,11 @@ Tests needed:
 - `TestRequestIDMiddleware` — request without ID, verify one is generated. Request with ID, verify it's passed through
 - `TestErrorResponse_RFC7807` — trigger a 400/404/500 error, verify response matches ProblemDetail format
 
-- [ ] **Step 2: Run tests, verify coverage**
+- [x] **Step 2: Run tests, verify coverage**
 
 Target: errors.go, security_middleware.go, cors middleware at 70%+.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(gateway): middleware tests — CORS, security headers, request ID, error format"
@@ -435,7 +435,7 @@ git commit -m "test(gateway): middleware tests — CORS, security headers, reque
 
 ## Task 12: Final Coverage Validation
 
-- [ ] **Step 1: Run full coverage report**
+- [x] **Step 1: Run full coverage report**
 
 ```bash
 cd packages/daemon
@@ -445,7 +445,7 @@ go tool cover -func=coverage.out | grep "total:"
 
 Target: `total: 80.0%` or higher.
 
-- [ ] **Step 2: Per-package report**
+- [x] **Step 2: Per-package report**
 
 ```bash
 go tool cover -func=coverage.out | grep -v "100.0%" | sort -t'%' -k3 -n | tail -20
@@ -453,7 +453,7 @@ go tool cover -func=coverage.out | grep -v "100.0%" | sort -t'%' -k3 -n | tail -
 
 Verify no package with >100 lines of code is below 50%.
 
-- [ ] **Step 3: Run full test suite**
+- [x] **Step 3: Run full test suite**
 
 ```bash
 make test-race
@@ -461,7 +461,7 @@ make test-race
 
 Expected: All PASS.
 
-- [ ] **Step 4: Commit coverage baseline**
+- [x] **Step 4: Commit coverage baseline**
 
 ```bash
 git commit -m "test: coverage improvement — 45% to 80%+"

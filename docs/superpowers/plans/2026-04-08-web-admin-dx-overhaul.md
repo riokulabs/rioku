@@ -1,6 +1,6 @@
 # Web Admin DX Overhaul Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Modernize the web admin toolchain (Vite 8, TS 6, Oxc, happy-dom), fix build performance, improve sandbox DX, and add contract tests to prevent proto/frontend type drift.
 
@@ -43,7 +43,7 @@
 **Files:**
 - Modify: `packages/web/package.json`
 
-- [ ] **Step 1: Remove old packages and install new versions**
+- [x] **Step 1: Remove old packages and install new versions**
 
 ```bash
 cd packages/web && \
@@ -57,7 +57,7 @@ npm install --save-dev \
   happy-dom@^20
 ```
 
-- [ ] **Step 2: Verify package.json looks correct**
+- [x] **Step 2: Verify package.json looks correct**
 
 Run: `cd packages/web && node -e "const p=require('./package.json'); console.log('vite:', p.devDependencies.vite); console.log('plugin-react:', p.devDependencies['@vitejs/plugin-react']); console.log('typescript:', p.devDependencies.typescript); console.log('vitest:', p.devDependencies.vitest); console.log('happy-dom:', p.devDependencies['happy-dom']); console.log('jsdom:', p.devDependencies.jsdom || 'REMOVED')"`
 
@@ -71,13 +71,13 @@ happy-dom: ^20
 jsdom: REMOVED
 ```
 
-- [ ] **Step 3: Verify no peer dependency warnings**
+- [x] **Step 3: Verify no peer dependency warnings**
 
 Run: `cd packages/web && npm ls --depth=0 2>&1 | grep -i 'WARN\|ERR\|peer' || echo "No warnings"`
 
 Expected: No peer dependency errors. Possible warnings from optional deps are fine.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd packages/web && git add package.json package-lock.json
@@ -91,7 +91,7 @@ git commit -m "chore: upgrade vite 8, typescript 6, vitest 4, swap jsdom for hap
 **Files:**
 - Modify: `packages/web/tsconfig.json`
 
-- [ ] **Step 1: Add incremental compilation**
+- [x] **Step 1: Add incremental compilation**
 
 Replace the full `packages/web/tsconfig.json` with:
 
@@ -119,7 +119,7 @@ Replace the full `packages/web/tsconfig.json` with:
 }
 ```
 
-- [ ] **Step 2: Fix build script to use tsc --noEmit instead of tsc -b**
+- [x] **Step 2: Fix build script to use tsc --noEmit instead of tsc -b**
 
 In `packages/web/package.json`, change the `build` script from:
 ```json
@@ -130,25 +130,25 @@ to:
 "build": "tsc --noEmit && vite build"
 ```
 
-- [ ] **Step 3: Verify type checking works**
+- [x] **Step 3: Verify type checking works**
 
 Run: `cd packages/web && npx tsc --noEmit`
 
 Expected: No errors (clean exit).
 
-- [ ] **Step 4: Verify incremental cache is created**
+- [x] **Step 4: Verify incremental cache is created**
 
 Run: `cd packages/web && npx tsc --noEmit && ls -la node_modules/.cache/tsbuildinfo`
 
 Expected: File exists (build info cache created on first run).
 
-- [ ] **Step 5: Time the second run to confirm incremental speedup**
+- [x] **Step 5: Time the second run to confirm incremental speedup**
 
 Run: `cd packages/web && time npx tsc --noEmit`
 
 Expected: Significantly faster than the first run (should be under 2 seconds).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd packages/web && git add tsconfig.json package.json
@@ -162,7 +162,7 @@ git commit -m "perf: enable TypeScript incremental compilation, fix build script
 **Files:**
 - Modify: `packages/web/vite.config.ts`
 
-- [ ] **Step 1: Update vite.config.ts**
+- [x] **Step 1: Update vite.config.ts**
 
 Replace `packages/web/vite.config.ts` with:
 
@@ -194,19 +194,19 @@ Changes from previous version:
 - Fixed alias from `'@': '/src'` to `'@': resolve(__dirname, 'src')`
 - The `react()` plugin import path is the same, but v6 now uses Oxc internally (no Babel)
 
-- [ ] **Step 2: Verify the build works end-to-end**
+- [x] **Step 2: Verify the build works end-to-end**
 
 Run: `cd packages/web && npm run build`
 
 Expected: Vite 8 build succeeds. Output shows Rolldown-based bundling. Build artifacts in `packages/web/build/`.
 
-- [ ] **Step 3: Verify dev server starts**
+- [x] **Step 3: Verify dev server starts**
 
 Run: `cd packages/web && timeout 10 npx vite --host 2>&1 | head -20 || true`
 
 Expected: Vite dev server starts on port 5173 without errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd packages/web && git add vite.config.ts
@@ -221,7 +221,7 @@ git commit -m "chore: update vite config for v8, fix resolve alias"
 - Modify: `packages/web/vitest.config.ts`
 - Modify: `packages/web/src/test/setup.ts`
 
-- [ ] **Step 1: Update vitest.config.ts to use happy-dom**
+- [x] **Step 1: Update vitest.config.ts to use happy-dom**
 
 Replace `packages/web/vitest.config.ts` with:
 
@@ -264,7 +264,7 @@ export default defineConfig({
 
 Changes: `environment: 'jsdom'` → `environment: 'happy-dom'`
 
-- [ ] **Step 2: Simplify test setup — remove jsdom-specific mocks**
+- [x] **Step 2: Simplify test setup — remove jsdom-specific mocks**
 
 Replace `packages/web/src/test/setup.ts` with:
 
@@ -281,13 +281,13 @@ afterEach(() => {
 
 happy-dom provides `matchMedia`, `ResizeObserver`, `IntersectionObserver`, and `navigator.clipboard` natively, so the manual mocks are no longer needed.
 
-- [ ] **Step 3: Run the full test suite**
+- [x] **Step 3: Run the full test suite**
 
 Run: `cd packages/web && npx vitest run`
 
 Expected: All tests pass. If any tests fail due to happy-dom behavioral differences, fix them in the next step.
 
-- [ ] **Step 4: Fix any test failures from the happy-dom switch**
+- [x] **Step 4: Fix any test failures from the happy-dom switch**
 
 If tests fail, the most common causes are:
 - `window.matchMedia` returns slightly different mock shape → update test assertions
@@ -295,7 +295,7 @@ If tests fail, the most common causes are:
 
 Read each failure, fix the specific test. Do not re-add blanket jsdom mocks.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd packages/web && git add vitest.config.ts src/test/setup.ts
@@ -309,7 +309,7 @@ git commit -m "perf: switch vitest to happy-dom, remove jsdom polyfill mocks"
 **Files:**
 - Modify: `Makefile`
 
-- [ ] **Step 1: Add web-build-if-changed target**
+- [x] **Step 1: Add web-build-if-changed target**
 
 Add this target to the Makefile, after the existing `web-build` target (after line 278):
 
@@ -333,7 +333,7 @@ web-build-if-changed:
 	fi
 ```
 
-- [ ] **Step 2: Update web-embed to use web-build-if-changed**
+- [x] **Step 2: Update web-embed to use web-build-if-changed**
 
 Change line 144 from:
 ```makefile
@@ -344,11 +344,11 @@ to:
 web-embed: web-build-if-changed
 ```
 
-- [ ] **Step 3: Update .PHONY line to include new target**
+- [x] **Step 3: Update .PHONY line to include new target**
 
 Add `web-build-if-changed` to the `.PHONY` list on line 1.
 
-- [ ] **Step 4: Test the caching — first build should run, second should skip**
+- [x] **Step 4: Test the caching — first build should run, second should skip**
 
 Run:
 ```bash
@@ -363,7 +363,7 @@ make web-build-if-changed
 ```
 Expected: "[OK]    web SPA unchanged — skipping rebuild"
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Makefile
@@ -378,7 +378,7 @@ git commit -m "perf: add hash-based web build caching to skip unnecessary rebuil
 - Create: `sandbox/scripts/status.sh`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Create the status script**
+- [x] **Step 1: Create the status script**
 
 Create `sandbox/scripts/status.sh`:
 
@@ -458,11 +458,11 @@ if ! curl -sf --max-time 2 http://localhost:7778/api/v1/health >/dev/null 2>&1; 
 fi
 ```
 
-- [ ] **Step 2: Make it executable**
+- [x] **Step 2: Make it executable**
 
 Run: `chmod +x sandbox/scripts/status.sh`
 
-- [ ] **Step 3: Add Makefile target**
+- [x] **Step 3: Add Makefile target**
 
 Add after the `sandbox-test-smoke` target (after line 89):
 
@@ -474,13 +474,13 @@ sandbox-status:
 
 Add `sandbox-status` to the `.PHONY` list on line 1.
 
-- [ ] **Step 4: Test it**
+- [x] **Step 4: Test it**
 
 Run: `make sandbox-status`
 
 Expected: Table showing running/stopped status for each component with port and health info.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sandbox/scripts/status.sh Makefile
@@ -496,7 +496,7 @@ git commit -m "feat: add make sandbox-status for sandbox introspection"
 - Modify: `packages/daemon/internal/gateway/gateway.go`
 - Modify: `packages/daemon/internal/daemon/daemon.go`
 
-- [ ] **Step 1: Add InternalPort to ListenConfig**
+- [x] **Step 1: Add InternalPort to ListenConfig**
 
 In `packages/daemon/internal/config/file.go`, change `ListenConfig` from:
 
@@ -519,7 +519,7 @@ type ListenConfig struct {
 }
 ```
 
-- [ ] **Step 2: Set default internal port**
+- [x] **Step 2: Set default internal port**
 
 In the `Default()` function in `packages/daemon/internal/config/file.go`, change the `Listen` block from:
 
@@ -540,7 +540,7 @@ Listen: ListenConfig{
 },
 ```
 
-- [ ] **Step 3: Update daemon.go to use deterministic port with auto-increment**
+- [x] **Step 3: Update daemon.go to use deterministic port with auto-increment**
 
 In `packages/daemon/internal/daemon/daemon.go`, change line 138 from:
 
@@ -570,13 +570,13 @@ for attempt := 0; attempt < 10; attempt++ {
 
 Also add `"fmt"` to the imports if not already present. The gateway's `NewGateway` already returns an error when `net.Listen` fails, so the retry loop catches bind failures and tries the next port.
 
-- [ ] **Step 5: Verify it compiles**
+- [x] **Step 5: Verify it compiles**
 
 Run: `cd packages/daemon && go build ./...`
 
 Expected: Clean compilation.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/daemon/internal/config/file.go packages/daemon/internal/gateway/gateway.go packages/daemon/internal/daemon/daemon.go
@@ -591,7 +591,7 @@ git commit -m "feat: deterministic internal gateway port (default 7780)"
 - Modify: `sandbox/scripts/start.sh`
 - Modify: `Makefile` (sandbox-restart-daemon target)
 
-- [ ] **Step 1: Add stale detection to start.sh**
+- [x] **Step 1: Add stale detection to start.sh**
 
 In `sandbox/scripts/start.sh`, add this block after the `cleanup_on_error` trap (after line 71), before the helpers section:
 
@@ -635,7 +635,7 @@ if (( ${#RUNNING_SESSIONS[@]} > 0 )); then
 fi
 ```
 
-- [ ] **Step 2: Add Caddy cleanup to sandbox-restart-daemon**
+- [x] **Step 2: Add Caddy cleanup to sandbox-restart-daemon**
 
 In the `Makefile`, in the `sandbox-restart-daemon` target, add Caddy cleanup before restarting the daemon. Change the restart block (lines 38-48) from:
 
@@ -661,7 +661,7 @@ to:
 
 Apply the same change to the `sandbox-restart-daemon-fast` target (lines 62-72).
 
-- [ ] **Step 3: Test stale detection**
+- [x] **Step 3: Test stale detection**
 
 Start the sandbox:
 ```bash
@@ -675,7 +675,7 @@ make sandbox
 
 Expected: Error message "Sandbox is already running. Run `make sandbox-stop` first..."
 
-- [ ] **Step 4: Test stale cleanup**
+- [x] **Step 4: Test stale cleanup**
 
 Start the sandbox, then kill screen sessions manually (simulating a crash):
 ```bash
@@ -688,7 +688,7 @@ make sandbox
 
 Expected: "Found stale screen sessions... Cleaning up... " then sandbox starts normally.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sandbox/scripts/start.sh Makefile
@@ -702,7 +702,7 @@ git commit -m "fix: detect stale sandbox, kill orphaned Caddy on restart"
 **Files:**
 - Create: `packages/daemon/internal/gateway/contract_test.go`
 
-- [ ] **Step 1: Create the contract test file**
+- [x] **Step 1: Create the contract test file**
 
 Create `packages/daemon/internal/gateway/contract_test.go`:
 
@@ -910,19 +910,19 @@ func TestRESTContractFields(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Check if RegisterHealthRoutes exists, if not check the correct registration function name**
+- [x] **Step 2: Check if RegisterHealthRoutes exists, if not check the correct registration function name**
 
 Run: `cd packages/daemon && grep -rn 'func Register.*Routes' internal/gateway/*.go | grep -v test`
 
 If `RegisterHealthRoutes` doesn't exist, check what the health endpoint registration function is called and update the test accordingly. The health endpoint may be registered via grpc-gateway or as a stub — adjust the `RegisterStubRoutes` or handler setup as needed.
 
-- [ ] **Step 3: Run the contract test**
+- [x] **Step 3: Run the contract test**
 
 Run: `cd packages/daemon && go test -race -run TestRESTContractFields ./internal/gateway/ -v -timeout 60s`
 
 Expected: All subtests pass. Each endpoint returns the expected field names.
 
-- [ ] **Step 4: Verify it catches a field name mismatch**
+- [x] **Step 4: Verify it catches a field name mismatch**
 
 Temporarily change one expected field in the test (e.g., change `"occurredAt"` to `"timestamp"`) and run:
 
@@ -934,7 +934,7 @@ Expected: Test FAILS with `missing field "timestamp"` — proving the contract t
 
 Revert the temporary change.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/gateway/contract_test.go
@@ -947,31 +947,31 @@ git commit -m "test: add proto-to-frontend REST contract tests"
 
 **Files:** None (validation only)
 
-- [ ] **Step 1: Full Go test suite**
+- [x] **Step 1: Full Go test suite**
 
 Run: `cd packages/daemon && go test -race ./... -timeout 300s`
 
 Expected: All tests pass including new contract tests.
 
-- [ ] **Step 2: Full web test suite**
+- [x] **Step 2: Full web test suite**
 
 Run: `cd packages/web && npx vitest run`
 
 Expected: All tests pass with happy-dom.
 
-- [ ] **Step 3: Full web build**
+- [x] **Step 3: Full web build**
 
 Run: `cd packages/web && npm run build`
 
 Expected: Build succeeds. Note the build time — should be significantly faster than before.
 
-- [ ] **Step 4: Smart rebuild test**
+- [x] **Step 4: Smart rebuild test**
 
 Run: `make build-daemon`
 
 Expected: First run builds everything. Second `make build-daemon` says "[OK] web SPA unchanged — skipping rebuild" and only runs Go build.
 
-- [ ] **Step 5: Sandbox restart with new port**
+- [x] **Step 5: Sandbox restart with new port**
 
 If sandbox is running:
 ```bash
@@ -981,7 +981,7 @@ make sandbox-status
 
 Expected: Daemon restarts, status shows all components healthy, no 502 errors. Daemon log should show `rest: internal gateway bound to 127.0.0.1:7780` (deterministic port).
 
-- [ ] **Step 6: Commit any remaining fixes**
+- [x] **Step 6: Commit any remaining fixes**
 
 If any adjustments were needed during validation, commit them:
 

@@ -1,6 +1,6 @@
 # TrafficService Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement the TrafficService backend (trace capture, storage, gRPC service, SSE streaming) to unblock the admin panel dashboard (#36) and live traffic view (#38).
 
@@ -68,7 +68,7 @@ packages/daemon/internal/config/file.go           -- Add buffer_size, errors_alw
 
 This task defines the interfaces and types that every other component depends on. No tests needed — pure type definitions.
 
-- [ ] **Step 1: Replace store.go with package documentation**
+- [x] **Step 1: Replace store.go with package documentation**
 
 Replace `packages/daemon/internal/tracestore/store.go` with:
 
@@ -88,7 +88,7 @@ Replace `packages/daemon/internal/tracestore/store.go` with:
 package tracestore
 ```
 
-- [ ] **Step 2: Create driver.go with interfaces and types**
+- [x] **Step 2: Create driver.go with interfaces and types**
 
 Create `packages/daemon/internal/tracestore/driver.go` with the full interface definitions, bucket types, driver registration, and config types. Key interfaces:
 
@@ -117,12 +117,12 @@ Bucket types: `StatsBucket`, `RouteBucket`, `StatusBucket`, `ModelBucket`, `Sess
 Driver registration: `Register(name, factory)`, `New(name)` — same pattern as `internal/store`.
 Config: `DriverConfig{Driver, Path, DSN, MaxSizeGB}`.
 
-- [ ] **Step 3: Verify compilation**
+- [x] **Step 3: Verify compilation**
 
 Run: `cd packages/daemon && go vet ./internal/tracestore/`
 Expected: Clean (no errors).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/daemon/internal/tracestore/
@@ -139,7 +139,7 @@ git commit -m "feat(tracestore): define TraceStore driver interface and types"
 
 A bounded, thread-safe circular buffer with drop-oldest semantics and subscriber fan-out for SSE.
 
-- [ ] **Step 1: Write ring buffer tests**
+- [x] **Step 1: Write ring buffer tests**
 
 Create `ringbuffer_test.go` with tests for:
 - `TestRingBuffer_PushAndSnapshot` — push N items, snapshot returns them in order
@@ -151,12 +151,12 @@ Create `ringbuffer_test.go` with tests for:
 
 Tests use `*riokuv1.RequestTrace` as the element type. Each test creates a buffer with `NewRingBuffer(capacity)`.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/daemon && go test -v -count=1 ./internal/tracestore/ -run TestRingBuffer`
 Expected: Compilation errors (RingBuffer not defined yet).
 
-- [ ] **Step 3: Implement ring buffer**
+- [x] **Step 3: Implement ring buffer**
 
 Create `ringbuffer.go` with:
 - `RingBuffer` struct: `sync.Mutex`, slice of `*riokuv1.RequestTrace`, head/tail/count, `dropped` counter, `subscribers` map of `chan *riokuv1.RequestTrace`
@@ -168,12 +168,12 @@ Create `ringbuffer.go` with:
 - `Dropped() int64` — return drop counter (atomic)
 - `Len() int` — current count
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 -race ./internal/tracestore/ -run TestRingBuffer`
 Expected: All PASS with race detector clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/tracestore/ringbuffer.go packages/daemon/internal/tracestore/ringbuffer_test.go
@@ -190,7 +190,7 @@ git commit -m "feat(tracestore): implement ring buffer with subscriber fan-out"
 - Create: `packages/daemon/internal/tracestore/sqlite/sqlite.go`
 - Create: `packages/daemon/internal/tracestore/sqlite/sqlite_test.go`
 
-- [ ] **Step 1: Write the migration SQL**
+- [x] **Step 1: Write the migration SQL**
 
 Create `000001_traces.up.sql`:
 - `raw_traces` table: trace_id PK, all RequestTrace fields as columns, indexed on `(started_at)`, `(status_code, started_at)`, `(route_id, started_at)`, `(session_id)` 
@@ -204,7 +204,7 @@ Create `000001_traces.down.sql` — drop all tables.
 
 SQLite-specific: use `TEXT` for timestamps (ISO 8601), `INTEGER` for counts, `REAL` for floats. WAL mode pragma in driver Open().
 
-- [ ] **Step 2: Write SQLite driver tests**
+- [x] **Step 2: Write SQLite driver tests**
 
 Create `sqlite_test.go` with tests:
 - `TestSQLite_OpenClose` — open temp DB, close cleanly
@@ -218,12 +218,12 @@ Create `sqlite_test.go` with tests:
 
 Tests use `t.TempDir()` for isolated SQLite files. Each test opens a fresh driver.
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `cd packages/daemon && go test -v -count=1 ./internal/tracestore/sqlite/ -run TestSQLite`
 Expected: Compilation errors (driver not defined).
 
-- [ ] **Step 4: Implement SQLite driver**
+- [x] **Step 4: Implement SQLite driver**
 
 Create `sqlite.go`:
 - `type driver struct` with `*sql.DB`, embed migration FS
@@ -239,12 +239,12 @@ Create `sqlite.go`:
 - `ListSessions()` — `SELECT session_id, COUNT(*), MIN(started_at), MAX(started_at) FROM raw_traces WHERE session_id != '' GROUP BY session_id`
 - Helper: `scanTrace(rows) *riokuv1.RequestTrace` — scan a row into a proto
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 -race ./internal/tracestore/sqlite/ -run TestSQLite`
 Expected: All PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/daemon/internal/tracestore/sqlite/
@@ -261,7 +261,7 @@ git commit -m "feat(tracestore): SQLite driver with migrations and full query su
 
 Background goroutine that reads from the ring buffer every 60 seconds and writes pre-aggregated bucket rows to the TraceStore.
 
-- [ ] **Step 1: Write aggregator tests**
+- [x] **Step 1: Write aggregator tests**
 
 Create `aggregator_test.go`:
 - `TestAggregator_ComputeStatsBucket` — feed 100 traces with known latencies, verify P50/P95/P99 calculation, request/error counts
@@ -271,12 +271,12 @@ Create `aggregator_test.go`:
 
 The `computeStatsBucket`, `computeRouteBuckets`, `computeStatusBuckets` functions are pure (take `[]*riokuv1.RequestTrace`, return bucket(s)) — easy to test without I/O.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/daemon && go test -v -count=1 ./internal/tracestore/ -run TestAggregator`
 Expected: Compilation errors.
 
-- [ ] **Step 3: Implement aggregator**
+- [x] **Step 3: Implement aggregator**
 
 Create `aggregator.go`:
 - `Aggregator` struct: ring buffer ref, TraceStore driver, interval, stop channel, done channel
@@ -291,12 +291,12 @@ Create `aggregator.go`:
   - `computeModelBuckets(traces, bucketStart) []ModelBucket` — group by provider+model from AITrace
   - `percentile(sorted []int64, p float64) int64` — percentile calculation on sorted slice
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 -race ./internal/tracestore/ -run TestAggregator`
 Expected: All PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/tracestore/aggregator.go packages/daemon/internal/tracestore/aggregator_test.go
@@ -313,7 +313,7 @@ git commit -m "feat(tracestore): background aggregator with pre-computed bucket 
 
 Reads structured JSON log lines from a unixgram socket, parses them into `*riokuv1.RequestTrace`, applies sampling, and pushes to the ring buffer.
 
-- [ ] **Step 1: Write ingester tests**
+- [x] **Step 1: Write ingester tests**
 
 Create `ingester_test.go`:
 - `TestIngester_ParseLogLine` — parse a Caddy structured JSON log line into a RequestTrace. Cover all fields: method, path, host, status, latency, bytes, upstream address, rioku_route_id, rioku_service_id.
@@ -323,12 +323,12 @@ Create `ingester_test.go`:
 
 The `parseLogLine([]byte) (*riokuv1.RequestTrace, error)` function is pure — test it directly.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/daemon && go test -v -count=1 ./internal/tracestore/ -run TestIngester`
 Expected: Compilation errors.
 
-- [ ] **Step 3: Implement ingester**
+- [x] **Step 3: Implement ingester**
 
 Create `ingester.go`:
 - `Ingester` struct: socket path, ring buffer ref, sampling config, conn, stop/done channels, dropped counter
@@ -357,12 +357,12 @@ Create `ingester.go`:
 - `shouldSample(trace *riokuv1.RequestTrace, cfg SamplingConfig) bool` — returns true if trace should be kept. Always true for errors (`errors_always && status >= 500`), slow requests (`duration >= slow_threshold`), AI requests (`ai_always && has AI headers`). Otherwise random with `rate`.
 - `SamplingConfig` struct: `Rate float64`, `ErrorsAlways bool`, `AIAlways bool`, `SlowThresholdMS int`
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 -race ./internal/tracestore/ -run TestIngester`
 Expected: All PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/tracestore/ingester.go packages/daemon/internal/tracestore/ingester_test.go
@@ -378,7 +378,7 @@ git commit -m "feat(tracestore): log ingester with unixgram socket and sampling"
 
 Implements the 7 RPCs defined in `traffic.proto`. Uses the ring buffer for live data and TraceStore for historical queries.
 
-- [ ] **Step 1: Implement TrafficService**
+- [x] **Step 1: Implement TrafficService**
 
 Create `traffic_service.go` following the ConfigService pattern:
 - `type trafficService struct` embedding `riokuv1.UnimplementedTrafficServiceServer`
@@ -399,12 +399,12 @@ Create `traffic_service.go` following the ConfigService pattern:
 
   **GetSession** — get session traces from store. Build `SessionDetail` with summary and turn list.
 
-- [ ] **Step 2: Verify compilation**
+- [x] **Step 2: Verify compilation**
 
 Run: `cd packages/daemon && go vet ./internal/grpc/`
 Expected: Clean.
 
-- [ ] **Step 3: Write unit tests for all 7 RPCs**
+- [x] **Step 3: Write unit tests for all 7 RPCs**
 
 Create `packages/daemon/internal/grpc/traffic_service_test.go`:
 - `TestTrafficService_QueryTraces` — write 50 traces to SQLite store (mixed statuses, routes), query with various filters (status_code, route_id, time range), verify correct traces returned with pagination.
@@ -417,12 +417,12 @@ Create `packages/daemon/internal/grpc/traffic_service_test.go`:
 
 Each test creates a fresh SQLite store in `t.TempDir()` and a ring buffer, constructs the service via `newTrafficService()`, and calls RPCs directly (no gRPC server needed).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 -race ./internal/grpc/ -run TestTrafficService`
 Expected: All PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/grpc/traffic_service.go packages/daemon/internal/grpc/traffic_service_test.go
@@ -438,7 +438,7 @@ git commit -m "feat(grpc): implement TrafficService with 7 RPCs and unit tests"
 
 Add `GET /api/v1/events/traffic` SSE endpoint following the existing `handleConfigSSE` pattern.
 
-- [ ] **Step 1: Add traffic SSE handler**
+- [x] **Step 1: Add traffic SSE handler**
 
 In `sse.go`:
 - Add `handleTrafficSSE(buf *tracestore.RingBuffer)` function. Pattern:
@@ -450,12 +450,12 @@ In `sse.go`:
 - Update `RegisterSSERoutes` signature to accept `*tracestore.RingBuffer` parameter
 - Register: `mux.HandleFunc("GET /api/v1/events/traffic", handleTrafficSSE(buf))`
 
-- [ ] **Step 2: Verify compilation**
+- [x] **Step 2: Verify compilation**
 
 Run: `cd packages/daemon && go vet ./internal/gateway/`
 Expected: Clean (may need to update callers — done in Task 10).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/daemon/internal/gateway/sse.go
@@ -472,19 +472,19 @@ git commit -m "feat(gateway): add SSE endpoint for live traffic streaming"
 
 Tiny Caddy handler module that sets `{http.vars.rioku_route_id}` and `{http.vars.rioku_service_id}` from JSON config. Injected by the compiler before `reverse_proxy`.
 
-- [ ] **Step 1: Write module test**
+- [x] **Step 1: Write module test**
 
 Create `module_test.go`:
 - `TestRiokuVars_SetsVariables` — create module with route_id and service_id config, serve a request through it with a recording next handler that reads the vars, verify they're set correctly.
 
 Uses `caddyhttp.ExtraVarsCtxKey` to verify variables are set in the request context.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd packages/plugins/rioku-vars && go test -v -count=1 ./...`
 Expected: Compilation error.
 
-- [ ] **Step 3: Implement module**
+- [x] **Step 3: Implement module**
 
 Create `module.go`:
 ```go
@@ -523,7 +523,7 @@ var _ caddyhttp.MiddlewareHandler = (*Handler)(nil)
 
 This module needs its own `go.mod` since it's a Caddy plugin compiled via xcaddy.
 
-- [ ] **Step 4: Initialize Go module**
+- [x] **Step 4: Initialize Go module**
 
 ```bash
 cd packages/plugins/rioku-vars
@@ -531,12 +531,12 @@ go mod init github.com/riokulabs/rioku/plugins/rioku-vars
 go get github.com/caddyserver/caddy/v2
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `cd packages/plugins/rioku-vars && go test -v -count=1 ./...`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/plugins/rioku-vars/
@@ -553,18 +553,18 @@ git commit -m "feat(caddy): rioku_vars handler module sets route/service context
 
 Inject `rioku_vars` handler before `reverse_proxy` in every route. Configure a named Caddy logger that writes structured JSON to the unixgram socket with custom fields.
 
-- [ ] **Step 1: Write compiler tests for new behavior**
+- [x] **Step 1: Write compiler tests for new behavior**
 
 Add tests to `compiler_test.go`:
 - `TestCompile_InjectsRiokuVars` — compile a route, verify the handler chain has `rioku_vars` before `reverse_proxy` in the output JSON
 - `TestCompile_ConfiguresTraceLogger` — compile a full config, verify the top-level `logging` block includes a named logger `rioku.trace` with a `net` writer targeting the socket path, and custom fields for rioku_route_id and rioku_service_id
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/daemon && go test -v -count=1 ./internal/caddy/ -run TestCompile_Injects`
 Expected: FAIL (new behavior not implemented).
 
-- [ ] **Step 3: Modify compiler**
+- [x] **Step 3: Modify compiler**
 
 In `compiler.go`:
 
@@ -608,12 +608,12 @@ server["logs"] = map[string]any{
 
 Add `traceSocketPath` field to `Compiler` struct. Pass it from `NewCompiler()`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/daemon && go test -v -count=1 ./internal/caddy/`
 Expected: All PASS (existing + new tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/caddy/compiler.go packages/daemon/internal/caddy/compiler_test.go
@@ -633,7 +633,7 @@ git commit -m "feat(caddy): compiler injects rioku_vars handler and trace logger
 
 Connect all the components in the daemon's `Start()` and `Stop()` methods.
 
-- [ ] **Step 1: Add missing config fields**
+- [x] **Step 1: Add missing config fields**
 
 In `config/file.go`, update `TracesConfig`:
 - Add `BufferSize int` with `yaml:"buffer_size"` — default 10000
@@ -645,7 +645,7 @@ Update `TracesSampling`:
 
 Update `Default()` and `applyDefaults()` with new defaults.
 
-- [ ] **Step 2: Update grpc/server.go**
+- [x] **Step 2: Update grpc/server.go**
 
 - Add `trafficSvc` field to `Server` struct
 - Add `tracestore.RingBuffer` and `tracestore.Driver` parameters to `NewServer`
@@ -654,7 +654,7 @@ Update `Default()` and `applyDefaults()` with new defaults.
 - Add accessor: `func (s *Server) TrafficService() riokuv1.TrafficServiceServer`
 - Store `trafficSvc` in struct
 
-- [ ] **Step 3: Update gateway/gateway.go**
+- [x] **Step 3: Update gateway/gateway.go**
 
 - Add `tracestore.RingBuffer` parameter to `NewGateway`
 - Register traffic service handler:
@@ -665,7 +665,7 @@ Update `Default()` and `applyDefaults()` with new defaults.
   ```
 - Pass ring buffer to `RegisterSSERoutes`
 
-- [ ] **Step 4: Update gateway/stub_routes.go**
+- [x] **Step 4: Update gateway/stub_routes.go**
 
 Remove the two traffic stub routes (lines 19-20):
 ```go
@@ -674,7 +674,7 @@ mux.HandleFunc("GET /api/v1/traffic/analytics", handleStubEmptyObject())
 mux.HandleFunc("GET /api/v1/traffic/ai", handleStubEmptyObject())
 ```
 
-- [ ] **Step 5: Update daemon.go Start() and Stop()**
+- [x] **Step 5: Update daemon.go Start() and Stop()**
 
 In `Start()`, after opening the main store and before starting Caddy:
 ```go
@@ -721,16 +721,16 @@ if d.traceStore != nil { _ = d.traceStore.Close() }
 
 Add new fields to `Daemon` struct: `traceStore`, `ringBuffer`, `ingester`, `aggregator`.
 
-- [ ] **Step 6: Start pruning goroutine**
+- [x] **Step 6: Start pruning goroutine**
 
 Add a background goroutine in `Start()` that runs `d.traceStore.Prune()` every hour with retention durations from config.
 
-- [ ] **Step 7: Verify full compilation**
+- [x] **Step 7: Verify full compilation**
 
 Run: `cd packages/daemon && go vet ./...`
 Expected: Clean.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/daemon/internal/daemon/daemon.go packages/daemon/internal/grpc/server.go \
@@ -748,7 +748,7 @@ git commit -m "feat: wire TrafficService into daemon lifecycle"
 
 Add a test that validates the full trace pipeline: daemon start -> create route -> send traffic -> verify traces appear in ring buffer and TraceStore.
 
-- [ ] **Step 1: Write integration test**
+- [x] **Step 1: Write integration test**
 
 Add `TestTrafficTracing` to `integration_test.go`:
 1. Start daemon (same pattern as `TestFullProxyFlow`)
@@ -760,17 +760,17 @@ Add `TestTrafficTracing` to `integration_test.go`:
 7. Query `GET /api/v1/traffic/stats` — verify stats buckets have non-zero counts
 8. Verify response includes the correct route_id and service_id
 
-- [ ] **Step 2: Run integration test**
+- [x] **Step 2: Run integration test**
 
 Run: `cd packages/daemon && go test -tags integration -run TestTrafficTracing -v -count=1 -timeout 60s ./internal/daemon/`
 Expected: PASS.
 
-- [ ] **Step 3: Run full test suite**
+- [x] **Step 3: Run full test suite**
 
 Run: `cd /home/dmehaffy/Documents/RiokuLabs/rioku && make test-race`
 Expected: All PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/daemon/internal/daemon/integration_test.go
@@ -788,7 +788,7 @@ git commit -m "test: integration test for full trace pipeline"
 
 Following the project's established `*_bench_test.go` convention (see `compiler_bench_test.go`, `gateway_bench_test.go`, `auth_bench_test.go`).
 
-- [ ] **Step 1: Write ring buffer benchmarks**
+- [x] **Step 1: Write ring buffer benchmarks**
 
 Create `ringbuffer_bench_test.go`:
 - `BenchmarkRingBufferPush` — single goroutine push, measure ns/op and allocs. Target: >100K ops/sec.
@@ -798,7 +798,7 @@ Create `ringbuffer_bench_test.go`:
 
 Each benchmark creates a buffer with capacity 10,000 and uses realistic `*riokuv1.RequestTrace` protos.
 
-- [ ] **Step 2: Write SQLite driver benchmarks**
+- [x] **Step 2: Write SQLite driver benchmarks**
 
 Create `sqlite_bench_test.go`:
 - `BenchmarkSQLiteWriteBatch_100` — batch insert 100 traces per op. Target: >10K traces/sec.
@@ -810,19 +810,19 @@ Create `sqlite_bench_test.go`:
 
 Benchmarks use `b.StopTimer()`/`b.StartTimer()` around setup to isolate measured work.
 
-- [ ] **Step 3: Write aggregator benchmarks**
+- [x] **Step 3: Write aggregator benchmarks**
 
 Create `aggregator_bench_test.go`:
 - `BenchmarkComputeStatsBucket` — compute stats from 10K traces (percentile calculation). Target: <10ms.
 - `BenchmarkComputeRouteBuckets` — compute route buckets from 10K traces across 50 routes.
 - `BenchmarkAggregatorCycle` — full cycle (snapshot + compute all buckets + write to SQLite). Target: <100ms.
 
-- [ ] **Step 4: Run all benchmarks**
+- [x] **Step 4: Run all benchmarks**
 
 Run: `cd packages/daemon && go test -bench=. -benchmem -count=3 ./internal/tracestore/... 2>&1 | tee bench-trace.txt`
 Expected: All benchmarks complete. Review ns/op and allocs/op against targets.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/daemon/internal/tracestore/ringbuffer_bench_test.go \
@@ -839,7 +839,7 @@ git commit -m "bench(tracestore): ring buffer, SQLite, and aggregator benchmarks
 - Create: `contrib-docs/operations/trace-storage.md`
 - Modify: `contrib-docs/design/architecture.md`
 
-- [ ] **Step 1: Create operational guide**
+- [x] **Step 1: Create operational guide**
 
 Create `contrib-docs/operations/trace-storage.md` covering:
 
@@ -856,7 +856,7 @@ Create `contrib-docs/operations/trace-storage.md` covering:
 - **Ephemeral infrastructure** — K8s/serverless warnings, required backup config
 - **Troubleshooting** — common issues (disk full, high drop rate, slow queries)
 
-- [ ] **Step 2: Update architecture.md**
+- [x] **Step 2: Update architecture.md**
 
 Add a section for the TrafficService in the architecture doc:
 - Trace capture pipeline (Caddy log -> unixgram -> ingester -> ring buffer -> aggregator -> SQLite)
@@ -865,7 +865,7 @@ Add a section for the TrafficService in the architecture doc:
 - SSE streaming architecture
 - Failure modes summary (reference design spec section 7)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add contrib-docs/operations/trace-storage.md contrib-docs/design/architecture.md
@@ -876,22 +876,22 @@ git commit -m "docs: trace storage operational guide and architecture updates"
 
 ## Task 14: Final Cleanup and Validation
 
-- [ ] **Step 1: Run full test suite with race detector**
+- [x] **Step 1: Run full test suite with race detector**
 
 Run: `cd /home/dmehaffy/Documents/RiokuLabs/rioku && make test-race`
 Expected: All PASS.
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 Run: `cd packages/daemon && go test -tags integration -v -count=1 -timeout 120s ./internal/daemon/`
 Expected: All PASS (TestFullProxyFlow, TestDegradedMode, TestTrafficTracing).
 
-- [ ] **Step 3: Build daemon binary**
+- [x] **Step 3: Build daemon binary**
 
 Run: `make build-daemon`
 Expected: Binary produced at `bin/rioku`.
 
-- [ ] **Step 4: Verify sandbox works**
+- [x] **Step 4: Verify sandbox works**
 
 Run: `SANDBOX_ROOT_PASSWORD=TestRoot1234! make sandbox`
 Verify:
@@ -899,10 +899,10 @@ Verify:
 - Live traffic page shows request stream
 - No errors in daemon log
 
-- [ ] **Step 5: Close related issues**
+- [x] **Step 5: Close related issues**
 
 Comment on #36 and #38 with implementation details. Update #34 progress.
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 Any remaining cleanup or fixes from validation.
