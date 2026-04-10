@@ -91,13 +91,6 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		servers["admin"] = c.buildAdminServer()
 	}
 
-	// Enable Prometheus metrics on all server blocks.
-	for _, srv := range servers {
-		if s, ok := srv.(map[string]any); ok {
-			s["metrics"] = map[string]any{}
-		}
-	}
-
 	// Enable access logging on the traffic server.
 	if c.traceSocketPath != "" {
 		trafficSrv := servers["traffic"].(map[string]any)
@@ -135,6 +128,7 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		"apps": map[string]any{
 			"http": map[string]any{
 				"servers": servers,
+				"metrics": map[string]any{}, // Prometheus metrics at root http level
 			},
 		},
 	}
@@ -189,8 +183,8 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 	// Tracing handler (OTEL) — placed first so the trace ID is available
 	// to all subsequent handlers and logged by the access logger.
 	tracingHandler := map[string]any{
-		"handler":   "tracing",
-		"span_name": "rioku",
+		"handler": "tracing",
+		"span":    "rioku",
 	}
 
 	// Use Caddy's built-in "vars" handler (http.handlers.vars) to set

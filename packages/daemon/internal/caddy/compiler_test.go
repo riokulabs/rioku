@@ -965,27 +965,18 @@ func TestCompile_MetricsEnabled(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	servers := dig(t, cfg, "apps", "http", "servers")
-
-	// Both traffic and admin server blocks must have "metrics": {}.
-	for _, name := range []string{"traffic", "admin"} {
-		srv, ok := servers[name].(map[string]any)
-		if !ok {
-			t.Fatalf("server %q not found", name)
-		}
-		m, ok := srv["metrics"]
-		if !ok {
-			t.Errorf("server %q missing metrics key", name)
-			continue
-		}
-		metrics, ok := m.(map[string]any)
-		if !ok {
-			t.Errorf("server %q metrics is %T, want map", name, m)
-			continue
-		}
-		if len(metrics) != 0 {
-			t.Errorf("server %q metrics = %v, want empty map", name, metrics)
-		}
+	// Metrics must be at the root http app level, not per-server.
+	httpApp := dig(t, cfg, "apps", "http")
+	m, ok := httpApp["metrics"]
+	if !ok {
+		t.Fatal("http app missing metrics key")
+	}
+	metrics, ok := m.(map[string]any)
+	if !ok {
+		t.Fatalf("metrics is %T, want map", m)
+	}
+	if len(metrics) != 0 {
+		t.Errorf("metrics = %v, want empty map", metrics)
 	}
 }
 
@@ -1084,10 +1075,10 @@ func TestCompile_TracingHandler(t *testing.T) {
 		}
 	}
 
-	// Tracing handler must have span_name = "rioku".
+	// Tracing handler must have span = "rioku".
 	tracing := handlers[0].(map[string]any)
-	if tracing["span_name"].(string) != "rioku" {
-		t.Errorf("tracing span_name = %v, want rioku", tracing["span_name"])
+	if tracing["span"].(string) != "rioku" {
+		t.Errorf("tracing span = %v, want rioku", tracing["span"])
 	}
 }
 
