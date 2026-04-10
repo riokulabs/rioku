@@ -61,7 +61,7 @@ func DownloadBinary(destDir string, expectedSHA256 string, progress func(downloa
 
 	// Compute SHA256 hash during download (tee into hasher).
 	hasher := sha256.New()
-	var reader io.Reader = io.TeeReader(resp.Body, hasher)
+	reader := io.TeeReader(resp.Body, hasher)
 	if progress != nil {
 		reader = &progressReader{
 			reader:   reader,
