@@ -117,38 +117,22 @@ def api(method, path, payload=None):
         body = e.read()
         return e.code, json.loads(body) if body else {}
 
-# Create services first.
+# --- Step 1: Create services (with health checks and labels) ---
 for svc in seed.get("services", []):
-    change = {"service": {"action": "UPSERT", "service": {
+    payload = {
         "name":      svc["name"],
         "upstreams": svc["upstreams"],
         "lbPolicy":  svc["lbPolicy"],
-    }}}
+    }
+    if svc.get("healthCheck"):
+        payload["healthCheck"] = svc["healthCheck"]
+    if svc.get("labels"):
+        payload["labels"] = svc["labels"]
+    change = {"service": {"action": "UPSERT", "service": payload}}
     status, resp = api("POST", "/api/v1/config", change)
     print(f"  service {svc['name']}: HTTP {status}")
 
-# Fetch the config to get generated service IDs (the create API doesn't return them).
-_, config_resp = api("GET", "/api/v1/config")
-service_ids = {}
-for svc in config_resp.get("services", []):
-    service_ids[svc["name"]] = svc["id"]
-
-# Create routes, resolving service names to IDs.
-for route in seed.get("routes", []):
-    svc_ref = route.get("serviceRef", "")
-    svc_id  = service_ids.get(svc_ref, "")
-    if not svc_id:
-        print(f"  route {route['name']}: SKIP (service '{svc_ref}' not found)")
-        continue
-    r = {
-        "name":     route["name"],
-        "enabled":  route.get("enabled", True),
-        "matchers": route.get("matchers", []),
-        "serviceId": svc_id,
-    }
-    status, _ = api("POST", "/api/v1/config", {"route": {"action": "UPSERT", "route": r}})
-    print(f"  route {route['name']}: HTTP {status}")
-
+# --- Step 2: Create policies ---
 for pol in seed.get("policies", []):
     status, _ = api("POST", "/api/v1/config", {"policy": {"action": "UPSERT", "policy": {
         "name":   pol["name"],
@@ -156,6 +140,40 @@ for pol in seed.get("policies", []):
         "config": pol.get("config", {}),
     }}})
     print(f"  policy {pol['name']}: HTTP {status}")
+
+# --- Step 3: Fetch generated IDs for services and policies ---
+_, config_resp = api("GET", "/api/v1/config")
+service_ids = {}
+for svc in config_resp.get("services", []):
+    service_ids[svc["name"]] = svc["id"]
+policy_ids = {}
+for pol in config_resp.get("policies", []):
+    policy_ids[pol["name"]] = pol["id"]
+
+# --- Step 4: Create routes with service + policy references ---
+for route in seed.get("routes", []):
+    svc_ref = route.get("serviceRef", "")
+    svc_id  = service_ids.get(svc_ref, "")
+    if not svc_id:
+        print(f"  route {route['name']}: SKIP (service '{svc_ref}' not found)")
+        continue
+    # Resolve policy names to IDs
+    pol_refs = route.get("policyRefs", [])
+    pol_ids = [policy_ids[p] for p in pol_refs if p in policy_ids]
+    missing = [p for p in pol_refs if p not in policy_ids]
+    if missing:
+        print(f"  route {route['name']}: WARN policies not found: {missing}")
+    r = {
+        "name":     route["name"],
+        "enabled":  route.get("enabled", True),
+        "matchers": route.get("matchers", []),
+        "serviceId": svc_id,
+        "policyIds": pol_ids,
+    }
+    if route.get("labels"):
+        r["labels"] = route["labels"]
+    status, _ = api("POST", "/api/v1/config", {"route": {"action": "UPSERT", "route": r}})
+    print(f"  route {route['name']}: HTTP {status} ({len(pol_ids)} policies attached)")
 PYEOF
 
 if (( seed_failed )); then

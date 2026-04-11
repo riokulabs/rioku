@@ -347,8 +347,8 @@ function TrafficAnalytics() {
                         <Area
                           type="monotone"
                           dataKey="requests"
-                          stroke="hsl(var(--primary))"
-                          fill="hsl(var(--primary) / 0.1)"
+                          stroke="#6366f1"
+                          fill="rgba(99, 102, 241, 0.1)"
                           strokeWidth={2}
                         />
                       </AreaChart>
@@ -495,7 +495,7 @@ function TrafficAnalytics() {
                       <RTooltip content={rechartsTooltipAdapter} />
                       <Bar
                         dataKey="count"
-                        fill="hsl(var(--primary))"
+                        fill="#6366f1"
                         radius={[0, 4, 4, 0]}
                       />
                     </BarChart>

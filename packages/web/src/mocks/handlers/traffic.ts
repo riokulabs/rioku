@@ -105,11 +105,11 @@ export const trafficHandlers = [
 
   // Route activity / audit log
   http.get('/api/v1/audit/routes/:routeId', () => {
-    return HttpResponse.json({ entries: mockRouteActivity })
+    return HttpResponse.json(mockRouteActivity)
   }),
 
   // Service activity / audit log
   http.get('/api/v1/audit/services/:serviceId', () => {
-    return HttpResponse.json({ entries: mockServiceActivity })
+    return HttpResponse.json(mockServiceActivity)
   }),
 ]

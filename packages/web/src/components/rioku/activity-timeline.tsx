@@ -1,4 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { apiClient } from '@/lib/api'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 
 interface ActivityEntry {
@@ -39,10 +41,13 @@ function isEntityProps(props: ActivityTimelineProps): props is ActivityTimelineE
 }
 
 function ActivityTimeline(props: ActivityTimelineProps) {
-  // When using entity-based props, activity data will be fetched from the
-  // audit trail once per-entity filtering is available. For now, show the
-  // empty state so the UI is wired up and ready.
-  const entries = isEntityProps(props) ? [] : props.entries
+  const entityQuery = useQuery({
+    queryKey: ['activity', isEntityProps(props) ? props.entityType : '', isEntityProps(props) ? props.entityId : ''],
+    queryFn: () => apiClient.get<ActivityEntry[]>(`/audit/${(props as ActivityTimelineEntityProps).entityType}s/${(props as ActivityTimelineEntityProps).entityId}`),
+    enabled: isEntityProps(props),
+  })
+
+  const entries = isEntityProps(props) ? (entityQuery.data ?? []) : props.entries
   const title = props.title ?? 'Recent Changes'
   return (
     <Card>

@@ -30,21 +30,13 @@ declare module '@tanstack/react-router' {
 }
 
 async function startApp() {
-  const forceMock = import.meta.env.VITE_MOCK === 'true'
-
-  if (forceMock) {
+  // Always start MSW to fill gaps — real API calls pass through,
+  // MSW only handles endpoints that don't exist yet.
+  try {
     const { worker } = await import('./mocks/browser')
     await worker.start({ onUnhandledRequest: 'bypass' })
-  } else {
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 2000)
-      await fetch('/api/v1/health', { signal: controller.signal })
-      clearTimeout(timeout)
-    } catch {
-      const { worker } = await import('./mocks/browser')
-      await worker.start({ onUnhandledRequest: 'bypass' })
-    }
+  } catch {
+    // Service worker may fail in some environments
   }
 
   const root = document.getElementById('root')!

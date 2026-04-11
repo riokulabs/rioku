@@ -290,12 +290,12 @@ function Dashboard() {
                     <linearGradient id="reqGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop
                         offset="0%"
-                        stopColor="hsl(var(--primary))"
+                        stopColor="#6366f1"
                         stopOpacity={0.3}
                       />
                       <stop
                         offset="100%"
-                        stopColor="hsl(var(--primary))"
+                        stopColor="#6366f1"
                         stopOpacity={0}
                       />
                     </linearGradient>
@@ -317,11 +317,11 @@ function Dashboard() {
                     axisLine={false}
                     tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
                   />
-                  <Tooltip />
+                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
                   <Area
                     type="monotone"
                     dataKey="requests"
-                    stroke="hsl(var(--primary))"
+                    stroke="#6366f1"
                     strokeWidth={2}
                     fill="url(#reqGrad)"
                   />
@@ -363,7 +363,7 @@ function Dashboard() {
                     axisLine={false}
                     tickFormatter={(v: number) => `${v}%`}
                   />
-                  <Tooltip />
+                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
                   <Bar
                     dataKey="e4xx"
                     stackId="errors"
@@ -438,7 +438,7 @@ function Dashboard() {
                     axisLine={false}
                     tickFormatter={(v: number) => `${v}ms`}
                   />
-                  <Tooltip />
+                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
                   <Legend
                     verticalAlign="top"
                     align="right"
@@ -449,7 +449,7 @@ function Dashboard() {
                   <Line
                     type="monotone"
                     dataKey="p50"
-                    stroke="hsl(var(--chart-2, 160 60% 45%))"
+                    stroke="#22c55e"
                     strokeWidth={2}
                     dot={false}
                     name="p50"
@@ -457,7 +457,7 @@ function Dashboard() {
                   <Line
                     type="monotone"
                     dataKey="p95"
-                    stroke="hsl(var(--chart-3, 30 80% 55%))"
+                    stroke="#f59e0b"
                     strokeWidth={2}
                     dot={false}
                     name="p95"
@@ -465,7 +465,7 @@ function Dashboard() {
                   <Line
                     type="monotone"
                     dataKey="p99"
-                    stroke="hsl(var(--chart-4, 280 65% 60%))"
+                    stroke="#ef4444"
                     strokeWidth={2}
                     dot={false}
                     name="p99"
@@ -517,10 +517,10 @@ function Dashboard() {
                     axisLine={false}
                     width={130}
                   />
-                  <Tooltip />
+                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
                   <Bar
                     dataKey="requests"
-                    fill="hsl(var(--primary))"
+                    fill="#6366f1"
                     radius={[0, 4, 4, 0]}
                     barSize={16}
                   />

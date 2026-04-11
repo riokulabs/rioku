@@ -78,18 +78,29 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     const unguarded = ['/login', '/change-password']
     if (unguarded.includes(location.pathname)) return
 
-    const res = await fetch('/api/v1/auth/me', { credentials: 'include' })
-    if (!res.ok) {
+    // In mock mode, bypass real auth and use mock session data
+    if (sessionStorage.getItem('rioku-mock-session')) {
+      const { mockMe } = await import('@/mocks/data/users')
+      return { session: mockMe }
+    }
+
+    try {
+      const res = await fetch('/api/v1/auth/me', { credentials: 'include' })
+      if (!res.ok) {
+        throw redirect({ to: '/login' })
+      }
+      const data: MeResponse = await res.json()
+      if (
+        data.user.forcePasswordChange &&
+        location.pathname !== '/change-password'
+      ) {
+        throw redirect({ to: '/change-password' })
+      }
+      return { session: data }
+    } catch (e) {
+      if (e && typeof e === 'object' && 'to' in e) throw e
       throw redirect({ to: '/login' })
     }
-    const data: MeResponse = await res.json()
-    if (
-      data.user.forcePasswordChange &&
-      location.pathname !== '/change-password'
-    ) {
-      throw redirect({ to: '/change-password' })
-    }
-    return { session: data }
   },
   component: RootLayout,
 })
@@ -152,7 +163,7 @@ function AppShell() {
       <SidebarInset>
         <Header onOpenCommandPalette={openCommandPalette} />
         <ConnectionIndicator />
-        <div id="main-content" tabIndex={-1} className="flex-1 overflow-auto p-4">
+        <div id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 min-h-0">
           <Outlet />
         </div>
       </SidebarInset>

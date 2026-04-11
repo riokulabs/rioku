@@ -1,8 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { apiClient } from '@/lib/api'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -68,11 +70,14 @@ function StatusColor({ status }: { status: number }) {
 }
 
 function TrafficTab(props: TrafficTabProps) {
-  // When using entity-based props, traffic data will be fetched from the
-  // TrafficService once per-entity filtering is available. For now, show
-  // the loading/empty state so the UI is wired up and ready.
-  const data = isEntityProps(props) ? null : props.data
-  const isLoading = isEntityProps(props) ? false : (props.isLoading ?? false)
+  const entityQuery = useQuery({
+    queryKey: ['traffic', isEntityProps(props) ? props.entityType : '', isEntityProps(props) ? props.entityId : ''],
+    queryFn: () => apiClient.get<TrafficTabData>(`/traffic/${(props as TrafficTabEntityProps).entityType}s/${(props as TrafficTabEntityProps).entityId}`),
+    enabled: isEntityProps(props),
+  })
+
+  const data = isEntityProps(props) ? (entityQuery.data ?? null) : props.data
+  const isLoading = isEntityProps(props) ? entityQuery.isLoading : (props.isLoading ?? false)
 
   if (isLoading || !data) {
     return (
@@ -146,8 +151,8 @@ function TrafficTab(props: TrafficTabProps) {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="time" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} interval={7} />
                 <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="rps" fill="hsl(var(--primary))" opacity={0.5} radius={[2, 2, 0, 0]} name="RPS" />
+                <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                <Bar dataKey="rps" fill="#6366f1" radius={[2, 2, 0, 0]} name="RPS" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -164,10 +169,10 @@ function TrafficTab(props: TrafficTabProps) {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="time" hide />
                 <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="4xx" stackId="errors" fill="#f59e0b" opacity={0.8} name="4xx" />
-                <Bar dataKey="5xx" stackId="errors" fill="hsl(var(--destructive))" opacity={0.8} radius={[2, 2, 0, 0]} name="5xx" />
+                <Bar dataKey="5xx" stackId="errors" fill="#ef4444" radius={[2, 2, 0, 0]} name="5xx" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

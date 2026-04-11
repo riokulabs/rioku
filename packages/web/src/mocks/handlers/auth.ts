@@ -10,10 +10,14 @@ const userSessions = { ...mockUserSessions }
 export const authHandlers = [
   http.post('/api/v1/auth/login', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
-    if (body.username === 'admin' || body.password) {
+    if (body.username || body.password) {
       return HttpResponse.json({
         token: 'mock-jwt-token',
         user: mockMe.user,
+      }, {
+        headers: {
+          'Set-Cookie': 'rioku_session=mock-session-token; Path=/; SameSite=Lax',
+        },
       })
     }
     return HttpResponse.json(

@@ -74,6 +74,10 @@ function LoginPage() {
         return
       }
 
+      // In mock mode, set session flag for auth bypass
+      if (import.meta.env.VITE_MOCK === 'true') {
+        sessionStorage.setItem('rioku-mock-session', 'true')
+      }
       // Root beforeLoad will handle forcePasswordChange redirect
       await navigate({ to: '/' })
     } finally {
