@@ -7,7 +7,12 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 export default defineConfig({
   plugins: [TanStackRouterVite(), tailwindcss(), react()],
   build: { outDir: 'build', emptyOutDir: true },
-  resolve: { alias: { '@': resolve(__dirname, 'src') } },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '@rioku/ui': resolve(__dirname, '../ui/src'),
+    },
+  },
   server: {
     port: 5173,
     proxy: {

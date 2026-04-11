@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import {
   createRootRouteWithContext,
   ErrorComponent,
+  Link,
   Outlet,
   redirect,
   useRouterState,
@@ -11,12 +12,15 @@ import type { QueryClient } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { Header } from '@/components/layout/header'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { KeyboardShortcutHelp } from '@/components/layout/keyboard-shortcut-help'
+import { ConnectionIndicator } from '@/components/rioku/connection-indicator'
 import { useHotkey } from '@/hooks/use-hotkeys'
 import { useTheme } from '@/hooks/use-theme'
+import { useFocusOnNavigate } from '@/hooks/use-focus-on-navigate'
 import type { MeResponse } from '@/lib/api'
 
 interface RouterContext {
@@ -50,8 +54,25 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
   )
 }
 
+/** Exported for testing — used as notFoundComponent on the root route. */
+export function NotFound() {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+      <div className="text-6xl font-bold text-muted-foreground/30">404</div>
+      <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
+      <p className="max-w-md text-sm text-muted-foreground">
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+      </p>
+      <Button variant="outline" render={<Link to="/" />}>
+        Go to Dashboard
+      </Button>
+    </div>
+  )
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
   errorComponent: RootErrorComponent,
+  notFoundComponent: NotFound,
   beforeLoad: async ({ location }) => {
     const unguarded = ['/login', '/change-password']
     if (unguarded.includes(location.pathname)) return
@@ -90,6 +111,12 @@ function RootLayout() {
   return (
     <TooltipProvider>
       <SidebarProvider>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-medium"
+        >
+          Skip to main content
+        </a>
         <AppShell />
         <Toaster position="bottom-right" richColors />
       </SidebarProvider>
@@ -102,6 +129,7 @@ function AppShell() {
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const { toggleSidebar } = useSidebar()
   const { resolvedTheme, setTheme } = useTheme()
+  useFocusOnNavigate()
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), [])
   const toggleShortcutHelp = useCallback(
@@ -122,7 +150,8 @@ function AppShell() {
       <AppSidebar />
       <SidebarInset>
         <Header onOpenCommandPalette={openCommandPalette} />
-        <div className="flex-1 overflow-auto p-4">
+        <ConnectionIndicator />
+        <div id="main-content" tabIndex={-1} className="flex-1 overflow-auto p-4">
           <Outlet />
         </div>
       </SidebarInset>

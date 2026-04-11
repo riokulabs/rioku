@@ -10,12 +10,15 @@ import {
   Sparkles,
   Network,
   Puzzle,
-  Lock,
+  ShieldCheck,
   Settings,
   User as UserIcon,
   LogOut as LogOutIcon,
   Users as UsersIcon,
-  Shield as ShieldIcon,
+  KeyRound,
+  ShieldAlert,
+  ScrollText,
+  ChevronsUpDown,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -31,8 +34,13 @@ import {
   SidebarSeparator,
   useSidebar,
 } from '@/components/ui/sidebar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Separator } from '@/components/ui/separator'
 import { Slot } from '@/components/plugin/slot'
-import { Button } from '@/components/ui/button'
 import { useCurrentUser, useHasPermission } from '@/hooks/use-auth'
 import type { LucideIcon } from 'lucide-react'
 
@@ -75,15 +83,17 @@ const navSections: NavSection[] = [
     titleKey: 'nav.infrastructure',
     items: [
       { label: 'nav.cluster', path: '/cluster', icon: Network },
+      { label: 'nav.certificates', path: '/certificates', icon: ShieldCheck },
       { label: 'nav.plugins', path: '/plugins', icon: Puzzle },
     ],
   },
   {
     titleKey: 'nav.security',
     items: [
-      { label: 'nav.security', path: '/security', icon: Lock },
-      { label: 'nav.users', path: '/settings/users', icon: UsersIcon, permission: 'users:read' },
-      { label: 'nav.roles', path: '/settings/roles', icon: ShieldIcon, permission: 'roles:read' },
+      { label: 'nav.usersAndRoles', path: '/settings/users', icon: UsersIcon, permission: 'users:read' },
+      { label: 'nav.apiKeys', path: '/security/api-keys', icon: KeyRound },
+      { label: 'nav.accessPolicies', path: '/security/access-policies', icon: ShieldAlert },
+      { label: 'nav.auditLog', path: '/security/audit-log', icon: ScrollText },
     ],
   },
 ]
@@ -140,7 +150,6 @@ function AppSidebar() {
   const currentPath = routerState.location.pathname
   const currentUser = useCurrentUser()
   const canViewUsers = useHasPermission('users:read')
-  const canViewRoles = useHasPermission('roles:read')
 
   async function handleLogout() {
     await fetch('/api/v1/auth/logout', {
@@ -153,7 +162,6 @@ function AppSidebar() {
   function shouldShowItem(item: NavItem): boolean {
     if (!item.permission) return true
     if (item.permission === 'users:read') return canViewUsers
-    if (item.permission === 'roles:read') return canViewRoles
     return true
   }
 
@@ -198,38 +206,50 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-          {currentUser && state === 'expanded' && (
-            <SidebarMenuItem>
-              <div className="flex items-center justify-between px-2 py-1.5">
-                <Link to="/settings/profile" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
-                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <UserIcon className="size-3.5" />
-                  </div>
-                  <span className="truncate text-sm font-medium">
-                    {currentUser.displayName ?? currentUser.username}
-                  </span>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleLogout}
-                  title="Log out"
-                >
-                  <LogOutIcon className="size-3.5" />
-                  <span className="sr-only">Log out</span>
-                </Button>
-              </div>
-            </SidebarMenuItem>
-          )}
           <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={isActive('/settings', currentPath)}
-              tooltip={t('nav.settings', 'Settings')}
-              render={<Link to="/settings" />}
-            >
-              <Settings />
-              <span>{t('nav.settings', 'Settings')}</span>
-            </SidebarMenuButton>
+            <Popover>
+              <PopoverTrigger
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                data-testid="user-menu-trigger"
+              >
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <UserIcon className="size-3.5" />
+                </div>
+                {state === 'expanded' && currentUser && (
+                  <>
+                    <span className="truncate flex-1 font-medium">
+                      {currentUser.displayName ?? currentUser.username}
+                    </span>
+                    <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+                  </>
+                )}
+              </PopoverTrigger>
+              <PopoverContent side="top" sideOffset={8} align="start" className="w-56 p-1">
+                <Link
+                  to="/settings/profile"
+                  className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <UserIcon className="size-4" />
+                  <span>{t('nav.profile', 'Profile')}</span>
+                </Link>
+                <Link
+                  to="/settings"
+                  className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <Settings className="size-4" />
+                  <span>{t('nav.settings', 'Settings')}</span>
+                </Link>
+                <Separator className="my-1" />
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <LogOutIcon className="size-4" />
+                  <span>{t('auth.logout', 'Log out')}</span>
+                </button>
+              </PopoverContent>
+            </Popover>
           </SidebarMenuItem>
         </SidebarMenu>
         <Slot zone="sidebar.bottom" />

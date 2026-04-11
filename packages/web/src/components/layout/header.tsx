@@ -1,13 +1,15 @@
-import { useRouterState } from '@tanstack/react-router'
-import { Search, Sun, Moon } from 'lucide-react'
+import { Link, useRouterState } from '@tanstack/react-router'
+import { ChevronRight, Menu, Search, Sun, Moon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Slot } from '@/components/plugin/slot'
 import { useTheme } from '@/hooks/use-theme'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { getModLabel } from '@/hooks/use-hotkeys'
+import { NotificationBell, type Notification } from '@/components/layout/notification-bell'
 
 /** Derive breadcrumb segments from the current route pathname. */
 function useBreadcrumbs(): { label: string; path: string }[] {
@@ -34,6 +36,11 @@ function Header({ onOpenCommandPalette }: HeaderProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const breadcrumbs = useBreadcrumbs()
   const modLabel = getModLabel()
+  const isMobile = useIsMobile()
+  const { setOpenMobile } = useSidebar()
+
+  // Notification state — empty for now, SSE wiring is a later phase
+  const notifications: Notification[] = []
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
@@ -41,18 +48,41 @@ function Header({ onOpenCommandPalette }: HeaderProps) {
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-      <SidebarTrigger className="-ml-1" />
+      {/* Mobile hamburger */}
+      {isMobile && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="-ml-1"
+          onClick={() => setOpenMobile(true)}
+          aria-label="Open menu"
+          data-testid="mobile-hamburger"
+        >
+          <Menu className="size-4" />
+        </Button>
+      )}
+
+      {/* Desktop sidebar trigger — hidden on mobile */}
+      <SidebarTrigger className={isMobile ? 'hidden' : '-ml-1'} />
       <Separator orientation="vertical" className="mr-2 !h-4" />
 
       {/* Breadcrumb */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
         {breadcrumbs.map((crumb, i) => (
           <span key={crumb.path} className="flex items-center gap-1">
-            {i > 0 && <span className="text-muted-foreground/50">/</span>}
+            {i > 0 && (
+              <ChevronRight
+                className="size-3.5 text-muted-foreground/50"
+                aria-hidden="true"
+                data-testid="breadcrumb-chevron"
+              />
+            )}
             {i === breadcrumbs.length - 1 ? (
-              <span className="font-medium text-foreground">{crumb.label}</span>
+              <span className="font-semibold text-foreground">{crumb.label}</span>
             ) : (
-              <span>{crumb.label}</span>
+              <Link to={crumb.path} className="hover:text-foreground transition-colors">
+                {crumb.label}
+              </Link>
             )}
           </span>
         ))}
@@ -81,6 +111,13 @@ function Header({ onOpenCommandPalette }: HeaderProps) {
         </TooltipTrigger>
         <TooltipContent>{t('actions.search', 'Search')} ({modLabel}+K)</TooltipContent>
       </Tooltip>
+
+      {/* Notification bell */}
+      <NotificationBell
+        notifications={notifications}
+        onMarkAllRead={() => {}}
+        onMarkRead={() => {}}
+      />
 
       {/* Theme toggle */}
       <Tooltip>

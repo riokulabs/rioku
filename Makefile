@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -326,6 +326,14 @@ test-web:
 ## test-web-coverage: Run frontend Vitest tests with coverage
 test-web-coverage:
 	cd $(PKG)/web && $(WEB_PATH) npm run test:coverage
+
+## ui-storybook: Run @rioku/ui Storybook at localhost:6006
+ui-storybook:
+	cd $(PKG)/ui && $(WEB_PATH) npx storybook dev -p 6006
+
+## test-ui: Run @rioku/ui Vitest tests
+test-ui:
+	cd $(PKG)/ui && $(WEB_PATH) npx vitest run
 
 ## clean: Remove build artifacts
 clean:

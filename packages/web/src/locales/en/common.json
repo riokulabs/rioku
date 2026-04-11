@@ -86,7 +86,12 @@
     "settings": "Settings",
     "users": "Users",
     "roles": "Roles",
-    "profile": "Profile"
+    "profile": "Profile",
+    "certificates": "Certificates",
+    "usersAndRoles": "Users & Roles",
+    "apiKeys": "API Keys",
+    "accessPolicies": "Access Policies",
+    "auditLog": "Audit Log"
   },
   "time": {
     "justNow": "Just now",

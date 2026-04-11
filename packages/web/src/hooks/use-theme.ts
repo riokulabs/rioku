@@ -1,9 +1,14 @@
-// Theme management hook backed by user preferences.
+// Theme management hook backed by scoped user preferences.
+// Core theme utilities (resolveTheme, applyTheme) are imported from @rioku/ui
+// so they can be shared across packages.
 
 import { useCallback, useEffect, useState } from 'react'
-import { getPreferences, setPreference } from '@/lib/preferences'
-
-type Theme = 'dark' | 'light' | 'system'
+import {
+  resolveTheme,
+  applyTheme,
+  type Theme,
+} from '@rioku/ui'
+import { usePreferences } from '@/hooks/use-preferences'
 
 interface UseThemeReturn {
   theme: Theme
@@ -11,34 +16,32 @@ interface UseThemeReturn {
   resolvedTheme: 'dark' | 'light'
 }
 
-function resolveSystem(): 'dark' | 'light' {
-  if (typeof window === 'undefined') return 'dark'
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function applyTheme(resolved: 'dark' | 'light'): void {
-  const el = document.documentElement
-  if (resolved === 'dark') {
-    el.classList.add('dark')
-  } else {
-    el.classList.remove('dark')
-  }
-}
-
 export function useTheme(): UseThemeReturn {
-  const [theme, setThemeState] = useState<Theme>(() => getPreferences().theme)
+  const [storedTheme, setStoredTheme] = usePreferences<Theme>('theme', 'dark', 'global')
+  const [theme, setThemeState] = useState<Theme>(storedTheme)
   const [resolvedTheme, setResolved] = useState<'dark' | 'light'>(() =>
-    theme === 'system' ? resolveSystem() : theme,
+    resolveTheme(storedTheme),
   )
 
-  // Apply resolved theme to <html> and persist
-  const setTheme = useCallback((t: Theme) => {
-    setThemeState(t)
-    setPreference('theme', t)
-    const resolved = t === 'system' ? resolveSystem() : t
+  // Sync when storedTheme changes (e.g. user switch).
+  useEffect(() => {
+    setThemeState(storedTheme)
+    const resolved = resolveTheme(storedTheme)
     setResolved(resolved)
     applyTheme(resolved)
-  }, [])
+  }, [storedTheme])
+
+  // Apply resolved theme to <html> and persist
+  const setTheme = useCallback(
+    (t: Theme) => {
+      setThemeState(t)
+      setStoredTheme(t)
+      const resolved = resolveTheme(t)
+      setResolved(resolved)
+      applyTheme(resolved)
+    },
+    [setStoredTheme],
+  )
 
   // Apply on mount
   useEffect(() => {

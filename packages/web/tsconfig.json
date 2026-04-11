@@ -14,7 +14,12 @@
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo",
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] },
+    "paths": {
+      "@/*": ["./src/*"],
+      "@rioku/ui": ["../ui/src"],
+      "@rioku/ui/*": ["../ui/src/*"],
+      "@ui/*": ["../ui/src/*"]
+    },
     "ignoreDeprecations": "6.0"
   },
   "include": ["src"],

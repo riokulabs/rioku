@@ -146,6 +146,18 @@
   }
 }
 
+/* Global focus-visible consistency */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
 /* Custom scrollbar */
 @layer base {
   ::-webkit-scrollbar {

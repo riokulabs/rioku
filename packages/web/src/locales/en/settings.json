@@ -1,6 +1,16 @@
 {
   "title": "Settings",
   "subtitle": "Daemon and platform configuration",
+  "nav": {
+    "general": "General",
+    "network": "Network",
+    "tls": "TLS & Certificates",
+    "observability": "Observability",
+    "configStore": "Config Store",
+    "authentication": "Authentication",
+    "pki": "PKI",
+    "dangerZone": "Danger Zone"
+  },
   "sections": {
     "general": "General",
     "store": "Store",
@@ -23,5 +33,14 @@
   "actions": {
     "reset": "Reset",
     "saveChanges": "Save Changes"
+  },
+  "placeholders": {
+    "network": "Network settings — coming in Phase 4.",
+    "tls": "TLS & certificate settings — coming in Phase 4.",
+    "observability": "Observability settings — coming in Phase 4.",
+    "configStore": "Config store settings — coming in Phase 4.",
+    "authentication": "Authentication settings — coming in Phase 4.",
+    "pki": "PKI settings — coming in Phase 4.",
+    "dangerZone": "Destructive operations such as factory reset and data purge will be available here. Coming in Phase 4."
   }
 }

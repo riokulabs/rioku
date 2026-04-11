@@ -23,6 +23,14 @@ import { Route as TrafficAiRouteImport } from './routes/traffic/ai'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
 import { Route as SettingsRolesRouteImport } from './routes/settings/roles'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
+import { Route as SettingsPkiRouteImport } from './routes/settings/pki'
+import { Route as SettingsObservabilityRouteImport } from './routes/settings/observability'
+import { Route as SettingsNetworkRouteImport } from './routes/settings/network'
+import { Route as SettingsGeneralRouteImport } from './routes/settings/general'
+import { Route as SettingsDangerZoneRouteImport } from './routes/settings/danger-zone'
+import { Route as SettingsConfigStoreRouteImport } from './routes/settings/config-store'
+import { Route as SettingsAuthenticationRouteImport } from './routes/settings/authentication'
+import { Route as SettingsTlsRouteImport } from './routes/settings/tls'
 import { Route as ConfigServicesRouteImport } from './routes/config/services'
 import { Route as ConfigRoutesRouteImport } from './routes/config/routes'
 import { Route as ConfigPoliciesRouteImport } from './routes/config/policies'
@@ -97,6 +105,46 @@ const SettingsProfileRoute = SettingsProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsPkiRoute = SettingsPkiRouteImport.update({
+  id: '/pki',
+  path: '/pki',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsObservabilityRoute = SettingsObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsNetworkRoute = SettingsNetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsGeneralRoute = SettingsGeneralRouteImport.update({
+  id: '/general',
+  path: '/general',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsDangerZoneRoute = SettingsDangerZoneRouteImport.update({
+  id: '/danger-zone',
+  path: '/danger-zone',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsConfigStoreRoute = SettingsConfigStoreRouteImport.update({
+  id: '/config-store',
+  path: '/config-store',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAuthenticationRoute = SettingsAuthenticationRouteImport.update({
+  id: '/authentication',
+  path: '/authentication',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsTlsRoute = SettingsTlsRouteImport.update({
+  id: '/tls',
+  path: '/tls',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ConfigServicesRoute = ConfigServicesRouteImport.update({
   id: '/config/services',
   path: '/config/services',
@@ -125,8 +173,16 @@ export interface FileRoutesByFullPath {
   '/config/policies': typeof ConfigPoliciesRoute
   '/config/routes': typeof ConfigRoutesRoute
   '/config/services': typeof ConfigServicesRoute
+  '/settings/authentication': typeof SettingsAuthenticationRoute
+  '/settings/config-store': typeof SettingsConfigStoreRoute
+  '/settings/danger-zone': typeof SettingsDangerZoneRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
+  '/settings/observability': typeof SettingsObservabilityRoute
+  '/settings/pki': typeof SettingsPkiRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/roles': typeof SettingsRolesRoute
+  '/settings/tls': typeof SettingsTlsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/traffic/ai': typeof TrafficAiRoute
   '/traffic/analytics': typeof TrafficAnalyticsRoute
@@ -144,8 +200,16 @@ export interface FileRoutesByTo {
   '/config/policies': typeof ConfigPoliciesRoute
   '/config/routes': typeof ConfigRoutesRoute
   '/config/services': typeof ConfigServicesRoute
+  '/settings/authentication': typeof SettingsAuthenticationRoute
+  '/settings/config-store': typeof SettingsConfigStoreRoute
+  '/settings/danger-zone': typeof SettingsDangerZoneRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
+  '/settings/observability': typeof SettingsObservabilityRoute
+  '/settings/pki': typeof SettingsPkiRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/roles': typeof SettingsRolesRoute
+  '/settings/tls': typeof SettingsTlsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/traffic/ai': typeof TrafficAiRoute
   '/traffic/analytics': typeof TrafficAnalyticsRoute
@@ -164,8 +228,16 @@ export interface FileRoutesById {
   '/config/policies': typeof ConfigPoliciesRoute
   '/config/routes': typeof ConfigRoutesRoute
   '/config/services': typeof ConfigServicesRoute
+  '/settings/authentication': typeof SettingsAuthenticationRoute
+  '/settings/config-store': typeof SettingsConfigStoreRoute
+  '/settings/danger-zone': typeof SettingsDangerZoneRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
+  '/settings/observability': typeof SettingsObservabilityRoute
+  '/settings/pki': typeof SettingsPkiRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/roles': typeof SettingsRolesRoute
+  '/settings/tls': typeof SettingsTlsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/traffic/ai': typeof TrafficAiRoute
   '/traffic/analytics': typeof TrafficAnalyticsRoute
@@ -185,8 +257,16 @@ export interface FileRouteTypes {
     | '/config/policies'
     | '/config/routes'
     | '/config/services'
+    | '/settings/authentication'
+    | '/settings/config-store'
+    | '/settings/danger-zone'
+    | '/settings/general'
+    | '/settings/network'
+    | '/settings/observability'
+    | '/settings/pki'
     | '/settings/profile'
     | '/settings/roles'
+    | '/settings/tls'
     | '/settings/users'
     | '/traffic/ai'
     | '/traffic/analytics'
@@ -204,8 +284,16 @@ export interface FileRouteTypes {
     | '/config/policies'
     | '/config/routes'
     | '/config/services'
+    | '/settings/authentication'
+    | '/settings/config-store'
+    | '/settings/danger-zone'
+    | '/settings/general'
+    | '/settings/network'
+    | '/settings/observability'
+    | '/settings/pki'
     | '/settings/profile'
     | '/settings/roles'
+    | '/settings/tls'
     | '/settings/users'
     | '/traffic/ai'
     | '/traffic/analytics'
@@ -223,8 +311,16 @@ export interface FileRouteTypes {
     | '/config/policies'
     | '/config/routes'
     | '/config/services'
+    | '/settings/authentication'
+    | '/settings/config-store'
+    | '/settings/danger-zone'
+    | '/settings/general'
+    | '/settings/network'
+    | '/settings/observability'
+    | '/settings/pki'
     | '/settings/profile'
     | '/settings/roles'
+    | '/settings/tls'
     | '/settings/users'
     | '/traffic/ai'
     | '/traffic/analytics'
@@ -327,11 +423,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrafficAiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/users': {
-      id: '/settings/users'
-      path: '/users'
-      fullPath: '/settings/users'
-      preLoaderRoute: typeof SettingsUsersRouteImport
+    '/settings/authentication': {
+      id: '/settings/authentication'
+      path: '/authentication'
+      fullPath: '/settings/authentication'
+      preLoaderRoute: typeof SettingsAuthenticationRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/config-store': {
+      id: '/settings/config-store'
+      path: '/config-store'
+      fullPath: '/settings/config-store'
+      preLoaderRoute: typeof SettingsConfigStoreRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/danger-zone': {
+      id: '/settings/danger-zone'
+      path: '/danger-zone'
+      fullPath: '/settings/danger-zone'
+      preLoaderRoute: typeof SettingsDangerZoneRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/general': {
+      id: '/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof SettingsGeneralRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/network': {
+      id: '/settings/network'
+      path: '/network'
+      fullPath: '/settings/network'
+      preLoaderRoute: typeof SettingsNetworkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/observability': {
+      id: '/settings/observability'
+      path: '/observability'
+      fullPath: '/settings/observability'
+      preLoaderRoute: typeof SettingsObservabilityRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/pki': {
+      id: '/settings/pki'
+      path: '/pki'
+      fullPath: '/settings/pki'
+      preLoaderRoute: typeof SettingsPkiRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/roles': {
@@ -341,11 +486,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRolesRouteImport
       parentRoute: typeof SettingsRoute
     }
-    '/settings/profile': {
-      id: '/settings/profile'
-      path: '/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof SettingsProfileRouteImport
+    '/settings/tls': {
+      id: '/settings/tls'
+      path: '/tls'
+      fullPath: '/settings/tls'
+      preLoaderRoute: typeof SettingsTlsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/users': {
+      id: '/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof SettingsUsersRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/config/services': {
@@ -373,14 +525,30 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsAuthenticationRoute: typeof SettingsAuthenticationRoute
+  SettingsConfigStoreRoute: typeof SettingsConfigStoreRoute
+  SettingsDangerZoneRoute: typeof SettingsDangerZoneRoute
+  SettingsGeneralRoute: typeof SettingsGeneralRoute
+  SettingsNetworkRoute: typeof SettingsNetworkRoute
+  SettingsObservabilityRoute: typeof SettingsObservabilityRoute
+  SettingsPkiRoute: typeof SettingsPkiRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsRolesRoute: typeof SettingsRolesRoute
+  SettingsTlsRoute: typeof SettingsTlsRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAuthenticationRoute: SettingsAuthenticationRoute,
+  SettingsConfigStoreRoute: SettingsConfigStoreRoute,
+  SettingsDangerZoneRoute: SettingsDangerZoneRoute,
+  SettingsGeneralRoute: SettingsGeneralRoute,
+  SettingsNetworkRoute: SettingsNetworkRoute,
+  SettingsObservabilityRoute: SettingsObservabilityRoute,
+  SettingsPkiRoute: SettingsPkiRoute,
   SettingsProfileRoute: SettingsProfileRoute,
   SettingsRolesRoute: SettingsRolesRoute,
+  SettingsTlsRoute: SettingsTlsRoute,
   SettingsUsersRoute: SettingsUsersRoute,
 }
 
