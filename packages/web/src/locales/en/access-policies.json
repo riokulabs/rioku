@@ -1,0 +1,27 @@
+{
+  "title": "Access Policies",
+  "subtitle": "Conditional access rules beyond role permissions",
+  "list": {
+    "createPolicy": "Create access policy",
+    "searchPlaceholder": "Search access policies..."
+  },
+  "detail": {
+    "backToList": "Back to access policies",
+    "conditions": "Conditions",
+    "target": "Target",
+    "effect": "Effect"
+  },
+  "conditionTypes": {
+    "time": "Time window",
+    "ip": "IP range",
+    "mfa": "MFA required",
+    "geo": "Geolocation",
+    "device": "Device type",
+    "custom": "Custom (CEL)"
+  },
+  "messages": {
+    "created": "Access policy created",
+    "updated": "Access policy updated",
+    "deleted": "Access policy deleted"
+  }
+}

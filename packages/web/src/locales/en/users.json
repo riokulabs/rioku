@@ -1,0 +1,39 @@
+{
+  "title": "Users & Access",
+  "subtitle": "Manage user accounts, roles, and access policies",
+  "list": {
+    "createUser": "Create user",
+    "searchPlaceholder": "Search users..."
+  },
+  "detail": {
+    "backToList": "Back to users",
+    "identityCard": "Identity",
+    "rolesCard": "Roles",
+    "securityCard": "Security",
+    "effectivePermissions": "Effective permissions",
+    "dangerZone": "Danger zone",
+    "deleteUser": "Delete user",
+    "deleteConfirmation": "Type the username to confirm deletion.",
+    "changePassword": "Change password",
+    "enableMfa": "Enable MFA",
+    "disableMfa": "Disable MFA",
+    "revokeSession": "Revoke",
+    "revokeAllSessions": "Revoke all other sessions",
+    "permissionSummary": "{{count}} permission across {{resources}} resources",
+    "permissionSummary_plural": "{{count}} permissions across {{resources}} resources",
+    "cancelEdit": "Cancel"
+  },
+  "status": {
+    "active": "Active",
+    "suspended": "Suspended",
+    "locked": "Locked"
+  },
+  "messages": {
+    "userCreated": "User created",
+    "userUpdated": "User updated",
+    "userDeleted": "User deleted",
+    "roleSaved": "Roles updated",
+    "passwordChanged": "Password changed",
+    "sessionRevoked": "Session revoked"
+  }
+}

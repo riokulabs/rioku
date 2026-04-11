@@ -24,5 +24,33 @@
   "empty": {
     "noPolicies": "No policies configured",
     "noPoliciesDesc": "Create a policy to apply rate limits, authentication, or other middleware."
+  },
+  "list": {
+    "noRoutes": "No routes",
+    "routeCount": "{{count}} route",
+    "routeCount_plural": "{{count}} routes"
+  },
+  "detail": {
+    "backToList": "Back to policies",
+    "configuration": "Configuration",
+    "attachedRoutes": "Attached routes",
+    "activity": "Activity",
+    "editConfig": "Edit",
+    "cancelEdit": "Cancel",
+    "saveConfig": "Save",
+    "codeMode": "Code",
+    "dangerZone": "Danger zone",
+    "deletePolicy": "Delete policy"
+  },
+  "create": {
+    "title": "Create policy",
+    "backToList": "Back to policies",
+    "selectType": "Select policy type",
+    "selectTypeDesc": "Choose the type of policy you want to create.",
+    "policyName": "Policy name",
+    "policyNamePlaceholder": "rate-limit-global",
+    "configuration": "Configuration",
+    "save": "Create policy",
+    "cancel": "Cancel"
   }
 }

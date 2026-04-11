@@ -171,6 +171,59 @@ export interface Role {
   updatedAt: string
 }
 
+// Expanded user model (Phase 3 — some fields need backend)
+export interface ExpandedUser extends UserInfo {
+  firstName?: string | null
+  lastName?: string | null
+  title?: string | null
+  department?: string | null
+  phone?: string | null
+  timezone?: string | null
+  locale?: string | null
+  ssoProvider?: string | null
+  ssoSubject?: string | null
+  loginCount?: number
+  lastLoginIp?: string | null
+}
+
+// Permission rule for granular RBAC
+export interface PermissionRule {
+  id: string
+  resource: string
+  actions: string[]
+  scope: 'all' | 'owned' | 'labeled' | 'specific'
+  scopeValue?: string
+  effect: 'allow' | 'deny'
+}
+
+// Expanded role with hierarchy
+export interface ExpandedRole extends Role {
+  parentRoleIds?: string[]
+  childRoleIds?: string[]
+  memberCount?: number
+  rules?: PermissionRule[]
+}
+
+// Access policy (conditional access rules)
+export interface AccessPolicy {
+  id: string
+  name: string
+  description: string
+  effect: 'allow' | 'deny'
+  targetType: 'roles' | 'users'
+  targetIds: string[]
+  conditions: AccessCondition[]
+  priority: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AccessCondition {
+  type: 'time' | 'ip' | 'mfa' | 'geo' | 'device' | 'custom'
+  config: Record<string, unknown>
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------

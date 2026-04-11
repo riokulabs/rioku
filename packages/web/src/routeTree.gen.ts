@@ -21,7 +21,6 @@ import { Route as TrafficLiveRouteImport } from './routes/traffic/live'
 import { Route as TrafficAnalyticsRouteImport } from './routes/traffic/analytics'
 import { Route as TrafficAiRouteImport } from './routes/traffic/ai'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
-import { Route as SettingsTlsRouteImport } from './routes/settings/tls'
 import { Route as SettingsRolesRouteImport } from './routes/settings/roles'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as SettingsPkiRouteImport } from './routes/settings/pki'
@@ -31,13 +30,10 @@ import { Route as SettingsGeneralRouteImport } from './routes/settings/general'
 import { Route as SettingsDangerZoneRouteImport } from './routes/settings/danger-zone'
 import { Route as SettingsConfigStoreRouteImport } from './routes/settings/config-store'
 import { Route as SettingsAuthenticationRouteImport } from './routes/settings/authentication'
+import { Route as SettingsTlsRouteImport } from './routes/settings/tls'
+import { Route as ConfigServicesRouteImport } from './routes/config/services'
+import { Route as ConfigRoutesRouteImport } from './routes/config/routes'
 import { Route as ConfigPoliciesRouteImport } from './routes/config/policies'
-import { Route as ConfigServicesIndexRouteImport } from './routes/config/services.index'
-import { Route as ConfigRoutesIndexRouteImport } from './routes/config/routes.index'
-import { Route as ConfigServicesCreateRouteImport } from './routes/config/services.create'
-import { Route as ConfigServicesServiceIdRouteImport } from './routes/config/services.$serviceId'
-import { Route as ConfigRoutesCreateRouteImport } from './routes/config/routes.create'
-import { Route as ConfigRoutesRouteIdRouteImport } from './routes/config/routes.$routeId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -99,11 +95,6 @@ const SettingsUsersRoute = SettingsUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => SettingsRoute,
 } as any)
-const SettingsTlsRoute = SettingsTlsRouteImport.update({
-  id: '/tls',
-  path: '/tls',
-  getParentRoute: () => SettingsRoute,
-} as any)
 const SettingsRolesRoute = SettingsRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -149,39 +140,24 @@ const SettingsAuthenticationRoute = SettingsAuthenticationRouteImport.update({
   path: '/authentication',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsTlsRoute = SettingsTlsRouteImport.update({
+  id: '/tls',
+  path: '/tls',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const ConfigServicesRoute = ConfigServicesRouteImport.update({
+  id: '/config/services',
+  path: '/config/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfigRoutesRoute = ConfigRoutesRouteImport.update({
+  id: '/config/routes',
+  path: '/config/routes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConfigPoliciesRoute = ConfigPoliciesRouteImport.update({
   id: '/config/policies',
   path: '/config/policies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigServicesIndexRoute = ConfigServicesIndexRouteImport.update({
-  id: '/config/services/',
-  path: '/config/services/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigRoutesIndexRoute = ConfigRoutesIndexRouteImport.update({
-  id: '/config/routes/',
-  path: '/config/routes/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigServicesCreateRoute = ConfigServicesCreateRouteImport.update({
-  id: '/config/services/create',
-  path: '/config/services/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigServicesServiceIdRoute = ConfigServicesServiceIdRouteImport.update({
-  id: '/config/services/$serviceId',
-  path: '/config/services/$serviceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigRoutesCreateRoute = ConfigRoutesCreateRouteImport.update({
-  id: '/config/routes/create',
-  path: '/config/routes/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigRoutesRouteIdRoute = ConfigRoutesRouteIdRouteImport.update({
-  id: '/config/routes/$routeId',
-  path: '/config/routes/$routeId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -195,6 +171,8 @@ export interface FileRoutesByFullPath {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRouteWithChildren
   '/config/policies': typeof ConfigPoliciesRoute
+  '/config/routes': typeof ConfigRoutesRoute
+  '/config/services': typeof ConfigServicesRoute
   '/settings/authentication': typeof SettingsAuthenticationRoute
   '/settings/config-store': typeof SettingsConfigStoreRoute
   '/settings/danger-zone': typeof SettingsDangerZoneRoute
@@ -209,12 +187,6 @@ export interface FileRoutesByFullPath {
   '/traffic/ai': typeof TrafficAiRoute
   '/traffic/analytics': typeof TrafficAnalyticsRoute
   '/traffic/live': typeof TrafficLiveRoute
-  '/config/routes/$routeId': typeof ConfigRoutesRouteIdRoute
-  '/config/routes/create': typeof ConfigRoutesCreateRoute
-  '/config/services/$serviceId': typeof ConfigServicesServiceIdRoute
-  '/config/services/create': typeof ConfigServicesCreateRoute
-  '/config/routes/': typeof ConfigRoutesIndexRoute
-  '/config/services/': typeof ConfigServicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -226,6 +198,8 @@ export interface FileRoutesByTo {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRouteWithChildren
   '/config/policies': typeof ConfigPoliciesRoute
+  '/config/routes': typeof ConfigRoutesRoute
+  '/config/services': typeof ConfigServicesRoute
   '/settings/authentication': typeof SettingsAuthenticationRoute
   '/settings/config-store': typeof SettingsConfigStoreRoute
   '/settings/danger-zone': typeof SettingsDangerZoneRoute
@@ -240,12 +214,6 @@ export interface FileRoutesByTo {
   '/traffic/ai': typeof TrafficAiRoute
   '/traffic/analytics': typeof TrafficAnalyticsRoute
   '/traffic/live': typeof TrafficLiveRoute
-  '/config/routes/$routeId': typeof ConfigRoutesRouteIdRoute
-  '/config/routes/create': typeof ConfigRoutesCreateRoute
-  '/config/services/$serviceId': typeof ConfigServicesServiceIdRoute
-  '/config/services/create': typeof ConfigServicesCreateRoute
-  '/config/routes': typeof ConfigRoutesIndexRoute
-  '/config/services': typeof ConfigServicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -258,6 +226,8 @@ export interface FileRoutesById {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRouteWithChildren
   '/config/policies': typeof ConfigPoliciesRoute
+  '/config/routes': typeof ConfigRoutesRoute
+  '/config/services': typeof ConfigServicesRoute
   '/settings/authentication': typeof SettingsAuthenticationRoute
   '/settings/config-store': typeof SettingsConfigStoreRoute
   '/settings/danger-zone': typeof SettingsDangerZoneRoute
@@ -272,12 +242,6 @@ export interface FileRoutesById {
   '/traffic/ai': typeof TrafficAiRoute
   '/traffic/analytics': typeof TrafficAnalyticsRoute
   '/traffic/live': typeof TrafficLiveRoute
-  '/config/routes/$routeId': typeof ConfigRoutesRouteIdRoute
-  '/config/routes/create': typeof ConfigRoutesCreateRoute
-  '/config/services/$serviceId': typeof ConfigServicesServiceIdRoute
-  '/config/services/create': typeof ConfigServicesCreateRoute
-  '/config/routes/': typeof ConfigRoutesIndexRoute
-  '/config/services/': typeof ConfigServicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -291,6 +255,8 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/config/policies'
+    | '/config/routes'
+    | '/config/services'
     | '/settings/authentication'
     | '/settings/config-store'
     | '/settings/danger-zone'
@@ -305,12 +271,6 @@ export interface FileRouteTypes {
     | '/traffic/ai'
     | '/traffic/analytics'
     | '/traffic/live'
-    | '/config/routes/$routeId'
-    | '/config/routes/create'
-    | '/config/services/$serviceId'
-    | '/config/services/create'
-    | '/config/routes/'
-    | '/config/services/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -322,6 +282,8 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/config/policies'
+    | '/config/routes'
+    | '/config/services'
     | '/settings/authentication'
     | '/settings/config-store'
     | '/settings/danger-zone'
@@ -336,12 +298,6 @@ export interface FileRouteTypes {
     | '/traffic/ai'
     | '/traffic/analytics'
     | '/traffic/live'
-    | '/config/routes/$routeId'
-    | '/config/routes/create'
-    | '/config/services/$serviceId'
-    | '/config/services/create'
-    | '/config/routes'
-    | '/config/services'
   id:
     | '__root__'
     | '/'
@@ -353,6 +309,8 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/config/policies'
+    | '/config/routes'
+    | '/config/services'
     | '/settings/authentication'
     | '/settings/config-store'
     | '/settings/danger-zone'
@@ -367,12 +325,6 @@ export interface FileRouteTypes {
     | '/traffic/ai'
     | '/traffic/analytics'
     | '/traffic/live'
-    | '/config/routes/$routeId'
-    | '/config/routes/create'
-    | '/config/services/$serviceId'
-    | '/config/services/create'
-    | '/config/routes/'
-    | '/config/services/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -385,15 +337,11 @@ export interface RootRouteChildren {
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ConfigPoliciesRoute: typeof ConfigPoliciesRoute
+  ConfigRoutesRoute: typeof ConfigRoutesRoute
+  ConfigServicesRoute: typeof ConfigServicesRoute
   TrafficAiRoute: typeof TrafficAiRoute
   TrafficAnalyticsRoute: typeof TrafficAnalyticsRoute
   TrafficLiveRoute: typeof TrafficLiveRoute
-  ConfigRoutesRouteIdRoute: typeof ConfigRoutesRouteIdRoute
-  ConfigRoutesCreateRoute: typeof ConfigRoutesCreateRoute
-  ConfigServicesServiceIdRoute: typeof ConfigServicesServiceIdRoute
-  ConfigServicesCreateRoute: typeof ConfigServicesCreateRoute
-  ConfigRoutesIndexRoute: typeof ConfigRoutesIndexRoute
-  ConfigServicesIndexRoute: typeof ConfigServicesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -475,67 +423,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrafficAiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/users': {
-      id: '/settings/users'
-      path: '/users'
-      fullPath: '/settings/users'
-      preLoaderRoute: typeof SettingsUsersRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/tls': {
-      id: '/settings/tls'
-      path: '/tls'
-      fullPath: '/settings/tls'
-      preLoaderRoute: typeof SettingsTlsRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/roles': {
-      id: '/settings/roles'
-      path: '/roles'
-      fullPath: '/settings/roles'
-      preLoaderRoute: typeof SettingsRolesRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/profile': {
-      id: '/settings/profile'
-      path: '/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof SettingsProfileRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/pki': {
-      id: '/settings/pki'
-      path: '/pki'
-      fullPath: '/settings/pki'
-      preLoaderRoute: typeof SettingsPkiRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/observability': {
-      id: '/settings/observability'
-      path: '/observability'
-      fullPath: '/settings/observability'
-      preLoaderRoute: typeof SettingsObservabilityRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/network': {
-      id: '/settings/network'
-      path: '/network'
-      fullPath: '/settings/network'
-      preLoaderRoute: typeof SettingsNetworkRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/general': {
-      id: '/settings/general'
-      path: '/general'
-      fullPath: '/settings/general'
-      preLoaderRoute: typeof SettingsGeneralRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/danger-zone': {
-      id: '/settings/danger-zone'
-      path: '/danger-zone'
-      fullPath: '/settings/danger-zone'
-      preLoaderRoute: typeof SettingsDangerZoneRouteImport
+    '/settings/authentication': {
+      id: '/settings/authentication'
+      path: '/authentication'
+      fullPath: '/settings/authentication'
+      preLoaderRoute: typeof SettingsAuthenticationRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/config-store': {
@@ -545,60 +437,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsConfigStoreRouteImport
       parentRoute: typeof SettingsRoute
     }
-    '/settings/authentication': {
-      id: '/settings/authentication'
-      path: '/authentication'
-      fullPath: '/settings/authentication'
-      preLoaderRoute: typeof SettingsAuthenticationRouteImport
+    '/settings/danger-zone': {
+      id: '/settings/danger-zone'
+      path: '/danger-zone'
+      fullPath: '/settings/danger-zone'
+      preLoaderRoute: typeof SettingsDangerZoneRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/settings/general': {
+      id: '/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof SettingsGeneralRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/network': {
+      id: '/settings/network'
+      path: '/network'
+      fullPath: '/settings/network'
+      preLoaderRoute: typeof SettingsNetworkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/observability': {
+      id: '/settings/observability'
+      path: '/observability'
+      fullPath: '/settings/observability'
+      preLoaderRoute: typeof SettingsObservabilityRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/pki': {
+      id: '/settings/pki'
+      path: '/pki'
+      fullPath: '/settings/pki'
+      preLoaderRoute: typeof SettingsPkiRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/roles': {
+      id: '/settings/roles'
+      path: '/roles'
+      fullPath: '/settings/roles'
+      preLoaderRoute: typeof SettingsRolesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/tls': {
+      id: '/settings/tls'
+      path: '/tls'
+      fullPath: '/settings/tls'
+      preLoaderRoute: typeof SettingsTlsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/users': {
+      id: '/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof SettingsUsersRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/config/services': {
+      id: '/config/services'
+      path: '/config/services'
+      fullPath: '/config/services'
+      preLoaderRoute: typeof ConfigServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/config/routes': {
+      id: '/config/routes'
+      path: '/config/routes'
+      fullPath: '/config/routes'
+      preLoaderRoute: typeof ConfigRoutesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/config/policies': {
       id: '/config/policies'
       path: '/config/policies'
       fullPath: '/config/policies'
       preLoaderRoute: typeof ConfigPoliciesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config/services/': {
-      id: '/config/services/'
-      path: '/config/services'
-      fullPath: '/config/services/'
-      preLoaderRoute: typeof ConfigServicesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config/routes/': {
-      id: '/config/routes/'
-      path: '/config/routes'
-      fullPath: '/config/routes/'
-      preLoaderRoute: typeof ConfigRoutesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config/services/create': {
-      id: '/config/services/create'
-      path: '/config/services/create'
-      fullPath: '/config/services/create'
-      preLoaderRoute: typeof ConfigServicesCreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config/services/$serviceId': {
-      id: '/config/services/$serviceId'
-      path: '/config/services/$serviceId'
-      fullPath: '/config/services/$serviceId'
-      preLoaderRoute: typeof ConfigServicesServiceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config/routes/create': {
-      id: '/config/routes/create'
-      path: '/config/routes/create'
-      fullPath: '/config/routes/create'
-      preLoaderRoute: typeof ConfigRoutesCreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config/routes/$routeId': {
-      id: '/config/routes/$routeId'
-      path: '/config/routes/$routeId'
-      fullPath: '/config/routes/$routeId'
-      preLoaderRoute: typeof ConfigRoutesRouteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -646,15 +566,11 @@ const rootRouteChildren: RootRouteChildren = {
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ConfigPoliciesRoute: ConfigPoliciesRoute,
+  ConfigRoutesRoute: ConfigRoutesRoute,
+  ConfigServicesRoute: ConfigServicesRoute,
   TrafficAiRoute: TrafficAiRoute,
   TrafficAnalyticsRoute: TrafficAnalyticsRoute,
   TrafficLiveRoute: TrafficLiveRoute,
-  ConfigRoutesRouteIdRoute: ConfigRoutesRouteIdRoute,
-  ConfigRoutesCreateRoute: ConfigRoutesCreateRoute,
-  ConfigServicesServiceIdRoute: ConfigServicesServiceIdRoute,
-  ConfigServicesCreateRoute: ConfigServicesCreateRoute,
-  ConfigRoutesIndexRoute: ConfigRoutesIndexRoute,
-  ConfigServicesIndexRoute: ConfigServicesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
