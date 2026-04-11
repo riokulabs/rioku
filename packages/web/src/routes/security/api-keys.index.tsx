@@ -50,7 +50,10 @@ export const Route = createFileRoute('/security/api-keys/')({
   loader: ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ['api-keys'],
-      queryFn: () => apiClient.get<ApiKey[]>('/auth/keys'),
+      queryFn: async () => {
+        const data = await apiClient.get<ApiKey[] | null>('/keys')
+        return data ?? []
+      },
     }),
   component: ApiKeysListPage,
 })

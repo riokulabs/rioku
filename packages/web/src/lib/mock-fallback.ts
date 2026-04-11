@@ -9,7 +9,10 @@ import { generateDashboardData, generateEntityTrafficChart, generateEntityErrorC
 import { mockNodes } from '@/mocks/data/nodes'
 import { mockCertificates } from '@/mocks/data/certificates'
 import { mockGeneralSettings, mockNetworkSettings, mockTlsSettings, mockObservabilitySettings, mockAuthSettings, mockConfigStoreSettings, mockPkiSettings } from '@/mocks/data/settings'
-import { mockSession } from '@/mocks/data/users'
+import { mockUsers, mockRoles, mockSession, mockMe, mockExpandedRoles } from '@/mocks/data/users'
+import { mockPlugins } from '@/mocks/data/plugins'
+import { mockAccessPolicies } from '@/mocks/data/access-policies'
+import { mockApiKeys } from '@/mocks/data/api-keys'
 
 const entityTraffic = (rps: number, rpsDelta: string) => ({
   rps,
@@ -31,7 +34,7 @@ export function getFallbackData(
 ): unknown | undefined {
   const range = (params?.range as '1h' | '6h' | '24h' | '7d' | '30d') ?? '24h'
 
-  // Traffic / dashboard
+  // ---- Traffic / Dashboard ----
   if (path === '/traffic/dashboard') return generateDashboardData(range)
   if (path.startsWith('/traffic/routes/')) return entityTraffic(342, '+5.2%')
   if (path.startsWith('/traffic/services/')) return entityTraffic(189, '+2.1%')
@@ -46,17 +49,24 @@ export function getFallbackData(
     return generateDashboardData('24h')
   }
 
-  // Activity / audit per entity
+  // ---- Activity / Audit per entity ----
   if (path.startsWith('/audit/routes/')) return mockRouteActivity
   if (path.startsWith('/audit/services/')) return mockServiceActivity
 
-  // Cluster
+  // ---- Cluster ----
   if (path === '/cluster' || path === '/cluster/nodes') return { nodes: mockNodes }
 
-  // Certificates
+  // ---- Certificates ----
   if (path === '/certificates') return mockCertificates
 
-  // Settings
+  // ---- Plugins ----
+  if (path === '/plugins') return mockPlugins
+  if (path.startsWith('/plugins/')) {
+    const id = path.split('/').pop()
+    return mockPlugins.find((p: { id: string }) => p.id === id) ?? mockPlugins[0]
+  }
+
+  // ---- Settings ----
   if (path === '/settings/general') return mockGeneralSettings
   if (path === '/settings/network') return mockNetworkSettings
   if (path === '/settings/tls') return mockTlsSettings
@@ -65,9 +75,39 @@ export function getFallbackData(
   if (path === '/settings/config-store') return mockConfigStoreSettings
   if (path === '/settings/pki') return mockPkiSettings
 
-  // Auth sessions
+  // ---- Auth: users, roles, sessions ----
+  if (path === '/auth/users') return mockUsers
+  if (path === '/auth/roles') return mockRoles
+  if (path === '/auth/me') return mockMe
   if (path === '/auth/sessions') return { sessions: [mockSession] }
   if (path.match(/\/auth\/users\/[^/]+\/sessions/)) return { sessions: [] }
+  if (path.match(/\/auth\/roles\/.+/)) {
+    const id = path.split('/').pop()
+    return mockExpandedRoles.find((r: { id: string }) => r.id === id) ?? mockExpandedRoles[0]
+  }
 
+  // ---- Access Policies ----
+  if (path === '/auth/access-policies' || path === '/access-policies') return mockAccessPolicies
+  if (path.startsWith('/auth/access-policies/') || path.startsWith('/access-policies/')) {
+    const id = path.split('/').pop()
+    return mockAccessPolicies.find((p: { id: string }) => p.id === id) ?? mockAccessPolicies[0]
+  }
+
+  // ---- API Keys (individual) ----
+  if (path.match(/\/keys\/[^/]+\/usage/)) {
+    return { requests24h: 1247, requests7d: 8934, requests30d: 34521, lastUsed: '2026-04-11T10:30:00Z' }
+  }
+  if (path.match(/\/keys\/[^/]+\/activity/)) {
+    return [
+      { action: 'Key created', user: 'admin', timestamp: '2026-04-01T10:00:00Z', detail: 'API key generated' },
+      { action: 'Key used', user: 'system', timestamp: '2026-04-11T10:30:00Z', detail: 'Authenticated request from 10.0.1.5' },
+    ]
+  }
+  if (path.match(/\/keys\/.+/) && !path.includes('/usage') && !path.includes('/activity')) {
+    const id = path.split('/').pop()
+    return mockApiKeys.find((k: { id: string }) => k.id === id) ?? mockApiKeys[0]
+  }
+
+  // No fallback available
   return undefined
 }
