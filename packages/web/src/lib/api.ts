@@ -224,6 +224,121 @@ export interface AccessCondition {
   config: Record<string, unknown>
 }
 
+// --- Settings types ---
+
+export interface GeneralSettingsResponse {
+  instanceName: string
+  dataDirectory: string
+  logLevel: string
+  daemonVersion: string
+  caddyVersion: string
+}
+
+export interface NetworkSettingsResponse {
+  trustedProxies: string[]
+  clientIpHeaders: string[]
+  strictMode: boolean
+  listenAddresses: {
+    grpc: string
+    rest: string
+    caddyHttp: string
+    caddyHttps: string
+    admin: string
+  }
+}
+
+export interface CertificateInfo {
+  domain: string
+  issuer: string
+  expiresAt: string
+  status: 'valid' | 'expiring' | 'expired' | 'revoked'
+}
+
+export interface TlsSettingsResponse {
+  acmeProvider: string
+  dnsChallengeProvider: string
+  dnsChallengeCredentials: Record<string, string>
+  onDemandTls: boolean
+  onDemandRateInterval: string
+  onDemandRateBurst: number
+  defaultMinTlsVersion: string
+  certificates: CertificateInfo[]
+}
+
+export interface ObservabilitySettingsResponse {
+  traceSamplingRate: number
+  alwaysTraceErrors: boolean
+  alwaysTraceAi: boolean
+  alwaysTraceSlowRequests: boolean
+  slowRequestThresholdMs: number
+  retentionRawTraces: string
+  retentionAggregatedStats: string
+  retentionAiSessions: string
+  storageBackend: string
+  storageUsedBytes: number
+  storageMaxBytes: number
+  ipMasking: boolean
+  ipMaskPrefixLength: number
+  queryParamRedaction: string[]
+  cookieRedaction: string[]
+  customPiiRegexes: string[]
+  prometheusEnabled: boolean
+  otelExporterEndpoint: string
+}
+
+export interface MigrationInfo {
+  version: number
+  name: string
+  appliedAt: string
+  status: 'applied' | 'pending' | 'failed'
+}
+
+export interface ConfigStoreSettingsResponse {
+  backendType: string
+  connectionInfo: string
+  configVersion: number
+  storeHealth: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'
+  migrations: MigrationInfo[]
+}
+
+export interface AuthSettingsResponse {
+  sessionCookieLifetime: string
+  sessionIdleTimeout: string
+  maxConcurrentSessions: number
+  passwordMinLength: number
+  passwordRequireUppercase: boolean
+  passwordRequireLowercase: boolean
+  passwordRequireNumber: boolean
+  passwordRequireSpecial: boolean
+  passwordMaxAgeDays: number
+  lockoutMaxAttempts: number
+  lockoutDuration: string
+  lockoutResetWindow: string
+  totpIssuerName: string
+  totpEnforceForAll: boolean
+  bruteForceRateLimit: number
+}
+
+export interface RotationHistoryInfo {
+  id: string
+  type: 'ca' | 'node' | 'db-client'
+  rotatedAt: string
+  reason: string
+  actor: string
+}
+
+export interface PkiSettingsResponse {
+  caAlgorithm: string
+  caValidityDays: number
+  caExpiresAt: string
+  caFingerprint: string
+  nodeCertExpiresAt: string
+  nodeCertSans: string[]
+  autoRotationThresholdDays: number
+  dbClientCertStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'
+  rotationHistory: RotationHistoryInfo[]
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
