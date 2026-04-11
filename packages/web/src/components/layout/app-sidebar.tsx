@@ -91,7 +91,6 @@ const navSections: NavSection[] = [
     titleKey: 'nav.security',
     items: [
       { label: 'nav.usersAndRoles', path: '/security/users', icon: UsersIcon, permission: 'users:read' },
-      { label: 'nav.roles', path: '/security/roles', icon: ShieldAlert, permission: 'roles:read' },
       { label: 'nav.apiKeys', path: '/security/api-keys', icon: KeyRound },
       { label: 'nav.accessPolicies', path: '/security/access-policies', icon: ShieldAlert },
       { label: 'nav.auditLog', path: '/security/audit-log', icon: ScrollText },

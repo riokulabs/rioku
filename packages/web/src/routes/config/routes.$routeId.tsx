@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
@@ -64,6 +64,7 @@ function RouteDetailPage() {
   const { t } = useTranslation('routes')
   const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
+  const router = useRouter()
   const { route, services, policies } = Route.useLoaderData()
 
   const { saveMutation, deleteMutation, toggleMutation } = useRouteMutations()
@@ -106,6 +107,7 @@ function RouteDetailPage() {
         toast.success(t('messages.routeUpdated'))
         setIsEditing(false)
         setReviewOpen(false)
+        router.invalidate()
       },
     })
   }
@@ -653,37 +655,34 @@ function RouteDetailPage() {
 
         {/* --- Traffic Tab (NEEDS BACKEND) --- */}
         <TabsContent value="traffic">
-          <NeedsBackendField message="Per-route traffic analytics require TrafficService enrichment">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('detail.traffic')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <Skeleton className="h-20" />
-                    <Skeleton className="h-20" />
-                    <Skeleton className="h-20" />
-                  </div>
-                  <Skeleton className="h-64" />
-                </div>
-              </CardContent>
-            </Card>
-          </NeedsBackendField>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('detail.traffic')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NeedsBackendField message="Per-route traffic analytics require TrafficService enrichment">
+                <p className="text-sm text-muted-foreground">
+                  Request volume, latency percentiles, and error rates for this route will appear here once TrafficService per-route filtering is implemented.
+                </p>
+              </NeedsBackendField>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* --- Activity Tab (NEEDS BACKEND) --- */}
         <TabsContent value="activity">
-          <NeedsBackendField message="Per-entity activity logs require audit trail enrichment">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('detail.activity')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-48" />
-              </CardContent>
-            </Card>
-          </NeedsBackendField>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('detail.activity')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NeedsBackendField message="Per-entity activity logs require audit trail enrichment">
+                <p className="text-sm text-muted-foreground">
+                  Configuration changes and audit events for this route will appear here once per-entity audit filtering is implemented.
+                </p>
+              </NeedsBackendField>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
