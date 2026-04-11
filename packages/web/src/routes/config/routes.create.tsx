@@ -20,6 +20,7 @@ import { useUnsavedWarning } from '@/hooks/use-unsaved-warning'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
+import { WizardStepIndicator } from '@/components/rioku/wizard-step-indicator'
 
 import { SearchableSelect, SearchableMultiSelect } from '@rioku/ui'
 import type { SelectOption } from '@rioku/ui'
@@ -68,6 +69,8 @@ const EMPTY_FORM: RouteFormValues = {
   clientAuth: 'off',
 }
 
+const WIZARD_STEPS = ['Basics', 'Matching', 'Target', 'Policies & TLS', 'Review']
+
 function RouteCreatePage() {
   const { t } = useTranslation('routes')
   const { t: tc } = useTranslation('common')
@@ -78,7 +81,8 @@ function RouteCreatePage() {
 
   const { saveMutation } = useRouteMutations()
 
-  const [mode, setMode] = useState<'form' | 'code'>('form')
+  const [mode, setMode] = useState<'form' | 'wizard' | 'code'>('form')
+  const [wizardStep, setWizardStep] = useState(0)
   const [formValues, setFormValues] = useState<RouteFormValues>(EMPTY_FORM)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basics: true,
@@ -130,36 +134,29 @@ function RouteCreatePage() {
 
       {/* Mode toggle */}
       <div className="flex items-center gap-2">
-        <Button
-          variant={mode === 'form' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => {
-            if (mode === 'code') {
-              // YAML -> form sync
-              const parsed = yamlToRouteForm(yamlContent)
-              setFormValues((prev) => ({ ...prev, ...parsed }))
-            }
-            setMode('form')
-          }}
-        >
-          {t('create.formMode')}
-        </Button>
-        <Button
-          variant={mode === 'code' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => {
-            if (mode === 'form') {
-              // form -> YAML sync
-              setYamlContent(routeFormToYaml(formValues))
-            }
-            setMode('code')
-          }}
-        >
-          {t('create.codeMode')}
-        </Button>
+        {(['form', 'wizard', 'code'] as const).map((m) => (
+          <Button
+            key={m}
+            variant={mode === m ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              if (mode === 'code' && m !== 'code') {
+                const parsed = yamlToRouteForm(yamlContent)
+                setFormValues((prev) => ({ ...prev, ...parsed }))
+              }
+              if (mode !== 'code' && m === 'code') {
+                setYamlContent(routeFormToYaml(formValues))
+              }
+              setMode(m)
+              if (m === 'wizard') setWizardStep(0)
+            }}
+          >
+            {m === 'code' ? t('create.codeMode') : m === 'wizard' ? 'Wizard' : t('create.formMode')}
+          </Button>
+        ))}
       </div>
 
-      {mode === 'form' ? (
+      {mode === 'form' && (
         <div className="space-y-4">
           {/* Basics section */}
           <Card>
@@ -524,8 +521,360 @@ function RouteCreatePage() {
             )}
           </Card>
         </div>
-      ) : (
-        /* YAML/JSON mode */
+      )}
+
+      {/* Wizard mode */}
+      {mode === 'wizard' && (
+        <div className="space-y-6">
+          <WizardStepIndicator steps={WIZARD_STEPS} currentStep={wizardStep} />
+
+          {/* Step 0: Basics */}
+          {wizardStep === 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Basics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Set the route name and toggle its status.</p>
+                <div className="space-y-2">
+                  <Label htmlFor="wiz-name">
+                    {t('form.routeName')} <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="wiz-name"
+                    value={formValues.name}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    placeholder={t('form.routeNamePlaceholder')}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="wiz-enabled">{t('form.enabled')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('form.enabledDescription')}</p>
+                  </div>
+                  <Switch
+                    id="wiz-enabled"
+                    checked={formValues.enabled}
+                    onCheckedChange={(checked) =>
+                      setFormValues((prev) => ({ ...prev, enabled: checked }))
+                    }
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 1: Matching */}
+          {wizardStep === 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Matching Rules</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Define how incoming requests are matched to this route.</p>
+                {/* Hosts */}
+                <div className="space-y-2">
+                  <Label>{t('matching.hosts')}</Label>
+                  <Input
+                    value={formValues.hosts.join(', ')}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        hosts: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                      }))
+                    }
+                    placeholder="api.example.com, *.example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">{t('matching.hostsDescription')}</p>
+                </div>
+                {/* Paths */}
+                <div className="space-y-2">
+                  <Label>{t('matching.paths')}</Label>
+                  {formValues.paths.map((path, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Select
+                        value={path.type}
+                        onValueChange={(val) => {
+                          const next = [...formValues.paths]
+                          next[idx] = { ...next[idx], type: val as typeof path.type }
+                          setFormValues((prev) => ({ ...prev, paths: next }))
+                        }}
+                      >
+                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TYPE_PREFIX">Prefix</SelectItem>
+                          <SelectItem value="TYPE_EXACT">Exact</SelectItem>
+                          <SelectItem value="TYPE_REGEXP">Regexp</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        value={path.value}
+                        onChange={(e) => {
+                          const next = [...formValues.paths]
+                          next[idx] = { ...next[idx], value: e.target.value }
+                          setFormValues((prev) => ({ ...prev, paths: next }))
+                        }}
+                        placeholder={t('matching.pathValuePlaceholder')}
+                        className="flex-1"
+                      />
+                      {formValues.paths.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => {
+                            const next = formValues.paths.filter((_, i) => i !== idx)
+                            setFormValues((prev) => ({ ...prev, paths: next }))
+                          }}
+                        >
+                          <XIcon className="size-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        paths: [...prev.paths, { type: 'TYPE_PREFIX', value: '' }],
+                      }))
+                    }
+                  >
+                    {t('matching.addPath')}
+                  </Button>
+                </div>
+                {/* Methods */}
+                <div className="space-y-2">
+                  <Label>{t('matching.methods')}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {HTTP_METHODS.map((method) => (
+                      <Button
+                        key={method}
+                        variant={formValues.methods.includes(method) ? 'default' : 'outline'}
+                        size="xs"
+                        onClick={() =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            methods: prev.methods.includes(method)
+                              ? prev.methods.filter((m) => m !== method)
+                              : [...prev.methods, method] as RouteFormValues['methods'],
+                          }))
+                        }
+                      >
+                        {method}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('matching.methodsDescription')}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: Target */}
+          {wizardStep === 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Target</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Choose where matched requests should be routed.</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant={formValues.targetType === 'service' ? 'default' : 'outline'}
+                    onClick={() => setFormValues((prev) => ({ ...prev, targetType: 'service' }))}
+                  >
+                    {t('form.targetTypeService')}
+                  </Button>
+                  <Button
+                    variant={formValues.targetType === 'direct' ? 'default' : 'outline'}
+                    onClick={() => setFormValues((prev) => ({ ...prev, targetType: 'direct' }))}
+                  >
+                    {t('form.targetTypeDirect')}
+                  </Button>
+                </div>
+                {formValues.targetType === 'service' ? (
+                  <div className="space-y-2">
+                    <Label>
+                      {t('form.targetService')} <span className="text-destructive">*</span>
+                    </Label>
+                    <SearchableSelect
+                      options={services.map((svc: Service): SelectOption => ({
+                        value: svc.id,
+                        label: svc.name,
+                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''} - ${svc.lbPolicy.replace('LB_POLICY_', '').toLowerCase().replace(/_/g, ' ')}`,
+                        badge: `${svc.upstreams.length}`,
+                      }))}
+                      value={formValues.serviceId}
+                      onChange={(val) =>
+                        setFormValues((prev) => ({ ...prev, serviceId: val }))
+                      }
+                      placeholder={t('form.selectService', 'Search services...')}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>
+                        {t('form.directAddress')} <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        value={formValues.directAddress}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({ ...prev, directAddress: e.target.value }))
+                        }
+                        placeholder={t('form.directAddressPlaceholder')}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t('form.directTls')}</Label>
+                      <Select
+                        value={formValues.directTls}
+                        onValueChange={(val) =>
+                          setFormValues((prev) => ({ ...prev, directTls: val as RouteFormValues['directTls'] }))
+                        }
+                      >
+                        <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TLS_MODE_OFF">Off</SelectItem>
+                          <SelectItem value="TLS_MODE_AUTO">Auto</SelectItem>
+                          <SelectItem value="TLS_MODE_CUSTOM">Custom</SelectItem>
+                          <SelectItem value="TLS_MODE_INTERNAL">Internal (mTLS)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Policies & TLS */}
+          {wizardStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Policies & TLS</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Attach policies and configure TLS settings.</p>
+                <div className="space-y-2">
+                  <Label>{t('create.sectionPolicies')}</Label>
+                  <SearchableMultiSelect
+                    options={policies.map((p: Policy): SelectOption => ({
+                      value: p.id,
+                      label: p.name,
+                      description: p.type.replace('POLICY_TYPE_', '').toLowerCase().replace(/_/g, ' '),
+                      badge: p.type.replace('POLICY_TYPE_', '').replace(/_/g, ' '),
+                    }))}
+                    value={formValues.policyIds}
+                    onChange={(ids) =>
+                      setFormValues((prev) => ({ ...prev, policyIds: ids }))
+                    }
+                    placeholder={t('policies.searchPolicies', 'Search policies...')}
+                  />
+                </div>
+                <NeedsBackendField>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>{t('tls.forceHttps')}</Label>
+                      <Switch checked={false} disabled />
+                    </div>
+                    <div>
+                      <Label>{t('tls.minVersion')}</Label>
+                      <Select disabled value="1.2">
+                        <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1.2">TLS 1.2</SelectItem>
+                          <SelectItem value="1.3">TLS 1.3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>{t('tls.clientAuth')}</Label>
+                      <Select disabled value="off">
+                        <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="off">{t('tls.clientAuthOff')}</SelectItem>
+                          <SelectItem value="request">{t('tls.clientAuthRequest')}</SelectItem>
+                          <SelectItem value="require">{t('tls.clientAuthRequire')}</SelectItem>
+                          <SelectItem value="require_and_verify">{t('tls.clientAuthRequireVerify')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </NeedsBackendField>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4: Review */}
+          {wizardStep === 4 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Review Route Configuration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-4 text-sm text-muted-foreground">Verify the settings below before creating this route.</p>
+                <div className="divide-y divide-border/50">
+                  {[
+                    { label: 'Name', value: formValues.name || '(not set)' },
+                    { label: 'Enabled', value: formValues.enabled ? 'Yes' : 'No' },
+                    { label: 'Hosts', value: formValues.hosts.join(', ') || '(none)' },
+                    { label: 'Paths', value: formValues.paths.map((p) => `${p.type}: ${p.value}`).join(', ') || '(none)' },
+                    { label: 'Methods', value: formValues.methods.join(', ') || '(all)' },
+                    {
+                      label: 'Target',
+                      value: formValues.targetType === 'service'
+                        ? `Service: ${services.find((s: Service) => s.id === formValues.serviceId)?.name ?? formValues.serviceId}`
+                        : `Direct: ${formValues.directAddress}`,
+                    },
+                    {
+                      label: 'Policies',
+                      value: formValues.policyIds.map((id) => policies.find((p: Policy) => p.id === id)?.name ?? id).join(', ') || '(none)',
+                    },
+                    { label: 'Force TLS', value: formValues.forceTls ? 'Yes' : 'No' },
+                    { label: 'Min TLS Version', value: formValues.minTlsVersion },
+                  ].map((item) => (
+                    <div key={item.label} className="grid grid-cols-[180px_1fr] gap-4 py-3">
+                      <span className="text-sm text-muted-foreground">{item.label}</span>
+                      <span className="text-sm">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Wizard navigation */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setWizardStep((s) => Math.max(0, s - 1))}
+              disabled={wizardStep === 0}
+            >
+              Back
+            </Button>
+            {wizardStep === WIZARD_STEPS.length - 1 ? (
+              <Button
+                onClick={handleCreate}
+                disabled={saveMutation.isPending || !formValues.name}
+              >
+                {saveMutation.isPending ? 'Creating...' : t('form.createRoute')}
+              </Button>
+            ) : (
+              <Button onClick={() => setWizardStep((s) => Math.min(WIZARD_STEPS.length - 1, s + 1))}>
+                Continue
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* YAML/JSON mode */}
+      {mode === 'code' && (
         <Card>
           <CardContent className="pt-6">
             <p className="mb-3 text-sm text-muted-foreground">
@@ -544,18 +893,20 @@ function RouteCreatePage() {
         </Card>
       )}
 
-      {/* Footer actions */}
-      <div className="flex items-center gap-3 border-t pt-4">
-        <Button
-          onClick={handleCreate}
-          disabled={saveMutation.isPending || !formValues.name}
-        >
-          {saveMutation.isPending ? 'Creating...' : t('form.createRoute')}
-        </Button>
-        <Button variant="outline" render={<Link to="/config/routes" />}>
-          {tc('actions.cancel')}
-        </Button>
-      </div>
+      {/* Footer actions (form + code modes only; wizard has its own nav) */}
+      {mode !== 'wizard' && (
+        <div className="flex items-center gap-3 border-t pt-4">
+          <Button
+            onClick={handleCreate}
+            disabled={saveMutation.isPending || !formValues.name}
+          >
+            {saveMutation.isPending ? 'Creating...' : t('form.createRoute')}
+          </Button>
+          <Button variant="outline" render={<Link to="/config/routes" />}>
+            {tc('actions.cancel')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

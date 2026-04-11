@@ -35,6 +35,8 @@ import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
 import { DiffView } from '@/components/rioku/diff-view'
 import type { DiffChange } from '@/components/rioku/diff-view'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
+import { TrafficTab } from '@/components/rioku/traffic-tab'
+import { ActivityTimeline } from '@/components/rioku/activity-timeline'
 
 import { YamlJsonEditor } from '@rioku/ui'
 import { serviceFormToYaml, yamlToServiceForm } from '@/lib/form-yaml-sync'
@@ -676,36 +678,14 @@ function ServiceDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* --- Traffic Tab (NEEDS BACKEND) --- */}
+        {/* --- Traffic Tab --- */}
         <TabsContent value="traffic">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('detail.traffic')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NeedsBackendField message="Per-service traffic analytics require TrafficService enrichment">
-                <p className="text-sm text-muted-foreground">
-                  Request volume, latency percentiles, and error rates for this service will appear here once TrafficService per-service filtering is implemented.
-                </p>
-              </NeedsBackendField>
-            </CardContent>
-          </Card>
+          <TrafficTab entityType="service" entityId={service.id} />
         </TabsContent>
 
-        {/* --- Activity Tab (NEEDS BACKEND) --- */}
+        {/* --- Activity Tab --- */}
         <TabsContent value="activity">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('detail.activity')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NeedsBackendField message="Per-entity activity logs require audit trail enrichment">
-                <p className="text-sm text-muted-foreground">
-                  Configuration changes and audit events for this service will appear here once per-entity audit filtering is implemented.
-                </p>
-              </NeedsBackendField>
-            </CardContent>
-          </Card>
+          <ActivityTimeline entityType="service" entityId={service.id} />
         </TabsContent>
       </Tabs>
       )}

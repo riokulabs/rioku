@@ -20,6 +20,7 @@ import type { Policy } from '@/lib/api'
 import { policySchemaFor } from '@/lib/schemas/policy-schemas'
 import { TypeSelectorTiles } from '@/components/rioku/type-selector-tiles'
 import { PolicyFormForType } from '@/components/rioku/policy-forms'
+import { WizardStepIndicator } from '@/components/rioku/wizard-step-indicator'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,7 +55,10 @@ export function PolicyCreatePage() {
   const [config, setConfig] = useState<Record<string, unknown>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const [mode, setMode] = useState<'form' | 'code'>('form')
+  const WIZARD_STEPS = ['Type Selection', 'Configuration', 'Review']
+
+  const [mode, setMode] = useState<'form' | 'wizard' | 'code'>('form')
+  const [wizardStep, setWizardStep] = useState(0)
   const [yamlContent, setYamlContent] = useState('')
   const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
 
@@ -123,10 +127,26 @@ export function PolicyCreatePage() {
           {t('create.formMode', 'Form')}
         </Button>
         <Button
+          variant={mode === 'wizard' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            if (mode === 'code') {
+              const parsed = yamlToPolicyConfig(yamlContent)
+              if (parsed.type) setSelectedType(parsed.type)
+              if (parsed.name) setName(parsed.name)
+              setConfig(parsed.config)
+            }
+            setWizardStep(0)
+            setMode('wizard')
+          }}
+        >
+          {t('create.wizardMode', 'Wizard')}
+        </Button>
+        <Button
           variant={mode === 'code' ? 'default' : 'outline'}
           size="sm"
           onClick={() => {
-            if (mode === 'form' && selectedType) {
+            if ((mode === 'form' || mode === 'wizard') && selectedType) {
               setYamlContent(policyConfigToYaml(selectedType, name, config))
             }
             setMode('code')
@@ -136,7 +156,7 @@ export function PolicyCreatePage() {
         </Button>
       </div>
 
-      {mode === 'form' ? (
+      {mode === 'form' && (
         <>
           {/* Name */}
           <Card>
@@ -185,7 +205,107 @@ export function PolicyCreatePage() {
             </Card>
           )}
         </>
-      ) : (
+      )}
+
+      {mode === 'wizard' && (
+        <div className="space-y-6">
+          <WizardStepIndicator steps={WIZARD_STEPS} currentStep={wizardStep} />
+
+          {wizardStep === 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('create.selectType')}</CardTitle>
+                <p className="text-sm text-muted-foreground">{t('create.selectTypeDesc')}</p>
+              </CardHeader>
+              <CardContent>
+                <TypeSelectorTiles
+                  options={TYPE_OPTIONS}
+                  value={selectedType}
+                  onChange={setSelectedType}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {wizardStep === 1 && selectedType && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('create.configuration')}</CardTitle>
+                <p className="text-sm text-muted-foreground">Configure the policy behavior.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="wiz-policy-name">{t('create.policyName')}</Label>
+                  <Input
+                    id="wiz-policy-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t('create.policyNamePlaceholder')}
+                  />
+                </div>
+                <PolicyFormForType
+                  type={selectedType}
+                  value={config}
+                  onChange={setConfig}
+                  errors={errors}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {wizardStep === 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Review Policy Configuration</CardTitle>
+                <p className="text-sm text-muted-foreground">Verify the settings below before creating this policy.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y divide-border/50">
+                  <div className="grid grid-cols-[180px_1fr] gap-4 py-3">
+                    <span className="text-sm text-muted-foreground">Name</span>
+                    <span className="text-sm">{name || '(not set)'}</span>
+                  </div>
+                  <div className="grid grid-cols-[180px_1fr] gap-4 py-3">
+                    <span className="text-sm text-muted-foreground">Type</span>
+                    <span className="text-sm">{TYPE_OPTIONS.find((opt) => opt.value === selectedType)?.label ?? selectedType}</span>
+                  </div>
+                  {Object.entries(config).map(([key, value]) => (
+                    <div key={key} className="grid grid-cols-[180px_1fr] gap-4 py-3">
+                      <span className="text-sm text-muted-foreground">{key}</span>
+                      <span className="text-sm">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Wizard navigation */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setWizardStep((s) => Math.max(0, s - 1))}
+              disabled={wizardStep === 0}
+            >
+              Back
+            </Button>
+            {wizardStep === WIZARD_STEPS.length - 1 ? (
+              <Button onClick={handleSave} disabled={createMutation.isPending || !name.trim() || !selectedType}>
+                {createMutation.isPending ? 'Creating...' : t('create.save')}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setWizardStep((s) => Math.min(WIZARD_STEPS.length - 1, s + 1))}
+                disabled={wizardStep === 0 && !selectedType}
+              >
+                Continue
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mode === 'code' && (
         <Card>
           <CardContent className="pt-6">
             <p className="mb-3 text-sm text-muted-foreground">
@@ -204,21 +324,23 @@ export function PolicyCreatePage() {
         </Card>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        <Button
-          onClick={handleSave}
-          disabled={createMutation.isPending || !name.trim() || !selectedType}
-        >
-          {createMutation.isPending ? 'Creating...' : t('create.save')}
-        </Button>
-        <Button
-          variant="outline"
-          render={<Link to="/config/policies" />}
-        >
-          {t('create.cancel')}
-        </Button>
-      </div>
+      {/* Actions (shown for form and code modes; wizard has its own nav) */}
+      {mode !== 'wizard' && (
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleSave}
+            disabled={createMutation.isPending || !name.trim() || !selectedType}
+          >
+            {createMutation.isPending ? 'Creating...' : t('create.save')}
+          </Button>
+          <Button
+            variant="outline"
+            render={<Link to="/config/policies" />}
+          >
+            {t('create.cancel')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

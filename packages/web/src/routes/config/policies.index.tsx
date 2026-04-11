@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/rioku/empty-state'
 import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
 import { TimeAgo } from '@/components/rioku/time-ago'
 
+import type { FilterColumn } from '@/components/rioku/faceted-filter'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -95,6 +96,17 @@ export function PolicyListPage() {
     _attachedCount: countAttachedRoutes(p.id),
   }))
 
+  const filterColumns: FilterColumn[] = useMemo(() => [
+    {
+      key: 'type',
+      label: 'Type',
+      options: Object.entries(POLICY_TYPES).map(([value, label]) => ({
+        label,
+        value,
+      })),
+    },
+  ], [])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -158,6 +170,7 @@ export function PolicyListPage() {
           },
         ]}
         data={tableData}
+        filterColumns={filterColumns}
         searchable
         searchPlaceholder="Search policies..."
         pageSize={10}

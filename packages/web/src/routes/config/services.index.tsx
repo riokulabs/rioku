@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -10,8 +10,9 @@ import {
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Service } from '@/lib/api'
-import { LB_POLICY_LABELS } from '@/lib/schemas/service'
+import { LB_POLICIES, LB_POLICY_LABELS } from '@/lib/schemas/service'
 import { useServiceMutations } from '@/hooks/use-config-mutations'
+import type { FilterColumn } from '@/components/rioku/faceted-filter'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { DataTable } from '@/components/rioku/data-table'
@@ -22,6 +23,18 @@ import { TimeAgo } from '@/components/rioku/time-ago'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+
+function mockRps(name: string): number {
+  let hash = 0
+  for (const c of name) hash = ((hash << 5) - hash + c.charCodeAt(0)) | 0
+  return Math.abs(hash % 900) + 100
+}
+
+function mockP95(name: string): number {
+  let hash = 0
+  for (const c of name) hash = ((hash << 5) - hash + c.charCodeAt(0) + 7) | 0
+  return Math.abs(hash % 180) + 20
+}
 
 export const Route = createFileRoute('/config/services/')({
   loader: ({ context }) =>
@@ -45,7 +58,38 @@ function ServiceListPage() {
     _upstreamCount: svc.upstreams.length,
     _upstreamPreview: svc.upstreams[0]?.address ?? '\u2014',
     _healthCheckEnabled: svc.healthCheck?.enabled ?? false,
+    _rps: mockRps(svc.name),
+    _p95: mockP95(svc.name),
+    _healthLabel: (svc.healthCheck?.enabled ?? false) ? 'Monitored' : 'Unmonitored',
+    _hasHealthCheck: (svc.healthCheck?.enabled ?? false) ? 'Yes' : 'No',
   }))
+
+  const filterColumns: FilterColumn[] = useMemo(() => [
+    {
+      key: 'lbPolicy',
+      label: 'LB Policy',
+      options: LB_POLICIES.map((p) => ({
+        label: LB_POLICY_LABELS[p] ?? p,
+        value: p,
+      })),
+    },
+    {
+      key: '_healthLabel',
+      label: 'Health',
+      options: [
+        { label: 'Monitored', value: 'Monitored' },
+        { label: 'Unmonitored', value: 'Unmonitored' },
+      ],
+    },
+    {
+      key: '_hasHealthCheck',
+      label: 'Has Health Check',
+      options: [
+        { label: 'Yes', value: 'Yes' },
+        { label: 'No', value: 'No' },
+      ],
+    },
+  ], [])
 
   return (
     <div className="space-y-6">
@@ -98,6 +142,26 @@ function ServiceListPage() {
             ),
           },
           {
+            key: '_rps',
+            header: 'RPS',
+            sortable: true,
+            render: (r) => (
+              <span className="font-mono text-sm text-muted-foreground">
+                {(r._rps as number).toLocaleString()}
+              </span>
+            ),
+          },
+          {
+            key: '_p95',
+            header: 'P95',
+            sortable: true,
+            render: (r) => (
+              <span className="font-mono text-sm text-muted-foreground">
+                {r._p95}ms
+              </span>
+            ),
+          },
+          {
             key: '_health',
             header: t('table.health'),
             render: (r) => (
@@ -116,6 +180,7 @@ function ServiceListPage() {
           },
         ]}
         data={tableData}
+        filterColumns={filterColumns}
         searchable
         searchPlaceholder="Search services..."
         pageSize={10}

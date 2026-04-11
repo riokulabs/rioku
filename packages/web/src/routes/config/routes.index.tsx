@@ -22,7 +22,20 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import type { FilterColumn } from '@/components/rioku/faceted-filter'
+
+function mockRps(name: string): number {
+  let hash = 0
+  for (const c of name) hash = ((hash << 5) - hash + c.charCodeAt(0)) | 0
+  return Math.abs(hash % 900) + 100
+}
+
+function mockP95(name: string): number {
+  let hash = 0
+  for (const c of name) hash = ((hash << 5) - hash + c.charCodeAt(0) + 7) | 0
+  return Math.abs(hash % 180) + 20
+}
 
 export const Route = createFileRoute('/config/routes/')({
   loader: ({ context }) =>
@@ -53,7 +66,38 @@ function RouteListPage() {
       .join(', '),
     _serviceName: r.serviceId ? getServiceName(r.serviceId) : '\u2014',
     _policyCount: (r.policyIds ?? []).length,
+    _rps: mockRps(r.name),
+    _p95: mockP95(r.name),
+    _enabled: r.enabled ? 'Enabled' : 'Disabled',
+    _hasPolicy: (r.policyIds ?? []).length > 0 ? 'Yes' : 'No',
   }))
+
+  const filterColumns: FilterColumn[] = useMemo(() => [
+    {
+      key: '_enabled',
+      label: 'Status',
+      options: [
+        { label: 'Enabled', value: 'Enabled' },
+        { label: 'Disabled', value: 'Disabled' },
+      ],
+    },
+    {
+      key: '_serviceName',
+      label: 'Service',
+      options: [...new Set(tableData.map((r) => r._serviceName))].filter((s) => s !== '\u2014').map((s) => ({
+        label: s,
+        value: s,
+      })),
+    },
+    {
+      key: '_hasPolicy',
+      label: 'Has Policy',
+      options: [
+        { label: 'Yes', value: 'Yes' },
+        { label: 'No', value: 'No' },
+      ],
+    },
+  ], [tableData])
 
   return (
     <div className="space-y-6">
@@ -126,6 +170,26 @@ function RouteListPage() {
             ),
           },
           {
+            key: '_rps',
+            header: 'RPS',
+            sortable: true,
+            render: (r) => (
+              <span className="font-mono text-sm text-muted-foreground">
+                {(r._rps as number).toLocaleString()}
+              </span>
+            ),
+          },
+          {
+            key: '_p95',
+            header: 'P95',
+            sortable: true,
+            render: (r) => (
+              <span className="font-mono text-sm text-muted-foreground">
+                {r._p95}ms
+              </span>
+            ),
+          },
+          {
             key: 'enabled',
             header: t('table.status'),
             render: (r) => (
@@ -146,6 +210,7 @@ function RouteListPage() {
           },
         ]}
         data={tableData}
+        filterColumns={filterColumns}
         searchable
         searchPlaceholder="Search routes..."
         pageSize={10}

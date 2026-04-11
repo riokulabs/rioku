@@ -29,6 +29,8 @@ import { DiffView } from '@/components/rioku/diff-view'
 import type { DiffChange } from '@/components/rioku/diff-view'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
 import { EmptyState } from '@/components/rioku/empty-state'
+import { TrafficTab } from '@/components/rioku/traffic-tab'
+import { ActivityTimeline } from '@/components/rioku/activity-timeline'
 
 import { routeFormToYaml, yamlToRouteForm } from '@/lib/form-yaml-sync'
 import { KvEditor } from '@/components/rioku/kv-editor'
@@ -741,36 +743,14 @@ function RouteDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* --- Traffic Tab (NEEDS BACKEND) --- */}
+        {/* --- Traffic Tab --- */}
         <TabsContent value="traffic">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('detail.traffic')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NeedsBackendField message="Per-route traffic analytics require TrafficService enrichment">
-                <p className="text-sm text-muted-foreground">
-                  Request volume, latency percentiles, and error rates for this route will appear here once TrafficService per-route filtering is implemented.
-                </p>
-              </NeedsBackendField>
-            </CardContent>
-          </Card>
+          <TrafficTab entityType="route" entityId={route.id} />
         </TabsContent>
 
-        {/* --- Activity Tab (NEEDS BACKEND) --- */}
+        {/* --- Activity Tab --- */}
         <TabsContent value="activity">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('detail.activity')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NeedsBackendField message="Per-entity activity logs require audit trail enrichment">
-                <p className="text-sm text-muted-foreground">
-                  Configuration changes and audit events for this route will appear here once per-entity audit filtering is implemented.
-                </p>
-              </NeedsBackendField>
-            </CardContent>
-          </Card>
+          <ActivityTimeline entityType="route" entityId={route.id} />
         </TabsContent>
       </Tabs>
       )}
