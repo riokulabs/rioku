@@ -32,7 +32,7 @@ export const tlsSettingsSchema = z.object({
   dnsChallengeProvider: z.enum([
     'none', 'cloudflare', 'route53', 'gcloud', 'azure', 'digitalocean',
   ]),
-  dnsChallengeCredentials: z.record(z.string()).optional(),
+  dnsChallengeCredentials: z.record(z.string(), z.string()).optional(),
   onDemandTls: z.boolean(),
   onDemandRateInterval: z.string().optional(),
   onDemandRateBurst: z.number().int().min(0).optional(),

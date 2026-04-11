@@ -54,7 +54,7 @@ function HeaderOpsEditor({
       <Label>{label}</Label>
       {value.map((op, i) => (
         <div key={i} className="flex items-center gap-2">
-          <Select value={op.action} onValueChange={(v) => updateOp(i, 'action', v)} disabled={readOnly}>
+          <Select value={op.action} onValueChange={(v) => updateOp(i, 'action', v ?? op.action)} disabled={readOnly}>
             <SelectTrigger className="w-28">
               <SelectValue />
             </SelectTrigger>

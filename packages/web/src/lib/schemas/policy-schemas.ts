@@ -20,7 +20,7 @@ export const authJwtSchema = z.object({
   issuerUrl: z.string().url(),
   jwksEndpoint: z.string().url().optional(),
   audience: z.string().min(1),
-  requiredClaims: z.record(z.string()).optional(),
+  requiredClaims: z.record(z.string(), z.string()).optional(),
   tokenLocation: z.enum(['header', 'cookie', 'query']).default('header'),
   clockSkewTolerance: z.string().optional(),
 })

@@ -85,16 +85,28 @@ const defaults: TlsSettings & { certificates: CertificateInfo[] } = {
   defaultMinTlsVersion: '1.2',
   certificates: [
     {
+      id: 'cert-1',
       domain: '*.example.com',
       issuer: "Let's Encrypt",
       expiresAt: '2026-07-10T00:00:00Z',
+      issuedAt: '2026-01-10T00:00:00Z',
       status: 'valid',
+      sans: ['*.example.com'],
+      serialNumber: '01:AB:CD:EF',
+      fingerprint: 'SHA256:aa:bb:cc',
+      autoRenew: true,
     },
     {
+      id: 'cert-2',
       domain: 'api.example.com',
       issuer: "Let's Encrypt",
       expiresAt: '2026-05-01T00:00:00Z',
+      issuedAt: '2026-02-01T00:00:00Z',
       status: 'expiring',
+      sans: ['api.example.com'],
+      serialNumber: '02:AB:CD:EF',
+      fingerprint: 'SHA256:dd:ee:ff',
+      autoRenew: true,
     },
   ],
 }
@@ -118,6 +130,7 @@ const certStatusMap: Record<
   expiring: 'degraded',
   expired: 'unhealthy',
   revoked: 'unhealthy',
+  pending: 'unknown',
 }
 
 function TlsSettingsPage() {
@@ -135,7 +148,7 @@ function TlsSettingsPage() {
     reset,
     formState: { isDirty },
   } = useForm<TlsSettings>({
-    resolver: zodResolver(tlsSettingsSchema),
+    resolver: zodResolver(tlsSettingsSchema as any),
     defaultValues: formData,
   })
 

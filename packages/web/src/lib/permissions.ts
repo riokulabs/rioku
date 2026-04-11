@@ -1,9 +1,10 @@
 import type { ExpandedRole, AccessPolicy } from './api'
 
-export interface PermissionMatrix {
+export type PermissionMatrix = {
   [resource: string]: {
     [action: string]: boolean
   }
+} & {
   _sources?: {
     [resource: string]: {
       [action: string]: string

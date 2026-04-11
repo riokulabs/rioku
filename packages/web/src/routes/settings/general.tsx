@@ -62,7 +62,7 @@ function GeneralSettingsPage() {
     reset,
     formState: { errors, isDirty },
   } = useForm<GeneralSettings>({
-    resolver: zodResolver(generalSettingsSchema),
+    resolver: zodResolver(generalSettingsSchema as any),
     defaultValues: data,
   })
 

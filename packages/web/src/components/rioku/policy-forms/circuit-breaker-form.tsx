@@ -67,6 +67,7 @@ export function CircuitBreakerForm({ value, onChange, errors, readOnly }: Policy
         <TagInput
           value={statusCodes}
           onChange={(tags) => set('monitoredStatusCodes', tags.map(Number).filter((n) => !isNaN(n)))}
+          label="Monitored status codes"
           placeholder="e.g. 500, 502, 503"
         />
       </div>

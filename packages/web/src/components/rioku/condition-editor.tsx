@@ -59,7 +59,7 @@ export function ConditionEditor({ value, onChange }: ConditionEditorProps) {
           {cond.type === 'ip' && (
             <div className="space-y-2">
               <Label>CIDR ranges</Label>
-              <TagInput value={(cond.config.cidrRanges as string[]) ?? []} onChange={(tags) => updateCondition(i, { ...cond, config: { ...cond.config, cidrRanges: tags } })} placeholder="e.g. 10.0.0.0/8" />
+              <TagInput value={(cond.config.cidrRanges as string[]) ?? []} onChange={(tags) => updateCondition(i, { ...cond, config: { ...cond.config, cidrRanges: tags } })} label="CIDR ranges" placeholder="e.g. 10.0.0.0/8" />
               <div className="flex items-center gap-2">
                 <Switch checked={Boolean(cond.config.negate)} onCheckedChange={(v) => updateCondition(i, { ...cond, config: { ...cond.config, negate: v } })} />
                 <Label className="text-sm">Negate (deny these ranges)</Label>
@@ -90,7 +90,7 @@ export function ConditionEditor({ value, onChange }: ConditionEditorProps) {
           {cond.type === 'geo' && (
             <div className="space-y-2">
               <Label>Country codes</Label>
-              <TagInput value={(cond.config.countryCodes as string[]) ?? []} onChange={(tags) => updateCondition(i, { ...cond, config: { ...cond.config, countryCodes: tags } })} placeholder="e.g. US, GB, DE" />
+              <TagInput value={(cond.config.countryCodes as string[]) ?? []} onChange={(tags) => updateCondition(i, { ...cond, config: { ...cond.config, countryCodes: tags } })} label="Country codes" placeholder="e.g. US, GB, DE" />
               <div className="flex items-center gap-2">
                 <Switch checked={Boolean(cond.config.negate)} onCheckedChange={(v) => updateCondition(i, { ...cond, config: { ...cond.config, negate: v } })} />
                 <Label className="text-sm">Negate (deny these countries)</Label>
@@ -101,7 +101,7 @@ export function ConditionEditor({ value, onChange }: ConditionEditorProps) {
           {cond.type === 'device' && (
             <div className="space-y-2">
               <Label>Allowed user agents (regex)</Label>
-              <TagInput value={(cond.config.allowedUserAgents as string[]) ?? []} onChange={(tags) => updateCondition(i, { ...cond, config: { allowedUserAgents: tags } })} placeholder="e.g. Mozilla/.*" />
+              <TagInput value={(cond.config.allowedUserAgents as string[]) ?? []} onChange={(tags) => updateCondition(i, { ...cond, config: { allowedUserAgents: tags } })} label="Allowed user agents" placeholder="e.g. Mozilla/.*" />
             </div>
           )}
 

@@ -46,6 +46,7 @@ export function CacheForm({ value, onChange, errors, readOnly }: PolicyFormProps
         <TagInput
           value={statusCodes}
           onChange={(tags) => set('cacheableStatusCodes', tags.map(Number).filter((n) => !isNaN(n)))}
+          label="Cacheable status codes"
           placeholder="e.g. 200, 301"
         />
       </div>
@@ -57,7 +58,7 @@ export function CacheForm({ value, onChange, errors, readOnly }: PolicyFormProps
             <label key={m} className="flex items-center gap-1.5 text-sm">
               <Checkbox
                 checked={cacheableMethods.includes(m)}
-                onCheckedChange={() => toggleMethod(m)}
+                onChange={() => toggleMethod(m)}
                 disabled={readOnly}
               />
               {m}
@@ -102,6 +103,7 @@ export function CacheForm({ value, onChange, errors, readOnly }: PolicyFormProps
         <TagInput
           value={(value.varyHeaders as string[]) ?? []}
           onChange={(tags) => set('varyHeaders', tags)}
+          label="Vary headers"
           placeholder="e.g. Accept, Accept-Encoding"
         />
       </div>

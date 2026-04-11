@@ -63,7 +63,7 @@ function NetworkSettingsPage() {
     reset,
     formState: { errors, isDirty },
   } = useForm<NetworkSettings>({
-    resolver: zodResolver(networkSettingsSchema),
+    resolver: zodResolver(networkSettingsSchema as any),
     defaultValues: data,
   })
 

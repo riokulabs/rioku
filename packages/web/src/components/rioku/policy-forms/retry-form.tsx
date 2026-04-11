@@ -41,6 +41,7 @@ export function RetryForm({ value, onChange, errors, readOnly }: PolicyFormProps
         <TagInput
           value={statusCodes}
           onChange={(tags) => set('retryOnStatusCodes', tags.map(Number).filter((n) => !isNaN(n)))}
+          label="Retry on status codes"
           placeholder="e.g. 502, 503, 504"
         />
       </div>

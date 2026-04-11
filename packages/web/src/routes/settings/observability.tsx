@@ -83,7 +83,7 @@ function ObservabilitySettingsPage() {
     reset,
     formState: { errors, isDirty },
   } = useForm<ObservabilitySettings>({
-    resolver: zodResolver(observabilitySettingsSchema),
+    resolver: zodResolver(observabilitySettingsSchema as any),
     defaultValues: data,
   })
 

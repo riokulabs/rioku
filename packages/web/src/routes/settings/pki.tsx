@@ -102,7 +102,7 @@ function PkiSettingsPage() {
     reset,
     formState: { isDirty },
   } = useForm<EditablePki>({
-    resolver: zodResolver(editableSchema),
+    resolver: zodResolver(editableSchema as any),
     defaultValues: {
       autoRotationThresholdDays: data.autoRotationThresholdDays,
     },

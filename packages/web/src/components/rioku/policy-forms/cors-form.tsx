@@ -29,6 +29,7 @@ export function CorsForm({ value, onChange, errors, readOnly }: PolicyFormProps)
         <TagInput
           value={(value.allowedOrigins as string[]) ?? []}
           onChange={(tags) => set('allowedOrigins', tags)}
+          label="Allowed origins"
           placeholder="e.g. https://example.com or *"
         />
         {errors?.allowedOrigins && <p className="text-xs text-destructive">{errors.allowedOrigins}</p>}
@@ -41,7 +42,7 @@ export function CorsForm({ value, onChange, errors, readOnly }: PolicyFormProps)
             <label key={m} className="flex items-center gap-1.5 text-sm">
               <Checkbox
                 checked={allowedMethods.includes(m)}
-                onCheckedChange={() => toggleMethod(m)}
+                onChange={() => toggleMethod(m)}
                 disabled={readOnly}
               />
               {m}
@@ -56,6 +57,7 @@ export function CorsForm({ value, onChange, errors, readOnly }: PolicyFormProps)
         <TagInput
           value={(value.allowedHeaders as string[]) ?? []}
           onChange={(tags) => set('allowedHeaders', tags)}
+          label="Allowed headers"
           placeholder="e.g. Content-Type, Authorization"
         />
       </div>
@@ -65,6 +67,7 @@ export function CorsForm({ value, onChange, errors, readOnly }: PolicyFormProps)
         <TagInput
           value={(value.exposedHeaders as string[]) ?? []}
           onChange={(tags) => set('exposedHeaders', tags)}
+          label="Exposed headers"
           placeholder="e.g. X-Request-Id"
         />
       </div>

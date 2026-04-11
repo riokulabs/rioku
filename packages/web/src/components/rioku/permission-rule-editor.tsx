@@ -74,7 +74,7 @@ export function PermissionRuleEditor({ value, onChange, readOnly }: PermissionRu
             <div className="flex flex-wrap gap-3">
               {ACTIONS.map((a) => (
                 <label key={a} className="flex items-center gap-1.5 text-sm">
-                  <Checkbox checked={rule.actions.includes(a)} onCheckedChange={() => toggleAction(rule.id, a)} disabled={readOnly} />
+                  <Checkbox checked={rule.actions.includes(a)} onChange={() => toggleAction(rule.id, a)} disabled={readOnly} />
                   {a}
                 </label>
               ))}

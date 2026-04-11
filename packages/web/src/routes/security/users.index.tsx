@@ -49,7 +49,7 @@ export function UsersListPage() {
         description={t('subtitle')}
         actions={
           canManage ? (
-            <Button render={<Link to="/security/users/create" />}>
+            <Button render={<Link to="/security/users" />}>
               <PlusIcon className="size-4" />
               {t('list.createUser')}
             </Button>
@@ -126,7 +126,7 @@ export function UsersListPage() {
               r.lastLogin ? <TimeAgo date={r.lastLogin as string} /> : '\u2014',
           },
         ]}
-        data={users as Array<Record<string, unknown>>}
+        data={users as unknown as Array<Record<string, unknown>>}
         searchable
         searchPlaceholder={t('list.searchPlaceholder')}
         pageSize={15}

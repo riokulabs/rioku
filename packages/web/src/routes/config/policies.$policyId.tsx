@@ -200,7 +200,7 @@ export function PolicyDetailPage() {
                       r.updatedAt ? <TimeAgo date={r.updatedAt as string} /> : '\u2014',
                   },
                 ]}
-                data={attachedRoutes as Array<Record<string, unknown>>}
+                data={attachedRoutes as unknown as Array<Record<string, unknown>>}
                 pageSize={10}
               />
             </CardContent>

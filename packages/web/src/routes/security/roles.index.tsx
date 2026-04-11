@@ -29,20 +29,20 @@ export function RolesListPage() {
       <PageHeader
         title="Roles"
         description="Manage role definitions and permissions"
-        actions={canManage ? <Button render={<Link to="/security/roles/create" />}><PlusIcon className="size-4" /> Create role</Button> : undefined}
+        actions={canManage ? <Button render={<Link to="/security/roles" />}><PlusIcon className="size-4" /> Create role</Button> : undefined}
       />
       <DataTable
         columns={[
           { key: 'name', header: 'Name', sortable: true, render: (r) => (
             <div className="flex items-center gap-2">
               <Link to="/security/roles/$roleId" params={{ roleId: r.id as string }} className="font-mono text-sm text-primary hover:underline">{r.name as string}</Link>
-              {r.isBuiltin && <Badge variant="secondary" className="text-xs">Built-in</Badge>}
+              {Boolean(r.isBuiltin) && <Badge variant="secondary" className="text-xs">Built-in</Badge>}
             </div>
           )},
           { key: 'description', header: 'Description', render: (r) => <span className="text-sm text-muted-foreground">{(r.description as string) || '\u2014'}</span> },
           { key: 'permissions', header: 'Permissions', render: (r) => <span className="text-sm">{((r.permissions as string[]) ?? []).length} permissions</span> },
         ]}
-        data={roles as Array<Record<string, unknown>>}
+        data={roles as unknown as Array<Record<string, unknown>>}
         searchable
         searchPlaceholder="Search roles..."
         pageSize={10}

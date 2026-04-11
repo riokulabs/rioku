@@ -68,7 +68,7 @@ function AuthenticationSettingsPage() {
     reset,
     formState: { errors, isDirty },
   } = useForm<AuthSettings>({
-    resolver: zodResolver(authSettingsSchema),
+    resolver: zodResolver(authSettingsSchema as any),
     defaultValues: data,
   })
 

@@ -81,7 +81,7 @@ export function ApiKeysListPage() {
           { key: 'expiresAt', header: 'Expires', sortable: true, render: (r) => r.expiresAt ? <TimeAgo date={r.expiresAt as string} /> : 'Never' },
           { key: 'createdAt', header: 'Created', sortable: true, render: (r) => <TimeAgo date={r.createdAt as string} /> },
         ]}
-        data={keys as Array<Record<string, unknown>>}
+        data={keys as unknown as Array<Record<string, unknown>>}
         searchable
         searchPlaceholder={t('list.searchPlaceholder')}
         pageSize={10}
