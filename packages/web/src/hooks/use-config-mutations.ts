@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api'
-import type { Route } from '@/lib/api'
+import type { Route, ConfigSnapshot } from '@/lib/api'
 
 /**
  * Shared route mutations: save (UPSERT), delete, toggle enable/disable.
- * Invalidates the config query on success.
+ * Toggle and delete use optimistic updates for instant UI feedback.
  */
 export function useRouteMutations() {
   const queryClient = useQueryClient()
@@ -24,12 +24,26 @@ export function useRouteMutations() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       apiClient.post('/config', { route: { action: 'DELETE', id } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] })
-      toast.success('Route deleted')
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['config'] })
+      const previous = queryClient.getQueryData<ConfigSnapshot>(['config'])
+      queryClient.setQueryData<ConfigSnapshot>(['config'], (old) => {
+        if (!old) return old
+        return { ...old, routes: old.routes.filter((r) => r.id !== id) }
+      })
+      return { previous }
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['config'], context.previous)
+      }
       toast.error('Failed to delete route')
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+    onSuccess: () => {
+      toast.success('Route deleted')
     },
   })
 
@@ -38,12 +52,31 @@ export function useRouteMutations() {
       apiClient.post('/config', {
         route: { action: 'UPSERT', route: { id: route.id, enabled: !route.enabled } },
       }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['config'] })
-      toast.success(variables.enabled ? 'Route disabled' : 'Route enabled')
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['config'] })
+      const previous = queryClient.getQueryData<ConfigSnapshot>(['config'])
+      queryClient.setQueryData<ConfigSnapshot>(['config'], (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          routes: old.routes.map((r) =>
+            r.id === variables.id ? { ...r, enabled: !variables.enabled } : r,
+          ),
+        }
+      })
+      return { previous }
     },
-    onError: () => {
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['config'], context.previous)
+      }
       toast.error('Failed to toggle route')
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(variables.enabled ? 'Route disabled' : 'Route enabled')
     },
   })
 
@@ -68,6 +101,7 @@ export function useRouteMutations() {
 
 /**
  * Shared service mutations: save (UPSERT), delete.
+ * Delete uses optimistic updates for instant UI feedback.
  */
 export function useServiceMutations() {
   const queryClient = useQueryClient()
@@ -86,12 +120,26 @@ export function useServiceMutations() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       apiClient.post('/config', { service: { action: 'DELETE', id } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] })
-      toast.success('Service deleted')
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['config'] })
+      const previous = queryClient.getQueryData<ConfigSnapshot>(['config'])
+      queryClient.setQueryData<ConfigSnapshot>(['config'], (old) => {
+        if (!old) return old
+        return { ...old, services: old.services.filter((s) => s.id !== id) }
+      })
+      return { previous }
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['config'], context.previous)
+      }
       toast.error('Failed to delete service')
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+    onSuccess: () => {
+      toast.success('Service deleted')
     },
   })
 

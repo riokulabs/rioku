@@ -8,6 +8,7 @@ import {
   TrashIcon,
 } from 'lucide-react'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Route as RouteType } from '@/lib/api'
 import { useRouteMutations } from '@/hooks/use-config-mutations'
@@ -17,6 +18,7 @@ import { DataTable } from '@/components/rioku/data-table'
 import { EmptyState } from '@/components/rioku/empty-state'
 import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
 import { TimeAgo } from '@/components/rioku/time-ago'
+import { StaleIndicator } from '@/components/rioku/stale-indicator'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -51,9 +53,12 @@ function RouteListPage() {
   const config = Route.useLoaderData()
   const routes = config.routes
   const services = config.services
+  const queryClient = useQueryClient()
 
   const { toggleMutation, deleteMutation, duplicateMutation } = useRouteMutations()
   const [deleteTarget, setDeleteTarget] = useState<RouteType | null>(null)
+  const configQueryState = queryClient.getQueryState(['config'])
+  const dataUpdatedAt = configQueryState?.dataUpdatedAt ?? Date.now()
 
   function getServiceName(serviceId: string): string {
     return services.find((s) => s.id === serviceId)?.name ?? serviceId
@@ -101,16 +106,22 @@ function RouteListPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-        actions={
-          <Button render={<Link to="/config/routes/create" />}>
-            <PlusIcon className="size-4" />
-            {t('form.createRoute')}
-          </Button>
-        }
-      />
+      <div className="flex items-start justify-between">
+        <PageHeader
+          title={t('title')}
+          description={t('subtitle')}
+          actions={
+            <Button render={<Link to="/config/routes/create" />}>
+              <PlusIcon className="size-4" />
+              {t('form.createRoute')}
+            </Button>
+          }
+        />
+        <StaleIndicator
+          dataUpdatedAt={dataUpdatedAt}
+          onRefresh={() => queryClient.invalidateQueries({ queryKey: ['config'] })}
+        />
+      </div>
 
       <DataTable
         columns={[

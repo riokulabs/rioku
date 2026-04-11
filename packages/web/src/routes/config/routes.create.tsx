@@ -17,6 +17,10 @@ import type { RouteFormValues } from '@/lib/schemas/route'
 import { useRouteMutations } from '@/hooks/use-config-mutations'
 import { useDirtyForm } from '@/hooks/use-dirty-form'
 import { useUnsavedWarning } from '@/hooks/use-unsaved-warning'
+import { useDraft } from '@/hooks/use-draft'
+import { useFieldValidation } from '@/hooks/use-field-validation'
+import { DraftBanner } from '@/components/rioku/draft-banner'
+import { FieldError } from '@/components/rioku/field-error'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
@@ -98,21 +102,28 @@ function RouteCreatePage() {
   const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
 
   const { isDirty } = useDirtyForm(EMPTY_FORM, formValues)
+  const { hasDraft, draftTimestamp, restoreDraft, discardDraft, clearDraft } = useDraft(
+    'route',
+    formValues,
+    setFormValues,
+    EMPTY_FORM,
+  )
   useUnsavedWarning(isDirty)
+  const { errors: fieldErrors, validateField, validateAll, getFieldProps } = useFieldValidation(
+    routeFormSchema,
+    formValues,
+  )
 
   function toggleSection(key: string) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   function handleCreate() {
-    const validation = routeFormSchema.safeParse(formValues)
-    if (!validation.success) {
-      toast.error(validation.error.issues[0].message)
-      return
-    }
+    if (!validateAll()) return
     const payload = formValuesToRoutePayload(formValues)
     saveMutation.mutate(payload, {
       onSuccess: () => {
+        clearDraft()
         toast.success(t('messages.routeCreated'))
         navigate({ to: '/config/routes' })
       },
@@ -121,6 +132,15 @@ function RouteCreatePage() {
 
   return (
     <div className="space-y-6">
+      {/* Draft restore banner */}
+      {hasDraft && (
+        <DraftBanner
+          draftTimestamp={draftTimestamp}
+          onRestore={restoreDraft}
+          onDiscard={discardDraft}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon-sm" render={<Link to="/config/routes" />}>
@@ -174,12 +194,17 @@ function RouteCreatePage() {
                   </Label>
                   <Input
                     id="route-name"
+                    name="name"
                     value={formValues.name}
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, name: e.target.value }))
                     }
+                    onBlur={() => validateField('name')}
                     placeholder={t('form.routeNamePlaceholder')}
+                    className={fieldErrors.name ? 'border-destructive' : ''}
+                    {...getFieldProps('name')}
                   />
+                  <FieldError message={fieldErrors.name} id="error-name" />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>

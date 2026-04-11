@@ -18,6 +18,10 @@ import type { ServiceFormValues } from '@/lib/schemas/service'
 import { useServiceMutations } from '@/hooks/use-config-mutations'
 import { useDirtyForm } from '@/hooks/use-dirty-form'
 import { useUnsavedWarning } from '@/hooks/use-unsaved-warning'
+import { useDraft } from '@/hooks/use-draft'
+import { useFieldValidation } from '@/hooks/use-field-validation'
+import { DraftBanner } from '@/components/rioku/draft-banner'
+import { FieldError } from '@/components/rioku/field-error'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
@@ -101,20 +105,28 @@ function ServiceCreatePage() {
 
   const { isDirty } = useDirtyForm(EMPTY_FORM, formValues)
   useUnsavedWarning(isDirty)
+  const { hasDraft, draftTimestamp, restoreDraft, discardDraft, clearDraft } = useDraft(
+    'service',
+    formValues,
+    setFormValues,
+    EMPTY_FORM,
+  )
+
+  const { errors: fieldErrors, validateField, validateAll, getFieldProps } = useFieldValidation(
+    serviceFormSchema,
+    formValues,
+  )
 
   function toggleSection(key: string) {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   function handleCreate() {
-    const validation = serviceFormSchema.safeParse(formValues)
-    if (!validation.success) {
-      toast.error(validation.error.issues[0].message)
-      return
-    }
+    if (!validateAll()) return
     const payload = formValuesToServicePayload(formValues)
     saveMutation.mutate(payload, {
       onSuccess: () => {
+        clearDraft()
         toast.success(t('messages.serviceCreated'))
         navigate({ to: '/config/services' })
       },
@@ -123,6 +135,15 @@ function ServiceCreatePage() {
 
   return (
     <div className="space-y-6">
+      {/* Draft restore banner */}
+      {hasDraft && (
+        <DraftBanner
+          draftTimestamp={draftTimestamp}
+          onRestore={restoreDraft}
+          onDiscard={discardDraft}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon-sm" render={<Link to="/config/services" />}>
@@ -177,12 +198,17 @@ function ServiceCreatePage() {
                     {t('form.serviceName')} <span className="text-destructive">*</span>
                   </Label>
                   <Input
+                    name="name"
                     value={formValues.name}
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, name: e.target.value }))
                     }
+                    onBlur={() => validateField('name')}
                     placeholder={t('form.serviceNamePlaceholder')}
+                    className={fieldErrors.name ? 'border-destructive' : ''}
+                    {...getFieldProps('name')}
                   />
+                  <FieldError message={fieldErrors.name} id="error-name" />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('form.lbPolicy')}</Label>

@@ -23,10 +23,12 @@ import {
   Legend,
 } from 'recharts'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 import type { HealthStatus, ConfigSnapshot, AuditEntry } from '@/lib/api'
 
 import { PageHeader } from '@/components/rioku/page-header'
+import { StaleIndicator } from '@/components/rioku/stale-indicator'
 import { StatCard } from '@/components/rioku/stat-card'
 import { StatusBadge } from '@/components/rioku/status-badge'
 import type { Status } from '@/components/rioku/status-badge'
@@ -158,6 +160,9 @@ function Dashboard() {
   const { t } = useTranslation('dashboard')
   const [health, config, audit] = Route.useLoaderData()
   const { range, setRange } = useTimeRange()
+  const queryClient = useQueryClient()
+  const dashboardQueryState = queryClient.getQueryState(['traffic', 'dashboard', range])
+  const dashboardUpdatedAt = dashboardQueryState?.dataUpdatedAt ?? Date.now()
 
   const { data: dashboardData } = useQuery<DashboardTrafficData>({
     queryKey: ['traffic', 'dashboard', range],
@@ -177,11 +182,21 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('title', 'Dashboard')}
-        description={t('description', 'Gateway performance at a glance')}
-        actions={<TimeRangeSelector range={range} onChange={setRange} />}
-      />
+      <div className="flex items-start justify-between">
+        <PageHeader
+          title={t('title', 'Dashboard')}
+          description={t('description', 'Gateway performance at a glance')}
+          actions={<TimeRangeSelector range={range} onChange={setRange} />}
+        />
+        <StaleIndicator
+          dataUpdatedAt={dashboardUpdatedAt}
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['traffic', 'dashboard'] })
+            queryClient.invalidateQueries({ queryKey: ['health'] })
+            queryClient.invalidateQueries({ queryKey: ['config'] })
+          }}
+        />
+      </div>
 
       {/* Plugin alert zone */}
       <Slot zone="dashboard.alerts" />

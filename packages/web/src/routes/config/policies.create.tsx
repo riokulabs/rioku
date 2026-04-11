@@ -17,6 +17,9 @@ import {
 
 import { apiClient } from '@/lib/api'
 import type { Policy } from '@/lib/api'
+import { useDraft } from '@/hooks/use-draft'
+import { DraftBanner } from '@/components/rioku/draft-banner'
+import { FieldError } from '@/components/rioku/field-error'
 import { policySchemaFor } from '@/lib/schemas/policy-schemas'
 import { TypeSelectorTiles } from '@/components/rioku/type-selector-tiles'
 import { PolicyFormForType } from '@/components/rioku/policy-forms'
@@ -62,11 +65,25 @@ export function PolicyCreatePage() {
   const [yamlContent, setYamlContent] = useState('')
   const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
 
+  const policyDraftState = { name, selectedType, config }
+  const EMPTY_POLICY_DRAFT = { name: '', selectedType: null as string | null, config: {} as Record<string, unknown> }
+  const { hasDraft, draftTimestamp, restoreDraft, discardDraft, clearDraft } = useDraft(
+    'policy',
+    policyDraftState,
+    (v: typeof policyDraftState) => {
+      setName(v.name)
+      setSelectedType(v.selectedType)
+      setConfig(v.config)
+    },
+    EMPTY_POLICY_DRAFT,
+  )
+
   const createMutation = useMutation({
     mutationFn: (payload: {
       policy: { action: 'UPSERT'; policy: Partial<Policy> }
     }) => apiClient.post('/config', payload),
     onSuccess: () => {
+      clearDraft()
       queryClient.invalidateQueries({ queryKey: ['config'] })
       toast.success(t('messages.policyCreated'))
       navigate({ to: '/config/policies' })
@@ -97,6 +114,15 @@ export function PolicyCreatePage() {
 
   return (
     <div className="space-y-6">
+      {/* Draft restore banner */}
+      {hasDraft && (
+        <DraftBanner
+          draftTimestamp={draftTimestamp}
+          onRestore={restoreDraft}
+          onDiscard={discardDraft}
+        />
+      )}
+
       <div className="space-y-4">
         <Link
           to="/config/policies"
@@ -165,10 +191,17 @@ export function PolicyCreatePage() {
                 <Label htmlFor="policy-name">{t('create.policyName')}</Label>
                 <Input
                   id="policy-name"
+                  name="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('create.policyNamePlaceholder')}
+                  className={!name.trim() && errors.name ? 'border-destructive' : ''}
+                  aria-invalid={!name.trim() && !!errors.name}
+                  aria-describedby={errors.name ? 'error-policy-name' : undefined}
                 />
+                {!name.trim() && errors.name && (
+                  <FieldError message={errors.name} id="error-policy-name" />
+                )}
               </div>
             </CardContent>
           </Card>

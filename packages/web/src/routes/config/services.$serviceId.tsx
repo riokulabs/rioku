@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -26,6 +26,7 @@ import type { ServiceFormValues } from '@/lib/schemas/service'
 import { useServiceMutations } from '@/hooks/use-config-mutations'
 import { useDirtyForm } from '@/hooks/use-dirty-form'
 import { useUnsavedWarning } from '@/hooks/use-unsaved-warning'
+import { useRecentlyViewed } from '@/hooks/use-recently-viewed'
 import { useTabFromUrl } from '@/hooks/use-tab-from-url'
 
 import { PageHeader } from '@/components/rioku/page-header'
@@ -83,6 +84,19 @@ function ServiceDetailPage() {
   const { service, policies } = Route.useLoaderData()
 
   const { saveMutation, deleteMutation } = useServiceMutations()
+  const { addRecent } = useRecentlyViewed()
+
+  // Track recently viewed
+  useEffect(() => {
+    if (service) {
+      addRecent({
+        type: 'service',
+        id: service.id,
+        name: service.name,
+        path: `/config/services/${service.id}`,
+      })
+    }
+  }, [service?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [isEditing, setIsEditing] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)

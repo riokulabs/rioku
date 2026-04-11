@@ -128,6 +128,19 @@ export const authHandlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // Session refresh
+  http.post('/api/v1/auth/refresh', () => {
+    const extendedExpiry = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
+    return HttpResponse.json({
+      session: {
+        ...mockMe.session,
+        expiresAt: extendedExpiry,
+        lastActive: new Date().toISOString(),
+      },
+      user: mockMe.user,
+    })
+  }),
+
   http.post('/api/v1/auth/logout', () => {
     return new HttpResponse(null, { status: 204 })
   }),

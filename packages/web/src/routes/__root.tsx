@@ -18,6 +18,7 @@ import { Header } from '@/components/layout/header'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { KeyboardShortcutHelp } from '@/components/layout/keyboard-shortcut-help'
 import { ConnectionIndicator } from '@/components/rioku/connection-indicator'
+import { SessionTimeoutDialog } from '@/components/layout/session-timeout-dialog'
 import { useHotkey } from '@/hooks/use-hotkeys'
 import { useTheme } from '@/hooks/use-theme'
 import { useFocusOnNavigate } from '@/hooks/use-focus-on-navigate'
@@ -163,6 +164,7 @@ function AppShell() {
         open={shortcutHelpOpen}
         onOpenChange={setShortcutHelpOpen}
       />
+      <SessionTimeoutDialog />
     </>
   )
 }
