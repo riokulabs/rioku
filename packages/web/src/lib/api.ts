@@ -1,6 +1,18 @@
 // Typed REST API client for the Rioku daemon.
 
-import { getFallbackData } from '@/lib/mock-fallback'
+// Mock fallback is lazily imported to avoid pulling mock data into the critical path.
+// See src/lib/mock-fallback.ts for the mapping of unimplemented endpoints to mock data.
+let _fallback: ((path: string, params?: Record<string, string>) => unknown | undefined) | null = null
+async function loadFallback() {
+  if (_fallback) return _fallback
+  try {
+    const mod = await import('./mock-fallback')
+    _fallback = mod.getFallbackData
+    return _fallback
+  } catch {
+    return null
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Domain types (matching proto JSON output)
@@ -553,8 +565,11 @@ async function request<T>(
   if (!res.ok) {
     // For 404s on endpoints not yet implemented, try mock data fallback
     if (res.status === 404 || res.status === 500) {
-      const mockData = getFallbackData(path, params)
-      if (mockData !== undefined) return mockData as T
+      const fallbackFn = await loadFallback()
+      if (fallbackFn) {
+        const mockData = fallbackFn(path, params)
+        if (mockData !== undefined) return mockData as T
+      }
     }
     let error: ApiError
     try {
