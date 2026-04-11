@@ -7,26 +7,121 @@
     "targetService": "Target service",
     "status": "Status",
     "updated": "Updated",
-    "actions": "Actions"
+    "actions": "Actions",
+    "policies": "Policies",
+    "labels": "Labels"
   },
   "form": {
     "createRoute": "Create route",
     "editRoute": "Edit route",
     "routeName": "Route name",
+    "routeNamePlaceholder": "api-gateway",
     "matchHost": "Match host",
     "matchPath": "Match path",
     "matchMethod": "Match method",
     "targetService": "Target service",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "enabledDescription": "When disabled, this route will not match any traffic",
+    "targetType": "Target type",
+    "targetTypeService": "Service",
+    "targetTypeDirect": "Direct upstream",
+    "directAddress": "Upstream address",
+    "directAddressPlaceholder": "10.0.1.10:8080",
+    "directTls": "Upstream TLS",
+    "duplicateRoute": "Duplicate route"
+  },
+  "detail": {
+    "backToRoutes": "Back to routes",
+    "overview": "Overview",
+    "matching": "Matching",
+    "tls": "TLS",
+    "policiesTab": "Policies",
+    "traffic": "Traffic",
+    "activity": "Activity",
+    "editSection": "Edit",
+    "saveChanges": "Save changes",
+    "cancelEdit": "Cancel",
+    "reviewChanges": "Review changes",
+    "applyChanges": "Apply changes",
+    "routeId": "Route ID",
+    "createdAt": "Created",
+    "updatedAt": "Last updated",
+    "serviceTarget": "Service target",
+    "directTarget": "Direct upstream",
+    "noTarget": "No target configured"
+  },
+  "matching": {
+    "hosts": "Host matchers",
+    "hostsDescription": "Hostnames this route matches (supports wildcards: *.example.com)",
+    "addHost": "Add host",
+    "paths": "Path matchers",
+    "pathsDescription": "URL paths this route matches",
+    "addPath": "Add path",
+    "pathType": "Match type",
+    "pathValue": "Path",
+    "pathValuePlaceholder": "/api/v1",
+    "methods": "HTTP methods",
+    "methodsDescription": "Restrict to specific HTTP methods (empty = all methods)",
+    "headers": "Header matchers",
+    "headersDescription": "Match requests by header values",
+    "addHeader": "Add header",
+    "headerName": "Header name",
+    "headerValue": "Header value",
+    "headerInvert": "Invert match"
+  },
+  "tls": {
+    "forceHttps": "Force HTTPS",
+    "forceHttpsDescription": "Redirect all HTTP requests to HTTPS",
+    "minVersion": "Minimum TLS version",
+    "clientAuth": "Client authentication",
+    "clientAuthOff": "Off",
+    "clientAuthRequest": "Request",
+    "clientAuthRequire": "Require",
+    "clientAuthRequireVerify": "Require & Verify"
+  },
+  "policies": {
+    "attached": "Attached policies",
+    "attachedDescription": "Policies applied to this route in order",
+    "attachPolicy": "Attach policy",
+    "detach": "Detach",
+    "noPolicies": "No policies attached",
+    "noPoliciesDescription": "Attach policies to apply rate limiting, authentication, and other rules to this route."
+  },
+  "create": {
+    "title": "Create route",
+    "subtitle": "Define a new routing rule for incoming requests",
+    "formMode": "Form",
+    "codeMode": "YAML / JSON",
+    "sectionBasics": "Basics",
+    "sectionMatching": "Matching rules",
+    "sectionTarget": "Target",
+    "sectionPolicies": "Policies",
+    "sectionTls": "TLS",
+    "sectionAdvanced": "Advanced",
+    "advancedQueryMatchers": "Query string matchers",
+    "advancedCelExpression": "CEL expression",
+    "advancedStreaming": "Streaming",
+    "advancedPriority": "Priority",
+    "advancedLabels": "Labels"
   },
   "messages": {
     "routeCreated": "Route created successfully",
     "routeUpdated": "Route updated successfully",
     "routeDeleted": "Route deleted successfully",
-    "confirmDelete": "Are you sure you want to delete this route?"
+    "routeDuplicated": "Route duplicated",
+    "confirmDelete": "Are you sure you want to delete this route?",
+    "confirmDeleteTitle": "Delete route",
+    "unsavedChanges": "You have unsaved changes. Discard them?"
   },
   "empty": {
     "noRoutes": "No routes configured",
     "noRoutesDesc": "Create a route to start directing traffic to your services."
+  },
+  "filter": {
+    "status": "Status",
+    "service": "Service",
+    "hasPolicy": "Has policy",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   }
 }

@@ -32,6 +32,12 @@ export interface Route {
   labels: Record<string, string> | null
   createdAt: string
   updatedAt: string
+  // NEEDS BACKEND -- not in proto yet, used for UI placeholders
+  // forceTls?: boolean
+  // minTlsVersion?: string
+  // clientAuth?: string
+  // priority?: number
+  // streamingEnabled?: boolean
 }
 
 export interface Upstream {
@@ -214,6 +220,30 @@ async function request<T>(
 
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
+}
+
+/** Fetch a single route by ID from the config snapshot. */
+export async function fetchRouteById(id: string): Promise<Route | undefined> {
+  const config = await request<ConfigSnapshot>('GET', '/config')
+  return config.routes.find((r) => r.id === id)
+}
+
+/** Fetch a single service by ID from the config snapshot. */
+export async function fetchServiceById(id: string): Promise<Service | undefined> {
+  const config = await request<ConfigSnapshot>('GET', '/config')
+  return config.services.find((s) => s.id === id)
+}
+
+/** Fetch all policies (for SearchableMultiSelect options). */
+export async function fetchPolicies(): Promise<Policy[]> {
+  const config = await request<ConfigSnapshot>('GET', '/config')
+  return config.policies
+}
+
+/** Fetch all services (for SearchableSelect options). */
+export async function fetchServices(): Promise<Service[]> {
+  const config = await request<ConfigSnapshot>('GET', '/config')
+  return config.services
 }
 
 export const apiClient = {

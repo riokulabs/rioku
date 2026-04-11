@@ -17,7 +17,14 @@
     "enable": "Enable",
     "disable": "Disable",
     "copy": "Copy",
-    "download": "Download"
+    "download": "Download",
+    "duplicate": "Duplicate",
+    "attach": "Attach",
+    "detach": "Detach",
+    "reviewChanges": "Review changes",
+    "applyChanges": "Apply changes",
+    "discardChanges": "Discard changes",
+    "backToList": "Back to list"
   },
   "labels": {
     "name": "Name",
@@ -99,5 +106,41 @@
     "hoursAgo": "{{count}}h ago",
     "daysAgo": "{{count}}d ago",
     "weeksAgo": "{{count}}w ago"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "matching": "Matching",
+    "tls": "TLS",
+    "policies": "Policies",
+    "healthChecks": "Health checks",
+    "transport": "Transport",
+    "traffic": "Traffic",
+    "activity": "Activity"
+  },
+  "form": {
+    "unsavedChanges": "You have unsaved changes",
+    "unsavedChangesDescription": "Your changes will be lost if you leave this page.",
+    "stay": "Stay on page",
+    "leave": "Leave page",
+    "needsBackend": "Available in a future release",
+    "required": "Required",
+    "mode": {
+      "form": "Form",
+      "code": "YAML / JSON"
+    }
+  },
+  "diff": {
+    "title": "Review changes",
+    "noChanges": "No changes detected",
+    "added": "Added",
+    "removed": "Removed",
+    "changed": "Changed"
+  },
+  "bulk": {
+    "selected": "{{count}} selected",
+    "enableAll": "Enable all",
+    "disableAll": "Disable all",
+    "deleteSelected": "Delete selected",
+    "attachPolicy": "Attach policy to all"
   }
 }
