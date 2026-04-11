@@ -13,6 +13,7 @@ import { format } from 'date-fns'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { StatCard } from '@/components/rioku/stat-card'
+import { TraceDetailPanel } from '@/components/rioku/trace-detail-panel'
 import { Slot } from '@/components/plugin/slot'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,16 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { CodeBlock } from '@/components/rioku/code-block'
 import { useSse } from '@/hooks/use-sse'
+import type { TraceDetail } from '@/lib/api'
 
 export const Route = createFileRoute('/traffic/live')({
   loader: () => {
@@ -59,7 +53,44 @@ interface RequestEvent {
   latency_ms: number
   upstream: string
   route_id: string
+  route_name?: string
+  service_id?: string
+  service_name?: string
   headers?: Record<string, string>
+  response_headers?: Record<string, string>
+  query_params?: Record<string, string>
+  host?: string
+  response_size?: number
+  upstream_duration_ms?: number
+  policies?: Array<{
+    policy_id: string
+    policy_name: string
+    policy_type: string
+    result: 'pass' | 'fail' | 'skip'
+    detail?: string
+    rate_limit_remaining?: number
+  }>
+  identity?: {
+    actor_type: 'api_key' | 'agent' | 'user' | 'anonymous'
+    actor_id?: string
+    session_id?: string
+    api_key_prefix?: string
+  }
+  ai?: {
+    provider: string
+    model: string
+    input_tokens: number
+    output_tokens: number
+    cache_tokens: number
+    estimated_cost_usd: number
+    finish_reason: string
+    tool_calls?: string[]
+  }
+  otel?: {
+    trace_id: string
+    span_id: string
+    external_viewer_url?: string
+  }
 }
 
 const MAX_BUFFER = 200
@@ -70,6 +101,64 @@ function statusColorClass(status: number): string {
   if (status < 500)
     return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
   return 'bg-red-500/10 text-red-700 dark:text-red-400'
+}
+
+function eventToTraceDetail(req: RequestEvent): TraceDetail {
+  return {
+    id: req.id,
+    timestamp: req.timestamp,
+    method: req.method,
+    path: req.path,
+    host: req.host ?? '',
+    requestHeaders: req.headers ?? {},
+    queryParams: req.query_params ?? {},
+    status: req.status,
+    responseHeaders: req.response_headers ?? {},
+    responseSize: req.response_size ?? 0,
+    totalDurationMs: req.latency_ms,
+    upstreamDurationMs: req.upstream_duration_ms ?? req.latency_ms,
+    overheadMs: req.upstream_duration_ms != null ? req.latency_ms - req.upstream_duration_ms : 0,
+    routeId: req.route_id,
+    routeName: req.route_name ?? req.route_id,
+    serviceId: req.service_id ?? '',
+    serviceName: req.service_name ?? '',
+    upstream: req.upstream,
+    policies: (req.policies ?? []).map((p) => ({
+      policyId: p.policy_id,
+      policyName: p.policy_name,
+      policyType: p.policy_type,
+      result: p.result,
+      detail: p.detail,
+      rateLimitRemaining: p.rate_limit_remaining,
+    })),
+    identity: req.identity
+      ? {
+          actorType: req.identity.actor_type,
+          actorId: req.identity.actor_id,
+          sessionId: req.identity.session_id,
+          apiKeyPrefix: req.identity.api_key_prefix,
+        }
+      : null,
+    ai: req.ai
+      ? {
+          provider: req.ai.provider,
+          model: req.ai.model,
+          inputTokens: req.ai.input_tokens,
+          outputTokens: req.ai.output_tokens,
+          cacheTokens: req.ai.cache_tokens,
+          estimatedCostUsd: req.ai.estimated_cost_usd,
+          finishReason: req.ai.finish_reason,
+          toolCalls: req.ai.tool_calls,
+        }
+      : null,
+    otel: req.otel
+      ? {
+          traceId: req.otel.trace_id,
+          spanId: req.otel.span_id,
+          externalViewerUrl: req.otel.external_viewer_url,
+        }
+      : null,
+  }
 }
 
 function TrafficLive() {
@@ -302,88 +391,12 @@ function TrafficLive() {
         </ScrollArea>
       </div>
 
-      {/* Request detail sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>{t('live.requestDetail')}</SheetTitle>
-            {selectedRequest && (
-              <SheetDescription>
-                {selectedRequest.method} {selectedRequest.path}
-              </SheetDescription>
-            )}
-          </SheetHeader>
-          {selectedRequest && (
-            <div className="space-y-4 overflow-auto px-4 pb-4">
-              {/* Timing */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">{t('live.timing')}</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">
-                    {t('columns.status')}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={`w-fit border-transparent ${statusColorClass(selectedRequest.status)}`}
-                  >
-                    {selectedRequest.status}
-                  </Badge>
-                  <span className="text-muted-foreground">
-                    {t('columns.latency')}
-                  </span>
-                  <span className="font-mono">
-                    {selectedRequest.latency_ms}ms
-                  </span>
-                  <span className="text-muted-foreground">
-                    {t('columns.time')}
-                  </span>
-                  <span className="font-mono text-xs">
-                    {format(
-                      new Date(selectedRequest.timestamp),
-                      'HH:mm:ss.SSS',
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Upstream info */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">
-                  {t('live.upstreamInfo')}
-                </h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">
-                    {t('columns.upstream')}
-                  </span>
-                  <span className="font-mono">{selectedRequest.upstream}</span>
-                  <span className="text-muted-foreground">
-                    {t('live.routeId')}
-                  </span>
-                  <span className="font-mono text-xs">
-                    {selectedRequest.route_id}
-                  </span>
-                </div>
-              </div>
-
-              {/* Headers */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">{t('live.headers')}</h4>
-                {selectedRequest.headers &&
-                Object.keys(selectedRequest.headers).length > 0 ? (
-                  <CodeBlock
-                    value={selectedRequest.headers}
-                    maxHeight="200px"
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {t('live.noHeaders')}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Trace detail slide-out panel */}
+      <TraceDetailPanel
+        trace={selectedRequest ? eventToTraceDetail(selectedRequest) : null}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </div>
   )
 }

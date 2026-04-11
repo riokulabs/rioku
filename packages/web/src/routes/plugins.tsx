@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Puzzle } from 'lucide-react'
 
@@ -14,6 +14,7 @@ import {
   CardAction,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { apiClient } from '@/lib/api'
 
@@ -68,6 +69,7 @@ function Plugins() {
 
 function PluginCard({ plugin }: { plugin: PluginInfo }) {
   const { t } = useTranslation('plugins')
+  const navigate = useNavigate()
 
   return (
     <Card>
@@ -96,6 +98,14 @@ function PluginCard({ plugin }: { plugin: PluginInfo }) {
           <Badge variant="outline">{plugin.type}</Badge>
           <Badge variant="secondary">{plugin.version}</Badge>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2 w-full"
+          onClick={() => navigate({ to: '/plugins/$pluginId', params: { pluginId: plugin.id } })}
+        >
+          Configure
+        </Button>
       </CardContent>
     </Card>
   )

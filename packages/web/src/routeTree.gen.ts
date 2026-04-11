@@ -15,12 +15,14 @@ import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ClusterRouteImport } from './routes/cluster'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as CertificatesRouteImport } from './routes/certificates'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrafficLiveRouteImport } from './routes/traffic/live'
 import { Route as TrafficAnalyticsRouteImport } from './routes/traffic/analytics'
 import { Route as TrafficAiRouteImport } from './routes/traffic/ai'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
+import { Route as SettingsTlsRouteImport } from './routes/settings/tls'
 import { Route as SettingsRolesRouteImport } from './routes/settings/roles'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as SettingsPkiRouteImport } from './routes/settings/pki'
@@ -30,7 +32,7 @@ import { Route as SettingsGeneralRouteImport } from './routes/settings/general'
 import { Route as SettingsDangerZoneRouteImport } from './routes/settings/danger-zone'
 import { Route as SettingsConfigStoreRouteImport } from './routes/settings/config-store'
 import { Route as SettingsAuthenticationRouteImport } from './routes/settings/authentication'
-import { Route as SettingsTlsRouteImport } from './routes/settings/tls'
+import { Route as PluginsPluginIdRouteImport } from './routes/plugins/$pluginId'
 import { Route as ConfigServicesRouteImport } from './routes/config/services'
 import { Route as ConfigRoutesRouteImport } from './routes/config/routes'
 import { Route as ConfigPoliciesRouteImport } from './routes/config/policies'
@@ -65,6 +67,11 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CertificatesRoute = CertificatesRouteImport.update({
+  id: '/certificates',
+  path: '/certificates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -93,6 +100,11 @@ const TrafficAiRoute = TrafficAiRouteImport.update({
 const SettingsUsersRoute = SettingsUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsTlsRoute = SettingsTlsRouteImport.update({
+  id: '/tls',
+  path: '/tls',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsRolesRoute = SettingsRolesRouteImport.update({
@@ -140,10 +152,10 @@ const SettingsAuthenticationRoute = SettingsAuthenticationRouteImport.update({
   path: '/authentication',
   getParentRoute: () => SettingsRoute,
 } as any)
-const SettingsTlsRoute = SettingsTlsRouteImport.update({
-  id: '/tls',
-  path: '/tls',
-  getParentRoute: () => SettingsRoute,
+const PluginsPluginIdRoute = PluginsPluginIdRouteImport.update({
+  id: '/$pluginId',
+  path: '/$pluginId',
+  getParentRoute: () => PluginsRoute,
 } as any)
 const ConfigServicesRoute = ConfigServicesRouteImport.update({
   id: '/config/services',
@@ -164,15 +176,17 @@ const ConfigPoliciesRoute = ConfigPoliciesRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
+  '/certificates': typeof CertificatesRoute
   '/change-password': typeof ChangePasswordRoute
   '/cluster': typeof ClusterRoute
   '/login': typeof LoginRoute
-  '/plugins': typeof PluginsRoute
+  '/plugins': typeof PluginsRouteWithChildren
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRouteWithChildren
   '/config/policies': typeof ConfigPoliciesRoute
   '/config/routes': typeof ConfigRoutesRoute
   '/config/services': typeof ConfigServicesRoute
+  '/plugins/$pluginId': typeof PluginsPluginIdRoute
   '/settings/authentication': typeof SettingsAuthenticationRoute
   '/settings/config-store': typeof SettingsConfigStoreRoute
   '/settings/danger-zone': typeof SettingsDangerZoneRoute
@@ -191,15 +205,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
+  '/certificates': typeof CertificatesRoute
   '/change-password': typeof ChangePasswordRoute
   '/cluster': typeof ClusterRoute
   '/login': typeof LoginRoute
-  '/plugins': typeof PluginsRoute
+  '/plugins': typeof PluginsRouteWithChildren
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRouteWithChildren
   '/config/policies': typeof ConfigPoliciesRoute
   '/config/routes': typeof ConfigRoutesRoute
   '/config/services': typeof ConfigServicesRoute
+  '/plugins/$pluginId': typeof PluginsPluginIdRoute
   '/settings/authentication': typeof SettingsAuthenticationRoute
   '/settings/config-store': typeof SettingsConfigStoreRoute
   '/settings/danger-zone': typeof SettingsDangerZoneRoute
@@ -219,15 +235,17 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
+  '/certificates': typeof CertificatesRoute
   '/change-password': typeof ChangePasswordRoute
   '/cluster': typeof ClusterRoute
   '/login': typeof LoginRoute
-  '/plugins': typeof PluginsRoute
+  '/plugins': typeof PluginsRouteWithChildren
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRouteWithChildren
   '/config/policies': typeof ConfigPoliciesRoute
   '/config/routes': typeof ConfigRoutesRoute
   '/config/services': typeof ConfigServicesRoute
+  '/plugins/$pluginId': typeof PluginsPluginIdRoute
   '/settings/authentication': typeof SettingsAuthenticationRoute
   '/settings/config-store': typeof SettingsConfigStoreRoute
   '/settings/danger-zone': typeof SettingsDangerZoneRoute
@@ -248,6 +266,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/audit'
+    | '/certificates'
     | '/change-password'
     | '/cluster'
     | '/login'
@@ -257,6 +276,7 @@ export interface FileRouteTypes {
     | '/config/policies'
     | '/config/routes'
     | '/config/services'
+    | '/plugins/$pluginId'
     | '/settings/authentication'
     | '/settings/config-store'
     | '/settings/danger-zone'
@@ -275,6 +295,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/audit'
+    | '/certificates'
     | '/change-password'
     | '/cluster'
     | '/login'
@@ -284,6 +305,7 @@ export interface FileRouteTypes {
     | '/config/policies'
     | '/config/routes'
     | '/config/services'
+    | '/plugins/$pluginId'
     | '/settings/authentication'
     | '/settings/config-store'
     | '/settings/danger-zone'
@@ -302,6 +324,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/audit'
+    | '/certificates'
     | '/change-password'
     | '/cluster'
     | '/login'
@@ -311,6 +334,7 @@ export interface FileRouteTypes {
     | '/config/policies'
     | '/config/routes'
     | '/config/services'
+    | '/plugins/$pluginId'
     | '/settings/authentication'
     | '/settings/config-store'
     | '/settings/danger-zone'
@@ -330,10 +354,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditRoute: typeof AuditRoute
+  CertificatesRoute: typeof CertificatesRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   ClusterRoute: typeof ClusterRoute
   LoginRoute: typeof LoginRoute
-  PluginsRoute: typeof PluginsRoute
+  PluginsRoute: typeof PluginsRouteWithChildren
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ConfigPoliciesRoute: typeof ConfigPoliciesRoute
@@ -388,6 +413,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/certificates': {
+      id: '/certificates'
+      path: '/certificates'
+      fullPath: '/certificates'
+      preLoaderRoute: typeof CertificatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/audit': {
       id: '/audit'
       path: '/audit'
@@ -423,67 +455,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrafficAiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/authentication': {
-      id: '/settings/authentication'
-      path: '/authentication'
-      fullPath: '/settings/authentication'
-      preLoaderRoute: typeof SettingsAuthenticationRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/config-store': {
-      id: '/settings/config-store'
-      path: '/config-store'
-      fullPath: '/settings/config-store'
-      preLoaderRoute: typeof SettingsConfigStoreRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/danger-zone': {
-      id: '/settings/danger-zone'
-      path: '/danger-zone'
-      fullPath: '/settings/danger-zone'
-      preLoaderRoute: typeof SettingsDangerZoneRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/general': {
-      id: '/settings/general'
-      path: '/general'
-      fullPath: '/settings/general'
-      preLoaderRoute: typeof SettingsGeneralRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/network': {
-      id: '/settings/network'
-      path: '/network'
-      fullPath: '/settings/network'
-      preLoaderRoute: typeof SettingsNetworkRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/observability': {
-      id: '/settings/observability'
-      path: '/observability'
-      fullPath: '/settings/observability'
-      preLoaderRoute: typeof SettingsObservabilityRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/pki': {
-      id: '/settings/pki'
-      path: '/pki'
-      fullPath: '/settings/pki'
-      preLoaderRoute: typeof SettingsPkiRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/profile': {
-      id: '/settings/profile'
-      path: '/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof SettingsProfileRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/roles': {
-      id: '/settings/roles'
-      path: '/roles'
-      fullPath: '/settings/roles'
-      preLoaderRoute: typeof SettingsRolesRouteImport
+    '/settings/users': {
+      id: '/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof SettingsUsersRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/tls': {
@@ -493,12 +469,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsTlsRouteImport
       parentRoute: typeof SettingsRoute
     }
-    '/settings/users': {
-      id: '/settings/users'
-      path: '/users'
-      fullPath: '/settings/users'
-      preLoaderRoute: typeof SettingsUsersRouteImport
+    '/settings/roles': {
+      id: '/settings/roles'
+      path: '/roles'
+      fullPath: '/settings/roles'
+      preLoaderRoute: typeof SettingsRolesRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/pki': {
+      id: '/settings/pki'
+      path: '/pki'
+      fullPath: '/settings/pki'
+      preLoaderRoute: typeof SettingsPkiRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/observability': {
+      id: '/settings/observability'
+      path: '/observability'
+      fullPath: '/settings/observability'
+      preLoaderRoute: typeof SettingsObservabilityRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/network': {
+      id: '/settings/network'
+      path: '/network'
+      fullPath: '/settings/network'
+      preLoaderRoute: typeof SettingsNetworkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/general': {
+      id: '/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof SettingsGeneralRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/danger-zone': {
+      id: '/settings/danger-zone'
+      path: '/danger-zone'
+      fullPath: '/settings/danger-zone'
+      preLoaderRoute: typeof SettingsDangerZoneRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/config-store': {
+      id: '/settings/config-store'
+      path: '/config-store'
+      fullPath: '/settings/config-store'
+      preLoaderRoute: typeof SettingsConfigStoreRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/authentication': {
+      id: '/settings/authentication'
+      path: '/authentication'
+      fullPath: '/settings/authentication'
+      preLoaderRoute: typeof SettingsAuthenticationRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/plugins/$pluginId': {
+      id: '/plugins/$pluginId'
+      path: '/$pluginId'
+      fullPath: '/plugins/$pluginId'
+      preLoaderRoute: typeof PluginsPluginIdRouteImport
+      parentRoute: typeof PluginsRoute
     }
     '/config/services': {
       id: '/config/services'
@@ -523,6 +562,17 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface PluginsRouteChildren {
+  PluginsPluginIdRoute: typeof PluginsPluginIdRoute
+}
+
+const PluginsRouteChildren: PluginsRouteChildren = {
+  PluginsPluginIdRoute: PluginsPluginIdRoute,
+}
+
+const PluginsRouteWithChildren =
+  PluginsRoute._addFileChildren(PluginsRouteChildren)
 
 interface SettingsRouteChildren {
   SettingsAuthenticationRoute: typeof SettingsAuthenticationRoute
@@ -559,10 +609,11 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
+  CertificatesRoute: CertificatesRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   ClusterRoute: ClusterRoute,
   LoginRoute: LoginRoute,
-  PluginsRoute: PluginsRoute,
+  PluginsRoute: PluginsRouteWithChildren,
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ConfigPoliciesRoute: ConfigPoliciesRoute,

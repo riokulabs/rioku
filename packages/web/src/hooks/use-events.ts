@@ -75,10 +75,13 @@ export function useEventSubscription<T>(
         if (cancelled) return
         es?.close()
         setStatus('closed')
-        const delay = Math.min(
+        const baseDelay = Math.min(
           BASE_BACKOFF_MS * 2 ** retriesRef.current,
           MAX_BACKOFF_MS,
         )
+        // Add 0-25% jitter to avoid thundering herd on reconnection
+        const jitter = baseDelay * Math.random() * 0.25
+        const delay = baseDelay + jitter
         retriesRef.current++
         timerRef.current = setTimeout(connect, delay)
       }

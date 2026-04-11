@@ -7,6 +7,8 @@ import {
   Area,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   PieChart,
   Pie,
   Cell,
@@ -21,6 +23,8 @@ import { Hash, Clock, Gauge, AlertTriangle } from 'lucide-react'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { StatCard } from '@/components/rioku/stat-card'
+import { ChartTooltip, type TooltipPayload } from '@/components/rioku/chart-tooltip'
+import { TimezoneCaption } from '@/components/rioku/timezone-caption'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -39,17 +43,37 @@ interface StatsBucket {
   p99LatencyMs: number
   bytesSent: number
   bytesRecv: number
+  error4xx: number
+  error502: number
+  error503: number
+  error429: number
+  error5xxOther: number
+  status2xx: number
+  status3xx: number
+  status4xx: number
+  status5xx: number
 }
 
 interface TrafficStatsResponse {
   buckets: StatsBucket[]
 }
 
+interface TopRoutesResponse {
+  topRoutes: Array<{ route: string; count: number }>
+}
+
 // Internal shape consumed by the page
 interface AnalyticsData {
   requestRate: Array<{ time: string; requests: number }>
-  errorRate: Array<{ time: string; errors: number }>
-  topRoutes: Array<{ route: string; count: number }>
+  errorStacked: Array<{
+    time: string
+    '4xx': number
+    '502': number
+    '503': number
+    '429': number
+    '5xx Other': number
+  }>
+  latencyPercentiles: Array<{ time: string; p50: number; p95: number; p99: number }>
   statusBreakdown: Array<{ code: string; count: number }>
   totalRequests: number
   avgLatency: number
@@ -69,6 +93,35 @@ const TIME_RANGE_INTERVAL: Record<TimeRange, string> = {
   '6h': 'minute',
   '24h': 'hour',
   '7d': 'day',
+}
+
+const ERROR_COLORS = {
+  '4xx': '#eab308',
+  '502': '#ef4444',
+  '503': '#f97316',
+  '429': '#a855f7',
+  '5xx Other': '#991b1b',
+} as const
+
+const STATUS_COLORS: Record<string, string> = {
+  '2xx': '#22c55e',
+  '3xx': '#3b82f6',
+  '4xx': '#eab308',
+  '5xx': '#ef4444',
+}
+
+const LATENCY_COLORS = {
+  p50: '#3b82f6',
+  p95: '#eab308',
+  p99: '#ef4444',
+} as const
+
+function formatTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  })
 }
 
 function transformStats(resp: TrafficStatsResponse): AnalyticsData {
@@ -91,31 +144,60 @@ function transformStats(resp: TrafficStatsResponse): AnalyticsData {
     totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0
 
   const requestRate = buckets.map((b) => ({
-    time: new Date(b.bucketStart).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
+    time: formatTime(b.bucketStart),
     requests: b.requestCount ?? 0,
   }))
 
-  const errorRate = buckets.map((b) => ({
-    time: new Date(b.bucketStart).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    errors: b.errorCount ?? 0,
+  const errorStacked = buckets.map((b) => ({
+    time: formatTime(b.bucketStart),
+    '4xx': b.error4xx ?? 0,
+    '502': b.error502 ?? 0,
+    '503': b.error503 ?? 0,
+    '429': b.error429 ?? 0,
+    '5xx Other': b.error5xxOther ?? 0,
   }))
+
+  const latencyPercentiles = buckets.map((b) => ({
+    time: formatTime(b.bucketStart),
+    p50: b.p50LatencyMs ?? 0,
+    p95: b.p95LatencyMs ?? 0,
+    p99: b.p99LatencyMs ?? 0,
+  }))
+
+  // Aggregate status code breakdown
+  const total2xx = buckets.reduce((s, b) => s + (b.status2xx ?? 0), 0)
+  const total3xx = buckets.reduce((s, b) => s + (b.status3xx ?? 0), 0)
+  const total4xx = buckets.reduce((s, b) => s + (b.status4xx ?? 0), 0)
+  const total5xx = buckets.reduce((s, b) => s + (b.status5xx ?? 0), 0)
+
+  const statusBreakdown = [
+    { code: '2xx', count: total2xx },
+    { code: '3xx', count: total3xx },
+    { code: '4xx', count: total4xx },
+    { code: '5xx', count: total5xx },
+  ].filter((s) => s.count > 0)
 
   return {
     requestRate,
-    errorRate,
-    topRoutes: [], // requires a separate RPC — not yet available
-    statusBreakdown: [], // requires a separate RPC — not yet available
+    errorStacked,
+    latencyPercentiles,
+    statusBreakdown,
     totalRequests,
     avgLatency,
     p99Latency,
     errorRatePercent,
   }
+}
+
+// Adapter to convert Recharts tooltip payload to our ChartTooltip props
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rechartsTooltipAdapter(props: any) {
+  const mapped: TooltipPayload[] = (props.payload ?? []).map((p: any) => ({
+    name: String(p.name ?? ''),
+    value: Number(p.value ?? 0),
+    color: String(p.color ?? p.fill ?? '#888'),
+  }))
+  return <ChartTooltip active={props.active} label={String(props.label ?? '')} payload={mapped} />
 }
 
 export const Route = createFileRoute('/traffic/analytics')({
@@ -139,8 +221,6 @@ export const Route = createFileRoute('/traffic/analytics')({
   component: TrafficAnalytics,
 })
 
-const STATUS_COLORS = ['#22c55e', '#3b82f6', '#eab308', '#ef4444']
-
 function TrafficAnalytics() {
   const { t } = useTranslation('traffic')
   const [timeRange, setTimeRange] = useState<TimeRange>('24h')
@@ -160,10 +240,23 @@ function TrafficAnalytics() {
     retry: false,
   })
 
+  const { data: topRoutesResp } = useQuery<TopRoutesResponse>({
+    queryKey: ['traffic', 'stats', 'routes', timeRange],
+    queryFn: () =>
+      apiClient.get<TopRoutesResponse>('/traffic/stats/routes', {
+        since,
+        until,
+      }),
+    refetchInterval: 60000,
+    retry: false,
+  })
+
   const data = useMemo(
     () => (rawStats ? transformStats(rawStats) : undefined),
     [rawStats],
   )
+
+  const topRoutes = topRoutesResp?.topRoutes ?? []
 
   return (
     <div className="space-y-6">
@@ -234,36 +327,39 @@ function TrafficAnalytics() {
                 {isLoading ? (
                   <Skeleton className="h-56 w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={224}>
-                    <AreaChart data={data?.requestRate ?? []}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-border"
-                      />
-                      <XAxis
-                        dataKey="time"
-                        className="text-xs"
-                        tick={{ fill: 'currentColor' }}
-                      />
-                      <YAxis
-                        className="text-xs"
-                        tick={{ fill: 'currentColor' }}
-                      />
-                      <RTooltip />
-                      <Area
-                        type="monotone"
-                        dataKey="requests"
-                        stroke="hsl(var(--primary))"
-                        fill="hsl(var(--primary) / 0.1)"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <>
+                    <ResponsiveContainer width="100%" height={224}>
+                      <AreaChart data={data?.requestRate ?? []}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis
+                          dataKey="time"
+                          className="text-xs"
+                          tick={{ fill: 'currentColor' }}
+                        />
+                        <YAxis
+                          className="text-xs"
+                          tick={{ fill: 'currentColor' }}
+                        />
+                        <RTooltip content={rechartsTooltipAdapter} />
+                        <Area
+                          type="monotone"
+                          dataKey="requests"
+                          stroke="hsl(var(--primary))"
+                          fill="hsl(var(--primary) / 0.1)"
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    <TimezoneCaption />
+                  </>
                 )}
               </CardContent>
             </Card>
 
-            {/* Error Rate */}
+            {/* Error Rate — Stacked Bar */}
             <Card>
               <CardHeader>
                 <CardTitle>{t('analytics.errorRate')}</CardTitle>
@@ -272,36 +368,100 @@ function TrafficAnalytics() {
                 {isLoading ? (
                   <Skeleton className="h-56 w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={224}>
-                    <AreaChart data={data?.errorRate ?? []}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-border"
-                      />
-                      <XAxis
-                        dataKey="time"
-                        className="text-xs"
-                        tick={{ fill: 'currentColor' }}
-                      />
-                      <YAxis
-                        className="text-xs"
-                        tick={{ fill: 'currentColor' }}
-                      />
-                      <RTooltip />
-                      <Area
-                        type="monotone"
-                        dataKey="errors"
-                        stroke="hsl(var(--destructive))"
-                        fill="hsl(var(--destructive) / 0.1)"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <>
+                    <ResponsiveContainer width="100%" height={224}>
+                      <BarChart data={data?.errorStacked ?? []}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis
+                          dataKey="time"
+                          className="text-xs"
+                          tick={{ fill: 'currentColor' }}
+                        />
+                        <YAxis
+                          className="text-xs"
+                          tick={{ fill: 'currentColor' }}
+                        />
+                        <RTooltip content={rechartsTooltipAdapter} />
+                        <Legend />
+                        {(Object.keys(ERROR_COLORS) as Array<keyof typeof ERROR_COLORS>).map(
+                          (key) => (
+                            <Bar
+                              key={key}
+                              dataKey={key}
+                              stackId="errors"
+                              fill={ERROR_COLORS[key]}
+                            />
+                          ),
+                        )}
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <TimezoneCaption />
+                  </>
                 )}
               </CardContent>
             </Card>
 
-            {/* Top Routes */}
+            {/* Latency Percentiles */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('analytics.latencyPercentiles', { defaultValue: 'Latency Percentiles' })}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-56 w-full" />
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={224}>
+                      <LineChart data={data?.latencyPercentiles ?? []}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis
+                          dataKey="time"
+                          className="text-xs"
+                          tick={{ fill: 'currentColor' }}
+                        />
+                        <YAxis
+                          className="text-xs"
+                          tick={{ fill: 'currentColor' }}
+                          unit="ms"
+                        />
+                        <RTooltip content={rechartsTooltipAdapter} />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="p50"
+                          stroke={LATENCY_COLORS.p50}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="p95"
+                          stroke={LATENCY_COLORS.p95}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="p99"
+                          stroke={LATENCY_COLORS.p99}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <TimezoneCaption />
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Routes — Horizontal Bar */}
             <Card>
               <CardHeader>
                 <CardTitle>{t('analytics.topRoutes')}</CardTitle>
@@ -312,7 +472,7 @@ function TrafficAnalytics() {
                 ) : (
                   <ResponsiveContainer width="100%" height={224}>
                     <BarChart
-                      data={data?.topRoutes ?? []}
+                      data={topRoutes}
                       layout="vertical"
                       margin={{ left: 80 }}
                     >
@@ -330,8 +490,9 @@ function TrafficAnalytics() {
                         dataKey="route"
                         className="text-xs"
                         tick={{ fill: 'currentColor' }}
+                        width={76}
                       />
-                      <RTooltip />
+                      <RTooltip content={rechartsTooltipAdapter} />
                       <Bar
                         dataKey="count"
                         fill="hsl(var(--primary))"
@@ -364,14 +525,14 @@ function TrafficAnalytics() {
                         outerRadius={80}
                         paddingAngle={2}
                       >
-                        {(data?.statusBreakdown ?? []).map((_, i) => (
+                        {(data?.statusBreakdown ?? []).map((entry) => (
                           <Cell
-                            key={i}
-                            fill={STATUS_COLORS[i % STATUS_COLORS.length]}
+                            key={entry.code}
+                            fill={STATUS_COLORS[entry.code] ?? '#6b7280'}
                           />
                         ))}
                       </Pie>
-                      <RTooltip />
+                      <RTooltip content={rechartsTooltipAdapter} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>

@@ -110,6 +110,8 @@ export interface AuditEntry {
   entityId: string
   operation: string
   diff: Record<string, unknown> | null
+  beforeValues?: Record<string, unknown>
+  afterValues?: Record<string, unknown>
   configVersion: number
   occurredAt: string
 }
@@ -120,6 +122,186 @@ export interface ApiError {
   status: number
   detail: string
   instance: string
+}
+
+// --- Trace detail types (enriched from TrafficService) ---
+
+export interface PolicyDecision {
+  policyId: string
+  policyName: string
+  policyType: string
+  result: 'pass' | 'fail' | 'skip'
+  detail?: string
+  rateLimitRemaining?: number
+}
+
+export interface TraceIdentity {
+  actorType: 'api_key' | 'agent' | 'user' | 'anonymous'
+  actorId?: string
+  sessionId?: string
+  apiKeyPrefix?: string
+}
+
+export interface TraceAIFields {
+  provider: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheTokens: number
+  estimatedCostUsd: number
+  finishReason: string
+  toolCalls?: string[]
+}
+
+export interface TraceOTel {
+  traceId: string
+  spanId: string
+  externalViewerUrl?: string
+}
+
+export interface TraceDetail {
+  id: string
+  timestamp: string
+  // REQUEST
+  method: string
+  path: string
+  host: string
+  requestHeaders: Record<string, string>
+  queryParams: Record<string, string>
+  // RESPONSE
+  status: number
+  responseHeaders: Record<string, string>
+  responseSize: number
+  // TIMING
+  totalDurationMs: number
+  upstreamDurationMs: number
+  overheadMs: number
+  // ROUTING
+  routeId: string
+  routeName: string
+  serviceId: string
+  serviceName: string
+  upstream: string
+  // POLICIES
+  policies: PolicyDecision[]
+  // IDENTITY
+  identity: TraceIdentity | null
+  // AI
+  ai: TraceAIFields | null
+  // OTEL
+  otel: TraceOTel | null
+}
+
+// --- Plugin detail types ---
+
+export interface PluginConfig {
+  key: string
+  type: 'string' | 'number' | 'boolean' | 'select'
+  label: string
+  description?: string
+  value: unknown
+  options?: string[]
+}
+
+export interface PluginRoute {
+  routeId: string
+  routeName: string
+  policyId?: string
+}
+
+export interface PluginChangelogEntry {
+  version: string
+  date: string
+  changes: string[]
+}
+
+export interface PluginDetail {
+  id: string
+  name: string
+  type: string
+  status: 'active' | 'disabled'
+  version: string
+  description: string
+  config: PluginConfig[]
+  dependentRoutes: PluginRoute[]
+  changelog: PluginChangelogEntry[]
+  rawConfig: Record<string, unknown>
+}
+
+// --- Certificate types ---
+
+export interface CertificateInfo {
+  id: string
+  domain: string
+  issuer: string
+  expiresAt: string
+  issuedAt: string
+  status: 'valid' | 'expiring' | 'expired' | 'revoked' | 'pending'
+  sans: string[]
+  serialNumber: string
+  fingerprint: string
+  acmeProvider?: string
+  autoRenew: boolean
+}
+
+export interface AcmeConfig {
+  provider: 'letsencrypt' | 'zerossl'
+  email: string
+  dnsProvider?: string
+  onDemandEnabled: boolean
+}
+
+// --- AI / Agent session types ---
+
+export interface AgentSession {
+  sessionId: string
+  agentIdentity: string
+  turns: number
+  totalTokens: number
+  estimatedCostUsd: number
+  status: 'active' | 'completed' | 'error'
+  startedAt: string
+  lastActivityAt: string
+}
+
+// --- Node / Cluster detail types ---
+
+export interface NodeMetrics {
+  cpuPercent: number
+  memoryUsedMb: number
+  memoryTotalMb: number
+  goroutines: number
+  openConnections: number
+  requestsPerSecond: number
+}
+
+export interface NodeCertStatus {
+  domain: string
+  issuer: string
+  expiresAt: string
+  daysUntilExpiry: number
+  status: 'valid' | 'expiring' | 'expired'
+}
+
+export interface SyncEvent {
+  timestamp: string
+  type: 'config_push' | 'config_pull' | 'cert_sync' | 'health_check'
+  status: 'success' | 'failure'
+  detail?: string
+}
+
+export interface NodeDetail {
+  name: string
+  role: 'bootstrap' | 'member'
+  health: string
+  daemon_version: string
+  caddy_version: string
+  store_mode: string
+  last_seen: string
+  address?: string
+  metrics?: NodeMetrics
+  certificates?: NodeCertStatus[]
+  recentSyncEvents?: SyncEvent[]
 }
 
 // --- Auth / Session types ---
@@ -247,12 +429,7 @@ export interface NetworkSettingsResponse {
   }
 }
 
-export interface CertificateInfo {
-  domain: string
-  issuer: string
-  expiresAt: string
-  status: 'valid' | 'expiring' | 'expired' | 'revoked'
-}
+// CertificateInfo defined above (with full fields)
 
 export interface TlsSettingsResponse {
   acmeProvider: string

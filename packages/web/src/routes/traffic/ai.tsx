@@ -5,9 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart,
   Area,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,9 +19,14 @@ import { Sparkles, DollarSign, Radio, Layers } from 'lucide-react'
 import { PageHeader } from '@/components/rioku/page-header'
 import { StatCard } from '@/components/rioku/stat-card'
 import { DataTable } from '@/components/rioku/data-table'
+import { ChartTooltip, type TooltipPayload } from '@/components/rioku/chart-tooltip'
+import { TimezoneCaption } from '@/components/rioku/timezone-caption'
+import { StatusBadge, type Status } from '@/components/rioku/status-badge'
+import { TimeAgo } from '@/components/rioku/time-ago'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { apiClient } from '@/lib/api'
+import { apiClient, type AgentSession } from '@/lib/api'
+import { features } from '@/lib/feature-flags'
 
 // API response shape from /api/v1/traffic/tokens (proto: TokenStats)
 interface TokenBucket {
@@ -70,8 +74,17 @@ interface AiMetrics {
     tokens: number
     cost: number
   }>
-  tokenUsageOverTime: Array<{ time: string; tokens: number }>
+  tokenStacked: Array<{ time: string; input: number; output: number }>
+  costOverTime: Array<{ time: string; cost: number }>
   costByModel: Array<{ model: string; cost: number }>
+}
+
+function formatTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  })
 }
 
 function transformTokenStats(resp: TokenStatsResponse): AiMetrics {
@@ -82,7 +95,7 @@ function transformTokenStats(resp: TokenStatsResponse): AiMetrics {
   return {
     totalTokens: totals.totalTokens ?? 0,
     estimatedCost: totals.estimatedCostUsd ?? 0,
-    activeSessions: 0, // requires ListSessions RPC — not available from this endpoint
+    activeSessions: 0,
     modelsUsed: breakdown.length,
     models: breakdown.map((m) => ({
       model: m.model,
@@ -91,18 +104,30 @@ function transformTokenStats(resp: TokenStatsResponse): AiMetrics {
       tokens: m.totalTokens ?? 0,
       cost: m.estimatedCostUsd ?? 0,
     })),
-    tokenUsageOverTime: buckets.map((b) => ({
-      time: new Date(b.bucketStart).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      tokens: b.totalTokens ?? 0,
+    tokenStacked: buckets.map((b) => ({
+      time: formatTime(b.bucketStart),
+      input: b.inputTokens ?? 0,
+      output: b.outputTokens ?? 0,
+    })),
+    costOverTime: buckets.map((b) => ({
+      time: formatTime(b.bucketStart),
+      cost: b.estimatedCostUsd ?? 0,
     })),
     costByModel: breakdown.map((m) => ({
       model: m.model,
       cost: m.estimatedCostUsd ?? 0,
     })),
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rechartsTooltipAdapter(props: any) {
+  const mapped: TooltipPayload[] = (props.payload ?? []).map((p: any) => ({
+    name: String(p.name ?? ''),
+    value: Number(p.value ?? 0),
+    color: String(p.color ?? p.fill ?? '#888'),
+  }))
+  return <ChartTooltip active={props.active} label={String(props.label ?? '')} payload={mapped} />
 }
 
 const AI_STATS_RANGE_MS = 24 * 60 * 60 * 1000
@@ -126,14 +151,14 @@ export const Route = createFileRoute('/traffic/ai')({
   component: TrafficAI,
 })
 
-const MODEL_COLORS = [
-  '#8b5cf6',
-  '#3b82f6',
-  '#22c55e',
-  '#eab308',
-  '#ef4444',
-  '#ec4899',
-]
+function sessionStatusToHealth(status: string): Status {
+  switch (status) {
+    case 'active': return 'healthy'
+    case 'completed': return 'unknown'
+    case 'error': return 'unhealthy'
+    default: return 'unknown'
+  }
+}
 
 function TrafficAI() {
   const { t } = useTranslation('traffic')
@@ -149,6 +174,14 @@ function TrafficAI() {
         until,
         interval: 'hour',
       }),
+    refetchInterval: 60000,
+    retry: false,
+  })
+
+  const { data: sessions, isLoading: sessionsLoading } = useQuery<AgentSession[]>({
+    queryKey: ['traffic', 'sessions'],
+    queryFn: () => apiClient.get<AgentSession[]>('/traffic/sessions', { since, until }),
+    enabled: features.agentSessions,
     refetchInterval: 60000,
     retry: false,
   })
@@ -219,6 +252,7 @@ function TrafficAI() {
             {
               key: 'model',
               header: t('ai.model'),
+              sortable: true,
               render: (row) => (
                 <span className="font-mono">{row.model as string}</span>
               ),
@@ -227,6 +261,7 @@ function TrafficAI() {
             {
               key: 'requests',
               header: t('ai.requests'),
+              sortable: true,
               render: (row) => (
                 <span className="font-mono">
                   {(row.requests as number).toLocaleString()}
@@ -236,6 +271,7 @@ function TrafficAI() {
             {
               key: 'tokens',
               header: t('ai.tokens'),
+              sortable: true,
               render: (row) => (
                 <span className="font-mono">
                   {(row.tokens as number).toLocaleString()}
@@ -245,9 +281,10 @@ function TrafficAI() {
             {
               key: 'cost',
               header: t('ai.cost'),
+              sortable: true,
               render: (row) => (
                 <span className="font-mono">
-                  ${(row.cost as number).toFixed(2)}
+                  {`$${(row.cost as number).toFixed(2)}`}
                 </span>
               ),
             },
@@ -258,7 +295,7 @@ function TrafficAI() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Token usage over time */}
+        {/* Token usage — stacked area (input vs output) */}
         <Card>
           <CardHeader>
             <CardTitle>{t('ai.tokenUsage')}</CardTitle>
@@ -267,36 +304,91 @@ function TrafficAI() {
             {isLoading ? (
               <Skeleton className="h-56 w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={224}>
-                <AreaChart data={data?.tokenUsageOverTime ?? []}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-border"
-                  />
-                  <XAxis
-                    dataKey="time"
-                    className="text-xs"
-                    tick={{ fill: 'currentColor' }}
-                  />
-                  <YAxis
-                    className="text-xs"
-                    tick={{ fill: 'currentColor' }}
-                  />
-                  <RTooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="tokens"
-                    stroke="#8b5cf6"
-                    fill="rgba(139, 92, 246, 0.1)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={224}>
+                  <AreaChart data={data?.tokenStacked ?? []}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-border"
+                    />
+                    <XAxis
+                      dataKey="time"
+                      className="text-xs"
+                      tick={{ fill: 'currentColor' }}
+                    />
+                    <YAxis
+                      className="text-xs"
+                      tick={{ fill: 'currentColor' }}
+                    />
+                    <RTooltip content={rechartsTooltipAdapter} />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="input"
+                      stackId="tokens"
+                      stroke="#8b5cf6"
+                      fill="rgba(139, 92, 246, 0.3)"
+                      strokeWidth={2}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="output"
+                      stackId="tokens"
+                      stroke="#3b82f6"
+                      fill="rgba(59, 130, 246, 0.3)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <TimezoneCaption />
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Cost by model */}
+        {/* Cost over time */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('ai.costOverTime', { defaultValue: 'Cost Over Time' })}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-56 w-full" />
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={224}>
+                  <AreaChart data={data?.costOverTime ?? []}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-border"
+                    />
+                    <XAxis
+                      dataKey="time"
+                      className="text-xs"
+                      tick={{ fill: 'currentColor' }}
+                    />
+                    <YAxis
+                      className="text-xs"
+                      tick={{ fill: 'currentColor' }}
+                      tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+                    />
+                    <RTooltip content={rechartsTooltipAdapter} />
+                    <Area
+                      type="monotone"
+                      dataKey="cost"
+                      stroke="#22c55e"
+                      fill="rgba(34, 197, 94, 0.1)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <TimezoneCaption />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Cost by model — horizontal bar */}
         <Card>
           <CardHeader>
             <CardTitle>{t('ai.costByModel')}</CardTitle>
@@ -306,31 +398,113 @@ function TrafficAI() {
               <Skeleton className="h-56 w-full" />
             ) : (
               <ResponsiveContainer width="100%" height={224}>
-                <PieChart>
-                  <Pie
-                    data={data?.costByModel ?? []}
+                <BarChart
+                  data={data?.costByModel ?? []}
+                  layout="vertical"
+                  margin={{ left: 80 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
+                  />
+                  <XAxis
+                    type="number"
+                    className="text-xs"
+                    tick={{ fill: 'currentColor' }}
+                    tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="model"
+                    className="text-xs"
+                    tick={{ fill: 'currentColor' }}
+                    width={76}
+                  />
+                  <RTooltip content={rechartsTooltipAdapter} />
+                  <Bar
                     dataKey="cost"
-                    nameKey="model"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {(data?.costByModel ?? []).map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={MODEL_COLORS[i % MODEL_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <RTooltip />
-                  <Legend />
-                </PieChart>
+                    fill="#8b5cf6"
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Agent Sessions table (behind feature flag) */}
+      {features.agentSessions && (
+        <>
+          {sessionsLoading ? (
+            <Skeleton className="h-48 rounded-xl" />
+          ) : (
+            <DataTable
+              title="Agent Sessions"
+              columns={[
+                {
+                  key: 'sessionId',
+                  header: 'Session ID',
+                  render: (row) => (
+                    <span className="max-w-32 truncate font-mono text-xs text-primary">
+                      {row.sessionId as string}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'agentIdentity',
+                  header: 'Agent',
+                },
+                {
+                  key: 'turns',
+                  header: 'Turns',
+                  sortable: true,
+                  render: (row) => (
+                    <span className="font-mono">{(row.turns as number).toLocaleString()}</span>
+                  ),
+                },
+                {
+                  key: 'totalTokens',
+                  header: 'Tokens',
+                  sortable: true,
+                  render: (row) => (
+                    <span className="font-mono">{(row.totalTokens as number).toLocaleString()}</span>
+                  ),
+                },
+                {
+                  key: 'estimatedCostUsd',
+                  header: 'Cost',
+                  sortable: true,
+                  render: (row) => (
+                    <span className="font-mono">{`$${(row.estimatedCostUsd as number).toFixed(2)}`}</span>
+                  ),
+                },
+                {
+                  key: 'status',
+                  header: 'Status',
+                  render: (row) => (
+                    <StatusBadge status={sessionStatusToHealth(row.status as string)} />
+                  ),
+                },
+                {
+                  key: 'startedAt',
+                  header: 'Started',
+                  render: (row) => <TimeAgo date={row.startedAt as string} />,
+                },
+                {
+                  key: 'lastActivityAt',
+                  header: 'Last Activity',
+                  render: (row) => <TimeAgo date={row.lastActivityAt as string} />,
+                },
+              ]}
+              data={(sessions ?? []) as unknown as Record<string, unknown>[]}
+              searchable
+              searchPlaceholder="Search sessions..."
+              pageSize={20}
+            />
+          )}
+        </>
+      )}
     </div>
   )
 }

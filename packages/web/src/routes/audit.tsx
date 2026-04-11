@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient, type AuditEntry } from '@/lib/api'
+import { exportToCsv, exportToJson } from '@/lib/export-utils'
 
 export const Route = createFileRoute('/audit')({
   loader: ({ context }) =>
@@ -67,7 +68,19 @@ const OPERATIONS = [
   'refresh',
 ] as const
 
-const TIME_RANGES = ['1h', '6h', '24h', '7d', '30d'] as const
+const ACTION_TYPE_GROUPS: Record<string, string[]> = {
+  'Configuration changes': ['create', 'update', 'delete'],
+  'Access events': ['login', 'refresh'],
+  'Status changes': ['enable', 'disable'],
+}
+
+const QUICK_RANGES: Array<{ label: string; hours: number }> = [
+  { label: '1h', hours: 1 },
+  { label: '6h', hours: 6 },
+  { label: '24h', hours: 24 },
+  { label: '7d', hours: 168 },
+  { label: '30d', hours: 720 },
+]
 
 function operationColor(op: string): string {
   switch (op) {
@@ -90,6 +103,11 @@ function operationColor(op: string): string {
   }
 }
 
+function toLocalDatetimeValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 function Audit() {
   const { t } = useTranslation('audit')
 
@@ -97,13 +115,22 @@ function Audit() {
   const [actorFilter, setActorFilter] = useState('')
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>('')
   const [operationFilter, setOperationFilter] = useState<string>('')
-  const [timeRangeFilter, setTimeRangeFilter] = useState<string>('24h')
+  const [actionTypeFilter, setActionTypeFilter] = useState<string>('')
+
+  // Date range
+  const [endDate, setEndDate] = useState(() => new Date())
+  const [startDate, setStartDate] = useState(
+    () => new Date(Date.now() - 24 * 60 * 60 * 1000),
+  )
 
   // Detail sheet
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const filters: Record<string, string> = { range: timeRangeFilter }
+  const since = startDate.toISOString()
+  const until = endDate.toISOString()
+
+  const filters: Record<string, string> = { since, until }
   if (actorFilter) filters.actor = actorFilter
   if (entityTypeFilter) filters.entity_type = entityTypeFilter
   if (operationFilter) filters.operation = operationFilter
@@ -113,49 +140,37 @@ function Audit() {
     queryFn: () => apiClient.get<AuditEntry[]>('/audit', filters),
   })
 
-  const entries = data ?? []
+  // Apply action type filter client-side (groups multiple operations)
+  const entries = (data ?? []).filter((entry) => {
+    if (!actionTypeFilter) return true
+    const ops = ACTION_TYPE_GROUPS[actionTypeFilter]
+    return ops ? ops.includes(entry.operation) : true
+  })
 
   const handleRowClick = useCallback((entry: AuditEntry) => {
     setSelectedEntry(entry)
     setSheetOpen(true)
   }, [])
 
+  const handleQuickRange = useCallback((hours: number) => {
+    const now = new Date()
+    setEndDate(now)
+    setStartDate(new Date(now.getTime() - hours * 60 * 60 * 1000))
+  }, [])
+
   const handleExport = useCallback(
     (format: 'csv' | 'json') => {
       if (!entries.length) return
 
-      let content: string
-      let mimeType: string
-      let extension: string
-
-      if (format === 'json') {
-        content = JSON.stringify(entries, null, 2)
-        mimeType = 'application/json'
-        extension = 'json'
-      } else {
-        const headers = [
-          'occurredAt',
-          'actor',
-          'entityType',
-          'entityId',
-          'operation',
-          'configVersion',
-        ]
-        const rows = entries.map((e) =>
-          headers.map((h) => `"${String(e[h as keyof AuditEntry] ?? '')}"`).join(','),
+      if (format === 'csv') {
+        exportToCsv(
+          entries as unknown as Record<string, unknown>[],
+          ['occurredAt', 'actor', 'entityType', 'entityId', 'operation', 'configVersion'],
+          'audit-log.csv',
         )
-        content = [headers.join(','), ...rows].join('\n')
-        mimeType = 'text/csv'
-        extension = 'csv'
+      } else {
+        exportToJson(entries, 'audit-log.json')
       }
-
-      const blob = new Blob([content], { type: mimeType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `audit-log.${extension}`
-      a.click()
-      URL.revokeObjectURL(url)
     },
     [entries],
   )
@@ -188,6 +203,38 @@ function Audit() {
           </DropdownMenu>
         }
       />
+
+      {/* Date range and quick ranges */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Input
+            type="datetime-local"
+            value={toLocalDatetimeValue(startDate)}
+            onChange={(e) => e.target.value && setStartDate(new Date(e.target.value))}
+            className="h-7 w-48"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="datetime-local"
+            value={toLocalDatetimeValue(endDate)}
+            onChange={(e) => e.target.value && setEndDate(new Date(e.target.value))}
+            className="h-7 w-48"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          {QUICK_RANGES.map((r) => (
+            <Button
+              key={r.label}
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleQuickRange(r.hours)}
+            >
+              {r.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3">
@@ -226,14 +273,15 @@ function Audit() {
           </SelectContent>
         </Select>
 
-        <Select value={timeRangeFilter} onValueChange={(v) => setTimeRangeFilter(v ?? '24h')}>
-          <SelectTrigger size="sm" className="w-24">
-            <SelectValue placeholder={t('filters.timeRange')} />
+        <Select value={actionTypeFilter} onValueChange={(v) => setActionTypeFilter(v ?? '')}>
+          <SelectTrigger size="sm" className="w-48">
+            <SelectValue placeholder="Action type" />
           </SelectTrigger>
           <SelectContent>
-            {TIME_RANGES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
+            <SelectItem value="">All action types</SelectItem>
+            {Object.keys(ACTION_TYPE_GROUPS).map((group) => (
+              <SelectItem key={group} value={group}>
+                {group}
               </SelectItem>
             ))}
           </SelectContent>
@@ -308,7 +356,7 @@ function Audit() {
         />
       )}
 
-      {/* Detail sheet with diff viewer */}
+      {/* Detail sheet with before/after diff */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="right" className="sm:max-w-lg">
           <SheetHeader>
@@ -358,8 +406,45 @@ function Audit() {
                 <TimeAgo date={selectedEntry.occurredAt} />
               </div>
 
-              {/* Diff */}
-              {selectedEntry.diff && (
+              {/* Before/After diff */}
+              {selectedEntry.beforeValues && selectedEntry.afterValues && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Changes</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-red-600 dark:text-red-400">Before</span>
+                      <div className="rounded-md border border-red-500/20 bg-red-500/5 p-2">
+                        <CodeBlock value={selectedEntry.beforeValues} maxHeight="200px" />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-green-600 dark:text-green-400">After</span>
+                      <div className="rounded-md border border-green-500/20 bg-green-500/5 p-2">
+                        <CodeBlock value={selectedEntry.afterValues} maxHeight="200px" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Create — only afterValues */}
+              {!selectedEntry.beforeValues && selectedEntry.afterValues && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Created with:</h4>
+                  <CodeBlock value={selectedEntry.afterValues} maxHeight="320px" />
+                </div>
+              )}
+
+              {/* Delete — only beforeValues */}
+              {selectedEntry.beforeValues && !selectedEntry.afterValues && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Deleted:</h4>
+                  <CodeBlock value={selectedEntry.beforeValues} maxHeight="320px" />
+                </div>
+              )}
+
+              {/* Legacy diff fallback */}
+              {selectedEntry.diff && !selectedEntry.beforeValues && !selectedEntry.afterValues && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">{t('actions.viewDiff')}</h4>
                   <CodeBlock

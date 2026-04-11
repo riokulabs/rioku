@@ -120,9 +120,9 @@ describe('useEventSubscription', () => {
       MockEventSource.instances[0].simulateError()
     })
 
-    // First backoff: 1000ms
+    // First backoff: 1000ms + up to 250ms jitter
     act(() => {
-      vi.advanceTimersByTime(1000)
+      vi.advanceTimersByTime(1250)
     })
 
     expect(MockEventSource.instances).toHaveLength(2)
@@ -132,9 +132,9 @@ describe('useEventSubscription', () => {
       MockEventSource.instances[1].simulateError()
     })
 
-    // Second backoff: 2000ms
+    // Second backoff: 2000ms + up to 500ms jitter
     act(() => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(2500)
     })
 
     expect(MockEventSource.instances).toHaveLength(3)

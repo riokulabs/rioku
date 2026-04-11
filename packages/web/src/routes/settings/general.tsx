@@ -1,5 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> feat/admin-panel-phase5
 import { useTranslation } from 'react-i18next'
 import { RotateCcw, Save } from 'lucide-react'
 
@@ -13,6 +16,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+<<<<<<< HEAD
 =======
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -38,6 +42,8 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 >>>>>>> feat/admin-panel-phase4
+=======
+>>>>>>> feat/admin-panel-phase5
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -47,6 +53,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> feat/admin-panel-phase5
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api'
 
@@ -61,6 +70,7 @@ interface SettingsData {
   ai_trace_store: string
   ai_retention_period: string
   log_level: string
+<<<<<<< HEAD
 =======
 
 // Realistic defaults for when backend API is not wired
@@ -71,6 +81,8 @@ const defaults: GeneralSettings = {
   daemonVersion: '0.3.0',
   caddyVersion: '2.9.1',
 >>>>>>> feat/admin-panel-phase4
+=======
+>>>>>>> feat/admin-panel-phase5
 }
 
 export const Route = createFileRoute('/settings/general')({
@@ -78,6 +90,9 @@ export const Route = createFileRoute('/settings/general')({
     context.queryClient
       .ensureQueryData({
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> feat/admin-panel-phase5
         queryKey: ['settings'],
         queryFn: () => apiClient.get<SettingsData>('/settings'),
       })
@@ -170,6 +185,7 @@ function GeneralSettings() {
                   <Select
                     defaultValue={data?.pki_algorithm ?? 'ecdsa-p256'}
                   >
+<<<<<<< HEAD
 =======
         queryKey: ['settings', 'general'],
         queryFn: () => apiClient.get<GeneralSettingsResponse>('/settings/general'),
@@ -248,11 +264,16 @@ function GeneralSettingsPage() {
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
 >>>>>>> feat/admin-panel-phase4
+=======
+>>>>>>> feat/admin-panel-phase5
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> feat/admin-panel-phase5
                       <SelectItem value="ecdsa-p256">ECDSA P-256</SelectItem>
                       <SelectItem value="ecdsa-p384">ECDSA P-384</SelectItem>
                       <SelectItem value="ed25519">Ed25519</SelectItem>
@@ -355,6 +376,7 @@ function GeneralSettingsPage() {
         </>
       )}
     </div>
+<<<<<<< HEAD
 =======
                       <SelectItem value="debug">debug</SelectItem>
                       <SelectItem value="info">info</SelectItem>
@@ -402,5 +424,7 @@ function GeneralSettingsPage() {
       </div>
     </form>
 >>>>>>> feat/admin-panel-phase4
+=======
+>>>>>>> feat/admin-panel-phase5
   )
 }
