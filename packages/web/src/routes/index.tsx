@@ -166,8 +166,7 @@ function Dashboard() {
 
   const { data: dashboardData } = useQuery<DashboardTrafficData>({
     queryKey: ['traffic', 'dashboard', range],
-    queryFn: () =>
-      apiClient.get<DashboardTrafficData>('/traffic/dashboard', { range }),
+    queryFn: () => apiClient.get<DashboardTrafficData>('/traffic/dashboard', { range }),
     refetchInterval: 60000,
     retry: false,
   })
@@ -317,7 +316,7 @@ function Dashboard() {
                     axisLine={false}
                     tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
                   />
-                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-card-foreground)' }} />
                   <Area
                     type="monotone"
                     dataKey="requests"
@@ -363,7 +362,7 @@ function Dashboard() {
                     axisLine={false}
                     tickFormatter={(v: number) => `${v}%`}
                   />
-                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-card-foreground)' }} />
                   <Bar
                     dataKey="e4xx"
                     stackId="errors"
@@ -438,7 +437,7 @@ function Dashboard() {
                     axisLine={false}
                     tickFormatter={(v: number) => `${v}ms`}
                   />
-                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-card-foreground)' }} />
                   <Legend
                     verticalAlign="top"
                     align="right"
@@ -517,7 +516,7 @@ function Dashboard() {
                     axisLine={false}
                     width={130}
                   />
-                  <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-card-foreground)' }} />
                   <Bar
                     dataKey="requests"
                     fill="#6366f1"

@@ -1,5 +1,7 @@
 // Typed REST API client for the Rioku daemon.
 
+import { getFallbackData } from '@/lib/mock-fallback'
+
 // ---------------------------------------------------------------------------
 // Domain types (matching proto JSON output)
 // ---------------------------------------------------------------------------
@@ -549,6 +551,11 @@ async function request<T>(
   })
 
   if (!res.ok) {
+    // For 404s on endpoints not yet implemented, try mock data fallback
+    if (res.status === 404 || res.status === 500) {
+      const mockData = getFallbackData(path, params)
+      if (mockData !== undefined) return mockData as T
+    }
     let error: ApiError
     try {
       error = await res.json()

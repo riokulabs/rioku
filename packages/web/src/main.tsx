@@ -30,13 +30,36 @@ declare module '@tanstack/react-router' {
 }
 
 async function startApp() {
-  // Always start MSW to fill gaps — real API calls pass through,
-  // MSW only handles endpoints that don't exist yet.
-  try {
-    const { worker } = await import('./mocks/browser')
-    await worker.start({ onUnhandledRequest: 'bypass' })
-  } catch {
-    // Service worker may fail in some environments
+  const forceMock = import.meta.env.VITE_MOCK === 'true'
+
+  if (forceMock) {
+    // Full mock mode — MSW handles everything
+    try {
+      const { worker } = await import('./mocks/browser')
+      await worker.start({ onUnhandledRequest: 'bypass' })
+      sessionStorage.setItem('rioku-mock-session', 'true')
+    } catch {
+      // Service worker may fail in some environments
+    }
+  } else {
+    // Real backend mode — check health, start MSW only if backend is down
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 2000)
+      const res = await fetch('/api/v1/health', { signal: controller.signal })
+      clearTimeout(timeout)
+      if (!res.ok) throw new Error('unhealthy')
+      // Backend is healthy — no MSW needed
+    } catch {
+      // Backend unreachable — start MSW for full mock mode
+      try {
+        const { worker } = await import('./mocks/browser')
+        await worker.start({ onUnhandledRequest: 'bypass' })
+        sessionStorage.setItem('rioku-mock-session', 'true')
+      } catch {
+        // Service worker may fail
+      }
+    }
   }
 
   const root = document.getElementById('root')!

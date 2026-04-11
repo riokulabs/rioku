@@ -74,6 +74,7 @@ function TrafficTab(props: TrafficTabProps) {
     queryKey: ['traffic', isEntityProps(props) ? props.entityType : '', isEntityProps(props) ? props.entityId : ''],
     queryFn: () => apiClient.get<TrafficTabData>(`/traffic/${(props as TrafficTabEntityProps).entityType}s/${(props as TrafficTabEntityProps).entityId}`),
     enabled: isEntityProps(props),
+    retry: false,
   })
 
   const data = isEntityProps(props) ? (entityQuery.data ?? null) : props.data
@@ -151,7 +152,7 @@ function TrafficTab(props: TrafficTabProps) {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="time" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} interval={7} />
                 <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-card-foreground)' }} />
                 <Bar dataKey="rps" fill="#6366f1" radius={[2, 2, 0, 0]} name="RPS" />
               </BarChart>
             </ResponsiveContainer>
@@ -169,7 +170,7 @@ function TrafficTab(props: TrafficTabProps) {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="time" hide />
                 <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', color: '#e5e5e5' }} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-card-foreground)' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="4xx" stackId="errors" fill="#f59e0b" opacity={0.8} name="4xx" />
                 <Bar dataKey="5xx" stackId="errors" fill="#ef4444" radius={[2, 2, 0, 0]} name="5xx" />

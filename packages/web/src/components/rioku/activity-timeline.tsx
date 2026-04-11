@@ -45,6 +45,7 @@ function ActivityTimeline(props: ActivityTimelineProps) {
     queryKey: ['activity', isEntityProps(props) ? props.entityType : '', isEntityProps(props) ? props.entityId : ''],
     queryFn: () => apiClient.get<ActivityEntry[]>(`/audit/${(props as ActivityTimelineEntityProps).entityType}s/${(props as ActivityTimelineEntityProps).entityId}`),
     enabled: isEntityProps(props),
+    retry: false,
   })
 
   const entries = isEntityProps(props) ? (entityQuery.data ?? []) : props.entries
