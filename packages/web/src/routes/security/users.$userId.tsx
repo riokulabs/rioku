@@ -1,22 +1,33 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, TrashIcon, CopyIcon } from 'lucide-react'
+import { ArrowLeftIcon, TrashIcon, CopyIcon, MonitorIcon, XIcon } from 'lucide-react'
 import { apiClient } from '@/lib/api'
-import type { UserInfo, Role } from '@/lib/api'
+import type { UserInfo, Role, ExpandedRole, AccessPolicy } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
 import { TimeAgo } from '@/components/rioku/time-ago'
+import { EffectivePermissionsPanel } from '@/components/rioku/effective-permissions'
+
+interface UserSessionEntry {
+  id: string
+  device: string
+  ip: string
+  location: string
+  lastActive: string
+  current: boolean
+}
 
 export const Route = createFileRoute('/security/users/$userId')({
   loader: async ({ context, params }) => {
-    const [users, roles] = await Promise.all([
+    const [users, roles, expandedRoles, accessPolicies] = await Promise.all([
       context.queryClient.ensureQueryData({
         queryKey: ['users'],
         queryFn: () => apiClient.get<UserInfo[]>('/auth/users'),
@@ -25,23 +36,56 @@ export const Route = createFileRoute('/security/users/$userId')({
         queryKey: ['roles'],
         queryFn: () => apiClient.get<Role[]>('/auth/roles'),
       }),
+      context.queryClient.ensureQueryData({
+        queryKey: ['expanded-roles'],
+        queryFn: () => apiClient.get<ExpandedRole[]>('/auth/expanded-roles'),
+      }),
+      context.queryClient.ensureQueryData({
+        queryKey: ['access-policies'],
+        queryFn: () => apiClient.get<AccessPolicy[]>('/auth/access-policies'),
+      }),
     ])
     const user = users.find((u) => u.id === params.userId)
     if (!user) throw new Error('User not found')
-    return { user, allRoles: roles }
+    return { user, allRoles: roles, expandedRoles, accessPolicies }
   },
   component: UserDetailPage,
 })
 
 export function UserDetailPage() {
   const { t } = useTranslation('users')
-  const { user, allRoles } = Route.useLoaderData()
+  const { user, allRoles, expandedRoles, accessPolicies } = Route.useLoaderData()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
+
+  const assignedRoles = expandedRoles.filter((r) => user.roles.includes(r.name))
+
+  const sessionsQuery = useQuery({
+    queryKey: ['user-sessions', user.id],
+    queryFn: () => apiClient.get<{ sessions: UserSessionEntry[] }>(`/auth/users/${user.id}/sessions`),
+  })
+
+  const terminateSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => apiClient.del(`/auth/users/${user.id}/sessions/${sessionId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-sessions', user.id] })
+      toast.success('Session terminated')
+    },
+    onError: () => toast.error('Failed to terminate session'),
+  })
+
+  const terminateAllMutation = useMutation({
+    mutationFn: () => apiClient.del(`/auth/users/${user.id}/sessions`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-sessions', user.id] })
+      toast.success('All other sessions terminated')
+    },
+    onError: () => toast.error('Failed to terminate sessions'),
+  })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.del(`/auth/users/${id}`),
@@ -52,6 +96,8 @@ export function UserDetailPage() {
     },
     onError: () => toast.error('Failed to delete user'),
   })
+
+  const sessions = sessionsQuery.data?.sessions ?? []
 
   return (
     <div className="space-y-6">
@@ -128,6 +174,13 @@ export function UserDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Effective permissions panel */}
+          <EffectivePermissionsPanel
+            assignedRoles={assignedRoles}
+            allRoles={expandedRoles}
+            accessPolicies={accessPolicies}
+          />
+
           {/* Security card */}
           <Card>
             <CardHeader>
@@ -155,9 +208,68 @@ export function UserDetailPage() {
                     </Badge>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">Active sessions</span>
-                  <p className="text-sm text-muted-foreground">Session management coming soon.</p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Active sessions</span>
+                    {sessions.filter((s) => !s.current).length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => terminateAllMutation.mutate()}
+                        disabled={terminateAllMutation.isPending}
+                      >
+                        Terminate all others
+                      </Button>
+                    )}
+                  </div>
+                  {sessionsQuery.isLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading sessions...</p>
+                  ) : sessions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No active sessions</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Device</TableHead>
+                          <TableHead>IP</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Last Active</TableHead>
+                          <TableHead className="w-20" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sessions.map((session) => (
+                          <TableRow key={session.id}>
+                            <TableCell className="text-sm">
+                              <div className="flex items-center gap-2">
+                                <MonitorIcon className="size-4 text-muted-foreground" />
+                                {session.device}
+                                {session.current && <Badge variant="secondary" className="text-xs">Current</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm font-mono">{session.ip}</TableCell>
+                            <TableCell className="text-sm">{session.location}</TableCell>
+                            <TableCell className="text-sm">
+                              <TimeAgo date={session.lastActive} />
+                            </TableCell>
+                            <TableCell>
+                              {!session.current && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => terminateSessionMutation.mutate(session.id)}
+                                  disabled={terminateSessionMutation.isPending}
+                                >
+                                  <XIcon className="size-4" />
+                                  <span className="sr-only">Terminate session</span>
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </div>
               </div>
             </CardContent>

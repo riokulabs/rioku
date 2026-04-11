@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, TrashIcon } from 'lucide-react'
+import { ArrowLeftIcon, TrashIcon, SaveIcon } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import type { Role, UserInfo, ExpandedRole, PermissionRule } from '@/lib/api'
 import { PermissionRuleEditor } from '@/components/rioku/permission-rule-editor'
@@ -16,16 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export const Route = createFileRoute('/security/roles/$roleId')({
   loader: async ({ context, params }) => {
-    const [roles, users] = await Promise.all([
-      context.queryClient.ensureQueryData({ queryKey: ['roles'], queryFn: () => apiClient.get<Role[]>('/auth/roles') }),
+    const [expandedRoles, users] = await Promise.all([
+      context.queryClient.ensureQueryData({ queryKey: ['expanded-roles'], queryFn: () => apiClient.get<ExpandedRole[]>('/auth/expanded-roles') }),
       context.queryClient.ensureQueryData({ queryKey: ['users'], queryFn: () => apiClient.get<UserInfo[]>('/auth/users') }),
     ])
-    const role = roles.find((r) => r.id === params.roleId)
+    const role = expandedRoles.find((r) => r.id === params.roleId)
     if (!role) throw new Error('Role not found')
-    const expandedRole: ExpandedRole = { ...role, parentRoleIds: [], childRoleIds: [], rules: [] }
-    const expandedRoles: ExpandedRole[] = roles.map((r) => ({ ...r, parentRoleIds: [], childRoleIds: [], rules: [] }))
     const members = users.filter((u) => u.roles.includes(role.name))
-    return { role: expandedRole, allRoles: expandedRoles, members }
+    return { role, allRoles: expandedRoles, members }
   },
   component: RoleDetailPage,
 })
@@ -39,9 +37,24 @@ export function RoleDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [rules, setRules] = useState<PermissionRule[]>(role.rules ?? [])
 
+  const originalRulesRef = useRef(JSON.stringify(role.rules ?? []))
+  const isDirty = JSON.stringify(rules) !== originalRulesRef.current
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: { rules: PermissionRule[] }) =>
+      apiClient.put<ExpandedRole>(`/auth/roles/${role.id}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expanded-roles'] })
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+      originalRulesRef.current = JSON.stringify(rules)
+      toast.success('Permission rules saved')
+    },
+    onError: () => toast.error('Failed to save permission rules'),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.del(`/auth/roles/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['roles'] }); toast.success('Role deleted'); navigate({ to: '/security/roles' }) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['roles'] }); queryClient.invalidateQueries({ queryKey: ['expanded-roles'] }); toast.success('Role deleted'); navigate({ to: '/security/roles' }) },
     onError: () => toast.error('Failed to delete role'),
   })
 
@@ -70,8 +83,17 @@ export function RoleDetailPage() {
         <TabsContent value="permissions">
           <Card>
             <CardHeader><CardTitle>Permission rules</CardTitle></CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <PermissionRuleEditor value={rules} onChange={setRules} readOnly={isBuiltin} />
+              {!isBuiltin && (
+                <div className="flex items-center gap-3 pt-2 border-t">
+                  <Button onClick={() => saveMutation.mutate({ rules })} disabled={!isDirty || saveMutation.isPending}>
+                    <SaveIcon className="size-4" />
+                    {saveMutation.isPending ? 'Saving...' : 'Save changes'}
+                  </Button>
+                  {isDirty && <span className="text-sm text-muted-foreground">Unsaved changes</span>}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

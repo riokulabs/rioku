@@ -1,4 +1,4 @@
-import type { UserInfo, MeResponse, SessionInfo, Role } from '@/lib/api'
+import type { UserInfo, MeResponse, SessionInfo, Role, ExpandedRole, PermissionRule } from '@/lib/api'
 
 export const mockRoles: Role[] = [
   {
@@ -95,6 +95,65 @@ export const mockUsers: UserInfo[] = [
     status: 'suspended',
     lastLogin: '2026-03-15T10:00:00Z',
     createdAt: '2026-02-01T08:00:00Z',
+  },
+]
+
+const adminRules: PermissionRule[] = [
+  { id: 'rule-admin-all', resource: 'routes', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-svc', resource: 'services', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-pol', resource: 'policies', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-keys', resource: 'keys', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-users', resource: 'users', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-roles', resource: 'roles', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-settings', resource: 'settings', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-cluster', resource: 'cluster', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-plugins', resource: 'plugins', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-audit', resource: 'audit', actions: ['view', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-traffic', resource: 'traffic', actions: ['view', 'manage'], scope: 'all', effect: 'allow' },
+  { id: 'rule-admin-all-certs', resource: 'certificates', actions: ['view', 'create', 'update', 'delete', 'manage'], scope: 'all', effect: 'allow' },
+]
+
+const operatorRules: PermissionRule[] = [
+  { id: 'rule-op-routes', resource: 'routes', actions: ['view', 'create', 'update', 'delete'], scope: 'all', effect: 'allow' },
+  { id: 'rule-op-services', resource: 'services', actions: ['view', 'create', 'update', 'delete'], scope: 'all', effect: 'allow' },
+  { id: 'rule-op-policies', resource: 'policies', actions: ['view', 'create', 'update', 'delete'], scope: 'all', effect: 'allow' },
+  { id: 'rule-op-keys', resource: 'keys', actions: ['view', 'create'], scope: 'owned', effect: 'allow' },
+  { id: 'rule-op-traffic', resource: 'traffic', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-op-audit', resource: 'audit', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-op-certs', resource: 'certificates', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-op-plugins', resource: 'plugins', actions: ['view'], scope: 'all', effect: 'allow' },
+]
+
+const viewerRules: PermissionRule[] = [
+  { id: 'rule-view-routes', resource: 'routes', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-view-services', resource: 'services', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-view-policies', resource: 'policies', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-view-traffic', resource: 'traffic', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-view-audit', resource: 'audit', actions: ['view'], scope: 'all', effect: 'allow' },
+  { id: 'rule-view-certs', resource: 'certificates', actions: ['view'], scope: 'all', effect: 'allow' },
+]
+
+export const mockExpandedRoles: ExpandedRole[] = [
+  {
+    ...mockRoles[0],
+    parentRoleIds: [],
+    childRoleIds: ['role-operator'],
+    memberCount: 1,
+    rules: adminRules,
+  },
+  {
+    ...mockRoles[1],
+    parentRoleIds: ['role-admin'],
+    childRoleIds: ['role-viewer'],
+    memberCount: 2,
+    rules: operatorRules,
+  },
+  {
+    ...mockRoles[2],
+    parentRoleIds: ['role-operator'],
+    childRoleIds: [],
+    memberCount: 2,
+    rules: viewerRules,
   },
 ]
 

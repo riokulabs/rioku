@@ -45,6 +45,7 @@ import { Route as SecurityUsersUserIdRouteImport } from './routes/security/users
 import { Route as SecurityRolesRoleIdRouteImport } from './routes/security/roles.$roleId'
 import { Route as SecurityApiKeysKeyIdRouteImport } from './routes/security/api-keys.$keyId'
 import { Route as SecurityAccessPoliciesCreateRouteImport } from './routes/security/access-policies.create'
+import { Route as SecurityAccessPoliciesPolicyIdRouteImport } from './routes/security/access-policies.$policyId'
 import { Route as ConfigServicesCreateRouteImport } from './routes/config/services.create'
 import { Route as ConfigServicesServiceIdRouteImport } from './routes/config/services.$serviceId'
 import { Route as ConfigRoutesCreateRouteImport } from './routes/config/routes.create'
@@ -234,6 +235,12 @@ const SecurityAccessPoliciesCreateRoute =
     path: '/access-policies/create',
     getParentRoute: () => SecurityRoute,
   } as any)
+const SecurityAccessPoliciesPolicyIdRoute =
+  SecurityAccessPoliciesPolicyIdRouteImport.update({
+    id: '/access-policies/$policyId',
+    path: '/access-policies/$policyId',
+    getParentRoute: () => SecurityRoute,
+  } as any)
 const ConfigServicesCreateRoute = ConfigServicesCreateRouteImport.update({
   id: '/config/services/create',
   path: '/config/services/create',
@@ -297,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/config/routes/create': typeof ConfigRoutesCreateRoute
   '/config/services/$serviceId': typeof ConfigServicesServiceIdRoute
   '/config/services/create': typeof ConfigServicesCreateRoute
+  '/security/access-policies/$policyId': typeof SecurityAccessPoliciesPolicyIdRoute
   '/security/access-policies/create': typeof SecurityAccessPoliciesCreateRoute
   '/security/api-keys/$keyId': typeof SecurityApiKeysKeyIdRoute
   '/security/roles/$roleId': typeof SecurityRolesRoleIdRoute
@@ -340,6 +348,7 @@ export interface FileRoutesByTo {
   '/config/routes/create': typeof ConfigRoutesCreateRoute
   '/config/services/$serviceId': typeof ConfigServicesServiceIdRoute
   '/config/services/create': typeof ConfigServicesCreateRoute
+  '/security/access-policies/$policyId': typeof SecurityAccessPoliciesPolicyIdRoute
   '/security/access-policies/create': typeof SecurityAccessPoliciesCreateRoute
   '/security/api-keys/$keyId': typeof SecurityApiKeysKeyIdRoute
   '/security/roles/$roleId': typeof SecurityRolesRoleIdRoute
@@ -385,6 +394,7 @@ export interface FileRoutesById {
   '/config/routes/create': typeof ConfigRoutesCreateRoute
   '/config/services/$serviceId': typeof ConfigServicesServiceIdRoute
   '/config/services/create': typeof ConfigServicesCreateRoute
+  '/security/access-policies/$policyId': typeof SecurityAccessPoliciesPolicyIdRoute
   '/security/access-policies/create': typeof SecurityAccessPoliciesCreateRoute
   '/security/api-keys/$keyId': typeof SecurityApiKeysKeyIdRoute
   '/security/roles/$roleId': typeof SecurityRolesRoleIdRoute
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/config/routes/create'
     | '/config/services/$serviceId'
     | '/config/services/create'
+    | '/security/access-policies/$policyId'
     | '/security/access-policies/create'
     | '/security/api-keys/$keyId'
     | '/security/roles/$roleId'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/config/routes/create'
     | '/config/services/$serviceId'
     | '/config/services/create'
+    | '/security/access-policies/$policyId'
     | '/security/access-policies/create'
     | '/security/api-keys/$keyId'
     | '/security/roles/$roleId'
@@ -518,6 +530,7 @@ export interface FileRouteTypes {
     | '/config/routes/create'
     | '/config/services/$serviceId'
     | '/config/services/create'
+    | '/security/access-policies/$policyId'
     | '/security/access-policies/create'
     | '/security/api-keys/$keyId'
     | '/security/roles/$roleId'
@@ -807,6 +820,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SecurityAccessPoliciesCreateRouteImport
       parentRoute: typeof SecurityRoute
     }
+    '/security/access-policies/$policyId': {
+      id: '/security/access-policies/$policyId'
+      path: '/access-policies/$policyId'
+      fullPath: '/security/access-policies/$policyId'
+      preLoaderRoute: typeof SecurityAccessPoliciesPolicyIdRouteImport
+      parentRoute: typeof SecurityRoute
+    }
     '/config/services/create': {
       id: '/config/services/create'
       path: '/config/services/create'
@@ -864,6 +884,7 @@ const PluginsRouteWithChildren =
   PluginsRoute._addFileChildren(PluginsRouteChildren)
 
 interface SecurityRouteChildren {
+  SecurityAccessPoliciesPolicyIdRoute: typeof SecurityAccessPoliciesPolicyIdRoute
   SecurityAccessPoliciesCreateRoute: typeof SecurityAccessPoliciesCreateRoute
   SecurityApiKeysKeyIdRoute: typeof SecurityApiKeysKeyIdRoute
   SecurityRolesRoleIdRoute: typeof SecurityRolesRoleIdRoute
@@ -875,6 +896,7 @@ interface SecurityRouteChildren {
 }
 
 const SecurityRouteChildren: SecurityRouteChildren = {
+  SecurityAccessPoliciesPolicyIdRoute: SecurityAccessPoliciesPolicyIdRoute,
   SecurityAccessPoliciesCreateRoute: SecurityAccessPoliciesCreateRoute,
   SecurityApiKeysKeyIdRoute: SecurityApiKeysKeyIdRoute,
   SecurityRolesRoleIdRoute: SecurityRolesRoleIdRoute,

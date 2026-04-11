@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, TrashIcon } from 'lucide-react'
+import { ArrowLeftIcon, TrashIcon, ActivityIcon, BarChart3Icon, ClockIcon } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import type { ApiKey } from '@/lib/api'
 import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
+import { StatCard } from '@/components/rioku/stat-card'
+import { ActivityTimeline, type ActivityEntry } from '@/components/rioku/activity-timeline'
 import { TimeAgo } from '@/components/rioku/time-ago'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +16,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+interface ApiKeyUsageStats {
+  requests24h: number
+  requests7d: number
+  requests30d: number
+  lastUsed: string | null
+}
 
 export const Route = createFileRoute('/security/api-keys/$keyId')({
   loader: async ({ context, params }) => {
@@ -36,6 +45,16 @@ export function ApiKeyDetailPage() {
   const [activeTab, setActiveTab] = useState('details')
   const [revokeOpen, setRevokeOpen] = useState(false)
 
+  const usageQuery = useQuery({
+    queryKey: ['api-key-usage', key.id],
+    queryFn: () => apiClient.get<ApiKeyUsageStats>(`/keys/${key.id}/usage`),
+  })
+
+  const activityQuery = useQuery({
+    queryKey: ['api-key-activity', key.id],
+    queryFn: () => apiClient.get<{ entries: ActivityEntry[] }>(`/keys/${key.id}/activity`),
+  })
+
   const revokeMutation = useMutation({
     mutationFn: (id: string) => apiClient.del(`/auth/keys/${id}`),
     onSuccess: () => {
@@ -45,6 +64,9 @@ export function ApiKeyDetailPage() {
     },
     onError: () => toast.error('Failed to revoke key'),
   })
+
+  const usage = usageQuery.data
+  const activityEntries = activityQuery.data?.entries ?? []
 
   return (
     <div className="space-y-6">
@@ -95,21 +117,67 @@ export function ApiKeyDetailPage() {
         </TabsContent>
 
         <TabsContent value="usage">
-          <Card>
-            <CardHeader><CardTitle>{t('detail.usage')}</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Usage statistics require backend support. Coming soon.</p>
-            </CardContent>
-          </Card>
+          {usageQuery.isLoading ? (
+            <Card>
+              <CardContent className="py-8">
+                <p className="text-sm text-center text-muted-foreground">Loading usage data...</p>
+              </CardContent>
+            </Card>
+          ) : usage ? (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard
+                  title="Requests (24h)"
+                  value={usage.requests24h.toLocaleString()}
+                  icon={<BarChart3Icon className="size-5" />}
+                />
+                <StatCard
+                  title="Requests (7d)"
+                  value={usage.requests7d.toLocaleString()}
+                  icon={<BarChart3Icon className="size-5" />}
+                />
+                <StatCard
+                  title="Requests (30d)"
+                  value={usage.requests30d.toLocaleString()}
+                  icon={<BarChart3Icon className="size-5" />}
+                />
+              </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 text-sm">
+                    <ClockIcon className="size-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Last used:</span>
+                    {usage.lastUsed ? (
+                      <TimeAgo date={usage.lastUsed} />
+                    ) : (
+                      <span className="text-muted-foreground">Never</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-8">
+                <p className="text-sm text-center text-muted-foreground">No usage data available</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card>
-            <CardHeader><CardTitle>{t('detail.activity')}</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Activity tracking will be available in a future update.</p>
-            </CardContent>
-          </Card>
+          {activityQuery.isLoading ? (
+            <Card>
+              <CardContent className="py-8">
+                <p className="text-sm text-center text-muted-foreground">Loading activity...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <ActivityTimeline
+              entries={activityEntries}
+              title="Key Activity"
+            />
+          )}
         </TabsContent>
       </Tabs>
 
