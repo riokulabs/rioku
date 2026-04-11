@@ -6,6 +6,8 @@ import { ArrowLeftIcon, PlusIcon, XIcon } from 'lucide-react'
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Service, Policy } from '@/lib/api'
+import { labelsToKvPairs, kvPairsToLabels } from '@/lib/form-yaml-sync'
+import { KvEditor } from '@/components/rioku/kv-editor'
 import {
   routeFormSchema,
   formValuesToRoutePayload,
@@ -18,6 +20,9 @@ import { useUnsavedWarning } from '@/hooks/use-unsaved-warning'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
+
+import { SearchableSelect, SearchableMultiSelect } from '@rioku/ui'
+import type { SelectOption } from '@rioku/ui'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +37,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+
+import { YamlJsonEditor } from '@rioku/ui'
+import { routeFormToYaml, yamlToRouteForm } from '@/lib/form-yaml-sync'
 
 export const Route = createFileRoute('/config/routes/create')({
   loader: ({ context }) =>
@@ -77,9 +85,13 @@ function RouteCreatePage() {
     matching: true,
     target: true,
     policies: false,
+    labels: false,
     tls: false,
     advanced: false,
   })
+
+  const [yamlContent, setYamlContent] = useState('')
+  const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
 
   const { isDirty } = useDirtyForm(EMPTY_FORM, formValues)
   useUnsavedWarning(isDirty)
@@ -121,14 +133,27 @@ function RouteCreatePage() {
         <Button
           variant={mode === 'form' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setMode('form')}
+          onClick={() => {
+            if (mode === 'code') {
+              // YAML -> form sync
+              const parsed = yamlToRouteForm(yamlContent)
+              setFormValues((prev) => ({ ...prev, ...parsed }))
+            }
+            setMode('form')
+          }}
         >
           {t('create.formMode')}
         </Button>
         <Button
           variant={mode === 'code' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setMode('code')}
+          onClick={() => {
+            if (mode === 'form') {
+              // form -> YAML sync
+              setYamlContent(routeFormToYaml(formValues))
+            }
+            setMode('code')
+          }}
         >
           {t('create.codeMode')}
         </Button>
@@ -315,21 +340,19 @@ function RouteCreatePage() {
                     <Label>
                       {t('form.targetService')} <span className="text-destructive">*</span>
                     </Label>
-                    <Select
+                    <SearchableSelect
+                      options={services.map((svc: Service): SelectOption => ({
+                        value: svc.id,
+                        label: svc.name,
+                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''} - ${svc.lbPolicy.replace('LB_POLICY_', '').toLowerCase().replace(/_/g, ' ')}`,
+                        badge: `${svc.upstreams.length}`,
+                      }))}
                       value={formValues.serviceId}
-                      onValueChange={(val) =>
-                        setFormValues((prev) => ({ ...prev, serviceId: val ?? '' }))
+                      onChange={(val) =>
+                        setFormValues((prev) => ({ ...prev, serviceId: val }))
                       }
-                    >
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Select a service" /></SelectTrigger>
-                      <SelectContent>
-                        {services.map((svc: Service) => (
-                          <SelectItem key={svc.id} value={svc.id}>
-                            {svc.name} ({svc.upstreams.length} upstreams)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder={t('form.selectService', 'Search services...')}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -378,31 +401,47 @@ function RouteCreatePage() {
             </CardHeader>
             {expandedSections.policies && (
               <CardContent>
-                <p className="text-sm text-muted-foreground">
+                <p className="mb-3 text-sm text-muted-foreground">
                   {t('policies.attachedDescription')}
                 </p>
-                {/* Placeholder -- SearchableMultiSelect from Phase 1 goes here */}
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {formValues.policyIds.map((pid) => {
-                    const policy = policies.find((p: Policy) => p.id === pid)
-                    return (
-                      <Badge key={pid} variant="secondary" className="gap-1">
-                        {policy?.name ?? pid}
-                        <button
-                          onClick={() =>
-                            setFormValues((prev) => ({
-                              ...prev,
-                              policyIds: prev.policyIds.filter((id) => id !== pid),
-                            }))
-                          }
-                          className="ml-1"
-                        >
-                          <XIcon className="size-3" />
-                        </button>
-                      </Badge>
-                    )
-                  })}
-                </div>
+                <SearchableMultiSelect
+                  options={policies.map((p: Policy): SelectOption => ({
+                    value: p.id,
+                    label: p.name,
+                    description: p.type.replace('POLICY_TYPE_', '').toLowerCase().replace(/_/g, ' '),
+                    badge: p.type.replace('POLICY_TYPE_', '').replace(/_/g, ' '),
+                  }))}
+                  value={formValues.policyIds}
+                  onChange={(ids) =>
+                    setFormValues((prev) => ({ ...prev, policyIds: ids }))
+                  }
+                  placeholder={t('policies.searchPolicies', 'Search policies...')}
+                />
+              </CardContent>
+            )}
+          </Card>
+
+          {/* Labels section */}
+          <Card>
+            <CardHeader
+              className="cursor-pointer"
+              onClick={() => toggleSection('labels')}
+            >
+              <CardTitle className="text-base">{t('create.sectionLabels', 'Labels')}</CardTitle>
+            </CardHeader>
+            {expandedSections.labels && (
+              <CardContent>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {t('labels.description', 'Key-value labels for organizing and filtering routes.')}
+                </p>
+                <KvEditor
+                  value={labelsToKvPairs(formValues.labels)}
+                  onChange={(pairs) =>
+                    setFormValues((prev) => ({ ...prev, labels: kvPairsToLabels(pairs) }))
+                  }
+                  keyPlaceholder="Label key"
+                  valuePlaceholder="Label value"
+                />
               </CardContent>
             )}
           </Card>
@@ -486,17 +525,21 @@ function RouteCreatePage() {
           </Card>
         </div>
       ) : (
-        /* YAML/JSON mode -- delegates to YamlJsonEditor from Phase 1 */
+        /* YAML/JSON mode */
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              YAML/JSON mode uses the YamlJsonEditor component from Phase 1.
-              Paste or edit route configuration in YAML or JSON format.
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t('create.codeDescription', 'Edit route configuration in YAML or JSON format. Changes sync back to the form when you switch modes.')}
             </p>
-            {/* <YamlJsonEditor value={...} onChange={...} schema={routeFormSchema} /> */}
-            <div className="mt-4 rounded-md border p-8 text-center text-sm text-muted-foreground">
-              YamlJsonEditor placeholder -- Phase 1 component required
-            </div>
+            <YamlJsonEditor
+              value={yamlContent}
+              onChange={setYamlContent}
+              format={yamlFormat}
+              onFormatChange={setYamlFormat}
+              height="400px"
+              showDownload
+              downloadFilename="route"
+            />
           </CardContent>
         </Card>
       )}

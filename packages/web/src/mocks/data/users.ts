@@ -1,0 +1,113 @@
+import type { UserInfo, MeResponse, SessionInfo, Role } from '@/lib/api'
+
+export const mockRoles: Role[] = [
+  {
+    id: 'role-admin',
+    name: 'admin',
+    description: 'Full administrative access',
+    isBuiltin: true,
+    permissions: ['*'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'role-operator',
+    name: 'operator',
+    description: 'Manage routes, services, and policies',
+    isBuiltin: true,
+    permissions: ['config:read', 'config:write', 'traffic:read', 'audit:read'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'role-viewer',
+    name: 'viewer',
+    description: 'Read-only access to configuration and traffic',
+    isBuiltin: true,
+    permissions: ['config:read', 'traffic:read', 'audit:read'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+]
+
+export const mockUsers: UserInfo[] = [
+  {
+    id: 'user-admin',
+    username: 'admin',
+    displayName: 'Root Admin',
+    email: 'admin@example.com',
+    roles: ['admin'],
+    permissions: ['*'],
+    totpEnabled: true,
+    forcePasswordChange: false,
+    status: 'active',
+    lastLogin: '2026-04-11T08:30:00Z',
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'user-alice',
+    username: 'alice',
+    displayName: 'Alice Chen',
+    email: 'alice@example.com',
+    roles: ['operator'],
+    permissions: ['config:read', 'config:write', 'traffic:read', 'audit:read'],
+    totpEnabled: true,
+    forcePasswordChange: false,
+    status: 'active',
+    lastLogin: '2026-04-10T17:00:00Z',
+    createdAt: '2026-02-15T10:00:00Z',
+  },
+  {
+    id: 'user-bob',
+    username: 'bob',
+    displayName: 'Bob Martinez',
+    email: 'bob@example.com',
+    roles: ['viewer'],
+    permissions: ['config:read', 'traffic:read', 'audit:read'],
+    totpEnabled: false,
+    forcePasswordChange: false,
+    status: 'active',
+    lastLogin: '2026-04-09T12:00:00Z',
+    createdAt: '2026-03-01T14:00:00Z',
+  },
+  {
+    id: 'user-carol',
+    username: 'carol',
+    displayName: 'Carol Kim',
+    email: 'carol@example.com',
+    roles: ['operator'],
+    permissions: ['config:read', 'config:write', 'traffic:read', 'audit:read'],
+    totpEnabled: false,
+    forcePasswordChange: true,
+    status: 'active',
+    lastLogin: null,
+    createdAt: '2026-04-08T09:00:00Z',
+  },
+  {
+    id: 'user-dave',
+    username: 'dave',
+    displayName: 'Dave Singh',
+    email: 'dave@example.com',
+    roles: ['viewer'],
+    permissions: ['config:read', 'traffic:read'],
+    totpEnabled: false,
+    forcePasswordChange: false,
+    status: 'suspended',
+    lastLogin: '2026-03-15T10:00:00Z',
+    createdAt: '2026-02-01T08:00:00Z',
+  },
+]
+
+export const mockSession: SessionInfo = {
+  id: 'sess-mock-001',
+  createdAt: '2026-04-11T08:30:00Z',
+  lastActive: '2026-04-11T10:00:00Z',
+  expiresAt: '2026-04-11T20:30:00Z',
+  ipAddress: '127.0.0.1',
+  userAgent: 'MockBrowser/1.0',
+}
+
+export const mockMe: MeResponse = {
+  session: mockSession,
+  user: mockUsers[0],
+}

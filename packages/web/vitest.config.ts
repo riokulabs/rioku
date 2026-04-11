@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
       '@rioku/ui': resolve(__dirname, '../ui/src'),
+      '@ui': resolve(__dirname, '../ui/src'),
     },
   },
   test: {

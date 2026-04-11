@@ -1,0 +1,131 @@
+import type { Service } from '@/lib/api'
+
+export const mockServices: Service[] = [
+  {
+    id: 'svc-api-backend',
+    name: 'api-backend',
+    upstreams: [
+      { id: 'us-1', address: '10.0.1.10:8080', weight: 3, tls: 'TLS_MODE_OFF', healthy: true },
+      { id: 'us-2', address: '10.0.1.11:8080', weight: 3, tls: 'TLS_MODE_OFF', healthy: true },
+      { id: 'us-3', address: '10.0.1.12:8080', weight: 1, tls: 'TLS_MODE_OFF', healthy: false },
+    ],
+    lbPolicy: 'LB_POLICY_ROUND_ROBIN',
+    healthCheck: {
+      enabled: true,
+      path: '/health',
+      intervalSeconds: 10,
+      timeoutSeconds: 5,
+    },
+    labels: { env: 'production', team: 'backend' },
+    createdAt: '2026-01-15T10:00:00Z',
+    updatedAt: '2026-04-10T14:00:00Z',
+  },
+  {
+    id: 'svc-web-frontend',
+    name: 'web-frontend',
+    upstreams: [
+      { id: 'us-4', address: '10.0.2.10:3000', weight: 1, tls: 'TLS_MODE_OFF', healthy: true },
+      { id: 'us-5', address: '10.0.2.11:3000', weight: 1, tls: 'TLS_MODE_OFF', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_ROUND_ROBIN',
+    healthCheck: {
+      enabled: true,
+      path: '/',
+      intervalSeconds: 30,
+      timeoutSeconds: 5,
+    },
+    labels: { env: 'production', team: 'frontend' },
+    createdAt: '2026-02-01T12:00:00Z',
+    updatedAt: '2026-04-08T09:00:00Z',
+  },
+  {
+    id: 'svc-auth',
+    name: 'auth-service',
+    upstreams: [
+      { id: 'us-6', address: '10.0.3.10:9090', weight: 1, tls: 'TLS_MODE_INTERNAL', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_LEAST_CONN',
+    healthCheck: {
+      enabled: true,
+      path: '/healthz',
+      intervalSeconds: 15,
+      timeoutSeconds: 3,
+    },
+    labels: { env: 'production', team: 'security' },
+    createdAt: '2026-01-10T06:00:00Z',
+    updatedAt: '2026-04-05T16:00:00Z',
+  },
+  {
+    id: 'svc-webhook-processor',
+    name: 'webhook-processor',
+    upstreams: [
+      { id: 'us-7', address: '10.0.4.10:8081', weight: 1, tls: 'TLS_MODE_OFF', healthy: true },
+      { id: 'us-8', address: '10.0.4.11:8081', weight: 1, tls: 'TLS_MODE_OFF', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_RANDOM',
+    healthCheck: null,
+    labels: null,
+    createdAt: '2026-03-01T15:00:00Z',
+    updatedAt: '2026-04-09T11:00:00Z',
+  },
+  {
+    id: 'svc-llm-proxy',
+    name: 'llm-proxy',
+    upstreams: [
+      { id: 'us-9', address: 'api.openai.com:443', weight: 5, tls: 'TLS_MODE_AUTO', healthy: true },
+      { id: 'us-10', address: 'api.anthropic.com:443', weight: 3, tls: 'TLS_MODE_AUTO', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_WEIGHTED_ROUND_ROBIN',
+    healthCheck: {
+      enabled: false,
+      path: '/health',
+      intervalSeconds: 30,
+      timeoutSeconds: 10,
+    },
+    labels: { env: 'production', team: 'ai' },
+    createdAt: '2026-04-05T09:00:00Z',
+    updatedAt: '2026-04-11T08:00:00Z',
+  },
+  {
+    id: 'svc-cdn',
+    name: 'cdn-origin',
+    upstreams: [
+      { id: 'us-11', address: 'origin.cdn.example.com:443', weight: 1, tls: 'TLS_MODE_AUTO', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_ROUND_ROBIN',
+    healthCheck: null,
+    labels: null,
+    createdAt: '2026-02-15T14:00:00Z',
+    updatedAt: '2026-04-07T18:00:00Z',
+  },
+  {
+    id: 'svc-graphql',
+    name: 'graphql-server',
+    upstreams: [
+      { id: 'us-12', address: '10.0.5.10:4000', weight: 1, tls: 'TLS_MODE_OFF', healthy: true },
+      { id: 'us-13', address: '10.0.5.11:4000', weight: 1, tls: 'TLS_MODE_OFF', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_LEAST_CONN',
+    healthCheck: {
+      enabled: true,
+      path: '/.well-known/apollo/server-health',
+      intervalSeconds: 20,
+      timeoutSeconds: 5,
+    },
+    labels: { env: 'staging', team: 'backend' },
+    createdAt: '2026-03-20T11:00:00Z',
+    updatedAt: '2026-04-10T12:00:00Z',
+  },
+  {
+    id: 'svc-internal-metrics',
+    name: 'internal-metrics',
+    upstreams: [
+      { id: 'us-14', address: '10.0.6.10:9100', weight: 1, tls: 'TLS_MODE_INTERNAL', healthy: true },
+    ],
+    lbPolicy: 'LB_POLICY_ROUND_ROBIN',
+    healthCheck: null,
+    labels: null,
+    createdAt: '2026-04-01T10:00:00Z',
+    updatedAt: '2026-04-01T10:00:00Z',
+  },
+]

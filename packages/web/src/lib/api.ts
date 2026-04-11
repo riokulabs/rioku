@@ -61,6 +61,7 @@ export interface Service {
   upstreams: Upstream[]
   lbPolicy: string
   healthCheck: HealthCheck | null
+  labels: Record<string, string> | null
   createdAt: string
   updatedAt: string
 }

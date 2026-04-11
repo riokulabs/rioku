@@ -26,6 +26,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
+import { YamlJsonEditor } from '@rioku/ui'
+import { policyConfigToYaml, yamlToPolicyConfig } from '@/lib/form-yaml-sync'
+
 export const Route = createFileRoute('/config/policies/create')({
   component: PolicyCreatePage,
 })
@@ -50,6 +53,10 @@ export function PolicyCreatePage() {
   const [name, setName] = useState('')
   const [config, setConfig] = useState<Record<string, unknown>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const [mode, setMode] = useState<'form' | 'code'>('form')
+  const [yamlContent, setYamlContent] = useState('')
+  const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
 
   const createMutation = useMutation({
     mutationFn: (payload: {
@@ -98,48 +105,100 @@ export function PolicyCreatePage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t('create.title')}</h1>
       </div>
 
-      {/* Name */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-2">
-            <Label htmlFor="policy-name">{t('create.policyName')}</Label>
-            <Input
-              id="policy-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('create.policyNamePlaceholder')}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Mode toggle */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={mode === 'form' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            if (mode === 'code') {
+              const parsed = yamlToPolicyConfig(yamlContent)
+              if (parsed.type) setSelectedType(parsed.type)
+              if (parsed.name) setName(parsed.name)
+              setConfig(parsed.config)
+            }
+            setMode('form')
+          }}
+        >
+          {t('create.formMode', 'Form')}
+        </Button>
+        <Button
+          variant={mode === 'code' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            if (mode === 'form' && selectedType) {
+              setYamlContent(policyConfigToYaml(selectedType, name, config))
+            }
+            setMode('code')
+          }}
+        >
+          {t('create.codeMode', 'YAML')}
+        </Button>
+      </div>
 
-      {/* Type selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('create.selectType')}</CardTitle>
-          <p className="text-sm text-muted-foreground">{t('create.selectTypeDesc')}</p>
-        </CardHeader>
-        <CardContent>
-          <TypeSelectorTiles
-            options={TYPE_OPTIONS}
-            value={selectedType}
-            onChange={setSelectedType}
-          />
-        </CardContent>
-      </Card>
+      {mode === 'form' ? (
+        <>
+          {/* Name */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="policy-name">{t('create.policyName')}</Label>
+                <Input
+                  id="policy-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t('create.policyNamePlaceholder')}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Type-specific form */}
-      {selectedType && (
+          {/* Type selector */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('create.selectType')}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t('create.selectTypeDesc')}</p>
+            </CardHeader>
+            <CardContent>
+              <TypeSelectorTiles
+                options={TYPE_OPTIONS}
+                value={selectedType}
+                onChange={setSelectedType}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Type-specific form */}
+          {selectedType && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('create.configuration')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PolicyFormForType
+                  type={selectedType}
+                  value={config}
+                  onChange={setConfig}
+                  errors={errors}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </>
+      ) : (
         <Card>
-          <CardHeader>
-            <CardTitle>{t('create.configuration')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PolicyFormForType
-              type={selectedType}
-              value={config}
-              onChange={setConfig}
-              errors={errors}
+          <CardContent className="pt-6">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Edit the policy configuration in YAML or JSON format. The type, name, and config fields are all editable.
+            </p>
+            <YamlJsonEditor
+              value={yamlContent}
+              onChange={setYamlContent}
+              format={yamlFormat}
+              onFormatChange={setYamlFormat}
+              height="400px"
+              showDownload
+              downloadFilename="policy"
             />
           </CardContent>
         </Card>

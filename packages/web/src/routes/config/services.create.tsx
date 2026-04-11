@@ -6,6 +6,8 @@ import { ArrowLeftIcon, PlusIcon, XIcon } from 'lucide-react'
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot } from '@/lib/api'
+import { labelsToKvPairs, kvPairsToLabels } from '@/lib/form-yaml-sync'
+import { KvEditor } from '@/components/rioku/kv-editor'
 import {
   serviceFormSchema,
   formValuesToServicePayload,
@@ -20,6 +22,9 @@ import { useUnsavedWarning } from '@/hooks/use-unsaved-warning'
 import { PageHeader } from '@/components/rioku/page-header'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
 
+import { SearchableSelect } from '@rioku/ui'
+import type { SelectOption } from '@rioku/ui'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +37,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+
+import { YamlJsonEditor } from '@rioku/ui'
+import { serviceFormToYaml, yamlToServiceForm } from '@/lib/form-yaml-sync'
 
 export const Route = createFileRoute('/config/services/create')({
   loader: ({ context }) =>
@@ -88,6 +96,9 @@ function ServiceCreatePage() {
     labels: false,
   })
 
+  const [yamlContent, setYamlContent] = useState('')
+  const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
+
   const { isDirty } = useDirtyForm(EMPTY_FORM, formValues)
   useUnsavedWarning(isDirty)
 
@@ -128,14 +139,25 @@ function ServiceCreatePage() {
         <Button
           variant={mode === 'form' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setMode('form')}
+          onClick={() => {
+            if (mode === 'code') {
+              const parsed = yamlToServiceForm(yamlContent)
+              setFormValues((prev) => ({ ...prev, ...parsed }))
+            }
+            setMode('form')
+          }}
         >
           {t('create.formMode')}
         </Button>
         <Button
           variant={mode === 'code' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setMode('code')}
+          onClick={() => {
+            if (mode === 'form') {
+              setYamlContent(serviceFormToYaml(formValues))
+            }
+            setMode('code')
+          }}
         >
           {t('create.codeMode')}
         </Button>
@@ -164,19 +186,17 @@ function ServiceCreatePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>{t('form.lbPolicy')}</Label>
-                  <Select
+                  <SearchableSelect
+                    options={Object.entries(LB_POLICY_LABELS).map(([value, label]): SelectOption => ({
+                      value,
+                      label,
+                    }))}
                     value={formValues.lbPolicy}
-                    onValueChange={(val) =>
+                    onChange={(val) =>
                       setFormValues((prev) => ({ ...prev, lbPolicy: val as ServiceFormValues['lbPolicy'] }))
                     }
-                  >
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(LB_POLICY_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('form.selectLbPolicy', 'Search load balancing policies...')}
+                  />
                 </div>
               </CardContent>
             )}
@@ -493,13 +513,17 @@ function ServiceCreatePage() {
             </CardHeader>
             {expandedSections.labels && (
               <CardContent>
-                <p className="text-xs text-muted-foreground">
+                <p className="mb-3 text-xs text-muted-foreground">
                   Key-value labels for organizing and filtering services.
                 </p>
-                {/* TagInput / KeyValueEditor from Phase 1 goes here */}
-                <div className="mt-2 rounded-md border p-4 text-center text-sm text-muted-foreground">
-                  KeyValueEditor placeholder -- Phase 1 component required
-                </div>
+                <KvEditor
+                  value={labelsToKvPairs(formValues.labels)}
+                  onChange={(pairs) =>
+                    setFormValues((prev) => ({ ...prev, labels: kvPairsToLabels(pairs) }))
+                  }
+                  keyPlaceholder="Label key"
+                  valuePlaceholder="Label value"
+                />
               </CardContent>
             )}
           </Card>
@@ -507,12 +531,18 @@ function ServiceCreatePage() {
       ) : (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              YAML/JSON mode uses the YamlJsonEditor component from Phase 1.
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t('create.codeDescription', 'Edit service configuration in YAML or JSON format. Changes sync back to the form when you switch modes.')}
             </p>
-            <div className="mt-4 rounded-md border p-8 text-center text-sm text-muted-foreground">
-              YamlJsonEditor placeholder -- Phase 1 component required
-            </div>
+            <YamlJsonEditor
+              value={yamlContent}
+              onChange={setYamlContent}
+              format={yamlFormat}
+              onFormatChange={setYamlFormat}
+              height="400px"
+              showDownload
+              downloadFilename="service"
+            />
           </CardContent>
         </Card>
       )}

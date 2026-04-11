@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeftIcon, PencilIcon, CodeIcon, TrashIcon } from 'lucide-react'
 
+import { SearchableMultiSelect } from '@rioku/ui'
+import type { SelectOption } from '@rioku/ui'
+
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Policy, Route as RouteType } from '@/lib/api'
 import { POLICY_TYPES, policyTypeColors } from './policies.index'
@@ -18,6 +21,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+import { YamlJsonEditor } from '@rioku/ui'
+import { policyConfigToYaml, yamlToPolicyConfig } from '@/lib/form-yaml-sync'
 
 export const Route = createFileRoute('/config/policies/$policyId')({
   loader: async ({ context, params }) => {
@@ -56,6 +62,9 @@ export function PolicyDetailPage() {
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('config')
+  const [yamlMode, setYamlMode] = useState(false)
+  const [yamlContent, setYamlContent] = useState('')
+  const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
 
   const attachedRoutes = routes.filter((r: RouteType) =>
     (r.policyIds ?? []).includes(policy.id),
@@ -123,7 +132,7 @@ export function PolicyDetailPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditing(false)}
+                        onClick={() => { setEditing(false); setYamlMode(false); setYamlContent('') }}
                       >
                         {t('detail.cancelEdit')}
                       </Button>
@@ -131,32 +140,69 @@ export function PolicyDetailPage() {
                         size="sm"
                         disabled={saveMutation.isPending}
                         onClick={() => {
+                          let configToSave = policy.config
+                          if (yamlMode) {
+                            const parsed = yamlToPolicyConfig(yamlContent)
+                            configToSave = parsed.config
+                          }
                           saveMutation.mutate({
                             policy: {
                               action: 'UPSERT',
-                              policy: { id: policy.id, config: policy.config },
+                              policy: { id: policy.id, config: configToSave },
                             },
                           })
+                          setYamlMode(false)
                         }}
                       >
                         {t('detail.saveConfig')}
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditing(true)}
-                    >
-                      <PencilIcon className="size-4" />
-                      {t('detail.editConfig')}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setYamlContent(policyConfigToYaml(policy.type, policy.name, policy.config))
+                          setYamlMode(true)
+                          setEditing(true)
+                        }}
+                      >
+                        <CodeIcon className="size-4" />
+                        YAML
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(true)}
+                      >
+                        <PencilIcon className="size-4" />
+                        {t('detail.editConfig')}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <ConfigReadView config={policy.config} />
+              {editing && yamlMode ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Edit the policy configuration in YAML or JSON format.
+                  </p>
+                  <YamlJsonEditor
+                    value={yamlContent}
+                    onChange={setYamlContent}
+                    format={yamlFormat}
+                    onFormatChange={setYamlFormat}
+                    height="400px"
+                    showDownload
+                    downloadFilename={policy.name}
+                  />
+                </div>
+              ) : (
+                <ConfigReadView config={policy.config} />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -167,7 +213,14 @@ export function PolicyDetailPage() {
             <CardHeader>
               <CardTitle>{t('detail.attachedRoutes')}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {editing && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Routes that reference this policy. To attach/detach, edit the route directly.
+                  </p>
+                </div>
+              )}
               <DataTable
                 columns={[
                   {

@@ -13,6 +13,7 @@ import {
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Route as RouteType, Service, Policy } from '@/lib/api'
+import { labelsToKvPairs, kvPairsToLabels } from '@/lib/form-yaml-sync'
 import { routeFormSchema, routeToFormValues, formValuesToRoutePayload } from '@/lib/schemas/route'
 import type { RouteFormValues } from '@/lib/schemas/route'
 import { useRouteMutations } from '@/hooks/use-config-mutations'
@@ -28,6 +29,12 @@ import { DiffView } from '@/components/rioku/diff-view'
 import type { DiffChange } from '@/components/rioku/diff-view'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
 import { EmptyState } from '@/components/rioku/empty-state'
+
+import { routeFormToYaml, yamlToRouteForm } from '@/lib/form-yaml-sync'
+import { KvEditor } from '@/components/rioku/kv-editor'
+
+import { SearchableSelect, SearchableMultiSelect, YamlJsonEditor } from '@rioku/ui'
+import type { SelectOption } from '@rioku/ui'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -73,6 +80,10 @@ function RouteDetailPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
 
+  const [yamlMode, setYamlMode] = useState(false)
+  const [yamlContent, setYamlContent] = useState('')
+  const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
+
   const initialValues = useMemo(() => routeToFormValues(route), [route])
   const [formValues, setFormValues] = useState<RouteFormValues>(initialValues)
 
@@ -89,10 +100,19 @@ function RouteDetailPage() {
   function cancelEditing() {
     setFormValues(initialValues)
     setIsEditing(false)
+    setYamlMode(false)
+    setYamlContent('')
   }
 
   function openReview() {
-    const validation = routeFormSchema.safeParse(formValues)
+    let valuesToValidate = formValues
+    if (yamlMode) {
+      const parsed = yamlToRouteForm(yamlContent)
+      valuesToValidate = { ...formValues, ...parsed }
+      setFormValues(valuesToValidate)
+      setYamlMode(false)
+    }
+    const validation = routeFormSchema.safeParse(valuesToValidate)
     if (!validation.success) {
       toast.error(validation.error.issues[0].message)
       return
@@ -212,7 +232,25 @@ function RouteDetailPage() {
           )}
           {isEditing && (
             <>
-              <Button variant="outline" onClick={cancelEditing}>
+              <Button
+                variant={yamlMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  if (!yamlMode) {
+                    // form -> YAML
+                    setYamlContent(routeFormToYaml(formValues))
+                    setYamlMode(true)
+                  } else {
+                    // YAML -> form
+                    const parsed = yamlToRouteForm(yamlContent)
+                    setFormValues((prev) => ({ ...prev, ...parsed }))
+                    setYamlMode(false)
+                  }
+                }}
+              >
+                {yamlMode ? t('detail.formMode', 'Form') : t('detail.yamlMode', 'YAML')}
+              </Button>
+              <Button variant="outline" onClick={() => { cancelEditing(); setYamlMode(false) }}>
                 <XIcon className="size-4" />
                 {t('detail.cancelEdit')}
               </Button>
@@ -232,7 +270,26 @@ function RouteDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* YAML mode replaces the tabs entirely */}
+      {isEditing && yamlMode ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Edit the route configuration in YAML or JSON. Switch back to Form mode to use the structured editor.
+            </p>
+            <YamlJsonEditor
+              value={yamlContent}
+              onChange={setYamlContent}
+              format={yamlFormat}
+              onFormatChange={setYamlFormat}
+              height="500px"
+              showDownload
+              downloadFilename={route.name}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+      /* Tabs */
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line">
           <TabsTrigger value="overview">{t('detail.overview')}</TabsTrigger>
@@ -285,23 +342,19 @@ function RouteDetailPage() {
                 <div>
                   <Label className="text-xs text-muted-foreground">{t('detail.serviceTarget')}</Label>
                   {isEditing ? (
-                    <Select
+                    <SearchableSelect
+                      options={services.map((svc: Service): SelectOption => ({
+                        value: svc.id,
+                        label: svc.name,
+                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''}`,
+                        badge: `${svc.upstreams.length}`,
+                      }))}
                       value={formValues.serviceId}
-                      onValueChange={(val) =>
-                        setFormValues((prev) => ({ ...prev, serviceId: val ?? '' }))
+                      onChange={(val) =>
+                        setFormValues((prev) => ({ ...prev, serviceId: val }))
                       }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map((svc: Service) => (
-                          <SelectItem key={svc.id} value={svc.id}>
-                            {svc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Search services..."
+                    />
                   ) : (
                     <p className="font-mono text-sm">
                       {route.serviceId ? getServiceName(route.serviceId) : t('detail.noTarget')}
@@ -332,6 +385,38 @@ function RouteDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Labels */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-sm">Labels</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <KvEditor
+                  value={labelsToKvPairs(formValues.labels)}
+                  onChange={(pairs) =>
+                    setFormValues((prev) => ({ ...prev, labels: kvPairsToLabels(pairs) }))
+                  }
+                  keyPlaceholder="Label key"
+                  valuePlaceholder="Label value"
+                />
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(route.labels ?? {}).map(([k, v]) => (
+                    <Badge key={k} variant="outline">
+                      <span className="font-mono text-xs">{k}</span>
+                      <span className="mx-1 text-muted-foreground">=</span>
+                      <span className="font-mono text-xs">{v}</span>
+                    </Badge>
+                  ))}
+                  {Object.keys(route.labels ?? {}).length === 0 && (
+                    <span className="text-sm text-muted-foreground">No labels</span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* --- Matching Tab --- */}
@@ -618,7 +703,24 @@ function RouteDetailPage() {
               <CardTitle>{t('policies.attached')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {(route.policyIds ?? []).length > 0 ? (
+              {isEditing ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{t('policies.attachedDescription', 'Select policies to attach to this route.')}</p>
+                  <SearchableMultiSelect
+                    options={policies.map((p: Policy): SelectOption => ({
+                      value: p.id,
+                      label: p.name,
+                      description: p.type.replace('POLICY_TYPE_', '').toLowerCase().replace(/_/g, ' '),
+                      badge: p.type.replace('POLICY_TYPE_', '').replace(/_/g, ' '),
+                    }))}
+                    value={formValues.policyIds}
+                    onChange={(ids) =>
+                      setFormValues((prev) => ({ ...prev, policyIds: ids }))
+                    }
+                    placeholder="Search policies..."
+                  />
+                </div>
+              ) : (route.policyIds ?? []).length > 0 ? (
                 <div className="space-y-2">
                   {(route.policyIds ?? []).map((pid) => (
                     <div key={pid} className="flex items-center justify-between rounded-md border p-3">
@@ -626,20 +728,6 @@ function RouteDetailPage() {
                         <span className="font-mono text-sm">{getPolicyName(pid)}</span>
                         <span className="ml-2 text-xs text-muted-foreground">{pid}</span>
                       </div>
-                      {isEditing && (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() =>
-                            setFormValues((prev) => ({
-                              ...prev,
-                              policyIds: prev.policyIds.filter((id) => id !== pid),
-                            }))
-                          }
-                        >
-                          {t('policies.detach')}
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -685,6 +773,7 @@ function RouteDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      )}
 
       {/* Review changes dialog */}
       <ConfirmDialog

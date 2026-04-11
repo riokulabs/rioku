@@ -13,6 +13,8 @@ import {
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Service as ServiceType } from '@/lib/api'
+import { labelsToKvPairs, kvPairsToLabels } from '@/lib/form-yaml-sync'
+import { KvEditor } from '@/components/rioku/kv-editor'
 import {
   serviceFormSchema,
   serviceToFormValues,
@@ -33,6 +35,12 @@ import { ConfirmDialog } from '@/components/rioku/confirm-dialog'
 import { DiffView } from '@/components/rioku/diff-view'
 import type { DiffChange } from '@/components/rioku/diff-view'
 import { NeedsBackendField } from '@/components/rioku/needs-backend-field'
+
+import { YamlJsonEditor } from '@rioku/ui'
+import { serviceFormToYaml, yamlToServiceForm } from '@/lib/form-yaml-sync'
+
+import { SearchableSelect } from '@rioku/ui'
+import type { SelectOption } from '@rioku/ui'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -78,6 +86,10 @@ function ServiceDetailPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
 
+  const [yamlMode, setYamlMode] = useState(false)
+  const [yamlContent, setYamlContent] = useState('')
+  const [yamlFormat, setYamlFormat] = useState<'yaml' | 'json'>('yaml')
+
   const initialValues = useMemo(() => serviceToFormValues(service), [service])
   const [formValues, setFormValues] = useState<ServiceFormValues>(initialValues)
 
@@ -94,10 +106,19 @@ function ServiceDetailPage() {
   function cancelEditing() {
     setFormValues(initialValues)
     setIsEditing(false)
+    setYamlMode(false)
+    setYamlContent('')
   }
 
   function openReview() {
-    const validation = serviceFormSchema.safeParse(formValues)
+    let valuesToValidate = formValues
+    if (yamlMode) {
+      const parsed = yamlToServiceForm(yamlContent)
+      valuesToValidate = { ...formValues, ...parsed }
+      setFormValues(valuesToValidate)
+      setYamlMode(false)
+    }
+    const validation = serviceFormSchema.safeParse(valuesToValidate)
     if (!validation.success) {
       toast.error(validation.error.issues[0].message)
       return
@@ -176,7 +197,23 @@ function ServiceDetailPage() {
             </Button>
           ) : (
             <>
-              <Button variant="outline" onClick={cancelEditing}>
+              <Button
+                variant={yamlMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  if (!yamlMode) {
+                    setYamlContent(serviceFormToYaml(formValues))
+                    setYamlMode(true)
+                  } else {
+                    const parsed = yamlToServiceForm(yamlContent)
+                    setFormValues((prev) => ({ ...prev, ...parsed }))
+                    setYamlMode(false)
+                  }
+                }}
+              >
+                {yamlMode ? t('detail.formMode', 'Form') : t('detail.yamlMode', 'YAML')}
+              </Button>
+              <Button variant="outline" onClick={() => { cancelEditing(); setYamlMode(false) }}>
                 <XIcon className="size-4" />
                 {t('detail.cancelEdit')}
               </Button>
@@ -196,7 +233,24 @@ function ServiceDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {isEditing && yamlMode ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Edit the service configuration in YAML or JSON. Switch back to Form mode to use the structured editor.
+            </p>
+            <YamlJsonEditor
+              value={yamlContent}
+              onChange={setYamlContent}
+              format={yamlFormat}
+              onFormatChange={setYamlFormat}
+              height="500px"
+              showDownload
+              downloadFilename={service.name}
+            />
+          </CardContent>
+        </Card>
+      ) : (
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line">
           <TabsTrigger value="overview">{t('detail.overview')}</TabsTrigger>
@@ -232,19 +286,17 @@ function ServiceDetailPage() {
                   <div>
                     <Label className="text-xs text-muted-foreground">{t('form.lbPolicy')}</Label>
                     {isEditing ? (
-                      <Select
+                      <SearchableSelect
+                        options={Object.entries(LB_POLICY_LABELS).map(([value, label]): SelectOption => ({
+                          value,
+                          label,
+                        }))}
                         value={formValues.lbPolicy}
-                        onValueChange={(val) =>
+                        onChange={(val) =>
                           setFormValues((prev) => ({ ...prev, lbPolicy: val as ServiceFormValues['lbPolicy'] }))
                         }
-                      >
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(LB_POLICY_LABELS).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Search policies..."
+                      />
                     ) : (
                       <Badge variant="outline">
                         {LB_POLICY_LABELS[service.lbPolicy] ?? service.lbPolicy}
@@ -367,6 +419,38 @@ function ServiceDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Labels */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-sm">Labels</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <KvEditor
+                  value={labelsToKvPairs(formValues.labels)}
+                  onChange={(pairs) =>
+                    setFormValues((prev) => ({ ...prev, labels: kvPairsToLabels(pairs) }))
+                  }
+                  keyPlaceholder="Label key"
+                  valuePlaceholder="Label value"
+                />
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(service.labels ?? {}).map(([k, v]) => (
+                    <Badge key={k} variant="outline">
+                      <span className="font-mono text-xs">{k}</span>
+                      <span className="mx-1 text-muted-foreground">=</span>
+                      <span className="font-mono text-xs">{v}</span>
+                    </Badge>
+                  ))}
+                  {Object.keys(service.labels ?? {}).length === 0 && (
+                    <span className="text-sm text-muted-foreground">No labels</span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* --- Health Checks Tab --- */}
@@ -624,6 +708,7 @@ function ServiceDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      )}
 
       {/* Review changes dialog */}
       <ConfirmDialog
