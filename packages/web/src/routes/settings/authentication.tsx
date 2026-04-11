@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-<<<<<<< HEAD
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
@@ -348,21 +347,5 @@ function AuthenticationSettingsPage() {
         </Button>
       </div>
     </form>
-=======
-import { useTranslation } from 'react-i18next'
-
-export const Route = createFileRoute('/settings/authentication')({
-  component: AuthenticationSettings,
-})
-
-function AuthenticationSettings() {
-  const { t } = useTranslation('settings')
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold">{t('nav.authentication')}</h2>
-      <p className="text-muted-foreground">{t('placeholders.authentication')}</p>
-    </div>
->>>>>>> feat/admin-panel-phase5
   )
 }
