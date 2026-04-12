@@ -14,6 +14,7 @@ import {
   routeFormSchema,
   formValuesToRoutePayload,
   HTTP_METHODS,
+  PATH_MATCHER_TYPE_LABELS,
 } from '@/lib/schemas/route'
 import type { RouteFormValues } from '@/lib/schemas/route'
 import { useRouteMutations } from '@/hooks/use-config-mutations'
@@ -263,7 +264,7 @@ function RouteCreatePage() {
                           setFormValues((prev) => ({ ...prev, paths: next }))
                         }}
                       >
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-32"><SelectValue>{PATH_MATCHER_TYPE_LABELS[path.type] ?? path.type}</SelectValue></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="TYPE_PREFIX">Prefix</SelectItem>
                           <SelectItem value="TYPE_EXACT">Exact</SelectItem>
@@ -629,7 +630,7 @@ function RouteCreatePage() {
                           setFormValues((prev) => ({ ...prev, paths: next }))
                         }}
                       >
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-32"><SelectValue>{PATH_MATCHER_TYPE_LABELS[path.type] ?? path.type}</SelectValue></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="TYPE_PREFIX">Prefix</SelectItem>
                           <SelectItem value="TYPE_EXACT">Exact</SelectItem>

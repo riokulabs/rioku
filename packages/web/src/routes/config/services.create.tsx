@@ -275,7 +275,7 @@ function ServiceCreatePage() {
                               setFormValues((prev) => ({ ...prev, upstreams: next }))
                             }}
                           >
-                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="w-full"><SelectValue>{TLS_MODE_LABELS[upstream.tls] ?? upstream.tls}</SelectValue></SelectTrigger>
                             <SelectContent>
                               {Object.entries(TLS_MODE_LABELS).map(([v, l]) => (
                                 <SelectItem key={v} value={v}>{l}</SelectItem>
