@@ -324,90 +324,9 @@ else
   else
     success "Root login successful"
 
-    # Apply seed config.
-    info "Seeding services, routes, and policies from ${SEED_FILE} ..."
-    seed_failed=0
-    export SEED_FILE REST_BASE COOKIE_JAR
-    python3 - <<'PYEOF' 2>/dev/null || seed_failed=1
-import json, urllib.request, urllib.error, os
-
-seed_file  = os.environ.get("SEED_FILE",   "")
-rest_base  = os.environ.get("REST_BASE",   "http://localhost:7778")
-cookie_jar = os.environ.get("COOKIE_JAR",  "")
-
-# Read session cookie from the curl cookie jar file.
-session_id = ""
-if cookie_jar and os.path.exists(cookie_jar):
-    with open(cookie_jar) as cf:
-        for line in cf:
-            if "rioku_sid" in line:
-                session_id = line.strip().split("\t")[-1]
-                break
-
-with open(seed_file) as f:
-    seed = json.load(f)
-
-def api(method, path, payload=None):
-    url  = f"{rest_base}{path}"
-    data = json.dumps(payload).encode() if payload is not None else None
-    req  = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", "rioku-seed-script/1.0")
-    if session_id:
-        req.add_header("Cookie", f"rioku_sid={session_id}")
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            body = resp.read()
-            return resp.status, json.loads(body) if body else {}
-    except urllib.error.HTTPError as e:
-        body = e.read()
-        return e.code, json.loads(body) if body else {}
-
-# Create services first.
-for svc in seed.get("services", []):
-    change = {"service": {"action": "UPSERT", "service": {
-        "name":      svc["name"],
-        "upstreams": svc["upstreams"],
-        "lbPolicy":  svc["lbPolicy"],
-    }}}
-    status, resp = api("POST", "/api/v1/config", change)
-    print(f"  service {svc['name']}: HTTP {status}")
-
-# Fetch the config to get generated service IDs (the create API doesn't return them).
-_, config_resp = api("GET", "/api/v1/config")
-service_ids = {}
-for svc in config_resp.get("services", []):
-    service_ids[svc["name"]] = svc["id"]
-
-# Create routes, resolving service names to IDs.
-for route in seed.get("routes", []):
-    svc_ref = route.get("serviceRef", "")
-    svc_id  = service_ids.get(svc_ref, "")
-    if not svc_id:
-        print(f"  route {route['name']}: SKIP (service '{svc_ref}' not found)")
-        continue
-    r = {
-        "name":     route["name"],
-        "enabled":  route.get("enabled", True),
-        "matchers": route.get("matchers", []),
-        "serviceId": svc_id,
-    }
-    status, _ = api("POST", "/api/v1/config", {"route": {"action": "UPSERT", "route": r}})
-    print(f"  route {route['name']}: HTTP {status}")
-
-for pol in seed.get("policies", []):
-    status, _ = api("POST", "/api/v1/config", {"policy": {"action": "UPSERT", "policy": {
-        "name":   pol["name"],
-        "type":   pol["type"],
-        "config": pol.get("config", {}),
-    }}})
-    print(f"  policy {pol['name']}: HTTP {status}")
-PYEOF
-
-    if (( seed_failed )); then
+    # Apply seed config (delegates to the shared seed script).
+    if ! bash "${SCRIPT_DIR}/seed-config.sh" "${REST_BASE}"; then
       warn "Config seed encountered errors (daemon API may not be fully implemented yet)"
-    else
-      success "Config seed complete"
     fi
 
     # Create API keys.
