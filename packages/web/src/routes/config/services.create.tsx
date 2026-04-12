@@ -77,6 +77,7 @@ const EMPTY_FORM: ServiceFormValues = {
   timeouts: { dial: '', responseHeader: '', idle: '' },
   retries: { maxAttempts: 0, retryStatuses: [] },
   connectionPool: { maxConnsPerHost: 0, maxIdleConns: 0, keepAliveInterval: '' },
+  transport: { tlsToUpstream: 'off', httpVersion: 'auto', keepAlive: true },
   labels: {},
 }
 

@@ -71,6 +71,29 @@ export const connectionPoolSchema = z.object({
   keepAliveInterval: z.string(),
 })
 
+export const TLS_UPSTREAM_MODES = ['auto', 'off', 'on', 'mtls'] as const
+
+export const TLS_UPSTREAM_LABELS: Record<string, string> = {
+  auto: 'Auto',
+  off: 'Off',
+  on: 'On',
+  mtls: 'mTLS',
+}
+
+export const HTTP_VERSIONS = ['auto', '1.1', '2'] as const
+
+export const HTTP_VERSION_LABELS: Record<string, string> = {
+  auto: 'Auto',
+  '1.1': 'HTTP/1.1',
+  '2': 'HTTP/2',
+}
+
+export const transportSchema = z.object({
+  tlsToUpstream: z.enum(TLS_UPSTREAM_MODES),
+  httpVersion: z.enum(HTTP_VERSIONS),
+  keepAlive: z.boolean(),
+})
+
 export const serviceFormSchema = z.object({
   name: z.string().min(1, 'Service name is required').max(128, 'Service name too long'),
   lbPolicy: z.enum(LB_POLICIES),
@@ -80,6 +103,7 @@ export const serviceFormSchema = z.object({
   connectionPool: connectionPoolSchema,
   timeouts: timeoutsSchema,
   retries: retriesSchema,
+  transport: transportSchema,
   labels: z.record(z.string(), z.string()),
 })
 
@@ -122,6 +146,7 @@ export function serviceToFormValues(service: {
     timeouts: { dial: '', responseHeader: '', idle: '' },
     retries: { maxAttempts: 0, retryStatuses: [] },
     connectionPool: { maxConnsPerHost: 0, maxIdleConns: 0, keepAliveInterval: '' },
+    transport: { tlsToUpstream: 'off', httpVersion: 'auto', keepAlive: true },
     labels: service.labels ?? {},
   }
 }

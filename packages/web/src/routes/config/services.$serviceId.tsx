@@ -21,6 +21,10 @@ import {
   formValuesToServicePayload,
   LB_POLICY_LABELS,
   TLS_MODE_LABELS,
+  TLS_UPSTREAM_MODES,
+  TLS_UPSTREAM_LABELS,
+  HTTP_VERSIONS,
+  HTTP_VERSION_LABELS,
 } from '@/lib/schemas/service'
 import type { ServiceFormValues } from '@/lib/schemas/service'
 import { useServiceMutations } from '@/hooks/use-config-mutations'
@@ -630,52 +634,278 @@ function ServiceDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* --- Transport Tab (NEEDS BACKEND) --- */}
+        {/* --- Transport Tab --- */}
         <TabsContent value="transport">
-          <NeedsBackendField message="Transport configuration requires proto enrichment">
+          <div className="space-y-6">
+            {/* TLS to Upstream */}
             <Card>
               <CardHeader>
-                <CardTitle>{t('transport.title')}</CardTitle>
+                <CardTitle>{t('transport.tlsTitle', 'TLS to Upstream')}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground mb-4">{t('transport.description')}</p>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.dialTimeout')}</Label>
-                    <Input disabled placeholder="5s" />
+                    <Label className="text-xs">{t('transport.tlsToUpstream', 'TLS to upstream')}</Label>
+                    {isEditing ? (
+                      <Select
+                        value={formValues.transport.tlsToUpstream}
+                        onValueChange={(val) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            transport: { ...prev.transport, tlsToUpstream: val as typeof prev.transport.tlsToUpstream },
+                          }))
+                        }
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TLS_UPSTREAM_MODES.map((mode) => (
+                            <SelectItem key={mode} value={mode}>{TLS_UPSTREAM_LABELS[mode]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className={`size-2.5 rounded-full ${formValues.transport.tlsToUpstream !== 'off' ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                        <span>{TLS_UPSTREAM_LABELS[formValues.transport.tlsToUpstream]}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.responseHeaderTimeout')}</Label>
-                    <Input disabled placeholder="30s" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.idleTimeout')}</Label>
-                    <Input disabled placeholder="90s" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.maxRetries')}</Label>
-                    <Input type="number" disabled placeholder="3" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.retryStatuses')}</Label>
-                    <Input disabled placeholder="502, 503, 504" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.maxConnsPerHost')}</Label>
-                    <Input type="number" disabled placeholder="100" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.maxIdleConns')}</Label>
-                    <Input type="number" disabled placeholder="10" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('transport.keepAliveInterval')}</Label>
-                    <Input disabled placeholder="30s" />
+                    <Label className="text-xs">{t('transport.httpVersion', 'HTTP version')}</Label>
+                    {isEditing ? (
+                      <Select
+                        value={formValues.transport.httpVersion}
+                        onValueChange={(val) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            transport: { ...prev.transport, httpVersion: val as typeof prev.transport.httpVersion },
+                          }))
+                        }
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {HTTP_VERSIONS.map((ver) => (
+                            <SelectItem key={ver} value={ver}>{HTTP_VERSION_LABELS[ver]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-mono text-sm">{HTTP_VERSION_LABELS[formValues.transport.httpVersion]}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </NeedsBackendField>
+
+            {/* Keep-Alive Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('transport.keepAliveTitle', 'Keep-Alive Settings')}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>{t('transport.keepAlive', 'Keep-alive')}</Label>
+                  {isEditing ? (
+                    <Switch
+                      checked={formValues.transport.keepAlive}
+                      onCheckedChange={(checked) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          transport: { ...prev.transport, keepAlive: checked },
+                        }))
+                      }
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className={`size-2.5 rounded-full ${formValues.transport.keepAlive ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                      <span>{formValues.transport.keepAlive ? 'Enabled' : 'Disabled'}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('transport.keepAliveInterval')}</Label>
+                  {isEditing ? (
+                    <Input
+                      value={formValues.connectionPool.keepAliveInterval}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          connectionPool: { ...prev.connectionPool, keepAliveInterval: e.target.value },
+                        }))
+                      }
+                      placeholder="30s"
+                    />
+                  ) : (
+                    <p className="text-sm">{formValues.connectionPool.keepAliveInterval || '—'}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Timeouts */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('transport.timeoutsTitle', 'Timeouts')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.dialTimeout')}</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formValues.timeouts.dial}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            timeouts: { ...prev.timeouts, dial: e.target.value },
+                          }))
+                        }
+                        placeholder="5s"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.timeouts.dial || '—'}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.responseHeaderTimeout')}</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formValues.timeouts.responseHeader}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            timeouts: { ...prev.timeouts, responseHeader: e.target.value },
+                          }))
+                        }
+                        placeholder="30s"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.timeouts.responseHeader || '—'}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.idleTimeout')}</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formValues.timeouts.idle}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            timeouts: { ...prev.timeouts, idle: e.target.value },
+                          }))
+                        }
+                        placeholder="90s"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.timeouts.idle || '—'}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Retries */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('transport.retriesTitle', 'Retries')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.maxRetries')}</Label>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={formValues.retries.maxAttempts}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            retries: { ...prev.retries, maxAttempts: parseInt(e.target.value, 10) || 0 },
+                          }))
+                        }
+                        placeholder="3"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.retries.maxAttempts || '—'}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.retryStatuses')}</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formValues.retries.retryStatuses.join(', ')}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            retries: {
+                              ...prev.retries,
+                              retryStatuses: e.target.value
+                                .split(',')
+                                .map((s) => parseInt(s.trim(), 10))
+                                .filter((n) => !isNaN(n)),
+                            },
+                          }))
+                        }
+                        placeholder="502, 503, 504"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.retries.retryStatuses.length > 0 ? formValues.retries.retryStatuses.join(', ') : '—'}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Connection Pool */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('transport.connectionPoolTitle', 'Connection Pool')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.maxConnsPerHost')}</Label>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={formValues.connectionPool.maxConnsPerHost}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            connectionPool: { ...prev.connectionPool, maxConnsPerHost: parseInt(e.target.value, 10) || 0 },
+                          }))
+                        }
+                        placeholder="100"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.connectionPool.maxConnsPerHost || '—'}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t('transport.maxIdleConns')}</Label>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={formValues.connectionPool.maxIdleConns}
+                        onChange={(e) =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            connectionPool: { ...prev.connectionPool, maxIdleConns: parseInt(e.target.value, 10) || 0 },
+                          }))
+                        }
+                        placeholder="10"
+                      />
+                    ) : (
+                      <p className="text-sm">{formValues.connectionPool.maxIdleConns || '—'}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* --- Policies Tab (placeholder) --- */}

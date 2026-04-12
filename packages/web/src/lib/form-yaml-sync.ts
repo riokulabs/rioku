@@ -133,6 +133,35 @@ export function serviceFormToYaml(values: ServiceFormValues): string {
     }
   }
 
+  // Transport -- only include non-default values
+  const transport: Record<string, unknown> = {}
+  if (values.transport.tlsToUpstream !== 'off') transport.tlsToUpstream = values.transport.tlsToUpstream
+  if (values.transport.httpVersion !== 'auto') transport.httpVersion = values.transport.httpVersion
+  if (!values.transport.keepAlive) transport.keepAlive = false
+  if (Object.keys(transport).length > 0) doc.transport = transport
+
+  // Timeouts -- only include non-empty values
+  const timeouts: Record<string, unknown> = {}
+  if (values.timeouts.dial) timeouts.dial = values.timeouts.dial
+  if (values.timeouts.responseHeader) timeouts.responseHeader = values.timeouts.responseHeader
+  if (values.timeouts.idle) timeouts.idle = values.timeouts.idle
+  if (Object.keys(timeouts).length > 0) doc.timeouts = timeouts
+
+  // Retries -- only include if configured
+  if (values.retries.maxAttempts > 0 || values.retries.retryStatuses.length > 0) {
+    doc.retries = {
+      maxAttempts: values.retries.maxAttempts,
+      retryStatuses: values.retries.retryStatuses,
+    }
+  }
+
+  // Connection pool -- only include non-default values
+  const pool: Record<string, unknown> = {}
+  if (values.connectionPool.maxConnsPerHost > 0) pool.maxConnsPerHost = values.connectionPool.maxConnsPerHost
+  if (values.connectionPool.maxIdleConns > 0) pool.maxIdleConns = values.connectionPool.maxIdleConns
+  if (values.connectionPool.keepAliveInterval) pool.keepAliveInterval = values.connectionPool.keepAliveInterval
+  if (Object.keys(pool).length > 0) doc.connectionPool = pool
+
   // Labels -- only include if non-empty
   if (Object.keys(values.labels).length > 0) {
     doc.labels = values.labels
@@ -173,6 +202,33 @@ export function yamlToServiceForm(yaml: string): Partial<ServiceFormValues> & { 
           healthyThreshold: (hc.healthyThreshold as number) || 2,
           unhealthyThreshold: (hc.unhealthyThreshold as number) || 3,
           expectedStatuses: (hc.expectedStatuses as number[]) || [200],
+        }
+      : undefined,
+    transport: parsed.transport
+      ? {
+          tlsToUpstream: (((parsed.transport as Record<string, unknown>).tlsToUpstream as string) || 'off') as 'auto' | 'off' | 'on' | 'mtls',
+          httpVersion: (((parsed.transport as Record<string, unknown>).httpVersion as string) || 'auto') as 'auto' | '1.1' | '2',
+          keepAlive: ((parsed.transport as Record<string, unknown>).keepAlive as boolean) ?? true,
+        }
+      : undefined,
+    timeouts: parsed.timeouts
+      ? {
+          dial: ((parsed.timeouts as Record<string, unknown>).dial as string) || '',
+          responseHeader: ((parsed.timeouts as Record<string, unknown>).responseHeader as string) || '',
+          idle: ((parsed.timeouts as Record<string, unknown>).idle as string) || '',
+        }
+      : undefined,
+    retries: parsed.retries
+      ? {
+          maxAttempts: ((parsed.retries as Record<string, unknown>).maxAttempts as number) || 0,
+          retryStatuses: ((parsed.retries as Record<string, unknown>).retryStatuses as number[]) || [],
+        }
+      : undefined,
+    connectionPool: parsed.connectionPool
+      ? {
+          maxConnsPerHost: ((parsed.connectionPool as Record<string, unknown>).maxConnsPerHost as number) || 0,
+          maxIdleConns: ((parsed.connectionPool as Record<string, unknown>).maxIdleConns as number) || 0,
+          keepAliveInterval: ((parsed.connectionPool as Record<string, unknown>).keepAliveInterval as string) || '',
         }
       : undefined,
     labels: (parsed.labels as Record<string, string>) ?? {},
