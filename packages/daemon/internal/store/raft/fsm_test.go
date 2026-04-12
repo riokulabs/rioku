@@ -806,6 +806,110 @@ func (rc *readCloser) Close() error { return nil }
 // emitEvent with nil notify
 // ---------------------------------------------------------------------------
 
+func TestFSMApplyDeleteRouteCleanupBindings(t *testing.T) {
+	f, cleanup := openTestFSM(t)
+	defer cleanup()
+
+	// Create a route.
+	applyJSON(t, f, OpCreateRoute, putData{
+		ID:   "route-cleanup",
+		Data: json.RawMessage(`{"name":"cleanup-route"}`),
+	})
+
+	// Attach a policy binding to the route.
+	result := applyJSON(t, f, OpAttachPolicy, policyBindingData{
+		PolicyID:   "pol-1",
+		TargetType: "route",
+		TargetID:   "route-cleanup",
+	})
+	if result.Error != "" {
+		t.Fatalf("attach policy error: %s", result.Error)
+	}
+
+	// Verify binding exists.
+	key := bindingKey("pol-1", "route", "route-cleanup")
+	_ = f.view(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketPolicyBindings))
+		if v := b.Get([]byte(key)); v == nil {
+			t.Error("binding should exist before delete")
+		}
+		return nil
+	})
+
+	// Delete the route.
+	result = applyJSON(t, f, OpDeleteRoute, deleteData{ID: "route-cleanup"})
+	if result.Error != "" {
+		t.Fatalf("delete route error: %s", result.Error)
+	}
+
+	// Verify binding is cleaned up.
+	_ = f.view(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketPolicyBindings))
+		if v := b.Get([]byte(key)); v != nil {
+			t.Error("binding should be cleaned up after route delete")
+		}
+		return nil
+	})
+}
+
+func TestFSMApplyDeleteServiceCleanupBindings(t *testing.T) {
+	f, cleanup := openTestFSM(t)
+	defer cleanup()
+
+	// Create a service.
+	applyJSON(t, f, OpCreateService, serviceData{
+		ID:   "svc-cleanup",
+		Data: json.RawMessage(`{"name":"cleanup-svc"}`),
+		Upstreams: []upstreamEntry{
+			{ID: "up-cleanup", Data: json.RawMessage(`{"service_id":"svc-cleanup","address":"1.1.1.1:80"}`)},
+		},
+	})
+
+	// Attach a policy binding to the service.
+	result := applyJSON(t, f, OpAttachPolicy, policyBindingData{
+		PolicyID:   "pol-2",
+		TargetType: "service",
+		TargetID:   "svc-cleanup",
+	})
+	if result.Error != "" {
+		t.Fatalf("attach policy error: %s", result.Error)
+	}
+
+	// Verify binding exists.
+	key := bindingKey("pol-2", "service", "svc-cleanup")
+	_ = f.view(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketPolicyBindings))
+		if v := b.Get([]byte(key)); v == nil {
+			t.Error("binding should exist before delete")
+		}
+		return nil
+	})
+
+	// Delete the service.
+	result = applyJSON(t, f, OpDeleteService, deleteData{ID: "svc-cleanup"})
+	if result.Error != "" {
+		t.Fatalf("delete service error: %s", result.Error)
+	}
+
+	// Verify binding is cleaned up.
+	_ = f.view(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketPolicyBindings))
+		if v := b.Get([]byte(key)); v != nil {
+			t.Error("binding should be cleaned up after service delete")
+		}
+		return nil
+	})
+
+	// Verify upstream is also cleaned up (existing behavior).
+	_ = f.view(func(tx *bolt.Tx) error {
+		ub := tx.Bucket([]byte(bucketUpstreams))
+		if v := ub.Get([]byte("up-cleanup")); v != nil {
+			t.Error("upstream should be deleted with service")
+		}
+		return nil
+	})
+}
+
 func TestEmitEventNilNotify(t *testing.T) {
 	f := &fsm{notify: nil}
 	// Should not panic.

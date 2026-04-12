@@ -238,6 +238,14 @@ func (f *fsm) applyDelete(tx *bolt.Tx, bucket string, cmd Command) (*CommandResu
 	if err := b.Delete([]byte(dd.ID)); err != nil {
 		return nil, fmt.Errorf("delete %s/%s: %w", bucket, dd.ID, err)
 	}
+
+	// Clean up policy bindings for deleted entity.
+	// Determine target type from bucket name.
+	if bucket == bucketRoutes {
+		pb := tx.Bucket([]byte(bucketPolicyBindings))
+		f.deleteBindingsForTarget(pb, "route", dd.ID)
+	}
+
 	f.emitEvent(bucket, dd.ID, "DELETE")
 	return &CommandResult{}, nil
 }
@@ -322,6 +330,10 @@ func (f *fsm) applyDeleteService(tx *bolt.Tx, cmd Command) (*CommandResult, erro
 	ub := tx.Bucket([]byte(bucketUpstreams))
 	f.deleteUpstreamsForService(ub, dd.ID)
 
+	// Clean up policy bindings for deleted service.
+	pb := tx.Bucket([]byte(bucketPolicyBindings))
+	f.deleteBindingsForTarget(pb, "service", dd.ID)
+
 	f.emitEvent(bucketServices, dd.ID, "DELETE")
 	return &CommandResult{}, nil
 }
@@ -340,6 +352,20 @@ func (f *fsm) deleteUpstreamsForService(ub *bolt.Bucket, serviceID string) {
 	}
 	for _, k := range toDelete {
 		_ = ub.Delete(k)
+	}
+}
+
+func (f *fsm) deleteBindingsForTarget(pb *bolt.Bucket, targetType, targetID string) {
+	c := pb.Cursor()
+	var toDelete [][]byte
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		var entry policyBindingData
+		if json.Unmarshal(v, &entry) == nil && entry.TargetType == targetType && entry.TargetID == targetID {
+			toDelete = append(toDelete, append([]byte{}, k...))
+		}
+	}
+	for _, k := range toDelete {
+		_ = pb.Delete(k)
 	}
 }
 

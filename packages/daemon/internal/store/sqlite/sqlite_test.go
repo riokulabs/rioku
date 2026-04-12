@@ -2294,14 +2294,20 @@ func TestUnmarshalLabelsJSON_Invalid(t *testing.T) {
 }
 
 func TestUnmarshalLabelsJSON_Empty(t *testing.T) {
-	// Empty and "{}" should return nil without error.
+	// Empty and "{}" should return non-nil Labels with an empty map.
 	for _, s := range []string{"", "{}"} {
 		got, err := unmarshalLabelsJSON(s)
 		if err != nil {
 			t.Fatalf("unmarshalLabelsJSON(%q): unexpected error: %v", s, err)
 		}
-		if got != nil {
-			t.Fatalf("unmarshalLabelsJSON(%q): expected nil, got %v", s, got)
+		if got == nil {
+			t.Fatalf("unmarshalLabelsJSON(%q): expected non-nil Labels, got nil", s)
+		}
+		if got.Labels == nil {
+			t.Fatalf("unmarshalLabelsJSON(%q): expected non-nil Labels.Labels map, got nil", s)
+		}
+		if len(got.Labels) != 0 {
+			t.Fatalf("unmarshalLabelsJSON(%q): expected empty map, got %v", s, got.Labels)
 		}
 	}
 }
@@ -2339,6 +2345,381 @@ func TestUnmarshalStructJSON_EmptyOrBraces(t *testing.T) {
 		if got != nil {
 			t.Fatalf("unmarshalStructJSON(%q): expected nil, got %v", s, got)
 		}
+	}
+}
+
+func TestDeleteRouteCleanupBindings(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a service for the route target.
+	txS, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	svc, err := txS.CreateService(ctx, &riokuv1.Service{
+		Name:     "cleanup-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "127.0.0.1:8080", Weight: 1, Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := txS.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Create a policy.
+	txP, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	pol, err := txP.CreatePolicy(ctx, &riokuv1.Policy{
+		Name: "cleanup-policy",
+		Type: riokuv1.PolicyType_POLICY_TYPE_RATE_LIMIT,
+	})
+	if err != nil {
+		t.Fatalf("CreatePolicy: %v", err)
+	}
+	if err := txP.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Create a route.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	route, err := tx1.CreateRoute(ctx, &riokuv1.Route{
+		Name:    "cleanup-route",
+		Enabled: true,
+		Matchers: []*riokuv1.Matcher{
+			{Hosts: []string{"example.com"}},
+		},
+		Target: &riokuv1.Route_ServiceId{ServiceId: svc.GetId()},
+	})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Attach policy to route.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx2.AttachPolicy(ctx, pol.GetId(), "route", route.GetId()); err != nil {
+		t.Fatalf("AttachPolicy: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify binding exists.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ids, err := tx3.ListPoliciesByTarget(ctx, "route", route.GetId())
+	if err != nil {
+		t.Fatalf("ListPoliciesByTarget: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 binding before delete, got %d", len(ids))
+	}
+	_ = tx3.Rollback()
+
+	// Delete the route.
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.DeleteRoute(ctx, route.GetId()); err != nil {
+		t.Fatalf("DeleteRoute: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify binding is cleaned up.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ids, err = tx5.ListPoliciesByTarget(ctx, "route", route.GetId())
+	if err != nil {
+		t.Fatalf("ListPoliciesByTarget: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("expected 0 bindings after route delete, got %d", len(ids))
+	}
+	_ = tx5.Rollback()
+}
+
+func TestDeleteServiceCleanupBindings(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a policy.
+	txP, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	pol, err := txP.CreatePolicy(ctx, &riokuv1.Policy{
+		Name: "svc-cleanup-policy",
+		Type: riokuv1.PolicyType_POLICY_TYPE_AUTH_JWT,
+	})
+	if err != nil {
+		t.Fatalf("CreatePolicy: %v", err)
+	}
+	if err := txP.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Create a service.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	svc, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:     "svc-cleanup-target",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "127.0.0.1:9090", Weight: 1, Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Attach policy to service.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx2.AttachPolicy(ctx, pol.GetId(), "service", svc.GetId()); err != nil {
+		t.Fatalf("AttachPolicy: %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify binding exists.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ids, err := tx3.ListPoliciesByTarget(ctx, "service", svc.GetId())
+	if err != nil {
+		t.Fatalf("ListPoliciesByTarget: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 binding before delete, got %d", len(ids))
+	}
+	_ = tx3.Rollback()
+
+	// Delete the service.
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.DeleteService(ctx, svc.GetId()); err != nil {
+		t.Fatalf("DeleteService: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify binding is cleaned up.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ids, err = tx5.ListPoliciesByTarget(ctx, "service", svc.GetId())
+	if err != nil {
+		t.Fatalf("ListPoliciesByTarget: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("expected 0 bindings after service delete, got %d", len(ids))
+	}
+	_ = tx5.Rollback()
+}
+
+func TestLabelsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tests := []struct {
+		name       string
+		labels     *riokuv1.Labels
+		wantNil    bool
+		wantLabels map[string]string
+	}{
+		{
+			name:       "non-empty labels round-trip",
+			labels:     &riokuv1.Labels{Labels: map[string]string{"env": "prod", "tier": "frontend"}},
+			wantLabels: map[string]string{"env": "prod", "tier": "frontend"},
+		},
+		{
+			name:       "empty labels returns non-nil empty map",
+			labels:     nil,
+			wantLabels: map[string]string{},
+		},
+		{
+			name:       "explicit empty labels returns non-nil empty map",
+			labels:     &riokuv1.Labels{Labels: map[string]string{}},
+			wantLabels: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a service to reference from the route.
+			txS, err := d.Begin(ctx, store.TxOptions{})
+			if err != nil {
+				t.Fatalf("Begin: %v", err)
+			}
+			svc, err := txS.CreateService(ctx, &riokuv1.Service{
+				Name:     "labels-svc-" + tt.name,
+				LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+				Upstreams: []*riokuv1.Upstream{
+					{Address: "127.0.0.1:8080", Weight: 1, Healthy: true},
+				},
+			})
+			if err != nil {
+				t.Fatalf("CreateService: %v", err)
+			}
+			if err := txS.Commit(); err != nil {
+				t.Fatalf("Commit: %v", err)
+			}
+
+			// Create route with labels.
+			tx1, err := d.Begin(ctx, store.TxOptions{})
+			if err != nil {
+				t.Fatalf("Begin: %v", err)
+			}
+			created, err := tx1.CreateRoute(ctx, &riokuv1.Route{
+				Name:   "labels-route-" + tt.name,
+				Labels: tt.labels,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"example.com"}},
+				},
+				Target:  &riokuv1.Route_ServiceId{ServiceId: svc.GetId()},
+				Enabled: true,
+			})
+			if err != nil {
+				t.Fatalf("CreateRoute: %v", err)
+			}
+			if err := tx1.Commit(); err != nil {
+				t.Fatalf("Commit: %v", err)
+			}
+
+			// Read back.
+			tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+			if err != nil {
+				t.Fatalf("Begin: %v", err)
+			}
+			got, err := tx2.GetRoute(ctx, created.GetId())
+			if err != nil {
+				t.Fatalf("GetRoute: %v", err)
+			}
+			_ = tx2.Rollback()
+
+			// Verify labels.
+			if got.GetLabels() == nil {
+				t.Fatal("expected non-nil Labels, got nil")
+			}
+			gotMap := got.GetLabels().GetLabels()
+			if gotMap == nil {
+				t.Fatal("expected non-nil Labels.Labels map, got nil")
+			}
+			if len(gotMap) != len(tt.wantLabels) {
+				t.Fatalf("expected %d label entries, got %d", len(tt.wantLabels), len(gotMap))
+			}
+			for k, wantV := range tt.wantLabels {
+				if gotV, ok := gotMap[k]; !ok || gotV != wantV {
+					t.Fatalf("expected label %q=%q, got %q", k, wantV, gotV)
+				}
+			}
+		})
+	}
+}
+
+func TestLabelsRoundTripService(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tests := []struct {
+		name       string
+		labels     *riokuv1.Labels
+		wantLabels map[string]string
+	}{
+		{
+			name:       "service non-empty labels",
+			labels:     &riokuv1.Labels{Labels: map[string]string{"region": "us-east"}},
+			wantLabels: map[string]string{"region": "us-east"},
+		},
+		{
+			name:       "service nil labels returns non-nil empty map",
+			labels:     nil,
+			wantLabels: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx1, err := d.Begin(ctx, store.TxOptions{})
+			if err != nil {
+				t.Fatalf("Begin: %v", err)
+			}
+			created, err := tx1.CreateService(ctx, &riokuv1.Service{
+				Name:     "labels-svc-" + tt.name,
+				LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+				Labels:   tt.labels,
+				Upstreams: []*riokuv1.Upstream{
+					{Address: "127.0.0.1:9090", Weight: 1, Healthy: true},
+				},
+			})
+			if err != nil {
+				t.Fatalf("CreateService: %v", err)
+			}
+			if err := tx1.Commit(); err != nil {
+				t.Fatalf("Commit: %v", err)
+			}
+
+			tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+			if err != nil {
+				t.Fatalf("Begin: %v", err)
+			}
+			got, err := tx2.GetService(ctx, created.GetId())
+			if err != nil {
+				t.Fatalf("GetService: %v", err)
+			}
+			_ = tx2.Rollback()
+
+			if got.GetLabels() == nil {
+				t.Fatal("expected non-nil Labels, got nil")
+			}
+			gotMap := got.GetLabels().GetLabels()
+			if gotMap == nil {
+				t.Fatal("expected non-nil Labels.Labels map, got nil")
+			}
+			if len(gotMap) != len(tt.wantLabels) {
+				t.Fatalf("expected %d label entries, got %d", len(tt.wantLabels), len(gotMap))
+			}
+			for k, wantV := range tt.wantLabels {
+				if gotV, ok := gotMap[k]; !ok || gotV != wantV {
+					t.Fatalf("expected label %q=%q, got %q", k, wantV, gotV)
+				}
+			}
+		})
 	}
 }
 

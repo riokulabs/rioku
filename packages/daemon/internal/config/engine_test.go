@@ -743,3 +743,496 @@ func TestCompileCaddyConfig(t *testing.T) {
 		t.Fatalf("expected reverse_proxy handler in route handlers, got %v", handlers)
 	}
 }
+
+func TestPolicyIdsCreateRoute(t *testing.T) {
+	eng := newTestEngine(t)
+	ctx := context.Background()
+
+	// Create a service for the route target.
+	applyService(t, eng, "policy-ids-svc", []*riokuv1.Upstream{
+		{Address: "127.0.0.1:8080", Weight: 1, Healthy: true},
+	})
+
+	snap, err := eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	svcID := snap.Services[0].Id
+
+	// Create two policies.
+	cfg1, _ := structpb.NewStruct(map[string]any{"rps": 100})
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name:   "pol-a",
+					Type:   riokuv1.PolicyType_POLICY_TYPE_RATE_LIMIT,
+					Config: cfg1,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy-a: %v", err)
+	}
+
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name: "pol-b",
+					Type: riokuv1.PolicyType_POLICY_TYPE_AUTH_JWT,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy-b: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if len(snap.Policies) != 2 {
+		t.Fatalf("expected 2 policies, got %d", len(snap.Policies))
+	}
+	polAID := snap.Policies[0].Id
+	polBID := snap.Policies[1].Id
+
+	// Create a route with policyIds.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Name:    "policy-ids-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: []string{polAID, polBID},
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange route: %v", err)
+	}
+
+	// Read back and verify policyIds.
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if len(snap.Routes) != 1 {
+		t.Fatalf("expected 1 route, got %d", len(snap.Routes))
+	}
+	route := snap.Routes[0]
+	if len(route.PolicyIds) != 2 {
+		t.Fatalf("expected 2 policyIds on route, got %d: %v", len(route.PolicyIds), route.PolicyIds)
+	}
+
+	// Verify both policy IDs are present (order may vary).
+	policySet := make(map[string]bool)
+	for _, id := range route.PolicyIds {
+		policySet[id] = true
+	}
+	if !policySet[polAID] {
+		t.Fatalf("expected polAID %q in policyIds", polAID)
+	}
+	if !policySet[polBID] {
+		t.Fatalf("expected polBID %q in policyIds", polBID)
+	}
+}
+
+func TestPolicyIdsUpdateRoute(t *testing.T) {
+	eng := newTestEngine(t)
+	ctx := context.Background()
+
+	// Create a service.
+	applyService(t, eng, "upd-svc", []*riokuv1.Upstream{
+		{Address: "127.0.0.1:8080", Weight: 1, Healthy: true},
+	})
+
+	snap, err := eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	svcID := snap.Services[0].Id
+
+	// Create two policies.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name: "upd-pol-a",
+					Type: riokuv1.PolicyType_POLICY_TYPE_RATE_LIMIT,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy-a: %v", err)
+	}
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name: "upd-pol-b",
+					Type: riokuv1.PolicyType_POLICY_TYPE_AUTH_JWT,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy-b: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	polAID := snap.Policies[0].Id
+	polBID := snap.Policies[1].Id
+
+	// Create route with polA only.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Name:    "upd-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: []string{polAID},
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange create route: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	routeID := snap.Routes[0].Id
+	if len(snap.Routes[0].PolicyIds) != 1 {
+		t.Fatalf("expected 1 policyId after create, got %d", len(snap.Routes[0].PolicyIds))
+	}
+
+	// Update: replace polA with polB.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Id:      routeID,
+					Name:    "upd-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: []string{polBID},
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange update route: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if len(snap.Routes[0].PolicyIds) != 1 {
+		t.Fatalf("expected 1 policyId after update, got %d", len(snap.Routes[0].PolicyIds))
+	}
+	if snap.Routes[0].PolicyIds[0] != polBID {
+		t.Fatalf("expected policyId %q, got %q", polBID, snap.Routes[0].PolicyIds[0])
+	}
+}
+
+func TestPolicyIdsRemoveAll(t *testing.T) {
+	eng := newTestEngine(t)
+	ctx := context.Background()
+
+	// Create a service.
+	applyService(t, eng, "rm-svc", []*riokuv1.Upstream{
+		{Address: "127.0.0.1:8080", Weight: 1, Healthy: true},
+	})
+
+	snap, err := eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	svcID := snap.Services[0].Id
+
+	// Create a policy.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name: "rm-pol",
+					Type: riokuv1.PolicyType_POLICY_TYPE_RATE_LIMIT,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	polID := snap.Policies[0].Id
+
+	// Create route with policy.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Name:    "rm-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: []string{polID},
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange create route: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	routeID := snap.Routes[0].Id
+	if len(snap.Routes[0].PolicyIds) != 1 {
+		t.Fatalf("expected 1 policyId, got %d", len(snap.Routes[0].PolicyIds))
+	}
+
+	// Update route with empty policyIds.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Id:      routeID,
+					Name:    "rm-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: nil,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange update route empty policies: %v", err)
+	}
+
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if len(snap.Routes[0].PolicyIds) != 0 {
+		t.Fatalf("expected 0 policyIds after removal, got %d: %v", len(snap.Routes[0].PolicyIds), snap.Routes[0].PolicyIds)
+	}
+}
+
+func TestImportConfigPolicyIdRemapping(t *testing.T) {
+	eng := newTestEngine(t)
+	ctx := context.Background()
+
+	// Create entities in the source engine.
+	applyService(t, eng, "import-svc", []*riokuv1.Upstream{
+		{Address: "127.0.0.1:8080", Weight: 1, Healthy: true},
+	})
+
+	snap, err := eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	svcID := snap.Services[0].Id
+
+	// Create two policies.
+	cfg1, _ := structpb.NewStruct(map[string]any{"rps": 50})
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name:   "import-pol-a",
+					Type:   riokuv1.PolicyType_POLICY_TYPE_RATE_LIMIT,
+					Config: cfg1,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy-a: %v", err)
+	}
+
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Policy{
+			Policy: &riokuv1.PolicyOp{
+				Action: riokuv1.PolicyOp_UPSERT,
+				Policy: &riokuv1.Policy{
+					Name: "import-pol-b",
+					Type: riokuv1.PolicyType_POLICY_TYPE_AUTH_JWT,
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange policy-b: %v", err)
+	}
+
+	// Create a route with no policyIds initially.
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Name:    "import-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"import.example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: []string{},
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange route: %v", err)
+	}
+
+	// Manually get the policy IDs and attach them to the route.
+	snap, err = eng.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	polAID := ""
+	polBID := ""
+	for _, p := range snap.Policies {
+		if p.Name == "import-pol-a" {
+			polAID = p.Id
+		}
+		if p.Name == "import-pol-b" {
+			polBID = p.Id
+		}
+	}
+
+	routeID := snap.Routes[0].Id
+	_, err = eng.ApplyChange(ctx, &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Route{
+			Route: &riokuv1.RouteOp{
+				Action: riokuv1.RouteOp_UPSERT,
+				Route: &riokuv1.Route{
+					Id:      routeID,
+					Name:    "import-route",
+					Enabled: true,
+					Matchers: []*riokuv1.Matcher{
+						{Hosts: []string{"import.example.com"}},
+					},
+					Target:    &riokuv1.Route_ServiceId{ServiceId: svcID},
+					PolicyIds: []string{polAID, polBID},
+				},
+			},
+		},
+	}, "test-actor")
+	if err != nil {
+		t.Fatalf("ApplyChange update route with policies: %v", err)
+	}
+
+	// Export the snapshot.
+	exported, err := eng.ExportConfig(ctx)
+	if err != nil {
+		t.Fatalf("ExportConfig: %v", err)
+	}
+
+	// Verify the exported snapshot has policyIds.
+	if len(exported.Routes) != 1 {
+		t.Fatalf("expected 1 route in export, got %d", len(exported.Routes))
+	}
+	if len(exported.Routes[0].PolicyIds) != 2 {
+		t.Fatalf("expected 2 policyIds in exported route, got %d", len(exported.Routes[0].PolicyIds))
+	}
+
+	// Import into a fresh engine.
+	eng2 := newTestEngine(t)
+
+	result, err := eng2.ImportConfig(ctx, exported, "import-actor")
+	if err != nil {
+		t.Fatalf("ImportConfig: %v", err)
+	}
+	if result.RoutesImported != 1 {
+		t.Fatalf("expected 1 route imported, got %d", result.RoutesImported)
+	}
+	if result.ServicesImported != 1 {
+		t.Fatalf("expected 1 service imported, got %d", result.ServicesImported)
+	}
+	if result.PoliciesImported != 2 {
+		t.Fatalf("expected 2 policies imported, got %d", result.PoliciesImported)
+	}
+
+	// Verify imported config has policyIds on the route.
+	imported, err := eng2.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig after import: %v", err)
+	}
+	if len(imported.Routes) != 1 {
+		t.Fatalf("expected 1 route after import, got %d", len(imported.Routes))
+	}
+	if len(imported.Routes[0].PolicyIds) != 2 {
+		t.Fatalf("expected 2 policyIds after import, got %d: %v", len(imported.Routes[0].PolicyIds), imported.Routes[0].PolicyIds)
+	}
+
+	// Verify the imported policyIds reference the NEW policy IDs (not old ones).
+	importedPolIDs := make(map[string]bool)
+	for _, p := range imported.Policies {
+		importedPolIDs[p.Id] = true
+	}
+	for _, pid := range imported.Routes[0].PolicyIds {
+		if !importedPolIDs[pid] {
+			t.Fatalf("imported route policyId %q does not reference an imported policy", pid)
+		}
+	}
+
+	// Verify names survived.
+	polNames := make(map[string]bool)
+	for _, p := range imported.Policies {
+		polNames[p.Name] = true
+	}
+	if !polNames["import-pol-a"] {
+		t.Fatal("expected import-pol-a in imported policies")
+	}
+	if !polNames["import-pol-b"] {
+		t.Fatal("expected import-pol-b in imported policies")
+	}
+}

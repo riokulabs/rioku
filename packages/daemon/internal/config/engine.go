@@ -315,11 +315,13 @@ func (e *Engine) ImportConfig(ctx context.Context, snapshot *riokuv1.ConfigSnaps
 		return nil, err
 	}
 
-	// Create all entities from snapshot. Services must be created first
-	// because routes may reference them via service_id. We track the
-	// old-to-new ID mapping so we can fix up route targets.
+	// Create all entities from snapshot. Order matters:
+	// 1. Services first (routes reference them via service_id)
+	// 2. Policies second (routes reference them via policy_ids)
+	// 3. Routes last (with remapped service_id and policy_ids)
 	var routeCount, serviceCount, policyCount int32
-	svcIDMap := make(map[string]string) // old ID -> new ID
+	svcIDMap := make(map[string]string)    // old ID -> new ID
+	policyIDMap := make(map[string]string) // old ID -> new ID
 
 	for _, svc := range snapshot.GetServices() {
 		oldID := svc.GetId()
@@ -333,6 +335,18 @@ func (e *Engine) ImportConfig(ctx context.Context, snapshot *riokuv1.ConfigSnaps
 		serviceCount++
 	}
 
+	for _, pol := range snapshot.GetPolicies() {
+		oldID := pol.GetId()
+		created, err := tx.CreatePolicy(ctx, pol)
+		if err != nil {
+			return nil, fmt.Errorf("config: import policy %q: %w", pol.GetName(), err)
+		}
+		if oldID != "" {
+			policyIDMap[oldID] = created.GetId()
+		}
+		policyCount++
+	}
+
 	for _, route := range snapshot.GetRoutes() {
 		// Remap service_id if the route targets a service.
 		if oldSvcID := route.GetServiceId(); oldSvcID != "" {
@@ -340,17 +354,27 @@ func (e *Engine) ImportConfig(ctx context.Context, snapshot *riokuv1.ConfigSnaps
 				route.Target = &riokuv1.Route_ServiceId{ServiceId: newSvcID}
 			}
 		}
-		if _, err := tx.CreateRoute(ctx, route); err != nil {
+
+		// Capture the original policy IDs before creating the route.
+		oldPolicyIDs := route.GetPolicyIds()
+
+		created, err := tx.CreateRoute(ctx, route)
+		if err != nil {
 			return nil, fmt.Errorf("config: import route %q: %w", route.GetName(), err)
 		}
-		routeCount++
-	}
 
-	for _, pol := range snapshot.GetPolicies() {
-		if _, err := tx.CreatePolicy(ctx, pol); err != nil {
-			return nil, fmt.Errorf("config: import policy %q: %w", pol.GetName(), err)
+		// Remap and attach policy bindings.
+		for _, oldPolID := range oldPolicyIDs {
+			newPolID := oldPolID
+			if mapped, ok := policyIDMap[oldPolID]; ok {
+				newPolID = mapped
+			}
+			if err := tx.AttachPolicy(ctx, newPolID, "route", created.GetId()); err != nil {
+				return nil, fmt.Errorf("config: import attach policy %q to route %q: %w", newPolID, created.GetName(), err)
+			}
 		}
-		policyCount++
+
+		routeCount++
 	}
 
 	// Build new snapshot and save version.
@@ -439,6 +463,15 @@ func buildSnapshot(ctx context.Context, tx store.Tx) (*riokuv1.ConfigSnapshot, e
 		return nil, fmt.Errorf("config: latest version: %w", err)
 	}
 
+	// Enrich routes with their attached policy IDs.
+	for _, route := range routes {
+		policyIDs, err := tx.ListPoliciesByTarget(ctx, "route", route.GetId())
+		if err != nil {
+			return nil, fmt.Errorf("config: list policyIds for route %q: %w", route.GetId(), err)
+		}
+		route.PolicyIds = policyIDs
+	}
+
 	return &riokuv1.ConfigSnapshot{
 		Version:    version,
 		Routes:     routes,
@@ -470,6 +503,10 @@ func applyRouteOp(ctx context.Context, tx store.Tx, op *riokuv1.RouteOp) (string
 				if err != nil {
 					return "", "", fmt.Errorf("config: update route: %w", err)
 				}
+				// Sync policy bindings.
+				if err := syncRoutePolicyIds(ctx, tx, updated.GetId(), route.GetPolicyIds()); err != nil {
+					return "", "", err
+				}
 				return updated.GetId(), "UPDATE", nil
 			}
 		}
@@ -477,6 +514,10 @@ func applyRouteOp(ctx context.Context, tx store.Tx, op *riokuv1.RouteOp) (string
 		created, err := tx.CreateRoute(ctx, route)
 		if err != nil {
 			return "", "", fmt.Errorf("config: create route: %w", err)
+		}
+		// Sync policy bindings.
+		if err := syncRoutePolicyIds(ctx, tx, created.GetId(), route.GetPolicyIds()); err != nil {
+			return "", "", err
 		}
 		return created.GetId(), "CREATE", nil
 
@@ -496,6 +537,46 @@ func applyRouteOp(ctx context.Context, tx store.Tx, op *riokuv1.RouteOp) (string
 	default:
 		return "", "", fmt.Errorf("config: unknown route action %v", op.GetAction())
 	}
+}
+
+// syncRoutePolicyIds synchronizes the policy_bindings junction table for a
+// route. It computes the diff between the desired policy IDs (from the incoming
+// route proto) and the current bindings, then calls AttachPolicy for additions
+// and DetachPolicy for removals.
+func syncRoutePolicyIds(ctx context.Context, tx store.Tx, routeID string, desired []string) error {
+	current, err := tx.ListPoliciesByTarget(ctx, "route", routeID)
+	if err != nil {
+		return fmt.Errorf("config: list current policyIds: %w", err)
+	}
+
+	currentSet := make(map[string]bool, len(current))
+	for _, id := range current {
+		currentSet[id] = true
+	}
+	desiredSet := make(map[string]bool, len(desired))
+	for _, id := range desired {
+		desiredSet[id] = true
+	}
+
+	// Attach new bindings.
+	for _, id := range desired {
+		if !currentSet[id] {
+			if err := tx.AttachPolicy(ctx, id, "route", routeID); err != nil {
+				return fmt.Errorf("config: attach policy %q to route %q: %w", id, routeID, err)
+			}
+		}
+	}
+
+	// Detach removed bindings.
+	for _, id := range current {
+		if !desiredSet[id] {
+			if err := tx.DetachPolicy(ctx, id, "route", routeID); err != nil {
+				return fmt.Errorf("config: detach policy %q from route %q: %w", id, routeID, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // applyServiceOp executes a service create, update, or delete.

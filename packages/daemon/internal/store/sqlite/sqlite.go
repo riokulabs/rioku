@@ -391,6 +391,12 @@ func (t *tx) DeleteRoute(ctx context.Context, id string) error {
 	if n == 0 {
 		return fmt.Errorf("sqlite: route %q not found", id)
 	}
+	// Clean up orphaned policy bindings for this route.
+	if _, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM policy_bindings WHERE target_type = 'route' AND target_id = ?`, id,
+	); err != nil {
+		return fmt.Errorf("sqlite: cleanup route policy_bindings: %w", err)
+	}
 	t.emit("routes", id, "DELETE")
 	return nil
 }
@@ -585,6 +591,12 @@ func (t *tx) DeleteService(ctx context.Context, id string) error {
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("sqlite: service %q not found", id)
+	}
+	// Clean up orphaned policy bindings for this service.
+	if _, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM policy_bindings WHERE target_type = 'service' AND target_id = ?`, id,
+	); err != nil {
+		return fmt.Errorf("sqlite: cleanup service policy_bindings: %w", err)
 	}
 	t.emit("services", id, "DELETE")
 	return nil
@@ -2069,14 +2081,14 @@ func marshalLabelsJSON(labels *riokuv1.Labels) (string, error) {
 
 func unmarshalLabelsJSON(s string) (*riokuv1.Labels, error) {
 	if s == "" || s == "{}" {
-		return nil, nil
+		return &riokuv1.Labels{Labels: map[string]string{}}, nil
 	}
 	m := make(map[string]string)
 	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		return nil, err
 	}
 	if len(m) == 0 {
-		return nil, nil
+		return &riokuv1.Labels{Labels: map[string]string{}}, nil
 	}
 	return &riokuv1.Labels{Labels: m}, nil
 }
