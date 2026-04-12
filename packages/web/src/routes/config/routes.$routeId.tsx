@@ -13,8 +13,9 @@ import {
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Route as RouteType, Service, Policy } from '@/lib/api'
+import { POLICY_TYPE_LABELS } from '@/lib/schemas/policy-schemas'
 import { labelsToKvPairs, kvPairsToLabels } from '@/lib/form-yaml-sync'
-import { routeFormSchema, routeToFormValues, formValuesToRoutePayload } from '@/lib/schemas/route'
+import { routeFormSchema, routeToFormValues, formValuesToRoutePayload, PATH_MATCHER_TYPE_LABELS } from '@/lib/schemas/route'
 import type { RouteFormValues } from '@/lib/schemas/route'
 import { useRouteMutations } from '@/hooks/use-config-mutations'
 import { useDirtyForm } from '@/hooks/use-dirty-form'
@@ -536,7 +537,7 @@ function RouteDetailPage() {
                   {(route.matchers[0]?.paths ?? []).map((p, i) => (
                     <Badge key={i} variant="outline">
                       <span className="mr-1 text-xs text-muted-foreground">
-                        {p.type === 'TYPE_PREFIX' ? 'prefix' : p.type === 'TYPE_EXACT' ? 'exact' : 'regexp'}:
+                        {PATH_MATCHER_TYPE_LABELS[p.type] ?? p.type}:
                       </span>
                       {p.value}
                     </Badge>
@@ -726,8 +727,8 @@ function RouteDetailPage() {
                     options={policies.map((p: Policy): SelectOption => ({
                       value: p.id,
                       label: p.name,
-                      description: p.type.replace('POLICY_TYPE_', '').toLowerCase().replace(/_/g, ' '),
-                      badge: p.type.replace('POLICY_TYPE_', '').replace(/_/g, ' '),
+                      description: POLICY_TYPE_LABELS[p.type] ?? p.type,
+                      badge: POLICY_TYPE_LABELS[p.type] ?? p.type,
                     }))}
                     value={formValues.policyIds}
                     onChange={(ids) =>

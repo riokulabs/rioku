@@ -1,5 +1,16 @@
 import { z } from 'zod'
 
+export const POLICY_TYPE_LABELS: Record<string, string> = {
+  POLICY_TYPE_RATE_LIMIT: 'Rate Limit',
+  POLICY_TYPE_AUTH_API_KEY: 'API Key Auth',
+  POLICY_TYPE_AUTHENTICATION: 'Authentication',
+  POLICY_TYPE_CORS: 'CORS',
+  POLICY_TYPE_CIRCUIT_BREAKER: 'Circuit Breaker',
+  POLICY_TYPE_RETRY: 'Retry',
+  POLICY_TYPE_CACHE: 'Cache',
+  POLICY_TYPE_TRANSFORM: 'Transform',
+}
+
 // ---------- Rate Limit ----------
 export const rateLimitSchema = z.object({
   requestsPerWindow: z.number().int().positive(),

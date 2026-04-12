@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
 export const PATH_MATCHER_TYPES = ['TYPE_EXACT', 'TYPE_PREFIX', 'TYPE_REGEXP'] as const
+
+export const PATH_MATCHER_TYPE_LABELS: Record<string, string> = {
+  TYPE_EXACT: 'Exact',
+  TYPE_PREFIX: 'Prefix',
+  TYPE_REGEXP: 'Regexp',
+}
 export const TLS_MODES = ['TLS_MODE_OFF', 'TLS_MODE_AUTO', 'TLS_MODE_CUSTOM', 'TLS_MODE_INTERNAL'] as const
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const
 export const MIN_TLS_VERSIONS = ['1.2', '1.3'] as const

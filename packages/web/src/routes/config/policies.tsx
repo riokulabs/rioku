@@ -13,6 +13,7 @@ import {
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Policy, Route as RouteType } from '@/lib/api'
+import { POLICY_TYPE_LABELS } from '@/lib/schemas/policy-schemas'
 
 import { PageHeader } from '@/components/rioku/page-header'
 import { DataTable } from '@/components/rioku/data-table'
@@ -55,16 +56,7 @@ export const Route = createFileRoute('/config/policies')({
   component: ConfigPolicies,
 })
 
-const POLICY_TYPES: Record<string, string> = {
-  POLICY_TYPE_RATE_LIMIT: 'Rate Limit',
-  POLICY_TYPE_AUTH_API_KEY: 'API Key Auth',
-  POLICY_TYPE_AUTHENTICATION: 'Authentication',
-  POLICY_TYPE_CORS: 'CORS',
-  POLICY_TYPE_CIRCUIT_BREAKER: 'Circuit Breaker',
-  POLICY_TYPE_RETRY: 'Retry',
-  POLICY_TYPE_CACHE: 'Cache',
-  POLICY_TYPE_TRANSFORM: 'Transform',
-}
+const POLICY_TYPES = POLICY_TYPE_LABELS
 
 const policyTypeColors: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   'POLICY_TYPE_RATE_LIMIT': 'default',

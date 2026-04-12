@@ -6,6 +6,8 @@ import { ArrowLeftIcon, PlusIcon, XIcon } from 'lucide-react'
 
 import { apiClient } from '@/lib/api'
 import type { ConfigSnapshot, Service, Policy } from '@/lib/api'
+import { POLICY_TYPE_LABELS } from '@/lib/schemas/policy-schemas'
+import { LB_POLICY_LABELS } from '@/lib/schemas/service'
 import { labelsToKvPairs, kvPairsToLabels } from '@/lib/form-yaml-sync'
 import { KvEditor } from '@/components/rioku/kv-editor'
 import {
@@ -366,7 +368,7 @@ function RouteCreatePage() {
                       options={services.map((svc: Service): SelectOption => ({
                         value: svc.id,
                         label: svc.name,
-                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''} - ${svc.lbPolicy.replace('LB_POLICY_', '').toLowerCase().replace(/_/g, ' ')}`,
+                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''} - ${LB_POLICY_LABELS[svc.lbPolicy] ?? svc.lbPolicy}`,
                         badge: `${svc.upstreams.length}`,
                       }))}
                       value={formValues.serviceId}
@@ -430,8 +432,8 @@ function RouteCreatePage() {
                   options={policies.map((p: Policy): SelectOption => ({
                     value: p.id,
                     label: p.name,
-                    description: p.type.replace('POLICY_TYPE_', '').toLowerCase().replace(/_/g, ' '),
-                    badge: p.type.replace('POLICY_TYPE_', '').replace(/_/g, ' '),
+                    description: POLICY_TYPE_LABELS[p.type] ?? p.type,
+                    badge: POLICY_TYPE_LABELS[p.type] ?? p.type,
                   }))}
                   value={formValues.policyIds}
                   onChange={(ids) =>
@@ -730,7 +732,7 @@ function RouteCreatePage() {
                       options={services.map((svc: Service): SelectOption => ({
                         value: svc.id,
                         label: svc.name,
-                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''} - ${svc.lbPolicy.replace('LB_POLICY_', '').toLowerCase().replace(/_/g, ' ')}`,
+                        description: `${svc.upstreams.length} upstream${svc.upstreams.length !== 1 ? 's' : ''} - ${LB_POLICY_LABELS[svc.lbPolicy] ?? svc.lbPolicy}`,
                         badge: `${svc.upstreams.length}`,
                       }))}
                       value={formValues.serviceId}
