@@ -12,6 +12,9 @@ import settings from '@/locales/en/settings.json'
 import cluster from '@/locales/en/cluster.json'
 import plugins from '@/locales/en/plugins.json'
 import audit from '@/locales/en/audit.json'
+import apiKeys from '@/locales/en/api-keys.json'
+import users from '@/locales/en/users.json'
+import accessPolicies from '@/locales/en/access-policies.json'
 
 const STORAGE_KEY = 'rioku-preferences'
 
@@ -42,6 +45,9 @@ i18n.use(initReactI18next).init({
     'cluster',
     'plugins',
     'audit',
+    'api-keys',
+    'users',
+    'access-policies',
   ],
   interpolation: {
     escapeValue: false,
@@ -59,6 +65,9 @@ i18n.use(initReactI18next).init({
       cluster,
       plugins,
       audit,
+      'api-keys': apiKeys,
+      users,
+      'access-policies': accessPolicies,
     },
   },
 })
