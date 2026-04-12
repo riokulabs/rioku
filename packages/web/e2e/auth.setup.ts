@@ -1,26 +1,36 @@
-import { test as setup } from '@playwright/test';
+import { test as setup, expect } from '@playwright/test';
 
-const adminFile = 'e2e/.auth/admin.json';
-const viewerFile = 'e2e/.auth/viewer.json';
-const operatorFile = 'e2e/.auth/operator.json';
+const authFile = 'e2e/.auth/user.json';
 
-setup('authenticate as admin', async ({ request }) => {
-  await request.post('/api/v1/auth/login', {
-    data: { username: 'testadmin', password: 'TestAdmin123!' },
+setup('authenticate as root', async ({ page }) => {
+  await page.goto('/login');
+
+  await page.getByLabel('Username').fill('root');
+  await page.getByLabel('Password').fill('TestRoot1234!');
+  await page.getByRole('button', { name: /log in/i }).click();
+
+  // Wait for redirect to dashboard (or change-password for first-time root)
+  await page.waitForURL((url) => !url.pathname.includes('/login'), {
+    timeout: 15_000,
   });
-  await request.storageState({ path: adminFile });
-});
 
-setup('authenticate as viewer', async ({ request }) => {
-  await request.post('/api/v1/auth/login', {
-    data: { username: 'testviewer', password: 'TestView123!' },
-  });
-  await request.storageState({ path: viewerFile });
-});
+  // If redirected to change-password, handle it
+  if (page.url().includes('/change-password')) {
+    // Fill in whatever the change-password form requires and submit
+    const newPwField = page.getByLabel(/new password/i).first();
+    const confirmPwField = page.getByLabel(/confirm/i).first();
+    if (await newPwField.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await newPwField.fill('TestRoot1234!');
+      if (await confirmPwField.isVisible().catch(() => false)) {
+        await confirmPwField.fill('TestRoot1234!');
+      }
+      await page.getByRole('button', { name: /change|save|submit/i }).click();
+      await page.waitForURL('/', { timeout: 10_000 });
+    }
+  }
 
-setup('authenticate as operator', async ({ request }) => {
-  await request.post('/api/v1/auth/login', {
-    data: { username: 'testoperator', password: 'TestOperator123!' },
-  });
-  await request.storageState({ path: operatorFile });
+  // Verify we're on the dashboard
+  await expect(page).toHaveURL('/');
+
+  await page.context().storageState({ path: authFile });
 });
