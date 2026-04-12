@@ -137,6 +137,8 @@ The store layer has `DeleteUser` which does a hard `DELETE FROM users`. The admi
 
 Register as: `mux.Handle("DELETE /api/v1/users/{id}", RequirePermission("users:manage")(http.HandlerFunc(handleDeleteUser(st, sm))))`
 
+**Login handling for deleted users**: Verify that `handleLogin` in `auth_routes.go` handles `status = 'deleted'` the same as `status = 'suspended'` (returns 403 Forbidden). If not, add explicit handling so that soft-deleted users cannot authenticate. The existing login handler checks for `suspended` and `locked` statuses but may not check for `deleted` since hard-delete was the previous approach.
+
 #### 2. Admin session listing for other users (GET /api/v1/users/{id}/sessions)
 
 `GET /api/v1/auth/sessions` lists the caller's own sessions. There is no endpoint to list another user's sessions. The store already has `ListSessionsByUser(ctx, userID)`.
@@ -202,6 +204,8 @@ Building a full PATCH-and-reload system is significant work involving file locki
 
 Replace the current monolithic `GET /api/v1/settings` stub with category-specific GET endpoints that read from the in-memory `*config.Config` struct. No file writes, no reload.
 
+**Permission requirement**: All 7 settings GET endpoints require `settings:read` permission via the existing `RequirePermission` middleware. Route registration wraps each handler: `RequirePermission("settings:read")(http.HandlerFunc(handler))`.
+
 ### Endpoints
 
 | Method | Path | Source | Description |
@@ -238,6 +242,8 @@ Replace the current monolithic `GET /api/v1/settings` stub with category-specifi
   "migrationVersion": 4
 }
 ```
+
+**`migrationVersion` source note**: `migrationVersion` comes from `store.Driver.CurrentVersion(ctx)`, not from `Health()`. The `Health()` method returns connectivity/readiness status only. `CurrentVersion` returns the highest applied migration number.
 
 **`GET /api/v1/settings/auth`**:
 
@@ -360,6 +366,10 @@ Response:
   "range": "24h"
 }
 ```
+
+**`avgLatencyMs` computation note**: P50 (median) is used as a proxy for average latency in v1. `StatsBucket` has `P50LatencyMS` but no true arithmetic mean field. True average requires a schema extension to `StatsBucket` adding a `TotalLatencyMS` accumulator (deferred). The same applies to `avgLatencyMs` in per-route and per-service stat cards, where `RouteBucket.AvgLatencyMS` is actually the bucket-level average already computed by the aggregator.
+
+**`topRoutes` limit**: `topRoutes` limited to top 10 by request count, ordered descending. The handler sorts `GetRouteBuckets` results by total request count and truncates to 10 entries.
 
 Implementation: call `GetStatsBuckets`, `GetRouteBuckets`, `GetStatusBuckets` for the time range. Re-aggregate minute buckets into the desired interval. Compute stat cards from the aggregated data.
 

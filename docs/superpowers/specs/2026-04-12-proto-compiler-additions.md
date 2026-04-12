@@ -18,11 +18,13 @@ In `packages/proto/rioku/v1/config.proto`, add to the `Service` message after fi
 ```proto
 message Service {
   // ... existing fields 1-8 ...
-  int32 dial_timeout_seconds             = 10;
-  int32 response_header_timeout_seconds  = 11;
-  int32 idle_timeout_seconds             = 12;
+  int32 dial_timeout_seconds             = 9;
+  int32 response_header_timeout_seconds  = 10;
+  int32 idle_timeout_seconds             = 11;
 }
 ```
+
+**Field numbering note**: Field 8 is `updated_at`, so new fields start at 9. Protobuf best practice (per protobuf.dev): "Assign numbers densely and sequentially. Gaps should only occur when a previously used field is removed."
 
 **Rationale for `int32` seconds**: The existing `HealthCheck` message uses `int32 interval_seconds`, `int32 timeout_seconds`, etc. (lines 88-94 of `config.proto`). Using the same pattern keeps the proto API consistent and avoids adding a `google.protobuf.Duration` import and the complexity of Duration serialization in stores. Sub-second proxy timeouts are not a realistic use case.
 
@@ -30,17 +32,17 @@ message Service {
 
 In `packages/daemon/internal/caddy/compiler.go`, in the `applyService` function (line 327), after setting upstreams, load balancing, and health checks, emit a `transport` block when any timeout is set.
 
-Caddy's `reverse_proxy` transport uses the `http` protocol module. The correct JSON field names for the HTTP transport are:
+Caddy's `reverse_proxy` transport uses the `http` protocol module. The correct JSON field names for the HTTP transport (verified from Caddy's `HTTPTransport` struct at pkg.go.dev and caddyserver.com/docs/modules/http.reverse_proxy.transport.http) are:
 
 | Proto field | Caddy transport JSON field | Caddy docs reference |
 |---|---|---|
-| `dial_timeout_seconds` | `dial_timeout` | Duration string, e.g. `"5s"` |
-| `response_header_timeout_seconds` | `response_header_timeout` | Duration string, e.g. `"30s"` |
-| `idle_timeout_seconds` | `read_timeout` | Duration string, e.g. `"120s"` |
+| `dial_timeout_seconds` | `dial_timeout` | Top-level transport field (`caddy.Duration`, default `"3s"`) |
+| `response_header_timeout_seconds` | `response_header_timeout` | Top-level transport field (`caddy.Duration`, no default) |
+| `idle_timeout_seconds` | `keep_alive.idle_conn_timeout` | **Nested** under `keep_alive` sub-object, NOT at transport root |
 
-**Important**: Caddy's HTTP transport struct uses `read_timeout` for the idle/read timeout on the connection, not `idle_conn_timeout`. The original spec incorrectly used `idle_conn_timeout`. Verify against Caddy's `HTTPTransport` struct before implementation -- the JSON struct tags in Caddy source are the authoritative reference.
+**Important**: Caddy's `idle_conn_timeout` is nested inside the `keep_alive` sub-object of the HTTP transport, not at the transport root level. The compiler must emit this as a nested structure. `dial_timeout` and `response_header_timeout` are top-level transport fields.
 
-When a timeout field is 0 (the proto3 default), omit it from the Caddy JSON (let Caddy use its built-in default). Only emit the `transport` block if at least one timeout is non-zero.
+When a timeout field is 0 (the proto3 default), omit it from the Caddy JSON (let Caddy use its built-in default). Only emit the `transport` block if at least one timeout is non-zero. Only emit the `keep_alive` sub-object if `idle_timeout_seconds` is non-zero.
 
 Example compiled output:
 
@@ -52,7 +54,9 @@ Example compiled output:
     "protocol": "http",
     "dial_timeout": "5s",
     "response_header_timeout": "30s",
-    "read_timeout": "120s"
+    "keep_alive": {
+      "idle_conn_timeout": "120s"
+    }
   }
 }
 ```
@@ -120,6 +124,8 @@ if current < 5 {
 
 Inject a Caddy `headers` handler into each compiled **traffic** route's handler chain. Headers are configurable via `rioku.yaml`. The compiler reads the config and emits the appropriate Caddy handler. The admin server block is **excluded** -- it has its own CSP needs (inline scripts for the SPA) that conflict with strict traffic headers.
 
+**Relationship to existing security middleware**: `internal/gateway/security_middleware.go` already sets `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and a CSP on the Go HTTP admin/REST API response path. The NEW Caddy-level security headers specified here apply to **proxied traffic only** (different response path -- Caddy reverse proxy routes, not the Go gateway). These two layers do not conflict: the Go middleware covers admin/REST API responses, while the Caddy headers handler covers traffic routed through the reverse proxy. Both should be maintained independently.
+
 ### Configuration
 
 In `packages/daemon/internal/config/file.go`, add to the `Config` struct:
@@ -141,6 +147,7 @@ type SecurityHeaders struct {
     ReferrerPolicy      string     `yaml:"referrer_policy"`
     PermissionsPolicy   string     `yaml:"permissions_policy"`
     CSP                 string     `yaml:"csp"`
+    CSPReportOnly       bool       `yaml:"csp_report_only"`
     HSTS                HSTSConfig `yaml:"hsts"`
 }
 
@@ -168,6 +175,13 @@ SecurityHeaders: SecurityHeaders{
     },
 },
 ```
+
+**CSP best practice note**: Per OWASP 2026 guidance, Content-Security-Policy should be rolled out in Report-Only mode first before enforcing. When `csp` is non-empty, the `csp_report_only` option controls which header is emitted:
+
+- `csp_report_only: true` -- emits `Content-Security-Policy-Report-Only` (monitors violations without blocking)
+- `csp_report_only: false` (default) -- emits `Content-Security-Policy` (enforcing mode)
+
+This allows operators to deploy CSP incrementally: start with report-only to identify violations, then switch to enforcing once the policy is validated.
 
 ### Compiler Integration
 
@@ -248,7 +262,7 @@ Example compiled route with security headers enabled:
 
 ### Proto
 
-- **`packages/proto/rioku/v1/config.proto`** -- Add `dial_timeout_seconds`, `response_header_timeout_seconds`, `idle_timeout_seconds` to `Service` message (fields 10-12). Run `make proto` after.
+- **`packages/proto/rioku/v1/config.proto`** -- Add `dial_timeout_seconds`, `response_header_timeout_seconds`, `idle_timeout_seconds` to `Service` message (fields 9-11). Run `make proto` after.
 
 ### Compiler
 
@@ -256,7 +270,7 @@ Example compiled route with security headers enabled:
   - `applyService`: emit `transport` block with timeout duration strings when any timeout > 0
   - New `buildSecurityHeadersHandler` method on `Compiler`
   - `CompileRoute`: insert security headers handler at position 1 when enabled
-  - `NewCompiler`: accept `SecurityHeaders` config (or pass full `*config.Config`)
+  - `NewCompiler`: accept `SecurityHeaders` config specifically (not the full `*config.Config` -- follows the existing pattern where `NewCompiler` takes specific configs rather than the entire config struct)
 
 ### Config
 
@@ -297,7 +311,7 @@ All tests table-driven, run with `-race`.
 
 | Test | Input | Expected output |
 |------|-------|-----------------|
-| `TestCompiler_ServiceWithAllTimeouts` | Service with all three timeouts set | `transport` block with `dial_timeout`, `response_header_timeout`, `read_timeout` |
+| `TestCompiler_ServiceWithAllTimeouts` | Service with all three timeouts set | `transport` block with `dial_timeout`, `response_header_timeout`, and `keep_alive.idle_conn_timeout` |
 | `TestCompiler_ServiceWithPartialTimeouts` | Service with only `dial_timeout_seconds=5` | `transport` block with only `dial_timeout: "5s"` |
 | `TestCompiler_ServiceWithNoTimeouts` | Service with all timeouts = 0 | No `transport` block in output |
 | `TestCompiler_TimeoutFormatting` | Various timeout values | Duration strings formatted correctly (e.g., 120 -> "120s") |
@@ -310,7 +324,8 @@ All tests table-driven, run with `-race`.
 | `TestCompiler_SecurityHeadersDisabled` | `Enabled: false` | No headers handler in chain |
 | `TestCompiler_SecurityHeadersPartialEmpty` | Some header values set to `""` | Only non-empty headers in `response.set` |
 | `TestCompiler_SecurityHeadersNoCSP` | `CSP: ""` (default) | No `Content-Security-Policy` key in set |
-| `TestCompiler_SecurityHeadersWithCSP` | `CSP: "default-src 'self'"` | `Content-Security-Policy` present |
+| `TestCompiler_SecurityHeadersWithCSP` | `CSP: "default-src 'self'"`, `CSPReportOnly: false` | `Content-Security-Policy` present |
+| `TestCompiler_SecurityHeadersWithCSPReportOnly` | `CSP: "default-src 'self'"`, `CSPReportOnly: true` | `Content-Security-Policy-Report-Only` present (not `Content-Security-Policy`) |
 | `TestCompiler_HSTSWithStandardPorts` | HSTS enabled, traffic on `:443` | `Strict-Transport-Security` present |
 | `TestCompiler_HSTSWithNonStandardPorts` | HSTS enabled, traffic on `:8443` | `Strict-Transport-Security` absent |
 | `TestCompiler_HSTSDisabled` | `HSTS.Enabled: false` | `Strict-Transport-Security` absent |
@@ -326,6 +341,12 @@ All tests table-driven, run with `-race`.
 | `TestServiceTimeout_RoundTrip` | All three timeout fields survive create/read |
 | `TestServiceTimeout_Update` | Timeout fields update correctly |
 | `TestServiceTimeout_ZeroValues` | Unset timeouts (0) read back as 0, no transport block emitted |
+
+### Combined feature tests (`compiler_test.go`)
+
+| Test | Input | Expected output |
+|------|-------|-----------------|
+| `TestCompiler_ServiceWithHealthCheckAndTimeouts` | Service with health check config + all three timeouts set | Caddy JSON contains both `health_checks` block and `transport` block with correct fields (ensures both features compose correctly) |
 
 ---
 
