@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
+import { renderWithProviders as render } from '@/test/utils'
 import { TrafficTab } from '@/components/rioku/traffic-tab'
 
 // Mock recharts to avoid rendering SVG in happy-dom
