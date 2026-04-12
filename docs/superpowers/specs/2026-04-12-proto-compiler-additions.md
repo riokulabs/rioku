@@ -1,7 +1,7 @@
 # Proto & Compiler Additions: Proxy Timeouts and Security Headers
 
-**Date**: 2026-04-12
-**Scope**: Two compiler features — proxy timeout fields (#68) and HTTP security headers (#118)
+**Date**: 2026-04-12 (revised)
+**Scope**: Two compiler features -- proxy timeout fields (#68) and HTTP security headers (#118)
 
 ---
 
@@ -9,26 +9,40 @@
 
 ### Overview
 
-Add three timeout fields to the Service proto message. The Caddy compiler maps them to the `reverse_proxy` transport configuration. The store persists them as duration strings.
+Add three timeout fields to the Service proto message using `int32` seconds fields (matching the existing `HealthCheck` pattern in `config.proto`). The Caddy compiler maps them to the `reverse_proxy` transport configuration. The store persists them as integer columns.
 
 ### Proto Changes
 
-In `packages/proto/rioku/v1/config.proto`, add to the `Service` message:
+In `packages/proto/rioku/v1/config.proto`, add to the `Service` message after field 8 (`updated_at`):
 
 ```proto
 message Service {
-  // ... existing fields ...
-  google.protobuf.Duration dial_timeout = 10;
-  google.protobuf.Duration response_header_timeout = 11;
-  google.protobuf.Duration idle_timeout = 12;
+  // ... existing fields 1-8 ...
+  int32 dial_timeout_seconds             = 10;
+  int32 response_header_timeout_seconds  = 11;
+  int32 idle_timeout_seconds             = 12;
 }
 ```
 
-Import `google/protobuf/duration.proto` at the top of the file if not already imported.
+**Rationale for `int32` seconds**: The existing `HealthCheck` message uses `int32 interval_seconds`, `int32 timeout_seconds`, etc. (lines 88-94 of `config.proto`). Using the same pattern keeps the proto API consistent and avoids adding a `google.protobuf.Duration` import and the complexity of Duration serialization in stores. Sub-second proxy timeouts are not a realistic use case.
 
 ### Compiler Mapping
 
-In `packages/daemon/internal/caddy/compiler.go`, when building the `reverse_proxy` handler for a service, emit the `transport` block with timeout values when any timeout is set:
+In `packages/daemon/internal/caddy/compiler.go`, in the `applyService` function (line 327), after setting upstreams, load balancing, and health checks, emit a `transport` block when any timeout is set.
+
+Caddy's `reverse_proxy` transport uses the `http` protocol module. The correct JSON field names for the HTTP transport are:
+
+| Proto field | Caddy transport JSON field | Caddy docs reference |
+|---|---|---|
+| `dial_timeout_seconds` | `dial_timeout` | Duration string, e.g. `"5s"` |
+| `response_header_timeout_seconds` | `response_header_timeout` | Duration string, e.g. `"30s"` |
+| `idle_timeout_seconds` | `read_timeout` | Duration string, e.g. `"120s"` |
+
+**Important**: Caddy's HTTP transport struct uses `read_timeout` for the idle/read timeout on the connection, not `idle_conn_timeout`. The original spec incorrectly used `idle_conn_timeout`. Verify against Caddy's `HTTPTransport` struct before implementation -- the JSON struct tags in Caddy source are the authoritative reference.
+
+When a timeout field is 0 (the proto3 default), omit it from the Caddy JSON (let Caddy use its built-in default). Only emit the `transport` block if at least one timeout is non-zero.
+
+Example compiled output:
 
 ```json
 {
@@ -38,57 +52,65 @@ In `packages/daemon/internal/caddy/compiler.go`, when building the `reverse_prox
     "protocol": "http",
     "dial_timeout": "5s",
     "response_header_timeout": "30s",
-    "idle_conn_timeout": "120s"
+    "read_timeout": "120s"
   }
 }
 ```
 
-Field mapping:
-
-| Proto field | Caddy transport field | Default (when unset) |
-|-------------|----------------------|---------------------|
-| `dial_timeout` | `dial_timeout` | Caddy default (no explicit value emitted) |
-| `response_header_timeout` | `response_header_timeout` | Caddy default |
-| `idle_timeout` | `idle_conn_timeout` | Caddy default |
-
-When a timeout field is zero/nil, omit it from the Caddy JSON entirely (let Caddy use its built-in default). Only emit the `transport` block if at least one timeout is set.
-
 ### Store Changes
 
-**Migration `000005`** across all three dialects:
+**Migration numbering**: SQLite is at migration 000004 (TOTP backup codes). Postgres and MySQL are missing 000001 (initial schema) -- they start at 000002. The new timeout migration is **000005** across all three dialects.
 
-- **`packages/daemon/internal/store/migrations/sqlite/000005_service_timeouts.up.sql`**
-  ```sql
-  ALTER TABLE services ADD COLUMN dial_timeout TEXT DEFAULT '';
-  ALTER TABLE services ADD COLUMN response_header_timeout TEXT DEFAULT '';
-  ALTER TABLE services ADD COLUMN idle_timeout TEXT DEFAULT '';
-  ```
+**Note on postgres/mysql**: The postgres and mysql driver packages are empty stubs (package declaration only, no code). Writing migration SQL files for them is cheap and keeps version numbers synchronized, but the actual driver code to read/write these columns does not exist and is out of scope. The migration files should still be created so that when those drivers are implemented, the schema is ready.
 
-- **`packages/daemon/internal/store/migrations/postgres/000005_service_timeouts.up.sql`**
-  ```sql
-  ALTER TABLE services ADD COLUMN dial_timeout TEXT DEFAULT '';
-  ALTER TABLE services ADD COLUMN response_header_timeout TEXT DEFAULT '';
-  ALTER TABLE services ADD COLUMN idle_timeout TEXT DEFAULT '';
-  ```
+**`packages/daemon/internal/store/migrations/sqlite/000005_service_timeouts.up.sql`**:
+```sql
+ALTER TABLE services ADD COLUMN dial_timeout_seconds INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN response_header_timeout_seconds INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN idle_timeout_seconds INTEGER NOT NULL DEFAULT 0;
+```
 
-- **`packages/daemon/internal/store/migrations/mysql/000005_service_timeouts.up.sql`**
-  ```sql
-  ALTER TABLE services ADD COLUMN dial_timeout VARCHAR(32) DEFAULT '';
-  ALTER TABLE services ADD COLUMN response_header_timeout VARCHAR(32) DEFAULT '';
-  ALTER TABLE services ADD COLUMN idle_timeout VARCHAR(32) DEFAULT '';
-  ```
+**`packages/daemon/internal/store/migrations/postgres/000005_service_timeouts.up.sql`**:
+```sql
+ALTER TABLE services ADD COLUMN dial_timeout_seconds INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN response_header_timeout_seconds INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN idle_timeout_seconds INTEGER NOT NULL DEFAULT 0;
+```
 
-Down migrations drop the three columns.
+**`packages/daemon/internal/store/migrations/mysql/000005_service_timeouts.up.sql`**:
+```sql
+ALTER TABLE services ADD COLUMN dial_timeout_seconds INT NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN response_header_timeout_seconds INT NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN idle_timeout_seconds INT NOT NULL DEFAULT 0;
+```
 
-Duration values are stored as Go duration strings (e.g., `"5s"`, `"30s"`, `"2m"`). Empty string means unset.
+Down migrations drop the three columns (all three dialects).
+
+Values are stored as integers (seconds). 0 means unset/use Caddy defaults.
 
 ### Store Driver Changes
 
-In all three drivers (`sqlite.go`, `postgres.go`, `mysql.go`):
+**sqlite driver** (`packages/daemon/internal/store/sqlite/sqlite.go`):
+- `CreateService()` (line 402): add the three timeout columns to the INSERT statement
+- `UpdateService()` (line 527): add the three timeout columns to the UPDATE statement
+- `scanService()` (line 1797): scan the three additional columns and set them on the proto Service
+- `GetService()` / `ListServices()`: no changes needed beyond `scanService` -- the SELECT queries need the new columns added
 
-- `CreateService()` / `UpdateService()`: persist the three timeout fields
-- `scanService()`: read the three timeout columns and parse into `time.Duration` (or the proto `Duration` equivalent)
-- `GetService()` / `ListServices()`: timeout fields populated on returned structs
+**raft driver** (`packages/daemon/internal/store/raft/tx.go`):
+- The raft driver stores services as full protojson blobs. Adding fields to the proto Service message means they are automatically included in `protojson.Marshal`/`protojson.Unmarshal`. No raft driver code changes needed for timeout persistence -- it comes for free with protojson.
+
+**postgres/mysql drivers**: Out of scope (empty stubs).
+
+### Migration Registration
+
+In `sqlite.go` `migrateUp()` (line 103), add a block for migration 5:
+
+```go
+if current < 5 {
+    data, err := store.MigrationFS.ReadFile("migrations/sqlite/000005_service_timeouts.up.sql")
+    // ... same pattern as migrations 1-4
+}
+```
 
 ---
 
@@ -96,71 +118,105 @@ In all three drivers (`sqlite.go`, `postgres.go`, `mysql.go`):
 
 ### Overview
 
-Inject a `headers` handler at the top of each compiled route chain. Headers are configurable via `rioku.yaml`. The compiler reads the config and emits the appropriate Caddy handler.
+Inject a Caddy `headers` handler into each compiled **traffic** route's handler chain. Headers are configurable via `rioku.yaml`. The compiler reads the config and emits the appropriate Caddy handler. The admin server block is **excluded** -- it has its own CSP needs (inline scripts for the SPA) that conflict with strict traffic headers.
 
 ### Configuration
 
-In `packages/daemon/internal/config/file.go`, add the `SecurityHeaders` struct:
+In `packages/daemon/internal/config/file.go`, add to the `Config` struct:
 
 ```go
-type SecurityHeaders struct {
-    Enabled              bool   `yaml:"enabled"`
-    XContentTypeOptions  string `yaml:"x_content_type_options"`
-    XFrameOptions        string `yaml:"x_frame_options"`
-    ReferrerPolicy       string `yaml:"referrer_policy"`
-    PermissionsPolicy    string `yaml:"permissions_policy"`
-    CSP                  string `yaml:"csp"`
-    HSTS                 HSTSConfig `yaml:"hsts"`
-}
-
-type HSTSConfig struct {
-    Enabled           bool  `yaml:"enabled"`
-    MaxAge            int   `yaml:"max_age"`
-    IncludeSubdomains bool  `yaml:"include_subdomains"`
+type Config struct {
+    // ... existing fields ...
+    SecurityHeaders SecurityHeaders `yaml:"security_headers"`
 }
 ```
 
-Default `rioku.yaml` values:
+New structs:
 
-```yaml
-security_headers:
-  enabled: true
-  x_content_type_options: nosniff
-  x_frame_options: DENY
-  referrer_policy: strict-origin-when-cross-origin
-  permissions_policy: "camera=(), microphone=(), geolocation=()"
-  hsts:
-    enabled: true
-    max_age: 63072000
-    include_subdomains: true
-  csp: ""
+```go
+type SecurityHeaders struct {
+    Enabled             bool       `yaml:"enabled"`
+    XContentTypeOptions string     `yaml:"x_content_type_options"`
+    XFrameOptions       string     `yaml:"x_frame_options"`
+    ReferrerPolicy      string     `yaml:"referrer_policy"`
+    PermissionsPolicy   string     `yaml:"permissions_policy"`
+    CSP                 string     `yaml:"csp"`
+    HSTS                HSTSConfig `yaml:"hsts"`
+}
+
+type HSTSConfig struct {
+    Enabled           bool `yaml:"enabled"`
+    MaxAge            int  `yaml:"max_age"`
+    IncludeSubdomains bool `yaml:"include_subdomains"`
+}
+```
+
+Defaults (in the `Default()` function):
+
+```go
+SecurityHeaders: SecurityHeaders{
+    Enabled:             true,
+    XContentTypeOptions: "nosniff",
+    XFrameOptions:       "DENY",
+    ReferrerPolicy:      "strict-origin-when-cross-origin",
+    PermissionsPolicy:   "camera=(), microphone=(), geolocation=()",
+    CSP:                 "",
+    HSTS: HSTSConfig{
+        Enabled:           true,
+        MaxAge:            63072000, // 2 years
+        IncludeSubdomains: true,
+    },
+},
 ```
 
 ### Compiler Integration
 
-In `packages/daemon/internal/caddy/compiler.go`, when building a route's handler chain:
+In `packages/daemon/internal/caddy/compiler.go`:
 
-1. If `security_headers.enabled` is `false`, skip entirely
-2. Build a Caddy `headers` handler with `response > set` entries:
-   - `X-Content-Type-Options` from `x_content_type_options` (skip if empty)
-   - `X-Frame-Options` from `x_frame_options` (skip if empty)
-   - `Referrer-Policy` from `referrer_policy` (skip if empty)
-   - `Permissions-Policy` from `permissions_policy` (skip if empty)
-   - `Content-Security-Policy` from `csp` (skip if empty)
-   - `Strict-Transport-Security` from HSTS config (only when HSTS enabled AND the route/server uses TLS)
-3. Insert the headers handler as the first handler in the route chain (before auth, rate limiting, reverse_proxy)
+**Handler chain position**: The security headers handler goes at position **1** (after the tracing handler, before the vars handler). The current handler chain in `CompileRoute` (line 197) is:
 
-HSTS header value format: `max-age=63072000; includeSubDomains` (omit `includeSubDomains` directive if `include_subdomains` is false).
+```go
+caddyRoute["handle"] = []map[string]any{tracingHandler, varsHandler, handler}
+```
 
-Individual headers are disabled by setting their value to empty string in config. The entire feature is disabled by setting `enabled: false`.
+The new chain becomes:
+
+```go
+caddyRoute["handle"] = []map[string]any{tracingHandler, securityHeadersHandler, varsHandler, handler}
+```
+
+Tracing must remain first so the trace ID is available to all subsequent handlers. Security headers go next because they apply unconditionally to all responses.
+
+**Traffic routes only**: The security headers handler is only inserted into routes compiled by `CompileRoute` (which builds the traffic server block routes). The admin server block (built by `buildAdminServer` at line 384) does **not** get security headers. The admin panel SPA requires a permissive CSP for inline scripts and styles, which conflicts with strict security headers. Admin panel CSP is a separate concern to be addressed when the SPA build pipeline is finalized.
+
+**HSTS TLS detection**: HSTS should only be emitted when TLS is active. The compiler already has `hasStandardPorts()` (line 426) which returns true when traffic addresses include `:443` or `:80`. Use this: emit HSTS only when `hasStandardPorts()` returns true OR when `AdminConfig.Domain` is set (which forces `:443`). When running on non-standard ports (e.g., `:8443` in dev), HSTS is suppressed to avoid poisoning browsers with HSTS for development domains.
+
+**Implementation**:
+
+1. Add a new method: `func (c *Compiler) buildSecurityHeadersHandler(cfg SecurityHeaders) map[string]any`
+2. If `cfg.Enabled` is false, return nil (caller skips insertion)
+3. Build the `response.set` map, only including headers with non-empty values
+4. For HSTS: only include if `cfg.HSTS.Enabled` AND `c.hasStandardPorts()` is true
+5. HSTS value format: `max-age=63072000; includeSubDomains` (omit `includeSubDomains` when `cfg.HSTS.IncludeSubdomains` is false)
+6. If the resulting `set` map is empty (all headers disabled), return nil
+
+**CORS interaction**: The CORS middleware is applied at the Go gateway level (`CORSMiddleware` in `gateway.go` line 128), not in Caddy. The security headers are applied in Caddy at the traffic route level. These two layers do not conflict because:
+- CORS headers (`Access-Control-Allow-Origin`, etc.) are set by the Go middleware on the admin/REST API responses
+- Security headers (`X-Frame-Options`, `HSTS`, etc.) are set by Caddy on proxied traffic responses
+- They operate on different server blocks and different response paths
 
 ### Caddy JSON Output
 
-Example compiled route with security headers:
+Example compiled route with security headers enabled:
 
 ```json
 {
+  "match": [...],
   "handle": [
+    {
+      "handler": "tracing",
+      "span": "rioku"
+    },
     {
       "handler": "headers",
       "response": {
@@ -172,6 +228,11 @@ Example compiled route with security headers:
           "Strict-Transport-Security": ["max-age=63072000; includeSubDomains"]
         }
       }
+    },
+    {
+      "handler": "vars",
+      "rioku_route_id": "...",
+      "rioku_service_id": "..."
     },
     {
       "handler": "reverse_proxy",
@@ -187,39 +248,44 @@ Example compiled route with security headers:
 
 ### Proto
 
-- **`packages/proto/rioku/v1/config.proto`** — Add `dial_timeout`, `response_header_timeout`, `idle_timeout` to `Service` message. Add `google.protobuf.Duration` import if missing. Run `make proto` after changes.
+- **`packages/proto/rioku/v1/config.proto`** -- Add `dial_timeout_seconds`, `response_header_timeout_seconds`, `idle_timeout_seconds` to `Service` message (fields 10-12). Run `make proto` after.
 
 ### Compiler
 
 - **`packages/daemon/internal/caddy/compiler.go`**
-  - Timeout mapping: in the function that builds `reverse_proxy` handlers, emit `transport` block with timeouts when set
-  - Security headers: new function `buildSecurityHeadersHandler(cfg SecurityHeaders, tlsActive bool) map[string]any` that returns the Caddy headers handler JSON structure
-  - Insert security headers handler at position 0 in each route's handler chain
+  - `applyService`: emit `transport` block with timeout duration strings when any timeout > 0
+  - New `buildSecurityHeadersHandler` method on `Compiler`
+  - `CompileRoute`: insert security headers handler at position 1 when enabled
+  - `NewCompiler`: accept `SecurityHeaders` config (or pass full `*config.Config`)
 
 ### Config
 
-- **`packages/daemon/internal/config/file.go`** — Add `SecurityHeaders` and `HSTSConfig` structs. Add `SecurityHeaders` field to the top-level config struct.
+- **`packages/daemon/internal/config/file.go`**
+  - Add `SecurityHeaders` and `HSTSConfig` structs
+  - Add `SecurityHeaders` field to `Config` struct
+  - Set defaults in `Default()`
+  - No changes to `applyDefaults()` or `validate()` needed (struct fields have sensible zero values)
 
 ### Store migrations
 
-- **`packages/daemon/internal/store/migrations/sqlite/000005_service_timeouts.up.sql`**
-- **`packages/daemon/internal/store/migrations/sqlite/000005_service_timeouts.down.sql`**
-- **`packages/daemon/internal/store/migrations/postgres/000005_service_timeouts.up.sql`**
-- **`packages/daemon/internal/store/migrations/postgres/000005_service_timeouts.down.sql`**
-- **`packages/daemon/internal/store/migrations/mysql/000005_service_timeouts.up.sql`**
-- **`packages/daemon/internal/store/migrations/mysql/000005_service_timeouts.down.sql`**
+- **`packages/daemon/internal/store/migrations/sqlite/000005_service_timeouts.up.sql`** (new)
+- **`packages/daemon/internal/store/migrations/sqlite/000005_service_timeouts.down.sql`** (new)
+- **`packages/daemon/internal/store/migrations/postgres/000005_service_timeouts.up.sql`** (new)
+- **`packages/daemon/internal/store/migrations/postgres/000005_service_timeouts.down.sql`** (new)
+- **`packages/daemon/internal/store/migrations/mysql/000005_service_timeouts.up.sql`** (new)
+- **`packages/daemon/internal/store/migrations/mysql/000005_service_timeouts.down.sql`** (new)
 
 ### Store drivers
 
-- **`packages/daemon/internal/store/sqlite/sqlite.go`** — Persist and read timeout fields in service CRUD + `scanService()`
-- **`packages/daemon/internal/store/postgres/postgres.go`** — Same
-- **`packages/daemon/internal/store/mysql/mysql.go`** — Same
+- **`packages/daemon/internal/store/sqlite/sqlite.go`** -- Add timeout columns to `CreateService`, `UpdateService`, `scanService`, and SELECT queries in `GetService`/`ListServices`. Register migration 5 in `migrateUp`/`migrateDown`.
+- **`packages/daemon/internal/store/raft/`** -- No changes needed (protojson handles new fields automatically)
+- **`packages/daemon/internal/store/postgres/`** -- Out of scope (empty stub)
+- **`packages/daemon/internal/store/mysql/`** -- Out of scope (empty stub)
 
 ### Tests
 
-- **`packages/daemon/internal/caddy/compiler_test.go`**
-  - Timeout tests
-  - Security header tests
+- **`packages/daemon/internal/caddy/compiler_test.go`** -- Timeout and security header tests
+- **`packages/daemon/internal/store/sqlite/sqlite_test.go`** -- Timeout round-trip tests
 
 ---
 
@@ -231,47 +297,54 @@ All tests table-driven, run with `-race`.
 
 | Test | Input | Expected output |
 |------|-------|-----------------|
-| `TestCompiler_ServiceWithAllTimeouts` | Service with all three timeouts set | `transport` block with all three values |
-| `TestCompiler_ServiceWithPartialTimeouts` | Service with only `dial_timeout` | `transport` block with only `dial_timeout` |
-| `TestCompiler_ServiceWithNoTimeouts` | Service with no timeouts | No `transport` block in output |
-| `TestStore_ServiceTimeoutRoundTrip` | Create service with timeouts, read back | Values match |
+| `TestCompiler_ServiceWithAllTimeouts` | Service with all three timeouts set | `transport` block with `dial_timeout`, `response_header_timeout`, `read_timeout` |
+| `TestCompiler_ServiceWithPartialTimeouts` | Service with only `dial_timeout_seconds=5` | `transport` block with only `dial_timeout: "5s"` |
+| `TestCompiler_ServiceWithNoTimeouts` | Service with all timeouts = 0 | No `transport` block in output |
+| `TestCompiler_TimeoutFormatting` | Various timeout values | Duration strings formatted correctly (e.g., 120 -> "120s") |
 
 ### Security header tests (`compiler_test.go`)
 
 | Test | Input | Expected output |
 |------|-------|-----------------|
-| `TestCompiler_SecurityHeadersEnabled` | All defaults | Headers handler first in chain with all configured values |
-| `TestCompiler_SecurityHeadersDisabled` | `enabled: false` | No headers handler in chain |
-| `TestCompiler_SecurityHeadersPartial` | Some headers empty | Only non-empty headers in set |
-| `TestCompiler_SecurityHeadersNoCSP` | `csp: ""` | No `Content-Security-Policy` header |
-| `TestCompiler_HSTSWithTLS` | HSTS enabled, TLS active | `Strict-Transport-Security` present |
-| `TestCompiler_HSTSWithoutTLS` | HSTS enabled, TLS not active | `Strict-Transport-Security` absent |
-| `TestCompiler_HSTSNoSubdomains` | `include_subdomains: false` | Header value without `includeSubDomains` |
+| `TestCompiler_SecurityHeadersAllDefaults` | Default SecurityHeaders config | Headers handler at position 1 with all default values |
+| `TestCompiler_SecurityHeadersDisabled` | `Enabled: false` | No headers handler in chain |
+| `TestCompiler_SecurityHeadersPartialEmpty` | Some header values set to `""` | Only non-empty headers in `response.set` |
+| `TestCompiler_SecurityHeadersNoCSP` | `CSP: ""` (default) | No `Content-Security-Policy` key in set |
+| `TestCompiler_SecurityHeadersWithCSP` | `CSP: "default-src 'self'"` | `Content-Security-Policy` present |
+| `TestCompiler_HSTSWithStandardPorts` | HSTS enabled, traffic on `:443` | `Strict-Transport-Security` present |
+| `TestCompiler_HSTSWithNonStandardPorts` | HSTS enabled, traffic on `:8443` | `Strict-Transport-Security` absent |
+| `TestCompiler_HSTSDisabled` | `HSTS.Enabled: false` | `Strict-Transport-Security` absent |
+| `TestCompiler_HSTSNoSubdomains` | `IncludeSubdomains: false` | Header value without `includeSubDomains` directive |
+| `TestCompiler_SecurityHeadersNotOnAdmin` | Full config with admin server | Admin server block has no headers handler |
+| `TestCompiler_AllHeadersEmpty` | All individual headers set to `""` | No headers handler inserted (nil return) |
 
-### Store tests (per driver)
+### Store tests (sqlite)
 
 | Test | What it validates |
 |------|-------------------|
-| `TestMigration_000005` | Migration applies and rolls back cleanly |
-| `TestServiceTimeout_RoundTrip` | All three timeout fields survive write/read |
-| `TestServiceTimeout_Empty` | Unset timeouts read back as zero values |
+| `TestMigration_000005_UpDown` | Migration applies and rolls back cleanly |
+| `TestServiceTimeout_RoundTrip` | All three timeout fields survive create/read |
+| `TestServiceTimeout_Update` | Timeout fields update correctly |
+| `TestServiceTimeout_ZeroValues` | Unset timeouts (0) read back as 0, no transport block emitted |
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Service with timeouts configured produces Caddy transport JSON with correct timeout values
-- [ ] Service without timeouts produces no explicit transport timeout values (Caddy defaults apply)
-- [ ] Partial timeout configuration (e.g., only `dial_timeout`) only emits that field
-- [ ] Security headers appear on all compiled routes when `security_headers.enabled` is `true`
-- [ ] Security headers handler is first in the route handler chain
-- [ ] Individual headers can be disabled by setting to empty string
+- [ ] Service with timeouts configured produces Caddy transport JSON with correct field names and duration strings
+- [ ] Service without timeouts (all 0) produces no `transport` block (Caddy defaults apply)
+- [ ] Partial timeout configuration (e.g., only `dial_timeout_seconds`) only emits that field in transport
+- [ ] Security headers handler appears at position 1 (after tracing, before vars) on all compiled traffic routes
+- [ ] Security headers are NOT applied to the admin server block
+- [ ] Individual headers can be disabled by setting their config value to empty string
 - [ ] Setting `security_headers.enabled: false` removes all security headers from compiled output
-- [ ] HSTS header only emitted when TLS is active on the route/server
+- [ ] HSTS header only emitted when `hasStandardPorts()` returns true
 - [ ] HSTS `includeSubDomains` directive controlled by config flag
 - [ ] CSP header only emitted when `csp` is non-empty
-- [ ] Timeout fields round-trip through all three store backends
-- [ ] Migration 000005 applies and rolls back cleanly on all three backends
+- [ ] Timeout fields round-trip through sqlite store (create, read, update, read)
+- [ ] Raft driver handles new timeout fields automatically via protojson
+- [ ] Migration 000005 applies and rolls back cleanly on sqlite
+- [ ] Migration SQL files exist for postgres and mysql (even though drivers are stubs)
 - [ ] `make proto` succeeds with the new fields
 - [ ] All existing compiler tests pass without modification
 - [ ] All existing store tests pass without modification
