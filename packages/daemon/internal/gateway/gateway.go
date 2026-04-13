@@ -47,6 +47,7 @@ func NewGateway(
 	cfg *config.Config,
 	spaFS fs.FS,
 	traceBuf *tracestore.RingBuffer,
+	traceStore tracestore.Driver,
 ) (*Gateway, error) {
 	ctx := context.Background()
 
