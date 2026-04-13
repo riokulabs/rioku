@@ -190,6 +190,10 @@ func (e *Engine) ApplyChange(ctx context.Context, change *riokuv1.ConfigChange, 
 		return nil, fmt.Errorf("config: commit tx: %w", err)
 	}
 
+	// Update cached snapshot so subsequent reads reflect this mutation
+	// even if the store becomes unavailable.
+	e.cachedSnapshot = snap
+
 	return &riokuv1.ApplyResult{
 		Meta: &riokuv1.MutationMeta{
 			ConfigVersion: version,
@@ -442,6 +446,10 @@ func (e *Engine) ImportConfig(ctx context.Context, snapshot *riokuv1.ConfigSnaps
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("config: commit tx: %w", err)
 	}
+
+	// Update cached snapshot so subsequent reads reflect this import
+	// even if the store becomes unavailable.
+	e.cachedSnapshot = newSnap
 
 	return &riokuv1.ImportResult{
 		Meta: &riokuv1.MutationMeta{

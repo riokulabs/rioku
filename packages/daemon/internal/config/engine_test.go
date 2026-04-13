@@ -1383,3 +1383,55 @@ func TestEngine_CacheFallback_Write(t *testing.T) {
 		t.Fatal("expected error on write when store is down")
 	}
 }
+
+func TestEngine_CacheUpdatedAfterApplyChange(t *testing.T) {
+	ctx := context.Background()
+
+	drv, err := store.New("sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(t.TempDir(), "apply_cache.db")
+	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
+		t.Fatal(err)
+	}
+	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
+	e := NewEngine(drv, compiler)
+
+	// Populate initial cache with empty config.
+	_, err = e.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("initial GetConfig: %v", err)
+	}
+
+	// Apply a service creation via ApplyChange.
+	applyService(t, e, "cache-test-svc", []*riokuv1.Upstream{
+		{Address: "127.0.0.1:9001", Weight: 1, Healthy: true},
+	})
+
+	// Close store — subsequent reads should return the post-mutation cached snapshot.
+	if err := drv.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	snap, err := e.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig after close: %v", err)
+	}
+
+	// The cached snapshot should include the newly-created service.
+	found := false
+	for _, svc := range snap.GetServices() {
+		if svc.GetName() == "cache-test-svc" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("cached snapshot after ApplyChange does not contain the new service — cache was not updated on write")
+	}
+}
