@@ -74,38 +74,6 @@ func TestStubPlugins(t *testing.T) {
 	}
 }
 
-func TestStubSettings(t *testing.T) {
-	cfg := config.Default()
-	mux := http.NewServeMux()
-	RegisterStubRoutes(mux, cfg)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/settings", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", ct)
-	}
-
-	var body map[string]any
-	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-
-	expectedFields := []string{
-		"daemon_address", "data_directory", "store_driver",
-		"store_connection", "pki_algorithm", "log_level",
-	}
-	for _, field := range expectedFields {
-		if _, exists := body[field]; !exists {
-			t.Errorf("missing field %q in settings response", field)
-		}
-	}
-}
-
 func TestStoreConnection(t *testing.T) {
 	tests := []struct {
 		name     string

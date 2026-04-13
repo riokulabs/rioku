@@ -104,8 +104,11 @@ func NewGateway(
 	// translate server-streaming RPCs in in-process mode).
 	RegisterAuditRoutes(topMux, st)
 
+	// Settings endpoints (replaces old monolithic GET /api/v1/settings stub).
+	RegisterSettingsRoutes(topMux, cfg, st, time.Now().UTC())
+
 	// Stub routes for endpoints the frontend calls but that don't have
-	// real implementations yet (cluster, plugins, settings, traffic).
+	// real implementations yet (cluster, plugins).
 	RegisterStubRoutes(topMux, cfg)
 
 	// grpc-gateway handles API routes.

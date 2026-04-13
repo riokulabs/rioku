@@ -18,7 +18,6 @@ func RegisterStubRoutes(mux *http.ServeMux, cfg *config.Config) {
 	mux.HandleFunc("GET /api/v1/cluster", handleStubCluster(cfg))
 	mux.HandleFunc("GET /api/v1/plugins", handleStubEmptyArray())
 	mux.HandleFunc("GET /api/v1/plugins/manifest", handleStubEmptyArray())
-	mux.HandleFunc("GET /api/v1/settings", handleStubSettings(cfg))
 }
 
 func handleStubCluster(cfg *config.Config) http.HandlerFunc {
@@ -50,25 +49,6 @@ func handleStubEmptyArray() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("[]"))
-	}
-}
-
-func handleStubSettings(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		resp := map[string]interface{}{
-			"daemon_address":         cfg.Listen.REST,
-			"data_directory":         cfg.DataDir,
-			"store_driver":           cfg.Store.Driver,
-			"store_connection":       storeConnection(cfg),
-			"pki_algorithm":          cfg.PKI.CA.KeyAlgorithm,
-			"pki_rotation_threshold": formatDuration(cfg.PKI.Node.RotationThreshold),
-			"pki_cert_status":        "healthy",
-			"ai_trace_store":         cfg.Traces.Store,
-			"ai_retention_period":    formatDuration(cfg.Traces.Retention.AISessions),
-			"log_level":              cfg.LogLevel,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
