@@ -57,22 +57,42 @@ func (e *Engine) CachedSnapshot() *riokuv1.ConfigSnapshot {
 // --------------------------------------------------------------------------
 
 // GetConfig returns the current config snapshot (all routes, services, and
-// policies) along with the latest config version.
+// policies) along with the latest config version. If the store is
+// unavailable and a previously cached snapshot exists, the cached
+// snapshot is returned instead of an error (graceful degradation).
 func (e *Engine) GetConfig(ctx context.Context) (*riokuv1.ConfigSnapshot, error) {
 	// No Go-level lock for reads — the store driver handles concurrency
 	// (SQLite WAL, raft FSM view, Postgres MVCC all support concurrent readers).
 	tx, err := e.store.Begin(ctx, store.TxOptions{ReadOnly: true})
 	if err != nil {
-		return nil, fmt.Errorf("config: begin read tx: %w", err)
+		e.mu.RLock()
+		cached := e.cachedSnapshot
+		e.mu.RUnlock()
+		if cached != nil {
+			return cached, nil
+		}
+		return nil, fmt.Errorf("config: store unavailable and no cached snapshot: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	snap, err := buildSnapshot(ctx, tx)
 	if err != nil {
-		return nil, err
+		e.mu.RLock()
+		cached := e.cachedSnapshot
+		e.mu.RUnlock()
+		if cached != nil {
+			return cached, nil
+		}
+		return nil, fmt.Errorf("config: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
+		e.mu.RLock()
+		cached := e.cachedSnapshot
+		e.mu.RUnlock()
+		if cached != nil {
+			return cached, nil
+		}
 		return nil, fmt.Errorf("config: commit read tx: %w", err)
 	}
 

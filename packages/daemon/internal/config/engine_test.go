@@ -1257,3 +1257,129 @@ func TestEngine_CacheUpdatedOnSuccess(t *testing.T) {
 		t.Errorf("cached version = %d, want %d", cached.GetVersion(), snap.GetVersion())
 	}
 }
+
+func TestEngine_CacheFallback_Read(t *testing.T) {
+	ctx := context.Background()
+
+	// Don't use newTestEngine — we need to control the store lifecycle.
+	drv, err := store.New("sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(t.TempDir(), "fallback.db")
+	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
+		t.Fatal(err)
+	}
+	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
+	e := NewEngine(drv, compiler)
+
+	// Successful read populates cache.
+	snap1, err := e.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("first GetConfig: %v", err)
+	}
+	if snap1 == nil {
+		t.Fatal("expected non-nil snapshot")
+	}
+
+	// Close store to simulate failure.
+	if err := drv.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	// Subsequent read should fall back to cache.
+	snap2, err := e.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("fallback GetConfig should succeed with cache, got: %v", err)
+	}
+	if snap2 == nil {
+		t.Fatal("expected cached snapshot, got nil")
+	}
+	if snap2.GetVersion() != snap1.GetVersion() {
+		t.Errorf("fallback version = %d, want %d", snap2.GetVersion(), snap1.GetVersion())
+	}
+}
+
+func TestEngine_CacheFallback_NoCacheYet(t *testing.T) {
+	ctx := context.Background()
+
+	drv, err := store.New("sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(t.TempDir(), "nocache.db")
+	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
+		t.Fatal(err)
+	}
+	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
+	e := NewEngine(drv, compiler)
+
+	// Close store BEFORE any successful read.
+	if err := drv.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	// Should fail — no cache.
+	_, err = e.GetConfig(ctx)
+	if err == nil {
+		t.Fatal("expected error when store is down and no cache exists")
+	}
+}
+
+func TestEngine_CacheFallback_Write(t *testing.T) {
+	ctx := context.Background()
+
+	drv, err := store.New("sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(t.TempDir(), "writefail.db")
+	if err := drv.Open(ctx, store.DriverConfig{Path: dbPath}); err != nil {
+		t.Fatal(err)
+	}
+	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
+	e := NewEngine(drv, compiler)
+
+	// Populate cache.
+	_, err = e.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+
+	// Close store.
+	if err := drv.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	// Write should fail (no write-through cache).
+	change := &riokuv1.ConfigChange{
+		Operation: &riokuv1.ConfigChange_Service{
+			Service: &riokuv1.ServiceOp{
+				Action: riokuv1.ServiceOp_UPSERT,
+				Service: &riokuv1.Service{
+					Name: "should-fail",
+					Upstreams: []*riokuv1.Upstream{
+						{Address: "127.0.0.1:9001", Weight: 1, Healthy: true},
+					},
+					LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+				},
+			},
+		},
+	}
+	_, err = e.ApplyChange(ctx, change, "test")
+	if err == nil {
+		t.Fatal("expected error on write when store is down")
+	}
+}
