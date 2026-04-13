@@ -466,6 +466,61 @@ func (c *Compiler) buildAdminServer() map[string]any {
 	return server
 }
 
+// buildSecurityHeadersHandler constructs a Caddy headers handler with the
+// configured security response headers. Returns nil if security headers are
+// disabled or all header values are empty (caller should skip insertion).
+func (c *Compiler) buildSecurityHeadersHandler() map[string]any {
+	cfg := c.securityHeaders
+	if !cfg.Enabled {
+		return nil
+	}
+
+	set := make(map[string][]string)
+
+	if cfg.XContentTypeOptions != "" {
+		set["X-Content-Type-Options"] = []string{cfg.XContentTypeOptions}
+	}
+	if cfg.XFrameOptions != "" {
+		set["X-Frame-Options"] = []string{cfg.XFrameOptions}
+	}
+	if cfg.ReferrerPolicy != "" {
+		set["Referrer-Policy"] = []string{cfg.ReferrerPolicy}
+	}
+	if cfg.PermissionsPolicy != "" {
+		set["Permissions-Policy"] = []string{cfg.PermissionsPolicy}
+	}
+
+	// CSP: emit either enforcing or report-only header, not both.
+	if cfg.CSP != "" {
+		if cfg.CSPReportOnly {
+			set["Content-Security-Policy-Report-Only"] = []string{cfg.CSP}
+		} else {
+			set["Content-Security-Policy"] = []string{cfg.CSP}
+		}
+	}
+
+	// HSTS: only when enabled AND running on standard ports.
+	if cfg.HSTS.Enabled && c.hasStandardPorts() {
+		hstsVal := fmt.Sprintf("max-age=%d", cfg.HSTS.MaxAge)
+		if cfg.HSTS.IncludeSubdomains {
+			hstsVal += "; includeSubDomains"
+		}
+		set["Strict-Transport-Security"] = []string{hstsVal}
+	}
+
+	// If no headers ended up in the set, return nil (skip insertion).
+	if len(set) == 0 {
+		return nil
+	}
+
+	return map[string]any{
+		"handler": "headers",
+		"response": map[string]any{
+			"set": set,
+		},
+	}
+}
+
 // hasStandardPorts returns true if the traffic addresses include :443 or :80,
 // meaning Caddy's auto-HTTPS redirect to port 80 would be appropriate.
 func (c *Compiler) hasStandardPorts() bool {

@@ -1339,6 +1339,565 @@ func TestCompiler_TimeoutFormatting(t *testing.T) {
 	}
 }
 
+func TestCompiler_SecurityHeadersAllDefaults(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:             true,
+		XContentTypeOptions: "nosniff",
+		XFrameOptions:       "DENY",
+		ReferrerPolicy:      "strict-origin-when-cross-origin",
+		PermissionsPolicy:   "camera=(), microphone=(), geolocation=()",
+		HSTS: HSTSConfig{
+			Enabled:           true,
+			MaxAge:            63072000,
+			IncludeSubdomains: true,
+		},
+	}
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_Upstream{
+					Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"},
+				},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+
+	// Handler chain: tracing, headers, vars, reverse_proxy
+	if len(handlers) != 4 {
+		t.Fatalf("expected 4 handlers, got %d", len(handlers))
+	}
+
+	wantOrder := []string{"tracing", "headers", "vars", "reverse_proxy"}
+	for i, want := range wantOrder {
+		got := handlers[i].(map[string]any)["handler"].(string)
+		if got != want {
+			t.Errorf("handlers[%d].handler = %v, want %v", i, got, want)
+		}
+	}
+
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	checks := map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "DENY",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"Permissions-Policy":        "camera=(), microphone=(), geolocation=()",
+		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+	}
+	for header, wantVal := range checks {
+		vals, ok := set[header].([]any)
+		if !ok {
+			t.Errorf("header %q not found in set", header)
+			continue
+		}
+		if len(vals) != 1 || vals[0].(string) != wantVal {
+			t.Errorf("header %q = %v, want [%q]", header, vals, wantVal)
+		}
+	}
+
+	// CSP should not be present (empty by default).
+	if _, ok := set["Content-Security-Policy"]; ok {
+		t.Error("Content-Security-Policy should not be present when CSP is empty")
+	}
+	if _, ok := set["Content-Security-Policy-Report-Only"]; ok {
+		t.Error("Content-Security-Policy-Report-Only should not be present when CSP is empty")
+	}
+}
+
+func TestCompiler_SecurityHeadersDisabled(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled: false,
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Target: &riokuv1.Route_Upstream{
+					Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"},
+				},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+
+	// Without security headers: tracing, vars, reverse_proxy (3 handlers).
+	if len(handlers) != 3 {
+		t.Fatalf("expected 3 handlers (no security headers), got %d", len(handlers))
+	}
+	wantOrder := []string{"tracing", "vars", "reverse_proxy"}
+	for i, want := range wantOrder {
+		got := handlers[i].(map[string]any)["handler"].(string)
+		if got != want {
+			t.Errorf("handlers[%d].handler = %v, want %v", i, got, want)
+		}
+	}
+}
+
+func TestCompiler_SecurityHeadersPartialEmpty(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:             true,
+		XContentTypeOptions: "nosniff",
+		XFrameOptions:       "",          // empty = omit
+		ReferrerPolicy:      "",          // empty = omit
+		PermissionsPolicy:   "camera=()", // non-empty = include
+		HSTS: HSTSConfig{
+			Enabled: false,
+		},
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Target: &riokuv1.Route_Upstream{
+					Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"},
+				},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	if len(handlers) != 4 {
+		t.Fatalf("expected 4 handlers, got %d", len(handlers))
+	}
+
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	// Only non-empty headers should be present.
+	if _, ok := set["X-Content-Type-Options"]; !ok {
+		t.Error("X-Content-Type-Options should be present")
+	}
+	if _, ok := set["Permissions-Policy"]; !ok {
+		t.Error("Permissions-Policy should be present")
+	}
+	if _, ok := set["X-Frame-Options"]; ok {
+		t.Error("X-Frame-Options should not be present (empty)")
+	}
+	if _, ok := set["Referrer-Policy"]; ok {
+		t.Error("Referrer-Policy should not be present (empty)")
+	}
+	if _, ok := set["Strict-Transport-Security"]; ok {
+		t.Error("HSTS should not be present (disabled)")
+	}
+}
+
+func TestCompiler_SecurityHeadersNoCSP(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:             true,
+		XContentTypeOptions: "nosniff",
+		CSP:                 "", // empty = no CSP header
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	if _, ok := set["Content-Security-Policy"]; ok {
+		t.Error("Content-Security-Policy should not be present when CSP is empty")
+	}
+	if _, ok := set["Content-Security-Policy-Report-Only"]; ok {
+		t.Error("Content-Security-Policy-Report-Only should not be present when CSP is empty")
+	}
+}
+
+func TestCompiler_SecurityHeadersWithCSP(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:       true,
+		CSP:           "default-src 'self'",
+		CSPReportOnly: false,
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	vals, ok := set["Content-Security-Policy"].([]any)
+	if !ok {
+		t.Fatal("Content-Security-Policy not found")
+	}
+	if vals[0].(string) != "default-src 'self'" {
+		t.Errorf("CSP = %v, want default-src 'self'", vals[0])
+	}
+	if _, ok := set["Content-Security-Policy-Report-Only"]; ok {
+		t.Error("CSP-Report-Only should not be present when CSPReportOnly is false")
+	}
+}
+
+func TestCompiler_SecurityHeadersWithCSPReportOnly(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:       true,
+		CSP:           "default-src 'self'",
+		CSPReportOnly: true,
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	vals, ok := set["Content-Security-Policy-Report-Only"].([]any)
+	if !ok {
+		t.Fatal("Content-Security-Policy-Report-Only not found")
+	}
+	if vals[0].(string) != "default-src 'self'" {
+		t.Errorf("CSP-Report-Only = %v, want default-src 'self'", vals[0])
+	}
+	if _, ok := set["Content-Security-Policy"]; ok {
+		t.Error("Content-Security-Policy should not be present when CSPReportOnly is true")
+	}
+}
+
+func TestCompiler_HSTSWithStandardPorts(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled: true,
+		HSTS: HSTSConfig{
+			Enabled:           true,
+			MaxAge:            63072000,
+			IncludeSubdomains: true,
+		},
+	}
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	vals, ok := set["Strict-Transport-Security"].([]any)
+	if !ok {
+		t.Fatal("Strict-Transport-Security not found")
+	}
+	if vals[0].(string) != "max-age=63072000; includeSubDomains" {
+		t.Errorf("HSTS = %v, want max-age=63072000; includeSubDomains", vals[0])
+	}
+}
+
+func TestCompiler_HSTSWithNonStandardPorts(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled: true,
+		HSTS: HSTSConfig{
+			Enabled:           true,
+			MaxAge:            63072000,
+			IncludeSubdomains: true,
+		},
+	}
+	// Non-standard port -- HSTS should be suppressed.
+	c := NewCompiler([]string{":8443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+
+	// Check that HSTS is not in the output.
+	for _, h := range handlers {
+		hm := h.(map[string]any)
+		if hm["handler"].(string) == "headers" {
+			response := hm["response"].(map[string]any)
+			set := response["set"].(map[string]any)
+			if _, ok := set["Strict-Transport-Security"]; ok {
+				t.Error("HSTS should not be present on non-standard ports")
+			}
+		}
+	}
+}
+
+func TestCompiler_HSTSDisabled(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:             true,
+		XContentTypeOptions: "nosniff",
+		HSTS: HSTSConfig{
+			Enabled: false,
+		},
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	if _, ok := set["Strict-Transport-Security"]; ok {
+		t.Error("HSTS should not be present when disabled")
+	}
+}
+
+func TestCompiler_HSTSNoSubdomains(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled: true,
+		HSTS: HSTSConfig{
+			Enabled:           true,
+			MaxAge:            31536000,
+			IncludeSubdomains: false,
+		},
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	headersHandler := handlers[1].(map[string]any)
+	response := headersHandler["response"].(map[string]any)
+	set := response["set"].(map[string]any)
+
+	vals := set["Strict-Transport-Security"].([]any)
+	if vals[0].(string) != "max-age=31536000" {
+		t.Errorf("HSTS = %v, want max-age=31536000 (no includeSubDomains)", vals[0])
+	}
+}
+
+func TestCompiler_AllHeadersEmpty(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:             true,
+		XContentTypeOptions: "",
+		XFrameOptions:       "",
+		ReferrerPolicy:      "",
+		PermissionsPolicy:   "",
+		CSP:                 "",
+		HSTS: HSTSConfig{
+			Enabled: false,
+		},
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, secHeaders)
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id: "r1", Enabled: true,
+				Target: &riokuv1.Route_Upstream{Upstream: &riokuv1.DirectUpstream{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+
+	// When all headers are empty/disabled, no headers handler should be inserted.
+	if len(handlers) != 3 {
+		t.Fatalf("expected 3 handlers (no headers handler when all empty), got %d", len(handlers))
+	}
+	wantOrder := []string{"tracing", "vars", "reverse_proxy"}
+	for i, want := range wantOrder {
+		got := handlers[i].(map[string]any)["handler"].(string)
+		if got != want {
+			t.Errorf("handlers[%d].handler = %v, want %v", i, got, want)
+		}
+	}
+}
+
 // dig navigates nested maps by key. It fails the test if any key is missing.
 func dig(t *testing.T, m map[string]any, keys ...string) map[string]any {
 	t.Helper()
