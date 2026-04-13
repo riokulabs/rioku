@@ -635,7 +635,7 @@ var File_rioku_v1_build_proto protoreflect.FileDescriptor
 
 const file_rioku_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x14rioku/v1/build.proto\x12\brioku.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x15rioku/v1/common.proto\"\x87\x03\n" +
+	"\x14rioku/v1/build.proto\x12\brioku.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\x87\x03\n" +
 	"\vBuildRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x06target\x18\x02 \x01(\x0e2\x15.rioku.v1.BuildTargetR\x06target\x12*\n" +
@@ -759,7 +759,6 @@ func file_rioku_v1_build_proto_init() {
 	if File_rioku_v1_build_proto != nil {
 		return
 	}
-	file_rioku_v1_common_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

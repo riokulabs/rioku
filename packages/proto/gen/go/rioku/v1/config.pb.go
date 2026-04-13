@@ -785,17 +785,20 @@ func (x *DirectUpstream) GetTls() TLSMode {
 }
 
 type Service struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Upstreams     []*Upstream            `protobuf:"bytes,3,rep,name=upstreams,proto3" json:"upstreams,omitempty"`
-	LbPolicy      LoadBalancingPolicy    `protobuf:"varint,4,opt,name=lb_policy,json=lbPolicy,proto3,enum=rioku.v1.LoadBalancingPolicy" json:"lb_policy,omitempty"`
-	HealthCheck   *HealthCheck           `protobuf:"bytes,5,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
-	Labels        *Labels                `protobuf:"bytes,6,opt,name=labels,proto3" json:"labels,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	Id                           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                         string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Upstreams                    []*Upstream            `protobuf:"bytes,3,rep,name=upstreams,proto3" json:"upstreams,omitempty"`
+	LbPolicy                     LoadBalancingPolicy    `protobuf:"varint,4,opt,name=lb_policy,json=lbPolicy,proto3,enum=rioku.v1.LoadBalancingPolicy" json:"lb_policy,omitempty"`
+	HealthCheck                  *HealthCheck           `protobuf:"bytes,5,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	Labels                       *Labels                `protobuf:"bytes,6,opt,name=labels,proto3" json:"labels,omitempty"`
+	CreatedAt                    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	DialTimeoutSeconds           int32                  `protobuf:"varint,9,opt,name=dial_timeout_seconds,json=dialTimeoutSeconds,proto3" json:"dial_timeout_seconds,omitempty"`
+	ResponseHeaderTimeoutSeconds int32                  `protobuf:"varint,10,opt,name=response_header_timeout_seconds,json=responseHeaderTimeoutSeconds,proto3" json:"response_header_timeout_seconds,omitempty"`
+	IdleTimeoutSeconds           int32                  `protobuf:"varint,11,opt,name=idle_timeout_seconds,json=idleTimeoutSeconds,proto3" json:"idle_timeout_seconds,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Service) Reset() {
@@ -882,6 +885,27 @@ func (x *Service) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Service) GetDialTimeoutSeconds() int32 {
+	if x != nil {
+		return x.DialTimeoutSeconds
+	}
+	return 0
+}
+
+func (x *Service) GetResponseHeaderTimeoutSeconds() int32 {
+	if x != nil {
+		return x.ResponseHeaderTimeoutSeconds
+	}
+	return 0
+}
+
+func (x *Service) GetIdleTimeoutSeconds() int32 {
+	if x != nil {
+		return x.IdleTimeoutSeconds
+	}
+	return 0
 }
 
 type Upstream struct {
@@ -2206,7 +2230,7 @@ const file_rioku_v1_config_proto_rawDesc = "" +
 	"\x06invert\x18\x03 \x01(\bR\x06invert\"O\n" +
 	"\x0eDirectUpstream\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12#\n" +
-	"\x03tls\x18\x02 \x01(\x0e2\x11.rioku.v1.TLSModeR\x03tls\"\xf5\x02\n" +
+	"\x03tls\x18\x02 \x01(\x0e2\x11.rioku.v1.TLSModeR\x03tls\"\xa0\x04\n" +
 	"\aService\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x120\n" +
@@ -2217,7 +2241,11 @@ const file_rioku_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa6\x01\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x120\n" +
+	"\x14dial_timeout_seconds\x18\t \x01(\x05R\x12dialTimeoutSeconds\x12E\n" +
+	"\x1fresponse_header_timeout_seconds\x18\n" +
+	" \x01(\x05R\x1cresponseHeaderTimeoutSeconds\x120\n" +
+	"\x14idle_timeout_seconds\x18\v \x01(\x05R\x12idleTimeoutSeconds\"\xa6\x01\n" +
 	"\bUpstream\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x16\n" +

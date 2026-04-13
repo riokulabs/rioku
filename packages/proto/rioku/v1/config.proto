@@ -64,6 +64,9 @@ message Service {
   Labels                    labels      = 6;
   google.protobuf.Timestamp created_at  = 7;
   google.protobuf.Timestamp updated_at  = 8;
+  int32 dial_timeout_seconds             = 9;
+  int32 response_header_timeout_seconds  = 10;
+  int32 idle_timeout_seconds             = 11;
 }
 
 message Upstream {
