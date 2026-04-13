@@ -1934,6 +1934,104 @@ func TestCompiler_SecurityHeadersNotOnAdmin(t *testing.T) {
 	}
 }
 
+func TestCompiler_ServiceWithHealthCheckAndTimeouts(t *testing.T) {
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:   "svc1",
+				Name: "backend",
+				Upstreams: []*riokuv1.Upstream{
+					{Id: "u1", Address: "10.0.0.1:8080"},
+					{Id: "u2", Address: "10.0.0.2:8080"},
+				},
+				LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+				HealthCheck: &riokuv1.HealthCheck{
+					Enabled:         true,
+					Path:            "/health",
+					IntervalSeconds: 10,
+					TimeoutSeconds:  5,
+				},
+				DialTimeoutSeconds:           5,
+				ResponseHeaderTimeoutSeconds: 30,
+				IdleTimeoutSeconds:           120,
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	routes := server["routes"].([]any)
+	route := routes[0].(map[string]any)
+	handler := route["handle"].([]any)[2].(map[string]any) // [0]=tracing, [1]=vars, [2]=reverse_proxy
+
+	// Verify health checks are present.
+	hcs, ok := handler["health_checks"].(map[string]any)
+	if !ok {
+		t.Fatal("expected health_checks block")
+	}
+	active := hcs["active"].(map[string]any)
+	if active["path"].(string) != "/health" {
+		t.Errorf("health_check path = %v, want /health", active["path"])
+	}
+	if active["interval"].(string) != "10s" {
+		t.Errorf("health_check interval = %v, want 10s", active["interval"])
+	}
+	if active["timeout"].(string) != "5s" {
+		t.Errorf("health_check timeout = %v, want 5s", active["timeout"])
+	}
+
+	// Verify transport block is present alongside health checks.
+	transport, ok := handler["transport"].(map[string]any)
+	if !ok {
+		t.Fatal("expected transport block")
+	}
+	if transport["protocol"].(string) != "http" {
+		t.Errorf("transport.protocol = %v, want http", transport["protocol"])
+	}
+	if transport["dial_timeout"].(string) != "5s" {
+		t.Errorf("transport.dial_timeout = %v, want 5s", transport["dial_timeout"])
+	}
+	if transport["response_header_timeout"].(string) != "30s" {
+		t.Errorf("transport.response_header_timeout = %v, want 30s", transport["response_header_timeout"])
+	}
+
+	keepAlive := transport["keep_alive"].(map[string]any)
+	if keepAlive["idle_conn_timeout"].(string) != "120s" {
+		t.Errorf("keep_alive.idle_conn_timeout = %v, want 120s", keepAlive["idle_conn_timeout"])
+	}
+
+	// Verify load balancing is also present (all three blocks coexist).
+	lb, ok := handler["load_balancing"].(map[string]any)
+	if !ok {
+		t.Fatal("expected load_balancing block")
+	}
+	sp := lb["selection_policy"].(map[string]any)
+	if sp["policy"].(string) != "round_robin" {
+		t.Errorf("lb policy = %v, want round_robin", sp["policy"])
+	}
+}
+
 // dig navigates nested maps by key. It fails the test if any key is missing.
 func dig(t *testing.T, m map[string]any, keys ...string) map[string]any {
 	t.Helper()
