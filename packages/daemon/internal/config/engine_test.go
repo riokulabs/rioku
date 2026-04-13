@@ -1236,3 +1236,24 @@ func TestImportConfigPolicyIdRemapping(t *testing.T) {
 		t.Fatal("expected import-pol-b in imported policies")
 	}
 }
+
+func TestEngine_CacheUpdatedOnSuccess(t *testing.T) {
+	e := newTestEngine(t)
+	ctx := context.Background()
+
+	snap, err := e.GetConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if snap == nil {
+		t.Fatal("expected non-nil snapshot")
+	}
+
+	cached := e.CachedSnapshot()
+	if cached == nil {
+		t.Fatal("expected cached snapshot after successful GetConfig")
+	}
+	if cached.GetVersion() != snap.GetVersion() {
+		t.Errorf("cached version = %d, want %d", cached.GetVersion(), snap.GetVersion())
+	}
+}

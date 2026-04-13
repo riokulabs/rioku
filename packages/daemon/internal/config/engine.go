@@ -21,9 +21,10 @@ import (
 // Caddy config compilation. It is the single entry point for all config
 // mutations.
 type Engine struct {
-	store    store.Driver
-	compiler *caddy.Compiler
-	mu       sync.RWMutex
+	store          store.Driver
+	compiler       *caddy.Compiler
+	mu             sync.RWMutex
+	cachedSnapshot *riokuv1.ConfigSnapshot
 }
 
 // NewEngine creates a new config engine backed by the given store and
@@ -41,6 +42,14 @@ func (e *Engine) SetCompiler(c *caddy.Compiler) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.compiler = c
+}
+
+// CachedSnapshot returns the last successfully-read config snapshot, or nil
+// if no successful read has occurred yet.
+func (e *Engine) CachedSnapshot() *riokuv1.ConfigSnapshot {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.cachedSnapshot
 }
 
 // --------------------------------------------------------------------------
@@ -66,6 +75,11 @@ func (e *Engine) GetConfig(ctx context.Context) (*riokuv1.ConfigSnapshot, error)
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("config: commit read tx: %w", err)
 	}
+
+	e.mu.Lock()
+	e.cachedSnapshot = snap
+	e.mu.Unlock()
+
 	return snap, nil
 }
 
