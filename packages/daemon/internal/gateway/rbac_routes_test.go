@@ -125,6 +125,89 @@ func TestRBACRoutes_GetRole(t *testing.T) {
 	}
 }
 
+func TestGetRole_WithUserCount(t *testing.T) {
+	server, drv, rootPassword := setupRBACTestServer(t)
+	client := loginAsRoot(t, server.URL, rootPassword)
+
+	// Get the superadmin role ID from the store.
+	saRoleID := superadminRoleID(t, drv)
+
+	// Get the role via API.
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/roles/"+saRoleID, nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("get role: status %d, want 200", resp.StatusCode)
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode role: %v", err)
+	}
+
+	// The root user has the superadmin role, so userCount should be >= 1.
+	userCount, ok := body["userCount"].(float64)
+	if !ok {
+		t.Fatal("userCount field missing or not a number")
+	}
+	if int(userCount) < 1 {
+		t.Errorf("userCount = %d, want >= 1", int(userCount))
+	}
+	name, ok2 := body["name"].(string)
+	if !ok2 {
+		t.Fatal("name field missing or not a string")
+	}
+	if name != "superadmin" {
+		t.Errorf("role name = %q, want %q", name, "superadmin")
+	}
+}
+
+func TestGetRole_ZeroUsers(t *testing.T) {
+	server, _, rootPassword := setupRBACTestServer(t)
+	client := loginAsRoot(t, server.URL, rootPassword)
+
+	// Create a fresh custom role (no users assigned).
+	createResp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/roles", map[string]any{
+		"name":        "test-empty-role",
+		"description": "role with no users",
+		"permissions": []string{"users:read"},
+	})
+	defer func() { _ = createResp.Body.Close() }()
+	if createResp.StatusCode != http.StatusCreated {
+		t.Fatalf("create role: expected 201, got %d", createResp.StatusCode)
+	}
+
+	var created map[string]any
+	if err := json.NewDecoder(createResp.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created role: %v", err)
+	}
+	roleID, ok := created["id"].(string)
+	if !ok || roleID == "" {
+		t.Fatal("created role missing id")
+	}
+
+	// Fetch the role via the detail endpoint.
+	getResp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/roles/"+roleID, nil)
+	defer func() { _ = getResp.Body.Close() }()
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("get role: expected 200, got %d", getResp.StatusCode)
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(getResp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode role: %v", err)
+	}
+
+	// userCount must be present and equal to 0 (pointer is non-nil, so it
+	// serialises even when zero).
+	userCount, ok := body["userCount"].(float64)
+	if !ok {
+		t.Fatal("userCount field missing or not a number; pointer serialisation may be broken")
+	}
+	if int(userCount) != 0 {
+		t.Errorf("userCount = %d, want 0", int(userCount))
+	}
+}
+
 func TestRBACRoutes_GetRole_NotFound(t *testing.T) {
 	server, _, rootPassword := setupRBACTestServer(t)
 	client := loginAsRoot(t, server.URL, rootPassword)

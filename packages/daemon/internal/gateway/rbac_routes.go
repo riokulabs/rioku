@@ -38,6 +38,7 @@ type roleResponse struct {
 	Description string   `json:"description"`
 	IsBuiltin   bool     `json:"isBuiltin"`
 	Permissions []string `json:"permissions"`
+	UserCount   *int     `json:"userCount,omitempty"`
 }
 
 func toRoleResponse(role *store.Role) roleResponse {
@@ -160,8 +161,18 @@ func handleGetRole(st store.Driver) http.HandlerFunc {
 			return
 		}
 
+		userIDs, err := tx.ListUsersWithRole(ctx, id)
+		if err != nil {
+			writeInternalError(w, r, "list users with role")
+			return
+		}
+
+		resp := toRoleResponse(role)
+		count := len(userIDs)
+		resp.UserCount = &count
+
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(toRoleResponse(role))
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
