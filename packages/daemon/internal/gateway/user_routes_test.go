@@ -824,6 +824,72 @@ func TestUserRoutes_CreateUser_DefaultForcePasswordChange(t *testing.T) {
 	}
 }
 
+func TestListUserSessions_Admin(t *testing.T) {
+	server, _, _, client := setupUserTestServer(t)
+
+	password := "TestPassword1234!"
+	userID := createTestUser(t, client, server.URL, "sessionuser", password)
+
+	// Log in as the new user to create a session for them.
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userClient := &http.Client{Jar: jar}
+	resp := doJSON(t, userClient, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "sessionuser",
+		"password": password,
+	})
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("login as sessionuser: status %d", resp.StatusCode)
+	}
+
+	// As admin (client), list sessions for that user.
+	resp2 := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/users/"+userID+"/sessions", nil)
+	defer func() { _ = resp2.Body.Close() }()
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("list user sessions: status %d, want 200", resp2.StatusCode)
+	}
+
+	var sessions []sessionResponse
+	if err := json.NewDecoder(resp2.Body).Decode(&sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+
+	if len(sessions) == 0 {
+		t.Error("expected at least 1 session for user")
+	}
+	for _, s := range sessions {
+		if s.ID == "" {
+			t.Error("session ID should not be empty")
+		}
+		if s.CreatedAt == "" {
+			t.Error("session CreatedAt should not be empty")
+		}
+	}
+}
+
+func TestListUserSessions_Empty(t *testing.T) {
+	server, _, _, client := setupUserTestServer(t)
+
+	// List sessions for a nonexistent user — should return empty array, not 404.
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/users/nonexistent-id/sessions", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list sessions for nonexistent user: status %d, want 200", resp.StatusCode)
+	}
+
+	var sessions []sessionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions, got %d", len(sessions))
+	}
+}
+
 func TestUserRoutes_ListUsers_WithLastLogin(t *testing.T) {
 	server, _, _, client := setupUserTestServer(t)
 

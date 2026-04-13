@@ -23,7 +23,57 @@ func RegisterUserRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionMan
 	mux.Handle("POST /api/v1/users/{id}/lock", RequirePermission("users:manage")(http.HandlerFunc(handleLockUser(st, sm))))
 	mux.Handle("POST /api/v1/users/{id}/unlock", RequirePermission("users:manage")(http.HandlerFunc(handleUnlockUser(st))))
 	mux.Handle("POST /api/v1/users/{id}/reset-password", RequirePermission("users:manage")(http.HandlerFunc(handleResetPassword(st, cfg))))
+	mux.Handle("GET /api/v1/users/{id}/sessions", RequirePermission("sessions:read")(http.HandlerFunc(handleListUserSessions(st))))
 	mux.Handle("DELETE /api/v1/users/{id}", RequirePermission("users:manage")(http.HandlerFunc(handleDeleteUser(st, sm))))
+}
+
+// ---------------------------------------------------------------------------
+// List sessions for a user (admin endpoint)
+// ---------------------------------------------------------------------------
+
+func handleListUserSessions(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		userID := r.PathValue("id")
+		if userID == "" {
+			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
+				"User ID is required", r.URL.Path, nil)
+			return
+		}
+
+		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		sessions, err := tx.ListSessionsByUser(ctx, userID)
+		if err != nil {
+			writeInternalError(w, r, "list sessions")
+			return
+		}
+
+		result := make([]sessionResponse, 0, len(sessions))
+		for _, s := range sessions {
+			sr := sessionResponse{
+				ID:         s.ID,
+				CreatedAt:  s.CreatedAt.Format(time.RFC3339),
+				LastActive: s.LastActive.Format(time.RFC3339),
+				ExpiresAt:  s.ExpiresAt.Format(time.RFC3339),
+			}
+			if s.IPAddress != nil {
+				sr.IPAddress = *s.IPAddress
+			}
+			if s.UserAgent != nil {
+				sr.UserAgent = *s.UserAgent
+			}
+			result = append(result, sr)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(result)
+	}
 }
 
 // ---------------------------------------------------------------------------
