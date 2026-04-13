@@ -153,11 +153,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 5: service timeout columns.
+	if current < 5 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000005_service_timeouts.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 5: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 5: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (5, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 5: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 5 down: drop service timeout columns.
+	if current >= 5 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000005_service_timeouts.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 5: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 5: %w", err)
+		}
+	}
 
 	// Migration 4 down: drop TOTP backup codes.
 	if current >= 4 {

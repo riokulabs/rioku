@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 4 {
-		t.Fatalf("expected version 4, got %d", v)
+	if v != 5 {
+		t.Fatalf("expected version 5, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -2731,4 +2731,41 @@ func TestMarshalDirectUpstreamJSON_Nil(t *testing.T) {
 	if got != "" {
 		t.Fatalf("marshalDirectUpstreamJSON(nil): expected empty string, got %q", got)
 	}
+}
+
+func TestMigration_000005_UpDown(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// After openTestDB, migrations are applied up to latest.
+	v, err := d.CurrentVersion(ctx)
+	if err != nil {
+		t.Fatalf("CurrentVersion: %v", err)
+	}
+	if v < 5 {
+		t.Fatalf("expected version >= 5 after migration, got %d", v)
+	}
+
+	// Verify columns exist by inserting a row with timeout values.
+	_, err = d.db.ExecContext(ctx,
+		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds)
+		 VALUES ('test-svc', 'test', 0, NULL, '{}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', 5, 30, 120)`)
+	if err != nil {
+		t.Fatalf("insert with timeout columns: %v", err)
+	}
+
+	// Read back.
+	var dial, respHeader, idle int32
+	err = d.db.QueryRowContext(ctx,
+		`SELECT dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds FROM services WHERE id = 'test-svc'`).
+		Scan(&dial, &respHeader, &idle)
+	if err != nil {
+		t.Fatalf("select timeout columns: %v", err)
+	}
+	if dial != 5 || respHeader != 30 || idle != 120 {
+		t.Fatalf("timeout values = (%d, %d, %d), want (5, 30, 120)", dial, respHeader, idle)
+	}
+
+	// Clean up test row before down migration.
+	_, _ = d.db.ExecContext(ctx, `DELETE FROM services WHERE id = 'test-svc'`)
 }
