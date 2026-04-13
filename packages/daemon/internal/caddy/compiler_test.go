@@ -8,7 +8,7 @@ import (
 )
 
 func TestCompileSimpleRoute(t *testing.T) {
-	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -133,7 +133,7 @@ func TestCompileSimpleRoute(t *testing.T) {
 }
 
 func TestCompileMultipleRoutes(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -193,7 +193,7 @@ func TestCompileMultipleRoutes(t *testing.T) {
 }
 
 func TestCompileDisabledRouteExcluded(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -245,7 +245,7 @@ func TestCompileDisabledRouteExcluded(t *testing.T) {
 }
 
 func TestCompileDirectUpstream(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -314,7 +314,7 @@ func TestCompileDirectUpstream(t *testing.T) {
 }
 
 func TestCompileEmptyConfig(t *testing.T) {
-	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{}
 
@@ -336,7 +336,7 @@ func TestCompileEmptyConfig(t *testing.T) {
 }
 
 func TestMatcherTypes(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	tests := []struct {
 		name    string
@@ -490,7 +490,7 @@ func TestMatcherTypes(t *testing.T) {
 }
 
 func TestCompileServiceNotFound(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -509,7 +509,7 @@ func TestCompileServiceNotFound(t *testing.T) {
 }
 
 func TestCompileWeightedRoundRobin(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -565,7 +565,7 @@ func TestCompileTwoServerBlocks(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{
 		InternalAddr: "127.0.0.1:54321",
 		ListenAddr:   ":7778",
-	}, "", nil)
+	}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -614,7 +614,7 @@ func TestCompileAdminDomain(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{
 		InternalAddr: "127.0.0.1:54321",
 		Domain:       "admin.example.com",
-	}, "", nil)
+	}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -651,7 +651,7 @@ func TestCompileAdminDevMode(t *testing.T) {
 		InternalAddr: "127.0.0.1:54321",
 		Domain:       "admin.example.com",
 		DevMode:      true,
-	}, "", nil)
+	}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -672,7 +672,7 @@ func TestCompileAdminDevMode(t *testing.T) {
 }
 
 func TestCompileNoAdminBlock(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -694,7 +694,7 @@ func TestCompileNoAdminBlock(t *testing.T) {
 }
 
 func TestCompile_InjectsRiokuVars(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -762,7 +762,7 @@ func TestCompile_InjectsRiokuVars(t *testing.T) {
 }
 
 func TestCompile_InjectsRiokuVars_DirectUpstream(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -808,7 +808,7 @@ func TestCompile_InjectsRiokuVars_DirectUpstream(t *testing.T) {
 
 func TestCompile_ConfiguresTraceLogger(t *testing.T) {
 	socketPath := "/tmp/rioku-trace.sock"
-	c := NewCompiler([]string{":443"}, AdminConfig{}, socketPath, nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, socketPath, nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -873,7 +873,7 @@ func TestCompile_ConfiguresTraceLogger(t *testing.T) {
 }
 
 func TestCompile_NoTraceLoggerWhenPathEmpty(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -900,7 +900,7 @@ func TestCompile_TrustedProxies(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{
 		InternalAddr: "127.0.0.1:54321",
 		ListenAddr:   ":7778",
-	}, "", tp)
+	}, "", tp, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -931,7 +931,7 @@ func TestCompile_TrustedProxies(t *testing.T) {
 }
 
 func TestCompile_TrustedProxies_Empty(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -953,7 +953,7 @@ func TestCompile_MetricsEnabled(t *testing.T) {
 	c := NewCompiler([]string{":443"}, AdminConfig{
 		InternalAddr: "127.0.0.1:54321",
 		ListenAddr:   ":7778",
-	}, "", nil)
+	}, "", nil, SecurityHeadersConfig{})
 
 	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
 	if err != nil {
@@ -981,7 +981,7 @@ func TestCompile_MetricsEnabled(t *testing.T) {
 }
 
 func TestCompile_FlushInterval(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -1030,7 +1030,7 @@ func TestCompile_FlushInterval(t *testing.T) {
 }
 
 func TestCompile_TracingHandler(t *testing.T) {
-	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 
 	snapshot := &riokuv1.ConfigSnapshot{
 		Routes: []*riokuv1.Route{
@@ -1093,7 +1093,7 @@ func TestLbPolicyString(t *testing.T) {
 		{riokuv1.LoadBalancingPolicy_LB_POLICY_IP_HASH, "ip_hash"},
 	}
 	for _, tt := range tests {
-		c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil)
+		c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
 		snapshot := &riokuv1.ConfigSnapshot{
 			Routes: []*riokuv1.Route{
 				{Id: "r1", Enabled: true, Target: &riokuv1.Route_ServiceId{ServiceId: "svc1"}},
@@ -1124,6 +1124,218 @@ func TestLbPolicyString(t *testing.T) {
 		if sp["policy"].(string) != tt.want {
 			t.Errorf("policy %v: got %q, want %q", tt.policy, sp["policy"], tt.want)
 		}
+	}
+}
+
+func TestCompiler_ServiceWithAllTimeouts(t *testing.T) {
+	c := NewCompiler([]string{":443", ":80"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:   "svc1",
+				Name: "backend",
+				Upstreams: []*riokuv1.Upstream{
+					{Id: "u1", Address: "10.0.0.1:8080"},
+				},
+				DialTimeoutSeconds:           5,
+				ResponseHeaderTimeoutSeconds: 30,
+				IdleTimeoutSeconds:           120,
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	routes := server["routes"].([]any)
+	route := routes[0].(map[string]any)
+	handler := route["handle"].([]any)[2].(map[string]any) // [0]=tracing, [1]=vars, [2]=reverse_proxy
+
+	transport, ok := handler["transport"].(map[string]any)
+	if !ok {
+		t.Fatal("expected transport block in reverse_proxy handler")
+	}
+	if transport["protocol"].(string) != "http" {
+		t.Errorf("transport.protocol = %v, want http", transport["protocol"])
+	}
+	if transport["dial_timeout"].(string) != "5s" {
+		t.Errorf("transport.dial_timeout = %v, want 5s", transport["dial_timeout"])
+	}
+	if transport["response_header_timeout"].(string) != "30s" {
+		t.Errorf("transport.response_header_timeout = %v, want 30s", transport["response_header_timeout"])
+	}
+
+	keepAlive, ok := transport["keep_alive"].(map[string]any)
+	if !ok {
+		t.Fatal("expected keep_alive sub-object in transport")
+	}
+	if keepAlive["idle_conn_timeout"].(string) != "120s" {
+		t.Errorf("transport.keep_alive.idle_conn_timeout = %v, want 120s", keepAlive["idle_conn_timeout"])
+	}
+}
+
+func TestCompiler_ServiceWithPartialTimeouts(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Target:  &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:                 "svc1",
+				Upstreams:          []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+				DialTimeoutSeconds: 5,
+				// ResponseHeaderTimeoutSeconds and IdleTimeoutSeconds are 0 (default).
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handler := route["handle"].([]any)[2].(map[string]any)
+
+	transport, ok := handler["transport"].(map[string]any)
+	if !ok {
+		t.Fatal("expected transport block when dial_timeout_seconds > 0")
+	}
+	if transport["dial_timeout"].(string) != "5s" {
+		t.Errorf("transport.dial_timeout = %v, want 5s", transport["dial_timeout"])
+	}
+	// response_header_timeout should be absent (0 = omit).
+	if _, ok := transport["response_header_timeout"]; ok {
+		t.Error("response_header_timeout should not be present when 0")
+	}
+	// keep_alive should be absent (idle_timeout_seconds = 0).
+	if _, ok := transport["keep_alive"]; ok {
+		t.Error("keep_alive should not be present when idle_timeout_seconds is 0")
+	}
+}
+
+func TestCompiler_ServiceWithNoTimeouts(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Target:  &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:        "svc1",
+				Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+				// All timeouts are 0 (proto3 default).
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handler := route["handle"].([]any)[2].(map[string]any)
+
+	if _, ok := handler["transport"]; ok {
+		t.Error("transport block should not be present when all timeouts are 0")
+	}
+}
+
+func TestCompiler_TimeoutFormatting(t *testing.T) {
+	tests := []struct {
+		name     string
+		seconds  int32
+		wantDial string
+	}{
+		{"1 second", 1, "1s"},
+		{"30 seconds", 30, "30s"},
+		{"120 seconds", 120, "120s"},
+		{"3600 seconds", 3600, "3600s"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+			snapshot := &riokuv1.ConfigSnapshot{
+				Routes: []*riokuv1.Route{
+					{
+						Id:      "r1",
+						Enabled: true,
+						Target:  &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+					},
+				},
+				Services: []*riokuv1.Service{
+					{
+						Id:                 "svc1",
+						Upstreams:          []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+						DialTimeoutSeconds: tt.seconds,
+					},
+				},
+			}
+
+			data, err := c.Compile(snapshot)
+			if err != nil {
+				t.Fatalf("Compile: %v", err)
+			}
+
+			var cfg map[string]any
+			if err := json.Unmarshal(data, &cfg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+
+			server := dig(t, cfg, "apps", "http", "servers", "traffic")
+			route := server["routes"].([]any)[0].(map[string]any)
+			handler := route["handle"].([]any)[2].(map[string]any)
+			transport := handler["transport"].(map[string]any)
+
+			if transport["dial_timeout"].(string) != tt.wantDial {
+				t.Errorf("dial_timeout = %v, want %v", transport["dial_timeout"], tt.wantDial)
+			}
+		})
 	}
 }
 

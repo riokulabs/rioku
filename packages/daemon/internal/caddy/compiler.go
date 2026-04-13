@@ -35,23 +35,45 @@ type TrustedProxiesConfig struct {
 	Ranges []string // CIDR ranges, e.g. ["10.0.0.0/8", "172.16.0.0/12"]
 }
 
+// SecurityHeadersConfig controls which security response headers the compiler
+// injects into every proxied response. The struct mirrors config.SecurityHeaders
+// but lives in the caddy package to avoid a circular import (config -> caddy).
+type SecurityHeadersConfig struct {
+	Enabled             bool
+	XContentTypeOptions string
+	XFrameOptions       string
+	ReferrerPolicy      string
+	PermissionsPolicy   string
+	CSP                 string
+	CSPReportOnly       bool
+	HSTS                HSTSConfig
+}
+
+// HSTSConfig controls the HTTP Strict Transport Security header.
+type HSTSConfig struct {
+	Enabled           bool
+	MaxAge            int
+	IncludeSubdomains bool
+}
+
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
 	trafficAddrs    []string
 	admin           AdminConfig
 	traceSocketPath string
 	trustedProxies  *TrustedProxiesConfig
+	securityHeaders SecurityHeadersConfig
 }
 
 // NewCompiler creates a compiler with the given traffic listen addresses, admin config,
-// optional trace socket path, and optional trusted proxy config. When traceSocketPath
-// is non-empty, the compiled Caddy config will include a logging block that sends
-// access logs to the socket. When trustedProxies is non-nil with ranges, each server
-// block will include trusted_proxies for correct client IP resolution.
-func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath string, trustedProxies *TrustedProxiesConfig) *Compiler {
+// optional trace socket path, optional trusted proxy config, and security headers config.
+// When traceSocketPath is non-empty, the compiled Caddy config will include a logging
+// block that sends access logs to the socket. When trustedProxies is non-nil with ranges,
+// each server block will include trusted_proxies for correct client IP resolution.
+func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath string, trustedProxies *TrustedProxiesConfig, secHeaders SecurityHeadersConfig) *Compiler {
 	addrs := make([]string, len(trafficAddrs))
 	copy(addrs, trafficAddrs)
-	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath, trustedProxies: trustedProxies}
+	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath, trustedProxies: trustedProxies, securityHeaders: secHeaders}
 }
 
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
@@ -376,6 +398,29 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		handler["health_checks"] = map[string]any{
 			"active": active,
 		}
+	}
+
+	// Transport timeouts
+	dialTimeout := svc.GetDialTimeoutSeconds()
+	respHeaderTimeout := svc.GetResponseHeaderTimeoutSeconds()
+	idleTimeout := svc.GetIdleTimeoutSeconds()
+
+	if dialTimeout > 0 || respHeaderTimeout > 0 || idleTimeout > 0 {
+		transport := map[string]any{
+			"protocol": "http",
+		}
+		if dialTimeout > 0 {
+			transport["dial_timeout"] = fmt.Sprintf("%ds", dialTimeout)
+		}
+		if respHeaderTimeout > 0 {
+			transport["response_header_timeout"] = fmt.Sprintf("%ds", respHeaderTimeout)
+		}
+		if idleTimeout > 0 {
+			transport["keep_alive"] = map[string]any{
+				"idle_conn_timeout": fmt.Sprintf("%ds", idleTimeout),
+			}
+		}
+		handler["transport"] = transport
 	}
 }
 
