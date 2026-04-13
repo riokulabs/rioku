@@ -278,6 +278,13 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			return
 		}
 
+		// Check deleted status.
+		if user.Status == "deleted" {
+			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Account deleted",
+				"This account has been deleted. Contact an administrator.", r.URL.Path, nil)
+			return
+		}
+
 		// Verify password.
 		match, err := auth.VerifyPassword(req.Password, user.PasswordHash)
 		if err != nil || !match {

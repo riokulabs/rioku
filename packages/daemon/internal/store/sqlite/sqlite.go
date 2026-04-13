@@ -169,11 +169,33 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 6: add 'deleted' to user status CHECK constraint.
+	if current < 6 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000006_user_deleted_status.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 6: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 6: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 6 down: revert user status CHECK constraint.
+	if current >= 6 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000006_user_deleted_status.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 6: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 6: %w", err)
+		}
+	}
 
 	// Migration 5 down: drop service timeout columns.
 	if current >= 5 {

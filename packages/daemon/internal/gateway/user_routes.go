@@ -23,6 +23,7 @@ func RegisterUserRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionMan
 	mux.Handle("POST /api/v1/users/{id}/lock", RequirePermission("users:manage")(http.HandlerFunc(handleLockUser(st, sm))))
 	mux.Handle("POST /api/v1/users/{id}/unlock", RequirePermission("users:manage")(http.HandlerFunc(handleUnlockUser(st))))
 	mux.Handle("POST /api/v1/users/{id}/reset-password", RequirePermission("users:manage")(http.HandlerFunc(handleResetPassword(st, cfg))))
+	mux.Handle("DELETE /api/v1/users/{id}", RequirePermission("users:manage")(http.HandlerFunc(handleDeleteUser(st, sm))))
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +296,52 @@ func handleUpdateUser(st store.Driver) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(toUserResponse(updated, roles, permissions))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Delete user (soft-delete)
+// ---------------------------------------------------------------------------
+
+func handleDeleteUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		id := r.PathValue("id")
+		if id == "" {
+			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
+				"User ID is required", r.URL.Path, nil)
+			return
+		}
+
+		tx, err := st.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		user, err := tx.GetUser(ctx, id)
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
+				"No user exists with the given ID", r.URL.Path, nil)
+			return
+		}
+
+		user.Status = "deleted"
+		if _, err := tx.UpdateUser(ctx, user); err != nil {
+			writeInternalError(w, r, "update user")
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+
+		// Revoke all sessions for the deleted user.
+		_ = sm.RevokeAllSessionsForUser(ctx, id)
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

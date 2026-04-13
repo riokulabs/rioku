@@ -701,6 +701,87 @@ func TestUserRoutes_ResetPassword_NotFound(t *testing.T) {
 	}
 }
 
+func TestDeleteUser_SoftDelete(t *testing.T) {
+	server, _, _, client := setupUserTestServer(t)
+
+	userID := createTestUser(t, client, server.URL, "deleteme", "DeleteMePass12345!")
+
+	// DELETE the user.
+	resp := doJSON(t, client, http.MethodDelete, server.URL+"/api/v1/users/"+userID, nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete user: expected 204, got %d", resp.StatusCode)
+	}
+
+	// Verify the user is still readable and has status "deleted".
+	getResp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/users/"+userID, nil)
+	defer func() { _ = getResp.Body.Close() }()
+
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("get deleted user: expected 200, got %d", getResp.StatusCode)
+	}
+
+	var u userResponse
+	if err := json.NewDecoder(getResp.Body).Decode(&u); err != nil {
+		t.Fatalf("decode user: %v", err)
+	}
+	if u.Status != "deleted" {
+		t.Errorf("status = %q, want %q", u.Status, "deleted")
+	}
+}
+
+func TestDeleteUser_NotFound(t *testing.T) {
+	server, _, _, client := setupUserTestServer(t)
+
+	resp := doJSON(t, client, http.MethodDelete, server.URL+"/api/v1/users/nonexistent-id-99999", nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("delete non-existent user: expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteUser_CannotLogin(t *testing.T) {
+	server, _, _, client := setupUserTestServer(t)
+
+	password := "DeleteLoginPass12345!"
+	userID := createTestUser(t, client, server.URL, "deletelogin", password)
+
+	// Soft-delete the user.
+	resp := doJSON(t, client, http.MethodDelete, server.URL+"/api/v1/users/"+userID, nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete user: expected 204, got %d", resp.StatusCode)
+	}
+
+	// Attempt login with a fresh client (no existing session).
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshClient := &http.Client{Jar: jar}
+
+	loginResp := doJSON(t, freshClient, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "deletelogin",
+		"password": password,
+	})
+	defer func() { _ = loginResp.Body.Close() }()
+
+	if loginResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("login as deleted user: expected 403, got %d", loginResp.StatusCode)
+	}
+
+	var pd ProblemDetail
+	if err := json.NewDecoder(loginResp.Body).Decode(&pd); err != nil {
+		t.Fatalf("decode problem detail: %v", err)
+	}
+	if pd.Title != "Account deleted" {
+		t.Errorf("problem title = %q, want %q", pd.Title, "Account deleted")
+	}
+}
+
 func TestUserRoutes_CreateUser_InvalidBody(t *testing.T) {
 	server, _, _, client := setupUserTestServer(t)
 
