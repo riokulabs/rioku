@@ -125,7 +125,7 @@ func TestRESTContractFields(t *testing.T) {
 
 	// Register config via grpc-gateway. Use a real config engine backed by
 	// the same SQLite store so GetConfig returns a proper ConfigSnapshot.
-	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil)
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
 	engine := config.NewEngine(drv, compiler)
 	configSvc := &stubConfigService{engine: engine}
 	if err := riokuv1.RegisterConfigServiceHandlerServer(ctx, gwMux, configSvc); err != nil {

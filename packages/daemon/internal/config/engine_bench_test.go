@@ -37,6 +37,7 @@ func benchEngine(b *testing.B) *Engine {
 		caddy.AdminConfig{InternalAddr: "127.0.0.1:54321"},
 		"",
 		nil,
+		caddy.SecurityHeadersConfig{},
 	)
 	return NewEngine(d, compiler)
 }

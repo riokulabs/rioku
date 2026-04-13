@@ -128,7 +128,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.ringBuffer = tracestore.NewRingBuffer(d.cfg.Traces.BufferSize)
 
 	// 4. Create config engine with placeholder compiler (updated after gateway binds).
-	placeholderCompiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{}, "", nil)
+	placeholderCompiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{}, "", nil, caddy.SecurityHeadersConfig{})
 	d.engine = config.NewEngine(d.store, placeholderCompiler)
 	log.Println("config: engine ready (compiler will be updated after gateway binds)")
 
@@ -229,7 +229,20 @@ func (d *Daemon) Start(ctx context.Context) error {
 		ListenAddr:   adminListenAddr,
 		Domain:       d.cfg.Listen.AdminDomain,
 		DevMode:      d.cfg.Auth.DevMode,
-	}, socketPath, nil)
+	}, socketPath, nil, caddy.SecurityHeadersConfig{
+		Enabled:             d.cfg.SecurityHeaders.Enabled,
+		XContentTypeOptions: d.cfg.SecurityHeaders.XContentTypeOptions,
+		XFrameOptions:       d.cfg.SecurityHeaders.XFrameOptions,
+		ReferrerPolicy:      d.cfg.SecurityHeaders.ReferrerPolicy,
+		PermissionsPolicy:   d.cfg.SecurityHeaders.PermissionsPolicy,
+		CSP:                 d.cfg.SecurityHeaders.CSP,
+		CSPReportOnly:       d.cfg.SecurityHeaders.CSPReportOnly,
+		HSTS: caddy.HSTSConfig{
+			Enabled:           d.cfg.SecurityHeaders.HSTS.Enabled,
+			MaxAge:            d.cfg.SecurityHeaders.HSTS.MaxAge,
+			IncludeSubdomains: d.cfg.SecurityHeaders.HSTS.IncludeSubdomains,
+		},
+	})
 	d.engine.SetCompiler(compiler)
 	log.Println("config: compiler updated with admin config")
 

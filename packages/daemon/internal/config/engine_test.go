@@ -43,7 +43,7 @@ func newTestEngine(t *testing.T) *Engine {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{}, "", nil)
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{}, "", nil, caddy.SecurityHeadersConfig{})
 	return NewEngine(d, compiler)
 }
 

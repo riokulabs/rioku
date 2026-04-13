@@ -58,7 +58,7 @@ func newServerDeps(t *testing.T) serverDeps {
 	t.Cleanup(func() { _ = td.Close() })
 
 	a := auth.NewAuth([]byte("test-key-32-bytes-long!!!!!!!!!!!"), d)
-	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{}, "", nil)
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{}, "", nil, caddy.SecurityHeadersConfig{})
 	engine := config.NewEngine(d, compiler)
 
 	return serverDeps{

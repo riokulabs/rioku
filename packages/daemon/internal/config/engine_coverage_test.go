@@ -23,7 +23,7 @@ func TestSetCompiler(t *testing.T) {
 	ctx := context.Background()
 
 	// Replace the compiler with a new one — we just verify no panic / error.
-	newCompiler := caddy.NewCompiler([]string{":9999"}, caddy.AdminConfig{}, "", nil)
+	newCompiler := caddy.NewCompiler([]string{":9999"}, caddy.AdminConfig{}, "", nil, caddy.SecurityHeadersConfig{})
 	eng.SetCompiler(newCompiler)
 
 	// CompileCaddyConfig should use the new compiler without error.

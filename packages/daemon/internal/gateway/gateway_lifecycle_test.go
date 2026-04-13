@@ -44,7 +44,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 
 	cfg := config.Default()
 
-	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil)
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
 	engine := config.NewEngine(drv, compiler)
 
 	gw, err := NewGateway(
@@ -101,7 +101,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 	sm := auth.NewSessionManager(drv, true)
 
 	cfg := config.Default()
-	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil)
+	compiler := caddy.NewCompiler([]string{":8080"}, caddy.AdminConfig{DevMode: true}, "", nil, caddy.SecurityHeadersConfig{})
 	engine := config.NewEngine(drv, compiler)
 
 	traceBuf := tracestore.NewRingBuffer(64)
