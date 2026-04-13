@@ -446,9 +446,10 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	}
 
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
+		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert service: %w", err)
@@ -478,7 +479,7 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds
 		 FROM services WHERE id = ?`, id)
 
 	svc, err := scanService(row)
@@ -496,7 +497,7 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at FROM services ORDER BY id`)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds FROM services ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
@@ -570,9 +571,11 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	}
 
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?
 		 WHERE id=?`,
-		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, svc.GetId(),
+		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
+		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
+		svc.GetId(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: update service: %w", err)
@@ -1835,15 +1838,19 @@ func scanRouteRows(rows *sql.Rows) (*riokuv1.Route, error) {
 
 func scanService(s scanner) (*riokuv1.Service, error) {
 	var (
-		id         string
-		name       string
-		lbPolicy   int32
-		hcJSON     *string
-		labelsJSON string
-		createdAt  string
-		updatedAt  string
+		id                           string
+		name                         string
+		lbPolicy                     int32
+		hcJSON                       *string
+		labelsJSON                   string
+		createdAt                    string
+		updatedAt                    string
+		dialTimeoutSeconds           int32
+		responseHeaderTimeoutSeconds int32
+		idleTimeoutSeconds           int32
 	)
-	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt); err != nil {
+	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt,
+		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds); err != nil {
 		return nil, fmt.Errorf("sqlite: scan service: %w", err)
 	}
 
@@ -1853,12 +1860,15 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 	}
 
 	svc := &riokuv1.Service{
-		Id:        id,
-		Name:      name,
-		LbPolicy:  riokuv1.LoadBalancingPolicy(lbPolicy),
-		Labels:    labels,
-		CreatedAt: timestamppb.New(parseTime(createdAt)),
-		UpdatedAt: timestamppb.New(parseTime(updatedAt)),
+		Id:                           id,
+		Name:                         name,
+		LbPolicy:                     riokuv1.LoadBalancingPolicy(lbPolicy),
+		Labels:                       labels,
+		CreatedAt:                    timestamppb.New(parseTime(createdAt)),
+		UpdatedAt:                    timestamppb.New(parseTime(updatedAt)),
+		DialTimeoutSeconds:           dialTimeoutSeconds,
+		ResponseHeaderTimeoutSeconds: responseHeaderTimeoutSeconds,
+		IdleTimeoutSeconds:           idleTimeoutSeconds,
 	}
 
 	if hcJSON != nil && *hcJSON != "" {

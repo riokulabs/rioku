@@ -2769,3 +2769,160 @@ func TestMigration_000005_UpDown(t *testing.T) {
 	// Clean up test row before down migration.
 	_, _ = d.db.ExecContext(ctx, `DELETE FROM services WHERE id = 'test-svc'`)
 }
+
+func TestServiceTimeout_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:                         "timeout-svc",
+		LbPolicy:                     riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:                    []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Weight: 1, Healthy: true}},
+		DialTimeoutSeconds:           5,
+		ResponseHeaderTimeoutSeconds: 30,
+		IdleTimeoutSeconds:           120,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+
+	if created.GetDialTimeoutSeconds() != 5 {
+		t.Errorf("dial_timeout_seconds = %d, want 5", created.GetDialTimeoutSeconds())
+	}
+	if created.GetResponseHeaderTimeoutSeconds() != 30 {
+		t.Errorf("response_header_timeout_seconds = %d, want 30", created.GetResponseHeaderTimeoutSeconds())
+	}
+	if created.GetIdleTimeoutSeconds() != 120 {
+		t.Errorf("idle_timeout_seconds = %d, want 120", created.GetIdleTimeoutSeconds())
+	}
+
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Read back via GetService.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	if got.GetDialTimeoutSeconds() != 5 {
+		t.Errorf("GetService dial_timeout_seconds = %d, want 5", got.GetDialTimeoutSeconds())
+	}
+	if got.GetResponseHeaderTimeoutSeconds() != 30 {
+		t.Errorf("GetService response_header_timeout_seconds = %d, want 30", got.GetResponseHeaderTimeoutSeconds())
+	}
+	if got.GetIdleTimeoutSeconds() != 120 {
+		t.Errorf("GetService idle_timeout_seconds = %d, want 120", got.GetIdleTimeoutSeconds())
+	}
+	_ = tx2.Rollback()
+
+	// Verify via ListServices.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	services, err := tx3.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	if len(services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(services))
+	}
+	if services[0].GetDialTimeoutSeconds() != 5 {
+		t.Errorf("ListServices dial_timeout_seconds = %d, want 5", services[0].GetDialTimeoutSeconds())
+	}
+	_ = tx3.Rollback()
+}
+
+func TestServiceTimeout_Update(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:                         "update-timeout-svc",
+		LbPolicy:                     riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:                    []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Weight: 1, Healthy: true}},
+		DialTimeoutSeconds:           5,
+		ResponseHeaderTimeoutSeconds: 30,
+		IdleTimeoutSeconds:           120,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Update timeout values.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created.DialTimeoutSeconds = 10
+	created.ResponseHeaderTimeoutSeconds = 60
+	created.IdleTimeoutSeconds = 0 // reset to default
+	updated, err := tx2.UpdateService(ctx, created)
+	if err != nil {
+		t.Fatalf("UpdateService: %v", err)
+	}
+	if updated.GetDialTimeoutSeconds() != 10 {
+		t.Errorf("updated dial_timeout_seconds = %d, want 10", updated.GetDialTimeoutSeconds())
+	}
+	if updated.GetResponseHeaderTimeoutSeconds() != 60 {
+		t.Errorf("updated response_header_timeout_seconds = %d, want 60", updated.GetResponseHeaderTimeoutSeconds())
+	}
+	if updated.GetIdleTimeoutSeconds() != 0 {
+		t.Errorf("updated idle_timeout_seconds = %d, want 0", updated.GetIdleTimeoutSeconds())
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+func TestServiceTimeout_ZeroValues(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	// Create service with no timeouts (all 0, proto3 default).
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:     "no-timeout-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080", Weight: 1, Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if created.GetDialTimeoutSeconds() != 0 {
+		t.Errorf("dial_timeout_seconds = %d, want 0", created.GetDialTimeoutSeconds())
+	}
+	if created.GetResponseHeaderTimeoutSeconds() != 0 {
+		t.Errorf("response_header_timeout_seconds = %d, want 0", created.GetResponseHeaderTimeoutSeconds())
+	}
+	if created.GetIdleTimeoutSeconds() != 0 {
+		t.Errorf("idle_timeout_seconds = %d, want 0", created.GetIdleTimeoutSeconds())
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
