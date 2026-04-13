@@ -28,15 +28,16 @@ const DefaultDataDir = "/var/lib/rioku"
 
 // Config is the top-level representation of a rioku.yaml file.
 type Config struct {
-	Store    StoreConfig  `yaml:"store"`
-	Listen   ListenConfig `yaml:"listen"`
-	Caddy    CaddyConfig  `yaml:"caddy"`
-	PKI      PKIConfig    `yaml:"pki"`
-	Traces   TracesConfig `yaml:"traces"`
-	AI       AIConfig     `yaml:"ai"`
-	Auth     AuthConfig   `yaml:"auth"`
-	DataDir  string       `yaml:"data_dir"`
-	LogLevel string       `yaml:"log_level"`
+	Store           StoreConfig     `yaml:"store"`
+	Listen          ListenConfig    `yaml:"listen"`
+	Caddy           CaddyConfig     `yaml:"caddy"`
+	PKI             PKIConfig       `yaml:"pki"`
+	Traces          TracesConfig    `yaml:"traces"`
+	AI              AIConfig        `yaml:"ai"`
+	Auth            AuthConfig      `yaml:"auth"`
+	SecurityHeaders SecurityHeaders `yaml:"security_headers"`
+	DataDir         string          `yaml:"data_dir"`
+	LogLevel        string          `yaml:"log_level"`
 }
 
 // --------------------------------------------------------------------------
@@ -262,6 +263,30 @@ type CORSConfig struct {
 }
 
 // --------------------------------------------------------------------------
+// Security Headers
+// --------------------------------------------------------------------------
+
+// SecurityHeaders controls the security response headers that the gateway
+// injects into every proxied response. Defaults follow OWASP recommendations.
+type SecurityHeaders struct {
+	Enabled             bool       `yaml:"enabled"`
+	XContentTypeOptions string     `yaml:"x_content_type_options"`
+	XFrameOptions       string     `yaml:"x_frame_options"`
+	ReferrerPolicy      string     `yaml:"referrer_policy"`
+	PermissionsPolicy   string     `yaml:"permissions_policy"`
+	CSP                 string     `yaml:"csp"`
+	CSPReportOnly       bool       `yaml:"csp_report_only"`
+	HSTS                HSTSConfig `yaml:"hsts"`
+}
+
+// HSTSConfig controls the HTTP Strict Transport Security header.
+type HSTSConfig struct {
+	Enabled           bool `yaml:"enabled"`
+	MaxAge            int  `yaml:"max_age"`
+	IncludeSubdomains bool `yaml:"include_subdomains"`
+}
+
+// --------------------------------------------------------------------------
 // Defaults
 // --------------------------------------------------------------------------
 
@@ -391,6 +416,19 @@ func Default() *Config {
 				AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 				AllowedHeaders: []string{"Content-Type", "Authorization", "X-Request-ID"},
 				MaxAge:         3600,
+			},
+		},
+		SecurityHeaders: SecurityHeaders{
+			Enabled:             true,
+			XContentTypeOptions: "nosniff",
+			XFrameOptions:       "DENY",
+			ReferrerPolicy:      "strict-origin-when-cross-origin",
+			PermissionsPolicy:   "camera=(), microphone=(), geolocation=()",
+			CSP:                 "",
+			HSTS: HSTSConfig{
+				Enabled:           true,
+				MaxAge:            63072000,
+				IncludeSubdomains: true,
 			},
 		},
 		DataDir:  DefaultDataDir,
