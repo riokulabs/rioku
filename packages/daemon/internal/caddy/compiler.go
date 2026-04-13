@@ -216,7 +216,14 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 		"rioku_route_id":   route.GetId(),
 		"rioku_service_id": serviceID,
 	}
-	caddyRoute["handle"] = []map[string]any{tracingHandler, varsHandler, handler}
+	// Build handler chain: tracing -> [security headers] -> vars -> reverse_proxy.
+	// Security headers are only added to traffic routes (CompileRoute), not admin.
+	handleChain := []map[string]any{tracingHandler}
+	if secHandler := c.buildSecurityHeadersHandler(); secHandler != nil {
+		handleChain = append(handleChain, secHandler)
+	}
+	handleChain = append(handleChain, varsHandler, handler)
+	caddyRoute["handle"] = handleChain
 
 	return caddyRoute, nil
 }

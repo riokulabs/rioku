@@ -1898,6 +1898,42 @@ func TestCompiler_AllHeadersEmpty(t *testing.T) {
 	}
 }
 
+func TestCompiler_SecurityHeadersNotOnAdmin(t *testing.T) {
+	secHeaders := SecurityHeadersConfig{
+		Enabled:             true,
+		XContentTypeOptions: "nosniff",
+		XFrameOptions:       "DENY",
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{
+		InternalAddr: "127.0.0.1:54321",
+		ListenAddr:   ":7778",
+	}, "", nil, secHeaders)
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	servers := dig(t, cfg, "apps", "http", "servers")
+	admin := servers["admin"].(map[string]any)
+	adminRoutes := admin["routes"].([]any)
+	adminRoute := adminRoutes[0].(map[string]any)
+	adminHandlers := adminRoute["handle"].([]any)
+
+	// Admin block should only have reverse_proxy, no headers handler.
+	for _, h := range adminHandlers {
+		hm := h.(map[string]any)
+		if hm["handler"].(string) == "headers" {
+			t.Error("admin server block should NOT have a headers handler")
+		}
+	}
+}
+
 // dig navigates nested maps by key. It fails the test if any key is missing.
 func dig(t *testing.T, m map[string]any, keys ...string) map[string]any {
 	t.Helper()
