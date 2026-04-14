@@ -29,7 +29,7 @@ require (
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.20
 	github.com/maypok86/otter v1.2.4 // indirect
 	github.com/miekg/dns v1.1.68 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
