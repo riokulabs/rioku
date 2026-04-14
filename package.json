@@ -4,5 +4,12 @@
   "workspaces": [
     "packages/ui",
     "packages/web"
-  ]
+  ],
+  "devDependencies": {
+    "@cspell/dict-css": "^4.1.1",
+    "@cspell/dict-golang": "^6.0.26",
+    "@cspell/dict-html": "^4.0.15",
+    "@cspell/dict-software-terms": "^5.2.2",
+    "@cspell/dict-typescript": "^3.2.3"
+  }
 }

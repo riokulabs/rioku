@@ -1,12 +1,29 @@
 version: "0.2"
+useGitignore: true
 ignorePaths:
   - "packages/proto/gen/**"
   - "packages/web/node_modules/**"
   - "packages/web/build/**"
   - "packages/daemon/web/build/**"
   - "packages/web/src/routeTree.gen.ts"
-  - "docs/superpowers/**"
+  - "docs/node_modules/**"
+  - "docs/build/**"
+  - "docs/.docusaurus/**"
+  - "contrib-docs/node_modules/**"
+  - "contrib-docs/build/**"
+  - "contrib-docs/.docusaurus/**"
   - "**/package-lock.json"
+  - "**/*_test.go"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "tmp/**"
+  - "sandbox/**"
+import:
+  - "@cspell/dict-software-terms"
+  - "@cspell/dict-golang"
+  - "@cspell/dict-typescript"
+  - "@cspell/dict-css"
+  - "@cspell/dict-html"
 dictionaryDefinitions:
   - name: custom-dictionary
     path: ./.cspell/custom-dictionary.txt
@@ -15,4 +32,3 @@ dictionaries:
   - custom-dictionary
 words: []
 ignoreWords: []
-import: []
