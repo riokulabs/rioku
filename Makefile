@@ -105,6 +105,10 @@ sandbox-test-auth:
 sandbox-test-smoke:
 	@bash sandbox/scripts/test-smoke.sh
 
+## sandbox-logs: Stream daemon logs in your terminal (scrollable, Ctrl+C to stop)
+sandbox-logs:
+	@tail -f sandbox/.data/daemon.log
+
 ## sandbox-status: Show status of all sandbox components
 sandbox-status:
 	@bash sandbox/scripts/status.sh
