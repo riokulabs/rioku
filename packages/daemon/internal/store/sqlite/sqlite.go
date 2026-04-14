@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -323,7 +323,7 @@ func (t *tx) emit(table, rowID, operation string) {
 	select {
 	case t.notify <- store.ChangeEvent{Table: table, RowID: rowID, Operation: operation}:
 	default:
-		log.Printf("sqlite: change event dropped (channel full): %s/%s %s", table, rowID, operation)
+		slog.Warn("change event dropped (channel full)", "component", "store", "table", table, "row_id", rowID, "operation", operation)
 	}
 }
 
@@ -2253,7 +2253,7 @@ func nowUTC() string {
 func parseTime(s string) time.Time {
 	t, err := time.Parse(timeFormat, s)
 	if err != nil && s != "" {
-		log.Printf("sqlite: warning: failed to parse time %q: %v", s, err)
+		slog.Warn("failed to parse time", "component", "store", "value", s, "error", err)
 	}
 	return t
 }

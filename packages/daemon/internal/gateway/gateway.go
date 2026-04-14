@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -31,6 +31,7 @@ type Gateway struct {
 	listener    net.Listener
 	addr        string // resolved address, e.g. "127.0.0.1:54321"
 	rateLimiter *RateLimiter
+	log         *slog.Logger
 }
 
 // NewGateway creates a REST gateway that translates HTTP+JSON to gRPC.
@@ -48,6 +49,7 @@ func NewGateway(
 	spaFS fs.FS,
 	traceBuf *tracestore.RingBuffer,
 	traceStore tracestore.Driver,
+	logger *slog.Logger,
 ) (*Gateway, error) {
 	ctx := context.Background()
 
@@ -153,6 +155,7 @@ func NewGateway(
 		listener:    ln,
 		addr:        ln.Addr().String(),
 		rateLimiter: rl,
+		log:         logger,
 	}, nil
 }
 
@@ -164,7 +167,7 @@ func (g *Gateway) Addr() string {
 
 // Start begins serving HTTP requests. Blocks until Stop is called.
 func (g *Gateway) Start() error {
-	log.Printf("rest: internal gateway listening on %s", g.addr)
+	g.log.Info("listening", "addr", g.addr)
 	err := g.httpServer.Serve(g.listener)
 	if err == http.ErrServerClosed {
 		return nil
@@ -174,7 +177,7 @@ func (g *Gateway) Start() error {
 
 // Stop gracefully shuts down the HTTP server and background goroutines.
 func (g *Gateway) Stop(ctx context.Context) error {
-	log.Println("rest: stopping...")
+	g.log.Info("stopping")
 	if g.rateLimiter != nil {
 		g.rateLimiter.Stop()
 	}

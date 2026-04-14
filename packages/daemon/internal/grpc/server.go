@@ -5,7 +5,7 @@ package grpc
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"time"
 
@@ -27,11 +27,12 @@ type Server struct {
 	configSvc  riokuv1.ConfigServiceServer
 	healthSvc  riokuv1.HealthServiceServer
 	trafficSvc riokuv1.TrafficServiceServer
+	log        *slog.Logger
 }
 
 // NewServer creates a gRPC server with ConfigService, HealthService, and
 // optionally TrafficService registered.
-func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *caddy.Manager, a *auth.Auth, traceBuf *tracestore.RingBuffer, traceStore tracestore.Driver) (*Server, error) {
+func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *caddy.Manager, a *auth.Auth, traceBuf *tracestore.RingBuffer, traceStore tracestore.Driver, logger *slog.Logger) (*Server, error) {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("grpc: listen %s: %w", addr, err)
@@ -68,19 +69,20 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		configSvc:  cfgSvc,
 		healthSvc:  healthSvc,
 		trafficSvc: trafficSvc,
+		log:        logger,
 	}, nil
 }
 
 // Start begins serving gRPC requests. Blocks until Stop is called.
 func (s *Server) Start() error {
-	log.Printf("grpc: listening on %s", s.addr)
+	s.log.Info("listening", "addr", s.addr)
 	return s.grpcServer.Serve(s.listener)
 }
 
 // Stop gracefully stops the gRPC server with a 5-second deadline,
 // falling back to a hard stop if active streams don't drain in time.
 func (s *Server) Stop() {
-	log.Println("grpc: stopping...")
+	s.log.Info("stopping")
 	done := make(chan struct{})
 	go func() {
 		s.grpcServer.GracefulStop()
@@ -89,7 +91,7 @@ func (s *Server) Stop() {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		log.Println("grpc: graceful stop timed out, forcing stop")
+		s.log.Warn("graceful stop timed out, forcing stop")
 		s.grpcServer.Stop()
 	}
 }

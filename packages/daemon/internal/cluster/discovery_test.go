@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
@@ -75,7 +76,7 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 		BindAddr:     "127.0.0.1",
 		BindPort:     port,
 		VoterManager: vm,
-	})
+	}, slog.Default())
 	if err := d0.Start(); err != nil {
 		t.Fatalf("start node-0: %v", err)
 	}
@@ -97,7 +98,7 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 		BindAddr:  "127.0.0.1",
 		BindPort:  port + 1,
 		SeedAddrs: []string{fmt.Sprintf("127.0.0.1:%d", port)},
-	})
+	}, slog.Default())
 	if err := d1.Start(); err != nil {
 		t.Fatalf("start node-1: %v", err)
 	}
@@ -119,7 +120,7 @@ func TestDiscoveryThreeNodes(t *testing.T) {
 		BindAddr:  "127.0.0.1",
 		BindPort:  port + 2,
 		SeedAddrs: []string{fmt.Sprintf("127.0.0.1:%d", port)},
-	})
+	}, slog.Default())
 	if err := d2.Start(); err != nil {
 		t.Fatalf("start node-2: %v", err)
 	}
@@ -168,7 +169,7 @@ func TestDiscoveryNodeLeaveAndRemoval(t *testing.T) {
 		BindPort:           port,
 		VoterManager:       vm,
 		FailureGracePeriod: 1 * time.Second, // Short for testing
-	})
+	}, slog.Default())
 	if err := d0.Start(); err != nil {
 		t.Fatalf("start node-a: %v", err)
 	}
@@ -188,7 +189,7 @@ func TestDiscoveryNodeLeaveAndRemoval(t *testing.T) {
 		BindAddr:  "127.0.0.1",
 		BindPort:  port + 1,
 		SeedAddrs: []string{fmt.Sprintf("127.0.0.1:%d", port)},
-	})
+	}, slog.Default())
 	if err := d1.Start(); err != nil {
 		t.Fatalf("start node-b: %v", err)
 	}
@@ -244,7 +245,7 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 		BindPort:           port,
 		VoterManager:       vm,
 		FailureGracePeriod: 5 * time.Second, // Long enough that rejoin happens first
-	})
+	}, slog.Default())
 	if err := d0.Start(); err != nil {
 		t.Fatalf("start node-x: %v", err)
 	}
@@ -262,7 +263,7 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 		BindAddr:  "127.0.0.1",
 		BindPort:  port + 1,
 		SeedAddrs: []string{fmt.Sprintf("127.0.0.1:%d", port)},
-	})
+	}, slog.Default())
 	if err := d1.Start(); err != nil {
 		t.Fatalf("start node-y: %v", err)
 	}
@@ -284,7 +285,7 @@ func TestDiscoveryNodeRejoinCancelsRemoval(t *testing.T) {
 		BindAddr:  "127.0.0.1",
 		BindPort:  port + 1,
 		SeedAddrs: []string{fmt.Sprintf("127.0.0.1:%d", port)},
-	})
+	}, slog.Default())
 	if err := d1b.Start(); err != nil {
 		t.Fatalf("rejoin node-y: %v", err)
 	}
@@ -316,7 +317,7 @@ func TestDiscoveryMemberlistStats(t *testing.T) {
 		NodeMeta: NodeMeta{NodeID: "stats-node"},
 		BindAddr: "127.0.0.1",
 		BindPort: port,
-	})
+	}, slog.Default())
 	if err := d.Start(); err != nil {
 		t.Fatalf("start: %v", err)
 	}

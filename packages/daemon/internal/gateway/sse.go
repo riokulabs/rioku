@@ -3,7 +3,7 @@ package gateway
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -36,7 +36,7 @@ func handleConfigSSE(engine *config.Engine) http.HandlerFunc {
 
 		ch, err := engine.WatchChanges(r.Context(), 0)
 		if err != nil {
-			log.Printf("sse: watch changes: %v", err)
+			slog.Error("watch changes failed", "component", "gateway", "error", err)
 			return
 		}
 
@@ -50,7 +50,7 @@ func handleConfigSSE(engine *config.Engine) http.HandlerFunc {
 				}
 				data, err := marshalEvent(evt)
 				if err != nil {
-					log.Printf("sse: marshal event: %v", err)
+					slog.Warn("marshal event failed", "component", "gateway", "error", err)
 					continue
 				}
 				_, _ = fmt.Fprintf(w, "event: config_change\ndata: %s\n\n", data)
@@ -98,7 +98,7 @@ func handleTrafficSSE(buf *tracestore.RingBuffer) http.HandlerFunc {
 				}
 				data, err := json.Marshal(evt)
 				if err != nil {
-					log.Printf("sse: marshal trace: %v", err)
+					slog.Warn("marshal trace failed", "component", "gateway", "error", err)
 					continue
 				}
 				_, _ = fmt.Fprintf(w, "event: trace\ndata: %s\n\n", data)

@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
 	"path/filepath"
 	"testing"
 
@@ -94,7 +95,7 @@ func TestHealthService_GetHealth_StoreOK_CaddyNotRunning(t *testing.T) {
 	svc, _ := newTestHealthService(t)
 
 	// Replace nil manager with one that is not started (IsRunning = false).
-	mgr := caddy.NewManager(caddy.ManagerConfig{Binary: "caddy", AdminAddr: "localhost:2019"})
+	mgr := caddy.NewManager(caddy.ManagerConfig{Binary: "caddy", AdminAddr: "localhost:2019"}, slog.Default())
 	svc.caddyMgr = mgr
 
 	ctx := context.Background()
@@ -199,7 +200,7 @@ func TestHealthService_GetCaddyStatus_NotRunning(t *testing.T) {
 	svc, _ := newTestHealthService(t)
 
 	// Attach a manager that has never been started (IsRunning = false).
-	mgr := caddy.NewManager(caddy.ManagerConfig{Binary: "caddy", AdminAddr: "localhost:2019"})
+	mgr := caddy.NewManager(caddy.ManagerConfig{Binary: "caddy", AdminAddr: "localhost:2019"}, slog.Default())
 	svc.caddyMgr = mgr
 
 	ctx := context.Background()

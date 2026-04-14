@@ -5,7 +5,7 @@ package sync
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/caddy"
@@ -17,15 +17,17 @@ import (
 type Agent struct {
 	engine   *config.Engine
 	caddyMgr *caddy.Manager
+	log      *slog.Logger
 	stopCh   chan struct{}
 	done     chan struct{}
 }
 
 // NewAgent creates a new sync agent.
-func NewAgent(engine *config.Engine, caddyMgr *caddy.Manager) *Agent {
+func NewAgent(engine *config.Engine, caddyMgr *caddy.Manager, logger *slog.Logger) *Agent {
 	return &Agent{
 		engine:   engine,
 		caddyMgr: caddyMgr,
+		log:      logger,
 		stopCh:   make(chan struct{}),
 		done:     make(chan struct{}),
 	}
@@ -35,9 +37,9 @@ func NewAgent(engine *config.Engine, caddyMgr *caddy.Manager) *Agent {
 func (a *Agent) Start(ctx context.Context) {
 	// Initial sync — push current config to Caddy.
 	if err := a.syncOnce(ctx); err != nil {
-		log.Printf("sync: initial sync failed: %v", err)
+		a.log.Warn("initial sync failed", "error", err)
 	} else {
-		log.Println("sync: initial config pushed to Caddy")
+		a.log.Info("initial config pushed to Caddy")
 	}
 
 	go a.run(ctx)
@@ -54,7 +56,7 @@ func (a *Agent) run(ctx context.Context) {
 
 	ch, err := a.engine.WatchChanges(ctx, 0)
 	if err != nil {
-		log.Printf("sync: watch changes failed: %v", err)
+		a.log.Error("watch changes failed", "error", err)
 		return
 	}
 
@@ -93,9 +95,9 @@ func (a *Agent) run(ctx context.Context) {
 		case <-debounceC(debounce):
 			if pending {
 				if err := a.syncOnce(ctx); err != nil {
-					log.Printf("sync: push to Caddy failed: %v", err)
+					a.log.Warn("push to Caddy failed", "error", err)
 				} else {
-					log.Println("sync: config pushed to Caddy")
+					a.log.Info("config pushed to Caddy")
 				}
 				pending = false
 			}
