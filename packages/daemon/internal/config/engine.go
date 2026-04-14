@@ -6,6 +6,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -555,6 +556,20 @@ func applyRouteOp(ctx context.Context, tx store.Tx, op *riokuv1.RouteOp) (string
 		// Create new.
 		created, err := tx.CreateRoute(ctx, route)
 		if err != nil {
+			// Name conflict — find existing by name and update instead.
+			if strings.Contains(err.Error(), "UNIQUE constraint") || strings.Contains(err.Error(), "duplicate key") {
+				if existing := findRouteByName(ctx, tx, route.GetName()); existing != nil {
+					route.Id = existing.GetId()
+					updated, updateErr := tx.UpdateRoute(ctx, route)
+					if updateErr != nil {
+						return "", "", fmt.Errorf("config: update route: %w", updateErr)
+					}
+					if err := syncRoutePolicyIds(ctx, tx, updated.GetId(), route.GetPolicyIds()); err != nil {
+						return "", "", err
+					}
+					return updated.GetId(), "UPDATE", nil
+				}
+			}
 			return "", "", fmt.Errorf("config: create route: %w", err)
 		}
 		// Sync policy bindings.
@@ -641,6 +656,17 @@ func applyServiceOp(ctx context.Context, tx store.Tx, op *riokuv1.ServiceOp) (st
 		}
 		created, err := tx.CreateService(ctx, svc)
 		if err != nil {
+			// Name conflict — find existing by name and update instead.
+			if strings.Contains(err.Error(), "UNIQUE constraint") || strings.Contains(err.Error(), "duplicate key") {
+				if existing := findServiceByName(ctx, tx, svc.GetName()); existing != nil {
+					svc.Id = existing.GetId()
+					updated, updateErr := tx.UpdateService(ctx, svc)
+					if updateErr != nil {
+						return "", "", fmt.Errorf("config: update service: %w", updateErr)
+					}
+					return updated.GetId(), "UPDATE", nil
+				}
+			}
 			return "", "", fmt.Errorf("config: create service: %w", err)
 		}
 		return created.GetId(), "CREATE", nil
@@ -683,6 +709,16 @@ func applyPolicyOp(ctx context.Context, tx store.Tx, op *riokuv1.PolicyOp) (stri
 		}
 		created, err := tx.CreatePolicy(ctx, pol)
 		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE constraint") || strings.Contains(err.Error(), "duplicate key") {
+				if existing := findPolicyByName(ctx, tx, pol.GetName()); existing != nil {
+					pol.Id = existing.GetId()
+					updated, updateErr := tx.UpdatePolicy(ctx, pol)
+					if updateErr != nil {
+						return "", "", fmt.Errorf("config: update policy: %w", updateErr)
+					}
+					return updated.GetId(), "UPDATE", nil
+				}
+			}
 			return "", "", fmt.Errorf("config: create policy: %w", err)
 		}
 		return created.GetId(), "CREATE", nil
@@ -868,6 +904,48 @@ func deleteAll(ctx context.Context, tx store.Tx) error {
 	for _, p := range policies {
 		if err := tx.DeletePolicy(ctx, p.GetId()); err != nil {
 			return fmt.Errorf("config: delete policy %q: %w", p.GetId(), err)
+		}
+	}
+	return nil
+}
+
+// findServiceByName returns an existing service by name, or nil.
+func findServiceByName(ctx context.Context, tx store.Tx, name string) *riokuv1.Service {
+	svcs, err := tx.ListServices(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, s := range svcs {
+		if s.GetName() == name {
+			return s
+		}
+	}
+	return nil
+}
+
+// findRouteByName returns an existing route by name, or nil.
+func findRouteByName(ctx context.Context, tx store.Tx, name string) *riokuv1.Route {
+	routes, err := tx.ListRoutes(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, r := range routes {
+		if r.GetName() == name {
+			return r
+		}
+	}
+	return nil
+}
+
+// findPolicyByName returns an existing policy by name, or nil.
+func findPolicyByName(ctx context.Context, tx store.Tx, name string) *riokuv1.Policy {
+	policies, err := tx.ListPolicies(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, p := range policies {
+		if p.GetName() == name {
+			return p
 		}
 	}
 	return nil
