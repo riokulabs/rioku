@@ -509,7 +509,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", []string{"read", "write"}, &expires)
+	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", []string{"read", "write"}, &expires, "")
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}
