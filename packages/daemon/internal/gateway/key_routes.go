@@ -13,15 +13,26 @@ import (
 
 // RegisterKeyRoutes registers API key management endpoints.
 func RegisterKeyRoutes(mux *http.ServeMux, st store.Driver) {
-	mux.HandleFunc("POST /api/v1/keys", handleKeyCreate(st))
-	mux.HandleFunc("GET /api/v1/keys", handleKeyList(st))
-	mux.HandleFunc("DELETE /api/v1/keys/", handleKeyRevoke(st))
+	mux.Handle("POST /api/v1/keys",
+		RequirePermission("keys:own")(http.HandlerFunc(handleKeyCreate(st))))
+	mux.Handle("GET /api/v1/keys",
+		RequirePermission("keys:own")(http.HandlerFunc(handleKeyList(st))))
+	mux.Handle("DELETE /api/v1/keys/",
+		RequirePermission("keys:own")(http.HandlerFunc(handleKeyRevoke(st))))
 }
 
 type keyCreateRequest struct {
 	Name    string `json:"name"`
 	Scopes  string `json:"scopes"`
 	Expires string `json:"expires"`
+}
+
+type keyResponse struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Scopes    []string `json:"scopes"`
+	OwnerID   string   `json:"ownerId,omitempty"`
+	CreatedAt string   `json:"createdAt"`
 }
 
 func handleKeyCreate(st store.Driver) http.HandlerFunc {
@@ -54,6 +65,29 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 			return
 		}
 
+		// Determine creator identity and scopes.
+		ctx := r.Context()
+		var ownerID string
+		var creatorScopes []string
+		var canSkipValidation bool
+
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil {
+			ownerID = sc.UserID
+			creatorScopes = sc.Scopes
+			canSkipValidation = sc.HasPermission("keys:manage") ||
+				sc.HasPermission("admin") || sc.HasPermission("*")
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			// Bearer/API key auth — subject is "apikey:<id>", owner is system.
+			ownerID = ""
+			creatorScopes = c.Roles
+			for _, role := range c.Roles {
+				if role == "admin" || role == "keys:manage" || role == "*" {
+					canSkipValidation = true
+					break
+				}
+			}
+		}
+
 		rawKey, err := auth.GenerateBootstrapToken() // generates rku_tok_ prefixed key
 		if err != nil {
 			writeInternalError(w, r, "generate key")
@@ -63,7 +97,23 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 
 		scopes := strings.Split(req.Scopes, ",")
 		if req.Scopes == "" {
-			scopes = []string{"admin"}
+			scopes = []string{"keys:own"}
+		}
+
+		// Validate that requested scopes don't exceed creator's permissions.
+		if !canSkipValidation {
+			if err := auth.ValidateKeyScopes(scopes, creatorScopes); err != nil {
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(ProblemDetail{
+					Type:     errTypeForbidden,
+					Title:    "Scope escalation denied",
+					Status:   403,
+					Detail:   err.Error(),
+					Instance: r.URL.Path,
+				})
+				return
+			}
 		}
 
 		var expiresAt *time.Time
@@ -86,14 +136,13 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 			expiresAt = &t
 		}
 
-		ctx := r.Context()
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
 
-		id, err := tx.CreateAPIKey(ctx, req.Name, hash, scopes, expiresAt, "")
+		id, err := tx.CreateAPIKey(ctx, req.Name, hash, scopes, expiresAt, ownerID)
 		if err != nil {
 			_ = tx.Rollback()
 			writeInternalError(w, r, "create key")
@@ -116,6 +165,25 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 func handleKeyList(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
+		// Determine user identity and whether they can see all keys.
+		var userID string
+		var hasManage bool
+
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil {
+			userID = sc.UserID
+			hasManage = sc.HasPermission("keys:manage") ||
+				sc.HasPermission("admin") || sc.HasPermission("*")
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			// Bearer auth — if it passed RequirePermission, it has admin role.
+			for _, role := range c.Roles {
+				if role == "admin" || role == "keys:manage" || role == "*" {
+					hasManage = true
+					break
+				}
+			}
+		}
+
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
 			writeInternalError(w, r, "begin tx")
@@ -123,17 +191,15 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 		}
 		defer func() { _ = tx.Rollback() }()
 
-		keys, err := tx.ListAPIKeys(ctx)
+		var keys []*store.APIKey
+		if hasManage {
+			keys, err = tx.ListAPIKeys(ctx)
+		} else {
+			keys, err = tx.ListAPIKeysByOwner(ctx, userID)
+		}
 		if err != nil {
 			writeInternalError(w, r, "list keys")
 			return
-		}
-
-		type keyResponse struct {
-			ID        string   `json:"id"`
-			Name      string   `json:"name"`
-			Scopes    []string `json:"scopes"`
-			CreatedAt string   `json:"createdAt"`
 		}
 
 		var result []keyResponse
@@ -145,6 +211,7 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 				ID:        k.ID,
 				Name:      k.Name,
 				Scopes:    k.Scopes,
+				OwnerID:   k.OwnerID,
 				CreatedAt: k.CreatedAt.Format(time.RFC3339),
 			})
 		}
@@ -172,10 +239,59 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 		}
 
 		ctx := r.Context()
+
+		// Determine user identity and whether they can revoke any key.
+		var userID string
+		var hasManage bool
+
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil {
+			userID = sc.UserID
+			hasManage = sc.HasPermission("keys:manage") ||
+				sc.HasPermission("admin") || sc.HasPermission("*")
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			for _, role := range c.Roles {
+				if role == "admin" || role == "keys:manage" || role == "*" {
+					hasManage = true
+					break
+				}
+			}
+		}
+
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
 			writeInternalError(w, r, "begin tx")
 			return
+		}
+
+		// If the user doesn't have keys:manage, verify ownership first.
+		if !hasManage {
+			key, err := tx.GetAPIKey(ctx, id)
+			if err != nil {
+				_ = tx.Rollback()
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(ProblemDetail{
+					Type:     errTypeNotFound,
+					Title:    "Key not found",
+					Status:   404,
+					Detail:   fmt.Sprintf("API key %q not found or already revoked", id),
+					Instance: r.URL.Path,
+				})
+				return
+			}
+			if key.OwnerID != userID {
+				_ = tx.Rollback()
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(ProblemDetail{
+					Type:     errTypeForbidden,
+					Title:    "Forbidden",
+					Status:   403,
+					Detail:   "You can only revoke your own API keys",
+					Instance: r.URL.Path,
+				})
+				return
+			}
 		}
 
 		if err := tx.RevokeAPIKey(ctx, id); err != nil {

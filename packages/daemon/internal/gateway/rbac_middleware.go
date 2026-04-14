@@ -26,12 +26,9 @@ func RequirePermission(perm string) func(http.Handler) http.Handler {
 
 			// Check legacy claims (Bearer auth).
 			if c := auth.ClaimsFromContext(r.Context()); c != nil {
-				// Bearer tokens from bootstrap/API keys have "admin" role.
-				for _, role := range c.Roles {
-					if role == "admin" {
-						next.ServeHTTP(w, r)
-						return
-					}
+				if bearerHasPermission(c.Roles, perm) {
+					next.ServeHTTP(w, r)
+					return
 				}
 				writeForbidden(w, r, perm)
 				return
@@ -40,6 +37,23 @@ func RequirePermission(perm string) func(http.Handler) http.Handler {
 			writeAuthError(w, r, "Authentication required")
 		})
 	}
+}
+
+// bearerHasPermission checks if a bearer token's roles/scopes cover the
+// requested permission using the same wildcard logic as SessionClaims.
+func bearerHasPermission(roles []string, perm string) bool {
+	for _, r := range roles {
+		if r == perm || r == "*" || r == "admin" {
+			return true
+		}
+		if len(r) > 1 && r[len(r)-1] == '*' {
+			prefix := r[:len(r)-1]
+			if len(perm) >= len(prefix) && perm[:len(prefix)] == prefix {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func writeForbidden(w http.ResponseWriter, r *http.Request, perm string) {
