@@ -23,6 +23,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { SearchableSelect, SearchableMultiSelect } from '@rioku/ui'
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@rioku/ui'
 import { useHasPermission } from '@/hooks/use-auth'
 
 // ─── Extended mock data (matches mockup richness) ───
@@ -242,6 +244,17 @@ const scopeLabels: Record<string, string> = {
 const allResources = ['routes', 'services', 'policies', 'traffic', 'settings', 'cluster', 'plugins', 'keys', 'audit', 'users']
 const allActions = ['view', 'create', 'update', 'delete', 'manage']
 const conditionTypes = ['time', 'ip', 'mfa', 'geo', 'device', 'custom'] as const
+const conditionPlaceholders: Record<string, string> = {
+  time: 'e.g. outside 08:00-18:00 UTC weekdays',
+  ip: 'e.g. not in 10.0.0.0/8, 172.16.0.0/12',
+  mfa: 'e.g. session not MFA-verified',
+  geo: 'e.g. not in US, GB, DE, FR',
+  device: 'e.g. allowed: Chrome, Firefox',
+  custom: 'e.g. request.rate > 100',
+}
+
+// Helper: base-ui Select onValueChange passes string|null; this wraps to ignore null.
+const onSelect = (fn: (v: string) => void) => (v: string | null) => { if (v) fn(v) }
 
 // ─── Route definition ───
 
@@ -448,26 +461,35 @@ function RoleDetail({ role, roles, onUpdate, onNavigateToUser }: { role: MockRol
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <Label className="text-[11px] text-muted-foreground mb-1">Effect</Label>
-                <select value={newRule.effect} onChange={e => setNewRule({ ...newRule, effect: e.target.value as 'allow' | 'deny' })} className="h-9 w-full rounded-lg bg-background border border-border px-3 text-xs text-foreground outline-none">
-                  <option value="allow">Allow</option>
-                  <option value="deny">Deny</option>
-                </select>
+                <Select value={newRule.effect} onValueChange={onSelect((v) => setNewRule({ ...newRule, effect: v as 'allow' | 'deny' }))}>
+                  <SelectTrigger size="sm" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="allow">Allow</SelectItem>
+                    <SelectItem value="deny">Deny</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-[11px] text-muted-foreground mb-1">Resource</Label>
-                <select value={newRule.resource} onChange={e => setNewRule({ ...newRule, resource: e.target.value })} className="h-9 w-full rounded-lg bg-background border border-border px-3 text-xs text-foreground outline-none">
-                  <option value="*">All resources</option>
-                  {allResources.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                <Select value={newRule.resource} onValueChange={onSelect((v) => setNewRule({ ...newRule, resource: v }))}>
+                  <SelectTrigger size="sm" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="*">All resources</SelectItem>
+                    {allResources.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-[11px] text-muted-foreground mb-1">Scope</Label>
-                <select value={newRule.scope} onChange={e => setNewRule({ ...newRule, scope: e.target.value as 'all' | 'owned' | 'labeled' | 'specific' })} className="h-9 w-full rounded-lg bg-background border border-border px-3 text-xs text-foreground outline-none">
-                  <option value="all">All resources</option>
-                  <option value="owned">Owned only</option>
-                  <option value="labeled">By label</option>
-                  <option value="specific">Specific IDs</option>
-                </select>
+                <Select value={newRule.scope} onValueChange={onSelect((v) => setNewRule({ ...newRule, scope: v as 'all' | 'owned' | 'labeled' | 'specific' }))}>
+                  <SelectTrigger size="sm" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All resources</SelectItem>
+                    <SelectItem value="owned">Owned only</SelectItem>
+                    <SelectItem value="labeled">By label</SelectItem>
+                    <SelectItem value="specific">Specific IDs</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {(newRule.scope === 'labeled' || newRule.scope === 'specific') && (
                 <div>
@@ -515,26 +537,35 @@ function RoleDetail({ role, roles, onUpdate, onNavigateToUser }: { role: MockRol
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1">Effect</Label>
-                      <select value={editingRule.effect} onChange={e => setEditingRule({ ...editingRule, effect: e.target.value as 'allow' | 'deny' })} className="h-9 w-full rounded-lg bg-background border border-border px-3 text-xs text-foreground outline-none">
-                        <option value="allow">Allow</option>
-                        <option value="deny">Deny</option>
-                      </select>
+                      <Select value={editingRule.effect} onValueChange={onSelect((v) => setEditingRule({ ...editingRule, effect: v as 'allow' | 'deny' }))}>
+                        <SelectTrigger size="sm" className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="allow">Allow</SelectItem>
+                          <SelectItem value="deny">Deny</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1">Resource</Label>
-                      <select value={editingRule.resource} onChange={e => setEditingRule({ ...editingRule, resource: e.target.value })} className="h-9 w-full rounded-lg bg-background border border-border px-3 text-xs text-foreground outline-none">
-                        <option value="*">All resources</option>
-                        {allResources.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                      <Select value={editingRule.resource} onValueChange={onSelect((v) => setEditingRule({ ...editingRule, resource: v }))}>
+                        <SelectTrigger size="sm" className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="*">All resources</SelectItem>
+                          {allResources.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground mb-1">Scope</Label>
-                      <select value={editingRule.scope} onChange={e => setEditingRule({ ...editingRule, scope: e.target.value as 'all' | 'owned' | 'labeled' | 'specific' })} className="h-9 w-full rounded-lg bg-background border border-border px-3 text-xs text-foreground outline-none">
-                        <option value="all">All resources</option>
-                        <option value="owned">Owned only</option>
-                        <option value="labeled">By label</option>
-                        <option value="specific">Specific IDs</option>
-                      </select>
+                      <Select value={editingRule.scope} onValueChange={onSelect((v) => setEditingRule({ ...editingRule, scope: v as 'all' | 'owned' | 'labeled' | 'specific' }))}>
+                        <SelectTrigger size="sm" className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All resources</SelectItem>
+                          <SelectItem value="owned">Owned only</SelectItem>
+                          <SelectItem value="labeled">By label</SelectItem>
+                          <SelectItem value="specific">Specific IDs</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     {(editingRule.scope === 'labeled' || editingRule.scope === 'specific') && (
                       <div>
@@ -810,7 +841,7 @@ function AccessPoliciesTab({ policies: initialPols }: { policies: MockAccessPoli
   const [createDraft, setCreateDraft] = useState<MockAccessPolicy>(() => emptyPolicy())
 
   function emptyPolicy(): MockAccessPolicy {
-    return { id: `ap-${Date.now()}`, name: '', description: '', enabled: true, priority: 50, conditions: [], effect: 'deny', target: {}, permissions: [] }
+    return { id: `ap-${Date.now()}`, name: '', description: '', enabled: true, priority: 50, conditions: [{ type: 'time', value: '' }], effect: 'deny', target: {}, permissions: [{ resource: 'routes', actions: ['create'] }] }
   }
 
   const startEdit = (p: MockAccessPolicy) => {
@@ -834,9 +865,13 @@ function AccessPoliciesTab({ policies: initialPols }: { policies: MockAccessPoli
         <div className="flex gap-4">
           <div className="flex-1">
             <Label className="text-xs text-muted-foreground mb-1.5">Effect</Label>
-            <select value={draft.effect} onChange={e => update({ ...draft, effect: e.target.value as 'allow' | 'deny' })} className="h-10 w-full rounded-lg bg-background border border-border px-3.5 text-sm text-foreground outline-none">
-              <option value="deny">Deny</option><option value="allow">Allow</option>
-            </select>
+            <Select value={draft.effect} onValueChange={onSelect((v) => update({ ...draft, effect: v as 'allow' | 'deny' }))}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="deny">Deny</SelectItem>
+                <SelectItem value="allow">Allow</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-24">
             <Label className="text-xs text-muted-foreground mb-1.5">Priority</Label>
@@ -856,13 +891,19 @@ function AccessPoliciesTab({ policies: initialPols }: { policies: MockAccessPoli
           <button onClick={() => update({ ...draft, conditions: [...draft.conditions, { type: 'time', value: '' }] })} className="text-xs text-primary hover:text-primary/80 font-medium"><Plus size={12} className="inline" /> Add</button>
         </div>
         <div className="space-y-2">
+          {draft.conditions.length === 0 && (
+            <p className="text-xs text-muted-foreground italic py-2">No conditions defined. Click "Add" to add a condition.</p>
+          )}
           {draft.conditions.map((c, i) => (
             <div key={i} className="flex items-center gap-2">
-              <select value={c.type} onChange={e => { const next = [...draft.conditions]; next[i] = { ...next[i], type: e.target.value }; update({ ...draft, conditions: next }) }} className="h-9 w-28 rounded-lg bg-background border border-border px-2 text-xs text-foreground outline-none">
-                {conditionTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <Input type="text" value={c.value} onChange={e => { const next = [...draft.conditions]; next[i] = { ...next[i], value: e.target.value }; update({ ...draft, conditions: next }) }} placeholder="e.g. outside 08:00-18:00 UTC" className="h-9 flex-1 text-xs font-mono" />
-              <button onClick={() => update({ ...draft, conditions: draft.conditions.filter((_, j) => j !== i) })} className="text-muted-foreground hover:text-destructive"><X size={14} /></button>
+              <Select value={c.type} onValueChange={onSelect((v) => { const next = [...draft.conditions]; next[i] = { ...next[i], type: v }; update({ ...draft, conditions: next }) })}>
+                <SelectTrigger size="sm" className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {conditionTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input type="text" value={c.value} onChange={e => { const next = [...draft.conditions]; next[i] = { ...next[i], value: e.target.value }; update({ ...draft, conditions: next }) }} placeholder={conditionPlaceholders[c.type] ?? 'e.g. value'} className="h-7 flex-1 text-xs font-mono" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => update({ ...draft, conditions: draft.conditions.filter((_, j) => j !== i) })}><X size={14} /></Button>
             </div>
           ))}
         </div>
@@ -887,20 +928,29 @@ function AccessPoliciesTab({ policies: initialPols }: { policies: MockAccessPoli
           <button onClick={() => update({ ...draft, permissions: [...draft.permissions, { resource: 'routes', actions: ['create'] }] })} className="text-xs text-primary hover:text-primary/80 font-medium"><Plus size={12} className="inline" /> Add</button>
         </div>
         <div className="space-y-2">
+          {draft.permissions.length === 0 && (
+            <p className="text-xs text-muted-foreground italic py-2">No permissions defined. Click "Add" to specify which permissions this policy affects.</p>
+          )}
           {draft.permissions.map((perm, i) => (
             <div key={i} className="flex items-center gap-2 flex-wrap">
-              <select value={perm.resource} onChange={e => { const next = [...draft.permissions]; next[i] = { ...next[i], resource: e.target.value }; update({ ...draft, permissions: next }) }} className="h-9 w-32 rounded-lg bg-background border border-border px-2 text-xs text-foreground outline-none">
-                {[...allResources, '*'].map(r => <option key={r} value={r}>{r === '*' ? 'all resources' : r}</option>)}
-              </select>
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <Select value={perm.resource} onValueChange={onSelect((v) => { const next = [...draft.permissions]; next[i] = { ...next[i], resource: v }; update({ ...draft, permissions: next }) })}>
+                <SelectTrigger size="sm" className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[...allResources, '*'].map(r => <SelectItem key={r} value={r}>{r === '*' ? 'all resources' : r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2 flex-wrap">
                 {allActions.map(a => (
-                  <label key={a} className="inline-flex items-center gap-1 cursor-pointer">
-                    <input type="checkbox" checked={perm.actions.includes(a)} onChange={e => { const next = [...draft.permissions]; next[i] = { ...next[i], actions: e.target.checked ? [...perm.actions, a] : perm.actions.filter(x => x !== a) }; update({ ...draft, permissions: next }) }} className="w-3 h-3 rounded accent-primary" />
-                    <span className="text-[11px] text-foreground">{a}</span>
+                  <label key={a} className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <Checkbox
+                      checked={perm.actions.includes(a)}
+                      onChange={(checked: boolean) => { const next = [...draft.permissions]; next[i] = { ...next[i], actions: checked ? [...perm.actions, a] : perm.actions.filter(x => x !== a) }; update({ ...draft, permissions: next }) }}
+                    />
+                    <span className="text-xs text-foreground">{a}</span>
                   </label>
                 ))}
               </div>
-              <button onClick={() => update({ ...draft, permissions: draft.permissions.filter((_, j) => j !== i) })} className="text-muted-foreground hover:text-destructive ml-auto"><X size={14} /></button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive ml-auto" onClick={() => update({ ...draft, permissions: draft.permissions.filter((_, j) => j !== i) })}><X size={14} /></Button>
             </div>
           ))}
         </div>
