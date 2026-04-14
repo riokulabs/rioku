@@ -60,14 +60,14 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	switch cfg.Format {
 	case "auto", "":
 		if isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd()) {
-			handler = slog.NewTextHandler(w, opts)
+			handler = newConsoleHandler(w, opts)
 		} else {
 			handler = slog.NewJSONHandler(w, opts)
 		}
 	case "json":
 		handler = slog.NewJSONHandler(w, opts)
 	case "text":
-		handler = slog.NewTextHandler(w, opts)
+		handler = newConsoleHandler(w, opts)
 	default:
 		return nil, fmt.Errorf("invalid log format: %q", cfg.Format)
 	}
