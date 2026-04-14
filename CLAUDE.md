@@ -93,6 +93,39 @@ make dev              # Build + run daemon in dev mode
 
 **If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
 
+## Issue Tracking
+
+**Always reference GitHub issue numbers in plans, specs, and commit messages.** When writing implementation plans or specs, include the issue number(s) being addressed (e.g., `#68`, `#79`). This ensures work can be traced back to issues and issues can be closed promptly when the work lands — not discovered as stale months later. When completing work:
+
+1. Close the completed issue with a comment referencing the relevant commits.
+2. Check parent/tracking issues (e.g., `#87`, `#88`–`#96`) — if the completed issue appears in a tracking checklist, check it off by editing the tracking issue body.
+3. If all items in a tracking issue are checked off, close the tracking issue too.
+
+## Spec Review Checklist
+
+**Every spec must pass these checks before implementation begins.** These are not optional — they catch real bugs that surface during implementation or in production.
+
+### 1. Trace every interface change to all callers
+If you change a function signature, struct, or interface: `grep` for every call site. List them all in the spec with the planned change for each. "All implementations updated" is not sufficient — enumerate them.
+
+### 2. Follow data through its full lifecycle
+For every new field or value: trace it from creation → storage → retrieval → use → deletion. Ask: what happens when this value is used for authorization? What happens when the entity that owns it is deleted? What happens during data migration from an older schema?
+
+### 3. Check dependencies before proposing them
+Run `grep` on `go.mod` (or `package.json`) before proposing a new dependency. If an equivalent is already in the dependency tree, use it. If you must add a new one, say so explicitly.
+
+### 4. Think about failure modes for every I/O operation
+For file writes, network calls, multi-writer patterns: what happens when it fails? Does the failure propagate and break something unrelated? Design for partial failure — especially for "best effort" operations like logging.
+
+### 5. Validate security boundaries end-to-end
+If adding permissions: can the user bypass them via another path? If accepting user input: where does that input end up? Trace it to every consumer. Check for privilege escalation — can a lower-privilege user craft input that grants higher privileges elsewhere?
+
+### 6. Check for behavioral changes in bridged/compatibility code
+If bridging old APIs to new ones (e.g., `slog.SetDefault` bridging `log.Printf`): verify the exact semantics. What level do bridged calls get? What fields are lost? Does partial migration create an inconsistent state?
+
+### 7. Verify sandbox and seed data compatibility
+Will the change break the sandbox? Do seeded users/roles have the permissions needed for the new behavior? Will existing smoke tests pass?
+
 ## Superpowers
 
 - **Plans**: Save to `tmp/plans/YYYY-MM-DD-<feature-name>.md` (git-ignored)
