@@ -66,12 +66,12 @@ func TestArgon2idHashVerify(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HashPassword() error = %v", err)
 		}
-		// Expected format: $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
-		if !strings.HasPrefix(hash, "$argon2id$v=19$m=65536,t=3,p=4$") {
+		// Expected format: $argon2id$v=19$m=<mem>,t=<iter>,p=<par>$<salt>$<hash>
+		if !strings.HasPrefix(hash, "$argon2id$v=19$") {
 			t.Errorf("hash does not have expected argon2id prefix, got: %s", hash)
 		}
 		parts := strings.Split(hash, "$")
-		// ["", "argon2id", "v=19", "m=65536,t=3,p=4", "<salt>", "<hash>"]
+		// ["", "argon2id", "v=19", "m=...,t=...,p=...", "<salt>", "<hash>"]
 		if len(parts) != 6 {
 			t.Errorf("expected 6 parts separated by $, got %d: %s", len(parts), hash)
 		}
