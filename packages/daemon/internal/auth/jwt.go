@@ -360,7 +360,7 @@ func (a *Auth) storeRefreshToken(ctx context.Context, token, subject string, rol
 	hash := HashToken(token)
 	scopes := append([]string{"refresh", "subject:" + subject}, roles...)
 
-	_, err = tx.CreateAPIKey(ctx, "refresh:"+subject, hash, scopes, &expiresAt)
+	_, err = tx.CreateAPIKey(ctx, "refresh:"+subject, hash, scopes, &expiresAt, "")
 	if err != nil {
 		_ = tx.Rollback()
 		return err

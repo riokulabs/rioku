@@ -1466,7 +1466,7 @@ func TestTransferData_Full(t *testing.T) {
 	}
 
 	// Create an API key.
-	_, err = srcTx.CreateAPIKey(ctx, "test-key", "hashvalue", []string{"admin"}, nil)
+	_, err = srcTx.CreateAPIKey(ctx, "test-key", "hashvalue", []string{"admin"}, nil, "")
 	if err != nil {
 		t.Fatalf("create API key: %v", err)
 	}

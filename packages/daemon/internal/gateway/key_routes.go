@@ -93,7 +93,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 			return
 		}
 
-		id, err := tx.CreateAPIKey(ctx, req.Name, hash, scopes, expiresAt)
+		id, err := tx.CreateAPIKey(ctx, req.Name, hash, scopes, expiresAt, "")
 		if err != nil {
 			_ = tx.Rollback()
 			writeInternalError(w, r, "create key")

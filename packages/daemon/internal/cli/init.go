@@ -219,7 +219,7 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 		return fmt.Errorf("begin tx for bootstrap token: %w", err)
 	}
 	hash := auth.HashToken(token)
-	if _, err := tx.CreateAPIKey(ctx, "bootstrap", hash, []string{"admin"}, nil); err != nil {
+	if _, err := tx.CreateAPIKey(ctx, "bootstrap", hash, []string{"admin"}, nil, ""); err != nil {
 		_ = tx.Rollback()
 		_ = drv.Close()
 		return fmt.Errorf("store bootstrap token: %w", err)
