@@ -127,6 +127,67 @@ func TestSetupFileCreatesDirectory(t *testing.T) {
 	}
 }
 
+func TestSetupJSONOutputFields(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "fields.log")
+	cfg := config.LoggingConfig{
+		Level:  "info",
+		Format: "json",
+		Output: "file",
+		File:   config.LogFileConfig{Path: logPath},
+	}
+	_, err := Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger := slog.Default().With("component", "test")
+	logger.Info("hello world", "key", "value")
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entry map[string]interface{}
+	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	for _, field := range []string{"time", "level", "msg", "component", "key"} {
+		if _, ok := entry[field]; !ok {
+			t.Errorf("missing expected field %q in JSON output", field)
+		}
+	}
+	if entry["msg"] != "hello world" {
+		t.Errorf("msg = %v, want %q", entry["msg"], "hello world")
+	}
+	if entry["component"] != "test" {
+		t.Errorf("component = %v, want %q", entry["component"], "test")
+	}
+}
+
+func BenchmarkSlogStructured(b *testing.B) {
+	dir := b.TempDir()
+	logPath := filepath.Join(dir, "bench.log")
+	cfg := config.LoggingConfig{
+		Level:  "info",
+		Format: "json",
+		Output: "file",
+		File:   config.LogFileConfig{Path: logPath},
+	}
+	if _, err := Setup(cfg); err != nil {
+		b.Fatal(err)
+	}
+	logger := slog.Default().With("component", "gateway")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		logger.Error("request failed",
+			"path", "/api/v1/config",
+			"error", "connection refused",
+			"request_id", "req_abc123",
+			"method", "GET",
+			"remote_addr", "192.168.1.1:54321")
+	}
+}
+
 func TestSetupRuntimeLevelChange(t *testing.T) {
 	cfg := config.LoggingConfig{
 		Level:  "error",
