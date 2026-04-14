@@ -37,7 +37,21 @@ type Config struct {
 	Auth            AuthConfig      `yaml:"auth"`
 	SecurityHeaders SecurityHeaders `yaml:"security_headers"`
 	DataDir         string          `yaml:"data_dir"`
-	LogLevel        string          `yaml:"log_level"`
+	LogLevel        string          `yaml:"log_level"` // kept for backwards compat
+	Logging         LoggingConfig   `yaml:"logging"`
+}
+
+// LoggingConfig controls daemon log output.
+type LoggingConfig struct {
+	Level  string        `yaml:"level"`
+	Format string        `yaml:"format"`
+	Output string        `yaml:"output"`
+	File   LogFileConfig `yaml:"file"`
+}
+
+// LogFileConfig controls file-based log output.
+type LogFileConfig struct {
+	Path string `yaml:"path"`
 }
 
 // --------------------------------------------------------------------------
@@ -528,6 +542,33 @@ func applyDefaults(cfg *Config) {
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "info"
 	}
+	// Logging: resolve log_level vs logging.level
+	if cfg.Logging.Level == "" {
+		if cfg.LogLevel != "" {
+			cfg.Logging.Level = cfg.LogLevel
+		} else {
+			cfg.Logging.Level = "info"
+		}
+	}
+	if cfg.Logging.Format == "" {
+		cfg.Logging.Format = "auto"
+	}
+	if cfg.Logging.Output == "" {
+		cfg.Logging.Output = "stderr"
+	}
+	if cfg.Logging.File.Path == "" {
+		cfg.Logging.File.Path = "/var/log/rioku/daemon.log"
+	}
+	// Apply env var overrides after file defaults but before validation.
+	if v := os.Getenv("RIOKU_LOG_LEVEL"); v != "" {
+		cfg.Logging.Level = v
+	}
+	if v := os.Getenv("RIOKU_LOG_FORMAT"); v != "" {
+		cfg.Logging.Format = v
+	}
+	if v := os.Getenv("RIOKU_LOG_OUTPUT"); v != "" {
+		cfg.Logging.Output = v
+	}
 	if cfg.Store.Driver == "" {
 		cfg.Store.Driver = "raft"
 	}
@@ -650,9 +691,31 @@ func validate(cfg *Config) error {
 		}
 	}
 
-	// log_level
+	// log_level (backwards compat check)
 	if cfg.LogLevel != "" && !validLogLevels[cfg.LogLevel] {
 		errs = append(errs, fmt.Errorf("log_level %q is not valid; must be one of: debug, info, warn, error", cfg.LogLevel))
+	}
+	// logging block validation
+	switch cfg.Logging.Level {
+	case "debug", "info", "warn", "error":
+		// valid
+	default:
+		errs = append(errs, fmt.Errorf("logging.level: must be debug, info, warn, or error (got %q)", cfg.Logging.Level))
+	}
+	switch cfg.Logging.Format {
+	case "auto", "json", "text":
+		// valid
+	default:
+		errs = append(errs, fmt.Errorf("logging.format: must be auto, json, or text (got %q)", cfg.Logging.Format))
+	}
+	switch cfg.Logging.Output {
+	case "stderr", "file", "both":
+		// valid
+	default:
+		errs = append(errs, fmt.Errorf("logging.output: must be stderr, file, or both (got %q)", cfg.Logging.Output))
+	}
+	if (cfg.Logging.Output == "file" || cfg.Logging.Output == "both") && cfg.Logging.File.Path == "" {
+		errs = append(errs, fmt.Errorf("logging.file.path: required when output is %q", cfg.Logging.Output))
 	}
 
 	// traces.store
