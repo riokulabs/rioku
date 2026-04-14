@@ -3,6 +3,7 @@ package caddy
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,7 +26,7 @@ func TestNewManager(t *testing.T) {
 		Binary:    "/usr/bin/caddy",
 		AdminAddr: "127.0.0.1:2019",
 		DataDir:   t.TempDir(),
-	})
+	}, slog.Default())
 	if m == nil {
 		t.Fatal("NewManager returned nil")
 	}
@@ -35,7 +36,7 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestIsRunning_AfterSetTrue(t *testing.T) {
-	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:2019", DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:2019", DataDir: t.TempDir()}, slog.Default())
 	if m.IsRunning() {
 		t.Fatal("expected false before setting running")
 	}
@@ -68,7 +69,7 @@ func TestPushConfig_Success(t *testing.T) {
 	httpClient = srv.Client()
 	defer restoreHTTPClient(orig)()
 
-	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()}, slog.Default())
 	configJSON := []byte(`{"apps":{"http":{"servers":{}}}}`)
 
 	if err := m.PushConfig(context.Background(), configJSON); err != nil {
@@ -77,7 +78,7 @@ func TestPushConfig_Success(t *testing.T) {
 }
 
 func TestPushConfig_NoAppsSection(t *testing.T) {
-	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:2019", DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:2019", DataDir: t.TempDir()}, slog.Default())
 	configJSON := []byte(`{"logging":{}}`)
 
 	err := m.PushConfig(context.Background(), configJSON)
@@ -87,7 +88,7 @@ func TestPushConfig_NoAppsSection(t *testing.T) {
 }
 
 func TestPushConfig_InvalidJSON(t *testing.T) {
-	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:2019", DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:2019", DataDir: t.TempDir()}, slog.Default())
 	configJSON := []byte(`not valid json`)
 
 	err := m.PushConfig(context.Background(), configJSON)
@@ -106,7 +107,7 @@ func TestPushConfig_ServerError(t *testing.T) {
 	httpClient = srv.Client()
 	defer restoreHTTPClient(orig)()
 
-	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()}, slog.Default())
 	configJSON := []byte(`{"apps":{"http":{}}}`)
 
 	err := m.PushConfig(context.Background(), configJSON)
@@ -117,7 +118,7 @@ func TestPushConfig_ServerError(t *testing.T) {
 
 func TestPushConfig_ConnectionRefused(t *testing.T) {
 	// Use a port that nothing is listening on.
-	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:19999", DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:19999", DataDir: t.TempDir()}, slog.Default())
 
 	orig := httpClient
 	httpClient = &http.Client{Timeout: 500 * time.Millisecond}
@@ -150,7 +151,7 @@ func TestHealth_Success(t *testing.T) {
 	httpClient = srv.Client()
 	defer restoreHTTPClient(orig)()
 
-	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()}, slog.Default())
 	if err := m.Health(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -161,7 +162,7 @@ func TestHealth_ServerDown(t *testing.T) {
 	httpClient = &http.Client{Timeout: 500 * time.Millisecond}
 	defer restoreHTTPClient(orig)()
 
-	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:19998", DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:19998", DataDir: t.TempDir()}, slog.Default())
 	if err := m.Health(context.Background()); err == nil {
 		t.Fatal("expected error when server is down, got nil")
 	}
@@ -181,7 +182,7 @@ func TestWaitReady_ImmediateSuccess(t *testing.T) {
 	httpClient = srv.Client()
 	defer restoreHTTPClient(orig)()
 
-	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: srv.Listener.Addr().String(), DataDir: t.TempDir()}, slog.Default())
 	if err := m.waitReady(2 * time.Second); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,7 +193,7 @@ func TestWaitReady_Timeout(t *testing.T) {
 	httpClient = &http.Client{Timeout: 100 * time.Millisecond}
 	defer restoreHTTPClient(orig)()
 
-	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:19997", DataDir: t.TempDir()})
+	m := NewManager(ManagerConfig{AdminAddr: "127.0.0.1:19997", DataDir: t.TempDir()}, slog.Default())
 	err := m.waitReady(300 * time.Millisecond)
 	if err == nil {
 		t.Fatal("expected timeout error, got nil")

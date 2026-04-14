@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 6 {
-		t.Fatalf("expected version 6, got %d", v)
+	if v != 7 {
+		t.Fatalf("expected version 7, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -509,7 +509,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", []string{"read", "write"}, &expires)
+	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", []string{"read", "write"}, &expires, "")
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}

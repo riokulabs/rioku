@@ -3,7 +3,10 @@ package gateway
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -233,6 +236,12 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 
 		created, err := tx.CreateUser(ctx, user)
 		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE constraint") || strings.Contains(err.Error(), "duplicate key") {
+				writeProblem(w, http.StatusConflict, errTypeConflict, "User already exists",
+					fmt.Sprintf("Username %q is already taken", req.Username), r.URL.Path, nil)
+				return
+			}
+			slog.Error("create user failed", "component", "gateway", "error", err, "username", req.Username)
 			writeInternalError(w, r, "create user")
 			return
 		}

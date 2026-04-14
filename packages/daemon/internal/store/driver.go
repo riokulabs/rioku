@@ -170,11 +170,12 @@ type Tx interface {
 	// --- API Keys ---
 
 	// CreateAPIKey stores a new API key and returns its generated ID.
-	CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time) (string, error)
+	CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
 	GetAPIKey(ctx context.Context, id string) (*APIKey, error)
 	// GetAPIKeyByHash looks up a key by its hash (used during authentication).
 	GetAPIKeyByHash(ctx context.Context, keyHash string) (*APIKey, error)
 	ListAPIKeys(ctx context.Context) ([]*APIKey, error)
+	ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*APIKey, error)
 	RevokeAPIKey(ctx context.Context, id string) error
 
 	// --- Config Versions ---
@@ -279,6 +280,7 @@ type APIKey struct {
 	Name      string
 	KeyHash   string
 	Scopes    []string
+	OwnerID   string // user ID of creator, empty for system keys
 	ExpiresAt *time.Time
 	CreatedAt time.Time
 	RevokedAt *time.Time

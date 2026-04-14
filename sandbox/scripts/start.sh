@@ -35,7 +35,7 @@ COOKIE_JAR="${DATA_DIR}/root-cookies.txt"
 # Detect screen availability
 # --------------------------------------------------------------------------
 USE_SCREEN=false
-if command -v screen >/dev/null 2>&1 && screen -dmS rioku-test-screen true 2>/dev/null && screen -ls 2>/dev/null | grep -q rioku-test-screen; then
+if command -v screen >/dev/null 2>&1 && screen -dmS rioku-test-screen sleep 5 2>/dev/null && sleep 0.2 && screen -ls 2>/dev/null | grep -q rioku-test-screen; then
   screen -S rioku-test-screen -X quit 2>/dev/null || true
   USE_SCREEN=true
 elif command -v screen >/dev/null 2>&1; then
@@ -149,7 +149,7 @@ start_process() {
   if [[ "${USE_SCREEN}" == "true" ]]; then
     # Kill existing session if running (idempotent restart).
     screen -S "${session}" -X quit 2>/dev/null || true
-    screen -dmS "${session}" -L -Logfile "${log_file}" "$@"
+    screen -dmS "${session}" -h 10000 -L -Logfile "${log_file}" "$@"
     # screen -dm does not give us a PID to track; record 0 as sentinel.
     save_pid 0 "${session}"
   else

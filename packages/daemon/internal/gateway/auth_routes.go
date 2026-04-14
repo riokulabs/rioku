@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
@@ -16,15 +17,21 @@ import (
 // dummyPasswordHash is a pre-computed argon2id hash used to normalise the
 // timing of login attempts for non-existent usernames. Without this, an
 // attacker could distinguish "user not found" from "wrong password" by
-// measuring response latency.
-var dummyPasswordHash string
+// measuring response latency. Computed lazily so test params take effect.
+var (
+	dummyPasswordHash string
+	dummyHashOnce     sync.Once
+)
 
-func init() {
-	h, err := auth.HashPassword("timing-normalization-dummy")
-	if err != nil {
-		panic("auth: failed to compute dummy hash: " + err.Error())
-	}
-	dummyPasswordHash = h
+func getDummyPasswordHash() string {
+	dummyHashOnce.Do(func() {
+		h, err := auth.HashPassword("timing-normalization-dummy")
+		if err != nil {
+			panic("auth: failed to compute dummy hash: " + err.Error())
+		}
+		dummyPasswordHash = h
+	})
+	return dummyPasswordHash
 }
 
 // RegisterAuthRoutes registers the token exchange and session-based auth
@@ -247,7 +254,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			// Hash the supplied password against the dummy hash so that the
 			// response time is indistinguishable from a real password check.
 			// This closes the timing side-channel for username enumeration.
-			_, _ = auth.VerifyPassword(req.Password, dummyPasswordHash)
+			_, _ = auth.VerifyPassword(req.Password, getDummyPasswordHash())
 
 			// Generic 401 to avoid username enumeration.
 			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",

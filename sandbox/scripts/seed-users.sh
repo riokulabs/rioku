@@ -199,7 +199,8 @@ for user in config["users"]:
         print(f"  {username}: already exists (skipped)")
         # Try to get ID for state file.
         _, list_resp = api("GET", "/api/v1/users")
-        for u in list_resp.get("users", []):
+        users_list = list_resp if isinstance(list_resp, list) else list_resp.get("users", [])
+        for u in users_list:
             if u.get("username") == username:
                 user_ids[username] = u.get("id", "")
                 break

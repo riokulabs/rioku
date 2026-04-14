@@ -3,7 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -85,14 +85,25 @@ func ErrorHandler(ctx context.Context, mux *runtime.ServeMux, _ runtime.Marshale
 
 	// For 5xx: sanitize — never expose internal details to the client.
 	if mapping.status >= 500 {
-		log.Printf("ERROR %s  error=%q  request_id=%s  method=%s  remote_addr=%s",
-			r.URL.Path, st.Message(), requestID, r.Method, r.RemoteAddr)
+		slog.Error("request failed",
+			"component", "gateway",
+			"path", r.URL.Path,
+			"error", st.Message(),
+			"request_id", requestID,
+			"method", r.Method,
+			"remote_addr", r.RemoteAddr)
 		problem.Detail = "An unexpected error occurred. Reference: " + requestID
 	} else {
 		// 4xx: include the full error detail.
 		problem.Detail = st.Message()
-		log.Printf("WARN %s  status=%d  error=%q  request_id=%s  method=%s  remote_addr=%s",
-			r.URL.Path, mapping.status, st.Message(), requestID, r.Method, r.RemoteAddr)
+		slog.Warn("client error",
+			"component", "gateway",
+			"path", r.URL.Path,
+			"status", mapping.status,
+			"error", st.Message(),
+			"request_id", requestID,
+			"method", r.Method,
+			"remote_addr", r.RemoteAddr)
 	}
 
 	// Add required response headers per RFC.

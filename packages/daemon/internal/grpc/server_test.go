@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
 	"path/filepath"
 	"testing"
 
@@ -77,7 +78,7 @@ func TestNewServer(t *testing.T) {
 	deps := newServerDeps(t)
 	ring := tracestore.NewRingBuffer(256)
 
-	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, deps.auth, ring, deps.traceStore)
+	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, deps.auth, ring, deps.traceStore, slog.Default())
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestNewServer_NoAuth(t *testing.T) {
 	deps := newServerDeps(t)
 
 	// auth=nil is valid — interceptors should be omitted.
-	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, nil, nil, nil)
+	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, nil, nil, nil, slog.Default())
 	if err != nil {
 		t.Fatalf("NewServer (no auth): %v", err)
 	}
@@ -105,7 +106,7 @@ func TestNewServer_NoTraceStore(t *testing.T) {
 	deps := newServerDeps(t)
 
 	// traceBuf and traceStore both nil — TrafficService should not be registered.
-	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, deps.auth, nil, nil)
+	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, deps.auth, nil, nil, slog.Default())
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -124,7 +125,7 @@ func TestNewServer_ServiceGetters(t *testing.T) {
 	deps := newServerDeps(t)
 	ring := tracestore.NewRingBuffer(256)
 
-	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, deps.auth, ring, deps.traceStore)
+	srv, err := NewServer("localhost:0", deps.engine, deps.store, nil, deps.auth, ring, deps.traceStore, slog.Default())
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestNewServer_InvalidAddr(t *testing.T) {
 	deps := newServerDeps(t)
 
 	// An invalid address should cause net.Listen to fail.
-	_, err := NewServer("invalid-addr-%%%", deps.engine, deps.store, nil, deps.auth, nil, nil)
+	_, err := NewServer("invalid-addr-%%%", deps.engine, deps.store, nil, deps.auth, nil, nil, slog.Default())
 	if err == nil {
 		t.Fatal("expected error for invalid address, got nil")
 	}

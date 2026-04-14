@@ -2,6 +2,7 @@ package sync_test
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -67,7 +68,7 @@ func newFakeCaddy(t *testing.T) (*httptest.Server, *atomic.Int64) {
 
 // newCaddyManager creates a caddy.Manager pointing at the given address.
 func newCaddyManager(addr string) *caddy.Manager {
-	return caddy.NewManager(caddy.ManagerConfig{AdminAddr: addr})
+	return caddy.NewManager(caddy.ManagerConfig{AdminAddr: addr}, slog.Default())
 }
 
 // applyServiceChange applies a service upsert to trigger a store change
@@ -103,7 +104,7 @@ func applyServiceChange(t *testing.T, eng *config.Engine, name string) {
 func TestAgent_StartStop(t *testing.T) {
 	eng, _ := newTestEngine(t)
 	mgr := newCaddyManager("127.0.0.1:0")
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -135,7 +136,7 @@ func TestAgent_SyncOnce_CaddyNotRunning(t *testing.T) {
 	_, pushCount := newFakeCaddy(t)
 	mgr := newCaddyManager("127.0.0.1:0") // not started -> IsRunning() == false
 
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -156,7 +157,7 @@ func TestAgent_SyncOnce_CaddyNotRunning(t *testing.T) {
 func TestAgent_SyncOnce_NilManager(t *testing.T) {
 	eng, _ := newTestEngine(t)
 
-	agent := agentsync.NewAgent(eng, nil)
+	agent := agentsync.NewAgent(eng, nil, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -174,7 +175,7 @@ func TestAgent_SyncOnce_NilManager(t *testing.T) {
 func TestAgent_ConfigChangeTriggersSync(t *testing.T) {
 	eng, _ := newTestEngine(t)
 	mgr := newCaddyManager("127.0.0.1:0")
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -199,7 +200,7 @@ func TestAgent_ConfigChangeTriggersSync(t *testing.T) {
 func TestAgent_ContextCancellation(t *testing.T) {
 	eng, _ := newTestEngine(t)
 	mgr := newCaddyManager("127.0.0.1:0")
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	agent.Start(ctx)
@@ -233,7 +234,7 @@ func TestAgent_ContextCancellation(t *testing.T) {
 func TestAgent_Debounce(t *testing.T) {
 	eng, _ := newTestEngine(t)
 	mgr := newCaddyManager("127.0.0.1:0")
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -267,7 +268,7 @@ func TestAgent_MultipleStartStop(t *testing.T) {
 	mgr := newCaddyManager("127.0.0.1:0")
 
 	for i := 0; i < 3; i++ {
-		agent := agentsync.NewAgent(eng, mgr)
+		agent := agentsync.NewAgent(eng, mgr, slog.Default())
 		ctx, cancel := context.WithCancel(context.Background())
 		agent.Start(ctx)
 		time.Sleep(20 * time.Millisecond)
@@ -285,7 +286,7 @@ func TestAgent_MultipleStartStop(t *testing.T) {
 func TestAgent_StopIdempotent(t *testing.T) {
 	eng, _ := newTestEngine(t)
 	mgr := newCaddyManager("127.0.0.1:0")
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -313,7 +314,7 @@ func TestAgent_StopIdempotent(t *testing.T) {
 func TestAgent_ChangeAfterStop(t *testing.T) {
 	eng, _ := newTestEngine(t)
 	mgr := newCaddyManager("127.0.0.1:0")
-	agent := agentsync.NewAgent(eng, mgr)
+	agent := agentsync.NewAgent(eng, mgr, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

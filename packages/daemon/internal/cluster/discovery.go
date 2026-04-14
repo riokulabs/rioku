@@ -6,7 +6,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -56,6 +56,7 @@ type Discovery struct {
 	mu     sync.RWMutex
 	ml     *memberlist.Memberlist
 	config DiscoveryConfig
+	log    *slog.Logger
 
 	// nodes tracks discovered nodes by their NodeID.
 	nodes map[string]NodeMeta
@@ -71,7 +72,7 @@ type Discovery struct {
 }
 
 // New creates a new Discovery instance but does not start it.
-func New(cfg DiscoveryConfig) *Discovery {
+func New(cfg DiscoveryConfig, logger *slog.Logger) *Discovery {
 	if cfg.FailureGracePeriod == 0 {
 		cfg.FailureGracePeriod = 10 * time.Second
 	}
@@ -81,6 +82,7 @@ func New(cfg DiscoveryConfig) *Discovery {
 		nodes:      make(map[string]NodeMeta),
 		failTimers: make(map[string]*time.Timer),
 		stopCh:     make(chan struct{}),
+		log:        logger,
 	}
 	d.delegate = &delegate{discovery: d}
 	return d
@@ -104,7 +106,7 @@ func (d *Discovery) Start() error {
 	}
 	mlConfig.Delegate = d.delegate
 	mlConfig.Events = d.delegate
-	mlConfig.LogOutput = log.Default().Writer()
+	mlConfig.LogOutput = slog.NewLogLogger(d.log.Handler(), slog.LevelDebug).Writer()
 
 	ml, err := memberlist.Create(mlConfig)
 	if err != nil {
@@ -124,7 +126,7 @@ func (d *Discovery) Start() error {
 			_ = ml.Shutdown()
 			return fmt.Errorf("discovery: join cluster: %w", err)
 		}
-		log.Printf("discovery: joined %d existing nodes", n)
+		d.log.Info("joined existing nodes", "count", n)
 	}
 
 	return nil
@@ -189,7 +191,7 @@ func (d *Discovery) handleNodeJoin(meta NodeMeta) {
 	if t, ok := d.failTimers[meta.NodeID]; ok {
 		t.Stop()
 		delete(d.failTimers, meta.NodeID)
-		log.Printf("discovery: node %s rejoined, canceling removal timer", meta.NodeID)
+		d.log.Info("node rejoined, canceling removal timer", "node_id", meta.NodeID)
 	}
 
 	d.nodes[meta.NodeID] = meta
@@ -199,9 +201,9 @@ func (d *Discovery) handleNodeJoin(meta NodeMeta) {
 		if meta.NodeID != d.config.NodeMeta.NodeID {
 			go func() {
 				if err := d.config.VoterManager.AddVoter(meta.NodeID, meta.RaftAddr); err != nil {
-					log.Printf("discovery: failed to add voter %s: %v", meta.NodeID, err)
+					d.log.Error("failed to add voter", "node_id", meta.NodeID, "error", err)
 				} else {
-					log.Printf("discovery: added voter %s at %s", meta.NodeID, meta.RaftAddr)
+					d.log.Info("added voter", "node_id", meta.NodeID, "raft_addr", meta.RaftAddr)
 				}
 			}()
 		}
@@ -230,13 +232,13 @@ func (d *Discovery) handleNodeLeave(nodeID string) {
 
 				if d.config.VoterManager != nil && d.config.VoterManager.IsLeader() {
 					if err := d.config.VoterManager.RemoveServer(nodeID); err != nil {
-						log.Printf("discovery: failed to remove server %s: %v", nodeID, err)
+						d.log.Error("failed to remove server", "node_id", nodeID, "error", err)
 					} else {
-						log.Printf("discovery: removed server %s after grace period", nodeID)
+						d.log.Info("removed server after grace period", "node_id", nodeID)
 					}
 				}
 			})
-			log.Printf("discovery: node %s failed, will remove in %v", nodeID, d.config.FailureGracePeriod)
+			d.log.Warn("node failed, will remove after grace period", "node_id", nodeID, "grace_period", d.config.FailureGracePeriod)
 		}
 	}
 }

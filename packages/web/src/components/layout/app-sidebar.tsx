@@ -16,7 +16,6 @@ import {
   LogOut as LogOutIcon,
   Users as UsersIcon,
   KeyRound,
-  ShieldAlert,
   ScrollText,
   ChevronsUpDown,
 } from 'lucide-react'
@@ -92,7 +91,6 @@ const navSections: NavSection[] = [
     items: [
       { label: 'nav.usersAndRoles', path: '/security/users', icon: UsersIcon, permission: 'users:read' },
       { label: 'nav.apiKeys', path: '/security/api-keys', icon: KeyRound },
-      { label: 'nav.accessPolicies', path: '/security/access-policies', icon: ShieldAlert },
       { label: 'nav.auditLog', path: '/security/audit-log', icon: ScrollText },
     ],
   },

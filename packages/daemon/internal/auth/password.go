@@ -14,14 +14,23 @@ import (
 	"github.com/riokulabs/rioku/internal/config"
 )
 
-// Argon2id parameters.
-const (
-	argonMemory      = 64 * 1024 // 64 MB
-	argonIterations  = 3
-	argonParallelism = 4
-	argonSaltLen     = 16
-	argonKeyLen      = 32
+// Argon2id parameters. These are vars (not consts) so tests can reduce
+// them via SetTestHashParams for fast test execution.
+var (
+	argonMemory      uint32 = 64 * 1024 // 64 MB
+	argonIterations  uint32 = 3
+	argonParallelism uint8  = 4
+	argonSaltLen     uint32 = 16
+	argonKeyLen      uint32 = 32
 )
+
+// SetTestHashParams reduces argon2id parameters for fast test execution.
+// Call this in TestMain before running tests. Never call in production.
+func SetTestHashParams() {
+	argonMemory = 1024   // 1 MB (vs 64 MB)
+	argonIterations = 1  // 1 iteration (vs 3)
+	argonParallelism = 1 // 1 thread (vs 4)
+}
 
 // HashPassword hashes a plaintext password using argon2id and returns an
 // encoded string in the PHC format:

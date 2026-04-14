@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"testing"
@@ -60,6 +61,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 		nil, // spaFS
 		nil, // traceBuf
 		nil, // traceStore
+		slog.Default(),
 	)
 	if err != nil {
 		t.Fatalf("NewGateway: %v", err)
@@ -120,6 +122,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 		nil,
 		traceBuf,
 		nil, // traceStore
+		slog.Default(),
 	)
 	if err != nil {
 		t.Fatalf("NewGateway with TrafficService: %v", err)

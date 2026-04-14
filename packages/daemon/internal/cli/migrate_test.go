@@ -153,7 +153,7 @@ func TestTransferData_WithPoliciesUsersAPIKeys(t *testing.T) {
 	}
 
 	// API key.
-	_, err = srcTx.CreateAPIKey(ctx, "test-key", "hash-abc123", []string{"read"}, nil)
+	_, err = srcTx.CreateAPIKey(ctx, "test-key", "hash-abc123", []string{"read"}, nil, "")
 	if err != nil {
 		t.Fatalf("create api key: %v", err)
 	}

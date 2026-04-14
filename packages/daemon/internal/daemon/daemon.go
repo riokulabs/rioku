@@ -7,7 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -17,6 +17,7 @@ import (
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway"
 	riokugrpc "github.com/riokulabs/rioku/internal/grpc"
+	"github.com/riokulabs/rioku/internal/logging"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
@@ -46,6 +47,7 @@ type Daemon struct {
 	ringBuffer *tracestore.RingBuffer
 	ingester   *tracestore.Ingester
 	aggregator *tracestore.Aggregator
+	logLevel   *slog.LevelVar
 	pidFile    string
 	startedAt  time.Time
 }
@@ -73,6 +75,21 @@ func New(cfg *config.Config, cfgPath string) *Daemon {
 func (d *Daemon) Start(ctx context.Context) error {
 	d.startedAt = time.Now()
 
+	// 0. Initialize structured logging.
+	lv, err := logging.Setup(d.cfg.Logging)
+	if err != nil {
+		return fmt.Errorf("logging setup: %w", err)
+	}
+	d.logLevel = lv
+
+	// Create component loggers.
+	storeLog := slog.Default().With("component", "store")
+	caddyLog := slog.Default().With("component", "caddy")
+	grpcLog := slog.Default().With("component", "grpc")
+	gwLog := slog.Default().With("component", "gateway")
+	syncLog := slog.Default().With("component", "sync")
+	traceLog := slog.Default().With("component", "tracestore")
+
 	// 1. Open store.
 	drv, err := d.openStore(ctx)
 	if err != nil {
@@ -85,7 +102,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		_ = d.store.Close()
 		return fmt.Errorf("migrate: %w", err)
 	}
-	log.Printf("store: %s driver ready", d.cfg.Store.Driver)
+	storeLog.Info("driver ready", "driver", d.cfg.Store.Driver)
 
 	// 3. Create auth.
 	signingKeyPath := filepath.Join(d.cfg.DataDir, "signing.key")
@@ -95,21 +112,21 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return fmt.Errorf("auth signing key: %w", err)
 	}
 	d.auth = auth.NewAuth(signingKey, d.store)
-	log.Println("auth: ready")
+	slog.Info("auth ready", "component", "auth")
 
 	// 3a. Create session manager.
 	d.sessions = auth.NewSessionManager(d.store, d.cfg.Auth.DevMode)
 	d.sessions.StartCleanupWorker(ctx)
-	log.Println("sessions: manager ready")
+	slog.Info("session manager ready", "component", "sessions")
 
 	// 3b. Open trace store.
 	traceDrv, err := tracestore.New(d.cfg.Traces.Store)
 	if err != nil {
-		log.Printf("tracestore: driver %q not available: %v", d.cfg.Traces.Store, err)
+		traceLog.Warn("driver not available", "driver", d.cfg.Traces.Store, "error", err)
 	} else {
 		// Ensure trace store directory exists.
 		if err := os.MkdirAll(d.cfg.Traces.Path, 0750); err != nil {
-			log.Printf("tracestore: cannot create dir %s: %v", d.cfg.Traces.Path, err)
+			traceLog.Error("cannot create dir", "path", d.cfg.Traces.Path, "error", err)
 		}
 		traceCfg := tracestore.DriverConfig{
 			Driver:    d.cfg.Traces.Store,
@@ -117,10 +134,10 @@ func (d *Daemon) Start(ctx context.Context) error {
 			MaxSizeGB: d.cfg.Traces.MaxSizeGB,
 		}
 		if err := traceDrv.Open(ctx, traceCfg); err != nil {
-			log.Printf("tracestore: open failed: %v (traces unavailable)", err)
+			traceLog.Warn("open failed, traces unavailable", "error", err)
 		} else {
 			d.traceStore = traceDrv
-			log.Println("tracestore: ready")
+			traceLog.Info("ready")
 		}
 	}
 
@@ -130,18 +147,18 @@ func (d *Daemon) Start(ctx context.Context) error {
 	// 4. Create config engine with placeholder compiler (updated after gateway binds).
 	placeholderCompiler := caddy.NewCompiler([]string{":443"}, caddy.AdminConfig{}, "", nil, caddy.SecurityHeadersConfig{})
 	d.engine = config.NewEngine(d.store, placeholderCompiler)
-	log.Println("config: engine ready (compiler will be updated after gateway binds)")
+	slog.Info("config engine ready (compiler will be updated after gateway binds)", "component", "config")
 
 	// 5. Start Caddy child process (optional — warns if binary missing).
 	d.caddy = caddy.NewManager(caddy.ManagerConfig{
 		Binary:    d.cfg.Caddy.Binary,
 		AdminAddr: d.cfg.Caddy.AdminAddr,
 		DataDir:   d.cfg.Caddy.DataDir,
-	})
+	}, caddyLog)
 	if err := d.caddy.Start(ctx); err != nil {
-		log.Printf("caddy: %v (traffic proxying unavailable)", err)
+		caddyLog.Warn("traffic proxying unavailable", "error", err)
 	} else {
-		log.Printf("caddy: child process started (admin: %s)", d.cfg.Caddy.AdminAddr)
+		caddyLog.Info("child process started", "admin_addr", d.cfg.Caddy.AdminAddr)
 	}
 
 	// 5a. Start log ingester.
@@ -154,9 +171,9 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 	d.ingester = tracestore.NewIngester(socketPath, d.ringBuffer, samplingCfg)
 	if err := d.ingester.Start(ctx); err != nil {
-		log.Printf("tracestore: ingester failed: %v", err)
+		traceLog.Warn("ingester failed", "error", err)
 	} else {
-		log.Println("tracestore: ingester ready")
+		traceLog.Info("ingester ready")
 	}
 
 	// 6. Start gRPC server.
@@ -164,14 +181,14 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if grpcAddr == "" {
 		grpcAddr = ":7777"
 	}
-	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy, d.auth, d.ringBuffer, d.traceStore)
+	grpcSrv, err := riokugrpc.NewServer(grpcAddr, d.engine, d.store, d.caddy, d.auth, d.ringBuffer, d.traceStore, grpcLog)
 	if err != nil {
-		log.Printf("grpc: failed to start: %v", err)
+		grpcLog.Error("failed to start", "error", err)
 	} else {
 		d.grpc = grpcSrv
 		go func() {
 			if err := d.grpc.Start(); err != nil {
-				log.Printf("grpc: server error: %v", err)
+				grpcLog.Error("server error", "error", err)
 			}
 		}()
 	}
@@ -180,7 +197,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if d.grpc != nil {
 		spaFS, err := riokuweb.SPA()
 		if err != nil {
-			log.Printf("web: admin panel not available: %v", err)
+			slog.Warn("admin panel not available", "component", "web", "error", err)
 		}
 
 		basePort := d.cfg.Listen.InternalPort
@@ -190,22 +207,22 @@ func (d *Daemon) Start(ctx context.Context) error {
 		var gw *gateway.Gateway
 		for attempt := 0; attempt < 10; attempt++ {
 			addr := fmt.Sprintf("127.0.0.1:%d", basePort+attempt)
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, gwLog)
 			if err == nil {
 				break
 			}
 			if attempt == 9 {
-				log.Printf("rest: failed to bind internal gateway on ports %d-%d: %v", basePort, basePort+9, err)
+				gwLog.Error("failed to bind internal gateway", "port_range_start", basePort, "port_range_end", basePort+9, "error", err)
 			}
 		}
 		if err != nil {
-			log.Printf("rest: failed to start: %v", err)
+			gwLog.Error("failed to start", "error", err)
 		} else {
 			d.gateway = gw
-			log.Printf("rest: internal gateway bound to %s", d.gateway.Addr())
+			gwLog.Info("internal gateway bound", "addr", d.gateway.Addr())
 			go func() {
 				if err := d.gateway.Start(); err != nil {
-					log.Printf("rest: server error: %v", err)
+					gwLog.Error("server error", "error", err)
 				}
 			}()
 		}
@@ -244,25 +261,25 @@ func (d *Daemon) Start(ctx context.Context) error {
 		},
 	})
 	d.engine.SetCompiler(compiler)
-	log.Println("config: compiler updated with admin config")
+	slog.Info("compiler updated with admin config", "component", "config")
 
 	// 8. Start sync agent (watches config changes, pushes to Caddy).
-	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy)
+	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy, syncLog)
 	d.syncAgent.Start(ctx)
 
 	// 8a. Start aggregator.
 	if d.traceStore != nil {
 		d.aggregator = tracestore.NewAggregator(d.ringBuffer, d.traceStore, 60*time.Second)
 		d.aggregator.Start(ctx)
-		log.Println("tracestore: aggregator ready")
+		traceLog.Info("aggregator ready")
 	}
 
 	// 9. Write PID file.
 	if err := WritePIDFile(d.pidFile); err != nil {
-		log.Printf("warning: failed to write pid file: %v", err)
+		slog.Warn("failed to write pid file", "error", err)
 	}
 
-	log.Printf("daemon: ready (pid file: %s)", d.pidFile)
+	slog.Info("daemon ready", "pid_file", d.pidFile)
 
 	// 8. Block until context is cancelled (signal handler).
 	<-ctx.Done()
@@ -275,12 +292,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 
 // Stop shuts down all subsystems in reverse order.
 func (d *Daemon) Stop(ctx context.Context) error {
-	log.Println("daemon: shutting down...")
+	slog.Info("shutting down")
 
 	// Stop REST gateway.
 	if d.gateway != nil {
 		if err := d.gateway.Stop(ctx); err != nil {
-			log.Printf("rest: stop error: %v", err)
+			slog.Error("gateway stop error", "component", "gateway", "error", err)
 		}
 	}
 
@@ -297,7 +314,7 @@ func (d *Daemon) Stop(ctx context.Context) error {
 	// Stop Caddy.
 	if d.caddy != nil {
 		if err := d.caddy.Stop(ctx); err != nil {
-			log.Printf("caddy: stop error: %v", err)
+			slog.Error("caddy stop error", "component", "caddy", "error", err)
 		}
 	}
 
@@ -314,21 +331,21 @@ func (d *Daemon) Stop(ctx context.Context) error {
 	// Close trace store.
 	if d.traceStore != nil {
 		if err := d.traceStore.Close(); err != nil {
-			log.Printf("tracestore: close error: %v", err)
+			slog.Error("tracestore close error", "component", "tracestore", "error", err)
 		}
 	}
 
 	// Close store.
 	if d.store != nil {
 		if err := d.store.Close(); err != nil {
-			log.Printf("store: close error: %v", err)
+			slog.Error("store close error", "component", "store", "error", err)
 		}
 	}
 
 	// Remove PID file.
 	_ = RemovePIDFile(d.pidFile)
 
-	log.Println("daemon: stopped")
+	slog.Info("stopped")
 	return nil
 }
 

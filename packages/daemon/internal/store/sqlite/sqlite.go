@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -180,11 +180,33 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 7: add owner_id column to api_keys.
+	if current < 7 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000007_api_key_owner.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 7: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 7: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 7 down: remove owner_id from api_keys.
+	if current >= 7 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000007_api_key_owner.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 7: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 7: %w", err)
+		}
+	}
 
 	// Migration 6 down: revert user status CHECK constraint.
 	if current >= 6 {
@@ -301,7 +323,7 @@ func (t *tx) emit(table, rowID, operation string) {
 	select {
 	case t.notify <- store.ChangeEvent{Table: table, RowID: rowID, Operation: operation}:
 	default:
-		log.Printf("sqlite: change event dropped (channel full): %s/%s %s", table, rowID, operation)
+		slog.Warn("change event dropped (channel full)", "component", "store", "table", table, "row_id", rowID, "operation", operation)
 	}
 }
 
@@ -849,7 +871,7 @@ func (t *tx) ListPoliciesByTarget(ctx context.Context, targetType, targetID stri
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time) (string, error) {
+func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
 	id := uuid.New().String()
 	now := nowUTC()
 
@@ -864,10 +886,15 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 		expiresStr = &s
 	}
 
+	var ownerIDVal *string
+	if ownerID != "" {
+		ownerIDVal = &ownerID
+	}
+
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO api_keys (id, name, key_hash, scopes, expires_at, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		id, name, keyHash, string(scopesJSON), expiresStr, now,
+		`INSERT INTO api_keys (id, name, key_hash, scopes, expires_at, created_at, owner_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, name, keyHash, string(scopesJSON), expiresStr, now, ownerIDVal,
 	)
 	if err != nil {
 		return "", fmt.Errorf("sqlite: insert api_key: %w", err)
@@ -880,24 +907,44 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 
 func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
 		 FROM api_keys WHERE id = ?`, id)
 	return scanAPIKey(row)
 }
 
 func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
 		 FROM api_keys WHERE key_hash = ?`, keyHash)
 	return scanAPIKey(row)
 }
 
 func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
 		 FROM api_keys WHERE revoked_at IS NULL`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var keys []*store.APIKey
+	for rows.Next() {
+		k, err := scanAPIKeyRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+	return keys, rows.Err()
+}
+
+func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.APIKey, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
+		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ?`, ownerID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list api_keys by owner: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -2046,8 +2093,9 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		expiresAt  *string
 		createdAt  string
 		revokedAt  *string
+		ownerID    *string
 	)
-	if err := s.Scan(&id, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt); err != nil {
+	if err := s.Scan(&id, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID); err != nil {
 		return nil, fmt.Errorf("sqlite: scan api_key: %w", err)
 	}
 
@@ -2062,6 +2110,9 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		KeyHash:   keyHash,
 		Scopes:    scopes,
 		CreatedAt: parseTime(createdAt),
+	}
+	if ownerID != nil {
+		key.OwnerID = *ownerID
 	}
 	if expiresAt != nil {
 		t := parseTime(*expiresAt)
@@ -2202,7 +2253,7 @@ func nowUTC() string {
 func parseTime(s string) time.Time {
 	t, err := time.Parse(timeFormat, s)
 	if err != nil && s != "" {
-		log.Printf("sqlite: warning: failed to parse time %q: %v", s, err)
+		slog.Warn("failed to parse time", "component", "store", "value", s, "error", err)
 	}
 	return t
 }

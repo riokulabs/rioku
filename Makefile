@@ -105,6 +105,10 @@ sandbox-test-auth:
 sandbox-test-smoke:
 	@bash sandbox/scripts/test-smoke.sh
 
+## sandbox-logs: Stream daemon logs in your terminal (scrollable, Ctrl+C to stop)
+sandbox-logs:
+	@tail -f sandbox/.data/daemon.log
+
 ## sandbox-status: Show status of all sandbox components
 sandbox-status:
 	@bash sandbox/scripts/status.sh
@@ -220,7 +224,12 @@ test:
 	cd $(PKG)/build-service && $(GO) test ./...
 	cd $(PKG)/web && npm test
 
-## test-race: Run all tests with race detector
+## test-fast: Run tests with race detector, skip scale tests (for local iteration)
+test-fast:
+	cd $(PKG)/daemon && $(GO) test -race -short ./...
+	cd $(PKG)/build-service && $(GO) test -race -short ./...
+
+## test-race: Run all tests with race detector (CI — includes scale tests)
 test-race:
 	cd $(PKG)/daemon && $(GO) test -race ./...
 	cd $(PKG)/build-service && $(GO) test -race ./...

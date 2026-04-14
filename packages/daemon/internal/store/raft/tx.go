@@ -377,7 +377,7 @@ func (t *raftTx) ListPoliciesByTarget(_ context.Context, targetType, targetID st
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []string, expiresAt *time.Time) (string, error) {
+func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
 	id := uuid.New().String()
 	now := nowUTC()
 
@@ -390,6 +390,9 @@ func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []
 	}
 	if expiresAt != nil {
 		entry["expires_at"] = expiresAt.UTC().Format(timeFormat)
+	}
+	if ownerID != "" {
+		entry["owner_id"] = ownerID
 	}
 
 	data, err := json.Marshal(entry)
@@ -451,6 +454,24 @@ func (t *raftTx) RevokeAPIKey(_ context.Context, id string) error {
 		RevokedAt: now.Format(timeFormat),
 	})
 	return err
+}
+
+func (t *raftTx) ListAPIKeysByOwner(_ context.Context, ownerID string) ([]*store.APIKey, error) {
+	var keys []*store.APIKey
+	err := t.driver.readFSM(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketAPIKeys))
+		return b.ForEach(func(k, v []byte) error {
+			key, err := unmarshalAPIKey(v)
+			if err != nil {
+				return nil // skip malformed
+			}
+			if key.RevokedAt == nil && key.OwnerID == ownerID {
+				keys = append(keys, key)
+			}
+			return nil
+		})
+	})
+	return keys, err
 }
 
 func (t *raftTx) readAPIKey(bucket, id string) (*store.APIKey, error) {
@@ -817,6 +838,7 @@ func unmarshalAPIKey(data []byte) (*store.APIKey, error) {
 		t, _ := time.Parse(timeFormat, s)
 		key.RevokedAt = &t
 	}
+	key.OwnerID = getString(entry, "owner_id")
 
 	return key, nil
 }

@@ -358,7 +358,7 @@ func transferData(ctx context.Context, source, target store.Driver) error {
 	fmt.Printf("  Routes:    %d transferred\n", len(routes))
 
 	for _, key := range apiKeys {
-		if _, err := dstTx.CreateAPIKey(ctx, key.Name, key.KeyHash, key.Scopes, key.ExpiresAt); err != nil {
+		if _, err := dstTx.CreateAPIKey(ctx, key.Name, key.KeyHash, key.Scopes, key.ExpiresAt, key.OwnerID); err != nil {
 			_ = dstTx.Rollback()
 			return fmt.Errorf("write API key %q: %w", key.Name, err)
 		}

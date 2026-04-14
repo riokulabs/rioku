@@ -3,7 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -50,11 +50,11 @@ func runStart() error {
 
 	go func() {
 		sig := <-sigCh
-		log.Printf("received signal: %s", sig)
+		slog.Info("received signal", "signal", sig.String())
 		cancel()
 	}()
 
-	log.Println("daemon: starting...")
+	slog.Info("daemon starting")
 	if err := d.Start(ctx); err != nil {
 		return fmt.Errorf("daemon: %w", err)
 	}

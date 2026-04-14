@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,11 +33,12 @@ type Manager struct {
 	cmd     *exec.Cmd
 	running bool
 	done    chan struct{} // closed when child process exits
+	log     *slog.Logger
 }
 
 // NewManager creates a new Caddy process manager.
-func NewManager(cfg ManagerConfig) *Manager {
-	return &Manager{cfg: cfg}
+func NewManager(cfg ManagerConfig, logger *slog.Logger) *Manager {
+	return &Manager{cfg: cfg, log: logger}
 }
 
 // Start launches the Caddy child process.
@@ -84,7 +85,7 @@ func (m *Manager) Start(ctx context.Context) error {
 	go func() {
 		err := cmd.Wait()
 		if err != nil {
-			log.Printf("caddy: process exited: %v", err)
+			m.log.Warn("process exited", "error", err)
 		}
 		// Close done first so Stop() can unblock, then update state.
 		close(m.done)
@@ -95,7 +96,7 @@ func (m *Manager) Start(ctx context.Context) error {
 
 	// Wait for admin API to be ready.
 	if err := m.waitReady(5 * time.Second); err != nil {
-		log.Printf("caddy: admin API not ready: %v", err)
+		m.log.Warn("admin API not ready", "error", err)
 	}
 
 	return nil
