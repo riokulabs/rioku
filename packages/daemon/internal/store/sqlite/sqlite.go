@@ -180,11 +180,33 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 7: add owner_id column to api_keys.
+	if current < 7 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000007_api_key_owner.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 7: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 7: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 7 down: remove owner_id from api_keys.
+	if current >= 7 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000007_api_key_owner.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 7: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 7: %w", err)
+		}
+	}
 
 	// Migration 6 down: revert user status CHECK constraint.
 	if current >= 6 {
