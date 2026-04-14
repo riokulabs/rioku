@@ -11,7 +11,6 @@ import { mockCertificates } from '@/mocks/data/certificates'
 import { mockGeneralSettings, mockNetworkSettings, mockTlsSettings, mockObservabilitySettings, mockAuthSettings, mockConfigStoreSettings, mockPkiSettings } from '@/mocks/data/settings'
 import { mockUsers, mockRoles, mockSession, mockMe, mockExpandedRoles } from '@/mocks/data/users'
 import { mockPlugins } from '@/mocks/data/plugins'
-import { mockAccessPolicies } from '@/mocks/data/access-policies'
 import { mockApiKeys } from '@/mocks/data/api-keys'
 
 const entityTraffic = (rps: number, rpsDelta: string) => ({
@@ -86,12 +85,7 @@ export function getFallbackData(
     return mockExpandedRoles.find((r: { id: string }) => r.id === id) ?? mockExpandedRoles[0]
   }
 
-  // ---- Access Policies ----
-  if (path === '/auth/access-policies' || path === '/access-policies') return mockAccessPolicies
-  if (path.startsWith('/auth/access-policies/') || path.startsWith('/access-policies/')) {
-    const id = path.split('/').pop()
-    return mockAccessPolicies.find((p: { id: string }) => p.id === id) ?? mockAccessPolicies[0]
-  }
+  // Access policies are handled inline in the Users & Roles tab — no standalone endpoint needed.
 
   // ---- API Keys (individual) ----
   if (path.match(/\/keys\/[^/]+\/usage/)) {

@@ -11,7 +11,6 @@ import {
 import { cn } from '@/lib/utils'
 import type { PermissionRule, ExpandedRole, AccessPolicy } from '@/lib/api'
 import { mockUsers, mockExpandedRoles, mockRoles } from '@/mocks/data/users'
-import { mockAccessPolicies } from '@/mocks/data/access-policies'
 import { PageHeader } from '@/components/rioku/page-header'
 import { DataTable } from '@/components/rioku/data-table'
 import { EmptyState } from '@/components/rioku/empty-state'
@@ -169,6 +168,30 @@ const initialPolicies: MockAccessPolicy[] = [
     effect: 'deny',
     target: {},
     permissions: [{ resource: 'settings', actions: ['update'] }],
+  },
+  {
+    id: 'ap4', name: 'VPN Required for Admin', description: 'Require VPN for admin panel access',
+    enabled: true, priority: 5,
+    conditions: [{ type: 'ip', value: 'not in 10.0.0.0/8, 172.16.0.0/12' }],
+    effect: 'deny',
+    target: { roles: ['admin', 'operator'] },
+    permissions: [{ resource: '*', actions: ['*'] }],
+  },
+  {
+    id: 'ap5', name: 'US/EU Only', description: 'Block access from outside US and EU regions',
+    enabled: false, priority: 15,
+    conditions: [{ type: 'geo', value: 'not in US, GB, DE, FR, NL, IE' }],
+    effect: 'deny',
+    target: { roles: ['viewer', 'operator'] },
+    permissions: [{ resource: '*', actions: ['*'] }],
+  },
+  {
+    id: 'ap6', name: 'Allow Internal Network', description: 'Explicitly allow all access from internal network',
+    enabled: true, priority: 2,
+    conditions: [{ type: 'ip', value: 'in 192.168.0.0/16' }],
+    effect: 'allow',
+    target: { roles: ['admin', 'operator', 'viewer'] },
+    permissions: [{ resource: '*', actions: ['*'] }],
   },
 ]
 
