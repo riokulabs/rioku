@@ -626,3 +626,490 @@ func TestKeyRoutes_WriteInternalError(t *testing.T) {
 		t.Errorf("instance = %q, want /api/v1/test", pd.Instance)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Permission enforcement and ownership model tests
+// ---------------------------------------------------------------------------
+
+// createUserWithRole creates a test user in the store, assigns the named
+// built-in role, and returns the user ID and an authenticated HTTP client.
+// The built-in role IDs follow the pattern "role_<name>" (e.g. "role_viewer",
+// "role_operator", "role_admin").
+func createUserWithRole(t *testing.T, drv store.Driver, serverURL, username, password, roleName string) (string, *http.Client) {
+	t.Helper()
+	ctx := context.Background()
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := tx.CreateUser(ctx, &store.User{
+		Username:            username,
+		PasswordHash:        hash,
+		Status:              "active",
+		ForcePasswordChange: false,
+		PasswordChangedAt:   time.Now().UTC(),
+	})
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	// Built-in role IDs are "role_<name>".
+	roleID := "role_" + roleName
+	if err := tx.AssignRole(ctx, user.ID, roleID, ""); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("assign role %q to user %q: %v", roleName, username, err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Log in and return an authenticated client.
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	resp := doJSON(t, client, http.MethodPost, serverURL+"/api/v1/auth/login", map[string]string{
+		"username": username,
+		"password": password,
+	})
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("login as %q: expected 200, got %d: %s", username, resp.StatusCode, pd.Detail)
+	}
+
+	return user.ID, client
+}
+
+// ---------------------------------------------------------------------------
+// Permission enforcement
+// ---------------------------------------------------------------------------
+
+// TestKeyRoutes_ViewerRole_Forbidden verifies that a user with the viewer role
+// (which has no key permissions) receives 403 on all key endpoints.
+func TestKeyRoutes_ViewerRole_Forbidden(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, viewerClient := createUserWithRole(t, drv, server.URL, "viewer-user", "ViewerPass123!", "viewer")
+
+	endpoints := []struct {
+		method string
+		path   string
+		body   any
+	}{
+		{http.MethodPost, "/api/v1/keys", map[string]string{"name": "test"}},
+		{http.MethodGet, "/api/v1/keys", nil},
+		{http.MethodDelete, "/api/v1/keys/some-id", nil},
+	}
+
+	for _, ep := range endpoints {
+		t.Run(ep.method+"_"+ep.path, func(t *testing.T) {
+			resp := doJSON(t, viewerClient, ep.method, server.URL+ep.path, ep.body)
+			defer func() { _ = resp.Body.Close() }()
+			if resp.StatusCode != http.StatusForbidden {
+				t.Fatalf("expected 403, got %d", resp.StatusCode)
+			}
+			var pd ProblemDetail
+			if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
+				t.Fatalf("decode problem detail: %v", err)
+			}
+			if pd.Status != 403 {
+				t.Errorf("problem status = %d, want 403", pd.Status)
+			}
+		})
+	}
+}
+
+// TestKeyRoutes_OperatorCanCreate verifies that a user with the operator role
+// (which has keys:own) can create an API key with scopes within their
+// permissions.
+func TestKeyRoutes_OperatorCanCreate(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClient := createUserWithRole(t, drv, server.URL, "op-create", "OpPass123!", "operator")
+
+	resp := doJSON(t, opClient, http.MethodPost, server.URL+"/api/v1/keys", map[string]string{
+		"name":   "op-key",
+		"scopes": "config:read,audit:read",
+	})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if result["id"] == "" {
+		t.Error("expected non-empty id")
+	}
+	if !strings.HasPrefix(result["key"], "rku_tok_") {
+		t.Errorf("key = %q, want prefix rku_tok_", result["key"])
+	}
+}
+
+// TestKeyRoutes_OperatorListsOnlyOwnKeys verifies that when two operators each
+// create a key, each only sees their own key in the list response.
+func TestKeyRoutes_OperatorListsOnlyOwnKeys(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClientA := createUserWithRole(t, drv, server.URL, "op-list-a", "OpPassA123!", "operator")
+	_, opClientB := createUserWithRole(t, drv, server.URL, "op-list-b", "OpPassB123!", "operator")
+
+	// Each operator creates one key.
+	idA, _ := createKeyViaAPI(t, opClientA, server.URL, map[string]string{"name": "key-of-a"})
+	idB, _ := createKeyViaAPI(t, opClientB, server.URL, map[string]string{"name": "key-of-b"})
+
+	// Operator A should only see their own key.
+	respA := doJSON(t, opClientA, http.MethodGet, server.URL+"/api/v1/keys", nil)
+	defer func() { _ = respA.Body.Close() }()
+	if respA.StatusCode != http.StatusOK {
+		t.Fatalf("op-a list: expected 200, got %d", respA.StatusCode)
+	}
+	var keysA []map[string]any
+	if err := json.NewDecoder(respA.Body).Decode(&keysA); err != nil {
+		t.Fatalf("decode op-a keys: %v", err)
+	}
+	if len(keysA) != 1 {
+		t.Fatalf("op-a: expected 1 key, got %d", len(keysA))
+	}
+	if keysA[0]["id"] != idA {
+		t.Errorf("op-a: expected key id %q, got %q", idA, keysA[0]["id"])
+	}
+
+	// Operator B should only see their own key.
+	respB := doJSON(t, opClientB, http.MethodGet, server.URL+"/api/v1/keys", nil)
+	defer func() { _ = respB.Body.Close() }()
+	if respB.StatusCode != http.StatusOK {
+		t.Fatalf("op-b list: expected 200, got %d", respB.StatusCode)
+	}
+	var keysB []map[string]any
+	if err := json.NewDecoder(respB.Body).Decode(&keysB); err != nil {
+		t.Fatalf("decode op-b keys: %v", err)
+	}
+	if len(keysB) != 1 {
+		t.Fatalf("op-b: expected 1 key, got %d", len(keysB))
+	}
+	if keysB[0]["id"] != idB {
+		t.Errorf("op-b: expected key id %q, got %q", idB, keysB[0]["id"])
+	}
+}
+
+// TestKeyRoutes_OperatorCannotRevokeOthersKey verifies that an operator cannot
+// revoke an API key owned by a different user.
+func TestKeyRoutes_OperatorCannotRevokeOthersKey(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClientA := createUserWithRole(t, drv, server.URL, "op-revoke-a", "OpPassA123!", "operator")
+	_, opClientB := createUserWithRole(t, drv, server.URL, "op-revoke-b", "OpPassB123!", "operator")
+
+	// Operator A creates a key.
+	idA, _ := createKeyViaAPI(t, opClientA, server.URL, map[string]string{"name": "a-key"})
+
+	// Operator B tries to revoke A's key — should get 403.
+	resp := doJSON(t, opClientB, http.MethodDelete, server.URL+"/api/v1/keys/"+idA, nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusForbidden {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 403, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+	var pd ProblemDetail
+	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
+		t.Fatalf("decode problem detail: %v", err)
+	}
+	if pd.Status != 403 {
+		t.Errorf("problem status = %d, want 403", pd.Status)
+	}
+}
+
+// TestKeyRoutes_AdminCanListAllKeys verifies that an admin can see all keys
+// created by any user, not just their own.
+func TestKeyRoutes_AdminCanListAllKeys(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClientA := createUserWithRole(t, drv, server.URL, "op-admin-list-a", "OpPassA123!", "operator")
+	_, opClientB := createUserWithRole(t, drv, server.URL, "op-admin-list-b", "OpPassB123!", "operator")
+	_, adminClient := createUserWithRole(t, drv, server.URL, "admin-list", "AdminPass123!", "admin")
+
+	// Each operator creates one key.
+	idA, _ := createKeyViaAPI(t, opClientA, server.URL, map[string]string{"name": "key-a"})
+	idB, _ := createKeyViaAPI(t, opClientB, server.URL, map[string]string{"name": "key-b"})
+
+	// Admin lists all keys — should see both.
+	resp := doJSON(t, adminClient, http.MethodGet, server.URL+"/api/v1/keys", nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("admin list: expected 200, got %d", resp.StatusCode)
+	}
+	var keys []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
+		t.Fatalf("decode keys: %v", err)
+	}
+
+	found := make(map[string]bool)
+	for _, k := range keys {
+		if id, ok := k["id"].(string); ok {
+			found[id] = true
+		}
+	}
+	if !found[idA] {
+		t.Errorf("admin list: key %q (op-a) not found", idA)
+	}
+	if !found[idB] {
+		t.Errorf("admin list: key %q (op-b) not found", idB)
+	}
+}
+
+// TestKeyRoutes_AdminCanRevokeAnyKey verifies that an admin can revoke a key
+// created by another user.
+func TestKeyRoutes_AdminCanRevokeAnyKey(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClient := createUserWithRole(t, drv, server.URL, "op-for-admin-revoke", "OpPass123!", "operator")
+	_, adminClient := createUserWithRole(t, drv, server.URL, "admin-revoke", "AdminPass123!", "admin")
+
+	// Operator creates a key.
+	id, _ := createKeyViaAPI(t, opClient, server.URL, map[string]string{"name": "op-key-to-revoke"})
+
+	// Admin revokes it — should succeed (204).
+	resp := doJSON(t, adminClient, http.MethodDelete, server.URL+"/api/v1/keys/"+id, nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusNoContent {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("admin revoke: expected 204, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Scope escalation prevention
+// ---------------------------------------------------------------------------
+
+// TestKeyRoutes_OperatorCannotEscalateScopes verifies that an operator cannot
+// create a key with the "admin" scope (which exceeds their own permissions).
+func TestKeyRoutes_OperatorCannotEscalateScopes(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClient := createUserWithRole(t, drv, server.URL, "op-escalate", "OpPass123!", "operator")
+
+	resp := doJSON(t, opClient, http.MethodPost, server.URL+"/api/v1/keys", map[string]string{
+		"name":   "escalated-key",
+		"scopes": "admin",
+	})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusForbidden {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 403, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+	var pd ProblemDetail
+	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
+		t.Fatalf("decode problem detail: %v", err)
+	}
+	if pd.Status != 403 {
+		t.Errorf("problem status = %d, want 403", pd.Status)
+	}
+}
+
+// TestKeyRoutes_OperatorCanCreateKeyWithAllowedScopes verifies that an
+// operator can create a key with scopes that are within their own permissions.
+func TestKeyRoutes_OperatorCanCreateKeyWithAllowedScopes(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	_, opClient := createUserWithRole(t, drv, server.URL, "op-allowed-scopes", "OpPass123!", "operator")
+
+	// config:read and audit:read are both within operator's config:* and audit:read permissions.
+	resp := doJSON(t, opClient, http.MethodPost, server.URL+"/api/v1/keys", map[string]string{
+		"name":   "allowed-scopes-key",
+		"scopes": "config:read,audit:read",
+	})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Ownership
+// ---------------------------------------------------------------------------
+
+// TestKeyRoutes_OwnerIDSetOnCreation verifies that a key created via session
+// auth has the owner's user ID stored and returned in the list response.
+func TestKeyRoutes_OwnerIDSetOnCreation(t *testing.T) {
+	server, drv, _, _ := setupKeyTestServer(t)
+
+	userID, opClient := createUserWithRole(t, drv, server.URL, "op-owner-id", "OpPass123!", "operator")
+
+	createKeyViaAPI(t, opClient, server.URL, map[string]string{"name": "owned-key"})
+
+	// List keys and verify ownerId matches the creating user.
+	resp := doJSON(t, opClient, http.MethodGet, server.URL+"/api/v1/keys", nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list: expected 200, got %d", resp.StatusCode)
+	}
+	var keys []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
+		t.Fatalf("decode keys: %v", err)
+	}
+	if len(keys) != 1 {
+		t.Fatalf("expected 1 key, got %d", len(keys))
+	}
+
+	ownerId, ok := keys[0]["ownerId"].(string)
+	if !ok || ownerId == "" {
+		t.Fatalf("expected non-empty ownerId in list response, got %v", keys[0]["ownerId"])
+	}
+	if ownerId != userID {
+		t.Errorf("ownerId = %q, want %q", ownerId, userID)
+	}
+}
+
+// TestKeyRoutes_APIKeyAuthCreatesSystemKey verifies that when a key is created
+// using Bearer (API key) authentication, the resulting key has an empty
+// ownerId (it is a system key, not tied to a user).
+func TestKeyRoutes_APIKeyAuthCreatesSystemKey(t *testing.T) {
+	server, drv, _, rootClient := setupKeyTestServer(t)
+	ctx := context.Background()
+
+	// Create a bootstrap-style API key with admin scopes directly in the store
+	// so we can use it as a Bearer token.
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawBootstrap, err := auth.GenerateBootstrapToken()
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	_, err = tx.CreateAPIKey(ctx, "bootstrap-test", auth.HashToken(rawBootstrap), []string{"admin"}, nil, "")
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Use the bootstrap key as a Bearer token to create a new key.
+	bearerClient := &http.Client{}
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/api/v1/keys",
+		strings.NewReader(`{"name":"system-created-key"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+rawBootstrap)
+	resp, err := bearerClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+	var createResult map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&createResult); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	newKeyID := createResult["id"]
+	if newKeyID == "" {
+		t.Fatal("expected non-empty id in create response")
+	}
+
+	// Verify via admin session that the ownerId is empty on this key.
+	listResp := doJSON(t, rootClient, http.MethodGet, server.URL+"/api/v1/keys", nil)
+	defer func() { _ = listResp.Body.Close() }()
+	if listResp.StatusCode != http.StatusOK {
+		t.Fatalf("list: expected 200, got %d", listResp.StatusCode)
+	}
+	var keys []map[string]any
+	if err := json.NewDecoder(listResp.Body).Decode(&keys); err != nil {
+		t.Fatalf("decode keys: %v", err)
+	}
+
+	var found bool
+	for _, k := range keys {
+		if k["id"] == newKeyID {
+			found = true
+			// ownerId should be absent or empty for a system key.
+			if ownerID, exists := k["ownerId"]; exists && ownerID != "" {
+				t.Errorf("system key: expected empty ownerId, got %q", ownerID)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Errorf("newly created system key %q not found in list", newKeyID)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Edge cases
+// ---------------------------------------------------------------------------
+
+// TestKeyRoutes_RevokeAlreadyRevokedAsNonOwner verifies the behavior when a
+// non-owner tries to revoke a key that has already been revoked. Because
+// GetAPIKey returns the row regardless of revocation status, the ownership
+// check runs first: the non-owner receives 403, not 404. A completely
+// nonexistent key ID returns 404. This test documents both behaviors.
+func TestKeyRoutes_RevokeAlreadyRevokedAsNonOwner(t *testing.T) {
+	server, drv, _, rootClient := setupKeyTestServer(t)
+
+	_, opClient := createUserWithRole(t, drv, server.URL, "op-revoked-edge", "OpPass123!", "operator")
+
+	// Operator creates a key; root revokes it first.
+	id, _ := createKeyViaAPI(t, opClient, server.URL, map[string]string{"name": "edge-key"})
+
+	revokeResp := doJSON(t, rootClient, http.MethodDelete, server.URL+"/api/v1/keys/"+id, nil)
+	defer func() { _ = revokeResp.Body.Close() }()
+	if revokeResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("root revoke: expected 204, got %d", revokeResp.StatusCode)
+	}
+
+	// Another operator (not the owner) tries to revoke the already-revoked key.
+	// GetAPIKey returns the row even after revocation, so the ownership check
+	// fires first: the non-owner gets 403 (ownership denied), not 404.
+	_, opClientB := createUserWithRole(t, drv, server.URL, "op-revoked-edge-b", "OpPass123!", "operator")
+
+	resp := doJSON(t, opClientB, http.MethodDelete, server.URL+"/api/v1/keys/"+id, nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusForbidden {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 403 (ownership denied before revoked-state check), got %d: %s", resp.StatusCode, pd.Detail)
+	}
+
+	// A completely nonexistent ID returns 404.
+	resp2 := doJSON(t, opClientB, http.MethodDelete, server.URL+"/api/v1/keys/nonexistent-id-xyz", nil)
+	defer func() { _ = resp2.Body.Close() }()
+	if resp2.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 for nonexistent id, got %d", resp2.StatusCode)
+	}
+}
