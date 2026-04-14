@@ -93,6 +93,11 @@ make dev              # Build + run daemon in dev mode
 
 **If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
 
+## Superpowers
+
+- **Plans**: Save to `tmp/plans/YYYY-MM-DD-<feature-name>.md` (git-ignored)
+- **Specs**: Save to `tmp/specs/YYYY-MM-DD-<feature-name>.md` (git-ignored)
+
 ## Ports (configurable)
 
 - gRPC: `:7777` (internal only, mTLS required)

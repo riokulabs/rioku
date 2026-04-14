@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -146,6 +146,30 @@ test-e2e-full: build-daemon
 	cd $(PKG)/web && npx playwright install --with-deps && npx playwright test
 	@echo "==> Stopping sandbox..."
 	@bash sandbox/scripts/stop.sh
+
+## docs-install: Install user docs dependencies
+docs-install:
+	cd docs && $(WEB_PATH) npm install
+
+## docs-dev: Run user docs dev server (localhost:3000)
+docs-dev:
+	cd docs && $(WEB_PATH) npm start
+
+## docs-build: Build user docs for production
+docs-build:
+	cd docs && $(WEB_PATH) npm run build
+
+## contrib-docs-install: Install contributor docs dependencies
+contrib-docs-install:
+	cd contrib-docs && $(WEB_PATH) npm install
+
+## contrib-docs-dev: Run contributor docs dev server (localhost:3001)
+contrib-docs-dev:
+	cd contrib-docs && $(WEB_PATH) npm start
+
+## contrib-docs-build: Build contributor docs for production
+contrib-docs-build:
+	cd contrib-docs && $(WEB_PATH) npm run build
 
 ## help: Show this help message
 help:

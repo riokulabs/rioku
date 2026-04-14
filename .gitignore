@@ -80,5 +80,11 @@ Thumbs.db
 # Worktrees
 .worktrees/
 
+# Docusaurus
+docs/build/
+docs/.docusaurus/
+contrib-docs/build/
+contrib-docs/.docusaurus/
+
 # Sandbox runtime data
 sandbox/.data/

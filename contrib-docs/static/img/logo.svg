@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40">
+  <title>Rioku</title>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <polygon
+    points="20,2 36,11 36,29 20,38 4,29 4,11"
+    fill="url(#g)"
+  />
+  <polygon
+    points="20,7 32,14 32,26 20,33 8,26 8,14"
+    fill="none"
+    stroke="rgba(255,255,255,0.25)"
+    stroke-width="1"
+  />
+  <text
+    x="20"
+    y="26"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="17"
+    font-weight="700"
+    fill="white"
+    letter-spacing="-0.5"
+  >R</text>
+  <text
+    x="48"
+    y="27"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="20"
+    font-weight="600"
+    fill="currentColor"
+    letter-spacing="-0.5"
+  >Rioku</text>
+</svg>
