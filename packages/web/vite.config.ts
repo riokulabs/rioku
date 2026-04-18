@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
-import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { fileURLToPath } from 'node:url';
 import { devCsp, randomNonce } from './src/lib/csp';
 
@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const nonce = randomNonce();
   return {
     plugins: [
-      TanStackRouterVite({ target: 'react', autoCodeSplitting: true }),
+      tanstackRouter({ target: 'react', autoCodeSplitting: true }),
       react(),
       {
         name: 'rioku-csp-dev',

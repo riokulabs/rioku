@@ -27,7 +27,7 @@ export function devCsp(nonce: string, viteHost: string, vitePort: number): strin
   return [
     ...common,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' 'unsafe-inline'`,
-    `connect-src 'self' ws://${viteHost}:${vitePort} http://${viteHost}:${vitePort}`,
+    `connect-src 'self' ws://${viteHost}:${String(vitePort)} http://${viteHost}:${String(vitePort)}`,
   ].join("; ");
 }
 
