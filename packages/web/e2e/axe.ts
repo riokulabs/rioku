@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { type Page, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 export async function expectNoA11yViolations(page: Page) {

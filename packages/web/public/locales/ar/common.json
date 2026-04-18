@@ -1,0 +1,8 @@
+{
+  "app.name": "ريوكو",
+  "app.hello": "ريوكو — مرحبا",
+  "actions.save": "حفظ",
+  "actions.cancel": "إلغاء",
+  "actions.delete": "حذف",
+  "actions.confirm": "تأكيد"
+}
