@@ -7,15 +7,19 @@ import boundaries from 'eslint-plugin-boundaries';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'src/routeTree.gen.ts'],
+    ignores: [
+      'dist',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      '.tsc-node-out',
+      'src/routeTree.gen.ts',
+    ],
   },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
-    extends: [
-      ...tseslint.configs.strictTypeChecked,
-      ...tseslint.configs.stylisticTypeChecked,
-    ],
+    extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -56,31 +60,49 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
 
       // B2 enforcement: first-party admin code cannot import @rioku/plugin-sdk
-      'no-restricted-imports': ['error', {
-        patterns: [{
-          group: ['@rioku/plugin-sdk', '@rioku/plugin-sdk/*'],
-          message: 'First-party admin code imports Mantine/React/TanStack directly. @rioku/plugin-sdk is for plugins only (spec §9.10.1 B2).',
-        }],
-      }],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@rioku/plugin-sdk', '@rioku/plugin-sdk/*'],
+              message:
+                'First-party admin code imports Mantine/React/TanStack directly. @rioku/plugin-sdk is for plugins only (spec §9.10.1 B2).',
+            },
+          ],
+        },
+      ],
 
       // Feature-first dependency rules (spec §13.1)
-      'boundaries/element-types': ['error', {
-        default: 'disallow',
-        rules: [
-          { from: 'app', allow: ['*'] },
-          { from: 'routes', allow: ['features', 'layout', 'components', 'hooks', 'api', 'lib', 'theme', 'i18n'] },
-          { from: 'features', allow: ['components', 'hooks', 'api', 'lib', 'theme', 'i18n', 'host'] },
-          { from: 'layout', allow: ['features', 'components', 'hooks', 'api', 'lib', 'theme', 'i18n'] },
-          { from: 'components', allow: ['hooks', 'lib', 'theme', 'i18n'] },
-          { from: 'host', allow: ['lib', 'theme'] },
-          { from: 'hooks', allow: ['api', 'lib', 'host', 'theme', 'i18n'] },
-          { from: 'api', allow: ['lib'] },
-          { from: 'theme', allow: ['lib'] },
-          { from: 'i18n', allow: ['lib'] },
-          { from: 'lib', allow: [] },
-          { from: 'test', allow: ['*'] },
-        ],
-      }],
+      'boundaries/element-types': [
+        'error',
+        {
+          default: 'disallow',
+          rules: [
+            { from: 'app', allow: ['*'] },
+            {
+              from: 'routes',
+              allow: ['features', 'layout', 'components', 'hooks', 'api', 'lib', 'theme', 'i18n'],
+            },
+            {
+              from: 'features',
+              allow: ['components', 'hooks', 'api', 'lib', 'theme', 'i18n', 'host'],
+            },
+            {
+              from: 'layout',
+              allow: ['features', 'components', 'hooks', 'api', 'lib', 'theme', 'i18n'],
+            },
+            { from: 'components', allow: ['hooks', 'lib', 'theme', 'i18n'] },
+            { from: 'host', allow: ['lib', 'theme'] },
+            { from: 'hooks', allow: ['api', 'lib', 'host', 'theme', 'i18n'] },
+            { from: 'api', allow: ['lib'] },
+            { from: 'theme', allow: ['lib'] },
+            { from: 'i18n', allow: ['lib'] },
+            { from: 'lib', allow: [] },
+            { from: 'test', allow: ['*'] },
+          ],
+        },
+      ],
       // No cross-feature imports
       'boundaries/no-private': ['error', { allowUncles: false }],
     },
@@ -95,6 +117,22 @@ export default tseslint.config(
   },
   {
     files: ['src/host/sdk.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    // Node.js scripts — allow Node globals, disable browser/React rules
+    files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+      },
+    },
     rules: {
       'no-restricted-imports': 'off',
     },

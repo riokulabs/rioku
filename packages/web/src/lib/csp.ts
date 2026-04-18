@@ -20,7 +20,7 @@ export function prodCsp(nonce: string, daemonOrigin = "'self'"): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     `connect-src 'self' ${daemonOrigin}`,
     "require-trusted-types-for 'script'",
-  ].join("; ");
+  ].join('; ');
 }
 
 export function devCsp(nonce: string, viteHost: string, vitePort: number): string {
@@ -28,11 +28,11 @@ export function devCsp(nonce: string, viteHost: string, vitePort: number): strin
     ...common,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' 'unsafe-inline'`,
     `connect-src 'self' ws://${viteHost}:${String(vitePort)} http://${viteHost}:${String(vitePort)}`,
-  ].join("; ");
+  ].join('; ');
 }
 
 export function randomNonce(): string {
   const arr = new Uint8Array(16);
   crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
 }
