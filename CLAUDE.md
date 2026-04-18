@@ -93,6 +93,8 @@ make dev              # Build + run daemon in dev mode
 
 **If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
 
+**Active exception — admin panel stage 1.** The Mantine admin rebuild on `feat/admin-mantine` ships stage 1 as an in-browser UI/UX/IA mock. It explicitly bypasses the sandbox for the mock stage. See `tmp/specs/2026-04-18-admin-mantine-design.md` §13.0 for the carve-out rules. Sandbox discipline resumes at stage 2 when the admin starts hitting real daemon endpoints.
+
 ## Issue Tracking
 
 **Always reference GitHub issue numbers in plans, specs, and commit messages.** When writing implementation plans or specs, include the issue number(s) being addressed (e.g., `#68`, `#79`). This ensures work can be traced back to issues and issues can be closed promptly when the work lands — not discovered as stale months later. When completing work:
