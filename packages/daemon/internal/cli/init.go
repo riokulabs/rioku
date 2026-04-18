@@ -30,6 +30,11 @@ func newInitCmd() *cobra.Command {
 		force                 bool
 		rootPassword          string
 		noForcePasswordChange bool
+		devMode               bool
+		rateLimitRPM          int
+		rateLimitBurst        int
+		trafficAddr           string
+		configTemplate        string
 	)
 
 	cmd := &cobra.Command{
@@ -37,7 +42,8 @@ func newInitCmd() *cobra.Command {
 		Short: "Bootstrap a new Rioku instance",
 		Long:  `Generates rioku.yaml, initializes the config store, downloads Caddy, and prints the bootstrap token.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInit(cmd, storeDriver, dataDir, listenAddr, nonInteractive, force, rootPassword, noForcePasswordChange)
+			return runInit(cmd, storeDriver, dataDir, listenAddr, nonInteractive, force, rootPassword, noForcePasswordChange,
+				devMode, rateLimitRPM, rateLimitBurst, trafficAddr, configTemplate)
 		},
 	}
 
@@ -48,11 +54,17 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite existing config")
 	cmd.Flags().StringVar(&rootPassword, "root-password", "", "set root user password (default: auto-generated)")
 	cmd.Flags().BoolVar(&noForcePasswordChange, "no-force-password-change", false, "don't require password change on first login")
+	cmd.Flags().BoolVar(&devMode, "dev-mode", false, "enable development mode (relaxed auth rate limits)")
+	cmd.Flags().IntVar(&rateLimitRPM, "rate-limit-rpm", 0, "auth rate limit: requests per minute (0 = use default)")
+	cmd.Flags().IntVar(&rateLimitBurst, "rate-limit-burst", 0, "auth rate limit: burst size (0 = use default)")
+	cmd.Flags().StringVar(&trafficAddr, "traffic-addr", "", "Caddy traffic listen address (e.g., :8443)")
+	cmd.Flags().StringVar(&configTemplate, "config-template", "", "path to config template file to use instead of defaults")
 
 	return cmd
 }
 
-func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInteractive, force bool, rootPassword string, noForcePasswordChange bool) error {
+func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInteractive, force bool, rootPassword string, noForcePasswordChange bool,
+	devMode bool, rateLimitRPM, rateLimitBurst int, trafficAddr, configTemplate string) error {
 	if err := requireLocalNode("init"); err != nil {
 		return err
 	}
@@ -147,18 +159,44 @@ func runInit(cmd *cobra.Command, storeDriver, dataDir, listenAddr string, nonInt
 		fmt.Printf("  Caddy binary found: %s\n", cfg.Caddy.Binary)
 	}
 
+	// 2b. Apply flag overrides to config before writing.
+	if devMode {
+		cfg.Auth.DevMode = true
+	}
+	if rateLimitRPM > 0 {
+		cfg.Auth.RateLimit.RequestsPerMinute = rateLimitRPM
+	}
+	if rateLimitBurst > 0 {
+		cfg.Auth.RateLimit.BurstSize = rateLimitBurst
+	}
+	if trafficAddr != "" {
+		cfg.Caddy.TrafficAddrs = []string{trafficAddr}
+	}
+
 	// 3. Write config file.
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0750); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
-	cfgData, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
+	if configTemplate != "" {
+		// Use the provided template file as the config instead of the generated one.
+		tmplData, err := os.ReadFile(configTemplate)
+		if err != nil {
+			return fmt.Errorf("read config template %s: %w", configTemplate, err)
+		}
+		if err := os.WriteFile(cfgPath, tmplData, 0640); err != nil {
+			return fmt.Errorf("write config from template: %w", err)
+		}
+		fmt.Printf("  Config written to %s (from template %s)\n", cfgPath, configTemplate)
+	} else {
+		cfgData, err := yaml.Marshal(cfg)
+		if err != nil {
+			return fmt.Errorf("marshal config: %w", err)
+		}
+		if err := os.WriteFile(cfgPath, cfgData, 0640); err != nil {
+			return fmt.Errorf("write config: %w", err)
+		}
+		fmt.Printf("  Config written to %s\n", cfgPath)
 	}
-	if err := os.WriteFile(cfgPath, cfgData, 0640); err != nil {
-		return fmt.Errorf("write config: %w", err)
-	}
-	fmt.Printf("  Config written to %s\n", cfgPath)
 
 	// 4. Initialize store.
 	ctx := context.Background()

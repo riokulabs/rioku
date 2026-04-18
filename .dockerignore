@@ -1,0 +1,6 @@
+.git/
+sandbox/.data/
+node_modules/
+bin/
+tmp/
+*.md

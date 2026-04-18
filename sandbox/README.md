@@ -1,74 +1,143 @@
 # Rioku Sandbox
 
-Self-contained environment with 5 fake upstream applications for development and testing. Includes auth system with test users, RBAC roles, and smoke test scripts.
+Self-contained development environment with 5 fake upstream applications for testing and validation. Includes auth system with test users, RBAC roles, smoke test scripts, container support, and a unified seed system.
 
 ## Quick Start
 
+### Native (requires Go, Node, curl, gettext)
+
 ```bash
-make sandbox          # Build + start everything + seed config + seed test users
-make sandbox-stop     # Stop all processes (screen sessions + background PIDs)
-make sandbox-seed     # Re-seed config without restart
-make sandbox-seed-users  # Re-seed test users (idempotent)
+make sandbox                    # Build + start + seed
+make sandbox-stop               # Stop all processes
+make sandbox-reset              # Wipe data + restart fresh
 ```
 
-## Architecture
+### Containers (requires Podman or Docker)
 
-```text
-┌─────────────┐     ┌──────────────────────────────┐
-│  Browser /   │────>│  Rioku Daemon (:7778 REST)   │
-│  CLI / Tests │     │  Admin Panel served at /      │
-└─────────────┘     └──────────┬───────────────────┘
-                               │ routes traffic to:
-              ┌────────────────┼────────────────────┐
-              v                v                     v
-     ┌──────────────┐ ┌──────────────┐     ┌──────────────┐
-     │ users :9001  │ │products :9002│ ... │ media :9005  │
-     └──────────────┘ └──────────────┘     └──────────────┘
+```bash
+make sandbox-container          # Build images + start in containers
+make sandbox-container-stop     # Stop containers
+make sandbox-container-logs     # Stream container logs
+make sandbox-container-clean    # Remove containers, volumes, and local images
 ```
 
-## Upstream Apps
+### Web Admin Development (HMR)
 
-| App | Port | Pattern | Key Behavior |
-|-----|------|---------|-------------|
-| users | 9001 | REST CRUD | 1000 pre-seeded users, paginated, connection pool sim |
-| products | 9002 | Catalog + search | 5000 products, heavy payloads, LRU cache, ~2% errors |
-| webhooks | 9003 | Async receiver | Per-channel queues, backpressure (429 when full) |
-| auth-service | 9004 | Token auth | JWT-like tokens, rate limiting, failed attempt tracking |
-| media | 9005 | Blob streaming | Large files, Range header, bandwidth throttling |
-
-## Common Flags (all apps)
-
-```text
--port           Listen port (default: varies)
--max-conns      Max concurrent connections (default: 100)
--error-rate     Error percentage 0-100 (default: varies)
--latency-min    Min response latency (default: varies)
--latency-max    Max response latency (default: varies)
+```bash
+make sandbox-dev-web            # Start sandbox + Vite dev server on :5173
 ```
+
+The Vite dev server proxies API calls to the running daemon at `:7778`. Edits to `packages/web/` are reflected instantly without rebuilding.
+
+## Configuration
+
+Copy `sandbox/.env.example` to `sandbox/.env` to customize ports or daemon settings. Scripts load `.env` automatically with the defaults below as fallback.
+
+```bash
+cp sandbox/.env.example sandbox/.env
+```
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SANDBOX_PORT_REST` | `7778` | Daemon REST API port |
+| `SANDBOX_PORT_GRPC` | `7777` | Daemon gRPC port |
+| `SANDBOX_PORT_TRAFFIC` | `8443` | Caddy traffic port |
+| `SANDBOX_PORT_CADDY_ADMIN` | `2019` | Caddy admin API port |
+| `SANDBOX_PORT_USERS` | `9001` | users app port |
+| `SANDBOX_PORT_PRODUCTS` | `9002` | products app port |
+| `SANDBOX_PORT_WEBHOOKS` | `9003` | webhooks app port |
+| `SANDBOX_PORT_AUTH` | `9004` | auth-service app port |
+| `SANDBOX_PORT_MEDIA` | `9005` | media app port |
+| `SANDBOX_DEV_MODE` | `true` | Enable dev mode in daemon auth config |
+| `SANDBOX_RATE_LIMIT_RPM` | `6000` | Auth rate limit (requests per minute) |
+| `SANDBOX_RATE_LIMIT_BURST` | `100` | Auth rate limit burst size |
+| `SANDBOX_REST_BIND` | `0.0.0.0` | REST API bind address |
+
+To set a custom root password, set `SANDBOX_ROOT_PASSWORD` before running `make sandbox`:
+
+```bash
+SANDBOX_ROOT_PASSWORD=MyPassword1! make sandbox
+```
+
+If not set, a random password is generated and saved to `sandbox/.data/root-password`.
+
+## All Make Targets
+
+| Target | Description |
+| --- | --- |
+| `sandbox` | Build all binaries (parallel), start all services, seed data |
+| `sandbox-stop` | Stop all sandbox processes (via PID files) |
+| `sandbox-reset` | Stop + wipe `sandbox/.data/` + restart fresh |
+| `sandbox-clean` | Stop + wipe `sandbox/.data/` (same as reset without restart) |
+| `sandbox-status` | Show running/stopped status for each service |
+| `sandbox-seed` | Re-apply `sandbox/config/seed.yaml` against running sandbox |
+| `sandbox-seed-users` | Alias for `sandbox-seed` |
+| `sandbox-restart-daemon` | Rebuild daemon (with web) + restart, apps untouched (~5s) |
+| `sandbox-restart-daemon-fast` | Rebuild daemon (skip web) + restart (~3s) |
+| `sandbox-restart-daemon-only` | Rebuild + restart daemon only (use alongside `sandbox-dev-web`) |
+| `sandbox-dev-web` | Start sandbox + Vite HMR dev server on `:5173` |
+| `sandbox-logs` | Stream all service logs, color-coded (Ctrl+C to stop) |
+| `sandbox-logs-<name>` | Stream logs for a specific service, e.g. `make sandbox-logs-daemon` |
+| `sandbox-test-auth` | Run auth smoke tests (login, logout, RBAC, locked/suspended users) |
+| `sandbox-test-smoke` | Run full-stack smoke tests (auth + config CRUD + API keys + audit) |
+| `sandbox-container` | Build + start sandbox in containers (Podman or Docker) |
+| `sandbox-container-stop` | Stop container sandbox |
+| `sandbox-container-logs` | Stream container logs |
+| `sandbox-container-clean` | Remove containers, volumes, and local images |
+| `sandbox-load` | Run standard load profile (requires running sandbox) |
+| `sandbox-load-monitor` | Run soak load profile with resource monitoring |
+| `sandbox-load-compare` | Compare load results against baseline |
+
+## Logs
+
+```bash
+make sandbox-logs               # Stream all service logs (color-coded, Ctrl+C to stop)
+make sandbox-logs-daemon        # Stream daemon logs only
+make sandbox-logs-users         # Stream users app logs
+make sandbox-logs-products      # Stream products app logs
+```
+
+Logs are written to `sandbox/.data/logs/<name>.log`. Color-coded output:
+
+- Cyan prefix: daemon
+- Green prefix: upstream apps
+
+## Seeding
+
+The sandbox uses a unified YAML seed file. On first `make sandbox`, data is seeded automatically. To re-apply or modify:
+
+```bash
+make sandbox-seed               # Re-apply seed data from seed.yaml
+# Edit sandbox/config/seed.yaml to modify routes, policies, services, users, and API keys
+```
+
+`seed.yaml` supports env-variable substitution (`${SANDBOX_PORT_USERS:-9001}`) so port changes in `.env` propagate automatically.
 
 ## Authentication
 
-The sandbox uses cookie-based session auth. On first start (`make sandbox`), the daemon runs `rioku init` which creates a root user with a generated password. The password is saved to `sandbox/.data/root-password`.
+The sandbox uses cookie-based session auth. On `make sandbox`, the daemon runs `rioku init` which creates a root user. The root password is saved to `sandbox/.data/root-password` for use by scripts.
 
-### Root Credentials
+After start, the terminal prints the root credentials. To retrieve them later:
 
-After `make sandbox`, the terminal prints the root username and password. The password is also saved to `sandbox/.data/root-password` for use by scripts.
+```bash
+cat sandbox/.data/root-password
+```
 
-### Test Users
+## Test Users
 
 Seven test users are seeded automatically with different roles and statuses:
 
 | Username | Password | Roles | Status |
-|----------|----------|-------|--------|
+| --- | --- | --- | --- |
 | testadmin | TestAdmin123! | admin | active |
 | testoperator | TestOperator123! | operator | active |
 | testviewer | TestView123! | viewer | active |
 | testmulti | TestMulti123! | operator, auditor | active |
-| test2fa | Test2Factor123! | admin | active (TOTP not enabled) |
+| test2fa | Test2Factor123! | admin | active (TOTP not configured) |
 | testlocked | TestLocked123! | viewer | locked |
 | testsuspended | TestSusp123! | viewer | suspended |
 
-These passwords are non-secret -- local development sandbox only.
+These passwords are non-secret — local development sandbox only.
 
 ### Login Flow
 
@@ -78,67 +147,149 @@ curl -c cookies.txt -H "Content-Type: application/json" \
   -d '{"username":"testadmin","password":"TestAdmin123!"}' \
   http://localhost:7778/api/v1/auth/login
 
-# Authenticated request (use session cookie)
+# Authenticated request
 curl -b cookies.txt http://localhost:7778/api/v1/config
 
-# Logout (clears session)
+# Logout
 curl -b cookies.txt -X POST http://localhost:7778/api/v1/auth/logout
 ```
 
 ### RBAC Roles
 
 | Role | Permissions |
-|------|-------------|
+| --- | --- |
 | admin | Full access: config CRUD, user management, session management, audit |
-| operator | Config read/write, traffic read -- no user management |
+| operator | Config read/write, traffic read — no user management |
 | viewer | Read-only access to config and traffic |
-| auditor | Custom role: audit:read permission |
-
-The viewer cannot create users or modify config. The operator cannot manage users or sessions. Use the smoke tests to validate these boundaries.
+| auditor | Custom role: `audit:read` permission only |
 
 ## Smoke Tests
 
 ```bash
 make sandbox-test-auth    # Auth flows only (login, logout, RBAC, locked/suspended)
-make sandbox-test-smoke   # Full-stack (includes auth + config CRUD + API keys + audit)
+make sandbox-test-smoke   # Full-stack (auth + config CRUD + API keys + audit)
 ```
 
-The smoke tests report `[PASS]` / `[FAIL]` for each scenario and exit non-zero if any test fails. `test-smoke.sh` delegates to `test-auth.sh` internally, so running smoke includes all auth tests.
+Tests report `[PASS]` / `[FAIL]` per scenario and exit non-zero on any failure. `test-smoke.sh` delegates to `test-auth.sh` internally.
 
 ## Development Workflow
 
+### Backend changes
+
 ```bash
-make sandbox                   # Start full environment
+make sandbox                           # Start sandbox
 # ... edit daemon code ...
-make sandbox-restart-daemon    # Rebuild + restart daemon only (~5s, apps stay running)
-make sandbox-test-smoke        # Validate changes
-make sandbox-stop              # Done for the day
+make sandbox-restart-daemon-fast       # Rebuild + restart daemon (~3s, apps stay up)
+make sandbox-test-smoke                # Validate
+make sandbox-stop                      # Done
 ```
 
-`sandbox-restart-daemon` requires `screen` (used for process management). If screen is not installed, do a full `make sandbox-stop && make sandbox` cycle.
+### Frontend changes (HMR)
+
+```bash
+make sandbox-dev-web                   # Sandbox + Vite HMR on :5173
+# Edit packages/web/... — browser updates instantly
+# Backend changes: make sandbox-restart-daemon-only in another terminal
+```
+
+### Full reset
+
+```bash
+make sandbox-reset                     # Wipe .data/ and restart fresh
+```
+
+## Architecture
+
+```text
+                             ┌─────────────────────────────────┐
+  Browser / CLI / Tests ────>│  Rioku Daemon (:${SANDBOX_PORT_REST} REST)        │
+                             │  Admin Panel served at /         │
+                             └──────────────┬──────────────────┘
+                                            │ routes traffic via Caddy (:${SANDBOX_PORT_TRAFFIC})
+                   ┌────────────────────────┼──────────────────────────┐
+                   v                        v                          v
+         ┌──────────────┐        ┌──────────────────┐       ┌──────────────┐
+         │ users :${SANDBOX_PORT_USERS}   │        │ products :${SANDBOX_PORT_PRODUCTS}    │       │ media :${SANDBOX_PORT_MEDIA}   │
+         └──────────────┘        └──────────────────┘       └──────────────┘
+         ┌──────────────┐        ┌──────────────────┐
+         │ webhooks :${SANDBOX_PORT_WEBHOOKS}│        │ auth-svc :${SANDBOX_PORT_AUTH}    │
+         └──────────────┘        └──────────────────┘
+```
+
+Default ports (override via `sandbox/.env`):
+
+- REST API: `:7778`
+- gRPC: `:7777`
+- Traffic (Caddy): `:8443`
+- Upstream apps: `:9001`–`:9005`
 
 ## Process Management
 
-The sandbox uses `screen` sessions when available (recommended). Each process runs in its own named session:
+Each service runs as a background process tracked by PID file in `sandbox/.data/pids/<name>.pid` with logs in `sandbox/.data/logs/<name>.log`. No screen or tmux required.
 
 ```bash
-screen -ls                    # List all sandbox sessions
-screen -r rioku-daemon        # Attach to daemon session (Ctrl-A D to detach)
-screen -r rioku-users         # Attach to users-svc session
+make sandbox-status            # Show running/stopped status for all services
+make sandbox-logs              # Stream all logs (color-coded)
+make sandbox-logs-daemon       # Stream daemon logs only
+make sandbox-clean             # Stop + wipe all sandbox data
 ```
 
-If `screen` is not installed, processes run as background jobs with PIDs tracked in `sandbox/.data/pids`.
+## Config Template
+
+The daemon config is generated from `sandbox/config/rioku.sandbox.yaml.tmpl` using `envsubst`. Variables from `sandbox/.env` (or the defaults in `start.sh`) are substituted at init time.
+
+Do not edit `sandbox/.data/rioku.yaml` directly — it is a generated file. Edit the template instead and run `make sandbox-reset` to regenerate.
 
 ## Seeded Routes
 
-| Route | Host | Path | Upstream | LB Policy |
-|-------|------|------|----------|-----------|
-| users-api | api.local | /v1/users/* | users:9001 | round-robin |
-| products-api | api.local | /v1/products/* | products:9002 | random |
-| webhooks | hooks.local | /* | webhooks:9003 | first |
-| auth | auth.local | /* | auth-service:9004 | least-conn |
-| media | media.local | /* | media:9005 | first |
+| Route | Host | Path | Upstream | Policies |
+| --- | --- | --- | --- | --- |
+| users-api | api.local | /v1/users/* | users:9001 | rate-limit-standard, auth-api-key |
+| products-api | api.local | /v1/products/* | products:9002 | rate-limit-standard |
+| products-search | api.local | /v1/search | products:9002 | rate-limit-strict |
+| webhooks-inbound | hooks.local | /* | webhooks:9003 | rate-limit-strict, auth-api-key |
+| auth-login | auth.local | /login | auth-service:9004 | rate-limit-strict |
+| auth-api | auth.local | /v1/* | auth-service:9004 | rate-limit-standard, auth-api-key |
+| media-assets | media.local, cdn.local | /assets/* | media:9005 | — |
+
+## Upstream Apps
+
+| App | Port | Behavior |
+| --- | --- | --- |
+| users | 9001 | REST CRUD, 1000 pre-seeded users, paginated, connection pool simulation |
+| products | 9002 | Catalog + search, 5000 products, heavy payloads, LRU cache, ~2% errors |
+| webhooks | 9003 | Async receiver, per-channel queues, backpressure (429 when full) |
+| auth-service | 9004 | JWT-like tokens, rate limiting, failed attempt tracking |
+| media | 9005 | Blob streaming, Range header support, bandwidth throttling |
+
+All apps accept `-port`, `-max-conns`, `-error-rate`, `-latency-min`, and `-latency-max` flags.
 
 ## Data Directory
 
-Runtime data (SQLite DB, PID files, logs, root password, test user state) stored in `sandbox/.data/` (gitignored).
+Runtime data is stored in `sandbox/.data/` (gitignored):
+
+```text
+sandbox/.data/
+  rioku.yaml          Generated daemon config (from template)
+  rioku.db            SQLite database
+  root-password       Root user password (written by init)
+  init.log            Output from rioku init
+  pids/               PID files for each service
+  logs/               Log files for each service
+  caddy/              Caddy runtime data
+  pki/                PKI certificates
+  traces/             Trace store
+  bin/                Compiled sandbox app binaries
+```
+
+## Troubleshooting
+
+**Port conflict**: Edit `sandbox/.env` to remap conflicting ports, then `make sandbox-reset`.
+
+**Dependency missing**: `make sandbox` prints which tools are missing (requires: `go`, `curl`, `python3`, `gettext`, `make`).
+
+**Stale processes after crash**: `make sandbox-clean` removes PID files and all runtime data.
+
+**Config out of sync**: `make sandbox-reset` wipes `.data/` and regenerates config from the template.
+
+**Container sandbox not starting**: Ensure Podman or Docker is running. The Makefile auto-detects `podman-compose` or `docker compose`. To use a specific tool: `COMPOSE_CMD="docker compose" make sandbox-container`.

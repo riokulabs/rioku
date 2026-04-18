@@ -1,0 +1,109 @@
+# sandbox/compose.yaml — Run the Rioku sandbox in containers.
+#
+# Works with both Podman and Docker:
+#   podman-compose --env-file .env.example up --build
+#   docker compose --env-file .env.example up --build
+
+services:
+  users:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile.app
+      args:
+        APP_NAME: users
+    ports:
+      - "${SANDBOX_PORT_USERS:-9001}:8080"
+    command: ["-port", "8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  products:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile.app
+      args:
+        APP_NAME: products
+    ports:
+      - "${SANDBOX_PORT_PRODUCTS:-9002}:8080"
+    command: ["-port", "8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  webhooks:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile.app
+      args:
+        APP_NAME: webhooks
+    ports:
+      - "${SANDBOX_PORT_WEBHOOKS:-9003}:8080"
+    command: ["-port", "8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile.app
+      args:
+        APP_NAME: auth-service
+    ports:
+      - "${SANDBOX_PORT_AUTH:-9004}:8080"
+    command: ["-port", "8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  media:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile.app
+      args:
+        APP_NAME: media
+    ports:
+      - "${SANDBOX_PORT_MEDIA:-9005}:8080"
+    command: ["-port", "8080"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  daemon:
+    build:
+      context: ..
+      dockerfile: sandbox/Dockerfile.daemon
+    ports:
+      - "${SANDBOX_PORT_REST:-7778}:7778"
+      - "${SANDBOX_PORT_GRPC:-7777}:7777"
+      - "${SANDBOX_PORT_TRAFFIC:-8443}:8443"
+    volumes:
+      - daemon-data:/data
+    environment:
+      - RIOKU_DATA_DIR=/data
+      - SANDBOX_ROOT_PASSWORD=${SANDBOX_ROOT_PASSWORD:-SandboxRoot1234!}
+    depends_on:
+      users:
+        condition: service_healthy
+      products:
+        condition: service_healthy
+      webhooks:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+
+volumes:
+  daemon-data:

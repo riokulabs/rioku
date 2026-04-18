@@ -23,11 +23,50 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SANDBOX_DIR="${REPO_ROOT}/sandbox"
+
+# --------------------------------------------------------------------------
+# Load environment config
+# --------------------------------------------------------------------------
+ENV_FILE="${SANDBOX_DIR}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+: "${SANDBOX_PORT_REST:=7778}"
+: "${SANDBOX_PORT_USERS:=9001}"
+: "${SANDBOX_PORT_PRODUCTS:=9002}"
+: "${SANDBOX_PORT_WEBHOOKS:=9003}"
+: "${SANDBOX_PORT_AUTH:=9004}"
+: "${SANDBOX_PORT_MEDIA:=9005}"
+
+# --------------------------------------------------------------------------
+# Derived paths and addresses
+# --------------------------------------------------------------------------
 DATA_DIR="${SANDBOX_DIR}/.data"
 SEED_FILE="${SANDBOX_DIR}/config/seed.json"
 API_KEYS_FILE="${SANDBOX_DIR}/config/api-keys.json"
-REST_BASE="${1:-http://localhost:7778}"
+REST_BASE="${1:-http://localhost:${SANDBOX_PORT_REST}}"
 COOKIE_JAR="${DATA_DIR}/seed-cookies.txt"
+
+# --------------------------------------------------------------------------
+# Generate seed JSON with port substitutions
+# --------------------------------------------------------------------------
+generate_seed_json() {
+  sed "s/localhost:9001/localhost:${SANDBOX_PORT_USERS}/g; \
+       s/localhost:9002/localhost:${SANDBOX_PORT_PRODUCTS}/g; \
+       s/localhost:9003/localhost:${SANDBOX_PORT_WEBHOOKS}/g; \
+       s/localhost:9004/localhost:${SANDBOX_PORT_AUTH}/g; \
+       s/localhost:9005/localhost:${SANDBOX_PORT_MEDIA}/g" "${SEED_FILE}"
+}
+
+# --------------------------------------------------------------------------
+# Dependency checks
+# --------------------------------------------------------------------------
+for cmd in curl python3; do
+  if ! command -v "${cmd}" >/dev/null 2>&1; then
+    echo -e "${RED}[FAIL]${NC}  Required tool '${cmd}' not found. Install it and try again."
+    exit 1
+  fi
+done
 
 # --------------------------------------------------------------------------
 # Validate prerequisites
@@ -79,7 +118,10 @@ success "Root login successful"
 # --------------------------------------------------------------------------
 info "Seeding services, routes, and policies from ${SEED_FILE} ..."
 seed_failed=0
-export SEED_FILE REST_BASE COOKIE_JAR SEED_UA
+# Generate port-substituted seed JSON for the Python seeder.
+GENERATED_SEED_FILE="${DATA_DIR}/seed-generated.json"
+generate_seed_json > "${GENERATED_SEED_FILE}"
+export SEED_FILE="${GENERATED_SEED_FILE}" REST_BASE COOKIE_JAR SEED_UA
 python3 - <<'PYEOF' 2>/dev/null || seed_failed=1
 import json, urllib.request, urllib.error, os
 

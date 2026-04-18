@@ -19,11 +19,31 @@ die()     { echo -e "${RED}[FAIL]${NC}  $*" >&2; exit 1; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SANDBOX_DIR="${REPO_ROOT}/sandbox"
+
+# --------------------------------------------------------------------------
+# Load environment config
+# --------------------------------------------------------------------------
+ENV_FILE="${SANDBOX_DIR}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+: "${SANDBOX_PORT_REST:=7778}"
+
+# --------------------------------------------------------------------------
+# Derived paths and addresses
+# --------------------------------------------------------------------------
 DATA_DIR="${SANDBOX_DIR}/.data"
 TEST_USERS_FILE="${SANDBOX_DIR}/config/test-users.json"
 STATE_FILE="${DATA_DIR}/test-users-state.json"
-REST_BASE="http://localhost:7778"
+REST_BASE="http://localhost:${SANDBOX_PORT_REST}"
 COOKIE_JAR="${DATA_DIR}/seed-cookies.txt"
+
+# --------------------------------------------------------------------------
+# Dependency checks
+# --------------------------------------------------------------------------
+for cmd in curl python3; do
+  command -v "${cmd}" >/dev/null 2>&1 || die "Required tool '${cmd}' not found. Install it and try again."
+done
 
 ROOT_PASSWORD="${1:-}"
 if [[ -z "${ROOT_PASSWORD}" ]]; then

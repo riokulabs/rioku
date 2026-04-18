@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -17,18 +17,27 @@ NVM_DIR  ?= $(HOME)/.nvm
 NODE22   = $(NVM_DIR)/versions/node/$(shell ls $(NVM_DIR)/versions/node/ 2>/dev/null | grep '^v22' | tail -1)
 WEB_PATH = $(if $(wildcard $(NODE22)/bin/node),PATH=$(NODE22)/bin:$(PATH),)
 
-## sandbox: Start sandbox environment
-.PHONY: sandbox sandbox-stop sandbox-seed
-sandbox: build-daemon
+## sandbox: Start sandbox environment (daemon + apps built in parallel inside start.sh)
+.PHONY: sandbox sandbox-stop sandbox-seed sandbox-logs sandbox-clean
+sandbox:
 	@bash sandbox/scripts/start.sh
 
 ## sandbox-stop: Stop sandbox environment
 sandbox-stop:
 	@bash sandbox/scripts/stop.sh
 
-## sandbox-seed: Re-seed sandbox configuration (requires running sandbox)
+## sandbox-seed: Re-seed sandbox data from seed.yaml (requires running sandbox)
 sandbox-seed:
-	bash sandbox/scripts/seed-config.sh
+	@if [ -f sandbox/.data/root-password ]; then \
+	  bin/rioku seed \
+	    --file sandbox/config/seed.yaml \
+	    --target "http://localhost:$${SANDBOX_PORT_REST:-7778}" \
+	    --password "$$(cat sandbox/.data/root-password)"; \
+	else \
+	  echo "[FAIL]  sandbox/.data/root-password not found"; \
+	  echo "        Is the sandbox running? Start it with: make sandbox"; \
+	  exit 1; \
+	fi
 
 ## sandbox-reset: Stop sandbox, wipe all data, restart fresh
 sandbox-reset: sandbox-stop
@@ -39,63 +48,11 @@ sandbox-reset: sandbox-stop
 
 ## sandbox-restart-daemon: Rebuild daemon + restart without touching upstream apps (~5s)
 sandbox-restart-daemon: build-daemon
-	@echo "==> Restarting daemon screen session..."
-	@if command -v screen >/dev/null 2>&1 && screen -ls 2>/dev/null | grep -q "rioku-daemon"; then \
-	  screen -S rioku-daemon -X quit 2>/dev/null || true; \
-	  sleep 1; \
-	  STALE_CADDY=$$(pgrep -f "caddy run" 2>/dev/null || true); \
-	  if [ -n "$${STALE_CADDY}" ]; then \
-	    echo "  killing stale Caddy process(es): $${STALE_CADDY}"; \
-	    kill $${STALE_CADDY} 2>/dev/null || true; \
-	    sleep 1; \
-	  fi; \
-	  screen -dmS rioku-daemon -L -Logfile sandbox/.data/daemon.log \
-	    bin/rioku start --config-file sandbox/.data/rioku.yaml; \
-	  echo "  daemon restarted in screen session rioku-daemon"; \
-	else \
-	  echo "  screen not found or rioku-daemon session not running"; \
-	  echo "  stop and restart the sandbox with: make sandbox-stop && make sandbox"; \
-	  exit 1; \
-	fi
-	@echo "==> Waiting for daemon health..."
-	@for i in $$(seq 1 15); do \
-	  if curl -sf --max-time 2 http://localhost:7778/api/v1/health >/dev/null 2>&1; then \
-	    echo "[OK]    daemon is healthy"; \
-	    exit 0; \
-	  fi; \
-	  sleep 1; \
-	done; \
-	echo "[WARN]  daemon did not become healthy in 15s — check sandbox/.data/daemon.log"
+	@bash sandbox/scripts/restart-daemon.sh
 
 ## sandbox-restart-daemon-fast: Rebuild daemon (skip web) + restart (~3s)
 sandbox-restart-daemon-fast: build-daemon-fast
-	@echo "==> Restarting daemon screen session..."
-	@if command -v screen >/dev/null 2>&1 && screen -ls 2>/dev/null | grep -q "rioku-daemon"; then \
-	  screen -S rioku-daemon -X quit 2>/dev/null || true; \
-	  sleep 1; \
-	  STALE_CADDY=$$(pgrep -f "caddy run" 2>/dev/null || true); \
-	  if [ -n "$${STALE_CADDY}" ]; then \
-	    echo "  killing stale Caddy process(es): $${STALE_CADDY}"; \
-	    kill $${STALE_CADDY} 2>/dev/null || true; \
-	    sleep 1; \
-	  fi; \
-	  screen -dmS rioku-daemon -L -Logfile sandbox/.data/daemon.log \
-	    bin/rioku start --config-file sandbox/.data/rioku.yaml; \
-	  echo "  daemon restarted in screen session rioku-daemon"; \
-	else \
-	  echo "  screen not found or rioku-daemon session not running"; \
-	  echo "  stop and restart the sandbox with: make sandbox-stop && make sandbox"; \
-	  exit 1; \
-	fi
-	@echo "==> Waiting for daemon health..."
-	@for i in $$(seq 1 15); do \
-	  if curl -sf --max-time 2 http://localhost:7778/api/v1/health >/dev/null 2>&1; then \
-	    echo "[OK]    daemon is healthy"; \
-	    exit 0; \
-	  fi; \
-	  sleep 1; \
-	done; \
-	echo "[WARN]  daemon did not become healthy in 15s — check sandbox/.data/daemon.log"
+	@bash sandbox/scripts/restart-daemon.sh
 
 ## sandbox-test-auth: Run auth smoke tests against running sandbox
 sandbox-test-auth:
@@ -105,23 +62,46 @@ sandbox-test-auth:
 sandbox-test-smoke:
 	@bash sandbox/scripts/test-smoke.sh
 
-## sandbox-logs: Stream daemon logs in your terminal (scrollable, Ctrl+C to stop)
+## sandbox-logs: Stream all sandbox service logs (color-coded, Ctrl+C to stop)
 sandbox-logs:
-	@tail -f sandbox/.data/daemon.log
+	@bash sandbox/scripts/logs.sh
+
+## sandbox-logs-%: Stream logs for a specific service (e.g., make sandbox-logs-daemon)
+sandbox-logs-%:
+	@bash sandbox/scripts/logs.sh $*
 
 ## sandbox-status: Show status of all sandbox components
 sandbox-status:
 	@bash sandbox/scripts/status.sh
 
-## sandbox-seed-users: Seed test users into a running sandbox
-sandbox-seed-users:
-	@if [ -f sandbox/.data/root-password ]; then \
-	  bash sandbox/scripts/seed-users.sh "$$(cat sandbox/.data/root-password)"; \
-	else \
-	  echo "[FAIL]  sandbox/.data/root-password not found"; \
-	  echo "        Run: bash sandbox/scripts/seed-users.sh <root-password>"; \
-	  exit 1; \
+## sandbox-clean: Stop sandbox and wipe all data (logs, PIDs, config, database)
+sandbox-clean: sandbox-stop
+	rm -rf sandbox/.data
+
+## sandbox-seed-users: Seed test users into a running sandbox (delegates to sandbox-seed)
+sandbox-seed-users: sandbox-seed
+
+## sandbox-dev-web: Start Vite dev server for live web admin editing (starts sandbox if not running)
+sandbox-dev-web:
+	@if ! curl -sf http://localhost:$${SANDBOX_PORT_REST:-7778}/api/v1/health >/dev/null 2>&1; then \
+		$(MAKE) sandbox; \
 	fi
+	@echo ""
+	@echo -e "  \033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	@echo -e "  \033[1;36m  Web Admin Dev Mode (HMR)\033[0m"
+	@echo -e "  \033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	@echo -e "  Admin panel:  \033[1mhttp://localhost:5173\033[0m"
+	@echo -e "  API backend:  http://localhost:$${SANDBOX_PORT_REST:-7778}"
+	@echo -e "  Caddy proxy:  http://localhost:$${SANDBOX_PORT_TRAFFIC:-8443}"
+	@echo ""
+	@echo -e "  Edit packages/web/src/ → instant HMR refresh"
+	@echo -e "  Backend changes → run 'make sandbox-restart-daemon-fast' in another terminal"
+	@echo ""
+	@cd packages/web && $(WEB_PATH) npm run dev
+
+## sandbox-restart-daemon-only: Rebuild + restart daemon only (for use alongside sandbox-dev-web)
+sandbox-restart-daemon-only: build-daemon-fast
+	@bash sandbox/scripts/restart-daemon.sh
 
 ## test-e2e: Run Playwright E2E tests (requires running sandbox)
 test-e2e:
@@ -393,3 +373,33 @@ hooks:
 ## dev: Run daemon in development mode
 dev: build-daemon
 	./$(BIN_DIR)/rioku daemon --dev
+
+# ── Container Sandbox ────────────────────────────────────────
+COMPOSE_CMD := $(shell if command -v podman-compose >/dev/null 2>&1; then echo "podman-compose"; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; fi)
+
+## sandbox-container: Start sandbox in containers (auto-detects Podman or Docker)
+sandbox-container:
+	@if [ -z "$(COMPOSE_CMD)" ]; then \
+		echo "Error: No container compose tool found. Install podman-compose or docker compose."; exit 1; \
+	fi
+	@echo "Using: $(COMPOSE_CMD)"
+	@cd sandbox && $(COMPOSE_CMD) --env-file .env.example up --build -d
+	@echo ""
+	@echo "Container sandbox started. Waiting for daemon health..."
+	@for i in $$(seq 1 30); do \
+		curl -sf http://localhost:$${SANDBOX_PORT_REST:-7778}/api/v1/health >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
+	@echo "Sandbox ready at http://localhost:$${SANDBOX_PORT_REST:-7778}"
+
+## sandbox-container-stop: Stop container sandbox
+sandbox-container-stop:
+	@cd sandbox && $(COMPOSE_CMD) down
+
+## sandbox-container-logs: View container sandbox logs
+sandbox-container-logs:
+	@cd sandbox && $(COMPOSE_CMD) logs -f
+
+## sandbox-container-clean: Remove container sandbox (volumes + images)
+sandbox-container-clean:
+	@cd sandbox && $(COMPOSE_CMD) down -v --rmi local

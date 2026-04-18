@@ -1,0 +1,221 @@
+# sandbox/config/seed.yaml — Unified sandbox seed data.
+# Applied via: rioku seed --file sandbox/config/seed.yaml
+# Port variables are env-substituted at runtime using ${VAR:-default} syntax.
+
+# Custom roles (beyond built-in admin/operator/viewer)
+roles:
+  - name: auditor
+    description: "Read-only audit access with extra audit:read permission"
+
+# Upstream services
+services:
+  - name: users-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_USERS:-9001}"
+      - address: "localhost:${SANDBOX_PORT_USERS:-9001}"
+    lb_policy: LB_POLICY_ROUND_ROBIN
+
+  - name: products-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_PRODUCTS:-9002}"
+      - address: "localhost:${SANDBOX_PORT_PRODUCTS:-9002}"
+    lb_policy: LB_POLICY_WEIGHTED_ROUND_ROBIN
+
+  - name: webhooks-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_WEBHOOKS:-9003}"
+    lb_policy: LB_POLICY_LEAST_CONN
+
+  - name: auth-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_AUTH:-9004}"
+      - address: "localhost:${SANDBOX_PORT_AUTH:-9004}"
+    lb_policy: LB_POLICY_ROUND_ROBIN
+
+  - name: media-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_MEDIA:-9005}"
+    lb_policy: LB_POLICY_RANDOM
+
+# Traffic policies
+policies:
+  - name: rate-limit-standard
+    type: POLICY_TYPE_RATE_LIMIT
+    config:
+      requests_per_second: 100
+      burst: 20
+      scope: per_ip
+
+  - name: rate-limit-strict
+    type: POLICY_TYPE_RATE_LIMIT
+    config:
+      requests_per_second: 10
+      burst: 5
+      scope: per_ip
+
+  - name: auth-api-key
+    type: POLICY_TYPE_AUTH_API_KEY
+    config:
+      header: X-API-Key
+      validation_url: "http://localhost:${SANDBOX_PORT_AUTH:-9004}/validate"
+
+  - name: cors-allow-all
+    type: POLICY_TYPE_CORS
+    config:
+      allowed_origins: ["*"]
+      allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+      allowed_headers: ["Content-Type", "Authorization", "X-API-Key"]
+      max_age_seconds: 3600
+
+# Routes (reference services and policies by name)
+routes:
+  - name: users-api
+    enabled: true
+    matchers:
+      - hosts: ["api.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/users
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    service: users-upstream
+    policies: [rate-limit-standard, auth-api-key]
+
+  - name: products-api
+    enabled: true
+    matchers:
+      - hosts: ["api.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/products
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    service: products-upstream
+    policies: [rate-limit-standard]
+
+  - name: products-search
+    enabled: true
+    matchers:
+      - hosts: ["api.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/search
+        methods: ["GET"]
+    service: products-upstream
+    policies: [rate-limit-strict]
+
+  - name: webhooks-inbound
+    enabled: true
+    matchers:
+      - hosts: ["hooks.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /
+        methods: ["POST"]
+    service: webhooks-upstream
+    policies: [rate-limit-strict, auth-api-key]
+
+  - name: auth-login
+    enabled: true
+    matchers:
+      - hosts: ["auth.local"]
+        paths:
+          - type: TYPE_EXACT
+            value: /login
+        methods: ["POST"]
+    service: auth-upstream
+    policies: [rate-limit-strict]
+
+  - name: auth-api
+    enabled: true
+    matchers:
+      - hosts: ["auth.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    service: auth-upstream
+    policies: [rate-limit-standard, auth-api-key]
+
+  - name: media-assets
+    enabled: true
+    matchers:
+      - hosts: ["media.local", "cdn.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /assets/
+    service: media-upstream
+    policies: []
+
+  - name: media-upload
+    enabled: true
+    matchers:
+      - hosts: ["media.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /upload
+        methods: ["POST", "PUT"]
+    service: media-upstream
+    policies: [auth-api-key, rate-limit-strict]
+
+  - name: health-check
+    enabled: true
+    matchers:
+      - paths:
+          - type: TYPE_EXACT
+            value: /healthz
+    service: users-upstream
+    policies: []
+
+  - name: legacy-redirect
+    enabled: false
+    matchers:
+      - hosts: ["old.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /
+    service: users-upstream
+    policies: []
+
+# Test users (non-secret passwords — local development only)
+users:
+  - username: testadmin
+    password: "TestAdmin123!"
+    roles: [admin]
+    status: active
+
+  - username: testoperator
+    password: "TestOperator123!"
+    roles: [operator]
+    status: active
+
+  - username: testviewer
+    password: "TestView123!"
+    roles: [viewer]
+    status: active
+
+  - username: testmulti
+    password: "TestMulti123!"
+    roles: [operator, auditor]
+    status: active
+
+  - username: test2fa
+    password: "Test2Factor123!"
+    roles: [admin]
+    status: active
+
+  - username: testlocked
+    password: "TestLocked123!"
+    roles: [viewer]
+    status: locked
+
+  - username: testsuspended
+    password: "TestSusp123!"
+    roles: [viewer]
+    status: suspended
+
+# API keys
+api_keys:
+  - name: sandbox-admin
+    scopes: [admin]
+
+  - name: sandbox-monitor
+    scopes: ["config:read", "traffic:read"]

@@ -5,7 +5,17 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE="${1:-http://localhost:7778}"
+SANDBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load environment config
+ENV_FILE="${SANDBOX_DIR}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+: "${SANDBOX_PORT_REST:=7778}"
+: "${SANDBOX_PORT_USERS:=9001}"
+
+BASE="${1:-http://localhost:${SANDBOX_PORT_REST}}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -96,16 +106,16 @@ fi
 echo -e "${BOLD}--- Part 4: Config CRUD ---${NC}"
 
 # Create a service.
-resp="$(api_post "/api/v1/config" '{
-  "service": {
-    "action": "UPSERT",
-    "service": {
-      "name": "smoke-svc",
-      "upstreams": [{"address": "localhost:9001"}],
-      "lbPolicy": "LB_POLICY_ROUND_ROBIN"
+resp="$(api_post "/api/v1/config" "{
+  \"service\": {
+    \"action\": \"UPSERT\",
+    \"service\": {
+      \"name\": \"smoke-svc\",
+      \"upstreams\": [{\"address\": \"localhost:${SANDBOX_PORT_USERS}\"}],
+      \"lbPolicy\": \"LB_POLICY_ROUND_ROBIN\"
     }
   }
-}')"
+}")"
 status="$(http_status "${resp}")"
 body="$(http_body "${resp}")"
 

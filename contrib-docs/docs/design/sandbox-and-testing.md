@@ -141,10 +141,15 @@ Built-in per-IP sliding window rate limiter, returns 429 when exceeded (`-rate-l
 ### Make Targets
 
 ```
-make sandbox           — build + start full sandbox environment
-make sandbox-stop      — stop all sandbox processes
-make sandbox-seed      — re-seed config without restart
-make sandbox-load      — run standard load profile against sandbox
+make sandbox              — build + start full sandbox environment
+make sandbox-stop         — stop all sandbox processes
+make sandbox-reset        — wipe data + restart fresh
+make sandbox-seed         — re-seed config from seed.yaml
+make sandbox-logs         — stream all service logs (color-coded)
+make sandbox-status       — show service health status
+make sandbox-dev-web      — start sandbox + Vite HMR dev server
+make sandbox-container    — start sandbox in containers (Podman/Docker)
+make sandbox-load         — run standard load profile against sandbox
 make sandbox-load-compare — compare load results against baseline
 ```
 

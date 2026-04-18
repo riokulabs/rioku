@@ -29,55 +29,68 @@ The auth security overhaul is complete: cookie-based sessions, RBAC, TOTP 2FA, s
 The sandbox is not just for CI and e2e — it is the standard way to validate all development work. When building any feature (auth, config, admin panel, plugins), the developer workflow is:
 
 1. `make sandbox` — start the full environment
-2. Write code → `make sandbox-restart-daemon` — rebuild + restart only the daemon (upstream apps stay running, ~5 seconds)
+2. Write code → `make sandbox-restart-daemon-fast` — rebuild + restart only the daemon (~3s)
 3. Validate via curl, browser, or smoke test scripts against `localhost:7778`
 4. Repeat until feature works
 5. `make sandbox-stop` when done
 
-### Sandbox Development Targets
+For frontend development, use `make sandbox-dev-web` to start the sandbox + Vite dev server with HMR on `localhost:5173`.
+
+### Sandbox Make Targets
 
 ```makefile
-sandbox-restart-daemon:   ## Rebuild daemon + restart (keeps upstream apps running)
-sandbox-test-auth:        ## Run auth smoke tests against running sandbox
-sandbox-test-smoke:       ## Run full smoke test suite against running sandbox
-sandbox-seed-users:       ## Seed test users with various roles
+sandbox:                    ## Build + start + seed everything
+sandbox-stop:               ## Stop all processes
+sandbox-reset:              ## Wipe data + restart fresh
+sandbox-restart-daemon:     ## Rebuild daemon (with web) + restart
+sandbox-restart-daemon-fast: ## Rebuild daemon (skip web) + restart
+sandbox-restart-daemon-only: ## Restart daemon only (for use with sandbox-dev-web)
+sandbox-seed:               ## Re-apply seed data from seed.yaml
+sandbox-test-auth:          ## Auth smoke tests
+sandbox-test-smoke:         ## Full smoke test suite
+sandbox-logs:               ## Stream all service logs (color-coded)
+sandbox-logs-daemon:        ## Stream daemon logs only
+sandbox-status:             ## Show service health status
+sandbox-clean:              ## Stop + delete all sandbox data
+sandbox-dev-web:            ## Start sandbox + Vite HMR dev server
+sandbox-container:          ## Start sandbox in containers (Podman/Docker)
+sandbox-container-stop:     ## Stop container sandbox
+sandbox-container-logs:     ## View container logs
 ```
 
-### Process Management via Screen
+### Process Management
 
-On Linux and macOS, the sandbox uses `screen` to manage processes. Each process runs in a named screen session:
+The sandbox uses PID files and per-service log files for process management. No external tools (screen, tmux, supervisord) required.
 
-| Session name | Process |
-|---|---|
-| `rioku-daemon` | Rioku daemon |
-| `rioku-users` | Users app (:9001) |
-| `rioku-products` | Products app (:9002) |
-| `rioku-webhooks` | Webhooks app (:9003) |
-| `rioku-auth` | Auth-service app (:9004) |
-| `rioku-media` | Media app (:9005) |
+**PID files:** `sandbox/.data/pids/<service>.pid` — one per service
+**Log files:** `sandbox/.data/logs/<service>.log` — one per service
 
-**Benefits:**
-- `screen -ls` shows all sandbox processes at a glance
-- `screen -r rioku-daemon` attaches to see live daemon logs
-- Processes survive terminal disconnect (remote dev)
-- Clean shutdown via `screen -S <name> -X quit`
+| Service | Port | Log file |
+| --- | --- | --- |
+| daemon | :7778 (REST), :7777 (gRPC) | `logs/daemon.log` |
+| users | :9001 | `logs/users.log` |
+| products | :9002 | `logs/products.log` |
+| webhooks | :9003 | `logs/webhooks.log` |
+| auth-service | :9004 | `logs/auth-service.log` |
+| media | :9005 | `logs/media.log` |
 
-**Fallback:** If `screen` is not installed, falls back to background processes with log files (current behavior). A warning is printed: "screen not found — using background processes, install screen for better sandbox experience".
+Ports are configurable via `sandbox/.env` (copy from `sandbox/.env.example`).
 
-**Platform notes:**
-- Linux: `screen` available via package manager (`apt install screen`, `dnf install screen`)
-- macOS: `screen` included with Xcode command line tools
-- Windows/WSL: `screen` available in WSL, not native Windows
+### `make sandbox-restart-daemon-fast`
 
-### `make sandbox-restart-daemon`
+Rebuilds the daemon binary (skips web rebuild), kills only the daemon process via PID file, restarts with the same config. Upstream apps are untouched. Health-checks the daemon before returning. Typical cycle: ~3 seconds.
 
-Rebuilds the daemon binary (`make build-daemon`), kills only the daemon screen session (`screen -S rioku-daemon -X quit`), restarts it in a new screen session with the same config. Upstream app sessions are untouched. Health-checks the daemon before returning. Typical cycle: ~5 seconds from code change to running daemon.
+### Configuration
+
+The sandbox uses a config template at `sandbox/config/rioku.sandbox.yaml.tmpl` with environment variable substitution. No `sed` patching of generated configs. The `rioku init` command supports `--config-template`, `--dev-mode`, `--traffic-addr`, and `--rate-limit-rpm` flags for direct configuration.
+
+### Seeding
+
+All seed data (services, routes, policies, users, roles, API keys) is in a single YAML file: `sandbox/config/seed.yaml`. Applied via `rioku seed --file seed.yaml` after the daemon starts. No Python or external scripts required.
 
 ### Test User Seeding
 
-After `rioku init` creates the root user, the sandbox seeds additional test users for development and automated testing:
-
-**`sandbox/config/test-users.json`:**
+Test users are defined in `sandbox/config/seed.yaml` and applied via `rioku seed`:
 
 | Username | Password | Roles | Purpose |
 |---|---|---|---|

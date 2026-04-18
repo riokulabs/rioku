@@ -1529,7 +1529,7 @@ func TestRunInit_NonInteractive_SQLite(t *testing.T) {
 	cmd := newInitCmd()
 
 	out := captureStdoutToBytes(t, func() {
-		err := runInit(cmd, "sqlite", dir, ":17778", true, false, "TestPass123!", false)
+		err := runInit(cmd, "sqlite", dir, ":17778", true, false, "TestPass123!", false, false, 0, 0, "", "")
 		if err != nil {
 			t.Fatalf("runInit: %v", err)
 		}
@@ -1583,7 +1583,7 @@ func TestRunInit_ExistingConfig_NoForce(t *testing.T) {
 	flagConfigFile = cfgPath
 
 	cmd := newInitCmd()
-	err := runInit(cmd, "sqlite", dir, ":17778", true, false, "pass", false)
+	err := runInit(cmd, "sqlite", dir, ":17778", true, false, "pass", false, false, 0, 0, "", "")
 	if err == nil {
 		t.Fatal("expected error when config exists without --force")
 	}
@@ -1598,7 +1598,7 @@ func TestRunInit_RemoteRejected(t *testing.T) {
 	flagDaemonAddr = "http://remote.host:7778"
 
 	cmd := newInitCmd()
-	err := runInit(cmd, "sqlite", "/tmp", ":17778", true, false, "pass", false)
+	err := runInit(cmd, "sqlite", "/tmp", ":17778", true, false, "pass", false, false, 0, 0, "", "")
 	if err == nil {
 		t.Fatal("expected error for remote addr")
 	}

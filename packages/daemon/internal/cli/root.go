@@ -62,6 +62,7 @@ func init() {
 		newConfigCmd(),
 		newAuditCmd(),
 		newMigrateCmd(),
+		newSeedCmd(),
 	)
 }
 

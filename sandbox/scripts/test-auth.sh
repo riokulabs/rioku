@@ -4,7 +4,17 @@
 # Usage: bash sandbox/scripts/test-auth.sh [base-url]
 set -uo pipefail
 
-BASE="${1:-http://localhost:7778}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SANDBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load environment config
+ENV_FILE="${SANDBOX_DIR}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+: "${SANDBOX_PORT_REST:=7778}"
+
+BASE="${1:-http://localhost:${SANDBOX_PORT_REST}}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
