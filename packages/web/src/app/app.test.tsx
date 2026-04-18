@@ -3,8 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { App } from './app';
 
 describe('App', () => {
-  it('renders hello', () => {
+  it('renders hello through the router', async () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: /hello/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /hello/i })).toBeInTheDocument();
   });
 });
