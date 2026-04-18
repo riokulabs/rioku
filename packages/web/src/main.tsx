@@ -4,6 +4,18 @@ import { App } from './app/app';
 import { initI18n } from './i18n/config';
 import '@mantine/core/styles.css';
 
+// Seed the mock store if empty — skipped in Vitest to keep tests isolated.
+if (!import.meta.env.VITEST) {
+  void import('./api/mock-store').then(({ useMockStore }) => {
+    void import('./api/mock-seed').then(({ seedStore }) => {
+      const state = useMockStore.getState();
+      if (Object.keys(state.users).length === 0) {
+        seedStore(useMockStore);
+      }
+    });
+  });
+}
+
 const start = async () => {
   await initI18n();
   const container = document.getElementById('root');
