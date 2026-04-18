@@ -5,13 +5,15 @@ Rioku admin panel. **Stage 1: UI/UX/IA mock** — runs standalone on the in-brow
 ## Quick start
 
 ```bash
-npm install
-npm run dev       # http://localhost:5173
-npm run test      # Vitest unit + component
-npm run test:e2e  # Playwright smoke
-npm run lint      # ESLint
-npm run build     # production build (embedded into daemon via go:embed in Plan 9)
+pnpm install      # uses pnpm ≥10 (enforced via engines + packageManager)
+pnpm dev          # http://localhost:5173
+pnpm test         # Vitest unit + component
+pnpm test:e2e     # Playwright smoke
+pnpm lint         # ESLint
+pnpm build        # production build (embedded into daemon via go:embed in Plan 9)
 ```
+
+Corepack users: `corepack enable` picks up the `packageManager` pin in `package.json`.
 
 ## Spec
 

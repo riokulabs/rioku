@@ -17,13 +17,13 @@ cd ../..
 # Web checks: typecheck + lint + format (~5s)
 if [ -f packages/web/package.json ]; then
   echo "Running web typecheck..."
-  cd packages/web && npm run typecheck || exit 1
+  cd packages/web && pnpm typecheck || exit 1
   cd ../..
   echo "Running web lint..."
-  cd packages/web && npm run lint || exit 1
+  cd packages/web && pnpm lint || exit 1
   cd ../..
   echo "Running web format check..."
-  cd packages/web && npm run format:check || exit 1
+  cd packages/web && pnpm format:check || exit 1
   cd ../..
 fi
 

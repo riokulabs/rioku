@@ -97,7 +97,7 @@ sandbox-dev-web:
 	@echo -e "  Edit packages/web/src/ → instant HMR refresh"
 	@echo -e "  Backend changes → run 'make sandbox-restart-daemon-fast' in another terminal"
 	@echo ""
-	@cd packages/web && $(WEB_PATH) npm run dev
+	@cd packages/web && $(WEB_PATH) pnpm dev
 
 ## sandbox-restart-daemon-only: Rebuild + restart daemon only (for use alongside sandbox-dev-web)
 sandbox-restart-daemon-only: build-daemon-fast
@@ -105,7 +105,7 @@ sandbox-restart-daemon-only: build-daemon-fast
 
 ## test-e2e: Run Playwright E2E tests (requires running sandbox)
 test-e2e:
-	cd $(PKG)/web && npx playwright test
+	cd $(PKG)/web && pnpm exec playwright test
 
 ## test-e2e-full: Start sandbox, run E2E tests, stop sandbox
 test-e2e-full: build-daemon
@@ -127,7 +127,7 @@ test-e2e-full: build-daemon
 	@echo "==> Running smoke tests..."
 	@bash sandbox/scripts/test-smoke.sh
 	@echo "==> Running Playwright E2E tests..."
-	cd $(PKG)/web && npx playwright install --with-deps && npx playwright test
+	cd $(PKG)/web && pnpm exec playwright install --with-deps && npx playwright test
 	@echo "==> Stopping sandbox..."
 	@bash sandbox/scripts/stop.sh
 
@@ -202,7 +202,7 @@ proto-breaking:
 test:
 	cd $(PKG)/daemon && $(GO) test ./...
 	cd $(PKG)/build-service && $(GO) test ./...
-	cd $(PKG)/web && npm test
+	cd $(PKG)/web && pnpm test
 
 ## test-fast: Run tests with race detector, skip scale tests (for local iteration)
 test-fast:
@@ -305,11 +305,11 @@ lint:
 
 ## web: Install web dependencies
 web:
-	cd $(PKG)/web && $(WEB_PATH) npm install
+	cd $(PKG)/web && $(WEB_PATH) pnpm install
 
 ## web-build: Build the admin panel SPA
 web-build:
-	cd $(PKG)/web && $(WEB_PATH) npm run build
+	cd $(PKG)/web && $(WEB_PATH) pnpm build
 
 ## web-build-if-changed: Build web SPA only if source files changed (hash-based)
 WEB_HASH_FILE = packages/web/build/.build-hash
@@ -324,21 +324,21 @@ web-build-if-changed:
 		echo "[OK]    web SPA unchanged — skipping rebuild"; \
 	else \
 		echo "==> Web SPA changed — rebuilding..."; \
-		cd packages/web && $(WEB_PATH) npm run build; \
+		cd packages/web && $(WEB_PATH) pnpm build; \
 		echo "$${CURRENT_HASH}" > "../../$(WEB_HASH_FILE)"; \
 	fi
 
 ## web-dev: Run admin panel dev server
 web-dev:
-	cd $(PKG)/web && $(WEB_PATH) npm run dev
+	cd $(PKG)/web && $(WEB_PATH) pnpm dev
 
 ## test-web: Run frontend Vitest tests
 test-web:
-	cd $(PKG)/web && $(WEB_PATH) npm test
+	cd $(PKG)/web && $(WEB_PATH) pnpm test
 
 ## test-web-coverage: Run frontend Vitest tests with coverage
 test-web-coverage:
-	cd $(PKG)/web && $(WEB_PATH) npm run test:coverage
+	cd $(PKG)/web && $(WEB_PATH) pnpm test:coverage
 
 ## ui-storybook: Run @rioku/ui Storybook at localhost:6006
 ui-storybook:

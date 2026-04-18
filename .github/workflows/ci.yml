@@ -131,14 +131,18 @@ jobs:
             packages/build-service/go.sum
             packages/proto/gen/go/go.sum
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: packages/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: packages/web/pnpm-lock.yaml
 
       - name: Install web dependencies
-        run: cd packages/web && npm ci
+        run: cd packages/web && pnpm install --frozen-lockfile
 
       - name: Start sandbox
         run: make sandbox
@@ -147,10 +151,10 @@ jobs:
         run: make sandbox-test-smoke
 
       - name: Install Playwright browsers
-        run: cd packages/web && npx playwright install --with-deps
+        run: cd packages/web && pnpm exec playwright install --with-deps
 
       - name: Run Playwright E2E tests
-        run: cd packages/web && npx playwright test
+        run: cd packages/web && pnpm exec playwright test
 
       - name: Upload Playwright report on failure
         uses: actions/upload-artifact@v7
@@ -170,29 +174,32 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: packages/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: packages/web/pnpm-lock.yaml
       - name: Install web deps
-        run: cd packages/web && npm ci --legacy-peer-deps
+        run: cd packages/web && pnpm install --frozen-lockfile
       - name: Lint
-        run: cd packages/web && npm run lint
+        run: cd packages/web && pnpm lint
       - name: Typecheck
-        run: cd packages/web && npm run typecheck
+        run: cd packages/web && pnpm typecheck
       - name: Format check
-        run: cd packages/web && npm run format:check
+        run: cd packages/web && pnpm format:check
       - name: Unit + component tests
-        run: cd packages/web && npm run test
+        run: cd packages/web && pnpm test
       - name: Install Playwright browsers
-        run: cd packages/web && npm run test:e2e:install
+        run: cd packages/web && pnpm test:e2e:install
       - name: E2E smoke
-        run: cd packages/web && npm run test:e2e
+        run: cd packages/web && pnpm test:e2e
       - name: Build
-        run: cd packages/web && npm run build
+        run: cd packages/web && pnpm build
       - name: Check bundle budgets
-        run: cd packages/web && npm run check-budgets
+        run: cd packages/web && pnpm check-budgets
       - name: Upload Playwright report on failure
         uses: actions/upload-artifact@v7
         if: failure()
