@@ -1,4 +1,5 @@
 import { MantineProvider, createTheme, localStorageColorSchemeManager } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 import '@mantine/spotlight/styles.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
@@ -58,7 +59,9 @@ export function Providers({ children }: { children: ReactNode }) {
       forceColorScheme={resolvedTheme.colorScheme}
       colorSchemeManager={colorSchemeManager}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <ModalsProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </ModalsProvider>
     </MantineProvider>
   );
 }
