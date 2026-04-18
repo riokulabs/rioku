@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps",
-    "bundle-analyze": "vite-bundle-analyzer dist/stats.html"
+    "bundle-analyze": "vite-bundle-analyzer dist/stats.html",
+    "check-budgets": "node scripts/check-bundle-budgets.mjs"
   },
   "dependencies": {
     "react": "19.2.5",
