@@ -80,7 +80,7 @@ export function SidebarFooter() {
                   <Text size="sm" fw={600}>
                     derrick
                   </Text>
-                  <Text size="xs" c="dimmed">
+                  <Text size="xs">
                     derrick@rioku.dev
                   </Text>
                 </Box>

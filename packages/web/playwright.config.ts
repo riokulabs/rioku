@@ -17,7 +17,17 @@ export default defineConfig({
     // verify UI behaviour without being blocked by dev-server nonce mismatch.
     bypassCSP: true,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Force dark color scheme so Mantine's OS-preference resolution picks
+        // the dark theme; avoids light-mode contrast failures in headless CI.
+        colorScheme: 'dark',
+      },
+    },
+  ],
   webServer: {
     command: 'pnpm dev',
     url: 'http://localhost:5173',

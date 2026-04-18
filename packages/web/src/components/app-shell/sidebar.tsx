@@ -76,7 +76,7 @@ export function Sidebar() {
       <Box flex={1} p="xs" style={{ overflowY: 'auto' }}>
         {NAV_GROUPS.map((group) => (
           <Stack key={group.heading} gap={2} mb="md">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600} px="xs" pt="xs">
+            <Text size="xs" tt="uppercase" fw={600} px="xs" pt="xs">
               {group.heading}
             </Text>
             {group.items.map((item) => (
