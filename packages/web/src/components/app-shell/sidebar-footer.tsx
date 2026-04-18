@@ -1,16 +1,30 @@
-import { Box, Stack, Menu, Avatar, Group, Text } from '@mantine/core';
+import { Box, Stack, Menu, MenuSub, Avatar, Group, Text } from '@mantine/core';
 import {
   IconChevronDown,
+  IconChevronRight,
   IconLogout,
   IconSettings,
   IconMessageCircle,
+  IconCheck,
+  IconPalette,
+  IconLanguage,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useTenant } from '@/hooks/use-tenant';
+import { useActiveTheme } from '@/hooks/use-active-theme';
+import { BUILTIN_THEMES } from '@/theme';
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'ar', label: 'العربية' },
+];
 
 export function SidebarFooter() {
   const { slug } = useTenant();
   const tenantLabel = slug ?? 'acme';
   const tenantInitial = tenantLabel.slice(0, 1).toUpperCase();
+  const [activeThemeName, setActiveThemeName] = useActiveTheme();
+  const { i18n } = useTranslation();
 
   return (
     <Stack
@@ -86,7 +100,69 @@ export function SidebarFooter() {
           >
             Report feedback
           </Menu.Item>
+
           <Menu.Divider />
+
+          {/* Theme submenu */}
+          <Menu.Sub>
+            <MenuSub.Target>
+              <Menu.Item
+                leftSection={<IconPalette size={14} />}
+                rightSection={<IconChevronRight size={12} />}
+              >
+                Theme
+              </Menu.Item>
+            </MenuSub.Target>
+            <MenuSub.Dropdown>
+              {BUILTIN_THEMES.map((t) => (
+                <MenuSub.Item
+                  key={t.name}
+                  leftSection={
+                    activeThemeName === t.name ? (
+                      <IconCheck size={14} />
+                    ) : (
+                      <Box style={{ width: 14 }} />
+                    )
+                  }
+                  onClick={() => { setActiveThemeName(t.name); }}
+                >
+                  {t.displayName}
+                </MenuSub.Item>
+              ))}
+            </MenuSub.Dropdown>
+          </Menu.Sub>
+
+          {/* Language submenu */}
+          <Menu.Sub>
+            <MenuSub.Target>
+              <Menu.Item
+                leftSection={<IconLanguage size={14} />}
+                rightSection={<IconChevronRight size={12} />}
+              >
+                Language
+              </Menu.Item>
+            </MenuSub.Target>
+            <MenuSub.Dropdown>
+              {LANGUAGES.map((lang) => (
+                <MenuSub.Item
+                  key={lang.code}
+                  leftSection={
+                    i18n.language === lang.code ? (
+                      <IconCheck size={14} />
+                    ) : (
+                      <Box style={{ width: 14 }} />
+                    )
+                  }
+                  onClick={() => { void i18n.changeLanguage(lang.code); }}
+                >
+                  {lang.label}
+                </MenuSub.Item>
+              ))}
+            </MenuSub.Dropdown>
+          </Menu.Sub>
+
+          <Menu.Divider />
+
           <Menu.Item leftSection={<IconLogout size={14} />} color="red">
             Sign out
           </Menu.Item>
