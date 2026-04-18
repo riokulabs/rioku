@@ -90,6 +90,7 @@ export default tseslint.config(
     rules: {
       'boundaries/element-types': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
     },
   },
   {
