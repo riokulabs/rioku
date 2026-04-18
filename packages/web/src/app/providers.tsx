@@ -1,4 +1,5 @@
 import { MantineProvider, createTheme, localStorageColorSchemeManager } from '@mantine/core';
+import '@mantine/spotlight/styles.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
