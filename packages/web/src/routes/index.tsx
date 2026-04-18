@@ -1,14 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { Center, Title } from '@mantine/core';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/')({
-  component: IndexPage,
+  beforeLoad: () => {
+    // Stage 1: redirect to tenant picker; real logic in Plan 1d
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw redirect({ to: '/tenants' });
+  },
 });
-
-function IndexPage() {
-  return (
-    <Center h="100vh">
-      <Title order={1}>Rioku — hello</Title>
-    </Center>
-  );
-}

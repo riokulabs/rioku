@@ -9,38 +9,215 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TenantsRouteImport } from './routes/tenants'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AccessDeniedRouteImport } from './routes/access-denied'
+import { Route as UnauthRouteImport } from './routes/_unauth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TTenantRouteImport } from './routes/t.$tenant'
+import { Route as UnauthTotpRecoveryRouteImport } from './routes/_unauth/totp-recovery'
+import { Route as UnauthLoginRouteImport } from './routes/_unauth/login'
+import { Route as UnauthForgotPasswordRouteImport } from './routes/_unauth/forgot-password'
+import { Route as UnauthBootstrapRouteImport } from './routes/_unauth/bootstrap'
+import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
+import { Route as UnauthResetPasswordTokenRouteImport } from './routes/_unauth/reset-password.$token'
+import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$token'
 
+const TenantsRoute = TenantsRouteImport.update({
+  id: '/tenants',
+  path: '/tenants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessDeniedRoute = AccessDeniedRouteImport.update({
+  id: '/access-denied',
+  path: '/access-denied',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnauthRoute = UnauthRouteImport.update({
+  id: '/_unauth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TTenantRoute = TTenantRouteImport.update({
+  id: '/t/$tenant',
+  path: '/t/$tenant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnauthTotpRecoveryRoute = UnauthTotpRecoveryRouteImport.update({
+  id: '/totp-recovery',
+  path: '/totp-recovery',
+  getParentRoute: () => UnauthRoute,
+} as any)
+const UnauthLoginRoute = UnauthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => UnauthRoute,
+} as any)
+const UnauthForgotPasswordRoute = UnauthForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => UnauthRoute,
+} as any)
+const UnauthBootstrapRoute = UnauthBootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
+  getParentRoute: () => UnauthRoute,
+} as any)
+const TTenantDashboardRoute = TTenantDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => TTenantRoute,
+} as any)
+const UnauthResetPasswordTokenRoute =
+  UnauthResetPasswordTokenRouteImport.update({
+    id: '/reset-password/$token',
+    path: '/reset-password/$token',
+    getParentRoute: () => UnauthRoute,
+  } as any)
+const UnauthInviteTokenRoute = UnauthInviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => UnauthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
+  '/admin': typeof AdminRoute
+  '/tenants': typeof TenantsRoute
+  '/bootstrap': typeof UnauthBootstrapRoute
+  '/forgot-password': typeof UnauthForgotPasswordRoute
+  '/login': typeof UnauthLoginRoute
+  '/totp-recovery': typeof UnauthTotpRecoveryRoute
+  '/t/$tenant': typeof TTenantRouteWithChildren
+  '/invite/$token': typeof UnauthInviteTokenRoute
+  '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
+  '/t/$tenant/dashboard': typeof TTenantDashboardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
+  '/admin': typeof AdminRoute
+  '/tenants': typeof TenantsRoute
+  '/bootstrap': typeof UnauthBootstrapRoute
+  '/forgot-password': typeof UnauthForgotPasswordRoute
+  '/login': typeof UnauthLoginRoute
+  '/totp-recovery': typeof UnauthTotpRecoveryRoute
+  '/t/$tenant': typeof TTenantRouteWithChildren
+  '/invite/$token': typeof UnauthInviteTokenRoute
+  '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
+  '/t/$tenant/dashboard': typeof TTenantDashboardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_unauth': typeof UnauthRouteWithChildren
+  '/access-denied': typeof AccessDeniedRoute
+  '/admin': typeof AdminRoute
+  '/tenants': typeof TenantsRoute
+  '/_unauth/bootstrap': typeof UnauthBootstrapRoute
+  '/_unauth/forgot-password': typeof UnauthForgotPasswordRoute
+  '/_unauth/login': typeof UnauthLoginRoute
+  '/_unauth/totp-recovery': typeof UnauthTotpRecoveryRoute
+  '/t/$tenant': typeof TTenantRouteWithChildren
+  '/_unauth/invite/$token': typeof UnauthInviteTokenRoute
+  '/_unauth/reset-password/$token': typeof UnauthResetPasswordTokenRoute
+  '/t/$tenant/dashboard': typeof TTenantDashboardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/access-denied'
+    | '/admin'
+    | '/tenants'
+    | '/bootstrap'
+    | '/forgot-password'
+    | '/login'
+    | '/totp-recovery'
+    | '/t/$tenant'
+    | '/invite/$token'
+    | '/reset-password/$token'
+    | '/t/$tenant/dashboard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/access-denied'
+    | '/admin'
+    | '/tenants'
+    | '/bootstrap'
+    | '/forgot-password'
+    | '/login'
+    | '/totp-recovery'
+    | '/t/$tenant'
+    | '/invite/$token'
+    | '/reset-password/$token'
+    | '/t/$tenant/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/_unauth'
+    | '/access-denied'
+    | '/admin'
+    | '/tenants'
+    | '/_unauth/bootstrap'
+    | '/_unauth/forgot-password'
+    | '/_unauth/login'
+    | '/_unauth/totp-recovery'
+    | '/t/$tenant'
+    | '/_unauth/invite/$token'
+    | '/_unauth/reset-password/$token'
+    | '/t/$tenant/dashboard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  UnauthRoute: typeof UnauthRouteWithChildren
+  AccessDeniedRoute: typeof AccessDeniedRoute
+  AdminRoute: typeof AdminRoute
+  TenantsRoute: typeof TenantsRoute
+  TTenantRoute: typeof TTenantRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tenants': {
+      id: '/tenants'
+      path: '/tenants'
+      fullPath: '/tenants'
+      preLoaderRoute: typeof TenantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access-denied': {
+      id: '/access-denied'
+      path: '/access-denied'
+      fullPath: '/access-denied'
+      preLoaderRoute: typeof AccessDeniedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_unauth': {
+      id: '/_unauth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof UnauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +225,104 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/t/$tenant': {
+      id: '/t/$tenant'
+      path: '/t/$tenant'
+      fullPath: '/t/$tenant'
+      preLoaderRoute: typeof TTenantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_unauth/totp-recovery': {
+      id: '/_unauth/totp-recovery'
+      path: '/totp-recovery'
+      fullPath: '/totp-recovery'
+      preLoaderRoute: typeof UnauthTotpRecoveryRouteImport
+      parentRoute: typeof UnauthRoute
+    }
+    '/_unauth/login': {
+      id: '/_unauth/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof UnauthLoginRouteImport
+      parentRoute: typeof UnauthRoute
+    }
+    '/_unauth/forgot-password': {
+      id: '/_unauth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof UnauthForgotPasswordRouteImport
+      parentRoute: typeof UnauthRoute
+    }
+    '/_unauth/bootstrap': {
+      id: '/_unauth/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/bootstrap'
+      preLoaderRoute: typeof UnauthBootstrapRouteImport
+      parentRoute: typeof UnauthRoute
+    }
+    '/t/$tenant/dashboard': {
+      id: '/t/$tenant/dashboard'
+      path: '/dashboard'
+      fullPath: '/t/$tenant/dashboard'
+      preLoaderRoute: typeof TTenantDashboardRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/_unauth/reset-password/$token': {
+      id: '/_unauth/reset-password/$token'
+      path: '/reset-password/$token'
+      fullPath: '/reset-password/$token'
+      preLoaderRoute: typeof UnauthResetPasswordTokenRouteImport
+      parentRoute: typeof UnauthRoute
+    }
+    '/_unauth/invite/$token': {
+      id: '/_unauth/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof UnauthInviteTokenRouteImport
+      parentRoute: typeof UnauthRoute
+    }
   }
 }
 
+interface UnauthRouteChildren {
+  UnauthBootstrapRoute: typeof UnauthBootstrapRoute
+  UnauthForgotPasswordRoute: typeof UnauthForgotPasswordRoute
+  UnauthLoginRoute: typeof UnauthLoginRoute
+  UnauthTotpRecoveryRoute: typeof UnauthTotpRecoveryRoute
+  UnauthInviteTokenRoute: typeof UnauthInviteTokenRoute
+  UnauthResetPasswordTokenRoute: typeof UnauthResetPasswordTokenRoute
+}
+
+const UnauthRouteChildren: UnauthRouteChildren = {
+  UnauthBootstrapRoute: UnauthBootstrapRoute,
+  UnauthForgotPasswordRoute: UnauthForgotPasswordRoute,
+  UnauthLoginRoute: UnauthLoginRoute,
+  UnauthTotpRecoveryRoute: UnauthTotpRecoveryRoute,
+  UnauthInviteTokenRoute: UnauthInviteTokenRoute,
+  UnauthResetPasswordTokenRoute: UnauthResetPasswordTokenRoute,
+}
+
+const UnauthRouteWithChildren =
+  UnauthRoute._addFileChildren(UnauthRouteChildren)
+
+interface TTenantRouteChildren {
+  TTenantDashboardRoute: typeof TTenantDashboardRoute
+}
+
+const TTenantRouteChildren: TTenantRouteChildren = {
+  TTenantDashboardRoute: TTenantDashboardRoute,
+}
+
+const TTenantRouteWithChildren =
+  TTenantRoute._addFileChildren(TTenantRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  UnauthRoute: UnauthRouteWithChildren,
+  AccessDeniedRoute: AccessDeniedRoute,
+  AdminRoute: AdminRoute,
+  TenantsRoute: TenantsRoute,
+  TTenantRoute: TTenantRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
