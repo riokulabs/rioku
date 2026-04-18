@@ -163,3 +163,40 @@ jobs:
       - name: Stop sandbox
         if: always()
         run: make sandbox-stop
+
+  web:
+    name: Web (lint + typecheck + test + e2e + bundle)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/web/package-lock.json
+      - name: Install web deps
+        run: cd packages/web && npm ci --legacy-peer-deps
+      - name: Lint
+        run: cd packages/web && npm run lint
+      - name: Typecheck
+        run: cd packages/web && npm run typecheck
+      - name: Format check
+        run: cd packages/web && npm run format:check
+      - name: Unit + component tests
+        run: cd packages/web && npm run test
+      - name: Install Playwright browsers
+        run: cd packages/web && npm run test:e2e:install
+      - name: E2E smoke
+        run: cd packages/web && npm run test:e2e
+      - name: Build
+        run: cd packages/web && npm run build
+      - name: Check bundle budgets
+        run: cd packages/web && npm run check-budgets
+      - name: Upload Playwright report on failure
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: packages/web/playwright-report/
+          retention-days: 7
