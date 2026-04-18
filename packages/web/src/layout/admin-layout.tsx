@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AppShell, Alert } from '@mantine/core';
 import { TopBar } from '@/components/app-shell/top-bar';
 import { AdminSidebar } from '@/components/app-shell/admin-sidebar';
+import { KeyboardShortcutsHelp } from '@/components/keyboard-shortcuts-help';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </Alert>
         {children}
       </AppShell.Main>
+      <KeyboardShortcutsHelp />
     </AppShell>
   );
 }

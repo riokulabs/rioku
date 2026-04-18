@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AppShell } from '@mantine/core';
 import { TopBar } from '@/components/app-shell/top-bar';
 import { Sidebar } from '@/components/app-shell/sidebar';
+import { KeyboardShortcutsHelp } from '@/components/keyboard-shortcuts-help';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <Sidebar />
       </AppShell.Navbar>
       <AppShell.Main>{children}</AppShell.Main>
+      <KeyboardShortcutsHelp />
     </AppShell>
   );
 }
