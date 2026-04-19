@@ -150,7 +150,6 @@ export function ImpersonationEntryForm() {
           searchable
           {...form.getInputProps('tenant_id')}
           onChange={(v: string | null) => {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             form.setFieldValue('tenant_id', v ?? '');
             form.setFieldValue('user_id', undefined);
           }}
