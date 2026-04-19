@@ -70,6 +70,80 @@ describe('SiteCreateWizard — step 1 validation', () => {
   });
 });
 
+describe('SiteCreateWizard — schema at submit', () => {
+  it('runs the full schema on Create and navigates back to the first invalid step', async () => {
+    const onSuccess = vi.fn();
+    wrap(
+      <SiteCreateWizard
+        tenantId={acmeId()}
+        onSuccess={onSuccess}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    // Step 1 — fill hostname, advance.
+    fireEvent.change(screen.getByLabelText(/Site name/i), {
+      target: { value: 'invalid-port-site' },
+    });
+    fireEvent.change(screen.getByLabelText(/Domain/i), {
+      target: { value: 'invalid.example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    // Step 2 — switch to new_upstream, fill host, advance.
+    const newUpstreamLabel = await screen.findByText(/Point at new upstream/i);
+    fireEvent.click(newUpstreamLabel);
+    const hostInput = await screen.findByLabelText(/Host/i);
+    fireEvent.change(hostInput, { target: { value: 'backend.internal' } });
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    // Step 3 — TLS (auto default), advance.
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(/plaintext only/i).length,
+      ).toBeGreaterThan(0);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    // Step 4 — policies (defaults), advance.
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText(/Enable HTTP basic authentication/i),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    // Step 5 — review visible; walk back via Back button to the upstream step
+    // and inject an out-of-range port. `validateStep(1)` doesn't check port,
+    // but the schema's `min(1)/max(65535)` does — so the invalid state
+    // survives until Create fires the full schema parse.
+    await screen.findByTestId('wizard-create-site');
+    fireEvent.click(screen.getByRole('button', { name: /Back/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Back/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Back/i }));
+
+    const portInput = await screen.findByLabelText(/Port/i);
+    fireEvent.change(portInput, { target: { value: '99999' } });
+
+    // Walk forward through the remaining steps (validateStep never re-checks
+    // step 1's port; it only re-checks the step the user is leaving).
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    const createBtn = await screen.findByTestId('wizard-create-site');
+    fireEvent.click(createBtn);
+
+    // Schema parse fails: createSite never runs, onSuccess never fires.
+    await waitFor(() => {
+      // The upstream host input is only rendered on step 1, so its presence
+      // confirms the wizard navigated back to that step after schema parse.
+      expect(screen.getByLabelText(/Host/i)).toBeInTheDocument();
+    });
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+});
+
 describe('SiteCreateWizard — happy path', () => {
   it('creates a site end-to-end using new_upstream + auto TLS', async () => {
     const onSuccess = vi.fn();

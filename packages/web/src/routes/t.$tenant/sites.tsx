@@ -17,10 +17,9 @@ import { Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
-import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
-  deleteSite,
+  DeleteSiteModal,
   SiteCreateWizard,
   SiteDetail,
   SiteEditForm,
@@ -116,6 +115,7 @@ function SitesPage() {
     useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Site | null>(null);
 
   function handleRowClick(site: Site) {
     setSelectedSite(site);
@@ -135,27 +135,8 @@ function SitesPage() {
     openDrawer();
   }
 
-  async function handleDeleteFromList(site: Site) {
-    // From list, skip typed-domain confirm (it lives in the detail drawer);
-    // caller should use the detail drawer to delete. This is a "direct" path
-    // that still enforces typed-domain confirm via a prompt.
-    const input = typeof window !== 'undefined'
-      ? window.prompt(
-          `Type "${site.domain}" to confirm deletion. This cannot be undone.`,
-        )
-      : null;
-    if (input !== site.domain) {
-      if (input !== null) {
-        notify.error('Delete cancelled', 'Domain did not match.');
-      }
-      return;
-    }
-    try {
-      await deleteSite(site.id, input);
-      notify.success('Site deleted', `${site.domain} was removed.`);
-    } catch {
-      notify.error('Failed to delete site', 'Please try again.');
-    }
+  function handleDeleteFromList(site: Site) {
+    setDeleteTarget(site);
   }
 
   const drawerTitle =
@@ -186,7 +167,7 @@ function SitesPage() {
         filter={filter}
         onSelect={handleRowClick}
         onEdit={handleEditFromList}
-        onDelete={(site) => void handleDeleteFromList(site)}
+        onDelete={handleDeleteFromList}
       />
 
       <Drawer
@@ -228,6 +209,17 @@ function SitesPage() {
           />
         )}
       </Drawer>
+
+      <DeleteSiteModal
+        opened={deleteTarget !== null}
+        site={deleteTarget}
+        onClose={() => {
+          setDeleteTarget(null);
+        }}
+        onSuccess={() => {
+          setDeleteTarget(null);
+        }}
+      />
     </Stack>
   );
 }

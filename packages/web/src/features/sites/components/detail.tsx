@@ -16,12 +16,10 @@ import {
   Button,
   Divider,
   Group,
-  Modal,
   Stack,
   Switch,
   Table,
   Text,
-  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -37,7 +35,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { Link } from '@tanstack/react-router';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import { deleteSite, toggleSite, useSiteDetail } from '../api';
+import { toggleSite, useSiteDetail } from '../api';
+import { DeleteSiteModal } from './delete-site-modal';
 
 dayjs.extend(relativeTime);
 
@@ -97,8 +96,6 @@ export function SiteDetail({
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] =
     useDisclosure(false);
-  const [deleteInput, setDeleteInput] = useState('');
-  const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   if (!site) {
@@ -122,23 +119,6 @@ export function SiteDetail({
       notify.error('Failed to update site', 'Please try again.');
     } finally {
       setToggling(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!site) return;
-    if (deleteInput !== site.domain) return;
-    setDeleting(true);
-    try {
-      await deleteSite(site.id, deleteInput);
-      notify.success('Site deleted', `${site.domain} was removed.`);
-      closeDelete();
-      onClose();
-    } catch {
-      notify.error('Failed to delete site', 'Please try again.');
-    } finally {
-      setDeleting(false);
-      setDeleteInput('');
     }
   }
 
@@ -380,59 +360,15 @@ export function SiteDetail({
       </Stack>
 
       {/* Delete modal */}
-      <Modal
+      <DeleteSiteModal
         opened={deleteOpened}
-        onClose={() => {
+        site={deleteOpened ? site : null}
+        onClose={closeDelete}
+        onSuccess={() => {
           closeDelete();
-          setDeleteInput('');
+          onClose();
         }}
-        title="Delete site"
-        size="sm"
-      >
-        <Stack gap="md">
-          <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the site. Traffic to this domain will stop
-            being served.
-          </Alert>
-          <Text size="sm">
-            Type{' '}
-            <Text component="span" fw={600} ff="monospace">
-              {site.domain}
-            </Text>{' '}
-            to confirm.
-          </Text>
-          <TextInput
-            value={deleteInput}
-            onChange={(e) => {
-              setDeleteInput(e.currentTarget.value);
-            }}
-            placeholder={site.domain}
-            data-autofocus
-            aria-label="Confirm site domain"
-          />
-          <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                closeDelete();
-                setDeleteInput('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              size="sm"
-              loading={deleting}
-              disabled={deleteInput !== site.domain}
-              onClick={() => void handleDelete()}
-            >
-              Delete permanently
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      />
     </Stack>
   );
 }

@@ -35,6 +35,38 @@ import { StepReview } from './step-review';
 
 export type WizardStep = 0 | 1 | 2 | 3 | 4;
 
+/**
+ * Map of top-level schema field names to the step index that owns them.
+ * Used by `handleCreate` to navigate the user back to the earliest invalid
+ * step if the final schema parse surfaces any errors.
+ */
+const FIELD_TO_STEP: Record<string, WizardStep> = {
+  name: 0,
+  domain: 0,
+  upstream_mode: 1,
+  upstream_service_id: 1,
+  upstream_protocol: 1,
+  upstream_host: 1,
+  upstream_port: 1,
+  tls_mode: 2,
+  tls_manual_cert_pem: 2,
+  tls_manual_key_pem: 2,
+  basic_auth_enabled: 3,
+  rate_limit_preset: 3,
+  redirect_rules: 3,
+};
+
+function findFirstInvalidStep(errors: Record<string, string>): WizardStep {
+  let min: number = Number.POSITIVE_INFINITY;
+  for (const path of Object.keys(errors)) {
+    const top = path.split('.')[0];
+    if (top === undefined) continue;
+    const step = FIELD_TO_STEP[top];
+    if (step !== undefined && step < min) min = step;
+  }
+  return (min === Number.POSITIVE_INFINITY ? 0 : min) as WizardStep;
+}
+
 export type RedirectStatus = 301 | 302 | 307 | 308;
 
 export interface WizardFormValues {
@@ -157,27 +189,68 @@ export function SiteCreateWizard({
     setError(null);
     try {
       const v = form.values;
-      const payload: SiteWizardInput = {
+
+      // Normalize the form shape to match the Zod schema input before the
+      // final parse: the form uses `number | ''` for optional numeric inputs
+      // (Mantine NumberInput convention); the schema expects `number | undefined`.
+      const normalized = {
+        ...v,
         name: v.name.trim(),
         domain: v.domain.trim(),
-        upstream_mode: v.upstream_mode,
-        tls_mode: v.tls_mode,
-        basic_auth_enabled: v.basic_auth_enabled,
-        rate_limit_preset: v.rate_limit_preset,
-        redirect_rules: v.redirect_rules,
-        ...(v.upstream_mode === 'existing_service'
-          ? { upstream_service_id: v.upstream_service_id }
+        upstream_host: v.upstream_host.trim(),
+        upstream_port: v.upstream_port === '' ? undefined : v.upstream_port,
+      };
+
+      // Source-of-truth validation: run the full schema (including the 3
+      // cross-field `superRefine` guards) once at submit. `validateStep` still
+      // gates Next on each step for UX, but best-effort per-step checks can
+      // miss cross-field issues that only the schema catches.
+      const parseResult = createSiteWizardSchema.safeParse(normalized);
+      if (!parseResult.success) {
+        const errors: Record<string, string> = {};
+        for (const issue of parseResult.error.issues) {
+          const path = issue.path.join('.');
+          if (path.length > 0 && errors[path] === undefined) {
+            errors[path] = issue.message;
+          }
+        }
+        form.setErrors(errors);
+        setActive(findFirstInvalidStep(errors));
+        return;
+      }
+
+      const parsed = parseResult.data;
+      const payload: SiteWizardInput = {
+        name: parsed.name,
+        domain: parsed.domain,
+        upstream_mode: parsed.upstream_mode,
+        tls_mode: parsed.tls_mode,
+        basic_auth_enabled: parsed.basic_auth_enabled,
+        rate_limit_preset: parsed.rate_limit_preset,
+        redirect_rules: parsed.redirect_rules,
+        ...(parsed.upstream_mode === 'existing_service'
+          ? parsed.upstream_service_id !== undefined
+            ? { upstream_service_id: parsed.upstream_service_id }
+            : {}
           : {
-              upstream_protocol: v.upstream_protocol,
-              upstream_host: v.upstream_host.trim(),
-              ...(typeof v.upstream_port === 'number'
-                ? { upstream_port: v.upstream_port }
+              ...(parsed.upstream_protocol !== undefined
+                ? { upstream_protocol: parsed.upstream_protocol }
+                : {}),
+              ...(parsed.upstream_host !== undefined
+                ? { upstream_host: parsed.upstream_host }
+                : {}),
+              ...(parsed.upstream_port !== undefined
+                ? { upstream_port: parsed.upstream_port }
                 : {}),
             }),
-        ...(v.tls_mode === 'manual'
+        ...(parsed.tls_mode === 'manual'
           ? {
-              tls_manual_cert_pem: v.tls_manual_cert_pem,
-              tls_manual_key_pem: v.tls_manual_key_pem,
+              ...(parsed.tls_manual_cert_pem !== undefined
+                ? { tls_manual_cert_pem: parsed.tls_manual_cert_pem }
+                : {}),
+              ...(parsed.tls_manual_key_pem !== undefined
+                ? { tls_manual_key_pem: parsed.tls_manual_key_pem }
+                : {}),
             }
           : {}),
       };

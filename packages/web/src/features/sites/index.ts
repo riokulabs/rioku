@@ -28,3 +28,4 @@ export { SiteFilterBar } from './components/filter-bar';
 export { SiteDetail } from './components/detail';
 export { SiteEditForm } from './components/edit-form';
 export { SiteCreateWizard } from './components/wizard';
+export { DeleteSiteModal } from './components/delete-site-modal';
