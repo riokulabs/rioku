@@ -337,6 +337,40 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant:switch' },
     { permission: 'admin:cross-tenant-read' },
     { permission: 'admin:cross-tenant-write' },
+    // Plan 3 — AI / MCP (full access).
+    { permission: 'ai-provider:read' },
+    { permission: 'ai-provider:write' },
+    { permission: 'ai-provider:delete' },
+    { permission: 'ai-agent:read' },
+    { permission: 'ai-agent:write' },
+    { permission: 'ai-agent:delete' },
+    { permission: 'ai-agent:invoke' },
+    { permission: 'ai-tool:read' },
+    { permission: 'ai-tool:write' },
+    { permission: 'ai-tool:delete' },
+    { permission: 'ai-trace:read' },
+    { permission: 'ai-trace:read-sensitive' },
+    { permission: 'ai-rate-limit:read' },
+    { permission: 'ai-rate-limit:write' },
+    { permission: 'mcp-server:read' },
+    { permission: 'mcp-server:write' },
+    { permission: 'mcp-server:delete' },
+  ];
+
+  // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
+  const opsGrants: T.Grant[] = [
+    { permission: 'ai-provider:read' },
+    { permission: 'ai-provider:write' },
+    { permission: 'ai-agent:read' },
+    { permission: 'ai-agent:write' },
+    { permission: 'ai-agent:invoke' },
+    { permission: 'ai-tool:read' },
+    { permission: 'ai-tool:write' },
+    { permission: 'ai-trace:read' },
+    { permission: 'ai-rate-limit:read' },
+    { permission: 'ai-rate-limit:write' },
+    { permission: 'mcp-server:read' },
+    { permission: 'mcp-server:write' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -350,6 +384,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'api-key:read' },
     { permission: 'session:read' },
     { permission: 'tenant:switch' },
+    // Plan 3 — read-only (NOT ai-trace:read-sensitive).
+    { permission: 'ai-provider:read' },
+    { permission: 'ai-agent:read' },
+    { permission: 'ai-tool:read' },
+    { permission: 'ai-trace:read' },
+    { permission: 'ai-rate-limit:read' },
+    { permission: 'mcp-server:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -364,9 +405,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
       parent_ids: i > 0 ? [roleIds[0]!] : [],
       grants: i === 3
         ? adminGrants
-        : i === 0
-          ? viewerGrants
-          : [{ permission: `rioku.${roleName}.read` }],
+        : i === 1
+          ? opsGrants
+          : i === 0
+            ? viewerGrants
+            : [{ permission: `rioku.${roleName}.read` }],
       denies: [],
       system: i < 4,
     };

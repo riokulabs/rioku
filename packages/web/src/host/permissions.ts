@@ -34,6 +34,12 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'audit:',
   'site:',
   'middleware:',
+  'ai-provider:',
+  'ai-agent:',
+  'ai-tool:',
+  'ai-trace:',
+  'ai-rate-limit:',
+  'mcp-server:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -301,6 +307,120 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'middleware:delete',
     description: 'Delete middlewares',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // ai-provider:*
+  {
+    key: 'ai-provider:read',
+    description: 'View LLM providers',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'ai-provider:write',
+    description: 'Configure LLM providers',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'ai-provider:delete',
+    description: 'Remove LLM providers',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // ai-agent:*
+  {
+    key: 'ai-agent:read',
+    description: 'View AI agents',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'ai-agent:write',
+    description: 'Create or modify AI agents',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'ai-agent:delete',
+    description: 'Remove AI agents',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'ai-agent:invoke',
+    description: 'Invoke AI agents',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+
+  // ai-tool:*
+  {
+    key: 'ai-tool:read',
+    description: 'View AI tools',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'ai-tool:write',
+    description: 'Create or modify AI tools',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'ai-tool:delete',
+    description: 'Remove AI tools',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // ai-trace:*
+  {
+    key: 'ai-trace:read',
+    description: 'View AI traces',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'ai-trace:read-sensitive',
+    description: 'View AI trace prompt/completion content',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // ai-rate-limit:*
+  {
+    key: 'ai-rate-limit:read',
+    description: 'View semantic rate limits',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'ai-rate-limit:write',
+    description: 'Configure semantic rate limits',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+
+  // mcp-server:*
+  {
+    key: 'mcp-server:read',
+    description: 'View MCP servers',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'mcp-server:write',
+    description: 'Configure MCP servers',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'mcp-server:delete',
+    description: 'Remove MCP servers',
     source: 'built-in',
     default_roles: ['admin'],
   },

@@ -98,6 +98,56 @@ describe('BUILT_IN_PERMISSIONS', () => {
     expect(keys).toContain('middleware:delete');
   });
 
+  it('contains all ai-provider:* permissions', () => {
+    expect(keys).toContain('ai-provider:read');
+    expect(keys).toContain('ai-provider:write');
+    expect(keys).toContain('ai-provider:delete');
+  });
+
+  it('contains all ai-agent:* permissions', () => {
+    expect(keys).toContain('ai-agent:read');
+    expect(keys).toContain('ai-agent:write');
+    expect(keys).toContain('ai-agent:delete');
+    expect(keys).toContain('ai-agent:invoke');
+  });
+
+  it('contains all ai-tool:* permissions', () => {
+    expect(keys).toContain('ai-tool:read');
+    expect(keys).toContain('ai-tool:write');
+    expect(keys).toContain('ai-tool:delete');
+  });
+
+  it('contains all ai-trace:* permissions', () => {
+    expect(keys).toContain('ai-trace:read');
+    expect(keys).toContain('ai-trace:read-sensitive');
+  });
+
+  it('contains all ai-rate-limit:* permissions', () => {
+    expect(keys).toContain('ai-rate-limit:read');
+    expect(keys).toContain('ai-rate-limit:write');
+  });
+
+  it('contains all mcp-server:* permissions', () => {
+    expect(keys).toContain('mcp-server:read');
+    expect(keys).toContain('mcp-server:write');
+    expect(keys).toContain('mcp-server:delete');
+  });
+
+  it('contains all 17 Plan 3 AI / MCP keys', () => {
+    const expected = [
+      'ai-provider:read', 'ai-provider:write', 'ai-provider:delete',
+      'ai-agent:read', 'ai-agent:write', 'ai-agent:delete', 'ai-agent:invoke',
+      'ai-tool:read', 'ai-tool:write', 'ai-tool:delete',
+      'ai-trace:read', 'ai-trace:read-sensitive',
+      'ai-rate-limit:read', 'ai-rate-limit:write',
+      'mcp-server:read', 'mcp-server:write', 'mcp-server:delete',
+    ];
+    expect(expected).toHaveLength(17);
+    for (const key of expected) {
+      expect(keys).toContain(key);
+    }
+  });
+
   it('every entry has a non-empty description', () => {
     for (const p of BUILT_IN_PERMISSIONS) {
       expect(p.description.length).toBeGreaterThan(0);
@@ -127,6 +177,12 @@ describe('RESERVED_PREFIXES', () => {
       'audit:',
       'site:',
       'middleware:',
+      'ai-provider:',
+      'ai-agent:',
+      'ai-tool:',
+      'ai-trace:',
+      'ai-rate-limit:',
+      'mcp-server:',
     ];
     for (const prefix of expected) {
       expect(RESERVED_PREFIXES).toContain(prefix);
