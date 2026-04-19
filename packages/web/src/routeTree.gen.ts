@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TenantsRouteImport } from './routes/tenants'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminImpersonateRouteImport } from './routes/admin/impersonate'
+import { Route as AdminTenantsRouteImport } from './routes/admin/tenants'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminClusterRouteImport } from './routes/admin/cluster'
 import { Route as AccessDeniedRouteImport } from './routes/access-denied'
 import { Route as UnauthRouteImport } from './routes/_unauth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -21,6 +25,7 @@ import { Route as UnauthLoginRouteImport } from './routes/_unauth/login'
 import { Route as UnauthForgotPasswordRouteImport } from './routes/_unauth/forgot-password'
 import { Route as UnauthBootstrapRouteImport } from './routes/_unauth/bootstrap'
 import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
+import { Route as TTenantSettingsRouteImport } from './routes/t.$tenant/settings'
 import { Route as TTenantSecurityRouteImport } from './routes/t.$tenant/security'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
 import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$tenant/security/rbac-policies'
@@ -42,6 +47,26 @@ const AdminRoute = AdminRouteImport.update({
 const AdminImpersonateRoute = AdminImpersonateRouteImport.update({
   id: '/impersonate',
   path: '/impersonate',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTenantsRoute = AdminTenantsRouteImport.update({
+  id: '/tenants',
+  path: '/tenants',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminClusterRoute = AdminClusterRouteImport.update({
+  id: '/cluster',
+  path: '/cluster',
   getParentRoute: () => AdminRoute,
 } as any)
 const AccessDeniedRoute = AccessDeniedRouteImport.update({
@@ -88,6 +113,11 @@ const TTenantDashboardRoute = TTenantDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantSettingsRoute = TTenantSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantSecurityRoute = TTenantSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -132,6 +162,10 @@ export interface FileRoutesByFullPath {
   '/access-denied': typeof AccessDeniedRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin/impersonate': typeof AdminImpersonateRoute
+  '/admin/tenants': typeof AdminTenantsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/cluster': typeof AdminClusterRoute
   '/tenants': typeof TenantsRoute
   '/bootstrap': typeof UnauthBootstrapRoute
   '/forgot-password': typeof UnauthForgotPasswordRoute
@@ -141,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
@@ -152,6 +187,10 @@ export interface FileRoutesByTo {
   '/access-denied': typeof AccessDeniedRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin/impersonate': typeof AdminImpersonateRoute
+  '/admin/tenants': typeof AdminTenantsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/cluster': typeof AdminClusterRoute
   '/tenants': typeof TenantsRoute
   '/bootstrap': typeof UnauthBootstrapRoute
   '/forgot-password': typeof UnauthForgotPasswordRoute
@@ -161,6 +200,7 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
@@ -174,6 +214,10 @@ export interface FileRoutesById {
   '/access-denied': typeof AccessDeniedRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin/impersonate': typeof AdminImpersonateRoute
+  '/admin/tenants': typeof AdminTenantsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/cluster': typeof AdminClusterRoute
   '/tenants': typeof TenantsRoute
   '/_unauth/bootstrap': typeof UnauthBootstrapRoute
   '/_unauth/forgot-password': typeof UnauthForgotPasswordRoute
@@ -183,6 +227,7 @@ export interface FileRoutesById {
   '/_unauth/invite/$token': typeof UnauthInviteTokenRoute
   '/_unauth/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
@@ -196,6 +241,10 @@ export interface FileRouteTypes {
     | '/access-denied'
     | '/admin'
     | '/admin/impersonate'
+    | '/admin/tenants'
+    | '/admin/users'
+    | '/admin/audit'
+    | '/admin/cluster'
     | '/tenants'
     | '/bootstrap'
     | '/forgot-password'
@@ -205,6 +254,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset-password/$token'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/settings'
     | '/t/$tenant/security'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/rbac-policies'
@@ -216,6 +266,10 @@ export interface FileRouteTypes {
     | '/access-denied'
     | '/admin'
     | '/admin/impersonate'
+    | '/admin/tenants'
+    | '/admin/users'
+    | '/admin/audit'
+    | '/admin/cluster'
     | '/tenants'
     | '/bootstrap'
     | '/forgot-password'
@@ -225,6 +279,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset-password/$token'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/settings'
     | '/t/$tenant/security'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/rbac-policies'
@@ -237,6 +292,10 @@ export interface FileRouteTypes {
     | '/access-denied'
     | '/admin'
     | '/admin/impersonate'
+    | '/admin/tenants'
+    | '/admin/users'
+    | '/admin/audit'
+    | '/admin/cluster'
     | '/tenants'
     | '/_unauth/bootstrap'
     | '/_unauth/forgot-password'
@@ -246,6 +305,7 @@ export interface FileRouteTypes {
     | '/_unauth/invite/$token'
     | '/_unauth/reset-password/$token'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/settings'
     | '/t/$tenant/security'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/rbac-policies'
@@ -255,10 +315,18 @@ export interface FileRouteTypes {
 }
 interface AdminRouteChildren {
   AdminImpersonateRoute: typeof AdminImpersonateRoute
+  AdminTenantsRoute: typeof AdminTenantsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminClusterRoute: typeof AdminClusterRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminImpersonateRoute: AdminImpersonateRoute,
+  AdminTenantsRoute: AdminTenantsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminClusterRoute: AdminClusterRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -293,6 +361,34 @@ declare module '@tanstack/react-router' {
       path: '/impersonate'
       fullPath: '/admin/impersonate'
       preLoaderRoute: typeof AdminImpersonateRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/tenants': {
+      id: '/admin/tenants'
+      path: '/tenants'
+      fullPath: '/admin/tenants'
+      preLoaderRoute: typeof AdminTenantsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/cluster': {
+      id: '/admin/cluster'
+      path: '/cluster'
+      fullPath: '/admin/cluster'
+      preLoaderRoute: typeof AdminClusterRouteImport
       parentRoute: typeof AdminRoute
     }
     '/access-denied': {
@@ -356,6 +452,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/t/$tenant/dashboard'
       preLoaderRoute: typeof TTenantDashboardRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/settings': {
+      id: '/t/$tenant/settings'
+      path: '/settings'
+      fullPath: '/t/$tenant/settings'
+      preLoaderRoute: typeof TTenantSettingsRouteImport
       parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/security': {
@@ -450,11 +553,13 @@ const TTenantSecurityRouteWithChildren =
 
 interface TTenantRouteChildren {
   TTenantDashboardRoute: typeof TTenantDashboardRoute
+  TTenantSettingsRoute: typeof TTenantSettingsRoute
   TTenantSecurityRoute: typeof TTenantSecurityRouteWithChildren
 }
 
 const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantDashboardRoute: TTenantDashboardRoute,
+  TTenantSettingsRoute: TTenantSettingsRoute,
   TTenantSecurityRoute: TTenantSecurityRouteWithChildren,
 }
 
