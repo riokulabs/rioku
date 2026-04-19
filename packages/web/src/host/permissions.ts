@@ -197,8 +197,20 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
 
   // plugin:*
   {
+    key: 'plugin:read',
+    description: 'View installed plugins and the marketplace catalog',
+    source: 'built-in',
+    default_roles: ['viewer', 'operator', 'admin'],
+  },
+  {
     key: 'plugin:install',
     description: 'Install plugins from the marketplace',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'plugin:uninstall',
+    description: 'Uninstall plugins',
     source: 'built-in',
     default_roles: ['admin'],
   },
