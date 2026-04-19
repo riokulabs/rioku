@@ -44,6 +44,10 @@ export default tseslint.config(
         { type: 'layout', pattern: 'src/layout/*' },
         { type: 'routes', pattern: 'src/routes/*' },
         { type: 'api', pattern: 'src/api/*' },
+        // Static OpenAPI snapshot served to Scalar. Typed as its own element
+        // so features (specifically the api-explorer feature) can import the
+        // generated JSON data without tripping the "no cross-feature" rule.
+        { type: 'api-explorer-data', pattern: 'src/api-explorer/*' },
         { type: 'hooks', pattern: 'src/hooks/*' },
         { type: 'theme', pattern: 'src/theme/*' },
         { type: 'i18n', pattern: 'src/i18n/*' },
@@ -88,8 +92,18 @@ export default tseslint.config(
             },
             {
               from: 'features',
-              allow: ['components', 'hooks', 'api', 'lib', 'theme', 'i18n', 'host'],
+              allow: [
+                'components',
+                'hooks',
+                'api',
+                'lib',
+                'theme',
+                'i18n',
+                'host',
+                'api-explorer-data',
+              ],
             },
+            { from: 'api-explorer-data', allow: [] },
             {
               from: 'layout',
               allow: ['features', 'components', 'hooks', 'api', 'lib', 'theme', 'i18n'],
