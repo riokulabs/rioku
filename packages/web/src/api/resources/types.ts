@@ -334,6 +334,25 @@ export interface AiProvider {
   kind: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'custom';
   base_url: string;
   enabled: boolean;
+  // New in Plan 3:
+  description?: string;
+  /** Credential reference — stores prefix-only; real value never persisted after create. */
+  credential_ref: { prefix: string; created_at: string };
+  /** Published model aliases backed by this provider. */
+  models: AiProviderModel[];
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface AiProviderModel {
+  /** Canonical upstream model id, e.g. "gpt-4o" or "claude-3-7-sonnet". */
+  upstream_id: string;
+  /** User-friendly alias surfaced in agent config. */
+  alias: string;
+  /** Per-model rate/quota. Null = inherit provider default. */
+  rate_limit_rpm: number | null;
+  daily_quota_tokens: number | null;
+  enabled: boolean;
 }
 
 export interface AiAgent {
@@ -341,10 +360,23 @@ export interface AiAgent {
   readonly tenant_id: ID;
   name: string;
   provider_id: ID;
+  /** Model alias from the provider's `models[].alias`. */
   model: string;
   system_prompt: string;
   tool_ids: ID[];
   enabled: boolean;
+  // New in Plan 3:
+  description?: string;
+  /** Scoped credential reference; agent can hold its own API key distinct from provider. */
+  scoped_credential_ref?: { prefix: string; created_at: string };
+  /** RBAC role bindings — which roles are allowed to invoke this agent. */
+  role_ids: ID[];
+  /** Guardrails. */
+  max_tokens_per_request: number;
+  temperature: number;
+  stop_sequences: string[];
+  readonly created_at: string;
+  readonly updated_at: string;
 }
 
 export interface AiTool {
@@ -352,8 +384,18 @@ export interface AiTool {
   readonly tenant_id: ID;
   name: string;
   description: string;
+  /** JSON schema for tool input (JSON-schema draft-07). */
   schema: Record<string, unknown>;
   mcp_server_id?: ID;
+  // New in Plan 3:
+  /** Handler kind — native = daemon-built-in, mcp = proxied via MCP server, http = call an external HTTP endpoint. */
+  kind: 'native' | 'mcp' | 'http';
+  /** Populated when kind === 'http'. */
+  http_endpoint?: { url: string; method: 'GET' | 'POST'; auth_header?: string };
+  /** Dangerous tools require explicit agent opt-in; flagged in the approval UI. */
+  dangerous: boolean;
+  enabled: boolean;
+  readonly created_at: string;
 }
 
 export interface AiTrace {
@@ -366,6 +408,27 @@ export interface AiTrace {
   latency_ms: number;
   status: 'success' | 'error' | 'timeout';
   readonly at: string;
+  // New in Plan 3:
+  /** Provider + model used — redundant with agent but captured at trace time for historical fidelity. */
+  provider_id: ID;
+  model: string;
+  prompt_text: string;
+  completion_text: string;
+  tool_calls: AiTraceToolCall[];
+  cost_usd: number;
+  error_message?: string;
+  /** User-facing request id (from gateway). */
+  request_id: string;
+}
+
+export interface AiTraceToolCall {
+  readonly tool_id: ID;
+  readonly tool_name: string;
+  arguments: Record<string, unknown>;
+  result: unknown;
+  latency_ms: number;
+  status: 'success' | 'error' | 'timeout';
+  error_message?: string;
 }
 
 export interface McpServer {
@@ -375,4 +438,58 @@ export interface McpServer {
   url: string;
   auth_kind: 'none' | 'bearer' | 'api-key';
   enabled: boolean;
+  // New in Plan 3:
+  description?: string;
+  /** Auth credential ref — stored prefix-only. */
+  auth_credential_ref?: { prefix: string; created_at: string };
+  /** Which agents are authorized to route tools through this server. Empty = all. */
+  authorized_agent_ids: ID[];
+  /** Last-seen health. */
+  health: 'healthy' | 'degraded' | 'unreachable' | 'disabled';
+  /** Tools exposed by this server (mock: populated from aiTools where mcp_server_id === id). */
+  exposed_tool_count: number;
+  readonly created_at: string;
+  readonly last_seen_at?: string;
+}
+
+/**
+ * Semantic rate-limit rule. Applies across agents/tools by matching request shape
+ * (scope) against a cosine-similarity threshold vs a provided exemplar corpus.
+ */
+export interface AiSemanticRateLimit {
+  readonly id: ID;
+  readonly tenant_id: ID;
+  name: string;
+  description?: string;
+  scope: 'tenant' | 'agent' | 'tool';
+  /** Populated when scope === 'agent'. */
+  agent_id?: ID;
+  /** Populated when scope === 'tool'. */
+  tool_id?: ID;
+  /** Exemplar corpus — mock: array of short strings. */
+  exemplars: string[];
+  /** Cosine similarity threshold (0.0–1.0). */
+  similarity_threshold: number;
+  /** Rolling window. */
+  window_seconds: number;
+  max_matches: number;
+  /** Action on limit hit. */
+  action: 'block' | 'degrade' | 'log';
+  enabled: boolean;
+  readonly created_at: string;
+}
+
+/**
+ * Tool routing binding — controls which agent may invoke which tool, and under
+ * what additional conditions (CEL expression, mirrors access-policy grammar).
+ */
+export interface AiToolBinding {
+  readonly id: ID;
+  readonly tenant_id: ID;
+  agent_id: ID;
+  tool_id: ID;
+  /** Optional CEL condition — empty string = always allow. */
+  condition: string;
+  enabled: boolean;
+  readonly created_at: string;
 }

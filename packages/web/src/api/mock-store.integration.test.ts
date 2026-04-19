@@ -43,6 +43,8 @@ function makeFreshStore() {
     aiAgents: {},
     aiTools: {},
     aiTraces: {},
+    aiSemanticRateLimits: {},
+    aiToolBindings: {},
     mcpServers: {},
     currentUserId: null,
     currentTenantId: null,

@@ -60,6 +60,8 @@ interface MockStoreState {
   aiAgents: Record<T.ID, T.AiAgent>;
   aiTools: Record<T.ID, T.AiTool>;
   aiTraces: Record<T.ID, T.AiTrace>;
+  aiSemanticRateLimits: Record<T.ID, T.AiSemanticRateLimit>;
+  aiToolBindings: Record<T.ID, T.AiToolBinding>;
   mcpServers: Record<T.ID, T.McpServer>;
 
   // Session context
@@ -102,6 +104,8 @@ interface EntityKindMap {
   aiAgents: T.AiAgent;
   aiTools: T.AiTool;
   aiTraces: T.AiTrace;
+  aiSemanticRateLimits: T.AiSemanticRateLimit;
+  aiToolBindings: T.AiToolBinding;
   mcpServers: T.McpServer;
 }
 
@@ -186,6 +190,8 @@ function emptyState(): MockStoreState {
     aiAgents: {},
     aiTools: {},
     aiTraces: {},
+    aiSemanticRateLimits: {},
+    aiToolBindings: {},
     mcpServers: {},
     currentUserId: null,
     currentTenantId: null,
@@ -253,7 +259,7 @@ export const useMockStore = create<MockStore>()(
     }),
     {
       name: 'rioku-mock-store',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => {
         // Fall back to a no-op storage in environments without localStorage
         // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -281,6 +287,18 @@ export const useMockStore = create<MockStore>()(
           }
           state.users = users;
           state.pendingAuthUserId = null;
+        }
+        // Version 4 — add aiSemanticRateLimits + aiToolBindings maps; older
+        // stores drop their persisted AI data (Plan 3 expanded types made old
+        // seeds incompatible).
+        if (version < 4) {
+          state.aiProviders = {};
+          state.aiAgents = {};
+          state.aiTools = {};
+          state.aiTraces = {};
+          state.mcpServers = {};
+          state.aiSemanticRateLimits = {};
+          state.aiToolBindings = {};
         }
         return state as unknown as MockStore;
       },
