@@ -176,8 +176,16 @@ web-embed: web-build-if-changed
 	@cp -r $(PKG)/web/dist/. $(PKG)/daemon/web/build/
 
 ## build-daemon-fast: Build daemon binary without rebuilding web SPA (faster iteration)
+## The go:embed directive requires packages/daemon/web/build/ to exist. If it
+## doesn't (e.g. fresh clone / first CI run), fall back to a full build-daemon
+## so web-embed runs. Otherwise reuse the existing embedded assets.
 build-daemon-fast:
-	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
+	@if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
+		echo "==> No embedded web assets yet — running full build-daemon..."; \
+		$(MAKE) build-daemon; \
+	else \
+		cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku; \
+	fi
 
 ## build-daemon-lean: Build daemon without admin panel (smaller binary for cluster members)
 build-daemon-lean:
