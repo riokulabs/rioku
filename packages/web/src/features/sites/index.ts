@@ -25,3 +25,5 @@ export type {
 } from './types';
 export { SiteList } from './components/list';
 export { SiteFilterBar } from './components/filter-bar';
+export { SiteDetail } from './components/detail';
+export { SiteEditForm } from './components/edit-form';
