@@ -10,6 +10,7 @@
  */
 
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type React from 'react';
 import { makeIdFactory } from '@/lib/id-generator';
 
@@ -89,11 +90,13 @@ export function listSidebarEntries(group?: SidebarGroup): SidebarEntry[] {
 
 /** React hook — re-renders when sidebar entries for the given group change. */
 export function useSidebarEntries(group?: SidebarGroup): SidebarEntry[] {
-  return useSidebarStore((state) => {
-    const filtered = group ? state.entries.filter((e) => e.group === group) : state.entries;
-    return filtered.slice().sort((a, b) => {
-      const orderDiff = (a.order ?? 999) - (b.order ?? 999);
-      return orderDiff !== 0 ? orderDiff : a.label.localeCompare(b.label);
-    });
-  });
+  return useSidebarStore(
+    useShallow((state) => {
+      const filtered = group ? state.entries.filter((e) => e.group === group) : state.entries;
+      return filtered.slice().sort((a, b) => {
+        const orderDiff = (a.order ?? 999) - (b.order ?? 999);
+        return orderDiff !== 0 ? orderDiff : a.label.localeCompare(b.label);
+      });
+    }),
+  );
 }
