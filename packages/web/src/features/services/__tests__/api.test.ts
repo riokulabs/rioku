@@ -125,7 +125,7 @@ describe('useServiceList', () => {
   it('returns services only for the given tenant', () => {
     const tenantId = tenantIdBySlug('acme');
     const { result } = renderHook(() =>
-      useServiceList(tenantId, { search: '', health: 'all', env: 'all', tag: null }),
+      useServiceList(tenantId, { search: '', health: [], env: [], tags: [] }),
     );
     expect(result.current.length).toBeGreaterThan(0);
     expect(result.current.every((s) => s.tenant_id === tenantId)).toBe(true);
@@ -134,7 +134,7 @@ describe('useServiceList', () => {
   it('filters by search over name/description/upstream', () => {
     const tenantId = tenantIdBySlug('acme');
     const { result } = renderHook(() =>
-      useServiceList(tenantId, { search: 'auth', health: 'all', env: 'all', tag: null }),
+      useServiceList(tenantId, { search: 'auth', health: [], env: [], tags: [] }),
     );
     expect(result.current.length).toBeGreaterThan(0);
     expect(
@@ -145,7 +145,7 @@ describe('useServiceList', () => {
   it('filters by tag when a tag filter is set', () => {
     const tenantId = tenantIdBySlug('acme');
     const { result } = renderHook(() =>
-      useServiceList(tenantId, { search: '', health: 'all', env: 'all', tag: 'auth' }),
+      useServiceList(tenantId, { search: '', health: [], env: [], tags: ['auth'] }),
     );
     expect(result.current.every((s) => s.tags.includes('auth'))).toBe(true);
   });

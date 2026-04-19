@@ -2,7 +2,11 @@
  * Services page — /t/$tenant/services
  *
  * List + filter bar + drawer (detail / create / edit). URL-synced search +
- * env + health + tag + optional drawer-selected id.
+ * env + health + tags + optional drawer-selected id.
+ *
+ * Per Plan 2 Task 2b.9 Step 2: env / health / tags are multi-value filters.
+ * URL serialization uses comma-separated values (e.g. `?env=prod,staging`);
+ * an empty / missing param resolves to `[]` ("no filter").
  *
  * Permission guard: service:read to view, service:write for Create/Edit,
  * service:delete for the delete confirm.
@@ -30,19 +34,39 @@ import type { Route as RouteRecord } from '@/features/routes/types';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 
+type HealthStatus = ServiceFilter['health'][number];
+
 interface SearchParams {
   search: string;
-  env: string;
-  health: ServiceFilter['health'];
-  tag: string;
+  env: string[];
+  health: HealthStatus[];
+  tags: string[];
   selected?: string;
 }
 
-function coerceHealth(v: unknown): ServiceFilter['health'] {
-  if (v === 'healthy' || v === 'degraded' || v === 'unhealthy' || v === 'disabled') {
-    return v;
+const HEALTH_VALUES: readonly HealthStatus[] = [
+  'healthy',
+  'degraded',
+  'unhealthy',
+  'disabled',
+];
+
+function parseCsv(v: unknown): string[] {
+  if (Array.isArray(v)) {
+    return v.filter((x): x is string => typeof x === 'string' && x.length > 0);
   }
-  return 'all';
+  if (typeof v !== 'string') return [];
+  if (v.length === 0) return [];
+  return v
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function parseHealthCsv(v: unknown): HealthStatus[] {
+  return parseCsv(v).filter((s): s is HealthStatus =>
+    (HEALTH_VALUES as readonly string[]).includes(s),
+  );
 }
 
 function ServicesPage() {
@@ -76,7 +100,7 @@ function ServicesPage() {
     search: search.search,
     env: search.env,
     health: search.health,
-    tag: search.tag === '' ? null : search.tag,
+    tags: search.tags,
   };
 
   function setFilter(next: ServiceFilter) {
@@ -86,9 +110,9 @@ function ServicesPage() {
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         search: next.search,
-        env: next.env,
-        health: next.health,
-        tag: next.tag ?? '',
+        env: next.env.join(','),
+        health: next.health.join(','),
+        tags: next.tags.join(','),
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
@@ -243,9 +267,9 @@ export const Route = createFileRoute('/t/$tenant/services')({
   component: ServicesPage,
   validateSearch: (s: Record<string, unknown>): SearchParams => ({
     search: typeof s.search === 'string' ? s.search : '',
-    env: typeof s.env === 'string' ? s.env : 'all',
-    health: coerceHealth(s.health),
-    tag: typeof s.tag === 'string' ? s.tag : '',
+    env: parseCsv(s.env),
+    health: parseHealthCsv(s.health),
+    tags: parseCsv(s.tags),
     ...(typeof s.selected === 'string' ? { selected: s.selected } : {}),
   }),
 });

@@ -60,9 +60,14 @@ export function useServiceList(tenantId: string, filter: ServiceFilter): Service
   const results: Service[] = [];
   for (const service of Object.values(services)) {
     if (service.tenant_id !== tenantId) continue;
-    if (filter.health !== 'all' && service.health !== filter.health) continue;
-    if (filter.env !== 'all' && service.env !== filter.env) continue;
-    if (filter.tag !== null && !service.tags.includes(filter.tag)) continue;
+    if (filter.health.length > 0 && !filter.health.includes(service.health)) continue;
+    if (filter.env.length > 0 && !filter.env.includes(service.env)) continue;
+    if (
+      filter.tags.length > 0 &&
+      !filter.tags.some((t) => service.tags.includes(t))
+    ) {
+      continue;
+    }
     if (search) {
       const nameMatch = service.name.toLowerCase().includes(search);
       const descMatch = service.description?.toLowerCase().includes(search) ?? false;

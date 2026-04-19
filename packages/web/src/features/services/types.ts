@@ -7,13 +7,21 @@ import type { Service } from '@/api/resources/types';
 
 type HealthStatus = Service['health'];
 
-/** Filter state for the services list. */
+/**
+ * Filter state for the services list.
+ *
+ * Multi-value filters use `string[]` / `HealthStatus[]`; an empty array means
+ * "no filter" (match all), matching the Mantine `MultiSelect` semantics where
+ * deselecting all options yields `[]`.
+ */
 export interface ServiceFilter {
   search: string;
-  health: 'all' | HealthStatus;
-  /** Environment filter. Use `'all'` for unfiltered; any other value matches a specific environment. */
-  env: string;
-  tag: string | null;
+  /** Selected health statuses. Empty array = no filter. */
+  health: HealthStatus[];
+  /** Selected environments. Empty array = no filter. */
+  env: string[];
+  /** Selected tags. A service matches if it carries any selected tag. Empty array = no filter. */
+  tags: string[];
 }
 
 export interface ServiceInput {

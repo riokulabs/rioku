@@ -28,9 +28,9 @@ function wrap(ui: React.ReactNode) {
 
 const DEFAULT_FILTER: ServiceFilter = {
   search: '',
-  health: 'all',
-  env: 'all',
-  tag: null,
+  health: [],
+  env: [],
+  tags: [],
 };
 
 beforeEach(() => {
@@ -99,7 +99,7 @@ describe('ServiceList', () => {
         <ModalsProvider>
           <ServiceList
             tenantId={acmeId()}
-            filter={{ ...DEFAULT_FILTER, health: 'unhealthy' }}
+            filter={{ ...DEFAULT_FILTER, health: ['unhealthy'] }}
             onSelect={vi.fn()}
             onEdit={vi.fn()}
             onDelete={vi.fn()}
