@@ -60,8 +60,10 @@ export function usePermissionsCatalog(): PermissionsCatalog {
     pluginGroupMap.set(ns, existing);
   }
 
+  // Prefix plugin namespace groups with "Plugin: " so the UI clearly identifies
+  // dynamically-contributed permission sections (spec §9.6.1 / Task 1f.109).
   const pluginGroups: PermissionGroup[] = Array.from(pluginGroupMap.entries()).map(
-    ([ns, perms]) => ({ label: ns, permissions: perms }),
+    ([ns, perms]) => ({ label: `Plugin: ${ns}`, permissions: perms }),
   );
 
   const groups: PermissionGroup[] =
