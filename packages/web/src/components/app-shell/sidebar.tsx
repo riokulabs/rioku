@@ -16,6 +16,11 @@ import {
   IconRoute,
   IconStack,
   IconBook,
+  IconBrain,
+  IconTool,
+  IconRouter,
+  IconGauge,
+  IconHistory,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -39,8 +44,19 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
       { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
-      { label: 'AI', to: '/t/acme/ai', icon: IconRobot },
       { label: 'Analytics', to: '/t/acme/analytics', icon: IconChartBar },
+    ],
+  },
+  {
+    heading: 'AI',
+    items: [
+      { label: 'Providers', to: '/t/acme/ai/providers', icon: IconBrain },
+      { label: 'Agents', to: '/t/acme/ai/agents', icon: IconRobot },
+      { label: 'Tools', to: '/t/acme/ai/tools', icon: IconTool },
+      { label: 'Tool routing', to: '/t/acme/ai/tool-routing', icon: IconRouter },
+      { label: 'Rate limits', to: '/t/acme/ai/rate-limits', icon: IconGauge },
+      { label: 'Traces', to: '/t/acme/ai/traces', icon: IconHistory },
+      { label: 'MCP servers', to: '/t/acme/ai/mcp-servers', icon: IconServer },
     ],
   },
   {

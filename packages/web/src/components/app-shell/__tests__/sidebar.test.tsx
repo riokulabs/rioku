@@ -86,4 +86,25 @@ describe('Sidebar', () => {
       '/t/acme/api-explorer',
     );
   });
+
+  it('renders all seven AI entries with expected hrefs', () => {
+    wrap(<Sidebar />);
+    const carriers = document.querySelectorAll('[data-link-to]');
+    const byLabel = (label: string) =>
+      Array.from(carriers).find((el) => el.textContent.trim() === label);
+    const expectations: [string, string][] = [
+      ['Providers', '/t/acme/ai/providers'],
+      ['Agents', '/t/acme/ai/agents'],
+      ['Tools', '/t/acme/ai/tools'],
+      ['Tool routing', '/t/acme/ai/tool-routing'],
+      ['Rate limits', '/t/acme/ai/rate-limits'],
+      ['Traces', '/t/acme/ai/traces'],
+      ['MCP servers', '/t/acme/ai/mcp-servers'],
+    ];
+    for (const [label, href] of expectations) {
+      const entry = byLabel(label);
+      expect(entry, `missing AI entry ${label}`).toBeDefined();
+      expect(entry?.getAttribute('data-link-to')).toBe(href);
+    }
+  });
 });
