@@ -7,7 +7,7 @@
  * draft for free-typing.
  */
 import { useState } from 'react';
-import { JsonInput, Stack, Text } from '@mantine/core';
+import { JsonInput, Stack } from '@mantine/core';
 
 interface JsonSchemaEditorProps {
   label?: string;
@@ -77,11 +77,6 @@ export function JsonSchemaEditor({
         validationError={error ?? undefined}
         aria-label="JSON schema editor"
       />
-      {error && (
-        <Text size="xs" c="red">
-          {error}
-        </Text>
-      )}
     </Stack>
   );
 }
