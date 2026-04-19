@@ -59,6 +59,14 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
 
       // Login success — consume saved return URL or navigate to default.
       const saved = consumeReturnUrl();
+
+      // Guard: if user has no tenant membership, redirect to tenant picker.
+      if (!result.tenant_id) {
+        setError('No tenant memberships found. Contact your administrator.');
+        await navigate({ to: '/tenants' });
+        return;
+      }
+
       const dest = saved ?? returnUrl ?? `/t/${result.tenant_id}/dashboard`;
       await navigate({ to: dest });
     } finally {
