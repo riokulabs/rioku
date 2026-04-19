@@ -95,7 +95,7 @@ export default tseslint.config(
             { from: 'components', allow: ['hooks', 'lib', 'theme', 'i18n'] },
             { from: 'host', allow: ['lib', 'theme'] },
             { from: 'hooks', allow: ['api', 'lib', 'host', 'theme', 'i18n'] },
-            { from: 'api', allow: ['lib'] },
+            { from: 'api', allow: ['lib', 'host'] },
             { from: 'theme', allow: ['lib'] },
             { from: 'i18n', allow: ['lib'] },
             { from: 'lib', allow: [] },

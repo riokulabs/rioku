@@ -14,6 +14,10 @@
  * Call seedStore(useMockStore) once when the store is empty.
  */
 import { makeIdFactory } from '../lib/id-generator';
+import {
+  BUILT_IN_PERMISSIONS,
+  registerPermission,
+} from '../host/permissions';
 import type { StoreApi } from 'zustand';
 import type * as T from './resources/types';
 import type { MockStore } from './mock-store';
@@ -86,6 +90,27 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const appendAudit = (entry: Parameters<MockStore['appendAudit']>[0]) => {
     store.getState().appendAudit(entry);
   };
+
+  // ── Permissions — seed built-ins + sample plugin permission ─────────────
+  // `permissions` is keyed by Permission.key (not .id), so we populate it
+  // via store.setState rather than addEntity (which indexes by .id).
+
+  const permMap: Record<string, T.Permission> = {};
+  for (const p of BUILT_IN_PERMISSIONS) {
+    permMap[p.key] = p;
+  }
+
+  // Demo plugin permission — illustrates the plugin-manifest source.
+  const pluginPerm: T.Permission = {
+    key: 'com.acme.billing:invoice:read',
+    description: 'Read billing invoices (Acme Billing plugin)',
+    source: 'plugin-manifest',
+  };
+  permMap[pluginPerm.key] = pluginPerm;
+  // Register into the host catalog so UI tools (registerPermission guard) see it.
+  registerPermission(pluginPerm);
+
+  store.setState({ permissions: permMap });
 
   // ── Tenants ──────────────────────────────────────────────────────────────
 
