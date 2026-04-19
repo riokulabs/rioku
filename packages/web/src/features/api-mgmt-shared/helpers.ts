@@ -7,8 +7,8 @@
 import type { Middleware, Route, Service } from '@/api/resources/types';
 
 /**
- * Format an upstream URL from parts. Defaults port behaviour: when omitted,
- * uses the protocol's default (http=80, https=443, grpc=50051).
+ * Format an upstream URL from parts. The port is omitted from the output when
+ * undefined — the display layer leaves default-port resolution to the reader.
  *
  * The grpc "protocol" renders with a `grpc://` scheme for display — it is not
  * the wire format but matches how Rioku's admin UI labels gRPC upstreams.
