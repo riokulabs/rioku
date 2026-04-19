@@ -1,3 +1,7 @@
+import { hardenGlobals } from './host/singleton-harden';
+// Harden pollution-vector keys before any other module-body code runs. §9.4.1.
+hardenGlobals();
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/app';
