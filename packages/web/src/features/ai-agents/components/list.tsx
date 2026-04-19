@@ -4,7 +4,7 @@
  * Columns: name, provider (name + kind badge), model, tool count,
  * recent-traces count (last 24h), enabled Switch, actions.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import {
   Badge,
@@ -50,9 +50,10 @@ export function AgentList({
   const providers = useMockStore((s) => s.aiProviders);
   const traces = useMockStore((s) => s.aiTraces);
 
-  // Derive 24h trace counts per agent outside the selector.
+  // Capture Date.now() once per mount — keeps the memo pure and stable.
+  const [nowMs] = useState<number>(() => Date.now());
   const recentTraceCounts = useMemo(() => {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const cutoff = nowMs - 24 * 60 * 60 * 1000;
     const counts: Record<string, number> = {};
     for (const t of Object.values(traces)) {
       if (new Date(t.at).getTime() >= cutoff) {
@@ -60,7 +61,7 @@ export function AgentList({
       }
     }
     return counts;
-  }, [traces]);
+  }, [traces, nowMs]);
 
   const columns = useMemo<ColumnDef<AiAgent>[]>(
     () => [

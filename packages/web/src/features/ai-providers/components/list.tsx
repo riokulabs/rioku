@@ -10,7 +10,6 @@ import {
   Badge,
   Text,
   Stack,
-  Group,
   Menu,
   ActionIcon,
   Switch,

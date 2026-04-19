@@ -6,7 +6,7 @@
  * value (as an object) via props; the component internally keeps a string
  * draft for free-typing.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { JsonInput, Stack, Text } from '@mantine/core';
 
 interface JsonSchemaEditorProps {
@@ -28,13 +28,17 @@ export function JsonSchemaEditor({
   onValidityChange,
   minRows = 10,
 }: JsonSchemaEditorProps) {
+  // Track the JSON reference that produced the current draft so we can re-sync
+  // when the parent swaps in a new schema (e.g. edit-mode switch) without
+  // calling setState from useEffect (which the React compiler forbids).
+  const [syncedValue, setSyncedValue] = useState<Record<string, unknown>>(value);
   const [draft, setDraft] = useState<string>(() => stringify(value));
   const [error, setError] = useState<string | null>(null);
 
-  // When the parent value changes (e.g. edit-mode switch), sync the draft.
-  useEffect(() => {
+  if (value !== syncedValue) {
+    setSyncedValue(value);
     setDraft(stringify(value));
-  }, [value]);
+  }
 
   function validateAndCommit(text: string) {
     if (text.trim() === '') {

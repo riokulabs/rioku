@@ -86,7 +86,7 @@ export function InvokePanel({ agentId }: InvokePanelProps) {
         </Button>
       </Group>
 
-      {trace && trace.status === 'success' && (
+      {trace?.status === 'success' && (
         <Stack gap="xs">
           <Group gap="xs">
             <Badge color="green" variant="light" size="sm">
