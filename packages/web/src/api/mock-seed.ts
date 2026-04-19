@@ -206,6 +206,39 @@ export function seedStore(store: StoreApi<MockStore>): void {
     'com.acme.billing:invoice-admin',
   ] as const;
 
+  // Wide-permission grants for the admin role (index 3) so requirePermissions guards pass.
+  const adminGrants: T.Grant[] = [
+    { permission: 'user:read' },
+    { permission: 'user:invite' },
+    { permission: 'user:disable' },
+    { permission: 'role:read' },
+    { permission: 'role:write' },
+    { permission: 'role:delete' },
+    { permission: 'service:read' },
+    { permission: 'service:write' },
+    { permission: 'route:read' },
+    { permission: 'route:write' },
+    { permission: 'policy:read' },
+    { permission: 'policy:write' },
+    { permission: 'api-key:read' },
+    { permission: 'api-key:create' },
+    { permission: 'session:read' },
+    { permission: 'session:revoke' },
+    { permission: 'audit:read' },
+    { permission: 'tenant:switch' },
+  ];
+
+  const viewerGrants: T.Grant[] = [
+    { permission: 'user:read' },
+    { permission: 'role:read' },
+    { permission: 'service:read' },
+    { permission: 'route:read' },
+    { permission: 'policy:read' },
+    { permission: 'api-key:read' },
+    { permission: 'session:read' },
+    { permission: 'tenant:switch' },
+  ];
+
   const roleIds: T.ID[] = [];
   for (let i = 0; i < roleNames.length; i++) {
     const id = nextRoleId();
@@ -216,7 +249,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
       tenant_id: pick(allTenantIds, i),
       name: roleName,
       parent_ids: i > 0 ? [roleIds[0]!] : [],
-      grants: [{ permission: `rioku.${roleName}.read` }],
+      grants: i === 3
+        ? adminGrants
+        : i === 0
+          ? viewerGrants
+          : [{ permission: `rioku.${roleName}.read` }],
       denies: [],
       system: i < 4,
     };
