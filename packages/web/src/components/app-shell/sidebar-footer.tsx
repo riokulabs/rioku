@@ -19,6 +19,7 @@ import { useActiveTheme } from '@/hooks/use-active-theme';
 import { useSession } from '@/hooks/use-session';
 import { useMockStore } from '@/api/mock-store';
 import { BUILTIN_THEMES } from '@/theme';
+import { usePluginThemes } from '@/hooks/use-plugin-themes';
 import type { Tenant } from '@/api/resources/types';
 
 const LANGUAGES = [
@@ -31,6 +32,8 @@ export function SidebarFooter() {
   const { currentUserId, currentTenantId } = useSession();
   const navigate = useNavigate();
   const [activeThemeName, setActiveThemeName] = useActiveTheme();
+  const pluginThemes = usePluginThemes();
+  const allThemes = [...BUILTIN_THEMES, ...pluginThemes];
   const { i18n } = useTranslation();
 
   // Subdomain-mode: track which tenant the user wants to switch to
@@ -204,7 +207,7 @@ export function SidebarFooter() {
               </Menu.Item>
             </MenuSub.Target>
             <MenuSub.Dropdown>
-              {BUILTIN_THEMES.map((t) => (
+              {allThemes.map((t) => (
                 <MenuSub.Item
                   key={t.name}
                   leftSection={
@@ -217,6 +220,11 @@ export function SidebarFooter() {
                   onClick={() => { setActiveThemeName(t.name); }}
                 >
                   {t.displayName}
+                  {t.source === 'plugin' && (
+                    <Text component="span" size="xs" c="dimmed" ml={4}>
+                      (plugin)
+                    </Text>
+                  )}
                 </MenuSub.Item>
               ))}
             </MenuSub.Dropdown>
