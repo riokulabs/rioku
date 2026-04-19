@@ -1,6 +1,13 @@
 /**
  * <UserDetail> — detail drawer with four tabs:
  *   Profile | Memberships | Sessions | Effective permissions
+ *
+ * 1e.92 additions:
+ *   - Disable / Re-enable user action (Profile tab)
+ *   - Delete user action with typed email confirmation (Profile tab)
+ *   - Impersonate button (Profile tab — super-admin only via user:impersonate perm)
+ *   - Per-membership role edit (Memberships tab)
+ *   - Pending-invite resend / revoke (Memberships tab)
  */
 import { useState } from 'react';
 import {
@@ -16,13 +23,29 @@ import {
   Table,
   Select,
   Alert,
+  Modal,
+  TextInput,
+  MultiSelect,
 } from '@mantine/core';
-import { IconAlertCircle, IconShieldHalf } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { IconAlertCircle, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
+import { useNavigate } from '@tanstack/react-router';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
+import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
 import { useMockStore } from '@/api/mock-store';
-import { useUserDetail, useUserSessions, revokeSession } from '../api';
+import {
+  useUserDetail,
+  useUserSessions,
+  revokeSession,
+  disableUser,
+  enableUser,
+  deleteUser,
+  resendInvite,
+  revokeInvite,
+  updateMembershipRoles,
+} from '../api';
 import { MembershipActions } from './membership-actions';
 
 const SAMPLE_PERMISSIONS = [
@@ -47,12 +70,32 @@ export function UserDetail({
   const detail = useUserDetail(userId);
   const sessions = useUserSessions(userId);
   const tenants = useMockStore((s) => s.tenants);
+  const currentUserId = useMockStore((s) => s.currentUserId);
+  const roles = useMockStore((s) => s.roles);
 
   const [tracedPermission, setTracedPermission] = useState(SAMPLE_PERMISSIONS[0] ?? '');
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Delete modal
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const [deleteEmailInput, setDeleteEmailInput] = useState('');
+
+  // Disable modal
+  const [disableOpened, { open: openDisable, close: closeDisable }] = useDisclosure(false);
+
+  // Role edit state: membershipId → new role_ids
+  const [editingRoles, setEditingRoles] = useState<Record<string, string[] | undefined>>({});
+
+  // Invite resend result
+  const [resendToken, setResendToken] = useState<Record<string, string>>({});
 
   const { all: allPerms } = usePermissionsCatalog();
   const permOptions = allPerms.map((p) => ({ value: p.key, label: p.key }));
+
+  const canImpersonate = usePermission('user:impersonate');
+
+  const navigate = useNavigate();
 
   if (!detail) {
     return (
@@ -62,11 +105,18 @@ export function UserDetail({
     );
   }
 
-  const { user, memberships, roles } = detail;
+  const { user, memberships } = detail;
 
   const currentMembership = memberships.find(
     (m) => m.tenant_id === currentTenantId,
   );
+
+  const isSelf = currentUserId === userId;
+
+  // Role options for the MultiSelect
+  const allRoleOptions = Object.values(roles)
+    .filter((r) => r.tenant_id === currentTenantId)
+    .map((r) => ({ value: r.id, label: r.name }));
 
   async function handleRevokeSession(sessionId: string) {
     setRevokingSessionId(sessionId);
@@ -80,6 +130,97 @@ export function UserDetail({
     }
   }
 
+  async function handleDisableConfirm() {
+    setActionLoading(true);
+    try {
+      await disableUser(userId);
+      notify.success('User disabled', 'The user cannot log in.');
+      closeDisable();
+    } catch {
+      notify.error('Failed to disable user', 'Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleEnable() {
+    setActionLoading(true);
+    try {
+      await enableUser(userId);
+      notify.success('User enabled', 'The user can log in again.');
+    } catch {
+      notify.error('Failed to enable user', 'Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (deleteEmailInput !== user.email) return;
+    setActionLoading(true);
+    try {
+      await deleteUser(userId);
+      notify.success('User deleted', 'The user and all memberships have been removed.');
+      closeDelete();
+      onClose();
+    } catch {
+      notify.error('Failed to delete user', 'Please try again.');
+    } finally {
+      setActionLoading(false);
+      setDeleteEmailInput('');
+    }
+  }
+
+  async function handleResendInvite(membershipId: string) {
+    setActionLoading(true);
+    try {
+      const result = await resendInvite(membershipId);
+      setResendToken((prev) => ({ ...prev, [membershipId]: result.inviteToken }));
+      notify.success('Invite resent', 'A new invite link has been generated.');
+    } catch {
+      notify.error('Failed to resend invite', 'Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleRevokeInvite(membershipId: string) {
+    setActionLoading(true);
+    try {
+      await revokeInvite(membershipId);
+      notify.success('Invite revoked', 'The pending invitation has been cancelled.');
+    } catch {
+      notify.error('Failed to revoke invite', 'Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleSaveRoles(membershipId: string, newRoleIds: string[]) {
+    setActionLoading(true);
+    try {
+      await updateMembershipRoles(membershipId, newRoleIds);
+      setEditingRoles((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [membershipId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      notify.success('Roles updated', 'Membership roles have been saved.');
+    } catch {
+      notify.error('Failed to update roles', 'Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  function handleImpersonate() {
+    void navigate({
+      to: '/admin/impersonate',
+      search: { user_id: userId, tenant_id: currentTenantId } as Record<string, string>,
+    });
+    onClose();
+  }
+
   return (
     <Stack gap="md">
       <Group justify="space-between" align="flex-start">
@@ -88,7 +229,14 @@ export function UserDetail({
             {user.name.charAt(0).toUpperCase()}
           </Avatar>
           <Stack gap={2}>
-            <Title order={4}>{user.name}</Title>
+            <Group gap="xs">
+              <Title order={4}>{user.name}</Title>
+              {user.disabled && (
+                <Badge color="red" size="sm">
+                  disabled
+                </Badge>
+              )}
+            </Group>
             <Text size="sm" c="dimmed">
               {user.email}
             </Text>
@@ -154,6 +302,64 @@ export function UserDetail({
               </Text>
               <Text size="sm">{new Date(user.created_at).toLocaleDateString()}</Text>
             </Group>
+
+            <Divider mt="sm" />
+
+            {/* ── Actions ── */}
+            <Stack gap="xs">
+              <Text size="xs" fw={500} c="dimmed" tt="uppercase">
+                Actions
+              </Text>
+
+              {/* Impersonate — only for super-admins viewing a non-self user */}
+              {canImpersonate && !isSelf && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="violet"
+                  leftSection={<IconUserSearch size={14} />}
+                  onClick={handleImpersonate}
+                >
+                  Impersonate user
+                </Button>
+              )}
+
+              {/* Disable / Re-enable */}
+              {!isSelf && !user.disabled && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="orange"
+                  loading={actionLoading}
+                  onClick={openDisable}
+                >
+                  Disable user
+                </Button>
+              )}
+              {!isSelf && user.disabled && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="green"
+                  loading={actionLoading}
+                  onClick={() => void handleEnable()}
+                >
+                  Re-enable user
+                </Button>
+              )}
+
+              {/* Delete */}
+              {!isSelf && (
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  onClick={openDelete}
+                >
+                  Delete user…
+                </Button>
+              )}
+            </Stack>
           </Stack>
         </Tabs.Panel>
 
@@ -168,12 +374,16 @@ export function UserDetail({
             {memberships.map((m) => {
               const tenant = tenants[m.tenant_id];
               const memberRoles = m.role_ids
-                .map((rid) => roles[rid])
+                .map((rid) => detail.roles[rid])
                 .filter((r): r is NonNullable<typeof r> => r !== undefined);
+
+              const isEditingRoles = editingRoles[m.id] !== undefined;
+              const editRoleIds = editingRoles[m.id] ?? m.role_ids;
+              const token = resendToken[m.id];
 
               return (
                 <Stack key={m.id} gap="xs">
-                  <Group justify="space-between" align="center">
+                  <Group justify="space-between" align="flex-start">
                     <Stack gap={2}>
                       <Text size="sm" fw={500}>
                         {tenant?.name ?? m.tenant_id}
@@ -183,10 +393,53 @@ export function UserDetail({
                           </Badge>
                         )}
                       </Text>
-                      <Text size="xs" c="dimmed">
-                        Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
-                      </Text>
+
+                      {/* Role edit inline */}
+                      {m.tenant_id === currentTenantId && !isEditingRoles && (
+                        <Text size="xs" c="dimmed">
+                          Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
+                        </Text>
+                      )}
+                      {m.tenant_id === currentTenantId && isEditingRoles && (
+                        <Stack gap="xs" mt="xs">
+                          <MultiSelect
+                            size="xs"
+                            label="Roles"
+                            data={allRoleOptions}
+                            value={editRoleIds}
+                            onChange={(v) => {
+                              setEditingRoles((prev) => ({ ...prev, [m.id]: v }));
+                            }}
+                            searchable
+                          />
+                          <Group gap="xs">
+                            <Button
+                              size="xs"
+                              loading={actionLoading}
+                              onClick={() => void handleSaveRoles(m.id, editRoleIds)}
+                            >
+                              Save roles
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="default"
+                              onClick={() => {
+                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                setEditingRoles(({ [m.id]: _removed, ...rest }) => rest);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </Group>
+                        </Stack>
+                      )}
+                      {m.tenant_id !== currentTenantId && (
+                        <Text size="xs" c="dimmed">
+                          Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
+                        </Text>
+                      )}
                     </Stack>
+
                     <Group gap="xs" align="center">
                       <Badge
                         size="sm"
@@ -203,14 +456,65 @@ export function UserDetail({
                       >
                         {m.state}
                       </Badge>
+
                       {m.tenant_id === currentTenantId && (
                         <MembershipActions
                           membership={m}
                           tenantSlug={tenantSlug}
                         />
                       )}
+
+                      {/* Role edit toggle (current tenant only, non-pending) */}
+                      {m.tenant_id === currentTenantId && m.state !== 'pending' && !isEditingRoles && (
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          onClick={() => {
+                            setEditingRoles((prev) => ({ ...prev, [m.id]: m.role_ids }));
+                          }}
+                        >
+                          Edit roles
+                        </Button>
+                      )}
                     </Group>
                   </Group>
+
+                  {/* Pending invite actions */}
+                  {m.state === 'pending' && m.tenant_id === currentTenantId && (
+                    <Stack gap="xs">
+                      <Group gap="xs">
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="blue"
+                          loading={actionLoading}
+                          onClick={() => void handleResendInvite(m.id)}
+                        >
+                          Resend invite
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          color="red"
+                          loading={actionLoading}
+                          onClick={() => void handleRevokeInvite(m.id)}
+                        >
+                          Revoke invite
+                        </Button>
+                      </Group>
+                      {token && (
+                        <Alert color="blue" variant="light" p="xs">
+                          <Text size="xs" ff="monospace">
+                            Invite link (mock):{' '}
+                            <Text component="span" fw={600}>
+                              /auth/invite?token={token}
+                            </Text>
+                          </Text>
+                        </Alert>
+                      )}
+                    </Stack>
+                  )}
+
                   <Divider />
                 </Stack>
               );
@@ -316,6 +620,87 @@ export function UserDetail({
           </Stack>
         </Tabs.Panel>
       </Tabs>
+
+      {/* ── Disable modal ── */}
+      <Modal
+        opened={disableOpened}
+        onClose={closeDisable}
+        title="Disable user"
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Disabling <Text component="span" fw={600}>{user.name}</Text> will prevent
+            them from logging in across all tenants. Their data is preserved and the
+            user can be re-enabled at any time.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" size="sm" onClick={closeDisable}>
+              Cancel
+            </Button>
+            <Button
+              color="orange"
+              size="sm"
+              loading={actionLoading}
+              onClick={() => void handleDisableConfirm()}
+            >
+              Disable
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* ── Delete modal ── */}
+      <Modal
+        opened={deleteOpened}
+        onClose={() => {
+          closeDelete();
+          setDeleteEmailInput('');
+        }}
+        title="Delete user"
+        size="sm"
+      >
+        <Stack gap="md">
+          <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+            This permanently deletes the user. All memberships will be set to removed,
+            all sessions revoked, and all API keys revoked. This action cannot be undone.
+          </Alert>
+          <Text size="sm">
+            Type{' '}
+            <Text component="span" fw={600} ff="monospace">
+              {user.email}
+            </Text>{' '}
+            to confirm.
+          </Text>
+          <TextInput
+            value={deleteEmailInput}
+            onChange={(e) => { setDeleteEmailInput(e.currentTarget.value); }}
+            placeholder={user.email}
+            data-autofocus
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                closeDelete();
+                setDeleteEmailInput('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              size="sm"
+              loading={actionLoading}
+              disabled={deleteEmailInput !== user.email}
+              onClick={() => void handleDeleteConfirm()}
+            >
+              Delete user permanently
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

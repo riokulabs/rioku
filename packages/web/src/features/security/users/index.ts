@@ -18,6 +18,9 @@ export {
   enableUser,
   deleteUser,
   revokeSession,
+  resendInvite,
+  revokeInvite,
+  updateMembershipRoles,
 } from './api';
 export type { UserWithMembership, UserDetail as UserDetailType, UserFilter } from './types';
 export type { InviteUserFormValues, EditUserFormValues } from './schemas';

@@ -30,8 +30,10 @@ import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboa
 import { Route as TTenantSettingsRouteImport } from './routes/t.$tenant/settings'
 import { Route as TTenantSecurityRouteImport } from './routes/t.$tenant/security'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
+import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$tenant/security/rbac-policies'
 import { Route as TTenantSecurityRolesRouteImport } from './routes/t.$tenant/security/roles'
+import { Route as TTenantSecuritySessionsRouteImport } from './routes/t.$tenant/security/sessions'
 import { Route as TTenantSecurityUsersRouteImport } from './routes/t.$tenant/security/users'
 import { Route as UnauthResetPasswordTokenRouteImport } from './routes/_unauth/reset-password.$token'
 import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$token'
@@ -141,6 +143,11 @@ const TTenantSecurityAccessPoliciesRoute =
     path: '/access-policies',
     getParentRoute: () => TTenantSecurityRoute,
   } as any)
+const TTenantSecurityApiKeysRoute = TTenantSecurityApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => TTenantSecurityRoute,
+} as any)
 const TTenantSecurityRbacPoliciesRoute =
   TTenantSecurityRbacPoliciesRouteImport.update({
     id: '/rbac-policies',
@@ -150,6 +157,11 @@ const TTenantSecurityRbacPoliciesRoute =
 const TTenantSecurityRolesRoute = TTenantSecurityRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
+  getParentRoute: () => TTenantSecurityRoute,
+} as any)
+const TTenantSecuritySessionsRoute = TTenantSecuritySessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
   getParentRoute: () => TTenantSecurityRoute,
 } as any)
 const TTenantSecurityUsersRoute = TTenantSecurityUsersRouteImport.update({
@@ -192,8 +204,10 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
+  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
+  '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
 }
 export interface FileRoutesByTo {
@@ -219,8 +233,10 @@ export interface FileRoutesByTo {
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
+  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
+  '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
 }
 export interface FileRoutesById {
@@ -248,8 +264,10 @@ export interface FileRoutesById {
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
+  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
+  '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
 }
 export interface FileRouteTypes {
@@ -277,8 +295,10 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings'
     | '/t/$tenant/security'
     | '/t/$tenant/security/access-policies'
+    | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
+    | '/t/$tenant/security/sessions'
     | '/t/$tenant/security/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -304,8 +324,10 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings'
     | '/t/$tenant/security'
     | '/t/$tenant/security/access-policies'
+    | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
+    | '/t/$tenant/security/sessions'
     | '/t/$tenant/security/users'
   id:
     | '__root__'
@@ -332,8 +354,10 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings'
     | '/t/$tenant/security'
     | '/t/$tenant/security/access-policies'
+    | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
+    | '/t/$tenant/security/sessions'
     | '/t/$tenant/security/users'
   fileRoutesById: FileRoutesById
 }
@@ -513,6 +537,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityAccessPoliciesRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/security/api-keys': {
+      id: '/t/$tenant/security/api-keys'
+      path: '/api-keys'
+      fullPath: '/t/$tenant/security/api-keys'
+      preLoaderRoute: typeof TTenantSecurityApiKeysRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
     '/t/$tenant/security/rbac-policies': {
       id: '/t/$tenant/security/rbac-policies'
       path: '/rbac-policies'
@@ -525,6 +556,13 @@ declare module '@tanstack/react-router' {
       path: '/roles'
       fullPath: '/t/$tenant/security/roles'
       preLoaderRoute: typeof TTenantSecurityRolesRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
+    '/t/$tenant/security/sessions': {
+      id: '/t/$tenant/security/sessions'
+      path: '/sessions'
+      fullPath: '/t/$tenant/security/sessions'
+      preLoaderRoute: typeof TTenantSecuritySessionsRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
     '/t/$tenant/security/users': {
@@ -578,15 +616,19 @@ const UnauthRouteWithChildren =
 
 interface TTenantSecurityRouteChildren {
   TTenantSecurityAccessPoliciesRoute: typeof TTenantSecurityAccessPoliciesRoute
+  TTenantSecurityApiKeysRoute: typeof TTenantSecurityApiKeysRoute
   TTenantSecurityRbacPoliciesRoute: typeof TTenantSecurityRbacPoliciesRoute
   TTenantSecurityRolesRoute: typeof TTenantSecurityRolesRoute
+  TTenantSecuritySessionsRoute: typeof TTenantSecuritySessionsRoute
   TTenantSecurityUsersRoute: typeof TTenantSecurityUsersRoute
 }
 
 const TTenantSecurityRouteChildren: TTenantSecurityRouteChildren = {
   TTenantSecurityAccessPoliciesRoute: TTenantSecurityAccessPoliciesRoute,
+  TTenantSecurityApiKeysRoute: TTenantSecurityApiKeysRoute,
   TTenantSecurityRbacPoliciesRoute: TTenantSecurityRbacPoliciesRoute,
   TTenantSecurityRolesRoute: TTenantSecurityRolesRoute,
+  TTenantSecuritySessionsRoute: TTenantSecuritySessionsRoute,
   TTenantSecurityUsersRoute: TTenantSecurityUsersRoute,
 }
 

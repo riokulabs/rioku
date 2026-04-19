@@ -428,10 +428,16 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   for (let i = 0; i < 25; i++) {
     const id = nextApiKeyId();
+    const tenantId = pick(allTenantIds, i);
+    const tenantObj = Object.values(store.getState().tenants).find((t) => t.id === tenantId);
+    const tenantSlug = tenantObj?.slug ?? 'key';
+    const shortId = id.replace(/\D/g, '').slice(0, 4).padStart(4, '0');
     const apiKey: T.ApiKey = {
       id,
-      tenant_id: pick(allTenantIds, i),
+      tenant_id: tenantId,
+      ...(userIds[i % userIds.length] ? { user_id: userIds[i % userIds.length] } : {}),
       name: keyNames[i] ?? `api-key-${i + 1}`,
+      prefix: `sk_${tenantSlug}_${shortId}`,
       scope: i % 3 === 0
         ? ['read', 'write']
         : i % 3 === 1

@@ -116,6 +116,9 @@ export function useUserMutations() {
     enableUser,
     deleteUser,
     revokeSession,
+    resendInvite,
+    revokeInvite,
+    updateMembershipRoles,
   };
 }
 
@@ -270,4 +273,76 @@ export async function revokeSession(sessionId: string): Promise<void> {
   state.appendAudit(
     makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'session:revoke', 'session', sessionId),
   );
+}
+
+export async function resendInvite(
+  membershipId: string,
+): Promise<{ inviteToken: string }> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const membership = state.memberships[membershipId];
+  if (!membership) throw new Error('Membership not found');
+
+  // Generate a fresh invite token
+  const inviteToken = `inv-${membership.user_id.slice(-6)}-${membershipId.slice(-6)}-r${Date.now().toString(36)}`;
+  state.updateEntity('memberships', membershipId, {
+    invite_token: inviteToken,
+    invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+
+  state.appendAudit(
+    makeAuditEntry(
+      getCurrentActorId(),
+      membership.tenant_id,
+      'user:invite.resend',
+      'membership',
+      membershipId,
+    ),
+  );
+
+  return { inviteToken };
+}
+
+export async function revokeInvite(membershipId: string): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const membership = state.memberships[membershipId];
+  if (!membership) return;
+
+  state.updateEntity('memberships', membershipId, { state: 'removed' });
+
+  state.appendAudit(
+    makeAuditEntry(
+      getCurrentActorId(),
+      membership.tenant_id,
+      'user:invite.revoke',
+      'membership',
+      membershipId,
+    ),
+  );
+}
+
+export async function updateMembershipRoles(
+  membershipId: string,
+  newRoleIds: string[],
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const membership = state.memberships[membershipId];
+  if (!membership) return;
+
+  const before = [...membership.role_ids];
+  state.updateEntity('memberships', membershipId, { role_ids: newRoleIds });
+
+  state.appendAudit({
+    ...makeAuditEntry(
+      getCurrentActorId(),
+      membership.tenant_id,
+      'membership:role:update',
+      'membership',
+      membershipId,
+    ),
+    tier: 'write',
+    diff: { before: { role_ids: before }, after: { role_ids: newRoleIds } },
+  });
 }

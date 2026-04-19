@@ -131,7 +131,10 @@ export interface Middleware {
 export interface ApiKey {
   readonly id: ID;
   readonly tenant_id: ID;
+  readonly user_id?: ID;
   name: string;
+  /** Displayable key prefix, e.g. `sk_acme_ab` — full value never stored after creation */
+  prefix: string;
   scope: string[];
   last_used?: string;
   expires_at?: string;
