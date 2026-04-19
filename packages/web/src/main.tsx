@@ -23,6 +23,10 @@ if (!import.meta.env.VITEST) {
       }
     });
   });
+  // Start dev-only mock audit SSE emitter (30s interval, no-op in prod).
+  void import('./api/mock-audit-emitter').then(({ startMockAuditEmitter }) => {
+    startMockAuditEmitter();
+  });
 }
 
 const start = async () => {
