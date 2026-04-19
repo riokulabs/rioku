@@ -27,6 +27,7 @@ import { Route as UnauthTotpRouteImport } from './routes/_unauth/totp'
 import { Route as UnauthLoginRouteImport } from './routes/_unauth/login'
 import { Route as UnauthForgotPasswordRouteImport } from './routes/_unauth/forgot-password'
 import { Route as UnauthBootstrapRouteImport } from './routes/_unauth/bootstrap'
+import { Route as TTenantSitesRouteImport } from './routes/t.$tenant/sites'
 import { Route as TTenantSettingsRouteImport } from './routes/t.$tenant/settings'
 import { Route as TTenantServicesRouteImport } from './routes/t.$tenant/services'
 import { Route as TTenantSecurityRouteImport } from './routes/t.$tenant/security'
@@ -134,6 +135,11 @@ const UnauthBootstrapRoute = UnauthBootstrapRouteImport.update({
   id: '/bootstrap',
   path: '/bootstrap',
   getParentRoute: () => UnauthRoute,
+} as any)
+const TTenantSitesRoute = TTenantSitesRouteImport.update({
+  id: '/sites',
+  path: '/sites',
+  getParentRoute: () => TTenantRoute,
 } as any)
 const TTenantSettingsRoute = TTenantSettingsRouteImport.update({
   id: '/settings',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
+  '/t/$tenant/sites': typeof TTenantSitesRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
+  '/t/$tenant/sites': typeof TTenantSitesRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
+  '/t/$tenant/sites': typeof TTenantSitesRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security'
     | '/t/$tenant/services'
     | '/t/$tenant/settings'
+    | '/t/$tenant/sites'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security'
     | '/t/$tenant/services'
     | '/t/$tenant/settings'
+    | '/t/$tenant/sites'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security'
     | '/t/$tenant/services'
     | '/t/$tenant/settings'
+    | '/t/$tenant/sites'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -595,6 +607,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/bootstrap'
       preLoaderRoute: typeof UnauthBootstrapRouteImport
       parentRoute: typeof UnauthRoute
+    }
+    '/t/$tenant/sites': {
+      id: '/t/$tenant/sites'
+      path: '/sites'
+      fullPath: '/t/$tenant/sites'
+      preLoaderRoute: typeof TTenantSitesRouteImport
+      parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/settings': {
       id: '/t/$tenant/settings'
@@ -801,6 +820,7 @@ interface TTenantRouteChildren {
   TTenantSecurityRoute: typeof TTenantSecurityRouteWithChildren
   TTenantServicesRoute: typeof TTenantServicesRoute
   TTenantSettingsRoute: typeof TTenantSettingsRoute
+  TTenantSitesRoute: typeof TTenantSitesRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
 }
 
@@ -813,6 +833,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantSecurityRoute: TTenantSecurityRouteWithChildren,
   TTenantServicesRoute: TTenantServicesRoute,
   TTenantSettingsRoute: TTenantSettingsRoute,
+  TTenantSitesRoute: TTenantSitesRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
 }
 
