@@ -223,9 +223,9 @@ describe('useSiteList', () => {
     const { result } = renderHook(() =>
       useSiteList(tenantId, {
         search: '',
-        tls_mode: 'all',
-        enabled: 'all',
-        linked_service_id: null,
+        tls_mode: [],
+        enabled: [],
+        linked_service_ids: [],
       }),
     );
     expect(result.current.every((s) => s.tenant_id === tenantId)).toBe(true);

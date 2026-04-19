@@ -54,18 +54,25 @@ function makeAuditEntry(
 export function useSiteList(tenantId: string, filter: SiteFilter): Site[] {
   const sites = useMockStore((s) => s.sites);
   const search = filter.search.toLowerCase().trim();
+  const tlsSet = new Set(filter.tls_mode);
+  const enabledSet = new Set(filter.enabled);
+  const linkedSet = new Set(filter.linked_service_ids);
 
   const results: Site[] = [];
   for (const site of Object.values(sites)) {
     if (site.tenant_id !== tenantId) continue;
-    if (filter.tls_mode !== 'all' && site.tls_mode !== filter.tls_mode) continue;
-    if (filter.enabled === 'enabled' && !site.enabled) continue;
-    if (filter.enabled === 'disabled' && site.enabled) continue;
-    if (
-      filter.linked_service_id !== null &&
-      site.upstream_service_id !== filter.linked_service_id
-    ) {
-      continue;
+    if (tlsSet.size > 0 && !tlsSet.has(site.tls_mode)) continue;
+    if (enabledSet.size > 0) {
+      const key: 'enabled' | 'disabled' = site.enabled ? 'enabled' : 'disabled';
+      if (!enabledSet.has(key)) continue;
+    }
+    if (linkedSet.size > 0) {
+      if (
+        site.upstream_service_id === undefined ||
+        !linkedSet.has(site.upstream_service_id)
+      ) {
+        continue;
+      }
     }
     if (search) {
       const nameMatch = site.name.toLowerCase().includes(search);

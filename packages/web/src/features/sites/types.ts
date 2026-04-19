@@ -5,11 +5,17 @@ export type { Site, Service, ID } from '@/api/resources/types';
 
 import type { Site } from '@/api/resources/types';
 
+export type SiteEnabledFilter = 'enabled' | 'disabled';
+
 export interface SiteFilter {
+  /** Domain / name substring (case-insensitive). Empty = match all. */
   search: string;
-  tls_mode: 'all' | Site['tls_mode'];
-  enabled: 'all' | 'enabled' | 'disabled';
-  linked_service_id: string | null;
+  /** TLS modes to include. Empty array = match all. */
+  tls_mode: Site['tls_mode'][];
+  /** Enabled/disabled set. Empty = match all. */
+  enabled: SiteEnabledFilter[];
+  /** Service IDs to include as linked upstream. Empty = match all. */
+  linked_service_ids: string[];
 }
 
 export interface SiteWizardInput {
