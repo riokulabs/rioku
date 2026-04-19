@@ -3,77 +3,84 @@
  *
  * Returns a deep-frozen `RiokuHost` object.  Plugins call this inside their
  * components/hooks (or receive it as the default-export argument at register
- * time — see plugin-loader in F4).
+ * time — see plugin-loader).
  *
  * Rule B4 basis: this interface is the ABI surface. Changes here must bump
- * `CURRENT_ABI_VERSION` in `@/host/abi`. A CI check (F4) will diff the
- * declared type against the previous ABI snapshot.
+ * `CURRENT_ABI_VERSION` in `@/host/abi`. A CI check wires `pnpm check-abi`
+ * to enforce this.
  *
  * spec §9.4.1, §9.10.1 B4 / Task 1f.112
+ *
+ * NOTE: Surface interface definitions live here and are imported by
+ * host-builder.ts. This is the single source of truth for the ABI surface —
+ * the `/* ABI-SURFACE-START *\/` … `/* ABI-SURFACE-END *\/` markers delimit
+ * the block the CI check hashes.
  */
 
 import { useMemo } from 'react';
-import {
+import { buildHost } from '@/host/host-builder';
+import type {
   registerZone,
   unregisterZone,
   getZoneContributions,
   listAllZones,
 } from '@/host/zones';
-import {
+import type {
   registerRoute,
   unregisterRoute,
   listPluginRoutes,
 } from '@/host/routes';
-import {
+import type {
   registerSidebarEntry,
   unregisterSidebarEntry,
   listSidebarEntries,
 } from '@/host/sidebar';
-import {
+import type {
   registerSettingsPanel,
   unregisterSettingsPanel,
   listSettingsPanels,
 } from '@/host/settings';
-import {
+import type {
   registerPluginTheme,
   unregisterPluginTheme,
   listPluginThemes,
 } from '@/host/themes';
-import {
+import type {
   registerSpotlightCommand,
   unregisterSpotlightCommand,
   registerSpotlightResource,
   unregisterSpotlightResource,
 } from '@/host/spotlight';
-import { setNotifyBackend, emitPluginNotification } from '@/host/notify';
-import {
+import type { setNotifyBackend, emitPluginNotification } from '@/host/notify';
+import type {
   registerWidget,
   unregisterWidget,
   listWidgets,
 } from '@/host/widgets';
-import {
+import type {
   subscribeHostEvent,
   useHostEventSubscription,
 } from '@/host/events';
-import {
+import type {
   registerPluginEndpoint,
   unregisterPluginEndpoint,
   listPluginEndpoints,
 } from '@/host/api-endpoints';
-import {
+import type {
   registerPluginOpenApi,
   unregisterPluginOpenApi,
 } from '@/host/openapi';
-import {
+import type {
   registerPermission,
   unregisterPermission,
   getPermissionRegistry,
 } from '@/host/permissions';
-import { CURRENT_ABI_VERSION } from '@/host/abi';
 
 // ─── Surface interfaces ───────────────────────────────────────────────────────
 // Each interface exposes ONLY the plugin-facing methods.
 // Internal registry methods stay in the host/* modules.
+
+/* ABI-SURFACE-START */
 
 export interface HostZones {
   register: typeof registerZone;
@@ -167,6 +174,8 @@ export interface RiokuHost {
   permissions: HostPermissions;
 }
 
+/* ABI-SURFACE-END */
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -177,93 +186,6 @@ export interface RiokuHost {
  * the top level (or receive the host object from the plugin-loader).
  */
 export function useHost(): Readonly<RiokuHost> {
-  return useMemo<Readonly<RiokuHost>>(() => {
-    const zones: HostZones = Object.freeze({
-      register: registerZone,
-      unregister: unregisterZone,
-      get: getZoneContributions,
-      list: listAllZones,
-    });
-
-    const routes: HostRoutes = Object.freeze({
-      register: registerRoute,
-      unregister: unregisterRoute,
-      list: listPluginRoutes,
-    });
-
-    const sidebar: HostSidebar = Object.freeze({
-      register: registerSidebarEntry,
-      unregister: unregisterSidebarEntry,
-      list: listSidebarEntries,
-    });
-
-    const settings: HostSettings = Object.freeze({
-      register: registerSettingsPanel,
-      unregister: unregisterSettingsPanel,
-      list: listSettingsPanels,
-    });
-
-    const themes: HostThemes = Object.freeze({
-      register: registerPluginTheme,
-      unregister: unregisterPluginTheme,
-      list: listPluginThemes,
-    });
-
-    const spotlight: HostSpotlight = Object.freeze({
-      registerCommand: registerSpotlightCommand,
-      unregisterCommand: unregisterSpotlightCommand,
-      registerResource: registerSpotlightResource,
-      unregisterResource: unregisterSpotlightResource,
-    });
-
-    const notify: HostNotify = Object.freeze({
-      setBackend: setNotifyBackend,
-      emit: emitPluginNotification,
-    });
-
-    const widgets: HostWidgets = Object.freeze({
-      register: registerWidget,
-      unregister: unregisterWidget,
-      list: listWidgets,
-    });
-
-    const events: HostEvents = Object.freeze({
-      subscribe: subscribeHostEvent,
-      useSubscription: useHostEventSubscription,
-    });
-
-    const apiEndpoints: HostApiEndpoints = Object.freeze({
-      register: registerPluginEndpoint,
-      unregister: unregisterPluginEndpoint,
-      list: listPluginEndpoints,
-    });
-
-    const openapi: HostOpenApi = Object.freeze({
-      register: registerPluginOpenApi,
-      unregister: unregisterPluginOpenApi,
-    });
-
-    const permissions: HostPermissions = Object.freeze({
-      register: registerPermission,
-      unregister: unregisterPermission,
-      getRegistry: getPermissionRegistry,
-    });
-
-    return Object.freeze<RiokuHost>({
-      abiVersion: CURRENT_ABI_VERSION,
-      zones,
-      routes,
-      sidebar,
-      settings,
-      themes,
-      spotlight,
-      notify,
-      widgets,
-      events,
-      apiEndpoints,
-      openapi,
-      permissions,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo<Readonly<RiokuHost>>(() => buildHost(), []);
 }
