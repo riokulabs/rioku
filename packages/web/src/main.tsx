@@ -26,6 +26,35 @@ async function bootstrapStore(): Promise<void> {
   // ships to production builds.
   if (import.meta.env.DEV) {
     (window as unknown as Record<string, unknown>).__RIOKU_STORE = useMockStore;
+    // Expose plugin-host snapshots for E2E probing (Task 1f.123). The shape is
+    // an accessor object so Playwright reads live state, not a stale snapshot.
+    const [
+      { usePluginRegistry },
+      { listPluginThemes },
+      { listSidebarEntries },
+      { listPluginRoutes },
+      { listSpotlightCommands },
+      { getPermissionRegistry },
+      { listWidgets },
+    ] = await Promise.all([
+      import('./host/plugin-registry'),
+      import('./host/themes'),
+      import('./host/sidebar'),
+      import('./host/routes'),
+      import('./host/spotlight'),
+      import('./host/permissions'),
+      import('./host/widgets'),
+    ]);
+    (window as unknown as Record<string, unknown>).__RIOKU_PLUGIN_HOST = {
+      listPlugins: () => usePluginRegistry.getState().listPlugins(),
+      listThemes: () => listPluginThemes(),
+      listSidebar: (group?: 'general' | 'security' | 'system' | 'plugins') =>
+        listSidebarEntries(group),
+      listRoutes: () => listPluginRoutes(),
+      listSpotlight: () => listSpotlightCommands(),
+      listWidgets: () => listWidgets(),
+      getPermission: (key: string) => getPermissionRegistry().get(key),
+    };
   }
   const { seedStore } = await import('./api/mock-seed');
   const state = useMockStore.getState();

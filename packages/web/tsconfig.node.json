@@ -13,6 +13,7 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "postcss.config.mjs",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    "e2e/global-setup.ts"
   ]
 }

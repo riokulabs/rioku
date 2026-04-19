@@ -15,6 +15,7 @@ import { Route as AccessDeniedRouteImport } from './routes/access-denied'
 import { Route as UnauthRouteImport } from './routes/_unauth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TTenantRouteImport } from './routes/t.$tenant'
+import { Route as PluginsSplatRouteImport } from './routes/plugins.$'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTenantsRouteImport } from './routes/admin/tenants'
 import { Route as AdminImpersonateRouteImport } from './routes/admin/impersonate'
@@ -67,6 +68,11 @@ const IndexRoute = IndexRouteImport.update({
 const TTenantRoute = TTenantRouteImport.update({
   id: '/t/$tenant',
   path: '/t/$tenant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsSplatRoute = PluginsSplatRouteImport.update({
+  id: '/plugins/$',
+  path: '/plugins/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/admin/impersonate': typeof AdminImpersonateRoute
   '/admin/tenants': typeof AdminTenantsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/plugins/$': typeof PluginsSplatRoute
   '/t/$tenant': typeof TTenantRouteWithChildren
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/admin/impersonate': typeof AdminImpersonateRoute
   '/admin/tenants': typeof AdminTenantsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/plugins/$': typeof PluginsSplatRoute
   '/t/$tenant': typeof TTenantRouteWithChildren
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/admin/impersonate': typeof AdminImpersonateRoute
   '/admin/tenants': typeof AdminTenantsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/plugins/$': typeof PluginsSplatRoute
   '/t/$tenant': typeof TTenantRouteWithChildren
   '/_unauth/invite/$token': typeof UnauthInviteTokenRoute
   '/_unauth/reset-password/$token': typeof UnauthResetPasswordTokenRoute
@@ -306,6 +315,7 @@ export interface FileRouteTypes {
     | '/admin/impersonate'
     | '/admin/tenants'
     | '/admin/users'
+    | '/plugins/$'
     | '/t/$tenant'
     | '/invite/$token'
     | '/reset-password/$token'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/admin/impersonate'
     | '/admin/tenants'
     | '/admin/users'
+    | '/plugins/$'
     | '/t/$tenant'
     | '/invite/$token'
     | '/reset-password/$token'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/admin/impersonate'
     | '/admin/tenants'
     | '/admin/users'
+    | '/plugins/$'
     | '/t/$tenant'
     | '/_unauth/invite/$token'
     | '/_unauth/reset-password/$token'
@@ -391,6 +403,7 @@ export interface RootRouteChildren {
   AccessDeniedRoute: typeof AccessDeniedRoute
   AdminRoute: typeof AdminRouteWithChildren
   TenantsRoute: typeof TenantsRoute
+  PluginsSplatRoute: typeof PluginsSplatRoute
   TTenantRoute: typeof TTenantRouteWithChildren
 }
 
@@ -436,6 +449,13 @@ declare module '@tanstack/react-router' {
       path: '/t/$tenant'
       fullPath: '/t/$tenant'
       preLoaderRoute: typeof TTenantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins/$': {
+      id: '/plugins/$'
+      path: '/plugins/$'
+      fullPath: '/plugins/$'
+      preLoaderRoute: typeof PluginsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -699,6 +719,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessDeniedRoute: AccessDeniedRoute,
   AdminRoute: AdminRouteWithChildren,
   TenantsRoute: TenantsRoute,
+  PluginsSplatRoute: PluginsSplatRoute,
   TTenantRoute: TTenantRouteWithChildren,
 }
 export const routeTree = rootRouteImport

@@ -55,13 +55,19 @@ export default defineConfig(({ mode }) => {
         // Used by the E2E dev-sideload smoke test (Task 1f.123) so the browser
         // can `?plugin=/sample-plugin/dist/plugin.mjs` without needing the file
         // to live inside `public/`.
+        //
+        // The plugin is built with REQUIRED_EXTERNALS marked external — that
+        // produces bare `import { ... } from '@mantine/core'` specifiers which
+        // the browser cannot resolve on its own. For dev-sideload we rewrite
+        // those specifiers to Vite's `/@id/<name>` URLs so Vite's module graph
+        // serves the host's prebundled copy. Production will use an import map
+        // emitted by the shell (out of scope for stage-1).
         name: 'rioku-sample-plugin-dev',
         configureServer(server) {
           if (!isDev) return;
           const sampleRoot = fileURLToPath(new URL('./sample-plugin', import.meta.url));
           server.middlewares.use('/sample-plugin', (req, res, next) => {
             const urlPath = (req.url ?? '/').split('?')[0] ?? '/';
-            // Normalise: reject any path that tries to escape the sample dir.
             if (urlPath.includes('..')) {
               next();
               return;
@@ -71,7 +77,8 @@ export default defineConfig(({ mode }) => {
               next();
               return;
             }
-            const contentType = urlPath.endsWith('.mjs') || urlPath.endsWith('.js')
+            const isJs = urlPath.endsWith('.mjs') || urlPath.endsWith('.js');
+            const contentType = isJs
               ? 'application/javascript; charset=utf-8'
               : urlPath.endsWith('.json')
                 ? 'application/json; charset=utf-8'
@@ -79,7 +86,38 @@ export default defineConfig(({ mode }) => {
                   ? 'application/json; charset=utf-8'
                   : 'application/octet-stream';
             res.setHeader('Content-Type', contentType);
-            res.end(readFileSync(filePath));
+            let body = readFileSync(filePath, 'utf-8');
+            if (isJs) {
+              // Rewrite bare ESM specifiers to Vite `/@id/` URLs so the browser
+              // can resolve them. Vite pre-bundles some packages as CJS
+              // (notably `react/jsx-runtime`) and exposes them via a `default`
+              // export — so we import as a namespace and extract named props
+              // from either `ns` itself (pure-ESM packages like @mantine/core)
+              // or `ns.default` (CJS-wrapped packages like react/jsx-runtime).
+              body = body.replace(
+                /import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g,
+                (match: string, named: string, spec: string) => {
+                  if (spec.startsWith('.') || spec.startsWith('/') || spec.includes('://')) {
+                    return match;
+                  }
+                  const localName = '__plug_' + spec.replace(/[^a-zA-Z0-9]/g, '_');
+                  return (
+                    `import * as ${localName} from '/@id/${spec}';` +
+                    `const {${named.trim()}} = (${localName}.default && typeof ${localName}.default === 'object') ? {...${localName}, ...${localName}.default} : ${localName};`
+                  );
+                },
+              );
+              body = body.replace(
+                /from\s+['"]([^'"]+)['"]/g,
+                (match: string, spec: string) => {
+                  if (spec.startsWith('.') || spec.startsWith('/') || spec.includes('://')) {
+                    return match;
+                  }
+                  return `from '/@id/${spec}'`;
+                },
+              );
+            }
+            res.end(body);
           });
         },
       },
