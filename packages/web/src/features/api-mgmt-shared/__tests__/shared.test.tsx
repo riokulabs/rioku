@@ -100,9 +100,7 @@ describe('TagsInput', () => {
     renderWithProviders(
       <TagsInput values={[]} onChange={vi.fn()} placeholder="Custom placeholder" />,
     );
-    expect(
-      (screen.getByPlaceholderText('Custom placeholder') as HTMLInputElement).placeholder,
-    ).toBe('Custom placeholder');
+    expect(screen.getByPlaceholderText('Custom placeholder')).toBeInTheDocument();
   });
 
   it('uses a default placeholder when none is provided', () => {
@@ -113,7 +111,7 @@ describe('TagsInput', () => {
   it('invokes onChange when a tag is added via Enter', () => {
     const onChange = vi.fn();
     renderWithProviders(<TagsInput values={['one']} onChange={onChange} />);
-    const input = screen.getByPlaceholderText('Add tags…') as HTMLInputElement;
+    const input = screen.getByPlaceholderText('Add tags…');
     fireEvent.change(input, { target: { value: 'two' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
     expect(onChange).toHaveBeenCalled();

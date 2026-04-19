@@ -182,9 +182,11 @@ describe('reorderMiddlewares', () => {
     expect(after?.middleware_ids).toEqual(mws.map((m) => m.id));
 
     // full-replace: passing a subset truncates the list
-    await reorderMiddlewares(route.id, [mws[0]!.id]);
+    const firstMw = mws[0];
+    if (!firstMw) throw new Error('expected at least one middleware');
+    await reorderMiddlewares(route.id, [firstMw.id]);
     const after2 = useMockStore.getState().routes[route.id];
-    expect(after2?.middleware_ids).toEqual([mws[0]!.id]);
+    expect(after2?.middleware_ids).toEqual([firstMw.id]);
 
     const latest = useMockStore.getState().audit.at(-1);
     expect(latest?.action).toBe('route.middlewares.reorder');

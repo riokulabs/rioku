@@ -79,7 +79,7 @@ export const updateSiteSchema = z.object({
     )
     .optional(),
   tls_mode: z.enum(['auto', 'manual', 'off']).optional(),
-  upstream_service_id: z.string().nullable().optional(),
+  upstream_service_id: z.string().optional(),
   basic_auth_enabled: z.boolean().optional(),
   rate_limit_preset: z.enum(['none', 'lenient', 'standard', 'strict']).optional(),
   redirect_rules: z

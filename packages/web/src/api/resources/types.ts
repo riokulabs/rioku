@@ -232,7 +232,7 @@ export interface Site {
   tls_manual_cert?: { cert_pem_preview: string; key_pem_preview: string; expires_at?: string };
   basic_auth_enabled: boolean;
   rate_limit_preset: 'none' | 'lenient' | 'standard' | 'strict';
-  redirect_rules: Array<{ from: string; to: string; status: 301 | 302 | 307 | 308 }>;
+  redirect_rules: { from: string; to: string; status: 301 | 302 | 307 | 308 }[];
   readonly updated_at: string;
 }
 

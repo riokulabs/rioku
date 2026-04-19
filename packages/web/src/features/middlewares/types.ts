@@ -11,14 +11,14 @@ export interface MiddlewareFilter {
   enabled: 'all' | 'enabled' | 'disabled';
 }
 
-export type MiddlewareInput = {
+export interface MiddlewareInput {
   name: string;
   kind: Middleware['kind'];
   description?: string;
   config: Record<string, unknown>;
   enabled?: boolean;
   order_hint?: number;
-};
+}
 
 export type MiddlewareUpdateInput = Partial<MiddlewareInput>;
 

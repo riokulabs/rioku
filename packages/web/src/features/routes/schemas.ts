@@ -35,7 +35,6 @@ export const createRouteSchema = z
 
 export const updateRouteSchema = z
   .object({
-    service_id: z.string().min(1).optional(),
     name: z.string().min(1).max(80).optional(),
     path: z.string().startsWith('/').optional(),
     method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'ANY']).optional(),

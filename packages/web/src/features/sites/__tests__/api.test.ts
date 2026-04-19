@@ -139,12 +139,12 @@ describe('createSite', () => {
       tls_mode: 'auto',
     });
 
-    expect(service).toBeDefined();
-    expect(site.upstream_service_id).toBe(service!.id);
+    if (!service) throw new Error('expected a created service');
+    expect(site.upstream_service_id).toBe(service.id);
     expect(Object.keys(useMockStore.getState().services).length).toBe(
       servicesBefore + 1,
     );
-    expect(service!.upstream).toBe('http://raw.internal:9000');
+    expect(service.upstream).toBe('http://raw.internal:9000');
 
     // Both site.create and service.create audit entries should exist.
     const audit = useMockStore.getState().audit.slice(-2);

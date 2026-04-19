@@ -101,18 +101,28 @@ export async function createSite(
 
   if (input.upstream_mode === 'existing_service') {
     upstreamServiceId = input.upstream_service_id;
-  } else if (input.upstream_mode === 'new_upstream') {
+  } else {
+    // upstream_mode === 'new_upstream' — protocol + host are required by the
+    // wizard schema, but we guard here to satisfy the type narrower and to
+    // surface a clean error if callers bypass the schema.
+    const protocol = input.upstream_protocol;
+    const host = input.upstream_host;
+    if (protocol === undefined || host === undefined) {
+      throw new Error(
+        'createSite: new_upstream mode requires upstream_protocol and upstream_host',
+      );
+    }
     const serviceId = nextServiceId();
     const upstream =
       input.upstream_port !== undefined
-        ? `${input.upstream_protocol!}://${input.upstream_host!}:${String(input.upstream_port)}`
-        : `${input.upstream_protocol!}://${input.upstream_host!}`;
+        ? `${protocol}://${host}:${String(input.upstream_port)}`
+        : `${protocol}://${host}`;
     createdService = {
       id: serviceId,
       tenant_id: tenantId,
       name: `${input.name}-upstream`,
       upstream,
-      upstream_protocol: input.upstream_protocol!,
+      upstream_protocol: protocol,
       env: 'production',
       health: 'healthy',
       tags: ['auto-created'],
@@ -201,12 +211,7 @@ export async function updateSite(
   if (input.domain !== undefined) patch.domain = input.domain;
   if (input.tls_mode !== undefined) patch.tls_mode = input.tls_mode;
   if (input.upstream_service_id !== undefined) {
-    if (input.upstream_service_id === null) {
-      // Clear via undefined — matches the optional field semantics
-      patch.upstream_service_id = undefined;
-    } else {
-      patch.upstream_service_id = input.upstream_service_id;
-    }
+    patch.upstream_service_id = input.upstream_service_id;
   }
   if (input.basic_auth_enabled !== undefined)
     patch.basic_auth_enabled = input.basic_auth_enabled;

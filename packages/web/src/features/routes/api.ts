@@ -70,7 +70,7 @@ export function useRouteList(
       if (route.service_id !== serviceId) continue;
     } else {
       const svc = services[route.service_id];
-      if (!svc || svc.tenant_id !== tenantId) continue;
+      if (svc?.tenant_id !== tenantId) continue;
     }
 
     if (methodFilter !== 'all' && route.method !== methodFilter) continue;
@@ -134,7 +134,6 @@ export async function updateRoute(
   if (!current) throw new Error(`Route ${id} not found`);
 
   const patch: Partial<Route> = { updated_at: now() };
-  if (input.service_id !== undefined) patch.service_id = input.service_id;
   if (input.name !== undefined) patch.name = input.name;
   if (input.path !== undefined) patch.path = input.path;
   if (input.method !== undefined) patch.method = input.method;

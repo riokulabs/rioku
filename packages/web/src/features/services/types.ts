@@ -11,11 +11,12 @@ type HealthStatus = Service['health'];
 export interface ServiceFilter {
   search: string;
   health: 'all' | HealthStatus;
-  env: string | 'all';
+  /** Environment filter. Use `'all'` for unfiltered; any other value matches a specific environment. */
+  env: string;
   tag: string | null;
 }
 
-export type ServiceInput = {
+export interface ServiceInput {
   name: string;
   description?: string;
   upstream: string;
@@ -27,11 +28,11 @@ export type ServiceInput = {
     interval_seconds: number;
     timeout_seconds: number;
   };
-};
+}
 
-export type ServiceUpdateInput = Partial<ServiceInput> & {
+export interface ServiceUpdateInput extends Partial<ServiceInput> {
   health?: Service['health'];
-};
+}
 
 export class ServiceInUseError extends Error {
   readonly code = 'SERVICE_IN_USE';

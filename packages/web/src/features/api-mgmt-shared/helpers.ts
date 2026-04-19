@@ -22,7 +22,7 @@ export function formatUpstreamUrl(
   if (port === undefined) {
     return `${protocol}://${host}`;
   }
-  return `${protocol}://${host}:${port}`;
+  return `${protocol}://${host}:${String(port)}`;
 }
 
 /**

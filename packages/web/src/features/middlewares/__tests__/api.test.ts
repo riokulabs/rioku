@@ -138,9 +138,10 @@ describe('useMiddlewareList', () => {
     );
     expect(result.current.every((m) => m.tenant_id === tenantId)).toBe(true);
     for (let i = 1; i < result.current.length; i++) {
-      expect(result.current[i]!.order_hint).toBeGreaterThanOrEqual(
-        result.current[i - 1]!.order_hint,
-      );
+      const current = result.current[i];
+      const prev = result.current[i - 1];
+      if (!current || !prev) throw new Error('unexpected undefined');
+      expect(current.order_hint).toBeGreaterThanOrEqual(prev.order_hint);
     }
   });
 

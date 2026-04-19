@@ -12,7 +12,7 @@ export interface SiteFilter {
   linked_service_id: string | null;
 }
 
-export type SiteWizardInput = {
+export interface SiteWizardInput {
   name: string;
   domain: string;
   upstream_mode: 'existing_service' | 'new_upstream';
@@ -26,14 +26,19 @@ export type SiteWizardInput = {
   basic_auth_enabled?: boolean;
   rate_limit_preset?: Site['rate_limit_preset'];
   redirect_rules?: Site['redirect_rules'];
-};
+}
 
-export type SiteUpdateInput = Partial<{
-  name: string;
-  domain: string;
-  tls_mode: Site['tls_mode'];
-  upstream_service_id: string | null;
-  basic_auth_enabled: boolean;
-  rate_limit_preset: Site['rate_limit_preset'];
-  redirect_rules: Site['redirect_rules'];
-}>;
+export interface SiteUpdateInput {
+  name?: string;
+  domain?: string;
+  tls_mode?: Site['tls_mode'];
+  /**
+   * Link the site to a service. Pass an ID to link, omit the field to leave
+   * untouched. To unlink a site from a service, delete + re-create the site
+   * (rare in real workflows; wizard-driven in stage 1).
+   */
+  upstream_service_id?: string;
+  basic_auth_enabled?: boolean;
+  rate_limit_preset?: Site['rate_limit_preset'];
+  redirect_rules?: Site['redirect_rules'];
+}

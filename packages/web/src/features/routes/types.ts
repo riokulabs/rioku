@@ -11,7 +11,7 @@ export interface RouteFilter {
   enabled: 'all' | 'enabled' | 'disabled';
 }
 
-export type RouteInput = {
+export interface RouteInput {
   service_id: string;
   name: string;
   path: string;
@@ -24,6 +24,6 @@ export type RouteInput = {
   policies?: string[];
   middleware_ids?: string[];
   enabled?: boolean;
-};
+}
 
-export type RouteUpdateInput = Partial<RouteInput>;
+export type RouteUpdateInput = Partial<Omit<RouteInput, 'service_id'>>;
