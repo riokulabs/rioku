@@ -15,6 +15,7 @@ import {
   IconServer,
   IconRoute,
   IconStack,
+  IconBook,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -49,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Routes', to: '/t/acme/routes', icon: IconRoute },
       { label: 'Policies', to: '/t/acme/policies', icon: IconShield },
       { label: 'Middlewares', to: '/t/acme/middlewares', icon: IconStack },
+      { label: 'API Explorer', to: '/t/acme/api-explorer', icon: IconBook },
     ],
   },
   {

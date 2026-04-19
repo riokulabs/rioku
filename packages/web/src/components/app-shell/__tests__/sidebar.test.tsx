@@ -3,9 +3,9 @@
  * Task 2c.23:
  *
  *   - "Sites" entry lives under General (top-level, not inside API management).
- *   - "API management" group contains exactly Services, Routes, Policies,
- *     and Middlewares.
- *   - All five entries render with their expected href pattern.
+ *   - "API management" group contains Services, Routes, Policies,
+ *     Middlewares, and API Explorer.
+ *   - All entries render with their expected href pattern.
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -52,9 +52,15 @@ describe('Sidebar', () => {
     expect(siteEntry?.getAttribute('data-link-to')).toBe('/t/acme/sites');
   });
 
-  it('renders the four API management entries', () => {
+  it('renders all API management entries', () => {
     wrap(<Sidebar />);
-    for (const label of ['Services', 'Routes', 'Policies', 'Middlewares']) {
+    for (const label of [
+      'Services',
+      'Routes',
+      'Policies',
+      'Middlewares',
+      'API Explorer',
+    ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -75,6 +81,9 @@ describe('Sidebar', () => {
     );
     expect(byLabel('Middlewares')?.getAttribute('data-link-to')).toBe(
       '/t/acme/middlewares',
+    );
+    expect(byLabel('API Explorer')?.getAttribute('data-link-to')).toBe(
+      '/t/acme/api-explorer',
     );
   });
 });
