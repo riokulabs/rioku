@@ -122,7 +122,7 @@ describe('ImpersonationBanner', () => {
     mockSession = activeSession;
     renderWithProviders(<ImpersonationBanner />);
     // The button has aria-label "End impersonation session"
-    expect(screen.getByRole('button', { name: /end impersonation session/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /end session/i })).toBeDefined();
   });
 
   it('clicking exit button calls useImpersonation.exit() via confirm modal', async () => {
@@ -130,7 +130,7 @@ describe('ImpersonationBanner', () => {
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationBanner />);
 
-    const exitBtn = screen.getByRole('button', { name: /end impersonation session/i });
+    const exitBtn = screen.getByRole('button', { name: /end session/i });
     await user.click(exitBtn);
 
     await waitFor(() => {
@@ -143,7 +143,7 @@ describe('ImpersonationBanner', () => {
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationBanner />);
 
-    const exitBtn = screen.getByRole('button', { name: /end impersonation session/i });
+    const exitBtn = screen.getByRole('button', { name: /end session/i });
     await user.click(exitBtn);
 
     await waitFor(() => {
