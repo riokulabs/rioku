@@ -21,6 +21,8 @@ import { Route as UnauthRouteImport } from './routes/_unauth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TTenantRouteImport } from './routes/t.$tenant'
 import { Route as UnauthTotpRecoveryRouteImport } from './routes/_unauth/totp-recovery'
+import { Route as UnauthTotpRouteImport } from './routes/_unauth/totp'
+import { Route as UnauthTotpEnrollRouteImport } from './routes/_unauth/totp-enroll'
 import { Route as UnauthLoginRouteImport } from './routes/_unauth/login'
 import { Route as UnauthForgotPasswordRouteImport } from './routes/_unauth/forgot-password'
 import { Route as UnauthBootstrapRouteImport } from './routes/_unauth/bootstrap'
@@ -91,6 +93,16 @@ const TTenantRoute = TTenantRouteImport.update({
 const UnauthTotpRecoveryRoute = UnauthTotpRecoveryRouteImport.update({
   id: '/totp-recovery',
   path: '/totp-recovery',
+  getParentRoute: () => UnauthRoute,
+} as any)
+const UnauthTotpRoute = UnauthTotpRouteImport.update({
+  id: '/totp',
+  path: '/totp',
+  getParentRoute: () => UnauthRoute,
+} as any)
+const UnauthTotpEnrollRoute = UnauthTotpEnrollRouteImport.update({
+  id: '/totp-enroll',
+  path: '/totp-enroll',
   getParentRoute: () => UnauthRoute,
 } as any)
 const UnauthLoginRoute = UnauthLoginRouteImport.update({
@@ -171,6 +183,8 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof UnauthForgotPasswordRoute
   '/login': typeof UnauthLoginRoute
   '/totp-recovery': typeof UnauthTotpRecoveryRoute
+  '/totp': typeof UnauthTotpRoute
+  '/totp-enroll': typeof UnauthTotpEnrollRoute
   '/t/$tenant': typeof TTenantRouteWithChildren
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
@@ -196,6 +210,8 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof UnauthForgotPasswordRoute
   '/login': typeof UnauthLoginRoute
   '/totp-recovery': typeof UnauthTotpRecoveryRoute
+  '/totp': typeof UnauthTotpRoute
+  '/totp-enroll': typeof UnauthTotpEnrollRoute
   '/t/$tenant': typeof TTenantRouteWithChildren
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
@@ -223,6 +239,8 @@ export interface FileRoutesById {
   '/_unauth/forgot-password': typeof UnauthForgotPasswordRoute
   '/_unauth/login': typeof UnauthLoginRoute
   '/_unauth/totp-recovery': typeof UnauthTotpRecoveryRoute
+  '/_unauth/totp': typeof UnauthTotpRoute
+  '/_unauth/totp-enroll': typeof UnauthTotpEnrollRoute
   '/t/$tenant': typeof TTenantRouteWithChildren
   '/_unauth/invite/$token': typeof UnauthInviteTokenRoute
   '/_unauth/reset-password/$token': typeof UnauthResetPasswordTokenRoute
@@ -250,6 +268,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/totp-recovery'
+    | '/totp'
+    | '/totp-enroll'
     | '/t/$tenant'
     | '/invite/$token'
     | '/reset-password/$token'
@@ -275,6 +295,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/totp-recovery'
+    | '/totp'
+    | '/totp-enroll'
     | '/t/$tenant'
     | '/invite/$token'
     | '/reset-password/$token'
@@ -301,6 +323,8 @@ export interface FileRouteTypes {
     | '/_unauth/forgot-password'
     | '/_unauth/login'
     | '/_unauth/totp-recovery'
+    | '/_unauth/totp'
+    | '/_unauth/totp-enroll'
     | '/t/$tenant'
     | '/_unauth/invite/$token'
     | '/_unauth/reset-password/$token'
@@ -426,6 +450,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnauthTotpRecoveryRouteImport
       parentRoute: typeof UnauthRoute
     }
+    '/_unauth/totp': {
+      id: '/_unauth/totp'
+      path: '/totp'
+      fullPath: '/totp'
+      preLoaderRoute: typeof UnauthTotpRouteImport
+      parentRoute: typeof UnauthRoute
+    }
+    '/_unauth/totp-enroll': {
+      id: '/_unauth/totp-enroll'
+      path: '/totp-enroll'
+      fullPath: '/totp-enroll'
+      preLoaderRoute: typeof UnauthTotpEnrollRouteImport
+      parentRoute: typeof UnauthRoute
+    }
     '/_unauth/login': {
       id: '/_unauth/login'
       path: '/login'
@@ -518,6 +556,8 @@ interface UnauthRouteChildren {
   UnauthForgotPasswordRoute: typeof UnauthForgotPasswordRoute
   UnauthLoginRoute: typeof UnauthLoginRoute
   UnauthTotpRecoveryRoute: typeof UnauthTotpRecoveryRoute
+  UnauthTotpRoute: typeof UnauthTotpRoute
+  UnauthTotpEnrollRoute: typeof UnauthTotpEnrollRoute
   UnauthInviteTokenRoute: typeof UnauthInviteTokenRoute
   UnauthResetPasswordTokenRoute: typeof UnauthResetPasswordTokenRoute
 }
@@ -527,6 +567,8 @@ const UnauthRouteChildren: UnauthRouteChildren = {
   UnauthForgotPasswordRoute: UnauthForgotPasswordRoute,
   UnauthLoginRoute: UnauthLoginRoute,
   UnauthTotpRecoveryRoute: UnauthTotpRecoveryRoute,
+  UnauthTotpRoute: UnauthTotpRoute,
+  UnauthTotpEnrollRoute: UnauthTotpEnrollRoute,
   UnauthInviteTokenRoute: UnauthInviteTokenRoute,
   UnauthResetPasswordTokenRoute: UnauthResetPasswordTokenRoute,
 }
