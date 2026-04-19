@@ -8,4 +8,3 @@ export {
   useMarketplaceListing,
 } from './api';
 export type { MarketplaceFilter, MarketplaceListing } from './types';
-export type { MarketplaceFilterFormValues } from './schemas';

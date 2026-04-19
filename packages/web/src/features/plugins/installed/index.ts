@@ -14,4 +14,3 @@ export {
   uninstallPlugin,
 } from './api';
 export type { InstalledPluginFilter, Plugin } from './types';
-export type { UninstallConfirmFormValues } from './schemas';

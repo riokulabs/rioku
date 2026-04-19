@@ -8,4 +8,3 @@ export {
   adminLevelPermissions,
 } from './api';
 export type { ApprovalCandidate } from './types';
-export type { ApprovalConfirmFormValues } from './schemas';

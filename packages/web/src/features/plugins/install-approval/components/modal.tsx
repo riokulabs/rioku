@@ -33,18 +33,13 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
+import { PART_COLORS } from '../../shared/constants';
 import {
   installPlugin,
   isAdminLevelPermission,
   adminLevelPermissions,
 } from '../api';
 import type { ApprovalCandidate, Plugin } from '../types';
-
-const PART_COLORS: Record<string, string> = {
-  daemon: 'blue',
-  caddy: 'teal',
-  admin: 'violet',
-};
 
 interface InstallApprovalModalProps {
   candidate: ApprovalCandidate | null;
@@ -167,7 +162,7 @@ export function InstallApprovalModal({
                 <Badge
                   key={part}
                   size="xs"
-                  color={PART_COLORS[part] ?? 'gray'}
+                  color={PART_COLORS[part]}
                   variant="light"
                 >
                   {part}

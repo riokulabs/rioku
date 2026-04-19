@@ -32,18 +32,13 @@ import { Link } from '@tanstack/react-router';
 import dayjs from 'dayjs';
 import { notify } from '@/hooks/use-notify';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
+import { PART_COLORS } from '../../shared/constants';
 import {
   useInstalledPlugin,
   usePluginAuditTail,
   enablePlugin,
   disablePlugin,
 } from '../api';
-
-const PART_COLORS: Record<string, string> = {
-  daemon: 'blue',
-  caddy: 'teal',
-  admin: 'violet',
-};
 
 interface InstalledPluginDetailProps {
   pluginId: string;
@@ -118,7 +113,7 @@ export function InstalledPluginDetail({
                 <Badge
                   key={part}
                   size="xs"
-                  color={PART_COLORS[part] ?? 'gray'}
+                  color={PART_COLORS[part]}
                   variant="light"
                 >
                   {part}

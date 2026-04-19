@@ -4,7 +4,7 @@
  * Columns: name (with verified/errors badges), version, parts chips, enabled
  * switch, actions menu.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import {
   Badge,
@@ -30,6 +30,7 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useOpaqueFilter } from '@/hooks/use-opaque-filter';
 import { notify } from '@/hooks/use-notify';
+import { PART_COLORS } from '../../shared/constants';
 import { useInstalledPluginList, enablePlugin, disablePlugin } from '../api';
 import type { InstalledPluginFilter, Plugin } from '../types';
 
@@ -40,12 +41,6 @@ const ENABLED_OPTIONS = [
 ];
 
 const DEFAULT_FILTER: InstalledPluginFilter = { search: '', enabled: 'all' };
-
-const PART_COLORS: Record<string, string> = {
-  daemon: 'blue',
-  caddy: 'teal',
-  admin: 'violet',
-};
 
 interface InstalledPluginListProps {
   tenantId: string;
@@ -62,17 +57,16 @@ export function InstalledPluginList({
 
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
-  void debouncedSearch; // used via handleSearchChange
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchInput(value);
-      setFilter({ ...filter, search: value });
-    },
-    [filter, setFilter],
-  );
+  // Commit debounced search input to the opaque filter; typing stays snappy
+  // while the list query only refetches after the user pauses.
+  useEffect(() => {
+    if (filter.search !== debouncedSearch) {
+      setFilter({ ...filter, search: debouncedSearch });
+    }
+  }, [debouncedSearch, filter, setFilter]);
 
   const handleEnabledChange = useCallback(
     (value: string | null) => {
@@ -157,7 +151,7 @@ export function InstalledPluginList({
               <Badge
                 key={part}
                 size="xs"
-                color={PART_COLORS[part] ?? 'gray'}
+                color={PART_COLORS[part]}
                 variant="light"
               >
                 {part}
@@ -256,7 +250,7 @@ export function InstalledPluginList({
           leftSection={<IconSearch size={14} />}
           value={searchInput}
           onChange={(e) => {
-            handleSearchChange(e.currentTarget.value);
+            setSearchInput(e.currentTarget.value);
           }}
           style={{ flex: 1 }}
           aria-label="Search installed plugins"
