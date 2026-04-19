@@ -42,7 +42,9 @@
             "name": "buildId",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -127,7 +129,9 @@
             "name": "buildId",
             "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -255,29 +259,35 @@
             "name": "state",
             "in": "query",
             "required": false,
-            "type": "string",
-            "enum": [
-              "NODE_STATE_UNSPECIFIED",
-              "NODE_STATE_JOINING",
-              "NODE_STATE_ACTIVE",
-              "NODE_STATE_DEGRADED",
-              "NODE_STATE_LEAVING",
-              "NODE_STATE_UNREACHABLE"
-            ],
-            "default": "NODE_STATE_UNSPECIFIED"
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NODE_STATE_UNSPECIFIED",
+                "NODE_STATE_JOINING",
+                "NODE_STATE_ACTIVE",
+                "NODE_STATE_DEGRADED",
+                "NODE_STATE_LEAVING",
+                "NODE_STATE_UNREACHABLE"
+              ],
+              "default": "NODE_STATE_UNSPECIFIED"
+            }
           },
           {
             "name": "page.pageSize",
             "in": "query",
             "required": false,
-            "type": "integer",
-            "format": "int32"
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           {
             "name": "page.pageToken",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -324,46 +334,60 @@
             "name": "actor",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "entityType",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "entityId",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "since",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "until",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "page.pageSize",
             "in": "query",
             "required": false,
-            "type": "integer",
-            "format": "int32"
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           {
             "name": "page.pageToken",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -401,8 +425,10 @@
             "name": "version",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "schema": {
+              "type": "string",
+              "format": "int64"
+            }
           }
         ],
         "tags": [
@@ -568,7 +594,9 @@
             "name": "verbose",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "tags": [
@@ -636,44 +664,52 @@
             "name": "type",
             "in": "query",
             "required": false,
-            "type": "string",
-            "enum": [
-              "PLUGIN_TYPE_UNSPECIFIED",
-              "PLUGIN_TYPE_TRAFFIC",
-              "PLUGIN_TYPE_MIDDLEWARE",
-              "PLUGIN_TYPE_CLI",
-              "PLUGIN_TYPE_WEB",
-              "PLUGIN_TYPE_AGENTIC"
-            ],
-            "default": "PLUGIN_TYPE_UNSPECIFIED"
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PLUGIN_TYPE_UNSPECIFIED",
+                "PLUGIN_TYPE_TRAFFIC",
+                "PLUGIN_TYPE_MIDDLEWARE",
+                "PLUGIN_TYPE_CLI",
+                "PLUGIN_TYPE_WEB",
+                "PLUGIN_TYPE_AGENTIC"
+              ],
+              "default": "PLUGIN_TYPE_UNSPECIFIED"
+            }
           },
           {
             "name": "status",
             "in": "query",
             "required": false,
-            "type": "string",
-            "enum": [
-              "PLUGIN_STATUS_UNSPECIFIED",
-              "PLUGIN_STATUS_INSTALLING",
-              "PLUGIN_STATUS_ACTIVE",
-              "PLUGIN_STATUS_DISABLED",
-              "PLUGIN_STATUS_ERROR",
-              "PLUGIN_STATUS_REBUILDING"
-            ],
-            "default": "PLUGIN_STATUS_UNSPECIFIED"
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PLUGIN_STATUS_UNSPECIFIED",
+                "PLUGIN_STATUS_INSTALLING",
+                "PLUGIN_STATUS_ACTIVE",
+                "PLUGIN_STATUS_DISABLED",
+                "PLUGIN_STATUS_ERROR",
+                "PLUGIN_STATUS_REBUILDING"
+              ],
+              "default": "PLUGIN_STATUS_UNSPECIFIED"
+            }
           },
           {
             "name": "page.pageSize",
             "in": "query",
             "required": false,
-            "type": "integer",
-            "format": "int32"
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           {
             "name": "page.pageToken",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -758,19 +794,25 @@
             "name": "pluginId",
             "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "purgeConfig",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "schema": {
+              "type": "boolean"
+            }
           },
           {
             "name": "deferBuild",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "tags": [
@@ -808,7 +850,9 @@
             "name": "pluginId",
             "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -844,7 +888,9 @@
             "name": "pluginId",
             "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -892,33 +938,43 @@
             "name": "activeOnly",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "schema": {
+              "type": "boolean"
+            }
           },
           {
             "name": "agentId",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "since",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "page.pageSize",
             "in": "query",
             "required": false,
-            "type": "integer",
-            "format": "int32"
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           {
             "name": "page.pageToken",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -956,7 +1012,9 @@
             "name": "sessionId",
             "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -994,32 +1052,40 @@
             "name": "since",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "until",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "interval",
             "description": "\"minute\" | \"hour\" | \"day\"",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "routeIds",
             "in": "query",
             "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
+            "collectionFormat": "multi",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         ],
         "tags": [
@@ -1057,39 +1123,51 @@
             "name": "since",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "until",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "interval",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "actorId",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "model",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "provider",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -1127,67 +1205,85 @@
             "name": "since",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "until",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "date-time"
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           },
           {
             "name": "routeIds",
             "in": "query",
             "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
+            "collectionFormat": "multi",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           {
             "name": "statusCodes",
             "in": "query",
             "required": false,
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            },
-            "collectionFormat": "multi"
+            "collectionFormat": "multi",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
           },
           {
             "name": "actorId",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "sessionId",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "aiOnly",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "schema": {
+              "type": "boolean"
+            }
           },
           {
             "name": "page.pageSize",
             "in": "query",
             "required": false,
-            "type": "integer",
-            "format": "int32"
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           {
             "name": "page.pageToken",
             "in": "query",
             "required": false,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [
@@ -1225,7 +1321,9 @@
             "name": "traceId",
             "in": "path",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "tags": [

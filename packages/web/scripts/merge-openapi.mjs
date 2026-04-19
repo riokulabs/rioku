@@ -72,9 +72,40 @@ function migrateResponses(responses) {
 }
 
 /**
+ * Swagger 2.0 keeps schema-shape fields (`type`, `format`, enums, etc.) on the
+ * parameter object itself. OAS 3.0 requires these to be nested under a
+ * dedicated `schema` object for non-body parameters. Strict validators
+ * (Spectral, redocly) reject the swagger-2 shape; Scalar happens to tolerate
+ * it but we emit valid OAS 3 for portability.
+ */
+const SCHEMA_FIELDS = ['type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'pattern'];
+
+function migrateNonBodyParam(param) {
+  if (!param || typeof param !== 'object') return param;
+  const cloned = { ...param };
+  const schema = {};
+  let moved = false;
+  for (const field of SCHEMA_FIELDS) {
+    if (field in cloned) {
+      schema[field] = cloned[field];
+      delete cloned[field];
+      moved = true;
+    }
+  }
+  if (moved) {
+    // Merge with an existing `schema` (rare in swagger 2.0 non-body params,
+    // but preserve caller-provided fields as highest precedence).
+    cloned.schema = { ...schema, ...(cloned.schema && typeof cloned.schema === 'object' ? cloned.schema : {}) };
+  }
+  return cloned;
+}
+
+/**
  * Split swagger 2.0 parameters into OpenAPI 3 `parameters` + `requestBody`.
  * Swagger 2.0 lumps body parameters into `parameters[in=body]`; OAS 3 moves
- * them to a dedicated `requestBody` object.
+ * them to a dedicated `requestBody` object. Remaining path/query/header
+ * parameters are rewritten into OAS 3.0 `schema`-wrapped shape via
+ * `migrateNonBodyParam`.
  */
 function migrateParameters(operation) {
   const params = operation.parameters;
@@ -102,7 +133,7 @@ function migrateParameters(operation) {
     }
   }
   if (nonBody.length > 0) {
-    operation.parameters = nonBody;
+    operation.parameters = nonBody.map(migrateNonBodyParam);
   } else {
     delete operation.parameters;
   }
