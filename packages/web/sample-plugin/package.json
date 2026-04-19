@@ -1,0 +1,14 @@
+{
+  "name": "@rioku/sample-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sample dev plugin exercising every SDK surface (Task 1f.122).",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "vite": "8.0.8"
+  }
+}

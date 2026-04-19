@@ -14,6 +14,8 @@ export default tseslint.config(
       'test-results',
       '.tsc-node-out',
       'src/routeTree.gen.ts',
+      'sample-plugin/dist/**',
+      'sample-plugin/node_modules/**',
     ],
   },
   js.configs.recommended,
@@ -119,6 +121,17 @@ export default tseslint.config(
     files: ['src/host/sdk.ts'],
     rules: {
       'no-restricted-imports': 'off',
+    },
+  },
+  {
+    // Sample plugin — sits under packages/web/ for dev-sideload convenience but
+    // plays the role of an out-of-tree plugin. Importing @rioku/plugin-sdk and
+    // bypassing the B2 boundary rules is intentional.
+    files: ['sample-plugin/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+      'boundaries/element-types': 'off',
+      'boundaries/no-private': 'off',
     },
   },
   {

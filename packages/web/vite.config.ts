@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { fileURLToPath } from 'node:url';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Inlined from src/lib/csp.ts — vite.config.ts cannot import from src/ (project boundary).
 // Keep in sync with src/lib/csp.ts devCsp() and randomNonce().
@@ -45,6 +47,39 @@ export default defineConfig(({ mode }) => {
               res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
             }
             next();
+          });
+        },
+      },
+      {
+        // Dev-only: serve the sample plugin dist bundle at /sample-plugin/*.
+        // Used by the E2E dev-sideload smoke test (Task 1f.123) so the browser
+        // can `?plugin=/sample-plugin/dist/plugin.mjs` without needing the file
+        // to live inside `public/`.
+        name: 'rioku-sample-plugin-dev',
+        configureServer(server) {
+          if (!isDev) return;
+          const sampleRoot = fileURLToPath(new URL('./sample-plugin', import.meta.url));
+          server.middlewares.use('/sample-plugin', (req, res, next) => {
+            const urlPath = (req.url ?? '/').split('?')[0] ?? '/';
+            // Normalise: reject any path that tries to escape the sample dir.
+            if (urlPath.includes('..')) {
+              next();
+              return;
+            }
+            const filePath = join(sampleRoot, urlPath);
+            if (!existsSync(filePath)) {
+              next();
+              return;
+            }
+            const contentType = urlPath.endsWith('.mjs') || urlPath.endsWith('.js')
+              ? 'application/javascript; charset=utf-8'
+              : urlPath.endsWith('.json')
+                ? 'application/json; charset=utf-8'
+                : urlPath.endsWith('.map')
+                  ? 'application/json; charset=utf-8'
+                  : 'application/octet-stream';
+            res.setHeader('Content-Type', contentType);
+            res.end(readFileSync(filePath));
           });
         },
       },

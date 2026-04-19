@@ -1,0 +1,17 @@
+{
+  "name": "sample-plugin",
+  "version": "0.0.1",
+  "displayName": "Sample Plugin",
+  "author": { "name": "Rioku Labs" },
+  "abi": { "minVersion": 1 },
+  "parts": { "admin": "dist/plugin.mjs" },
+  "isolation": "shared",
+  "zones": [],
+  "permissions": [
+    {
+      "key": "com.example.hello:greet",
+      "description": "Allow the sample plugin to greet the user",
+      "default_roles": []
+    }
+  ]
+}
