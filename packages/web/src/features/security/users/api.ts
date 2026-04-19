@@ -6,6 +6,7 @@
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
+import { emitHostEvent } from '@/host/events';
 import type { User, Membership, UserWithMembership, UserFilter } from './types';
 import type { AuditEntry } from '@/api/resources/types';
 
@@ -175,6 +176,9 @@ export async function inviteUser(
   // Fake invite token
   const inviteToken = `inv-${userId.slice(-6)}-${membershipId.slice(-6)}`;
 
+  // Emit host event so plugins can react (e.g. custom onboarding workflows)
+  emitHostEvent('user:invited', { user_id: userId, tenant_id: tenantId, role_ids: roleIds });
+
   return { userId, membershipId, inviteToken };
 }
 
@@ -245,6 +249,7 @@ export async function disableUser(userId: string): Promise<void> {
   state.appendAudit(
     makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'user:disable', 'user', userId),
   );
+  emitHostEvent('user:disabled', { user_id: userId, tenant_id: state.currentTenantId });
 }
 
 export async function enableUser(userId: string): Promise<void> {
@@ -254,6 +259,7 @@ export async function enableUser(userId: string): Promise<void> {
   state.appendAudit(
     makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'user:enable', 'user', userId),
   );
+  emitHostEvent('user:updated', { user_id: userId, tenant_id: state.currentTenantId, change: 'enabled' });
 }
 
 export async function deleteUser(userId: string): Promise<void> {
@@ -344,5 +350,13 @@ export async function updateMembershipRoles(
     ),
     tier: 'write',
     diff: { before: { role_ids: before }, after: { role_ids: newRoleIds } },
+  });
+
+  emitHostEvent('user:role-changed', {
+    user_id: membership.user_id,
+    tenant_id: membership.tenant_id,
+    membership_id: membershipId,
+    before: before,
+    after: newRoleIds,
   });
 }

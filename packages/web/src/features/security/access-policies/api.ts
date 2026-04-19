@@ -7,6 +7,7 @@
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
+import { emitHostEvent } from '@/host/events';
 import type { AccessPolicy } from './types';
 import type { AccessPolicyPayload } from './types';
 
@@ -44,6 +45,7 @@ export async function createAccessPolicyMutation(
     created_at: new Date().toISOString(),
   };
   useMockStore.getState().addEntity('accessPolicies', policy);
+  emitHostEvent('policy:saved', { policy_id: policy.id, tenant_id: tenantId, action: 'created' });
   return policy;
 }
 
@@ -54,10 +56,12 @@ export async function updateAccessPolicyMutation(
 ): Promise<void> {
   await simulateLatency('mutation');
   useMockStore.getState().updateEntity('accessPolicies', id, payload);
+  emitHostEvent('policy:saved', { policy_id: id, action: 'updated' });
 }
 
 /** Delete an access policy from the store. */
 export async function deleteAccessPolicyMutation(id: string): Promise<void> {
   await simulateLatency('mutation');
   useMockStore.getState().deleteEntity('accessPolicies', id);
+  emitHostEvent('policy:deleted', { policy_id: id });
 }
