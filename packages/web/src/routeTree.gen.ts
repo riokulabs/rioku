@@ -48,6 +48,7 @@ import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/sec
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
 import { Route as TTenantAiProvidersRouteImport } from './routes/t.$tenant/ai/providers'
+import { Route as TTenantAiAgentsRouteImport } from './routes/t.$tenant/ai/agents'
 
 const TenantsRoute = TenantsRouteImport.update({
   id: '/tenants',
@@ -247,6 +248,11 @@ const TTenantAiProvidersRoute = TTenantAiProvidersRouteImport.update({
   path: '/ai/providers',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantAiAgentsRoute = TTenantAiAgentsRouteImport.update({
+  id: '/ai/agents',
+  path: '/ai/agents',
+  getParentRoute: () => TTenantRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
+  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -318,6 +325,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
+  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
+  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/services'
     | '/t/$tenant/settings'
     | '/t/$tenant/sites'
+    | '/t/$tenant/ai/agents'
     | '/t/$tenant/ai/providers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/services'
     | '/t/$tenant/settings'
     | '/t/$tenant/sites'
+    | '/t/$tenant/ai/agents'
     | '/t/$tenant/ai/providers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/services'
     | '/t/$tenant/settings'
     | '/t/$tenant/sites'
+    | '/t/$tenant/ai/agents'
     | '/t/$tenant/ai/providers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -779,6 +791,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantAiProvidersRouteImport
       parentRoute: typeof TTenantRoute
     }
+    '/t/$tenant/ai/agents': {
+      id: '/t/$tenant/ai/agents'
+      path: '/ai/agents'
+      fullPath: '/t/$tenant/ai/agents'
+      preLoaderRoute: typeof TTenantAiAgentsRouteImport
+      parentRoute: typeof TTenantRoute
+    }
   }
 }
 
@@ -860,6 +879,7 @@ interface TTenantRouteChildren {
   TTenantServicesRoute: typeof TTenantServicesRoute
   TTenantSettingsRoute: typeof TTenantSettingsRoute
   TTenantSitesRoute: typeof TTenantSitesRoute
+  TTenantAiAgentsRoute: typeof TTenantAiAgentsRoute
   TTenantAiProvidersRoute: typeof TTenantAiProvidersRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
 }
@@ -875,6 +895,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantServicesRoute: TTenantServicesRoute,
   TTenantSettingsRoute: TTenantSettingsRoute,
   TTenantSitesRoute: TTenantSitesRoute,
+  TTenantAiAgentsRoute: TTenantAiAgentsRoute,
   TTenantAiProvidersRoute: TTenantAiProvidersRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
 }
