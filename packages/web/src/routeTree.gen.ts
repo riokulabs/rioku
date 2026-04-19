@@ -20,6 +20,10 @@ import { Route as UnauthLoginRouteImport } from './routes/_unauth/login'
 import { Route as UnauthForgotPasswordRouteImport } from './routes/_unauth/forgot-password'
 import { Route as UnauthBootstrapRouteImport } from './routes/_unauth/bootstrap'
 import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
+import { Route as TTenantSecurityRouteImport } from './routes/t.$tenant/security'
+import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
+import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$tenant/security/rbac-policies'
+import { Route as TTenantSecurityRolesRouteImport } from './routes/t.$tenant/security/roles'
 import { Route as UnauthResetPasswordTokenRouteImport } from './routes/_unauth/reset-password.$token'
 import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$token'
 
@@ -77,6 +81,28 @@ const TTenantDashboardRoute = TTenantDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantSecurityRoute = TTenantSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => TTenantRoute,
+} as any)
+const TTenantSecurityAccessPoliciesRoute =
+  TTenantSecurityAccessPoliciesRouteImport.update({
+    id: '/access-policies',
+    path: '/access-policies',
+    getParentRoute: () => TTenantSecurityRoute,
+  } as any)
+const TTenantSecurityRbacPoliciesRoute =
+  TTenantSecurityRbacPoliciesRouteImport.update({
+    id: '/rbac-policies',
+    path: '/rbac-policies',
+    getParentRoute: () => TTenantSecurityRoute,
+  } as any)
+const TTenantSecurityRolesRoute = TTenantSecurityRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => TTenantSecurityRoute,
+} as any)
 const UnauthResetPasswordTokenRoute =
   UnauthResetPasswordTokenRouteImport.update({
     id: '/reset-password/$token',
@@ -102,6 +128,10 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
+  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
+  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
+  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -116,6 +146,10 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
+  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
+  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
+  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -132,6 +166,10 @@ export interface FileRoutesById {
   '/_unauth/invite/$token': typeof UnauthInviteTokenRoute
   '/_unauth/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
+  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
+  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
+  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -148,6 +186,10 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset-password/$token'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/security'
+    | '/t/$tenant/security/access-policies'
+    | '/t/$tenant/security/rbac-policies'
+    | '/t/$tenant/security/roles'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -162,6 +204,10 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset-password/$token'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/security'
+    | '/t/$tenant/security/access-policies'
+    | '/t/$tenant/security/rbac-policies'
+    | '/t/$tenant/security/roles'
   id:
     | '__root__'
     | '/'
@@ -177,6 +223,10 @@ export interface FileRouteTypes {
     | '/_unauth/invite/$token'
     | '/_unauth/reset-password/$token'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/security'
+    | '/t/$tenant/security/access-policies'
+    | '/t/$tenant/security/rbac-policies'
+    | '/t/$tenant/security/roles'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -267,6 +317,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantDashboardRouteImport
       parentRoute: typeof TTenantRoute
     }
+    '/t/$tenant/security': {
+      id: '/t/$tenant/security'
+      path: '/security'
+      fullPath: '/t/$tenant/security'
+      preLoaderRoute: typeof TTenantSecurityRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/security/access-policies': {
+      id: '/t/$tenant/security/access-policies'
+      path: '/access-policies'
+      fullPath: '/t/$tenant/security/access-policies'
+      preLoaderRoute: typeof TTenantSecurityAccessPoliciesRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
+    '/t/$tenant/security/rbac-policies': {
+      id: '/t/$tenant/security/rbac-policies'
+      path: '/rbac-policies'
+      fullPath: '/t/$tenant/security/rbac-policies'
+      preLoaderRoute: typeof TTenantSecurityRbacPoliciesRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
+    '/t/$tenant/security/roles': {
+      id: '/t/$tenant/security/roles'
+      path: '/roles'
+      fullPath: '/t/$tenant/security/roles'
+      preLoaderRoute: typeof TTenantSecurityRolesRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
     '/_unauth/reset-password/$token': {
       id: '/_unauth/reset-password/$token'
       path: '/reset-password/$token'
@@ -305,12 +383,29 @@ const UnauthRouteChildren: UnauthRouteChildren = {
 const UnauthRouteWithChildren =
   UnauthRoute._addFileChildren(UnauthRouteChildren)
 
+interface TTenantSecurityRouteChildren {
+  TTenantSecurityAccessPoliciesRoute: typeof TTenantSecurityAccessPoliciesRoute
+  TTenantSecurityRbacPoliciesRoute: typeof TTenantSecurityRbacPoliciesRoute
+  TTenantSecurityRolesRoute: typeof TTenantSecurityRolesRoute
+}
+
+const TTenantSecurityRouteChildren: TTenantSecurityRouteChildren = {
+  TTenantSecurityAccessPoliciesRoute: TTenantSecurityAccessPoliciesRoute,
+  TTenantSecurityRbacPoliciesRoute: TTenantSecurityRbacPoliciesRoute,
+  TTenantSecurityRolesRoute: TTenantSecurityRolesRoute,
+}
+
+const TTenantSecurityRouteWithChildren =
+  TTenantSecurityRoute._addFileChildren(TTenantSecurityRouteChildren)
+
 interface TTenantRouteChildren {
   TTenantDashboardRoute: typeof TTenantDashboardRoute
+  TTenantSecurityRoute: typeof TTenantSecurityRouteWithChildren
 }
 
 const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantDashboardRoute: TTenantDashboardRoute,
+  TTenantSecurityRoute: TTenantSecurityRouteWithChildren,
 }
 
 const TTenantRouteWithChildren =
