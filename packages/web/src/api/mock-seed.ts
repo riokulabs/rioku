@@ -224,6 +224,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'route:write' },
     { permission: 'policy:read' },
     { permission: 'policy:write' },
+    // Sites + middlewares were added in Plan 2; admins need these to reach
+    // the corresponding routes behind their requirePermissions guards.
+    { permission: 'site:read' },
+    { permission: 'site:write' },
+    { permission: 'site:delete' },
+    { permission: 'middleware:read' },
+    { permission: 'middleware:write' },
     { permission: 'api-key:read' },
     { permission: 'api-key:create' },
     { permission: 'session:read' },
@@ -240,6 +247,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'service:read' },
     { permission: 'route:read' },
     { permission: 'policy:read' },
+    { permission: 'site:read' },
+    { permission: 'middleware:read' },
     { permission: 'api-key:read' },
     { permission: 'session:read' },
     { permission: 'tenant:switch' },
