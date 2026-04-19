@@ -13,7 +13,7 @@
  */
 
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
-import { notifications } from '@mantine/notifications';
+import { notify } from './use-notify';
 import {
   ApiError,
   AuthFailureError,
@@ -43,11 +43,7 @@ function intercept(err: unknown): never {
 
   // Permission errors: toast + re-throw.
   if (err instanceof PermissionError) {
-    notifications.show({
-      color: 'red',
-      title: 'Action denied',
-      message: 'You do not have permission to perform this action.',
-    });
+    notify.error('Action denied', 'You do not have permission to perform this action.');
     throw err;
   }
 
@@ -57,14 +53,11 @@ function intercept(err: unknown): never {
     err instanceof ServerError ||
     err instanceof ApiError
   ) {
-    const correlationHint = err.correlationId
-      ? ` (ref: ${err.correlationId})`
-      : '';
-    notifications.show({
-      color: 'red',
-      title: 'Request failed',
-      message: `${err.message}${correlationHint}`,
-    });
+    notify.error(
+      'Request failed',
+      err.message,
+      err.correlationId ? { correlationId: err.correlationId } : undefined,
+    );
     throw err;
   }
 
