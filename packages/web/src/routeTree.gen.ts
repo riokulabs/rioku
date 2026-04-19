@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TenantsRouteImport } from './routes/tenants'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminImpersonateRouteImport } from './routes/admin/impersonate'
 import { Route as AccessDeniedRouteImport } from './routes/access-denied'
 import { Route as UnauthRouteImport } from './routes/_unauth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +38,11 @@ const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminImpersonateRoute = AdminImpersonateRouteImport.update({
+  id: '/impersonate',
+  path: '/impersonate',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AccessDeniedRoute = AccessDeniedRouteImport.update({
   id: '/access-denied',
@@ -124,7 +130,8 @@ const UnauthInviteTokenRoute = UnauthInviteTokenRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/access-denied': typeof AccessDeniedRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/impersonate': typeof AdminImpersonateRoute
   '/tenants': typeof TenantsRoute
   '/bootstrap': typeof UnauthBootstrapRoute
   '/forgot-password': typeof UnauthForgotPasswordRoute
@@ -143,7 +150,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/access-denied': typeof AccessDeniedRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/impersonate': typeof AdminImpersonateRoute
   '/tenants': typeof TenantsRoute
   '/bootstrap': typeof UnauthBootstrapRoute
   '/forgot-password': typeof UnauthForgotPasswordRoute
@@ -164,7 +172,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_unauth': typeof UnauthRouteWithChildren
   '/access-denied': typeof AccessDeniedRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/impersonate': typeof AdminImpersonateRoute
   '/tenants': typeof TenantsRoute
   '/_unauth/bootstrap': typeof UnauthBootstrapRoute
   '/_unauth/forgot-password': typeof UnauthForgotPasswordRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/'
     | '/access-denied'
     | '/admin'
+    | '/admin/impersonate'
     | '/tenants'
     | '/bootstrap'
     | '/forgot-password'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/access-denied'
     | '/admin'
+    | '/admin/impersonate'
     | '/tenants'
     | '/bootstrap'
     | '/forgot-password'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/_unauth'
     | '/access-denied'
     | '/admin'
+    | '/admin/impersonate'
     | '/tenants'
     | '/_unauth/bootstrap'
     | '/_unauth/forgot-password'
@@ -241,11 +253,21 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
   fileRoutesById: FileRoutesById
 }
+interface AdminRouteChildren {
+  AdminImpersonateRoute: typeof AdminImpersonateRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminImpersonateRoute: AdminImpersonateRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UnauthRoute: typeof UnauthRouteWithChildren
   AccessDeniedRoute: typeof AccessDeniedRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   TenantsRoute: typeof TenantsRoute
   TTenantRoute: typeof TTenantRouteWithChildren
 }
@@ -265,6 +287,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/impersonate': {
+      id: '/admin/impersonate'
+      path: '/impersonate'
+      fullPath: '/admin/impersonate'
+      preLoaderRoute: typeof AdminImpersonateRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/access-denied': {
       id: '/access-denied'
@@ -436,7 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UnauthRoute: UnauthRouteWithChildren,
   AccessDeniedRoute: AccessDeniedRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   TenantsRoute: TenantsRoute,
   TTenantRoute: TTenantRouteWithChildren,
 }
