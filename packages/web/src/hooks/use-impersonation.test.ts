@@ -19,6 +19,7 @@ function seedStore() {
     name: 'Test Admin',
     disabled: false,
     totp_enabled: true,
+    totp_enrolled: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });

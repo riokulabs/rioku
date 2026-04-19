@@ -47,6 +47,7 @@ function makeFreshStore() {
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
+    pendingAuthUserId: null,
 
     addEntity(kind, entity) {
       set((state) => ({

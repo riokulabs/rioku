@@ -13,7 +13,16 @@ export interface User {
   email: string;
   name: string;
   disabled: boolean;
+  /** Legacy alias — kept for compatibility; use totp_enrolled for auth flow. */
   totp_enabled: boolean;
+  /** True once the user has completed TOTP enrollment. */
+  totp_enrolled: boolean;
+  /** Mock: stored in plain text. Real daemon stores as TOTP secret (base32). */
+  totp_secret?: string;
+  /** Unused backup codes (plain for mock; hashed in real). */
+  backup_codes?: string[];
+  /** User must change password on next login. */
+  force_password_change?: boolean;
   readonly created_at: string;
   updated_at: string;
 }
@@ -36,6 +45,8 @@ export interface Membership {
   state: 'pending' | 'active' | 'deactivated' | 'removed';
   readonly invited_at: string;
   joined_at?: string;
+  invite_token?: string;
+  invite_expires_at?: string;
 }
 
 // ─── RBAC ─────────────────────────────────────────────────────────────────────

@@ -187,6 +187,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
       name: seed.name,
       disabled: seed.disabled,
       totp_enabled: i % 3 === 0,
+      // Derrick (i === 0) has TOTP enrolled so login can exercise the challenge flow.
+      totp_enrolled: i === 0 || i % 3 === 0,
+      force_password_change: false,
       created_at: daysAgo(90 - i * 4),
       updated_at: daysAgo(i),
     };

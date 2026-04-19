@@ -61,6 +61,7 @@ function seedStore() {
     name: 'Alice Chen',
     disabled: false,
     totp_enabled: false,
+    totp_enrolled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });

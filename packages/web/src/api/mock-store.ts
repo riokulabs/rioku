@@ -66,6 +66,10 @@ interface MockStoreState {
   currentUserId: T.ID | null;
   currentTenantId: T.ID | null;
   activeImpersonationId: T.ID | null;
+
+  // Transient auth state (not persisted semantically — cleared on successful auth)
+  /** userId waiting for TOTP confirmation between login step 1 and step 2 */
+  pendingAuthUserId: T.ID | null;
 }
 
 // ─── Entity kind union (for generic CRUD actions) ─────────────────────────────
@@ -186,6 +190,7 @@ function emptyState(): MockStoreState {
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
+    pendingAuthUserId: null,
   };
 }
 
@@ -248,7 +253,7 @@ export const useMockStore = create<MockStore>()(
     }),
     {
       name: 'rioku-mock-store',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => {
         // Fall back to a no-op storage in environments without localStorage
         // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -261,9 +266,23 @@ export const useMockStore = create<MockStore>()(
         }
         return window.localStorage;
       }),
-      migrate: (persistedState, _version) => {
-        // Version 1 — return as-is; future versions add field migrations here.
-        return persistedState as MockStore;
+      migrate: (persistedState, version) => {
+        const state = persistedState as Record<string, unknown>;
+        // Version 3 — add totp_enrolled, backup_codes, force_password_change
+        // to existing User records; fill pendingAuthUserId if absent.
+        if (version < 3) {
+          const users = (state.users ?? {}) as Record<string, Record<string, unknown>>;
+          for (const [id, user] of Object.entries(users)) {
+            users[id] = {
+              totp_enrolled: user.totp_enabled ?? false,
+              force_password_change: false,
+              ...user,
+            };
+          }
+          state.users = users;
+          state.pendingAuthUserId = null;
+        }
+        return state as unknown as MockStore;
       },
     },
   ),

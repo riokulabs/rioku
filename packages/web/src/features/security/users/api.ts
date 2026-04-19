@@ -145,6 +145,8 @@ export async function inviteUser(
       name: name ?? email.split('@')[0] ?? email,
       disabled: false,
       totp_enabled: forceTotpOnFirstLogin,
+      totp_enrolled: false,
+      force_password_change: true,
       created_at: now(),
       updated_at: now(),
     };
