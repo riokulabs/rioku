@@ -36,3 +36,9 @@ export type {
   UpdateModelInput,
   TestProviderResult,
 } from './types';
+
+export { ProviderList } from './components/list';
+export { ProviderFilterBar } from './components/filter-bar';
+export { ProviderDetail } from './components/detail';
+export { ProviderForm } from './components/form';
+export { ModelManager } from './components/model-manager';
