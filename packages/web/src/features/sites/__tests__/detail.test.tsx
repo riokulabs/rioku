@@ -7,11 +7,31 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+// Capture the Link props to verify the deep-link target. TanStack Router's
+// <Link> is polymorphic and Mantine wraps its `component` prop, so we stub
+// it here to produce a plain <span data-to=... data-service-id=...> that
+// assertions can read directly.
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children?: React.ReactNode;
+    to?: string;
+    params?: { tenant?: string; serviceId?: string };
+  }) => (
+    <span
+      data-link-to={to ?? ''}
+      data-link-tenant={params?.tenant ?? ''}
+      data-link-service-id={params?.serviceId ?? ''}
+    >
+      {children}
+    </span>
+  ),
 }));
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -69,8 +89,10 @@ describe('SiteDetail — advanced configuration deep-link', () => {
     expect(btn).toHaveAttribute('data-disabled');
   });
 
-  it('renders an enabled advanced-configuration link when service_id present', () => {
+  it('renders an enabled advanced-configuration link with the correct target when service_id present', () => {
     const site = findLinkedSite();
+    const serviceId = site.upstream_service_id;
+    if (!serviceId) throw new Error('expected linked service');
     wrap(
       <SiteDetail
         siteId={site.id}
@@ -86,6 +108,15 @@ describe('SiteDetail — advanced configuration deep-link', () => {
     // Advanced configuration button (anchor) visible
     const adv = screen.getByText(/Advanced configuration/i);
     expect(adv).toBeInTheDocument();
+    // The deep-link inside the Advanced-configuration button targets the
+    // correct TanStack Router path and serviceId.
+    const links = document.querySelectorAll(
+      '[data-link-to="/t/$tenant/services_/$serviceId"]',
+    );
+    const matching = Array.from(links).filter(
+      (el) => el.getAttribute('data-link-service-id') === serviceId,
+    );
+    expect(matching.length).toBeGreaterThan(0);
   });
 });
 
