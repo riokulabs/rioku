@@ -47,7 +47,7 @@ describe('Sidebar', () => {
     // Confirm the Sites href matches the tenant-prefixed pattern.
     const hrefCarriers = document.querySelectorAll('[data-link-to]');
     const siteEntry = Array.from(hrefCarriers).find((el) =>
-      el.textContent?.includes('Sites'),
+      el.textContent.includes('Sites'),
     );
     expect(siteEntry?.getAttribute('data-link-to')).toBe('/t/acme/sites');
   });
@@ -63,7 +63,7 @@ describe('Sidebar', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
-      Array.from(carriers).find((el) => el.textContent?.trim() === label);
+      Array.from(carriers).find((el) => el.textContent.trim() === label);
     expect(byLabel('Services')?.getAttribute('data-link-to')).toBe(
       '/t/acme/services',
     );
