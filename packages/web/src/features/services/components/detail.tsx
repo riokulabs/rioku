@@ -314,7 +314,7 @@ export function ServiceDetail({
         </Text>
         {usedPolicies.length === 0 ? (
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            No policies attached via this service's routes.
+            No policies attached via routes under this service.
           </Text>
         ) : (
           <Group gap={6}>

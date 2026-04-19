@@ -28,6 +28,7 @@ import { Route as UnauthLoginRouteImport } from './routes/_unauth/login'
 import { Route as UnauthForgotPasswordRouteImport } from './routes/_unauth/forgot-password'
 import { Route as UnauthBootstrapRouteImport } from './routes/_unauth/bootstrap'
 import { Route as TTenantSettingsRouteImport } from './routes/t.$tenant/settings'
+import { Route as TTenantServicesRouteImport } from './routes/t.$tenant/services'
 import { Route as TTenantSecurityRouteImport } from './routes/t.$tenant/security'
 import { Route as TTenantPluginsRouteImport } from './routes/t.$tenant/plugins'
 import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
@@ -135,6 +136,11 @@ const TTenantSettingsRoute = TTenantSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantServicesRoute = TTenantServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantSecurityRoute = TTenantSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
+  '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
+  '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
+  '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboard'
     | '/t/$tenant/plugins'
     | '/t/$tenant/security'
+    | '/t/$tenant/services'
     | '/t/$tenant/settings'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboard'
     | '/t/$tenant/plugins'
     | '/t/$tenant/security'
+    | '/t/$tenant/services'
     | '/t/$tenant/settings'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboard'
     | '/t/$tenant/plugins'
     | '/t/$tenant/security'
+    | '/t/$tenant/services'
     | '/t/$tenant/settings'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -540,6 +552,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/t/$tenant/settings'
       preLoaderRoute: typeof TTenantSettingsRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/services': {
+      id: '/t/$tenant/services'
+      path: '/services'
+      fullPath: '/t/$tenant/services'
+      preLoaderRoute: typeof TTenantServicesRouteImport
       parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/security': {
@@ -700,6 +719,7 @@ interface TTenantRouteChildren {
   TTenantDashboardRoute: typeof TTenantDashboardRoute
   TTenantPluginsRoute: typeof TTenantPluginsRoute
   TTenantSecurityRoute: typeof TTenantSecurityRouteWithChildren
+  TTenantServicesRoute: typeof TTenantServicesRoute
   TTenantSettingsRoute: typeof TTenantSettingsRoute
 }
 
@@ -707,6 +727,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantDashboardRoute: TTenantDashboardRoute,
   TTenantPluginsRoute: TTenantPluginsRoute,
   TTenantSecurityRoute: TTenantSecurityRouteWithChildren,
+  TTenantServicesRoute: TTenantServicesRoute,
   TTenantSettingsRoute: TTenantSettingsRoute,
 }
 

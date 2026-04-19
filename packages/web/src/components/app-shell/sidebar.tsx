@@ -2,7 +2,6 @@ import { Stack, Text, NavLink, Box, Badge } from '@mantine/core';
 import {
   IconDashboard,
   IconWorld,
-  IconBolt,
   IconRobot,
   IconChartBar,
   IconUsers,
@@ -13,6 +12,9 @@ import {
   IconDevices,
   IconFileText,
   IconSettings,
+  IconServer,
+  IconRoute,
+  IconStack,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -36,9 +38,17 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
       { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
-      { label: 'API management', to: '/t/acme/api-mgmt', icon: IconBolt },
       { label: 'AI', to: '/t/acme/ai', icon: IconRobot },
       { label: 'Analytics', to: '/t/acme/analytics', icon: IconChartBar },
+    ],
+  },
+  {
+    heading: 'API management',
+    items: [
+      { label: 'Services', to: '/t/acme/services', icon: IconServer },
+      { label: 'Routes', to: '/t/acme/routes', icon: IconRoute },
+      { label: 'Policies', to: '/t/acme/policies', icon: IconShield },
+      { label: 'Middlewares', to: '/t/acme/middlewares', icon: IconStack },
     ],
   },
   {
