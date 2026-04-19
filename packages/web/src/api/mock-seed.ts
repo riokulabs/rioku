@@ -211,6 +211,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'user:read' },
     { permission: 'user:invite' },
     { permission: 'user:disable' },
+    { permission: 'user:impersonate' },
     { permission: 'role:read' },
     { permission: 'role:write' },
     { permission: 'role:delete' },
@@ -226,6 +227,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'session:revoke' },
     { permission: 'audit:read' },
     { permission: 'tenant:switch' },
+    { permission: 'admin:cross-tenant-read' },
+    { permission: 'admin:cross-tenant-write' },
   ];
 
   const viewerGrants: T.Grant[] = [
