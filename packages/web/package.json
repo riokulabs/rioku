@@ -18,7 +18,9 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps",
     "bundle-analyze": "vite-bundle-analyzer dist/stats.html",
-    "check-budgets": "node scripts/check-bundle-budgets.mjs"
+    "check-budgets": "node scripts/check-bundle-budgets.mjs",
+    "check-abi": "node scripts/check-abi-surface.mjs",
+    "abi:update": "node scripts/check-abi-surface.mjs --update"
   },
   "dependencies": {
     "react": "19.2.5",
