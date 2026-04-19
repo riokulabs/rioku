@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react-swc';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 // Inlined from src/lib/csp.ts — vite.config.ts cannot import from src/ (project boundary).
 // Keep in sync with src/lib/csp.ts devCsp() and randomNonce().
@@ -65,14 +65,40 @@ export default defineConfig(({ mode }) => {
         name: 'rioku-sample-plugin-dev',
         configureServer(server) {
           if (!isDev) return;
-          const sampleRoot = fileURLToPath(new URL('./sample-plugin', import.meta.url));
+          const sampleRoot = resolve(
+            fileURLToPath(new URL('./sample-plugin', import.meta.url)),
+          );
           server.middlewares.use('/sample-plugin', (req, res, next) => {
-            const urlPath = (req.url ?? '/').split('?')[0] ?? '/';
+            const rawPath = (req.url ?? '/').split('?')[0] ?? '/';
+            // Cheap early-exit: reject literal `..` segments before spending
+            // cycles on decode + resolve.
+            if (rawPath.includes('..')) {
+              next();
+              return;
+            }
+            let urlPath: string;
+            try {
+              urlPath = decodeURIComponent(rawPath);
+            } catch {
+              next();
+              return;
+            }
+            // Reject URL-encoded variants (e.g. `%2e%2e`) after decoding.
             if (urlPath.includes('..')) {
               next();
               return;
             }
-            const filePath = join(sampleRoot, urlPath);
+            const filePath = resolve(join(sampleRoot, urlPath));
+            // Final defence: ensure the resolved path is still rooted inside
+            // sampleRoot. Use a path-separator-anchored prefix check to avoid
+            // sibling-directory collisions (e.g. `/foosample-plugin-evil`).
+            if (
+              filePath !== sampleRoot &&
+              !filePath.startsWith(sampleRoot + sep)
+            ) {
+              next();
+              return;
+            }
             if (!existsSync(filePath)) {
               next();
               return;

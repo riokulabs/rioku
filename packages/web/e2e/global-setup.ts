@@ -21,7 +21,9 @@ export default function globalSetup(): void {
   if (existsSync(distBundle)) return;
 
   console.info('[e2e/global-setup] building sample-plugin...');
-  execSync('../node_modules/.bin/vite build', {
+  // Defer to the sample-plugin's own `build` script (cross-platform; avoids
+  // hard-coded `node_modules/.bin/...` paths that break on Windows CI).
+  execSync('pnpm build', {
     cwd: sampleDir,
     stdio: 'inherit',
   });

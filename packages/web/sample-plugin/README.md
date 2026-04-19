@@ -20,10 +20,25 @@ CI builds this bundle and the Playwright spec loads it via
 
 ```
 cd packages/web/sample-plugin
-../node_modules/.bin/vite build
+pnpm build
 ```
 
 Output: `dist/plugin.mjs` — externalises every entry in `REQUIRED_EXTERNALS`.
+
+## Host-provided dependencies
+
+This plugin relies on its host providing the packages listed in
+`REQUIRED_EXTERNALS` (React, React-DOM, Mantine core/hooks, Tabler icons,
+TanStack Router). Those are declared as `peerDependencies` in this package's
+`package.json`, and inside the monorepo they resolve from the parent
+`packages/web/node_modules`. A plugin copied outside the monorepo must be
+consumed by a host that supplies compatible versions at runtime via an import
+map.
+
+The `@rioku/plugin-sdk` specifier used in `src/plugin.tsx` is not a real
+workspace package yet — it is a typed re-export surface served from
+`packages/web/src/host/sdk.ts` via a tsconfig/vite path alias. Once the SDK is
+extracted as its own package it will appear in `peerDependencies` too.
 
 ## Layout
 

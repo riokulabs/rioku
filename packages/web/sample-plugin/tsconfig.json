@@ -18,6 +18,11 @@
     "baseUrl": "src",
     "paths": {
       "@rioku/plugin-sdk": ["../../src/host/sdk.ts"],
+      // `@/*` is required for transitive type-resolution only. The host's
+      // `sdk.ts` (pointed at by the alias above) references `@/hooks/use-host`
+      // and `@/api/resources/types`; those resolve through this project's
+      // paths. Plugin authors should NOT import from `@/...` directly — that
+      // alias will not exist when a plugin is copied out of this monorepo.
       "@/*": ["../../src/*"]
     },
     "types": ["vite/client"]

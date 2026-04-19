@@ -10,5 +10,13 @@
   },
   "devDependencies": {
     "vite": "8.0.8"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@mantine/core": "^9.0.2",
+    "@mantine/hooks": "^9.0.2",
+    "@tabler/icons-react": "^3.41.0",
+    "@tanstack/react-router": "^1.168.0"
   }
 }
