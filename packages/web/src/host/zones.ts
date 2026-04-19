@@ -11,6 +11,7 @@
  */
 
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type React from 'react';
 import { makeIdFactory } from '@/lib/id-generator';
 
@@ -67,9 +68,14 @@ export function listAllZones(): string[] {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/** React hook — re-renders subscribers when contributions for `zone` change. */
+/**
+ * React hook — re-renders subscribers when contributions for `zone` change.
+ * Uses shallow equality to avoid spurious re-renders when the filtered array
+ * contains the same elements (zustand default uses reference equality which
+ * would always re-render for filtered arrays).
+ */
 export function useZoneContributions(zone: string): ZoneContribution[] {
-  return useZoneStore((state) =>
-    state.contributions.filter((c) => c.zone === zone),
+  return useZoneStore(
+    useShallow((state) => state.contributions.filter((c) => c.zone === zone)),
   );
 }

@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs';
 import { useMockStore } from '@/api/mock-store';
 import { EmptyState } from '@/components/empty-state';
+import { Zone } from '@/components/zone';
 import { IconActivity } from '@tabler/icons-react';
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -55,6 +56,9 @@ function DashboardPage() {
   return (
     <Stack gap="xl" p="md">
       <Title order={1}>Dashboard</Title>
+
+      {/* Zone: dashboard.summary — plugins may inject summary cards or banners */}
+      <Zone id="dashboard.summary" />
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
         <StatCard label="Services" value={servicesCount} />

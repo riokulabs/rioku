@@ -46,6 +46,7 @@ import {
   revokeInvite,
   updateMembershipRoles,
 } from '../api';
+import { Zone } from '@/components/zone';
 import { MembershipActions } from './membership-actions';
 
 const SAMPLE_PERMISSIONS = [
@@ -246,6 +247,9 @@ export function UserDetail({
           Close
         </Button>
       </Group>
+
+      {/* Zone: service.detail.header-actions — plugins can add actions here */}
+      <Zone id="service.detail.header-actions" />
 
       <Divider />
 

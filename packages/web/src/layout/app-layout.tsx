@@ -3,6 +3,7 @@ import { AppShell } from '@mantine/core';
 import { TopBar } from '@/components/app-shell/top-bar';
 import { Sidebar } from '@/components/app-shell/sidebar';
 import { KeyboardShortcutsHelp } from '@/components/keyboard-shortcuts-help';
+import { Zone } from '@/components/zone';
 import { ImpersonationBanner } from './impersonation-banner';
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -24,6 +25,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <AppShell.Main>{children}</AppShell.Main>
         <KeyboardShortcutsHelp />
       </AppShell>
+      {/* Zone: global.bottom-banner — plugins can inject sticky bottom banners */}
+      <Zone id="global.bottom-banner" />
     </>
   );
 }

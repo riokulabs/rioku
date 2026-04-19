@@ -21,6 +21,7 @@ import { CodeBlock } from '@/components/code-block';
 import { DiffView } from '@/components/diff-view';
 import { IdBadge } from '@/components/id-badge';
 import type { AuditEntryWithContext } from '../types';
+import { Zone } from '@/components/zone';
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 
@@ -131,6 +132,9 @@ export function AuditEntryDetail({ entry }: AuditEntryDetailProps) {
           />
         </>
       )}
+
+      {/* Zone: audit.entry.footer — plugins can append actions or metadata */}
+      <Zone id="audit.entry.footer" />
     </Stack>
   );
 }
