@@ -26,3 +26,9 @@ export type {
   UpdateBindingInput,
   PreviewConditionResult,
 } from './types';
+
+export { BindingList } from './components/list';
+export { BindingFilterBar } from './components/filter-bar';
+export { BindingForm } from './components/form';
+export { BindingDetail } from './components/detail';
+export { MatrixView } from './components/matrix-view';
