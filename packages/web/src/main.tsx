@@ -3,6 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { App } from './app/app';
 import { initI18n } from './i18n/config';
 import '@mantine/core/styles.css';
+import { router } from './app/router';
+import { setAuthFailureHandler } from './api/client';
+import { setAuthFailureRouter, handleAuthFailure } from './api/auth-failure';
+import { initAuthBootstrap } from './api/auth-bootstrap';
+
+// Wire auth-failure interceptors before any network calls happen.
+setAuthFailureRouter(router);
+setAuthFailureHandler((url) => { handleAuthFailure(url); });
+initAuthBootstrap();
 
 // Seed the mock store if empty — skipped in Vitest to keep tests isolated.
 if (!import.meta.env.VITEST) {
