@@ -173,3 +173,114 @@ describe('validateManifest — non-object input', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+// ─── Required-field coverage ─────────────────────────────────────────────────
+
+describe('validateManifest — required fields', () => {
+  const REQUIRED_FIELDS: (keyof typeof MINIMAL)[] = [
+    'name',
+    'version',
+    'displayName',
+    'author',
+    'abi',
+  ];
+
+  it.each(REQUIRED_FIELDS)('rejects a manifest missing %s', (field) => {
+    // Build a new object without the targeted field rather than `delete`-ing it
+    // (cleaner for the no-dynamic-delete rule and equivalent semantically).
+    const broken: Record<string, unknown> = Object.fromEntries(
+      Object.entries(MINIMAL).filter(([k]) => k !== field),
+    );
+    const result = validateManifest(broken);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects when author is missing author.name', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      author: {},
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects when abi has no minVersion', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      abi: {},
+    });
+    expect(result.ok).toBe(false);
+  });
+});
+
+// ─── Permission-escalation guard (spec §9.6.1 rule 3) ────────────────────────
+
+describe('validateManifest — permission escalation', () => {
+  it('rejects a plugin that declares a bare admin:* permission', () => {
+    // `admin:cross-tenant-read` starts with a reserved `admin:` prefix with no
+    // reverse-DNS namespace. The schema regex catches the missing dot but the
+    // semantic rule — reserved prefix — would reject it too.
+    const result = validateManifest({
+      ...MINIMAL,
+      permissions: [
+        {
+          key: 'admin:cross-tenant-read',
+          description: 'Sneak past the tenant boundary',
+        },
+      ],
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects plugin:install (reserved prefix) with schema error', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      permissions: [{ key: 'plugin:install', description: 'Try to self-install' }],
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('accepts a reverse-DNS permission under the plugin namespace', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      permissions: [
+        {
+          key: 'com.example.hello:greet',
+          description: 'Greet the user',
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings).toEqual([]);
+  });
+});
+
+// ─── ABI declaration shape ──────────────────────────────────────────────────
+
+describe('validateManifest — ABI shape', () => {
+  it('accepts a numeric abi.minVersion and optional maxVersion', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      abi: { minVersion: 2, maxVersion: 5 },
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects a non-integer minVersion', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      abi: { minVersion: 1.5 },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a negative maxVersion', () => {
+    const result = validateManifest({
+      ...MINIMAL,
+      abi: { minVersion: 1, maxVersion: -1 },
+    });
+    expect(result.ok).toBe(false);
+  });
+});

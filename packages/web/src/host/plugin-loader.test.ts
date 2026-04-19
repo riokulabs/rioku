@@ -270,4 +270,90 @@ describe('plugin-loader', () => {
     ).toBeNull();
     expect(usePluginRegistry.getState().getPlugin('sandbox-unload')).toBeUndefined();
   });
+
+  // ── Test 9: capped maxVersion below host ────────────────────────────────────
+
+  it('returns an ABI error when plugin caps maxVersion below host', async () => {
+    // Current host ABI is 1; cap at 0 → incompatible.
+    stubFetch(makeManifest({ abi: { minVersion: 0, maxVersion: 0 } }));
+
+    const result = await loadPluginFromUrl(
+      'http://localhost/old-plugin/manifest.json',
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errors?.some((e) => e.includes('ABI incompatible'))).toBe(true);
+  });
+
+  // ── Test 10: dynamic import throws (bundle fetch/exec failure) ──────────────
+
+  it('surfaces a clean error when the admin bundle import throws', async () => {
+    stubFetch(makeManifest({ name: 'bundle-fail' }));
+    _setPluginImporterForTest((_url: string) =>
+      Promise.reject(new Error('network collapsed')),
+    );
+
+    const result = await loadPluginFromUrl(
+      'http://localhost/bundle-fail/manifest.json',
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errors?.some((e) => e.includes('failed to load admin bundle'))).toBe(true);
+    expect(result.errors?.some((e) => e.includes('network collapsed'))).toBe(true);
+    // Plugin must not leak into the registry on import failure.
+    expect(usePluginRegistry.getState().getPlugin('bundle-fail')).toBeUndefined();
+  });
+
+  // ── Test 11: non-function default export ────────────────────────────────────
+
+  it('rejects a plugin whose default export is not a function', async () => {
+    stubFetch(makeManifest({ name: 'not-callable' }));
+    _setPluginImporterForTest((_url: string) =>
+      Promise.resolve({ default: { notAFunction: true } }),
+    );
+
+    const result = await loadPluginFromUrl(
+      'http://localhost/not-callable/manifest.json',
+    );
+
+    expect(result.ok).toBe(false);
+    expect(
+      result.errors?.some((e) => e.includes('no default export')),
+    ).toBe(true);
+  });
+
+  // ── Test 12: failing plugin is isolated from coexisting plugins ─────────────
+
+  it('does not disturb an already-registered plugin when a second plugin throws', async () => {
+    // First plugin loads successfully…
+    setMockPlugin((host) => {
+      host.sidebar.register({
+        group: 'plugins',
+        label: 'Good',
+        path: '/plugins/good',
+        source: 'plugin',
+        pluginName: 'good-plugin',
+      });
+    });
+    stubFetch(makeManifest({ name: 'good-plugin' }));
+    const goodResult = await loadPluginFromUrl(
+      'http://localhost/good/manifest.json',
+    );
+    expect(goodResult.ok).toBe(true);
+
+    // …then a second plugin throws during register.
+    setMockPlugin(() => {
+      throw new Error('second plugin broken');
+    });
+    stubFetch(makeManifest({ name: 'bad-plugin' }));
+    const badResult = await loadPluginFromUrl(
+      'http://localhost/bad/manifest.json',
+    );
+
+    expect(badResult.ok).toBe(false);
+    // Good plugin still present; bad plugin not leaked.
+    expect(usePluginRegistry.getState().getPlugin('good-plugin')).toBeDefined();
+    expect(usePluginRegistry.getState().getPlugin('bad-plugin')).toBeUndefined();
+    expect(listSidebarEntries('plugins').some((e) => e.path === '/plugins/good')).toBe(true);
+  });
 });
