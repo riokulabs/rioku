@@ -1,17 +1,14 @@
 import { MantineProvider, createTheme, localStorageColorSchemeManager } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import '@mantine/spotlight/styles.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useActiveTheme } from '@/hooks/use-active-theme';
 import { useOsPreferences } from '@/hooks/use-os-preferences';
 import { BUILTIN_THEMES, type RegisteredTheme } from '@/theme';
 import { getDir } from '@/i18n/dir';
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000 } },
-});
+import { queryClient } from '@/api/query-client';
 
 const colorSchemeManager = localStorageColorSchemeManager({ key: 'rioku-color-scheme' });
 
