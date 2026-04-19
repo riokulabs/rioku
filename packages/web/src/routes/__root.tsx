@@ -2,6 +2,7 @@ import { createRootRoute, Outlet, useNavigate } from '@tanstack/react-router';
 import { Spotlight } from '@mantine/spotlight';
 import { IconHome, IconCloud, IconSun } from '@tabler/icons-react';
 import { useActiveTheme } from '@/hooks/use-active-theme';
+import { ErrorBoundaryFallback } from '@/app/error-boundary';
 
 // Theme cycle order for "Toggle theme" action
 const THEME_CYCLE_ORDER = ['dark', 'light', 'hc-dark', 'hc-light'] as const;
@@ -65,4 +66,5 @@ function RootComponent() {
 
 export const Route = createRootRoute({
   component: RootComponent,
+  errorComponent: ErrorBoundaryFallback,
 });
