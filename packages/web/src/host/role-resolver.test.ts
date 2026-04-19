@@ -182,6 +182,101 @@ describe('resolveRolePermissions', () => {
     const result = resolveRolePermissions(['nonexistent'], {});
     expect(result.size).toBe(0);
   });
+
+  // ── Additional deny propagation cases (Task 1d.81) ────────────────────────
+
+  it('deny in a parent role propagates to child: child does not inherit the denied perm', () => {
+    // parent denies audit:read; child extends parent
+    const parent = makeRole({
+      id: 'parent',
+      grants: [{ permission: 'service:read' }],
+      denies: ['audit:read'],
+    });
+    // child also tries to grant audit:read via another parent-like inheritance
+    // — but parent denies it, so child should not have it
+    const grandparent = makeRole({
+      id: 'grandparent',
+      grants: [{ permission: 'audit:read' }, { permission: 'route:read' }],
+    });
+    const child = makeRole({
+      id: 'child',
+      parent_ids: ['parent', 'grandparent'],
+      grants: [],
+    });
+    const allRoles = { parent, grandparent, child };
+
+    const result = resolveRolePermissions(['child'], allRoles);
+
+    // audit:read is granted by grandparent but denied by parent — deny wins
+    expect(result.has('audit:read')).toBe(false);
+    // undenied perms still available
+    expect(result.has('service:read')).toBe(true);
+    expect(result.has('route:read')).toBe(true);
+  });
+
+  it('deny in child role overrides grant from parent', () => {
+    const viewer = makeRole({
+      id: 'viewer',
+      grants: [
+        { permission: 'service:read' },
+        { permission: 'audit:read' },
+        { permission: 'route:read' },
+      ],
+    });
+    const restricted = makeRole({
+      id: 'restricted',
+      parent_ids: ['viewer'],
+      grants: [],
+      // Child explicitly denies audit:read despite inheriting it from viewer
+      denies: ['audit:read'],
+    });
+    const allRoles = { viewer, restricted };
+
+    const result = resolveRolePermissions(['restricted'], allRoles);
+
+    expect(result.has('service:read')).toBe(true);  // inherited, not denied
+    expect(result.has('route:read')).toBe(true);    // inherited, not denied
+    expect(result.has('audit:read')).toBe(false);   // denied by child
+  });
+
+  it('multiple denies in different parents: all applied to child', () => {
+    const p1 = makeRole({
+      id: 'p1',
+      grants: [{ permission: 'service:read' }],
+      denies: ['route:write'],
+    });
+    const p2 = makeRole({
+      id: 'p2',
+      grants: [{ permission: 'route:read' }, { permission: 'route:write' }],
+      denies: ['policy:write'],
+    });
+    const p3 = makeRole({
+      id: 'p3',
+      grants: [{ permission: 'policy:read' }, { permission: 'policy:write' }],
+    });
+    const child = makeRole({
+      id: 'child',
+      parent_ids: ['p1', 'p2', 'p3'],
+      grants: [],
+    });
+    const allRoles = { p1, p2, p3, child };
+
+    const result = resolveRolePermissions(['child'], allRoles);
+
+    expect(result.has('service:read')).toBe(true);
+    expect(result.has('route:read')).toBe(true);
+    expect(result.has('policy:read')).toBe(true);
+    // Denied by p1 even though p2 grants it
+    expect(result.has('route:write')).toBe(false);
+    // Denied by p2 even though p3 grants it
+    expect(result.has('policy:write')).toBe(false);
+  });
+
+  it('role with empty parent_ids and empty grants returns empty map', () => {
+    const empty = makeRole({ id: 'empty' });
+    const result = resolveRolePermissions(['empty'], { empty });
+    expect(result.size).toBe(0);
+  });
 });
 
 // ─── detectRoleCycle ──────────────────────────────────────────────────────────
