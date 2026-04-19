@@ -19,7 +19,7 @@ import {
   Divider,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useForm } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { notify } from '@/hooks/use-notify';
 import {
   createMiddleware,
@@ -27,6 +27,7 @@ import {
 } from '../api';
 import {
   MIDDLEWARE_KINDS,
+  createMiddlewareSchema,
   middlewareConfigSchemas,
 } from '../schemas';
 import type { Middleware } from '../types';
@@ -82,9 +83,16 @@ export function MiddlewareForm({
       enabled: initialValues?.enabled ?? true,
       order_hint: initialValues?.order_hint ?? 100,
     },
-    validate: {
-      name: (value) => (value.trim().length === 0 ? 'Required' : null),
-    },
+    validate: schemaResolver(
+      createMiddlewareSchema.pick({
+        name: true,
+        kind: true,
+        description: true,
+        enabled: true,
+        order_hint: true,
+      }),
+      { sync: true },
+    ),
   });
 
   // When kind changes in create mode, reset config to the per-kind default.
