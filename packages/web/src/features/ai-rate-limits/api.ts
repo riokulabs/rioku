@@ -5,6 +5,7 @@
  * match the daemon will perform. Deterministic metrics are derived from a
  * hash-seeded PRNG per-rule so repeated calls return stable series.
  */
+import { useMemo, useState } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
@@ -281,40 +282,46 @@ export function useRateLimitMetrics(
 ): RateLimitMetricsPoint[] {
   // Hook into the store so sparklines refresh when the rule itself changes.
   const rule = useMockStore((s) => s.aiSemanticRateLimits[ruleId]);
-  if (!rule) return [];
-  const seed = hashCode(ruleId);
-  const rand = mulberry32(seed);
-  const nowMs = Date.now();
 
-  let bucketCount: number;
-  let bucketMs: number;
-  switch (window) {
-    case '1h':
-      bucketCount = 60;
-      bucketMs = 60 * 1000;
-      break;
-    case '24h':
-      bucketCount = 24;
-      bucketMs = 60 * 60 * 1000;
-      break;
-    case '7d':
-      bucketCount = 7;
-      bucketMs = 24 * 60 * 60 * 1000;
-      break;
-  }
+  // Capture Date.now() once per mount — keeps the memo pure and gives stable
+  // bucket timestamps across re-renders with the same inputs.
+  const [nowMs] = useState<number>(() => Date.now());
 
-  const out: RateLimitMetricsPoint[] = [];
-  for (let i = bucketCount - 1; i >= 0; i--) {
-    const bucketStart = nowMs - i * bucketMs;
-    const date = new Date(bucketStart);
-    // Business-hours modulation — 09..17 local hours get boosted.
-    const hour = date.getUTCHours();
-    const boost = hour >= 9 && hour <= 17 ? 1.6 : 0.5;
-    const raw = rand() * 20 * boost;
-    out.push({
-      timestamp: date.toISOString(),
-      matches: Math.max(0, Math.round(raw)),
-    });
-  }
-  return out;
+  return useMemo((): RateLimitMetricsPoint[] => {
+    if (!rule) return [];
+    const seed = hashCode(ruleId);
+    const rand = mulberry32(seed);
+
+    let bucketCount: number;
+    let bucketMs: number;
+    switch (window) {
+      case '1h':
+        bucketCount = 60;
+        bucketMs = 60 * 1000;
+        break;
+      case '24h':
+        bucketCount = 24;
+        bucketMs = 60 * 60 * 1000;
+        break;
+      case '7d':
+        bucketCount = 7;
+        bucketMs = 24 * 60 * 60 * 1000;
+        break;
+    }
+
+    const out: RateLimitMetricsPoint[] = [];
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const bucketStart = nowMs - i * bucketMs;
+      const date = new Date(bucketStart);
+      // Business-hours modulation — 09..17 local hours get boosted.
+      const hour = date.getUTCHours();
+      const boost = hour >= 9 && hour <= 17 ? 1.6 : 0.5;
+      const raw = rand() * 20 * boost;
+      out.push({
+        timestamp: date.toISOString(),
+        matches: Math.max(0, Math.round(raw)),
+      });
+    }
+    return out;
+  }, [rule, ruleId, window, nowMs]);
 }

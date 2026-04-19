@@ -176,7 +176,7 @@ export async function updateMcpServer(
   if (input.enabled !== undefined) {
     patch.enabled = input.enabled;
     // Disabling a server parks its health; enabling requires a test to prove health.
-    if (input.enabled === false) patch.health = 'disabled';
+    if (!input.enabled) patch.health = 'disabled';
     else if (current.health === 'disabled') patch.health = 'degraded';
   }
 

@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const createMcpServerSchema = z
   .object({
     name: z.string().min(1).max(80),
-    url: z.string().url(),
+    url: z.url(),
     auth_kind: z.enum(['none', 'bearer', 'api-key']),
     description: z.string().max(500).optional(),
     auth_credential: z.string().min(1).optional(),
@@ -26,7 +26,7 @@ export const createMcpServerSchema = z
 export const updateMcpServerSchema = z
   .object({
     name: z.string().min(1).max(80).optional(),
-    url: z.string().url().optional(),
+    url: z.url().optional(),
     auth_kind: z.enum(['none', 'bearer', 'api-key']).optional(),
     description: z.string().max(500).optional(),
     auth_credential: z.string().min(1).optional(),

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Tests for the AI agents API layer — invoke-mock, tool resolution, rotation.
  */

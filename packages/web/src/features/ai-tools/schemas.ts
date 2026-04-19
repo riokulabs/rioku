@@ -12,7 +12,7 @@ export const createToolSchema = z
     mcp_server_id: z.string().optional(),
     http_endpoint: z
       .object({
-        url: z.string().url(),
+        url: z.url(),
         method: z.enum(['GET', 'POST']),
         auth_header: z.string().optional(),
       })
@@ -46,7 +46,7 @@ export const updateToolSchema = z
     mcp_server_id: z.string().optional(),
     http_endpoint: z
       .object({
-        url: z.string().url(),
+        url: z.url(),
         method: z.enum(['GET', 'POST']),
         auth_header: z.string().optional(),
       })

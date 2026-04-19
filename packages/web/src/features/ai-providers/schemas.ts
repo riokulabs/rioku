@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const createProviderSchema = z.object({
   name: z.string().min(1).max(80),
   kind: z.enum(['openai', 'anthropic', 'gemini', 'ollama', 'custom']),
-  base_url: z.string().url(),
+  base_url: z.url(),
   description: z.string().max(500).optional(),
   credential: z.string().min(1),
   enabled: z.boolean().default(true),
@@ -15,7 +15,7 @@ export const createProviderSchema = z.object({
 export const updateProviderSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   kind: z.enum(['openai', 'anthropic', 'gemini', 'ollama', 'custom']).optional(),
-  base_url: z.string().url().optional(),
+  base_url: z.url().optional(),
   description: z.string().max(500).optional(),
   credential: z.string().min(1).optional(),
   enabled: z.boolean().optional(),

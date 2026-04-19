@@ -11,8 +11,8 @@ export const traceFilterSchema = z.object({
   statuses: z
     .array(z.enum(['success', 'error', 'timeout']))
     .default([]),
-  since: z.string().datetime().optional(),
-  until: z.string().datetime().optional(),
+  since: z.iso.datetime().optional(),
+  until: z.iso.datetime().optional(),
 });
 
 export type TraceFilterFormValues = z.infer<typeof traceFilterSchema>;

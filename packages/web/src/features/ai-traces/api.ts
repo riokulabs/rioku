@@ -84,7 +84,6 @@ export function subscribeTraceStream(
 ): () => void {
   const handler = (e: Event): void => {
     const detail = (e as CustomEvent<AiTrace>).detail;
-    if (!detail) return;
     if (detail.tenant_id !== tenantId) return;
     onTrace(detail);
   };

@@ -1112,7 +1112,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
         ? {
             http_endpoint: {
               url: `https://api.internal.local/v1/${toolSeeds[i]!}`,
-              method: (i % 2 === 0 ? 'GET' : 'POST') as 'GET' | 'POST',
+              method: i % 2 === 0 ? 'GET' : 'POST',
               ...(i % 3 === 0 ? { auth_header: 'X-Rioku-Tool-Key' } : {}),
             },
           }

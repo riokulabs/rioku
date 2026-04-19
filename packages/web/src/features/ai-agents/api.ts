@@ -362,7 +362,8 @@ function costFor(model: string, input: number, output: number): number {
 }
 
 function pickTemplate(h: number): string {
-  return COMPLETION_TEMPLATES[h % COMPLETION_TEMPLATES.length]!;
+  const idx = h % COMPLETION_TEMPLATES.length;
+  return COMPLETION_TEMPLATES[idx] ?? COMPLETION_TEMPLATES[0] ?? '';
 }
 
 /**
@@ -399,7 +400,8 @@ export async function invokeAgentMock(
   if (availableTools.length > 0 && h % 10 < 3) {
     const count = 1 + ((h >> 8) % 2);
     for (let i = 0; i < count; i++) {
-      const tid = availableTools[(h + i) % availableTools.length]!;
+      const tid = availableTools[(h + i) % availableTools.length];
+      if (tid === undefined) continue;
       const tool = state.aiTools[tid];
       if (!tool) continue;
       toolCalls.push({

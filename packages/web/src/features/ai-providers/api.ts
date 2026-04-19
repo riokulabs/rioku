@@ -289,7 +289,8 @@ export async function updateModel(
   const idx = current.models.findIndex((m) => m.upstream_id === upstreamId);
   if (idx < 0) throw new Error(`Model ${upstreamId} not found on provider`);
 
-  const existing = current.models[idx]!;
+  const existing = current.models[idx];
+  if (!existing) throw new Error(`Model ${upstreamId} not found on provider`);
   const updatedModel: AiProviderModel = {
     ...existing,
     ...(patch.alias !== undefined ? { alias: patch.alias } : {}),
