@@ -164,8 +164,23 @@ export interface AuditEntry {
   readonly at: string;
   tier: 'read' | 'read-sensitive' | 'write' | 'destructive';
   impersonation_session_id?: ID;
+  /** Set to true when a super-admin action is reflected into the tenant log */
+  acted_as_admin?: boolean;
   payload?: unknown;
   diff?: { before: unknown; after: unknown };
+}
+
+/**
+ * Admin-side audit entry — extends AuditEntry with hash-chain fields.
+ * Written to the separate adminAudit log in the mock store.
+ */
+export interface AdminAuditEntry extends AuditEntry {
+  /** kind discriminator — always 'admin' */
+  kind: 'admin';
+  /** SHA-256 (hex) of the previous entry's content, or empty string for the first */
+  prev_hash: string;
+  /** SHA-256 (hex) of this entry's content (excluding `hash` itself) */
+  hash: string;
 }
 
 // ─── Sites ────────────────────────────────────────────────────────────────────

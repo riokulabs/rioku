@@ -29,6 +29,7 @@ function makeFreshStore() {
     sessions: {},
     impersonationSessions: {},
     audit: [],
+    adminAudit: [],
     sites: {},
     dashboards: {},
     widgets: {},
@@ -73,6 +74,9 @@ function makeFreshStore() {
     appendAudit(entry) {
       set((state) => ({ audit: [...state.audit, entry] }));
     },
+    appendAdminAudit(entry) {
+      set((state) => ({ adminAudit: [...state.adminAudit, entry] }));
+    },
     reset() {
       set({
         users: {},
@@ -89,6 +93,7 @@ function makeFreshStore() {
         sessions: {},
         impersonationSessions: {},
         audit: [],
+        adminAudit: [],
         sites: {},
         dashboards: {},
         widgets: {},

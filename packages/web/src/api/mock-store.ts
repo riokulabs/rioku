@@ -35,6 +35,8 @@ interface MockStoreState {
 
   // Audit — ordered, append-only
   audit: T.AuditEntry[];
+  // Super-admin cross-tenant audit — separate hash-chained log
+  adminAudit: T.AdminAuditEntry[];
 
   // Sites
   sites: Record<T.ID, T.Site>;
@@ -134,6 +136,11 @@ interface MockStoreActions {
   appendAudit(entry: T.AuditEntry): void;
 
   /**
+   * Append an entry to the super-admin cross-tenant audit log.
+   */
+  appendAdminAudit(entry: T.AdminAuditEntry): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -161,6 +168,7 @@ function emptyState(): MockStoreState {
     sessions: {},
     impersonationSessions: {},
     audit: [],
+    adminAudit: [],
     sites: {},
     dashboards: {},
     widgets: {},
@@ -230,13 +238,17 @@ export const useMockStore = create<MockStore>()(
         set((state) => ({ audit: [...state.audit, entry] }));
       },
 
+      appendAdminAudit(entry: T.AdminAuditEntry) {
+        set((state) => ({ adminAudit: [...state.adminAudit, entry] }));
+      },
+
       reset() {
         set(emptyState());
       },
     }),
     {
       name: 'rioku-mock-store',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => {
         // Fall back to a no-op storage in environments without localStorage
         // (e.g. SSR, certain test runners). Persist still works in-memory.
