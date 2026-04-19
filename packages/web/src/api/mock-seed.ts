@@ -303,27 +303,36 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   // ── Services (20) ─────────────────────────────────────────────────────────
 
-  const serviceSeeds = [
-    { name: 'auth-api', upstream: 'http://auth:8080', env: 'production', health: 'healthy' as const },
-    { name: 'user-api', upstream: 'http://users:8081', env: 'production', health: 'healthy' as const },
-    { name: 'billing-api', upstream: 'http://billing:8082', env: 'production', health: 'degraded' as const },
-    { name: 'analytics-api', upstream: 'http://analytics:8083', env: 'production', health: 'healthy' as const },
-    { name: 'notification-api', upstream: 'http://notify:8084', env: 'production', health: 'healthy' as const },
-    { name: 'file-storage', upstream: 'http://files:8085', env: 'production', health: 'healthy' as const },
-    { name: 'search-api', upstream: 'http://search:8086', env: 'production', health: 'unhealthy' as const },
-    { name: 'admin-api', upstream: 'http://admin:8087', env: 'production', health: 'healthy' as const },
-    { name: 'webhook-api', upstream: 'http://webhooks:8088', env: 'production', health: 'healthy' as const },
-    { name: 'graphql-gateway', upstream: 'http://gql:8089', env: 'production', health: 'healthy' as const },
-    { name: 'auth-api-staging', upstream: 'http://auth-stage:9080', env: 'staging', health: 'healthy' as const },
-    { name: 'user-api-staging', upstream: 'http://users-stage:9081', env: 'staging', health: 'healthy' as const },
-    { name: 'billing-api-staging', upstream: 'http://billing-stage:9082', env: 'staging', health: 'healthy' as const },
-    { name: 'legacy-rest', upstream: 'http://legacy:7080', env: 'production', health: 'degraded' as const },
-    { name: 'mobile-bff', upstream: 'http://mobile-bff:8090', env: 'production', health: 'healthy' as const },
-    { name: 'iot-ingestion', upstream: 'http://iot:8091', env: 'production', health: 'disabled' as const },
-    { name: 'ml-inference', upstream: 'http://ml:8092', env: 'production', health: 'healthy' as const },
-    { name: 'reporting-api', upstream: 'http://reports:8093', env: 'production', health: 'healthy' as const },
-    { name: 'media-api', upstream: 'http://media:8094', env: 'production', health: 'healthy' as const },
-    { name: 'partner-api', upstream: 'http://partner:8095', env: 'production', health: 'healthy' as const },
+  interface ServiceSeed {
+    name: string;
+    upstream: string;
+    env: string;
+    health: T.Service['health'];
+    upstream_protocol: T.Service['upstream_protocol'];
+    description: string;
+    tags: string[];
+  }
+  const serviceSeeds: ServiceSeed[] = [
+    { name: 'auth-api', upstream: 'http://auth:8080', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Primary authentication service (JWT issuer).', tags: ['auth', 'critical'] },
+    { name: 'user-api', upstream: 'http://users:8081', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'User profile and membership CRUD.', tags: ['core'] },
+    { name: 'billing-api', upstream: 'http://billing:8082', env: 'production', health: 'degraded', upstream_protocol: 'http', description: 'Invoicing and subscription management.', tags: ['billing', 'critical'] },
+    { name: 'analytics-api', upstream: 'http://analytics:8083', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Event ingestion and query API.', tags: ['analytics'] },
+    { name: 'notification-api', upstream: 'http://notify:8084', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Multi-channel notification dispatch.', tags: ['notifications'] },
+    { name: 'file-storage', upstream: 'http://files:8085', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Object storage proxy.', tags: ['storage'] },
+    { name: 'search-api', upstream: 'http://search:8086', env: 'production', health: 'unhealthy', upstream_protocol: 'http', description: 'Full-text search over tenant content.', tags: ['search'] },
+    { name: 'admin-api', upstream: 'http://admin:8087', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Internal admin operations (restricted).', tags: ['internal', 'critical'] },
+    { name: 'webhook-api', upstream: 'http://webhooks:8088', env: 'production', health: 'healthy', upstream_protocol: 'https', description: 'Outbound webhook delivery + retries.', tags: ['integrations'] },
+    { name: 'graphql-gateway', upstream: 'http://gql:8089', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Federated GraphQL gateway.', tags: ['graphql', 'core'] },
+    { name: 'auth-api-staging', upstream: 'http://auth-stage:9080', env: 'staging', health: 'healthy', upstream_protocol: 'http', description: 'Auth service — staging mirror.', tags: ['auth', 'staging'] },
+    { name: 'user-api-staging', upstream: 'http://users-stage:9081', env: 'staging', health: 'healthy', upstream_protocol: 'http', description: 'User API — staging mirror.', tags: ['staging'] },
+    { name: 'billing-api-staging', upstream: 'http://billing-stage:9082', env: 'staging', health: 'healthy', upstream_protocol: 'http', description: 'Billing — staging mirror.', tags: ['billing', 'staging'] },
+    { name: 'legacy-rest', upstream: 'http://legacy:7080', env: 'production', health: 'degraded', upstream_protocol: 'http', description: 'Legacy REST compatibility shim.', tags: ['legacy'] },
+    { name: 'mobile-bff', upstream: 'http://mobile-bff:8090', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Backend-for-frontend for mobile clients.', tags: ['mobile', 'bff'] },
+    { name: 'iot-ingestion', upstream: 'http://iot:8091', env: 'production', health: 'disabled', upstream_protocol: 'grpc', description: 'IoT telemetry ingestion (gRPC).', tags: ['iot'] },
+    { name: 'ml-inference', upstream: 'http://ml:8092', env: 'production', health: 'healthy', upstream_protocol: 'grpc', description: 'Model serving (gRPC bidi).', tags: ['ml', 'ai'] },
+    { name: 'reporting-api', upstream: 'http://reports:8093', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Scheduled report generation.', tags: ['reports'] },
+    { name: 'media-api', upstream: 'http://media:8094', env: 'production', health: 'healthy', upstream_protocol: 'http', description: 'Image + video transcode pipeline.', tags: ['media'] },
+    { name: 'partner-api', upstream: 'http://partner:8095', env: 'production', health: 'healthy', upstream_protocol: 'https', description: 'External partner integration endpoints.', tags: ['partner', 'integrations'] },
   ];
 
   const serviceIds: T.ID[] = [];
@@ -339,6 +348,15 @@ export function seedStore(store: StoreApi<MockStore>): void {
       env: seed.env,
       health: seed.health,
       created_at: daysAgo(80 - i * 3),
+      description: seed.description,
+      upstream_protocol: seed.upstream_protocol,
+      tags: seed.tags,
+      health_check: {
+        path: '/healthz',
+        interval_seconds: 30,
+        timeout_seconds: 5,
+      },
+      last_reloaded_at: daysAgo(20 - (i % 10)),
     };
     addEntity('services', service);
   }
@@ -346,13 +364,16 @@ export function seedStore(store: StoreApi<MockStore>): void {
   // ── Routes (60 = 3 per service) ───────────────────────────────────────────
 
   const methodCycle: T.Route['method'][] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+  const matchKindCycle: T.Route['match_kind'][] = ['prefix', 'prefix', 'exact'];
   const routeIds: T.ID[] = [];
 
   for (let si = 0; si < serviceIds.length; si++) {
     const serviceId = serviceIds[si]!;
+    const serviceSeed = serviceSeeds[si]!;
     for (let ri = 0; ri < 3; ri++) {
       const id = nextRouteId();
       routeIds.push(id);
+      const idx = si * 3 + ri;
       const route: T.Route = {
         id,
         service_id: serviceId,
@@ -360,6 +381,15 @@ export function seedStore(store: StoreApi<MockStore>): void {
         method: pick(methodCycle, si + ri),
         policies: [],
         middleware_ids: [],
+        name: `${serviceSeed.name}-route-${ri + 1}`,
+        match_kind: pick(matchKindCycle, ri),
+        strip_prefix: ri === 1,
+        ...(ri === 2 ? { rewrite_path: `/internal/resource-${si + 1}/{id}` } : {}),
+        headers_add: ri === 0 ? { 'x-forwarded-by': 'rioku' } : {},
+        headers_remove: ri === 2 ? ['x-internal-token'] : [],
+        enabled: idx % 17 !== 0,
+        created_at: daysAgo(70 - (idx % 60)),
+        updated_at: daysAgo((idx % 30)),
       };
       addEntity('routes', route);
     }
@@ -387,6 +417,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
           ? { allowed_origins: ['https://app.acme.com'], allow_credentials: true }
           : {},
       enabled: i !== 7,
+      description: `Seeded ${middlewareKinds[i]!} middleware #${i + 1}.`,
+      order_hint: 100 + i * 10,
+      created_at: daysAgo(60 - i * 2),
     };
     addEntity('middlewares', middleware);
   }
@@ -400,17 +433,40 @@ export function seedStore(store: StoreApi<MockStore>): void {
   ];
   const siteIds: T.ID[] = [];
 
+  const siteRateLimitPresets: T.Site['rate_limit_preset'][] = [
+    'standard', 'lenient', 'standard', 'none',
+    'strict', 'none', 'standard', 'lenient',
+  ];
+
   for (let i = 0; i < 8; i++) {
     const id = nextSiteId();
     siteIds.push(id);
+    const tlsMode: T.Site['tls_mode'] = i < 6 ? 'auto' : 'manual';
     const site: T.Site = {
       id,
       tenant_id: pick(allTenantIds, i),
       name: siteDomains[i]!,
       domain: siteDomains[i]!,
-      tls_mode: i < 6 ? 'auto' : 'manual',
+      tls_mode: tlsMode,
       enabled: i !== 5,
       created_at: daysAgo(70 - i * 5),
+      // Link ~50% of sites (even indices) to a service — re-use existing serviceIds
+      ...(i % 2 === 0 ? { upstream_service_id: serviceIds[i % serviceIds.length]! } : {}),
+      ...(tlsMode === 'manual'
+        ? {
+            tls_manual_cert: {
+              cert_pem_preview: '-----BEGIN CERTIFICATE-----\nMIID...seed...',
+              key_pem_preview: '-----BEGIN PRIVATE KEY-----\nMIIE...seed...',
+              expires_at: daysFromNow(90 + i),
+            },
+          }
+        : {}),
+      basic_auth_enabled: i === 5,
+      rate_limit_preset: siteRateLimitPresets[i]!,
+      redirect_rules: i === 0
+        ? [{ from: '/old', to: '/v1', status: 308 as const }]
+        : [],
+      updated_at: daysAgo(Math.max(0, 10 - i)),
     };
     addEntity('sites', site);
   }

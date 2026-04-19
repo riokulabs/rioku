@@ -106,6 +106,12 @@ export interface Service {
   env: string;
   health: 'healthy' | 'degraded' | 'unhealthy' | 'disabled';
   readonly created_at: string;
+  // Plan 2 additions:
+  description?: string;
+  upstream_protocol: 'http' | 'https' | 'grpc';
+  health_check?: { path: string; interval_seconds: number; timeout_seconds: number };
+  tags: string[];
+  last_reloaded_at?: string;
 }
 
 export interface Route {
@@ -115,6 +121,16 @@ export interface Route {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'ANY';
   policies: ID[];
   middleware_ids: ID[];
+  // Plan 2 additions:
+  name: string;
+  match_kind: 'prefix' | 'exact' | 'regex';
+  strip_prefix: boolean;
+  rewrite_path?: string;
+  headers_add: Record<string, string>;
+  headers_remove: string[];
+  enabled: boolean;
+  readonly created_at: string;
+  readonly updated_at: string;
 }
 
 export interface Middleware {
@@ -124,6 +140,10 @@ export interface Middleware {
   kind: 'rate-limit' | 'auth' | 'transform' | 'cors' | 'cache' | 'logging' | 'custom';
   config: Record<string, unknown>;
   enabled: boolean;
+  // Plan 2 additions:
+  description?: string;
+  order_hint: number;
+  readonly created_at: string;
 }
 
 // ─── Keys + sessions ──────────────────────────────────────────────────────────
@@ -207,6 +227,13 @@ export interface Site {
   tls_mode: 'auto' | 'manual' | 'off';
   enabled: boolean;
   readonly created_at: string;
+  // Plan 2 additions:
+  upstream_service_id?: ID;
+  tls_manual_cert?: { cert_pem_preview: string; key_pem_preview: string; expires_at?: string };
+  basic_auth_enabled: boolean;
+  rate_limit_preset: 'none' | 'lenient' | 'standard' | 'strict';
+  redirect_rules: Array<{ from: string; to: string; status: 301 | 302 | 307 | 308 }>;
+  readonly updated_at: string;
 }
 
 // ─── Dashboards + widgets ─────────────────────────────────────────────────────
