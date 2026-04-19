@@ -172,7 +172,8 @@ build-daemon: web-embed
 ## web-embed: Copy web build into daemon for go:embed
 web-embed: web-build-if-changed
 	@rm -rf $(PKG)/daemon/web/build
-	@cp -r $(PKG)/web/build $(PKG)/daemon/web/build
+	@mkdir -p $(PKG)/daemon/web/build
+	@cp -r $(PKG)/web/dist/. $(PKG)/daemon/web/build/
 
 ## build-daemon-fast: Build daemon binary without rebuilding web SPA (faster iteration)
 build-daemon-fast:
@@ -312,7 +313,7 @@ web-build:
 	cd $(PKG)/web && $(WEB_PATH) pnpm build
 
 ## web-build-if-changed: Build web SPA only if source files changed (hash-based)
-WEB_HASH_FILE = packages/web/build/.build-hash
+WEB_HASH_FILE = packages/web/.build-hash
 
 web-build-if-changed:
 	@CURRENT_HASH=$$(find packages/web/src -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1); \
@@ -320,12 +321,13 @@ web-build-if-changed:
 		CURRENT_HASH="$${CURRENT_HASH}$$(sha256sum "$$f" 2>/dev/null | cut -d' ' -f1)"; \
 	done; \
 	CURRENT_HASH=$$(echo "$${CURRENT_HASH}" | sha256sum | cut -d' ' -f1); \
-	if [ -f "$(WEB_HASH_FILE)" ] && [ "$$(cat $(WEB_HASH_FILE))" = "$${CURRENT_HASH}" ]; then \
+	REPO_ROOT=$$(pwd); \
+	if [ -f "$(WEB_HASH_FILE)" ] && [ "$$(cat $(WEB_HASH_FILE))" = "$${CURRENT_HASH}" ] && [ -d packages/web/dist ]; then \
 		echo "[OK]    web SPA unchanged — skipping rebuild"; \
 	else \
 		echo "==> Web SPA changed — rebuilding..."; \
 		cd packages/web && $(WEB_PATH) pnpm build; \
-		echo "$${CURRENT_HASH}" > "../../$(WEB_HASH_FILE)"; \
+		echo "$${CURRENT_HASH}" > "$${REPO_ROOT}/$(WEB_HASH_FILE)"; \
 	fi
 
 ## web-dev: Run admin panel dev server
@@ -350,7 +352,7 @@ test-ui:
 
 ## clean: Remove build artifacts
 clean:
-	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/build
+	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/dist $(PKG)/web/.build-hash $(PKG)/daemon/web/build
 
 ## lint-commit: Validate a commit message (usage: make lint-commit MSG="feat: add thing")
 lint-commit:

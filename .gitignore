@@ -31,7 +31,8 @@ coverage.html
 
 # Node / Web
 node_modules/
-packages/web/build/
+packages/web/dist/
+packages/web/.build-hash
 packages/web/coverage/
 # packages/web/src/routeTree.gen.ts — committed so CI tsc --noEmit works
 packages/daemon/web/build/

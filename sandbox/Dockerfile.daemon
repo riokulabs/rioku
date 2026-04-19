@@ -19,7 +19,7 @@ WORKDIR /src
 COPY go.work go.work.sum ./
 COPY packages/daemon/ packages/daemon/
 COPY packages/proto/ packages/proto/
-COPY --from=web-builder /src/packages/web/build packages/daemon/web/build/
+COPY --from=web-builder /src/packages/web/dist packages/daemon/web/build/
 RUN cd packages/daemon && CGO_ENABLED=1 go build -o /rioku ./cmd/rioku
 
 # ── Stage 3: Runtime ────────────────────────────────────────
