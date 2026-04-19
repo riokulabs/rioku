@@ -315,6 +315,54 @@ export async function requestPasswordReset(
   return { mock_reset_link: `/reset-password/${token}` };
 }
 
+// ─── validateResetToken ───────────────────────────────────────────────────────
+
+/**
+ * Check if a reset token is valid and return minimal user info.
+ * Stage-1: token is valid if it matches the mock-reset-<timestamp>-<userId> format
+ * AND the userId exists. Force-reset tokens (force-reset-<userId>) are also accepted.
+ */
+export async function validateResetToken(
+  token: string,
+): Promise<{ ok: true; user_id: string; email: string } | { ok: false; error: string }> {
+  await simulateLatency('query');
+
+  const state = useMockStore.getState();
+
+  // Force-reset token format: force-reset-<userId>
+  if (token.startsWith('force-reset-')) {
+    const userId = token.slice('force-reset-'.length);
+    const user = state.users[userId];
+    if (user) {
+      return { ok: true, user_id: user.id, email: user.email };
+    }
+    return { ok: false, error: 'Invalid or expired password reset link' };
+  }
+
+  // Mock-reset token format: mock-reset-<timestamp>-<userId>
+  // userId itself may contain hyphens (e.g. "user-0001"), so we scan all users.
+  if (token.startsWith('mock-reset-')) {
+    // Try to find a user whose id appears as a suffix in the token.
+    const user = Object.values(state.users).find((u) => token.endsWith(`-${u.id}`));
+    if (user) {
+      return { ok: true, user_id: user.id, email: user.email };
+    }
+    return { ok: false, error: 'Invalid or expired password reset link' };
+  }
+
+  return { ok: false, error: 'Invalid or expired password reset link' };
+}
+
+// ─── generateForcePasswordToken ───────────────────────────────────────────────
+
+/**
+ * Generate a force-password-change token for the given user.
+ * Returns a token that navigates to the reset-password flow.
+ */
+export function generateForcePasswordToken(userId: string): string {
+  return `force-reset-${userId}`;
+}
+
 // ─── applyPasswordReset ───────────────────────────────────────────────────────
 
 /**
@@ -327,15 +375,21 @@ export async function applyPasswordReset(
 ): Promise<{ ok: boolean; error?: string }> {
   await simulateLatency('mutation');
 
-  // Extract userId from mock token format: mock-reset-<timestamp>-<userId>
-  const parts = token.split('-');
-  // Last segment is the userId if it starts with 'user'
-  const maybeUserId = parts.slice(2).join('-');
   const state = useMockStore.getState();
-  const user = state.users[maybeUserId];
 
-  if (user) {
-    state.updateEntity('users', user.id, { force_password_change: false });
+  // Handle force-reset-<userId> format.
+  if (token.startsWith('force-reset-')) {
+    const userId = token.slice('force-reset-'.length);
+    const user = state.users[userId];
+    if (user) {
+      state.updateEntity('users', user.id, { force_password_change: false });
+    }
+  } else if (token.startsWith('mock-reset-')) {
+    // Mock-reset token format: mock-reset-<timestamp>-<userId> (userId may contain hyphens).
+    const user = Object.values(state.users).find((u) => token.endsWith(`-${u.id}`));
+    if (user) {
+      state.updateEntity('users', user.id, { force_password_change: false });
+    }
   }
 
   return { ok: true };
