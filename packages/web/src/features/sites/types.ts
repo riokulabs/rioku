@@ -1,0 +1,39 @@
+/**
+ * Feature-local types for sites.
+ */
+export type { Site, Service, ID } from '@/api/resources/types';
+
+import type { Site } from '@/api/resources/types';
+
+export interface SiteFilter {
+  search: string;
+  tls_mode: 'all' | Site['tls_mode'];
+  enabled: 'all' | 'enabled' | 'disabled';
+  linked_service_id: string | null;
+}
+
+export type SiteWizardInput = {
+  name: string;
+  domain: string;
+  upstream_mode: 'existing_service' | 'new_upstream';
+  upstream_service_id?: string;
+  upstream_protocol?: 'http' | 'https' | 'grpc';
+  upstream_host?: string;
+  upstream_port?: number;
+  tls_mode: Site['tls_mode'];
+  tls_manual_cert_pem?: string;
+  tls_manual_key_pem?: string;
+  basic_auth_enabled?: boolean;
+  rate_limit_preset?: Site['rate_limit_preset'];
+  redirect_rules?: Site['redirect_rules'];
+};
+
+export type SiteUpdateInput = Partial<{
+  name: string;
+  domain: string;
+  tls_mode: Site['tls_mode'];
+  upstream_service_id: string | null;
+  basic_auth_enabled: boolean;
+  rate_limit_preset: Site['rate_limit_preset'];
+  redirect_rules: Site['redirect_rules'];
+}>;
