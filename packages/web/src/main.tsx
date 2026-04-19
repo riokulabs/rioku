@@ -13,24 +13,33 @@ setAuthFailureRouter(router);
 setAuthFailureHandler((url) => { handleAuthFailure(url); });
 initAuthBootstrap();
 
-// Seed the mock store if empty — skipped in Vitest to keep tests isolated.
-if (!import.meta.env.VITEST) {
-  void import('./api/mock-store').then(({ useMockStore }) => {
-    void import('./api/mock-seed').then(({ seedStore }) => {
-      const state = useMockStore.getState();
-      if (Object.keys(state.users).length === 0) {
-        seedStore(useMockStore);
-      }
-    });
-  });
+async function bootstrapStore(): Promise<void> {
+  if (import.meta.env.VITEST) return;
+  const { useMockStore } = await import('./api/mock-store');
+  // Expose the store on window in dev so Playwright E2E tests can read and
+  // mutate state without going through the UI.  Guarded by DEV flag — never
+  // ships to production builds.
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__RIOKU_STORE = useMockStore;
+  }
+  const { seedStore } = await import('./api/mock-seed');
+  const state = useMockStore.getState();
+  // Never auto-seed the first-run bootstrap route — the whole point of that
+  // page is to run with an empty store so the user can create the first tenant.
+  const onBootstrapRoute = window.location.pathname === '/bootstrap';
+  if (Object.keys(state.users).length === 0 && !onBootstrapRoute) {
+    seedStore(useMockStore);
+  }
   // Start dev-only mock audit SSE emitter (30s interval, no-op in prod).
-  void import('./api/mock-audit-emitter').then(({ startMockAuditEmitter }) => {
-    startMockAuditEmitter();
-  });
+  const { startMockAuditEmitter } = await import('./api/mock-audit-emitter');
+  startMockAuditEmitter();
 }
 
 const start = async () => {
-  await initI18n();
+  // Seed + i18n must both complete before React renders so that TanStack
+  // Router's `beforeLoad` guards see a logged-in `currentUserId` and don't
+  // bounce to `/login` on first navigation.
+  await Promise.all([bootstrapStore(), initI18n()]);
   const container = document.getElementById('root');
   if (!container) throw new Error('Root element not found');
   createRoot(container).render(

@@ -5,7 +5,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Keep worker count low: every test boots a fresh browser context which
+  // triggers the full mock-store seed (300 audit entries, 200 AI traces, etc.)
+  // via the shared Vite dev server. Higher concurrency overloads the dev
+  // server and causes timeout flakes rather than reveals real bugs.
+  workers: process.env.CI ? 1 : 2,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     baseURL: 'http://localhost:5173',

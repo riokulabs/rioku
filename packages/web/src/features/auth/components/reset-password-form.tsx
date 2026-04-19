@@ -133,7 +133,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   }
 
   if (validating) {
-    return <Text c="dimmed">Validating reset link…</Text>;
+    return <Text>Validating reset link…</Text>;
   }
 
   if (tokenError) {
@@ -188,7 +188,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               data-testid="password-strength-bar"
             />
             <Group justify="space-between">
-              <Text size="xs" c="dimmed">
+              <Text size="xs">
                 Strength
               </Text>
               <Text size="xs" c={strengthColor(strength)} fw={500}>

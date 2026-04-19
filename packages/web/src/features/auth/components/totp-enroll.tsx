@@ -128,7 +128,7 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
   }
 
   if (loading || !enrollment) {
-    return <Text c="dimmed">Loading enrollment…</Text>;
+    return <Text>Loading enrollment…</Text>;
   }
 
   // ── Step 1: Secret ────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
   if (step === 'secret') {
     return (
       <Stack gap="md">
-        <Text size="sm" c="dimmed">
+        <Text size="sm">
           Open your authenticator app (Google Authenticator, Authy, 1Password, etc.)
           and add a new account. You can either scan a QR code or enter the setup
           key manually.
@@ -237,7 +237,7 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
   return (
     <Stack gap="md" align="center">
       <Title order={4}>Confirm your authenticator works</Title>
-      <Text size="sm" c="dimmed" ta="center">
+      <Text size="sm" ta="center">
         Enter the 6-digit code currently shown in your authenticator app to
         complete enrollment.
       </Text>

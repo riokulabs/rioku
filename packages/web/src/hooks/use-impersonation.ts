@@ -121,8 +121,17 @@ function buildFullScope(additionalScope: TierName[] = []): string[] {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useImpersonation(): UseImpersonationReturn {
-  const [state, setState] = useState<ImpersonationState>('idle');
-  const [session, setSession] = useState<ImpersonationSession | null>(null);
+  // Session lives in mock-store (activeImpersonationId + impersonationSessions map)
+  // so all components (entry form, banner, etc.) see the same state.
+  const activeId = useMockStore((s) => s.activeImpersonationId);
+  const session = useMockStore((s) => (activeId ? (s.impersonationSessions[activeId] ?? null) : null));
+  // Transient 'entering' flag is set for a single tick during entry() before
+  // the store commit. Derive the stable states from session presence.
+  const [transient, setTransient] = useState<'entering' | null>(null);
+  const state: ImpersonationState = transient ?? (session ? 'active' : 'idle');
+  const setState = useCallback((next: ImpersonationState) => {
+    setTransient(next === 'entering' ? 'entering' : null);
+  }, []);
 
   // Idle timer — reset on any activity
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,12 +159,10 @@ export function useImpersonation(): UseImpersonationReturn {
       duration_ms: durationMs,
     };
 
-    // Clear React state immediately
-    setSession(null);
-    setState('idle');
-
-    // Remove from mock-store
+    // Clear active session id + remove from store
+    useMockStore.setState({ activeImpersonationId: null });
     useMockStore.getState().deleteEntity('impersonationSessions', sessionSnapshot.id);
+    setState('idle');
 
     // Emit tenant-side audit entry (sync)
     logAuditEntry({
@@ -181,7 +188,7 @@ export function useImpersonation(): UseImpersonationReturn {
       tier: 'write',
       payload: exitPayload,
     });
-  }, [session]);
+  }, [session, setState]);
 
   // Keep exitRef stable
   useEffect(() => {
@@ -201,18 +208,14 @@ export function useImpersonation(): UseImpersonationReturn {
   // ── extendSession ─────────────────────────────────────────────────────────
 
   const extendSession = useCallback(() => {
-    setSession((current) => {
-      if (!current) return null;
-      const newExpiry = new Date(Date.now() + IDLE_TIMEOUT_MS).toISOString();
-      const updated = { ...current, expires_at: newExpiry };
-      // Sync to mock-store
-      useMockStore.getState().updateEntity('impersonationSessions', current.id, {
-        expires_at: newExpiry,
-      });
-      return updated;
+    const current = session;
+    if (!current) return;
+    const newExpiry = new Date(Date.now() + IDLE_TIMEOUT_MS).toISOString();
+    useMockStore.getState().updateEntity('impersonationSessions', current.id, {
+      expires_at: newExpiry,
     });
     resetIdleTimer();
-  }, [resetIdleTimer]);
+  }, [session, resetIdleTimer]);
 
   // ── entry ─────────────────────────────────────────────────────────────────
 
@@ -293,10 +296,12 @@ export function useImpersonation(): UseImpersonationReturn {
         },
       });
 
-      setSession(newSession);
+      // Mark this session as the active one — banner + other consumers
+      // derive the live session from activeImpersonationId + the sessions map.
+      useMockStore.setState({ activeImpersonationId: sessionId });
       setState('active');
     },
-    [],
+    [setState],
   );
 
   // ── Timers — active state ─────────────────────────────────────────────────
@@ -321,19 +326,19 @@ export function useImpersonation(): UseImpersonationReturn {
     document.addEventListener('mousedown', onActivity);
     document.addEventListener('touchstart', onActivity);
 
-    // Wall-clock interval
+    // Wall-clock interval — read session from store each tick so we always
+    // see the current value without closing over stale state.
     wallClockRef.current = setInterval(() => {
-      setSession((current) => {
-        if (!current) return null;
-        // wall_clock_expires_at stored as started_at + 4hr
-        const wallClockExpiry =
-          new Date(current.started_at).getTime() + WALL_CLOCK_MS;
-        if (Date.now() >= wallClockExpiry) {
-          const exitFn = exitRef.current;
-          if (exitFn) void exitFn();
-        }
-        return current;
-      });
+      const activeIdNow = useMockStore.getState().activeImpersonationId;
+      if (!activeIdNow) return;
+      const current = useMockStore.getState().impersonationSessions[activeIdNow];
+      if (!current) return;
+      // wall_clock_expires_at stored as started_at + 4hr
+      const wallClockExpiry = new Date(current.started_at).getTime() + WALL_CLOCK_MS;
+      if (Date.now() >= wallClockExpiry) {
+        const exitFn = exitRef.current;
+        if (exitFn) void exitFn();
+      }
     }, WALL_CLOCK_CHECK_INTERVAL_MS);
 
     return () => {

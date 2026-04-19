@@ -88,7 +88,7 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
           </Notification>
         )}
 
-        <Text size="sm" c="dimmed">
+        <Text size="sm">
           Enter one of your 10-character backup codes. Each code can only be used once.
         </Text>
 

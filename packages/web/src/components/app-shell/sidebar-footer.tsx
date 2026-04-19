@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logout } from '@/features/auth/api';
 import { Box, Stack, Menu, MenuSub, Avatar, Group, Text, Modal, Button } from '@mantine/core';
 import {
   IconChevronDown,
@@ -252,7 +253,16 @@ export function SidebarFooter() {
 
           <Menu.Divider />
 
-          <Menu.Item leftSection={<IconLogout size={14} />} color="red">
+          <Menu.Item
+            leftSection={<IconLogout size={14} />}
+            color="red"
+            data-testid="sign-out-btn"
+            onClick={() => {
+              void logout().then(() => {
+                void navigate({ to: '/login' });
+              });
+            }}
+          >
             Sign out
           </Menu.Item>
         </Menu.Dropdown>

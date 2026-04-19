@@ -97,7 +97,7 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
 
   return (
     <Stack gap="md" align="center">
-      <Text size="sm" c="dimmed" ta="center">
+      <Text size="sm" ta="center">
         Enter the 6-digit code from your authenticator app.
       </Text>
 
@@ -127,7 +127,7 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
       />
 
       {submitting && (
-        <Text size="xs" c="dimmed">
+        <Text size="xs">
           Verifying…
         </Text>
       )}

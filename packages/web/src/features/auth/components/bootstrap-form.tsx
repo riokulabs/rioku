@@ -205,7 +205,7 @@ export function BootstrapForm() {
               data-testid="bootstrap-strength-bar"
             />
             <Group justify="space-between">
-              <Text size="xs" c="dimmed">
+              <Text size="xs">
                 Strength
               </Text>
               <Text size="xs" c={strengthColor(strength)} fw={500}>

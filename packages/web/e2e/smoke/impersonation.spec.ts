@@ -21,7 +21,7 @@ test('impersonation: enter session and banner appears', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /start impersonation session/i })).toBeVisible();
 
   // Select tenant — click the tenant select and pick the first option
-  const tenantSelect = page.getByLabel(/target tenant/i);
+  const tenantSelect = page.getByRole('combobox', { name: /target tenant/i });
   await tenantSelect.click();
   // Wait for dropdown options — pick any tenant option
   const tenantOption = page.getByRole('option').first();
@@ -51,7 +51,7 @@ test('impersonation: exit session via banner button', async ({ page }) => {
   await page.goto('/admin/impersonate');
   await expect(page.getByRole('heading', { name: /start impersonation session/i })).toBeVisible();
 
-  const tenantSelect = page.getByLabel(/target tenant/i);
+  const tenantSelect = page.getByRole('combobox', { name: /target tenant/i });
   await tenantSelect.click();
   await page.getByRole('option').first().click();
 
@@ -70,8 +70,9 @@ test('impersonation: exit session via banner button', async ({ page }) => {
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByText(/end impersonation session/i)).toBeVisible();
 
-  // Confirm exit
-  await page.getByRole('button', { name: /end session/i, exact: true }).click();
+  // Confirm exit — the modal's confirm button uses a distinct label to avoid
+  // a strict-mode collision with the banner's own "End session" button.
+  await page.getByRole('button', { name: /yes, end session/i }).click();
 
   // Banner should disappear
   await expect(page.getByText(/acting as super-admin in/i)).not.toBeVisible();
@@ -85,7 +86,7 @@ test('impersonation banner: no serious a11y violations during active session', a
   await page.goto('/admin/impersonate');
   await expect(page.getByRole('heading', { name: /start impersonation session/i })).toBeVisible();
 
-  const tenantSelect = page.getByLabel(/target tenant/i);
+  const tenantSelect = page.getByRole('combobox', { name: /target tenant/i });
   await tenantSelect.click();
   await page.getByRole('option').first().click();
 

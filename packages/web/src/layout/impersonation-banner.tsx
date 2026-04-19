@@ -46,7 +46,7 @@ export function ImpersonationBanner() {
           both audit logs.
         </Text>
       ),
-      labels: { confirm: 'End session', cancel: 'Stay in session' },
+      labels: { confirm: 'Yes, end session', cancel: 'Stay in session' },
       confirmProps: { color: 'orange' },
       onConfirm: () => {
         void (async () => {
@@ -131,7 +131,6 @@ export function ImpersonationBanner() {
             color="dark"
             variant="filled"
             onClick={handleExit}
-            aria-label="End impersonation session"
             styles={{ root: { flexShrink: 0 } }}
           >
             End session

@@ -70,11 +70,13 @@ export async function login(email: string, password: string): Promise<LoginResul
     return { requires_totp: true, pending_user_id: user.id };
   }
 
-  // No TOTP — find primary tenant membership and resolve tenant.
+  // No TOTP — find primary tenant membership and resolve tenant slug.
   const membership = Object.values(state.memberships).find(
     (m) => m.user_id === user.id && m.state === 'active',
   );
   const tenantId = membership?.tenant_id ?? null;
+  const tenant = tenantId ? state.tenants[tenantId] : null;
+  const tenantSlug = tenant?.slug ?? null;
 
   useMockStore.setState({ currentUserId: user.id, currentTenantId: tenantId });
 
@@ -90,7 +92,7 @@ export async function login(email: string, password: string): Promise<LoginResul
     tier: 'read-sensitive',
   });
 
-  return { requires_totp: false, user_id: user.id, tenant_id: tenantId ?? '' };
+  return { requires_totp: false, user_id: user.id, tenant_id: tenantSlug ?? '' };
 }
 
 // ─── logout ───────────────────────────────────────────────────────────────────
@@ -148,6 +150,8 @@ export async function verifyTotp(code: string): Promise<TotpResult> {
     (m) => m.user_id === userId && m.state === 'active',
   );
   const tenantId = membership?.tenant_id ?? null;
+  const tenant = tenantId ? state.tenants[tenantId] : null;
+  const tenantSlug = tenant?.slug ?? null;
 
   useMockStore.setState({
     currentUserId: userId,
@@ -167,7 +171,7 @@ export async function verifyTotp(code: string): Promise<TotpResult> {
     tier: 'read-sensitive',
   });
 
-  return { ok: true, user_id: userId, tenant_id: tenantId ?? '' };
+  return { ok: true, user_id: userId, tenant_id: tenantSlug ?? '' };
 }
 
 // ─── enrollTotp ───────────────────────────────────────────────────────────────
@@ -269,6 +273,8 @@ export async function verifyBackupCode(code: string): Promise<BackupCodeResult> 
     (m) => m.user_id === userId && m.state === 'active',
   );
   const tenantId = membership?.tenant_id ?? null;
+  const tenant = tenantId ? state.tenants[tenantId] : null;
+  const tenantSlug = tenant?.slug ?? null;
 
   useMockStore.setState({
     currentUserId: userId,
@@ -288,7 +294,7 @@ export async function verifyBackupCode(code: string): Promise<BackupCodeResult> 
     tier: 'destructive',
   });
 
-  return { ok: true, user_id: userId, tenant_id: tenantId ?? '', remaining: remaining.length };
+  return { ok: true, user_id: userId, tenant_id: tenantSlug ?? '', remaining: remaining.length };
 }
 
 // ─── requestPasswordReset ─────────────────────────────────────────────────────

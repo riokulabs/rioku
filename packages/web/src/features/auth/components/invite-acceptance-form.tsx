@@ -184,7 +184,7 @@ export function InviteAcceptanceForm({ token }: InviteAcceptanceFormProps) {
       {/* Invite context banner */}
       <Paper withBorder p="md" data-testid="invite-context">
         <Stack gap="xs">
-          <Text size="sm" c="dimmed">
+          <Text size="sm">
             You&apos;ve been invited by <strong>{context.invitedByName}</strong> to join:
           </Text>
           <Title order={3}>{context.tenantName}</Title>
@@ -192,7 +192,7 @@ export function InviteAcceptanceForm({ token }: InviteAcceptanceFormProps) {
             Welcome, <strong>{context.userName}</strong>!
           </Text>
           {context.roleIds.length > 0 && (
-            <Text size="xs" c="dimmed">
+            <Text size="xs">
               Roles:{' '}
               {context.roleIds.map((id) => (
                 <Badge key={id} size="xs" variant="outline" mr={4}>
@@ -251,7 +251,7 @@ export function InviteAcceptanceForm({ token }: InviteAcceptanceFormProps) {
       {step === 'totp' && (
         <Stack gap="md">
           <Divider label="Set up two-factor authentication" labelPosition="center" />
-          <Text size="sm" c="dimmed">
+          <Text size="sm">
             Two-factor authentication is required to complete your account setup.
           </Text>
 

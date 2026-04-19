@@ -123,7 +123,7 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
   }
 
   if (loading || !enrollment) {
-    return <Text c="dimmed">Setting up authenticator…</Text>;
+    return <Text>Setting up authenticator…</Text>;
   }
 
   // ── Step 1: Secret ──────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
   if (step === 'secret') {
     return (
       <Stack gap="md">
-        <Text size="sm" c="dimmed">
+        <Text size="sm">
           Open your authenticator app (Google Authenticator, Authy, 1Password, etc.)
           and add a new account using the setup key or URL below.
         </Text>
@@ -230,7 +230,7 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
   return (
     <Stack gap="md" align="center">
       <Title order={4}>Confirm your authenticator works</Title>
-      <Text size="sm" c="dimmed" ta="center">
+      <Text size="sm" ta="center">
         Enter the 6-digit code currently shown in your authenticator app.
       </Text>
 
