@@ -200,6 +200,8 @@ jobs:
         run: cd packages/web && pnpm build
       - name: Check bundle budgets
         run: cd packages/web && pnpm check-budgets
+      - name: Check ABI surface (B4)
+        run: cd packages/web && pnpm check-abi
       - name: Upload Playwright report on failure
         uses: actions/upload-artifact@v7
         if: failure()
