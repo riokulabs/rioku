@@ -29,7 +29,7 @@ describe('hardenGlobals', () => {
     // Vitest's error serializer. The test verifies the operation completes cleanly.
     expect(() => { hardenGlobals(); }).not.toThrow();
     // Basic prototype chain sanity: {} still has Object.prototype methods.
-    expect(typeof ({} as Record<string, unknown>)['hasOwnProperty']).toBe('function');
+    expect(typeof ({}).hasOwnProperty).toBe('function');
   });
 
   it('after hardening, assigning to Object.prototype.__proto__ is a no-op or throws in strict mode', () => {
