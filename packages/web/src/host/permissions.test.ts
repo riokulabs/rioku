@@ -86,6 +86,18 @@ describe('BUILT_IN_PERMISSIONS', () => {
     expect(keys).toContain('audit:read');
   });
 
+  it('contains all site:* permissions', () => {
+    expect(keys).toContain('site:read');
+    expect(keys).toContain('site:write');
+    expect(keys).toContain('site:delete');
+  });
+
+  it('contains all middleware:* permissions', () => {
+    expect(keys).toContain('middleware:read');
+    expect(keys).toContain('middleware:write');
+    expect(keys).toContain('middleware:delete');
+  });
+
   it('every entry has a non-empty description', () => {
     for (const p of BUILT_IN_PERMISSIONS) {
       expect(p.description.length).toBeGreaterThan(0);
@@ -113,6 +125,8 @@ describe('RESERVED_PREFIXES', () => {
       'route:',
       'policy:',
       'audit:',
+      'site:',
+      'middleware:',
     ];
     for (const prefix of expected) {
       expect(RESERVED_PREFIXES).toContain(prefix);

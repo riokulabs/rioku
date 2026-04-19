@@ -32,6 +32,8 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'route:',
   'policy:',
   'audit:',
+  'site:',
+  'middleware:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -261,6 +263,46 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     description: 'View the audit log',
     source: 'built-in',
     default_roles: ['admin', 'super-admin'],
+  },
+
+  // site:*
+  {
+    key: 'site:read',
+    description: 'View sites',
+    source: 'built-in',
+    default_roles: ['viewer', 'operator', 'admin'],
+  },
+  {
+    key: 'site:write',
+    description: 'Create or modify sites',
+    source: 'built-in',
+    default_roles: ['operator', 'admin'],
+  },
+  {
+    key: 'site:delete',
+    description: 'Delete sites',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // middleware:*
+  {
+    key: 'middleware:read',
+    description: 'View middlewares',
+    source: 'built-in',
+    default_roles: ['viewer', 'operator', 'admin'],
+  },
+  {
+    key: 'middleware:write',
+    description: 'Create or modify middlewares',
+    source: 'built-in',
+    default_roles: ['operator', 'admin'],
+  },
+  {
+    key: 'middleware:delete',
+    description: 'Delete middlewares',
+    source: 'built-in',
+    default_roles: ['admin'],
   },
 ];
 
