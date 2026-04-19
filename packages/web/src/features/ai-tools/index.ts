@@ -27,3 +27,10 @@ export type {
   UpdateToolInput,
   TestToolResult,
 } from './types';
+
+export { ToolList } from './components/list';
+export { ToolFilterBar } from './components/filter-bar';
+export { ToolDetail } from './components/detail';
+export { ToolForm } from './components/form';
+export { JsonSchemaEditor } from './components/json-schema-editor';
+export { TestPanel } from './components/test-panel';
