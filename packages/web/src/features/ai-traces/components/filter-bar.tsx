@@ -35,6 +35,28 @@ const STATUS_OPTIONS: { value: AiTrace['status']; label: string }[] = [
   { value: 'timeout', label: 'Timeout' },
 ];
 
+const STATUS_SET: ReadonlySet<AiTrace['status']> = new Set([
+  'success',
+  'error',
+  'timeout',
+]);
+
+function isStatus(v: string): v is AiTrace['status'] {
+  return STATUS_SET.has(v as AiTrace['status']);
+}
+
+const PRESET_SET: ReadonlySet<RangePreset> = new Set([
+  '1h',
+  '24h',
+  '7d',
+  'all',
+  'custom',
+]);
+
+function isRangePreset(v: string): v is RangePreset {
+  return PRESET_SET.has(v as RangePreset);
+}
+
 interface TraceFilterBarProps {
   tenantId: string;
   filter: TraceFilter;
@@ -157,13 +179,11 @@ export function TraceFilterBar({
           data={STATUS_OPTIONS}
           value={filter.statuses}
           onChange={(value) => {
-            onChange(
-              {
-                ...filter,
-                statuses: value as AiTrace['status'][],
-              },
-              rangePreset,
-            );
+            // Mantine's MultiSelect types the callback value as string[] but
+            // the `data` array is restricted to AiTrace['status'] literals,
+            // so the runtime shape is safe. Narrow via the isStatus guard.
+            const narrowed = value.filter(isStatus);
+            onChange({ ...filter, statuses: narrowed }, rangePreset);
           }}
           placeholder={filter.statuses.length === 0 ? 'All statuses' : undefined}
           w={200}
@@ -180,7 +200,9 @@ export function TraceFilterBar({
           ]}
           value={rangePreset}
           onChange={(value) => {
-            handlePreset(value as RangePreset);
+            if (isRangePreset(value)) {
+              handlePreset(value);
+            }
           }}
           aria-label="Time range"
         />

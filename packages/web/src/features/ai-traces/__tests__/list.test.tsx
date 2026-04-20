@@ -71,7 +71,9 @@ describe('TraceList', () => {
 
     // Click a data row (skip header).
     const rows = screen.getAllByRole('row');
-    fireEvent.click(rows[1]!);
+    const dataRow = rows[1];
+    if (!dataRow) throw new Error('Expected at least one data row');
+    fireEvent.click(dataRow);
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
@@ -98,8 +100,8 @@ describe('TraceFilterBar', () => {
       />,
     );
 
-    const searchInput = screen.getByLabelText(/search trace text/i) as HTMLInputElement;
-    expect(searchInput.disabled).toBe(true);
+    const searchInput = screen.getByLabelText(/search trace text/i);
+    expect((searchInput as HTMLInputElement).disabled).toBe(true);
   });
 
   it('calls onChange with agent_ids when an agent is picked', () => {

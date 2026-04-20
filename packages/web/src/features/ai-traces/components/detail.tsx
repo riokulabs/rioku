@@ -97,20 +97,20 @@ export function TraceDetail({ traceId, tenantSlug, onClose }: TraceDetailProps) 
   const totalTokens = trace.input_tokens + trace.output_tokens;
   const curl = buildMockCurl(trace, provider?.base_url);
 
-  function handleExportJson() {
+  function handleExportJson(t: AiTrace) {
     try {
-      const blob = new Blob([JSON.stringify(trace, null, 2)], {
+      const blob = new Blob([JSON.stringify(t, null, 2)], {
         type: 'application/json;charset=utf-8',
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `trace-${trace!.request_id}.json`;
+      a.download = `trace-${t.request_id}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      notify.success('Exported', `Downloaded trace ${trace!.request_id}.`);
+      notify.success('Exported', `Downloaded trace ${t.request_id}.`);
     } catch {
       notify.error('Export failed', 'Please try again.');
     }
@@ -248,7 +248,7 @@ export function TraceDetail({ traceId, tenantSlug, onClose }: TraceDetailProps) 
           size="xs"
           variant="default"
           leftSection={<IconDownload size={12} />}
-          onClick={handleExportJson}
+          onClick={() => { handleExportJson(trace); }}
         >
           Export JSON
         </Button>

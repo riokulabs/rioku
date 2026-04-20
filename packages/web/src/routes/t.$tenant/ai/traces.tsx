@@ -9,7 +9,7 @@
  * Permission guard: ai-trace:read. Sensitive search (prompt/completion text)
  * is gated inside the filter bar on ai-trace:read-sensitive.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import {
   Stack,
@@ -154,9 +154,13 @@ function AiTracesPage() {
     setLiveCount((c) => c + 1);
   }, []);
   useTraceStream(tenantId, tailEnabled, handleLiveTrace);
-  useEffect(() => {
-    if (!tailEnabled) setLiveCount(0);
-  }, [tailEnabled]);
+
+  const handleTailToggle = useCallback((next: boolean) => {
+    setTailEnabled(next);
+    // Reset the counter on both transitions — clean slate every time the
+    // user flips the switch.
+    setLiveCount(0);
+  }, []);
 
   // Drawer state for detail viewer.
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
@@ -203,7 +207,7 @@ function AiTracesPage() {
             label="Live tail"
             checked={tailEnabled}
             onChange={(e) => {
-              setTailEnabled(e.currentTarget.checked);
+              handleTailToggle(e.currentTarget.checked);
             }}
             thumbIcon={<IconAccessPoint size={10} />}
             aria-label="Toggle live trace tail"
