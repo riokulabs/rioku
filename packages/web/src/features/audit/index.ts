@@ -21,14 +21,8 @@ export {
   decodeResourceHandle,
 } from './api';
 
-export {
-  auditFilterSchema,
-  retentionConfigSchema,
-} from './schemas';
-export type {
-  AuditFilterFormValues,
-  RetentionConfigFormValues,
-} from './schemas';
+export { auditFilterSchema, retentionConfigSchema } from './schemas';
+export type { AuditFilterFormValues, RetentionConfigFormValues } from './schemas';
 
 export type {
   ActorCandidate,

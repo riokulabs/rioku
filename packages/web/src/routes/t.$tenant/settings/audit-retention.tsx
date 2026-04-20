@@ -19,9 +19,7 @@ import { RetentionConfigForm } from '@/features/audit/components/retention-confi
 
 function AuditRetentionSettingsPage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -46,8 +44,8 @@ function AuditRetentionSettingsPage() {
       <Stack gap={4}>
         <Title order={2}>Audit retention</Title>
         <Text size="sm">
-          Control how long audit entries are retained per tier and whether
-          they are auto-exported to long-term storage before deletion.
+          Control how long audit entries are retained per tier and whether they are auto-exported to
+          long-term storage before deletion.
         </Text>
       </Stack>
 

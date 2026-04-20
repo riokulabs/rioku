@@ -33,11 +33,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAccessPoint,
-  IconChevronDown,
-  IconDownload,
-} from '@tabler/icons-react';
+import { IconAccessPoint, IconChevronDown, IconDownload } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
@@ -69,11 +65,7 @@ interface SearchParams {
   selected?: string;
 }
 
-const OUTCOME_VALUES: readonly AuditFilter['outcomes'][number][] = [
-  'success',
-  'denied',
-  'error',
-];
+const OUTCOME_VALUES: readonly AuditFilter['outcomes'][number][] = ['success', 'denied', 'error'];
 const TIER_VALUES: readonly AuditFilter['tiers'][number][] = [
   'read',
   'read-sensitive',
@@ -116,9 +108,7 @@ function AuditPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -153,8 +143,9 @@ function AuditPage() {
   const rows = useAuditList(tenantId, filter);
 
   // Drawer state — selected id persists to URL so back/forward restore it.
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(Boolean(search.selected));
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(
+    Boolean(search.selected),
+  );
   const selectedEntry = useMemo<AuditEntry | null>(() => {
     if (!search.selected) return null;
     return rows.find((e) => e.id === search.selected) ?? null;
@@ -227,9 +218,7 @@ function AuditPage() {
     (format: 'csv' | 'jsonl') => {
       try {
         const blob =
-          format === 'csv'
-            ? exportAuditCsv(tenantId, filter)
-            : exportAuditJsonl(tenantId, filter);
+          format === 'csv' ? exportAuditCsv(tenantId, filter) : exportAuditJsonl(tenantId, filter);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -258,9 +247,7 @@ function AuditPage() {
           <Badge variant="light" color="gray" size="sm">
             {String(rows.length)} entries
           </Badge>
-          {tailEnabled && (
-            <LiveTailBadge newCount={liveCount} isLive={tailEnabled} />
-          )}
+          {tailEnabled && <LiveTailBadge newCount={liveCount} isLive={tailEnabled} />}
         </Group>
         <Group gap="sm">
           <Anchor
@@ -330,27 +317,19 @@ function AuditPage() {
         </Group>
       </Group>
 
-      <AuditFilterBar
-        tenantId={tenantId}
-        filter={filter}
-        onChange={handleFilterChange}
-      />
+      <AuditFilterBar tenantId={tenantId} filter={filter} onChange={handleFilterChange} />
 
       <AuditList rows={rows} onSelect={handleRowSelect} />
 
       <Drawer
         opened={drawerOpened}
         onClose={handleDrawerClose}
-        title={
-          selectedEntry ? `Audit · ${selectedEntry.action}` : 'Audit entry'
-        }
+        title={selectedEntry ? `Audit · ${selectedEntry.action}` : 'Audit entry'}
         position="right"
         size="xl"
         padding="md"
       >
-        {selectedEntry && (
-          <AuditDetail entry={selectedEntry} onClose={handleDrawerClose} />
-        )}
+        {selectedEntry && <AuditDetail entry={selectedEntry} onClose={handleDrawerClose} />}
       </Drawer>
     </Stack>
   );
@@ -369,8 +348,6 @@ export const Route = createFileRoute('/t/$tenant/security/audit')({
     search: typeof s.search === 'string' ? s.search : '',
     date_from: parseIso(s.date_from),
     date_to: parseIso(s.date_to),
-    ...(typeof s.selected === 'string' && s.selected.length > 0
-      ? { selected: s.selected }
-      : {}),
+    ...(typeof s.selected === 'string' && s.selected.length > 0 ? { selected: s.selected } : {}),
   }),
 });

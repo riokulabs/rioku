@@ -149,19 +149,15 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
     >
       <Stack gap="md">
         {error && (
-          <Alert
-            icon={<IconAlertCircle size={16} />}
-            color="red"
-            variant="light"
-          >
+          <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
             {error}
           </Alert>
         )}
 
         <Fieldset legend="Retention (days per tier)">
           <Text size="sm" mb="sm">
-            Entries older than the configured number of days are eligible for
-            deletion. Set to 0 to purge immediately.
+            Entries older than the configured number of days are eligible for deletion. Set to 0 to
+            purge immediately.
           </Text>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <NumberInput
@@ -212,9 +208,8 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
             Auto-export
           </Text>
           <Text size="xs">
-            Schedule audit entries to be written to long-term storage on the
-            selected cadence before they are purged by the retention policy
-            above.
+            Schedule audit entries to be written to long-term storage on the selected cadence before
+            they are purged by the retention policy above.
           </Text>
           <SegmentedControl<AutoExport>
             data={[

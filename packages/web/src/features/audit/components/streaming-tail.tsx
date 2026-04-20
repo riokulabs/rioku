@@ -48,9 +48,7 @@ export function LiveTailBadge({ newCount, isLive }: LiveTailBadgeProps) {
         size="sm"
         data-testid="audit-live-badge"
         style={
-          isLive
-            ? { animation: 'rioku-audit-live-pulse 1.6s infinite ease-in-out' }
-            : undefined
+          isLive ? { animation: 'rioku-audit-live-pulse 1.6s infinite ease-in-out' } : undefined
         }
       >
         {isLive ? `LIVE${newCount > 0 ? ` +${String(newCount)}` : ''}` : 'Paused'}

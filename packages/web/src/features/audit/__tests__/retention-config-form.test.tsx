@@ -21,8 +21,7 @@ vi.mock('@tanstack/react-router', () => ({
 // Granular permission mock — tests flip the retention:write grant.
 let grantWrite = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'audit:retention:write' ? grantWrite : true,
+  usePermission: (key: string) => (key === 'audit:retention:write' ? grantWrite : true),
 }));
 
 import { useMockStore } from '@/api/mock-store';
@@ -34,9 +33,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 function acmeId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant');
   return acme.id;
 }

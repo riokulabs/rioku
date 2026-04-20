@@ -19,10 +19,7 @@ import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { publishAudit } from '@/api/audit-stream-bus';
 import type { AuditEntry } from '@/api/resources/types';
-import {
-  LiveTailBadge,
-  useAuditStream,
-} from '../components/streaming-tail';
+import { LiveTailBadge, useAuditStream } from '../components/streaming-tail';
 
 function wrap(ui: React.ReactNode) {
   return render(
@@ -38,9 +35,7 @@ beforeEach(() => {
 });
 
 function acmeId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant');
   return acme.id;
 }
@@ -100,9 +95,7 @@ describe('useAuditStream', () => {
 
     publishAudit(synthEntry(tenantId, 'a1'));
     expect(onEntry).toHaveBeenCalledTimes(1);
-    expect(onEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'a1' }),
-    );
+    expect(onEntry).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }));
   });
 
   it('does not invoke onEntry when disabled', () => {
