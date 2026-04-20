@@ -41,9 +41,9 @@ import type { Widget } from '@/api/resources/types';
 import {
   useDashboardDetail,
   useDashboardWidgets,
-  exportDashboardJson,
   setAsMyHome,
 } from '../api';
+import { downloadDashboardExport } from '../export-download';
 
 dayjs.extend(relativeTime);
 
@@ -74,17 +74,7 @@ export function DashboardViewer({
   const handleExport = useCallback(() => {
     if (!dashboard) return;
     try {
-      const payload = exportDashboardJson(dashboard.id);
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const slug = dashboard.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `dashboard-${slug}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      downloadDashboardExport(dashboard);
       notify.success('Dashboard exported', `${dashboard.name}.json downloaded.`);
     } catch (e) {
       notify.error('Export failed', (e as Error).message);

@@ -9,7 +9,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Modal, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconUpload } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
@@ -17,6 +17,7 @@ import { usePermission } from '@/hooks/use-permission';
 import {
   DashboardList,
   DashboardFilterBar,
+  ImportDashboardModal,
   deleteDashboard,
   setDefaultDashboard,
   createDashboard,
@@ -161,6 +162,8 @@ function DashboardsListPage() {
   const [deleteTarget, setDeleteTarget] = useState<Dashboard | null>(null);
   const [deleteOpened, { open: openDelete, close: closeDelete }] =
     useDisclosure(false);
+  const [importOpened, { open: openImport, close: closeImport }] =
+    useDisclosure(false);
 
   function handleRowClick(d: Dashboard) {
     void navigate({
@@ -241,15 +244,26 @@ function DashboardsListPage() {
     <Stack gap="md" p="md">
       <Group justify="space-between" align="center">
         <Title order={2}>Dashboards</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          disabled={!canWrite}
-          onClick={() => {
-            void handleCreate();
-          }}
-        >
-          New dashboard
-        </Button>
+        <Group gap="xs">
+          <Button
+            variant="default"
+            leftSection={<IconUpload size={16} />}
+            disabled={!canWrite}
+            onClick={openImport}
+            data-testid="dashboards-import-open"
+          >
+            Import
+          </Button>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            disabled={!canWrite}
+            onClick={() => {
+              void handleCreate();
+            }}
+          >
+            New dashboard
+          </Button>
+        </Group>
       </Group>
 
       <DashboardFilterBar
@@ -272,6 +286,18 @@ function DashboardsListPage() {
         canWrite={canWrite}
         canDelete={canDelete}
         canSetDefault={canSetDefault}
+      />
+
+      <ImportDashboardModal
+        opened={importOpened}
+        tenantId={tenantId}
+        onClose={closeImport}
+        onImported={(imported) => {
+          void navigate({
+            to: '/t/$tenant/dashboards/$dashboardId',
+            params: { tenant: tenantSlug, dashboardId: imported.id },
+          } as unknown as Parameters<typeof navigate>[0]);
+        }}
       />
 
       <Modal

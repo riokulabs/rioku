@@ -42,6 +42,7 @@ import {
 import {
   IconAlertCircle,
   IconDeviceFloppy,
+  IconDownload,
   IconHistory,
   IconVariable,
   IconX,
@@ -53,6 +54,7 @@ import {
   useDashboardDetail,
   useDashboardWidgets,
   VariablesPanel,
+  downloadDashboardExport,
 } from '@/features/dashboards';
 import type { Dashboard, Widget } from '@/api/resources/types';
 import {
@@ -446,6 +448,25 @@ function ShellInner({
             data-testid="builder-variables-open"
           >
             Variables
+          </Button>
+          <Button
+            variant="default"
+            size="xs"
+            leftSection={<IconDownload size={14} />}
+            onClick={() => {
+              try {
+                downloadDashboardExport(dashboard);
+                notify.success(
+                  'Dashboard exported',
+                  `${dashboard.name}.json downloaded.`,
+                );
+              } catch (e) {
+                notify.error('Export failed', (e as Error).message);
+              }
+            }}
+            data-testid="builder-export"
+          >
+            Export
           </Button>
           {onVersionHistory && (
             <Button

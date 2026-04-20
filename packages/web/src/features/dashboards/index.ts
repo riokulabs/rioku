@@ -47,3 +47,6 @@ export { VariablesPanel } from './components/variables-panel';
 export type { VariablesPanelProps } from './components/variables-panel';
 export { VersionHistoryDrawer } from './components/version-history-drawer';
 export type { VersionHistoryDrawerProps } from './components/version-history-drawer';
+export { ImportDashboardModal } from './components/import-dashboard-modal';
+export type { ImportDashboardModalProps } from './components/import-dashboard-modal';
+export { downloadDashboardExport } from './export-download';
