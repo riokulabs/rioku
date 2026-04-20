@@ -53,3 +53,5 @@ export type { AuditFilterBarProps } from './components/filter-bar';
 
 export { AuditDetail } from './components/detail';
 export type { AuditDetailProps } from './components/detail';
+
+export { LiveTailBadge, useAuditStream } from './components/streaming-tail';

@@ -4,7 +4,7 @@
  * Permission guard: requires audit:read.
  *
  * Shape:
- *   Header (title + counts + live-tail placeholder + export buttons)
+ *   Header (title + counts + live-tail switch + pulsing LIVE badge + export)
  *   <AuditFilterBar>
  *   <AuditList>
  *   <Drawer><AuditDetail /></Drawer>
@@ -13,9 +13,10 @@
  * ISO strings. Selected row id is also carried so back/forward restore the
  * open drawer.
  *
- * Live-tail toggle is a placeholder — the full streaming implementation
- * lands in 5c.10. The Switch currently emits a toast explaining the
- * ship-path so operator-testers don't think the UI is broken.
+ * Live-tail uses the Plan 3d trace-store pattern — the mock SSE bus
+ * dispatches `AuditEntry` events which `publishAudit` emits alongside
+ * `appendAudit`. The Zustand selector picks up new rows automatically;
+ * the `useAuditStream` hook is used only to bump the "+N" badge counter.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
@@ -42,9 +43,11 @@ import {
   AuditDetail,
   AuditFilterBar,
   AuditList,
+  LiveTailBadge,
   exportAuditCsv,
   exportAuditJsonl,
   useAuditList,
+  useAuditStream,
 } from '@/features/audit';
 import type { AuditEntry, AuditFilter } from '@/features/audit';
 
@@ -196,16 +199,20 @@ function AuditPage() {
     updateSearch((prev) => ({ ...prev, selected: '' }));
   }, [closeDrawer, updateSearch]);
 
-  // Live-tail placeholder — full streaming lands in 5c.10.
+  // Live-tail mode. `useAuditStream` subscribes to the mock bus while
+  // `tailEnabled` is true; the store re-renders via Zustand so `useAuditList`
+  // picks up new entries automatically. We only track a counter here.
   const [tailEnabled, setTailEnabled] = useState(false);
+  const [liveCount, setLiveCount] = useState(0);
+  const handleLiveEntry = useCallback(() => {
+    setLiveCount((c) => c + 1);
+  }, []);
+  useAuditStream(tenantId, tailEnabled, handleLiveEntry);
+
   const handleTailToggle = useCallback((next: boolean) => {
     setTailEnabled(next);
-    if (next) {
-      notify.info(
-        'Live tail',
-        'Streaming mode ships in 5c.10 — this toggle is a placeholder.',
-      );
-    }
+    // Reset the counter on every transition — clean slate each flip.
+    setLiveCount(0);
   }, []);
 
   const handleExport = useCallback(
@@ -242,6 +249,9 @@ function AuditPage() {
           <Badge variant="light" color="gray" size="sm">
             {String(rows.length)} entries
           </Badge>
+          {tailEnabled && (
+            <LiveTailBadge newCount={liveCount} isLive={tailEnabled} />
+          )}
         </Group>
         <Group gap="sm">
           <Switch
