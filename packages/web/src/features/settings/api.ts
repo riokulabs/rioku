@@ -83,13 +83,16 @@ export async function updateProfileAvatar(
 ): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
-  // exactOptionalPropertyTypes: only set avatar_url if non-null; otherwise
-  // patch with an empty patch (clearing avatar is handled by setting to
-  // the empty string sentinel in the view layer).
-  const patch: Partial<User> = { updated_at: now() };
-  if (avatar_url !== null) patch.avatar_url = avatar_url;
+  // Always write avatar_url: use empty string as the cleared-state sentinel
+  // so a page refresh sees no avatar rather than the stale previous value.
+  const patch: Partial<User> = {
+    avatar_url: avatar_url ?? '',
+    updated_at: now(),
+  };
   state.updateEntity('users', userId, patch);
-  state.appendAudit(makeAudit('user.profile.update_avatar', userId));
+  const auditAction =
+    avatar_url == null ? 'user.profile.avatar_removed' : 'user.profile.update_avatar';
+  state.appendAudit(makeAudit(auditAction, userId));
   emitHostEvent('user:updated', { user_id: userId, fields: ['avatar_url'] });
 }
 

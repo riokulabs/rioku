@@ -69,6 +69,7 @@ vi.mock('@mantine/dropzone', () => ({
 // ─── Imports ─────────────────────────────────────────────────────────────────
 
 import { useMockStore } from '@/api/mock-store';
+import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
 import { ProfileSection } from '../sections/profile';
 import { ProfilePasswordModal } from '../sections/profile-password-modal';
@@ -401,13 +402,10 @@ describe('<ProfileSection> — preferences', () => {
 
   it('toggling a category and saving writes it to categories_muted and emits audit + host event', async () => {
     const hostEvents: { type: string; payload: unknown }[] = [];
-    const origDispatch = window.dispatchEvent.bind(window);
-    const spy = vi.spyOn(window, 'dispatchEvent').mockImplementation((event) => {
-      if (event instanceof CustomEvent && event.type.startsWith('rioku:')) {
-        hostEvents.push({ type: event.type, payload: event.detail });
-      }
-      return origDispatch(event);
-    });
+    const listener = (e: Event) => {
+      hostEvents.push({ type: (e as CustomEvent).type, payload: (e as CustomEvent).detail });
+    };
+    mockBus.addEventListener('user:updated', listener);
 
     render(<ProfileSection />, { wrapper: Wrapper });
 
@@ -431,7 +429,9 @@ describe('<ProfileSection> — preferences', () => {
       expect(entry).toBeDefined();
     });
 
-    spy.mockRestore();
+    expect(hostEvents.some((e) => e.type === 'user:updated')).toBe(true);
+
+    mockBus.removeEventListener('user:updated', listener);
   });
 
   it('category checkboxes are disabled when user:update-own is missing', () => {

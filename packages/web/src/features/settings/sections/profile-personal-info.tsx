@@ -8,7 +8,7 @@
  *
  * Task 8a.2
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Alert,
   Avatar,
@@ -68,6 +68,14 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
   );
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  // Revoke object URLs when avatarPreview changes or on unmount to prevent leaks.
+  useEffect(
+    () => () => {
+      if (avatarPreview?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
+    },
+    [avatarPreview],
+  );
 
   const handleAvatarDrop = useCallback(
     async (files: File[]) => {
@@ -137,6 +145,14 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
             <div>
               <Dropzone
                 onDrop={(files) => { void handleAvatarDrop(files); }}
+                onReject={(files) => {
+                  const reason = files[0]?.errors[0]?.code;
+                  const msg =
+                    reason === 'file-too-large'
+                      ? 'Image must be 3 MB or smaller.'
+                      : 'Only image files are accepted.';
+                  setAvatarError(msg);
+                }}
                 accept={IMAGE_MIME_TYPE}
                 maxSize={3 * 1024 ** 2}
                 maxFiles={1}
