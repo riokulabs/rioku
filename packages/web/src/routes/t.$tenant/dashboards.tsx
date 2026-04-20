@@ -6,7 +6,7 @@
  * Permission guard: dashboard:read.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Modal, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
@@ -296,8 +296,6 @@ function DashboardsListPage() {
           </Group>
         </Stack>
       </Modal>
-
-      <Outlet />
     </Stack>
   );
 }
