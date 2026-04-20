@@ -47,3 +47,6 @@ export type { CelDiffProps } from './components/cel-diff';
 
 export { AuditList } from './components/list';
 export type { AuditListProps } from './components/list';
+
+export { AuditFilterBar } from './components/filter-bar';
+export type { AuditFilterBarProps } from './components/filter-bar';
