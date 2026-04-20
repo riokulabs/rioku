@@ -282,7 +282,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 7,
+        version: 8,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -344,6 +344,17 @@ export const useMockStore = IS_VITEST
             state.plugins = {};
             state.marketplaceListings = {};
             state.pluginSigners = {};
+          }
+          // Version 8 — Plan 7 extends NotificationItem + NotificationChannel
+          // + NotificationRoutingRule + NotificationDeliveryLogEntry with new
+          // required fields (tenant_id, severity, read_at/archived_at, at,
+          // order_hint, attempts, first/last_attempted_at). Older seeds lack
+          // these fields; drop and let the seeder repopulate.
+          if (version < 8) {
+            state.notifications = {};
+            state.notificationChannels = {};
+            state.notificationRoutingRules = {};
+            state.notificationDeliveryLog = {};
           }
           return state as unknown as MockStore;
         },

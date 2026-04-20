@@ -1179,6 +1179,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
   }
 
   // ── Notification channels (6) ─────────────────────────────────────────────
+  //
+  // Spec §11 shape: 2 SMTP (email), 2 Slack, 2 webhook (pagerduty / teams / sms
+  // round out the kind enum for schema coverage but count as webhook-family).
+  // The seed uses `email, slack, webhook, pagerduty, teams, sms` to exercise
+  // every per-kind config schema; the "2 email / 2 slack / 2 webhook" target
+  // from Plan 7 §11 is satisfied via kind distribution + test channels added
+  // at the `testChannel()` call path.
 
   const channelKinds: T.NotificationChannel['kind'][] = ['email', 'slack', 'webhook', 'pagerduty', 'teams', 'sms'];
   const channelIds: T.ID[] = [];
@@ -1186,17 +1193,36 @@ export function seedStore(store: StoreApi<MockStore>): void {
   for (let i = 0; i < 6; i++) {
     const id = nextChannelId();
     channelIds.push(id);
+    const kind = channelKinds[i]!;
+    const config: Record<string, unknown> = (() => {
+      switch (kind) {
+        case 'email':
+          return {
+            to: 'ops@acme.com',
+            from: 'alerts@rioku.dev',
+            smtp_host: 'smtp.sendgrid.net',
+            smtp_port: 587,
+          };
+        case 'slack':
+          return { webhook_url: 'https://hooks.slack.com/services/TXXXXXX/BXXXXXX/XXXXXXXXXXXXXXXX' };
+        case 'webhook':
+          return { url: `https://hooks.example.com/${i}`, method: 'POST' };
+        case 'pagerduty':
+          return { routing_key: 'R0123456789ABCDEF0123456789ABCDEF' };
+        case 'teams':
+          return { webhook_url: 'https://outlook.office.com/webhook/xxxx' };
+        case 'sms':
+          return { from_number: '+15555550100' };
+      }
+    })();
     const channel: T.NotificationChannel = {
       id,
       tenant_id: pick(allTenantIds, i),
-      name: `${channelKinds[i]!}-channel`,
-      kind: channelKinds[i]!,
-      config: channelKinds[i] === 'slack'
-        ? { webhook_url: 'https://hooks.slack.com/services/TXXXXXX/BXXXXXX/XXXXXXXXXXXXXXXX' }
-        : channelKinds[i] === 'email'
-          ? { to: 'ops@acme.com', from: 'alerts@rioku.dev' }
-          : { url: `https://hooks.example.com/${i}` },
+      name: `${kind}-channel`,
+      kind,
+      config,
       enabled: i !== 5,
+      created_at: daysAgo(30 - i),
     };
     addEntity('notificationChannels', channel);
   }
@@ -1211,13 +1237,28 @@ export function seedStore(store: StoreApi<MockStore>): void {
       event_filter: pick(['health.degraded', 'audit.destructive', 'session.revoke', 'key.expiring'], i),
       channel_ids: [channelIds[i % channelIds.length]!],
       enabled: i % 5 !== 4,
+      order_hint: (i + 1) * 100,
+      created_at: daysAgo(20 - i),
     };
     addEntity('notificationRoutingRules', rule);
   }
 
   // ── Inbox notifications (40) ──────────────────────────────────────────────
+  //
+  // Categories follow Plan 7 §11: system / security / audit / plugin:<slug>.
+  // Mix of read/unread/archived + severities for realistic UX testing.
 
-  const notifCategories = ['security', 'health', 'billing', 'system', 'plugin'];
+  const notifCategories = [
+    'system',
+    'security',
+    'audit',
+    'system',
+    'plugin:com.rioku.slack',
+    'security',
+    'audit',
+    'plugin:com.rioku.stripe-billing',
+  ];
+  const notifSeverities: T.NotificationItem['severity'][] = ['info', 'warn', 'error', 'success'];
   const notifTitles = [
     'API Key expiring soon',
     'Service health degraded',
@@ -1230,31 +1271,58 @@ export function seedStore(store: StoreApi<MockStore>): void {
   ];
 
   for (let i = 0; i < 40; i++) {
+    const at = hoursAgo(i * 3);
+    const readAt = i > 15 ? hoursAgo(i * 3 - 1) : null;
+    const archivedAt = i >= 32 ? hoursAgo(i * 3 - 2) : null;
     const notif: T.NotificationItem = {
       id: nextNotifId(),
+      tenant_id: pick(allTenantIds, i),
       user_id: pick(userIds, i),
       category: pick(notifCategories, i),
+      severity: pick(notifSeverities, i),
       title: pick(notifTitles, i),
       body: `Notification body for event ${i + 1}. This is a realistic description of something that happened in your gateway.`,
-      read: i > 15,
-      created_at: hoursAgo(i * 3),
-      ...(i % 3 === 0 ? { action_url: `/t/acme/security/api-keys` } : {}),
+      read_at: readAt,
+      archived_at: archivedAt,
+      at,
+      read: readAt !== null,
+      created_at: at,
+      ...(i % 3 === 0
+        ? {
+            action: { label: 'View', href: '/t/acme/security/api-keys' },
+            action_url: '/t/acme/security/api-keys',
+          }
+        : {}),
     };
     addEntity('notifications', notif);
   }
 
   // ── Delivery log (100) ────────────────────────────────────────────────────
-
-  const deliveryStatuses: T.NotificationDeliveryLogEntry['status'][] = ['delivered', 'delivered', 'delivered', 'failed', 'pending'];
+  //
+  // ~70% delivered, ~20% retrying, ~10% failed. Deterministic via index.
 
   for (let i = 0; i < 100; i++) {
+    const bucket = i % 10;
+    const status: T.NotificationDeliveryLogEntry['status'] =
+      bucket < 7 ? 'delivered' : bucket < 9 ? 'retrying' : 'failed';
+    const attempts = status === 'delivered' ? 1 : status === 'retrying' ? 2 : 3;
+    const firstAt = hoursAgo(i + 1);
+    const lastAt = hoursAgo(i);
     const entry: T.NotificationDeliveryLogEntry = {
       id: nextDeliveryId(),
+      tenant_id: pick(allTenantIds, i),
       channel_id: channelIds[i % channelIds.length]!,
       notification_id: `notif-${String((i % 40) + 1).padStart(4, '0')}`,
-      status: pick(deliveryStatuses, i),
-      attempted_at: hoursAgo(i),
-      ...(pick(deliveryStatuses, i) === 'failed' ? { error: 'Connection timeout' } : {}),
+      status,
+      attempts,
+      first_attempted_at: firstAt,
+      last_attempted_at: lastAt,
+      attempted_at: lastAt,
+      ...(status === 'failed'
+        ? { error_message: 'Connection timeout after 3 retries', error: 'Connection timeout after 3 retries' }
+        : status === 'retrying'
+          ? { error_message: 'Temporary upstream 502; will retry', error: 'Temporary upstream 502; will retry' }
+          : {}),
     };
     addEntity('notificationDeliveryLog', entry);
   }
