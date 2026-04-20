@@ -53,6 +53,7 @@ import { Route as TTenantAiToolsRouteImport } from './routes/t.$tenant/ai/tools'
 import { Route as TTenantAiToolRoutingRouteImport } from './routes/t.$tenant/ai/tool-routing'
 import { Route as TTenantAiRateLimitsRouteImport } from './routes/t.$tenant/ai/rate-limits'
 import { Route as TTenantAiProvidersRouteImport } from './routes/t.$tenant/ai/providers'
+import { Route as TTenantAiMcpServersRouteImport } from './routes/t.$tenant/ai/mcp-servers'
 import { Route as TTenantAiAgentsRouteImport } from './routes/t.$tenant/ai/agents'
 
 const TenantsRoute = TenantsRouteImport.update({
@@ -278,6 +279,11 @@ const TTenantAiProvidersRoute = TTenantAiProvidersRouteImport.update({
   path: '/providers',
   getParentRoute: () => TTenantAiRoute,
 } as any)
+const TTenantAiMcpServersRoute = TTenantAiMcpServersRouteImport.update({
+  id: '/mcp-servers',
+  path: '/mcp-servers',
+  getParentRoute: () => TTenantAiRoute,
+} as any)
 const TTenantAiAgentsRoute = TTenantAiAgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
   '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
+  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRoute
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
   '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRoute
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
@@ -361,6 +368,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
   '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
+  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRoute
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
   '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRoute
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
@@ -409,6 +417,7 @@ export interface FileRoutesById {
   '/t/$tenant/settings': typeof TTenantSettingsRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
   '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
+  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRoute
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
   '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRoute
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
@@ -457,6 +466,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings'
     | '/t/$tenant/sites'
     | '/t/$tenant/ai/agents'
+    | '/t/$tenant/ai/mcp-servers'
     | '/t/$tenant/ai/providers'
     | '/t/$tenant/ai/rate-limits'
     | '/t/$tenant/ai/tool-routing'
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings'
     | '/t/$tenant/sites'
     | '/t/$tenant/ai/agents'
+    | '/t/$tenant/ai/mcp-servers'
     | '/t/$tenant/ai/providers'
     | '/t/$tenant/ai/rate-limits'
     | '/t/$tenant/ai/tool-routing'
@@ -549,6 +560,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings'
     | '/t/$tenant/sites'
     | '/t/$tenant/ai/agents'
+    | '/t/$tenant/ai/mcp-servers'
     | '/t/$tenant/ai/providers'
     | '/t/$tenant/ai/rate-limits'
     | '/t/$tenant/ai/tool-routing'
@@ -884,6 +896,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantAiProvidersRouteImport
       parentRoute: typeof TTenantAiRoute
     }
+    '/t/$tenant/ai/mcp-servers': {
+      id: '/t/$tenant/ai/mcp-servers'
+      path: '/mcp-servers'
+      fullPath: '/t/$tenant/ai/mcp-servers'
+      preLoaderRoute: typeof TTenantAiMcpServersRouteImport
+      parentRoute: typeof TTenantAiRoute
+    }
     '/t/$tenant/ai/agents': {
       id: '/t/$tenant/ai/agents'
       path: '/agents'
@@ -939,6 +958,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface TTenantAiRouteChildren {
   TTenantAiAgentsRoute: typeof TTenantAiAgentsRoute
+  TTenantAiMcpServersRoute: typeof TTenantAiMcpServersRoute
   TTenantAiProvidersRoute: typeof TTenantAiProvidersRoute
   TTenantAiRateLimitsRoute: typeof TTenantAiRateLimitsRoute
   TTenantAiToolRoutingRoute: typeof TTenantAiToolRoutingRoute
@@ -948,6 +968,7 @@ interface TTenantAiRouteChildren {
 
 const TTenantAiRouteChildren: TTenantAiRouteChildren = {
   TTenantAiAgentsRoute: TTenantAiAgentsRoute,
+  TTenantAiMcpServersRoute: TTenantAiMcpServersRoute,
   TTenantAiProvidersRoute: TTenantAiProvidersRoute,
   TTenantAiRateLimitsRoute: TTenantAiRateLimitsRoute,
   TTenantAiToolRoutingRoute: TTenantAiToolRoutingRoute,
