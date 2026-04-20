@@ -335,6 +335,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'session:read' },
     { permission: 'session:revoke' },
     { permission: 'audit:read' },
+    { permission: 'audit:read-sensitive' },
+    { permission: 'audit:export' },
+    { permission: 'audit:retention:read' },
+    { permission: 'audit:retention:write' },
     { permission: 'tenant:switch' },
     { permission: 'admin:cross-tenant-read' },
     { permission: 'admin:cross-tenant-write' },
@@ -366,6 +370,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
   const opsGrants: T.Grant[] = [
+    { permission: 'audit:read' },
+    { permission: 'audit:export' },
+    { permission: 'audit:retention:read' },
     { permission: 'ai-provider:read' },
     { permission: 'ai-provider:write' },
     { permission: 'ai-agent:read' },
@@ -394,6 +401,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'middleware:read' },
     { permission: 'api-key:read' },
     { permission: 'session:read' },
+    { permission: 'audit:read' },
+    { permission: 'audit:retention:read' },
     { permission: 'tenant:switch' },
     // Plan 3 — read-only (NOT ai-trace:read-sensitive).
     { permission: 'ai-provider:read' },

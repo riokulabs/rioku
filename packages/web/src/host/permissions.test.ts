@@ -84,6 +84,10 @@ describe('BUILT_IN_PERMISSIONS', () => {
 
   it('contains all audit:* permissions', () => {
     expect(keys).toContain('audit:read');
+    expect(keys).toContain('audit:read-sensitive');
+    expect(keys).toContain('audit:export');
+    expect(keys).toContain('audit:retention:read');
+    expect(keys).toContain('audit:retention:write');
   });
 
   it('contains all site:* permissions', () => {

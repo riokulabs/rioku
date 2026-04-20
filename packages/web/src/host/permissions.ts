@@ -269,7 +269,31 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     key: 'audit:read',
     description: 'View the audit log',
     source: 'built-in',
-    default_roles: ['admin', 'super-admin'],
+    default_roles: ['viewer', 'ops', 'admin', 'super-admin'],
+  },
+  {
+    key: 'audit:read-sensitive',
+    description: 'View sensitive audit fields (IP, user-agent, payload bodies) and free-text search payloads',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'audit:export',
+    description: 'Export audit entries as CSV or JSONL',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'audit:retention:read',
+    description: 'View the audit retention configuration',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'audit:retention:write',
+    description: 'Change the audit retention configuration',
+    source: 'built-in',
+    default_roles: ['admin'],
   },
 
   // site:*
