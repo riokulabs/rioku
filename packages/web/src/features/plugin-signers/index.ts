@@ -12,6 +12,11 @@ export {
   revokeSigner,
 } from './api';
 
+export { SignerList } from './components/list';
+export { SignerDetail } from './components/detail';
+export { SignerForm } from './components/form';
+export { SignerFilterBar } from './components/filter-bar';
+
 export {
   createSignerSchema,
   updateSignerSchema,

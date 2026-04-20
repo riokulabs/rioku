@@ -60,11 +60,18 @@ describe('<InstalledPluginDetail> — signer chip', () => {
   });
 
   it('renders the Unsigned chip when the plugin has no signer_id', () => {
-    // Create a one-off unsigned plugin directly in the store.
+    // Directly mutate the signer_id on a seeded plugin so the chip renders
+    // the Unsigned state. We cannot pass `undefined` through updateEntity()
+    // because exactOptionalPropertyTypes rejects explicit-undefined writes.
     const state = useMockStore.getState();
     const existing = Object.values(state.plugins)[0];
     if (!existing) throw new Error('need at least one seeded plugin');
-    state.updateEntity('plugins', existing.id, { signer_id: undefined });
+    useMockStore.setState((s) => {
+      const target = s.plugins[existing.id];
+      if (!target) return s;
+      const { signer_id: _omit, ...rest } = target;
+      return { ...s, plugins: { ...s.plugins, [existing.id]: rest } };
+    });
 
     wrap(
       <InstalledPluginDetail

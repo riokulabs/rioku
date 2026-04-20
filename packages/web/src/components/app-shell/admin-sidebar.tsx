@@ -6,6 +6,7 @@ import {
   IconPlug,
   IconServer,
   IconFileText,
+  IconShieldCheck,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -35,6 +36,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
     heading: 'System',
     items: [
       { label: 'Plugins', to: '/admin/plugins', icon: IconPlug },
+      { label: 'Signer allow-list', to: '/admin/plugin-signers', icon: IconShieldCheck },
       { label: 'Cluster', to: '/admin/cluster', icon: IconServer },
       { label: 'Audit', to: '/admin/audit', icon: IconFileText },
     ],

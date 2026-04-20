@@ -12,17 +12,22 @@
 import { useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import {
+  Button,
+  Group,
   Stack,
-  Title,
   Tabs,
+  Title,
   Drawer,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-  IconPlug,
-  IconShoppingBag,
   IconLink,
+  IconPlug,
+  IconShieldCheck,
+  IconShoppingBag,
 } from '@tabler/icons-react';
+import { Link } from '@tanstack/react-router';
+import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
@@ -93,6 +98,8 @@ function PluginsPage() {
   );
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
+
+  const canReadSigners = usePermission('plugin-signer:read');
 
   const activeTab: TabValue = isValidTab(search.tab) ? search.tab : 'installed';
 
@@ -208,7 +215,21 @@ function PluginsPage() {
 
   return (
     <Stack gap="md" p="md">
-      <Title order={2}>Plugins</Title>
+      <Group justify="space-between" align="center">
+        <Title order={2}>Plugins</Title>
+        {canReadSigners && (
+          <Button
+            variant="subtle"
+            leftSection={<IconShieldCheck size={16} />}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+            component={Link as any}
+            to="/t/$tenant/plugins/signers"
+            params={{ tenant: tenantSlug }}
+          >
+            Signer allow-list
+          </Button>
+        )}
+      </Group>
 
       <Tabs value={activeTab} onChange={handleTabChange} keepMounted={false}>
         <Tabs.List>

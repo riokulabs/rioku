@@ -18,6 +18,7 @@ import { Route as TTenantRouteImport } from './routes/t.$tenant'
 import { Route as PluginsSplatRouteImport } from './routes/plugins.$'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTenantsRouteImport } from './routes/admin/tenants'
+import { Route as AdminPluginSignersRouteImport } from './routes/admin/plugin-signers'
 import { Route as AdminImpersonateRouteImport } from './routes/admin/impersonate'
 import { Route as AdminClusterRouteImport } from './routes/admin/cluster'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
@@ -52,6 +53,7 @@ import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$ten
 import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/security/audit'
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
+import { Route as TTenantPluginsSignersRouteImport } from './routes/t.$tenant/plugins_.signers'
 import { Route as TTenantDashboardsDashboardIdRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId'
 import { Route as TTenantAiTracesRouteImport } from './routes/t.$tenant/ai/traces'
 import { Route as TTenantAiToolsRouteImport } from './routes/t.$tenant/ai/tools'
@@ -104,6 +106,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 const AdminTenantsRoute = AdminTenantsRouteImport.update({
   id: '/tenants',
   path: '/tenants',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPluginSignersRoute = AdminPluginSignersRouteImport.update({
+  id: '/plugin-signers',
+  path: '/plugin-signers',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminImpersonateRoute = AdminImpersonateRouteImport.update({
@@ -281,6 +288,11 @@ const TTenantSecurityAccessPoliciesRoute =
     path: '/access-policies',
     getParentRoute: () => TTenantSecurityRoute,
   } as any)
+const TTenantPluginsSignersRoute = TTenantPluginsSignersRouteImport.update({
+  id: '/plugins_/signers',
+  path: '/plugins/signers',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantDashboardsDashboardIdRoute =
   TTenantDashboardsDashboardIdRouteImport.update({
     id: '/dashboards_/$dashboardId',
@@ -343,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/cluster': typeof AdminClusterRoute
   '/admin/impersonate': typeof AdminImpersonateRoute
+  '/admin/plugin-signers': typeof AdminPluginSignersRoute
   '/admin/tenants': typeof AdminTenantsRoute
   '/admin/users': typeof AdminUsersRoute
   '/plugins/$': typeof PluginsSplatRoute
@@ -369,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -396,6 +410,7 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/cluster': typeof AdminClusterRoute
   '/admin/impersonate': typeof AdminImpersonateRoute
+  '/admin/plugin-signers': typeof AdminPluginSignersRoute
   '/admin/tenants': typeof AdminTenantsRoute
   '/admin/users': typeof AdminUsersRoute
   '/plugins/$': typeof PluginsSplatRoute
@@ -420,6 +435,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -449,6 +465,7 @@ export interface FileRoutesById {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/cluster': typeof AdminClusterRoute
   '/admin/impersonate': typeof AdminImpersonateRoute
+  '/admin/plugin-signers': typeof AdminPluginSignersRoute
   '/admin/tenants': typeof AdminTenantsRoute
   '/admin/users': typeof AdminUsersRoute
   '/plugins/$': typeof PluginsSplatRoute
@@ -475,6 +492,7 @@ export interface FileRoutesById {
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
   '/t/$tenant/dashboards_/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -504,6 +522,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/cluster'
     | '/admin/impersonate'
+    | '/admin/plugin-signers'
     | '/admin/tenants'
     | '/admin/users'
     | '/plugins/$'
@@ -530,6 +549,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
+    | '/t/$tenant/plugins/signers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -557,6 +577,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/cluster'
     | '/admin/impersonate'
+    | '/admin/plugin-signers'
     | '/admin/tenants'
     | '/admin/users'
     | '/plugins/$'
@@ -581,6 +602,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
+    | '/t/$tenant/plugins/signers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -609,6 +631,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/cluster'
     | '/admin/impersonate'
+    | '/admin/plugin-signers'
     | '/admin/tenants'
     | '/admin/users'
     | '/plugins/$'
@@ -635,6 +658,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards_/$dashboardId'
+    | '/t/$tenant/plugins_/signers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -722,6 +746,13 @@ declare module '@tanstack/react-router' {
       path: '/tenants'
       fullPath: '/admin/tenants'
       preLoaderRoute: typeof AdminTenantsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/plugin-signers': {
+      id: '/admin/plugin-signers'
+      path: '/plugin-signers'
+      fullPath: '/admin/plugin-signers'
+      preLoaderRoute: typeof AdminPluginSignersRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/impersonate': {
@@ -962,6 +993,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityAccessPoliciesRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/plugins_/signers': {
+      id: '/t/$tenant/plugins_/signers'
+      path: '/plugins/signers'
+      fullPath: '/t/$tenant/plugins/signers'
+      preLoaderRoute: typeof TTenantPluginsSignersRouteImport
+      parentRoute: typeof TTenantRoute
+    }
     '/t/$tenant/dashboards_/$dashboardId': {
       id: '/t/$tenant/dashboards_/$dashboardId'
       path: '/dashboards/$dashboardId'
@@ -1057,6 +1095,7 @@ interface AdminRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminClusterRoute: typeof AdminClusterRoute
   AdminImpersonateRoute: typeof AdminImpersonateRoute
+  AdminPluginSignersRoute: typeof AdminPluginSignersRoute
   AdminTenantsRoute: typeof AdminTenantsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
@@ -1065,6 +1104,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminClusterRoute: AdminClusterRoute,
   AdminImpersonateRoute: AdminImpersonateRoute,
+  AdminPluginSignersRoute: AdminPluginSignersRoute,
   AdminTenantsRoute: AdminTenantsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
@@ -1149,6 +1189,7 @@ interface TTenantRouteChildren {
   TTenantSettingsRoute: typeof TTenantSettingsRouteWithChildren
   TTenantSitesRoute: typeof TTenantSitesRoute
   TTenantDashboardsDashboardIdRoute: typeof TTenantDashboardsDashboardIdRoute
+  TTenantPluginsSignersRoute: typeof TTenantPluginsSignersRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
   TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
 }
@@ -1167,6 +1208,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantSettingsRoute: TTenantSettingsRouteWithChildren,
   TTenantSitesRoute: TTenantSitesRoute,
   TTenantDashboardsDashboardIdRoute: TTenantDashboardsDashboardIdRoute,
+  TTenantPluginsSignersRoute: TTenantPluginsSignersRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
   TTenantDashboardsDashboardIdEditRoute: TTenantDashboardsDashboardIdEditRoute,
 }
