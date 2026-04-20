@@ -9,6 +9,13 @@ export {
 export type { WidgetRenderProps, WidgetTypeDefinition } from './types';
 export { WidgetRenderError } from './types';
 
+export {
+  DATA_SOURCE_ADAPTERS,
+  WidgetQueryError,
+  runWidgetQuery,
+} from './data-sources';
+export type { AdvancedQuery } from './data-sources';
+
 export { SingleStatWidget } from './components/single-stat';
 export { SparklineWidget } from './components/sparkline';
 export { TimeSeriesWidget } from './components/time-series';
