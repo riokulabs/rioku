@@ -337,9 +337,23 @@ export function AgentDetail({
 
       {/* Recent traces */}
       <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Recent traces ({String(recentTraces.length)})
-        </Text>
+        <Group justify="space-between" align="center">
+          <Text size="sm" fw={600}>
+            Recent traces ({String(recentTraces.length)})
+          </Text>
+          <Button
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast
+            component={Link as any}
+            to="/t/$tenant/ai/traces"
+            params={{ tenant: tenantSlug }}
+            search={{ agent: agent.id, range: '24h' }}
+            size="xs"
+            variant="subtle"
+            rightSection={<IconExternalLink size={12} />}
+          >
+            View all traces for this agent
+          </Button>
+        </Group>
         {recentTraces.length === 0 ? (
           <Text size="xs" c="var(--mantine-color-gray-7)">
             No traces recorded yet.

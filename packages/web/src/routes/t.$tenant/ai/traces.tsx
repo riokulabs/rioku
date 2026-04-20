@@ -18,16 +18,19 @@ import {
   Drawer,
   Badge,
   Switch,
+  Button,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAccessPoint } from '@tabler/icons-react';
+import { IconAccessPoint, IconDownload } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
+import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   TraceList,
   TraceFilterBar,
   TraceDetail,
   LiveTailBadge,
+  exportTracesCsv,
   useTraceList,
   useTraceStream,
 } from '@/features/ai-traces';
@@ -165,6 +168,26 @@ function AiTracesPage() {
     openDrawer();
   }
 
+  function handleExport() {
+    try {
+      const blob = exportTracesCsv(tenantId, filter);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai-traces-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      notify.success(
+        'Export complete',
+        `Downloaded ${String(totalCount)} traces.`,
+      );
+    } catch {
+      notify.error('Export failed', 'Please try again.');
+    }
+  }
+
   return (
     <Stack gap="md" p="md">
       <Group justify="space-between" align="center">
@@ -186,6 +209,15 @@ function AiTracesPage() {
             aria-label="Toggle live trace tail"
             data-testid="live-tail-switch"
           />
+          <Button
+            variant="subtle"
+            leftSection={<IconDownload size={14} />}
+            onClick={handleExport}
+            aria-label="Export traces as CSV"
+            data-testid="export-csv"
+          >
+            Export CSV
+          </Button>
         </Group>
       </Group>
 
