@@ -2,24 +2,333 @@
  * Audit page — /t/$tenant/security/audit
  *
  * Permission guard: requires audit:read.
- * Mounts <AuditList> which handles its own detail drawer internally.
+ *
+ * Shape:
+ *   Header (title + counts + live-tail placeholder + export buttons)
+ *   <AuditFilterBar>
+ *   <AuditList>
+ *   <Drawer><AuditDetail /></Drawer>
+ *
+ * URL-synced filter — bounded as CSV, unbounded handles as CSV, dates as
+ * ISO strings. Selected row id is also carried so back/forward restore the
+ * open drawer.
+ *
+ * Live-tail toggle is a placeholder — the full streaming implementation
+ * lands in 5c.10. The Switch currently emits a toast explaining the
+ * ship-path so operator-testers don't think the UI is broken.
  */
-import { createFileRoute } from '@tanstack/react-router';
-import { AuditList } from '@/features/security/audit';
+import { useCallback, useMemo, useState } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import {
+  Badge,
+  Button,
+  Drawer,
+  Group,
+  Menu,
+  Stack,
+  Switch,
+  Title,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import {
+  IconAccessPoint,
+  IconChevronDown,
+  IconDownload,
+} from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
+import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
+import {
+  AuditDetail,
+  AuditFilterBar,
+  AuditList,
+  exportAuditCsv,
+  exportAuditJsonl,
+  useAuditList,
+} from '@/features/audit';
+import type { AuditEntry, AuditFilter } from '@/features/audit';
+
+// ─── Search params ───────────────────────────────────────────────────────────
+
+interface SearchParams {
+  actions: string[];
+  outcomes: AuditFilter['outcomes'];
+  resource_types: string[];
+  tiers: AuditFilter['tiers'];
+  actor_handles: string[];
+  resource_id_handles: string[];
+  search: string;
+  date_from: string | null;
+  date_to: string | null;
+  selected?: string;
+}
+
+const OUTCOME_VALUES: readonly AuditFilter['outcomes'][number][] = [
+  'success',
+  'denied',
+  'error',
+];
+const TIER_VALUES: readonly AuditFilter['tiers'][number][] = [
+  'read',
+  'read-sensitive',
+  'write',
+  'destructive',
+];
+
+function parseCsv(v: unknown): string[] {
+  if (Array.isArray(v)) {
+    return v.filter((x): x is string => typeof x === 'string' && x.length > 0);
+  }
+  if (typeof v !== 'string' || v.length === 0) return [];
+  return v
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function parseOutcomes(v: unknown): AuditFilter['outcomes'] {
+  return parseCsv(v).filter((x): x is AuditFilter['outcomes'][number] =>
+    (OUTCOME_VALUES as readonly string[]).includes(x),
+  );
+}
+
+function parseTiers(v: unknown): AuditFilter['tiers'] {
+  return parseCsv(v).filter((x): x is AuditFilter['tiers'][number] =>
+    (TIER_VALUES as readonly string[]).includes(x),
+  );
+}
+
+function parseIso(v: unknown): string | null {
+  if (typeof v !== 'string' || v.length === 0) return null;
+  return Number.isNaN(Date.parse(v)) ? null : v;
+}
+
+// ─── Page component ──────────────────────────────────────────────────────────
 
 function AuditPage() {
   const { tenant } = Route.useParams();
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+
   const tenantRecord = useMockStore((s) =>
     Object.values(s.tenants).find((t) => t.slug === tenant),
   );
   const tenantId = tenantRecord?.id ?? '';
+  const tenantSlug = tenantRecord?.slug ?? tenant;
 
-  return <AuditList tenantId={tenantId} />;
+  // Build the filter from URL-synced search params. Filter identity changes
+  // only when an underlying value changes; deriving it via useMemo keeps the
+  // list-hook from thrashing on unrelated re-renders.
+  const filter: AuditFilter = useMemo(
+    () => ({
+      actions: search.actions,
+      outcomes: search.outcomes,
+      resource_types: search.resource_types,
+      tiers: search.tiers,
+      actor_handles: search.actor_handles,
+      resource_id_handles: search.resource_id_handles,
+      search: search.search,
+      date_from: search.date_from,
+      date_to: search.date_to,
+    }),
+    [
+      search.actions,
+      search.outcomes,
+      search.resource_types,
+      search.tiers,
+      search.actor_handles,
+      search.resource_id_handles,
+      search.search,
+      search.date_from,
+      search.date_to,
+    ],
+  );
+
+  const rows = useAuditList(tenantId, filter);
+
+  // Drawer state — selected id persists to URL so back/forward restore it.
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
+    useDisclosure(Boolean(search.selected));
+  const selectedEntry = useMemo<AuditEntry | null>(() => {
+    if (!search.selected) return null;
+    return rows.find((e) => e.id === search.selected) ?? null;
+  }, [rows, search.selected]);
+
+  const updateSearch = useCallback(
+    (mutate: (prev: Record<string, unknown>) => Record<string, unknown>) => {
+      void navigate({
+        to: '/t/$tenant/security/audit',
+        params: { tenant: tenantSlug },
+        search: mutate,
+        replace: true,
+      } as unknown as Parameters<typeof navigate>[0]);
+    },
+    [navigate, tenantSlug],
+  );
+
+  const handleFilterChange = useCallback(
+    (next: AuditFilter) => {
+      updateSearch(() => ({
+        actions: next.actions.join(','),
+        outcomes: next.outcomes.join(','),
+        resource_types: next.resource_types.join(','),
+        tiers: next.tiers.join(','),
+        actor_handles: next.actor_handles.join(','),
+        resource_id_handles: next.resource_id_handles.join(','),
+        search: next.search,
+        date_from: next.date_from ?? '',
+        date_to: next.date_to ?? '',
+      }));
+    },
+    [updateSearch],
+  );
+
+  const handleRowSelect = useCallback(
+    (entry: AuditEntry) => {
+      updateSearch((prev) => ({ ...prev, selected: entry.id }));
+      openDrawer();
+    },
+    [openDrawer, updateSearch],
+  );
+
+  const handleDrawerClose = useCallback(() => {
+    closeDrawer();
+    updateSearch((prev) => ({ ...prev, selected: '' }));
+  }, [closeDrawer, updateSearch]);
+
+  // Live-tail placeholder — full streaming lands in 5c.10.
+  const [tailEnabled, setTailEnabled] = useState(false);
+  const handleTailToggle = useCallback((next: boolean) => {
+    setTailEnabled(next);
+    if (next) {
+      notify.info(
+        'Live tail',
+        'Streaming mode ships in 5c.10 — this toggle is a placeholder.',
+      );
+    }
+  }, []);
+
+  const handleExport = useCallback(
+    (format: 'csv' | 'jsonl') => {
+      try {
+        const blob =
+          format === 'csv'
+            ? exportAuditCsv(tenantId, filter)
+            : exportAuditJsonl(tenantId, filter);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit-${new Date().toISOString().slice(0, 10)}.${format === 'csv' ? 'csv' : 'jsonl'}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        notify.success(
+          'Export complete',
+          `Downloaded ${String(rows.length)} entries as ${format.toUpperCase()}.`,
+        );
+      } catch {
+        notify.error('Export failed', 'Please try again.');
+      }
+    },
+    [tenantId, filter, rows.length],
+  );
+
+  return (
+    <Stack gap="md" p="md" data-testid="audit-page">
+      <Group justify="space-between" align="center">
+        <Group gap="sm" align="center">
+          <Title order={2}>Audit log</Title>
+          <Badge variant="light" color="gray" size="sm">
+            {String(rows.length)} entries
+          </Badge>
+        </Group>
+        <Group gap="sm">
+          <Switch
+            label="Live tail"
+            checked={tailEnabled}
+            onChange={(e) => {
+              handleTailToggle(e.currentTarget.checked);
+            }}
+            thumbIcon={<IconAccessPoint size={10} />}
+            aria-label="Toggle live audit tail"
+            data-testid="audit-live-tail-switch"
+          />
+          <Menu shadow="md" width={160}>
+            <Menu.Target>
+              <Button
+                variant="subtle"
+                leftSection={<IconDownload size={14} />}
+                rightSection={<IconChevronDown size={14} />}
+                aria-label="Export audit entries"
+                data-testid="audit-export-menu"
+              >
+                Export
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item
+                onClick={() => {
+                  handleExport('csv');
+                }}
+                data-testid="audit-export-csv"
+              >
+                CSV
+              </Menu.Item>
+              <Menu.Item
+                onClick={() => {
+                  handleExport('jsonl');
+                }}
+                data-testid="audit-export-jsonl"
+              >
+                JSONL
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
+      </Group>
+
+      <AuditFilterBar
+        tenantId={tenantId}
+        filter={filter}
+        onChange={handleFilterChange}
+      />
+
+      <AuditList rows={rows} onSelect={handleRowSelect} />
+
+      <Drawer
+        opened={drawerOpened}
+        onClose={handleDrawerClose}
+        title={
+          selectedEntry ? `Audit · ${selectedEntry.action}` : 'Audit entry'
+        }
+        position="right"
+        size="xl"
+        padding="md"
+      >
+        {selectedEntry && (
+          <AuditDetail entry={selectedEntry} onClose={handleDrawerClose} />
+        )}
+      </Drawer>
+    </Stack>
+  );
 }
 
 export const Route = createFileRoute('/t/$tenant/security/audit')({
   beforeLoad: requirePermissions({ required: ['audit:read'] }),
   component: AuditPage,
+  validateSearch: (s: Record<string, unknown>): SearchParams => ({
+    actions: parseCsv(s.actions),
+    outcomes: parseOutcomes(s.outcomes),
+    resource_types: parseCsv(s.resource_types),
+    tiers: parseTiers(s.tiers),
+    actor_handles: parseCsv(s.actor_handles),
+    resource_id_handles: parseCsv(s.resource_id_handles),
+    search: typeof s.search === 'string' ? s.search : '',
+    date_from: parseIso(s.date_from),
+    date_to: parseIso(s.date_to),
+    ...(typeof s.selected === 'string' && s.selected.length > 0
+      ? { selected: s.selected }
+      : {}),
+  }),
 });
