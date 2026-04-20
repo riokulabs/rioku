@@ -35,6 +35,7 @@ import { Route as TTenantSecurityRouteImport } from './routes/t.$tenant/security
 import { Route as TTenantRoutesRouteImport } from './routes/t.$tenant/routes'
 import { Route as TTenantPoliciesRouteImport } from './routes/t.$tenant/policies'
 import { Route as TTenantPluginsRouteImport } from './routes/t.$tenant/plugins'
+import { Route as TTenantNotificationsRouteImport } from './routes/t.$tenant/notifications'
 import { Route as TTenantMiddlewaresRouteImport } from './routes/t.$tenant/middlewares'
 import { Route as TTenantDashboardsRouteImport } from './routes/t.$tenant/dashboards'
 import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
@@ -191,6 +192,11 @@ const TTenantPoliciesRoute = TTenantPoliciesRouteImport.update({
 const TTenantPluginsRoute = TTenantPluginsRouteImport.update({
   id: '/plugins',
   path: '/plugins',
+  getParentRoute: () => TTenantRoute,
+} as any)
+const TTenantNotificationsRoute = TTenantNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => TTenantRoute,
 } as any)
 const TTenantMiddlewaresRoute = TTenantMiddlewaresRouteImport.update({
@@ -367,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
+  '/t/$tenant/notifications': typeof TTenantNotificationsRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/policies': typeof TTenantPoliciesRoute
   '/t/$tenant/routes': typeof TTenantRoutesRoute
@@ -421,6 +428,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
+  '/t/$tenant/notifications': typeof TTenantNotificationsRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/policies': typeof TTenantPoliciesRoute
   '/t/$tenant/routes': typeof TTenantRoutesRoute
@@ -477,6 +485,7 @@ export interface FileRoutesById {
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
+  '/t/$tenant/notifications': typeof TTenantNotificationsRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/policies': typeof TTenantPoliciesRoute
   '/t/$tenant/routes': typeof TTenantRoutesRoute
@@ -534,6 +543,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboard'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
+    | '/t/$tenant/notifications'
     | '/t/$tenant/plugins'
     | '/t/$tenant/policies'
     | '/t/$tenant/routes'
@@ -588,6 +598,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboard'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
+    | '/t/$tenant/notifications'
     | '/t/$tenant/plugins'
     | '/t/$tenant/policies'
     | '/t/$tenant/routes'
@@ -643,6 +654,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboard'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
+    | '/t/$tenant/notifications'
     | '/t/$tenant/plugins'
     | '/t/$tenant/policies'
     | '/t/$tenant/routes'
@@ -865,6 +877,13 @@ declare module '@tanstack/react-router' {
       path: '/plugins'
       fullPath: '/t/$tenant/plugins'
       preLoaderRoute: typeof TTenantPluginsRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/notifications': {
+      id: '/t/$tenant/notifications'
+      path: '/notifications'
+      fullPath: '/t/$tenant/notifications'
+      preLoaderRoute: typeof TTenantNotificationsRouteImport
       parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/middlewares': {
@@ -1181,6 +1200,7 @@ interface TTenantRouteChildren {
   TTenantDashboardRoute: typeof TTenantDashboardRoute
   TTenantDashboardsRoute: typeof TTenantDashboardsRoute
   TTenantMiddlewaresRoute: typeof TTenantMiddlewaresRoute
+  TTenantNotificationsRoute: typeof TTenantNotificationsRoute
   TTenantPluginsRoute: typeof TTenantPluginsRoute
   TTenantPoliciesRoute: typeof TTenantPoliciesRoute
   TTenantRoutesRoute: typeof TTenantRoutesRoute
@@ -1200,6 +1220,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantDashboardRoute: TTenantDashboardRoute,
   TTenantDashboardsRoute: TTenantDashboardsRoute,
   TTenantMiddlewaresRoute: TTenantMiddlewaresRoute,
+  TTenantNotificationsRoute: TTenantNotificationsRoute,
   TTenantPluginsRoute: TTenantPluginsRoute,
   TTenantPoliciesRoute: TTenantPoliciesRoute,
   TTenantRoutesRoute: TTenantRoutesRoute,

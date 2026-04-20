@@ -42,3 +42,11 @@ export type {
   NotificationAction,
   NotificationItem,
 } from './types';
+
+export { InboxDropdown } from './components/inbox-dropdown';
+export { NotificationDetail } from './components/detail';
+export {
+  NotificationFilterBar,
+  type ReadFilter,
+} from './components/filter-bar';
+export { NotificationList } from './components/list';

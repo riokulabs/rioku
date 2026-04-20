@@ -22,6 +22,7 @@ import {
   IconGauge,
   IconHistory,
   IconLayoutDashboard,
+  IconBell,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -46,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
       { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
       { label: 'Analytics', to: '/t/acme/analytics', icon: IconChartBar },
+      { label: 'Notifications', to: '/t/acme/notifications', icon: IconBell },
     ],
   },
   {
