@@ -748,11 +748,38 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   const auditTiers: T.AuditEntry['tier'][] = ['read', 'read-sensitive', 'write', 'destructive'];
   const auditOutcomes: T.AuditEntry['outcome'][] = ['success', 'success', 'success', 'denied', 'error'];
+  const accessPolicyIds = Object.keys(store.getState().accessPolicies);
 
   for (let i = 0; i < 300; i++) {
+    const tenantId = i % 20 === 0 ? null : pick(allTenantIds, i);
+    // Plan 5 extended fields — deterministic per-index sprinkling:
+    //   ~30% have ip (and user_agent rides alongside it),
+    //   ~20% totp_verified=true, ~10% have 1–3 policies_evaluated entries.
+    const hasIp = i % 10 < 3;
+    const hasTotp = i % 10 < 2;
+    const hasPolicies = i % 10 === 0 && accessPolicyIds.length > 0;
+    const policiesEvaluated = hasPolicies
+      ? (() => {
+          const count = (i % 3) + 1;
+          const arr: NonNullable<T.AuditEntry['policies_evaluated']> = [];
+          for (let k = 0; k < count; k++) {
+            const pid = accessPolicyIds[(i + k) % accessPolicyIds.length]!;
+            const decision: 'allow' | 'deny' = (i + k) % 4 === 3 ? 'deny' : 'allow';
+            arr.push({
+              policy_id: pid,
+              decision,
+              ...(decision === 'deny'
+                ? { reason: 'condition evaluated to false' }
+                : {}),
+            });
+          }
+          return arr;
+        })()
+      : undefined;
+
     const entry: T.AuditEntry = {
       id: nextAuditId(),
-      tenant_id: i % 20 === 0 ? null : pick(allTenantIds, i),
+      tenant_id: tenantId,
       actor_id: userIds[i % userIds.length]!,
       action: auditActions[i % auditActions.length]!,
       resource_type: pick(['user', 'role', 'service', 'route', 'api_key', 'session', 'policy', 'plugin'], i),
@@ -760,9 +787,33 @@ export function seedStore(store: StoreApi<MockStore>): void {
       outcome: pick(auditOutcomes, i),
       at: daysAgo(Math.floor(i / 10)),
       tier: pick(auditTiers, i),
+      request_id: `req_${String(i).padStart(6, '0')}`,
+      ...(hasIp ? { ip: `10.0.${Math.floor(i / 10) % 256}.${(i % 254) + 1}` } : {}),
+      ...(hasIp ? { user_agent: pick(userAgents, i) } : {}),
+      ...(hasTotp ? { totp_verified: true } : {}),
+      ...(policiesEvaluated ? { policies_evaluated: policiesEvaluated } : {}),
     };
     appendAudit(entry);
   }
+
+  // ── Audit retention config (1 per tenant) ────────────────────────────────
+
+  const retentionConfigs: Record<T.ID, T.AuditRetentionConfig> = {};
+  for (const tid of allTenantIds) {
+    retentionConfigs[tid] = {
+      tenant_id: tid,
+      retention_days: {
+        read: 30,
+        'read-sensitive': 90,
+        write: 180,
+        destructive: 365,
+      },
+      auto_export: 'weekly',
+      auto_export_format: 'jsonl',
+      updated_at: daysAgo(5),
+    };
+  }
+  store.setState({ auditRetentionConfigs: retentionConfigs });
 
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 

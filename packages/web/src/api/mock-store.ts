@@ -37,6 +37,8 @@ interface MockStoreState {
   audit: T.AuditEntry[];
   // Super-admin cross-tenant audit — separate hash-chained log
   adminAudit: T.AdminAuditEntry[];
+  // Audit retention config — keyed by tenant_id, at most one per tenant
+  auditRetentionConfigs: Record<T.ID, T.AuditRetentionConfig>;
 
   // Sites
   sites: Record<T.ID, T.Site>;
@@ -174,6 +176,7 @@ function emptyState(): MockStoreState {
     impersonationSessions: {},
     audit: [],
     adminAudit: [],
+    auditRetentionConfigs: {},
     sites: {},
     dashboards: {},
     widgets: {},
@@ -276,7 +279,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 5,
+        version: 6,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -324,6 +327,11 @@ export const useMockStore = IS_VITEST
             state.widgets = {};
             state.dashboardVersions = {};
             state.userHomeDashboards = {};
+          }
+          // Version 6 — Plan 5 adds auditRetentionConfigs (tenant_id → config).
+          // Additive; persisted stores from v5 simply get an empty map.
+          if (version < 6) {
+            state.auditRetentionConfigs = {};
           }
           return state as unknown as MockStore;
         },

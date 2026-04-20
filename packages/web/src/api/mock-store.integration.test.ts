@@ -30,6 +30,7 @@ function makeFreshStore() {
     impersonationSessions: {},
     audit: [],
     adminAudit: [],
+    auditRetentionConfigs: {},
     sites: {},
     dashboards: {},
     widgets: {},
