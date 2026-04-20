@@ -1004,6 +1004,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
       declared_permissions: [`${p.slug}.read`, `${p.slug}.write`],
       manifest: { slug: p.slug, version: p.version },
       has_errors: p.has_errors,
+      // Plan 6 additions — signer wiring comes in Task 6a.2.
+      build_state: p.has_errors ? 'failed' : 'stable',
+      cosign_verified: !p.has_errors,
     };
     addEntity('plugins', plugin);
   }

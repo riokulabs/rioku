@@ -78,6 +78,9 @@ export async function installPlugin(
     declared_permissions: candidate.declared_permissions,
     manifest: candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
     has_errors: false,
+    // Plan 6 additions — direct installs land as stable + cosign-verified.
+    build_state: 'stable',
+    cosign_verified: true,
   };
   state.addEntity('plugins', plugin);
 

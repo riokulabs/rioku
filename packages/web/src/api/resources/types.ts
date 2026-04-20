@@ -420,6 +420,36 @@ export interface Plugin {
   declared_permissions: string[];
   manifest: unknown;
   has_errors: boolean;
+  // New in Plan 6:
+  /** Build/swap state. 'stable' = latest published; 'building' = install in progress; 'failed' = last install failed. */
+  build_state: 'stable' | 'building' | 'failed';
+  /** Captured stdout/stderr for failed builds. */
+  last_build_log?: string;
+  /** FK to PluginSigner.id — who signed this plugin. Optional (unsigned / dev-mode). */
+  signer_id?: ID;
+  /** Stage-1 mock — cosign verification outcome. */
+  cosign_verified: boolean;
+  /** Opaque SBOM URI (e.g. oci://..., https://...). */
+  sbom_uri?: string;
+}
+
+/**
+ * PluginSigner — identity of a party authorised to sign plugins.
+ *
+ * Plan 6 stage-1 mock surface. In stage 2+ this maps to the cosign/TUF root
+ * allow-list enforced by the daemon.
+ */
+export interface PluginSigner {
+  readonly id: ID;
+  /** null = global (super-admin-only); otherwise tenant-scoped. */
+  tenant_scope: ID | null;
+  name: string;
+  /** SHA-256 hex fingerprint (64 lowercase hex chars). */
+  fingerprint: string;
+  /** 'verified' = cosign-valid, 'revoked' = explicitly denied, 'pending' = awaiting review. */
+  status: 'verified' | 'revoked' | 'pending';
+  description?: string;
+  readonly created_at: string;
 }
 
 export interface MarketplaceListing {
