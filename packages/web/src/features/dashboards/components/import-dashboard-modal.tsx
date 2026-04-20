@@ -50,7 +50,8 @@ async function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      resolve(String(reader.result ?? ''));
+      const r = reader.result;
+      resolve(typeof r === 'string' ? r : '');
     };
     reader.onerror = () => {
       reject(new Error('Failed to read file'));

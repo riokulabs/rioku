@@ -114,7 +114,7 @@ describe('<WidgetConfigPanel>', () => {
     expect(screen.getByTestId('advanced-editor')).toBeTruthy();
     // Save button lands disabled (no dirty change yet).
     expect(
-      (screen.getByTestId('advanced-editor-save') as HTMLButtonElement).disabled,
+      screen.getByTestId<HTMLButtonElement>('advanced-editor-save').disabled,
     ).toBe(true);
   });
 

@@ -112,9 +112,9 @@ describe('<VersionHistoryDrawer>', () => {
     const confirmInput = await screen.findByTestId(
       'version-history-restore-confirm',
     );
-    const restoreBtn = screen.getByTestId(
+    const restoreBtn = screen.getByTestId<HTMLButtonElement>(
       'version-history-restore-confirm-btn',
-    ) as HTMLButtonElement;
+    );
     expect(restoreBtn.disabled).toBe(true);
     await user.type(confirmInput, 'restore');
     expect(restoreBtn.disabled).toBe(false);

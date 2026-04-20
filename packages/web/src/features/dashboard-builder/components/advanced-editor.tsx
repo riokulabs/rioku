@@ -135,9 +135,7 @@ export function AdvancedEditor({ widget, onSave }: AdvancedEditorProps) {
 
   const definition = BUILT_IN_WIDGETS[widget.kind];
   const canFlipToWizard =
-    definition !== undefined &&
-    definition.roundTripMode === 'clean' &&
-    !widget.locked_advanced;
+    definition?.roundTripMode === 'clean' && !widget.locked_advanced;
 
   const dirty = draft !== widget.raw_query;
 

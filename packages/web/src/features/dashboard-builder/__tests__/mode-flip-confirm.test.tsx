@@ -53,7 +53,7 @@ describe('<ModeFlipConfirmDialog> dashboard variant', () => {
     );
 
     // Confirm button exists and is disabled until ack checkbox is checked.
-    const confirm = screen.getByTestId('mode-flip-confirm') as HTMLButtonElement;
+    const confirm = screen.getByTestId<HTMLButtonElement>('mode-flip-confirm');
     // There is at least one one-way widget in seeded data.
     if (screen.queryByTestId('mode-flip-ack-checkbox')) {
       expect(confirm.disabled).toBe(true);

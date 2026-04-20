@@ -77,9 +77,9 @@ describe('<AdvancedEditor>', () => {
     const widget = firstCleanWidget();
     wrap(<AdvancedEditor widget={widget} onSave={vi.fn()} />);
 
-    const save = (await screen.findByTestId(
+    const save = await screen.findByTestId<HTMLButtonElement>(
       'advanced-editor-save',
-    )) as HTMLButtonElement;
+    );
     expect(save.disabled).toBe(true);
 
     const editor = await screen.findByTestId('monaco-stub');
@@ -123,7 +123,7 @@ describe('<AdvancedEditor>', () => {
     expect(screen.queryByTestId('advanced-editor-flip-to-wizard')).toBeNull();
   });
 
-  it('flip-to-wizard button hidden when widget is locked_advanced', async () => {
+  it('flip-to-wizard button hidden when widget is locked_advanced', () => {
     const widget = firstCleanWidget();
     wrap(
       <AdvancedEditor

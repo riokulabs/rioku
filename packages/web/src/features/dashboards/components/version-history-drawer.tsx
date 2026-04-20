@@ -138,13 +138,14 @@ export function VersionHistoryDrawer({
       }
       if (prev.length < 2) return [...prev, id];
       // Replace the oldest (first) entry.
-      return [prev[1]!, id];
+      const second = prev[1];
+      return second !== undefined ? [second, id] : [id];
     });
   }, []);
 
   const handleRestore = useCallback(async () => {
-    if (selectedVersions.length !== 1) return;
-    const v = selectedVersions[0]!;
+    const v = selectedVersions[0];
+    if (selectedVersions.length !== 1 || v === undefined) return;
     setRestoring(true);
     try {
       const restored = await restoreDashboardVersion(v.id);
@@ -276,11 +277,11 @@ export function VersionHistoryDrawer({
               </Alert>
             )}
 
-            {selectedVersions.length === 1 && (
+            {selectedVersions.length === 1 && selectedVersions[0] !== undefined && (
               <Stack gap="sm" style={{ minHeight: 0 }}>
                 <Group justify="space-between" align="center">
                   <Text size="sm" fw={500}>
-                    Snapshot of v{String(selectedVersions[0]!.version)}
+                    Snapshot of v{String(selectedVersions[0].version)}
                   </Text>
                   <Group gap="xs">
                     <Tooltip label="Clear selection" withArrow>
@@ -337,17 +338,19 @@ export function VersionHistoryDrawer({
               </Stack>
             )}
 
-            {selectedVersions.length === 2 && (
+            {selectedVersions.length === 2 &&
+              selectedVersions[0] !== undefined &&
+              selectedVersions[1] !== undefined && (
               <Stack gap="sm" style={{ minHeight: 0 }}>
                 <Group gap="xs">
                   <Badge size="sm" variant="light" color="red">
-                    v{String(selectedVersions[0]!.version)}
+                    v{String(selectedVersions[0].version)}
                   </Badge>
                   <Text size="xs" c="var(--mantine-color-gray-7)">
                     versus
                   </Text>
                   <Badge size="sm" variant="light" color="green">
-                    v{String(selectedVersions[1]!.version)}
+                    v{String(selectedVersions[1].version)}
                   </Badge>
                   <Tooltip label="Clear selection" withArrow>
                     <ActionIcon

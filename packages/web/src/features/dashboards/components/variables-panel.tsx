@@ -214,9 +214,9 @@ export function VariablesPanel({ dashboard, onSaved }: VariablesPanelProps) {
                     value={v.kind}
                     onChange={(next) => {
                       if (next === null) return;
-                      handleUpdate(idx, {
-                        kind: next as DashboardVariable['kind'],
-                      });
+                      const kind = VARIABLE_KINDS.find((k) => k === next);
+                      if (kind === undefined) return;
+                      handleUpdate(idx, { kind });
                     }}
                     aria-label={`Variable ${String(idx + 1)} kind`}
                   />

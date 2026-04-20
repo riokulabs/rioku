@@ -14,7 +14,7 @@
  * Ships as a pure component: callers own the mutation side-effects so the
  * dialog stays re-usable (builder shell, AdvancedEditor, viewer future use).
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Badge,
@@ -55,6 +55,17 @@ export interface ModeFlipConfirmDialogProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ModeFlipConfirmDialog(props: ModeFlipConfirmDialogProps) {
+  // Keying on `opened` resets internal state (ack checkbox) whenever the
+  // modal (re)opens — no effect-driven setState.
+  return (
+    <ModeFlipConfirmDialogInner
+      key={props.opened ? 'opened' : 'closed'}
+      {...props}
+    />
+  );
+}
+
+function ModeFlipConfirmDialogInner(props: ModeFlipConfirmDialogProps) {
   const {
     variant,
     opened,
@@ -67,11 +78,6 @@ export function ModeFlipConfirmDialog(props: ModeFlipConfirmDialogProps) {
   } = props;
 
   const [understood, setUnderstood] = useState(false);
-
-  // Reset the ack checkbox whenever the dialog re-opens.
-  useEffect(() => {
-    if (!opened) setUnderstood(false);
-  }, [opened]);
 
   if (variant === 'widget') {
     return (

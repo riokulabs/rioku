@@ -108,8 +108,7 @@ export function substituteVariables(
   const byName = new Map<string, string>();
   for (const v of variables) byName.set(v.name, v.default);
   return raw.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, name: string) => {
-    const replacement = byName.get(name);
-    return replacement !== undefined ? replacement : match;
+    return byName.get(name) ?? match;
   });
 }
 
