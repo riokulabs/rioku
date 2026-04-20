@@ -52,3 +52,23 @@ export const preferencesSchema = z.object({
 });
 
 export type PreferencesValues = z.infer<typeof preferencesSchema>;
+
+// ─── Tenant auth policy ───────────────────────────────────────────────────────
+
+export const tenantAuthPolicySchema = z.object({
+  totp_policy: z.enum(['all', 'admins', 'optional']),
+  password_policy: z.object({
+    min_length: z.number().int().min(6).max(128),
+    require_uppercase: z.boolean(),
+    require_digit: z.boolean(),
+    require_symbol: z.boolean(),
+    max_age_days: z.number().int().min(0).max(3650),
+    history_depth: z.number().int().min(0).max(24),
+  }),
+  session_timeouts: z.object({
+    idle_hours: z.number().int().min(0).max(168),
+    absolute_hours: z.number().int().min(1).max(720),
+  }),
+});
+
+export type TenantAuthPolicyValues = z.infer<typeof tenantAuthPolicySchema>;

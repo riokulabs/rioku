@@ -263,6 +263,29 @@ export interface AuditRetentionConfig {
 }
 
 /**
+ * Per-tenant authentication policy. Applies to all users in the tenant
+ * except where super-admin overrides.
+ */
+export interface TenantAuthPolicy {
+  readonly tenant_id: ID;
+  /** TOTP enforcement. `all`=every user, `admins`=admin-role users only, `optional`=per-user choice. */
+  totp_policy: 'all' | 'admins' | 'optional';
+  password_policy: {
+    min_length: number;              // 6..128
+    require_uppercase: boolean;
+    require_digit: boolean;
+    require_symbol: boolean;
+    max_age_days: number;             // 0 = never expires
+    history_depth: number;            // 0..24
+  };
+  session_timeouts: {
+    idle_hours: number;               // 0..168 (7 days)
+    absolute_hours: number;           // 1..720 (30 days)
+  };
+  readonly updated_at: string;
+}
+
+/**
  * Admin-side audit entry — extends AuditEntry with hash-chain fields.
  * Written to the separate adminAudit log in the mock store.
  */

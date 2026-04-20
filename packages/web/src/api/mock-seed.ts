@@ -490,6 +490,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8a — tenant settings (admin: read + write).
     { permission: 'tenant:read' },
     { permission: 'tenant:write' },
+    // Plan 8a.4 — tenant auth policy (admin: read + write).
+    { permission: 'tenant-auth:read' },
+    { permission: 'tenant-auth:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -532,6 +535,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'user:update-own' },
     // Plan 8a — tenant settings (ops: read-only).
     { permission: 'tenant:read' },
+    // Plan 8a.4 — tenant auth policy (ops: read-only).
+    { permission: 'tenant-auth:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -570,6 +575,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'user:update-own' },
     // Plan 8a — tenant settings (viewer: read-only).
     { permission: 'tenant:read' },
+    // Plan 8a.4 — tenant auth policy (viewer: read-only).
+    { permission: 'tenant-auth:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -980,6 +987,27 @@ export function seedStore(store: StoreApi<MockStore>): void {
     };
   }
   store.setState({ auditRetentionConfigs: retentionConfigs });
+
+  // ── Tenant auth policies (1 per tenant) ─────────────────────────────────
+
+  const tenantAuthPolicies: Record<T.ID, T.TenantAuthPolicy> = {};
+  for (const tid of allTenantIds) {
+    tenantAuthPolicies[tid] = {
+      tenant_id: tid,
+      totp_policy: 'admins',
+      password_policy: {
+        min_length: 12,
+        require_uppercase: true,
+        require_digit: true,
+        require_symbol: false,
+        max_age_days: 0,
+        history_depth: 5,
+      },
+      session_timeouts: { idle_hours: 8, absolute_hours: 24 },
+      updated_at: daysAgo(5),
+    };
+  }
+  store.setState({ tenantAuthPolicies });
 
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 

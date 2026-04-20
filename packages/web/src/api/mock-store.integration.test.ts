@@ -31,6 +31,7 @@ function makeFreshStore() {
     audit: [],
     adminAudit: [],
     auditRetentionConfigs: {},
+    tenantAuthPolicies: {},
     sites: {},
     dashboards: {},
     widgets: {},
@@ -117,9 +118,22 @@ function makeFreshStore() {
         aiTools: {},
         aiTraces: {},
         mcpServers: {},
+        tenantAuthPolicies: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
+      });
+    },
+    updateTenantAuthPolicy(tenantId, patch) {
+      set((state) => {
+        const current = state.tenantAuthPolicies[tenantId];
+        if (!current) return state;
+        return {
+          tenantAuthPolicies: {
+            ...state.tenantAuthPolicies,
+            [tenantId]: { ...current, ...patch },
+          },
+        };
       });
     },
   }));

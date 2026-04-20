@@ -37,6 +37,7 @@ import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
 import { ProfileSection } from '../sections/profile';
 import { TenantSection } from '../sections/tenant';
+import { AuthenticationSection } from '../sections/authentication';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -148,6 +149,8 @@ export function SettingsLayout() {
                 <ProfileSection />
               ) : activeSection.slug === 'tenant' ? (
                 <TenantSection />
+              ) : activeSection.slug === 'authentication' ? (
+                <AuthenticationSection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

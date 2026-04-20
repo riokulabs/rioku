@@ -39,6 +39,8 @@ interface MockStoreState {
   adminAudit: T.AdminAuditEntry[];
   // Audit retention config — keyed by tenant_id, at most one per tenant
   auditRetentionConfigs: Record<T.ID, T.AuditRetentionConfig>;
+  // Auth policy — keyed by tenant_id, at most one per tenant
+  tenantAuthPolicies: Record<T.ID, T.TenantAuthPolicy>;
 
   // Sites
   sites: Record<T.ID, T.Site>;
@@ -150,6 +152,12 @@ interface MockStoreActions {
   appendAdminAudit(entry: T.AdminAuditEntry): void;
 
   /**
+   * Atomically apply a partial patch to a TenantAuthPolicy.
+   * No-ops silently if no policy exists for the tenant yet.
+   */
+  updateTenantAuthPolicy(tenantId: T.ID, patch: Partial<Omit<T.TenantAuthPolicy, 'tenant_id'>>): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -179,6 +187,7 @@ function emptyState(): MockStoreState {
     audit: [],
     adminAudit: [],
     auditRetentionConfigs: {},
+    tenantAuthPolicies: {},
     sites: {},
     dashboards: {},
     widgets: {},
@@ -272,6 +281,19 @@ const storeInitializer = (
     set((state) => ({ adminAudit: [...state.adminAudit, entry] }));
   },
 
+  updateTenantAuthPolicy(tenantId: T.ID, patch: Partial<Omit<T.TenantAuthPolicy, 'tenant_id'>>) {
+    set((state) => {
+      const current = state.tenantAuthPolicies[tenantId];
+      if (!current) return state;
+      return {
+        tenantAuthPolicies: {
+          ...state.tenantAuthPolicies,
+          [tenantId]: { ...current, ...patch },
+        },
+      };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -282,7 +304,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 8,
+        version: 9,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -355,6 +377,11 @@ export const useMockStore = IS_VITEST
             state.notificationChannels = {};
             state.notificationRoutingRules = {};
             state.notificationDeliveryLog = {};
+          }
+          // Version 9 — Plan 8a adds tenantAuthPolicies (tenant_id → policy).
+          // Additive; persisted stores from v8 simply get an empty map.
+          if (version < 9) {
+            state.tenantAuthPolicies = {};
           }
           return state as unknown as MockStore;
         },

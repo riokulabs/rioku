@@ -6,12 +6,13 @@
  *
  * Task 8a.2 — Profile section (avatar).
  * Task 8a.3 — Tenant section (name, url_mode, default_theme, logo).
+ * Task 8a.4 — Authentication section (tenant auth policy).
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -236,5 +237,107 @@ describe('updateTenantLogo', () => {
 
     expect(hostEvents.filter((t) => t === 'tenant:updated').length).toBe(2);
     mockBus.removeEventListener('tenant:updated', listener);
+  });
+});
+
+// ─── Tenant auth policy API tests ────────────────────────────────────────────
+
+describe('updateTenantAuthPolicy', () => {
+  it('happy path: patch applies to store', async () => {
+    const tenantId = getAcmeTenantId();
+    await updateTenantAuthPolicy(tenantId, { totp_policy: 'all' });
+
+    const policy = useMockStore.getState().tenantAuthPolicies[tenantId];
+    expect(policy?.totp_policy).toBe('all');
+  });
+
+  it('happy path: emits tenant.update_auth_policy audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    await updateTenantAuthPolicy(tenantId, { totp_policy: 'optional' });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tenant.update_auth_policy');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('happy path: emits tenant:auth-policy-updated host event', async () => {
+    const tenantId = getAcmeTenantId();
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tenant:auth-policy-updated', listener);
+
+    await updateTenantAuthPolicy(tenantId, { totp_policy: 'all' });
+
+    expect(hostEvents.filter((t) => t === 'tenant:auth-policy-updated').length).toBe(1);
+    mockBus.removeEventListener('tenant:auth-policy-updated', listener);
+  });
+
+  it('partial patch: only provided fields change', async () => {
+    const tenantId = getAcmeTenantId();
+
+    // Get current seed state
+    const before = useMockStore.getState().tenantAuthPolicies[tenantId];
+    expect(before?.totp_policy).toBe('admins');
+    expect(before?.password_policy.min_length).toBe(12);
+
+    // Only update totp_policy
+    await updateTenantAuthPolicy(tenantId, { totp_policy: 'all' });
+
+    const after = useMockStore.getState().tenantAuthPolicies[tenantId];
+    expect(after?.totp_policy).toBe('all');
+    // Other fields should be unchanged
+    expect(after?.password_policy.min_length).toBe(12);
+    expect(after?.session_timeouts.idle_hours).toBe(8);
+  });
+
+  it('partial patch: updating password_policy merges correctly', async () => {
+    const tenantId = getAcmeTenantId();
+
+    await updateTenantAuthPolicy(tenantId, {
+      password_policy: {
+        min_length: 16,
+        require_uppercase: true,
+        require_digit: true,
+        require_symbol: true,
+        max_age_days: 90,
+        history_depth: 10,
+      },
+    });
+
+    const policy = useMockStore.getState().tenantAuthPolicies[tenantId];
+    expect(policy?.password_policy.min_length).toBe(16);
+    expect(policy?.password_policy.require_symbol).toBe(true);
+    expect(policy?.password_policy.max_age_days).toBe(90);
+    expect(policy?.password_policy.history_depth).toBe(10);
+    // totp_policy should still be the seed default
+    expect(policy?.totp_policy).toBe('admins');
+  });
+
+  it('updated_at is refreshed on mutation', async () => {
+    const tenantId = getAcmeTenantId();
+    const before = useMockStore.getState().tenantAuthPolicies[tenantId];
+    const beforeAt = before?.updated_at ?? '';
+
+    // Small wait to ensure timestamp difference
+    await new Promise((r) => setTimeout(r, 5));
+    await updateTenantAuthPolicy(tenantId, { totp_policy: 'optional' });
+
+    const afterPolicy = useMockStore.getState().tenantAuthPolicies[tenantId];
+    const afterAt = afterPolicy?.updated_at ?? '';
+    // updated_at should be a newer or equal timestamp
+    expect(afterAt >= beforeAt).toBe(true);
+  });
+
+  it('returns defaults for tenant without a policy record (no-op, does not throw)', async () => {
+    // Use a non-existent tenant ID — updateTenantAuthPolicy should no-op silently
+    const fakeTenantId = 'tenant-nonexistent';
+    await expect(
+      updateTenantAuthPolicy(fakeTenantId, { totp_policy: 'all' }),
+    ).resolves.toBeUndefined();
+
+    // The fake tenant should still have no policy
+    const policy = useMockStore.getState().tenantAuthPolicies[fakeTenantId];
+    expect(policy).toBeUndefined();
   });
 });

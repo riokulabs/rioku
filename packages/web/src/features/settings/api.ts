@@ -15,12 +15,13 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, Tenant, User } from '@/api/resources/types';
+import type { AuditEntry, ID, Tenant, TenantAuthPolicy, User } from '@/api/resources/types';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
 const nextAuditId = makeIdFactory('audit-profile');
 const nextTenantAuditId = makeIdFactory('audit-tenant');
+const nextAuthPolicyAuditId = makeIdFactory('audit-auth-policy');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -271,4 +272,60 @@ export async function updateTenantLogo(
     url === null ? 'tenant.logo_removed' : 'tenant.update_logo';
   state.appendAudit(makeTenantAudit(auditAction, tenantId));
   emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['logo_url'] });
+}
+
+// ─── Tenant auth policy selectors ─────────────────────────────────────────────
+
+/** Returns the auth policy for the current tenant, or undefined if not found. */
+export function useCurrentTenantAuthPolicy(): TenantAuthPolicy | undefined {
+  return useMockStore((s) =>
+    s.currentTenantId ? s.tenantAuthPolicies[s.currentTenantId] : undefined,
+  );
+}
+
+// ─── Tenant auth policy audit helper ─────────────────────────────────────────
+
+function makeAuthPolicyAudit(
+  action: string,
+  tenantId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextAuthPolicyAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── Tenant auth policy mutations ─────────────────────────────────────────────
+
+/**
+ * Atomically apply a partial patch to the tenant's auth policy and emit
+ * audit + host events.
+ */
+export async function updateTenantAuthPolicy(
+  tenantId: ID,
+  patch: Partial<Omit<TenantAuthPolicy, 'tenant_id' | 'updated_at'>>,
+): Promise<void> {
+  await simulateLatency('mutation');
+  useMockStore.setState((s) => {
+    const current = s.tenantAuthPolicies[tenantId];
+    if (!current) return s;
+    return {
+      tenantAuthPolicies: {
+        ...s.tenantAuthPolicies,
+        [tenantId]: { ...current, ...patch, updated_at: now() },
+      },
+    };
+  });
+  const state = useMockStore.getState();
+  state.appendAudit(makeAuthPolicyAudit('tenant.update_auth_policy', tenantId));
+  emitHostEvent('tenant:auth-policy-updated', { tenant_id: tenantId });
 }

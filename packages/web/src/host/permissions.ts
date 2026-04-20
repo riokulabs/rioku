@@ -287,6 +287,18 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['viewer', 'operator', 'admin', 'super-admin'],
   },
   {
+    key: 'tenant-auth:read',
+    description: 'View tenant authentication policy',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'tenant-auth:write',
+    description: 'Update tenant authentication policy (TOTP, password, session)',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
     key: 'tenant:create',
     description: 'Create a new tenant (super-admin only)',
     source: 'built-in',
