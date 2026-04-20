@@ -41,3 +41,6 @@ export type {
   ResourceIdCandidate,
   UpdateRetentionConfigInput,
 } from './types';
+
+export { CelDiff } from './components/cel-diff';
+export type { CelDiffProps } from './components/cel-diff';
