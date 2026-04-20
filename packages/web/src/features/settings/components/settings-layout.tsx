@@ -35,6 +35,7 @@ import { Link, useSearch, useNavigate } from '@tanstack/react-router';
 import type { Icon } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
+import { ProfileSection } from '../sections/profile';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -142,7 +143,9 @@ export function SettingsLayout() {
           {activeSection && (
             <>
               <Title order={3}>{activeSection.label}</Title>
-              {sectionRoute ? (
+              {activeSection.slug === 'profile' ? (
+                <ProfileSection />
+              ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">
                     {activeSection.label} settings live on a dedicated page — it

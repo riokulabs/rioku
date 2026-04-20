@@ -477,6 +477,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-routing:read' },
     { permission: 'notification-routing:write' },
     { permission: 'notification-log:read' },
+    // Plan 8a — self-profile update (all logged-in roles).
+    { permission: 'user:update-own' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -515,6 +517,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-routing:read' },
     { permission: 'notification-routing:write' },
     { permission: 'notification-log:read' },
+    // Plan 8a — self-profile update.
+    { permission: 'user:update-own' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -549,6 +553,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-channel:read' },
     { permission: 'notification-routing:read' },
     { permission: 'notification-log:read' },
+    // Plan 8a — self-profile update (all logged-in users can update their own profile).
+    { permission: 'user:update-own' },
   ];
 
   const roleIds: T.ID[] = [];

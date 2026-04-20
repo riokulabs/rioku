@@ -1,6 +1,6 @@
 /**
  * Tests for <SettingsLayout>
- * Task 1d.79
+ * Task 1d.79 (updated Task 8a.2: profile section now renders inline)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -11,9 +11,8 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({ section: mockSection }),
   useNavigate: () => mockNavigate,
   useRouter: () => ({ navigate: mockNavigate }),
-  // SettingsLayout renders a <Link> for the notifications sub-route after
-  // Plan 7c. Stub it with a plain anchor so the layout test doesn't need the
-  // full TanStack Router runtime.
+  // SettingsLayout + ProfileSection render <Link> for sub-routes.
+  // Stub with a plain anchor so tests don't need the full TanStack runtime.
   Link: ({
     children,
     to: _to,
@@ -23,8 +22,20 @@ vi.mock('@tanstack/react-router', () => ({
     Record<string, unknown>) => <a {...rest}>{children}</a>,
 }));
 
+// Stub usePermission — default grant everything in layout tests.
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
+// Stub useActiveTheme used by ProfilePreferences.
+vi.mock('@/hooks/use-active-theme', () => ({
+  useActiveTheme: () => ['dark', vi.fn()] as [string, (v: string) => void],
+}));
+
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { useMockStore } from '@/api/mock-store';
+import { seedStore } from '@/api/mock-seed';
 import { SettingsLayout } from '../components/settings-layout';
 
 function wrap(ui: React.ReactNode) {
@@ -34,6 +45,8 @@ function wrap(ui: React.ReactNode) {
 beforeEach(() => {
   mockSection = undefined;
   mockNavigate.mockClear();
+  useMockStore.getState().reset();
+  seedStore(useMockStore);
 });
 
 describe('SettingsLayout', () => {
@@ -43,10 +56,10 @@ describe('SettingsLayout', () => {
     expect(navItems.length).toBe(11);
   });
 
-  it('shows profile section placeholder by default (no ?section param)', () => {
+  it('shows profile section inline by default (no ?section param)', () => {
     wrap(<SettingsLayout />);
-    expect(screen.getByText(/profile settings/i)).toBeDefined();
-    expect(screen.getByText(/plan 1e/i)).toBeDefined();
+    // Profile section is now rendered inline — look for its testid.
+    expect(screen.getByTestId('profile-section')).toBeDefined();
   });
 
   it('shows tenant section when ?section=tenant', () => {

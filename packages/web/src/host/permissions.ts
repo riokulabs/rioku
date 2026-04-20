@@ -154,6 +154,12 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     source: 'built-in',
     default_roles: ['super-admin'],
   },
+  {
+    key: 'user:update-own',
+    description: 'Update own profile (name, avatar, preferences, password)',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
 
   // role:*
   {
