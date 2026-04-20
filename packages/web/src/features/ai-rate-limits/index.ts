@@ -28,3 +28,10 @@ export type {
   MetricWindow,
   RateLimitMetricsPoint,
 } from './types';
+
+export { RateLimitList } from './components/list';
+export { RateLimitFilterBar } from './components/filter-bar';
+export { RateLimitForm } from './components/form';
+export { RateLimitDetail } from './components/detail';
+export { MetricsSparkline } from './components/metrics-sparkline';
+export { Simulator } from './components/simulator';
