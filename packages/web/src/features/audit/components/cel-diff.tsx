@@ -86,20 +86,23 @@ function diffTokens(beforeTokens: string[], afterTokens: string[]): SideTokens {
     };
   }
 
-  // LCS length table. For stage 1 we accept O(n*m) memory — CEL conditions
-  // are human-authored and typically <200 tokens.
-  const dp: number[][] = Array.from({ length: n + 1 }, () =>
-    Array<number>(m + 1).fill(0),
-  );
+  // LCS length table flattened to a single Uint32Array so element access
+  // type-narrows without non-null assertions. Row-major: idx(i,j) = i*(m+1)+j.
+  // For stage 1 we accept O(n*m) memory — CEL conditions are human-authored
+  // and typically <200 tokens.
+  const stride = m + 1;
+  const dp = new Uint32Array((n + 1) * stride);
+  const idx = (i: number, j: number) => i * stride + j;
+
   for (let i = 1; i <= n; i++) {
-    const bi = beforeTokens[i - 1]!;
+    const bi = beforeTokens[i - 1] ?? '';
     for (let j = 1; j <= m; j++) {
-      if (bi === afterTokens[j - 1]) {
-        dp[i]![j] = (dp[i - 1]![j - 1] ?? 0) + 1;
+      if (bi === (afterTokens[j - 1] ?? '')) {
+        dp[idx(i, j)] = (dp[idx(i - 1, j - 1)] ?? 0) + 1;
       } else {
-        const up = dp[i - 1]![j] ?? 0;
-        const left = dp[i]![j - 1] ?? 0;
-        dp[i]![j] = up >= left ? up : left;
+        const up = dp[idx(i - 1, j)] ?? 0;
+        const left = dp[idx(i, j - 1)] ?? 0;
+        dp[idx(i, j)] = up >= left ? up : left;
       }
     }
   }
@@ -111,14 +114,14 @@ function diffTokens(beforeTokens: string[], afterTokens: string[]): SideTokens {
   let i = n;
   let j = m;
   while (i > 0 && j > 0) {
-    const b = beforeTokens[i - 1]!;
-    const a = afterTokens[j - 1]!;
+    const b = beforeTokens[i - 1] ?? '';
+    const a = afterTokens[j - 1] ?? '';
     if (b === a) {
       before.push({ text: b, kind: 'unchanged' });
       after.push({ text: a, kind: 'unchanged' });
       i--;
       j--;
-    } else if ((dp[i - 1]![j] ?? 0) >= (dp[i]![j - 1] ?? 0)) {
+    } else if ((dp[idx(i - 1, j)] ?? 0) >= (dp[idx(i, j - 1)] ?? 0)) {
       before.push({
         text: b,
         kind: /^\s+$/.test(b) ? 'unchanged' : 'removed',
@@ -133,7 +136,7 @@ function diffTokens(beforeTokens: string[], afterTokens: string[]): SideTokens {
     }
   }
   while (i > 0) {
-    const b = beforeTokens[i - 1]!;
+    const b = beforeTokens[i - 1] ?? '';
     before.push({
       text: b,
       kind: /^\s+$/.test(b) ? 'unchanged' : 'removed',
@@ -141,7 +144,7 @@ function diffTokens(beforeTokens: string[], afterTokens: string[]): SideTokens {
     i--;
   }
   while (j > 0) {
-    const a = afterTokens[j - 1]!;
+    const a = afterTokens[j - 1] ?? '';
     after.push({
       text: a,
       kind: /^\s+$/.test(a) ? 'unchanged' : 'added',
@@ -188,22 +191,27 @@ export function CelDiff({
   const [parseAfter, setParseAfter] = useState<boolean | null>(null);
 
   // Kick off grammar-aware parse checks asynchronously — cel-js loads lazily.
+  // Empty strings are treated as "parse OK" so a brand-new expression
+  // (no prior value) doesn't trip the fallback path.
   useEffect(() => {
     let cancelled = false;
-    if (before.trim().length === 0) {
-      setParseBefore(true);
-    } else {
-      void parseCel(before).then((r) => {
-        if (!cancelled) setParseBefore(r.ok);
-      });
-    }
-    if (after.trim().length === 0) {
-      setParseAfter(true);
-    } else {
-      void parseCel(after).then((r) => {
-        if (!cancelled) setParseAfter(r.ok);
-      });
-    }
+    const beforeEmpty = before.trim().length === 0;
+    const afterEmpty = after.trim().length === 0;
+
+    const runBefore = beforeEmpty
+      ? Promise.resolve({ ok: true as const })
+      : parseCel(before);
+    const runAfter = afterEmpty
+      ? Promise.resolve({ ok: true as const })
+      : parseCel(after);
+
+    void runBefore.then((r) => {
+      if (!cancelled) setParseBefore(r.ok);
+    });
+    void runAfter.then((r) => {
+      if (!cancelled) setParseAfter(r.ok);
+    });
+
     return () => {
       cancelled = true;
     };
@@ -284,7 +292,7 @@ function CelTokenLine({
     >
       {tokens.map((tok, idx) => (
         <span
-          key={`${testid}-${idx}`}
+          key={`${testid}-${String(idx)}`}
           data-token-kind={tok.kind}
           style={{
             color: TOKEN_COLORS[tok.kind],
