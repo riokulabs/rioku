@@ -26,6 +26,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'role:',
   'tenant:',
   'plugin:',
+  'plugin-signer:',
   'session:',
   'api-key:',
   'service:',
@@ -200,6 +201,26 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'session:revoke',
     description: 'Revoke active sessions',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // plugin-signer:* (Plan 6)
+  {
+    key: 'plugin-signer:read',
+    description: 'View plugin signer allow-list entries',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'plugin-signer:write',
+    description: 'Create, update, verify, or revoke plugin signers',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'plugin-signer:delete',
+    description: 'Delete plugin signers (only when no plugins reference them)',
     source: 'built-in',
     default_roles: ['admin'],
   },

@@ -367,6 +367,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'dashboard:delete' },
     { permission: 'dashboard:share' },
     { permission: 'dashboard:set-default' },
+    // Plan 6 — plugin signers (full access).
+    { permission: 'plugin-signer:read' },
+    { permission: 'plugin-signer:write' },
+    { permission: 'plugin-signer:delete' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -390,6 +394,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'dashboard:read' },
     { permission: 'dashboard:write' },
     { permission: 'dashboard:share' },
+    // Plan 6 — plugin signers (read-only for ops).
+    { permission: 'plugin-signer:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -414,6 +420,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'mcp-server:read' },
     // Plan 4 — dashboards (read only).
     { permission: 'dashboard:read' },
+    // Plan 6 — plugin signers (read-only for viewer).
+    { permission: 'plugin-signer:read' },
   ];
 
   const roleIds: T.ID[] = [];
