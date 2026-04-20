@@ -42,5 +42,7 @@ export { AskQuestionWizard } from './components/ask-question-wizard';
 export { WidgetConfigPanel } from './components/widget-config-panel';
 export { AdvancedEditor } from './components/advanced-editor';
 export type { AdvancedEditorProps } from './components/advanced-editor';
+export { ModeFlipConfirmDialog } from './components/mode-flip-confirm';
+export type { ModeFlipConfirmDialogProps } from './components/mode-flip-confirm';
 export { DashboardBuilderShell } from './components/builder-shell';
 export type { DashboardBuilderShellProps } from './components/builder-shell';

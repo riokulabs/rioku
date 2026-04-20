@@ -54,12 +54,15 @@ import {
 import type { Dashboard, Widget } from '@/api/resources/types';
 import {
   addWidget,
+  flipWidgetToAdvanced,
   removeWidget,
   updateLayout,
 } from '../api';
+import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { GridCanvas } from './grid-canvas';
 import { WidgetPalette } from './widget-palette';
 import { WidgetConfigPanel } from './widget-config-panel';
+import { ModeFlipConfirmDialog } from './mode-flip-confirm';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -192,6 +195,8 @@ function ShellInner({
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [modeFlipOpen, setModeFlipOpen] = useState(false);
+  const [modeFlipBusy, setModeFlipBusy] = useState(false);
 
   const selectedWidget = useMemo(() => {
     if (selectedWidgetId === null) return null;
@@ -321,6 +326,40 @@ function ShellInner({
     onDone('cancelled');
   }, [dirty, onDone]);
 
+  const handleConfirmModeFlip = useCallback(async () => {
+    setModeFlipBusy(true);
+    try {
+      // Lock one-way widgets to advanced so the builder panel shows the
+      // advanced editor for them after the flip.
+      const oneWayWidgets = widgets.filter((w) => {
+        const def = BUILT_IN_WIDGETS[w.kind];
+        return def?.roundTripMode === 'one-way' && !w.locked_advanced;
+      });
+      for (const w of oneWayWidgets) {
+        try {
+          await flipWidgetToAdvanced(w.id);
+        } catch (e) {
+          notify.error(
+            `Failed to lock ${w.title}`,
+            (e as Error).message,
+          );
+        }
+      }
+      setMode('grafana');
+      setModeFlipOpen(false);
+      if (oneWayWidgets.length > 0) {
+        notify.success(
+          'Switched to Grafana mode',
+          `${String(oneWayWidgets.length)} widget(s) locked to advanced mode.`,
+        );
+      } else {
+        notify.success('Switched to Grafana mode', 'No widgets were affected.');
+      }
+    } finally {
+      setModeFlipBusy(false);
+    }
+  }, [widgets]);
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   const showConfigPanel = selectedWidget !== null;
@@ -377,7 +416,15 @@ function ShellInner({
             size="xs"
             value={mode}
             onChange={(v) => {
-              setMode(v === 'grafana' ? 'grafana' : 'metabase');
+              const next: Dashboard['mode'] = v === 'grafana' ? 'grafana' : 'metabase';
+              if (next === mode) return;
+              if (next === 'grafana' && mode === 'metabase') {
+                // Defer: confirm dialog decides whether to flip.
+                setModeFlipOpen(true);
+                return;
+              }
+              // Grafana → Metabase is free; no one-way side-effects.
+              setMode(next);
             }}
             data={[
               { value: 'metabase', label: 'Metabase' },
@@ -492,6 +539,19 @@ function ShellInner({
           </PanelColumn>
         )}
       </Box>
+
+      <ModeFlipConfirmDialog
+        variant="dashboard"
+        opened={modeFlipOpen}
+        widgets={widgets}
+        busy={modeFlipBusy}
+        onCancel={() => {
+          setModeFlipOpen(false);
+        }}
+        onConfirm={() => {
+          void handleConfirmModeFlip();
+        }}
+      />
 
       <Modal
         opened={cancelOpen}

@@ -11,6 +11,28 @@ import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { DashboardBuilderShell } from '../components/builder-shell';
 
+// Monaco is pulled in transitively via WidgetConfigPanel → AdvancedEditor.
+vi.mock('@monaco-editor/react', () => {
+  const MockEditor = ({
+    value,
+    onChange,
+    options,
+  }: {
+    value?: string;
+    onChange?: (v: string | undefined) => void;
+    options?: { readOnly?: boolean };
+  }) => (
+    <textarea
+      data-testid="monaco-stub"
+      aria-label="advanced-query-editor"
+      value={value ?? ''}
+      readOnly={options?.readOnly ?? false}
+      onChange={(e) => onChange?.(e.target.value)}
+    />
+  );
+  return { default: MockEditor };
+});
+
 function firstAcmeDashboardId(): string {
   const acme = Object.values(useMockStore.getState().tenants).find(
     (t) => t.slug === 'acme',
@@ -88,6 +110,24 @@ describe('<DashboardBuilderShell>', () => {
       useMockStore.getState().dashboardVersions,
     ).filter((v) => v.dashboard_id === dashId).length;
     expect(versionsAfter).toBe(versionsBefore + 1);
+  });
+
+  it('Metabase → Grafana toggle opens the mode-flip confirm modal', async () => {
+    const user = userEvent.setup();
+    const dashId = firstAcmeDashboardId();
+    const onDone = vi.fn();
+    wrap(<DashboardBuilderShell dashboardId={dashId} onDone={onDone} />);
+
+    // Grafana segment of the SegmentedControl has role="radio" name=Grafana.
+    const grafanaRadio = await screen.findByRole('radio', { name: /Grafana/ });
+    await user.click(grafanaRadio);
+
+    // Mode-flip confirm modal appears (wait for portal render).
+    expect(
+      await screen.findByTestId('mode-flip-confirm', undefined, {
+        timeout: 2000,
+      }),
+    ).toBeTruthy();
   });
 
   it('cancel with dirty changes shows confirm modal', async () => {
