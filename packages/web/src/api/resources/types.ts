@@ -307,6 +307,48 @@ export interface NetworkConfig {
 }
 
 /**
+ * Certificate Authority. `internal` is the Rioku-managed CA seeded by default;
+ * `external` represents an operator-imported CA (e.g., a Let's Encrypt chain
+ * or corporate issuer).
+ */
+export interface CertAuthority {
+  readonly id: ID;
+  readonly tenant_id: ID;
+  name: string;
+  kind: 'internal' | 'external';
+  subject: string;            // e.g. "CN=Rioku Internal Root CA"
+  issuer: string;             // same as subject for self-signed
+  /** Not-before / not-after in ISO-8601 */
+  not_before: string;
+  not_after: string;
+  /** Fake-looking SHA-256 hex (64 chars) — no real crypto in mock */
+  fingerprint_sha256: string;
+  /** For external CAs, the PEM blob the operator pasted. Empty for internal. */
+  certificate_pem: string;
+  readonly created_at: string;
+}
+
+/**
+ * Certificate enrollment. Represents a pending, issued, or revoked cert
+ * request managed by Rioku's PKI.
+ */
+export interface CertEnrollment {
+  readonly id: ID;
+  readonly tenant_id: ID;
+  readonly ca_id: ID;              // FK to CertAuthority
+  subject: string;                 // CN/SAN summary
+  dns_sans: string[];
+  state: 'pending' | 'issued' | 'revoked';
+  /** ISO-8601 timestamps; null when state hasn't reached that point */
+  requested_at: string;
+  issued_at?: string;
+  revoked_at?: string;
+  revocation_reason?: string;
+  /** Fingerprint populated once issued */
+  fingerprint_sha256?: string;
+}
+
+/**
  * Admin-side audit entry — extends AuditEntry with hash-chain fields.
  * Written to the separate adminAudit log in the mock store.
  */

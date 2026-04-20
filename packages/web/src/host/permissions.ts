@@ -48,6 +48,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'notification-routing:',
   'notification-log:',
   'network:',
+  'pki:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -605,6 +606,20 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'network:write',
     description: 'Update daemon network configuration (Caddy overrides, HTTP3, timeouts)',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // pki:* (Plan 8b.7 — Certificate Authorities and enrollments)
+  {
+    key: 'pki:read',
+    description: 'View Certificate Authorities and enrollments',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'pki:write',
+    description: 'Create CAs, trigger enrollments, revoke certificates',
     source: 'built-in',
     default_roles: ['admin'],
   },

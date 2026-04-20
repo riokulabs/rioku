@@ -52,6 +52,8 @@ function makeFreshStore() {
     aiSemanticRateLimits: {},
     aiToolBindings: {},
     mcpServers: {},
+    certAuthorities: {},
+    certEnrollments: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -121,6 +123,8 @@ function makeFreshStore() {
         mcpServers: {},
         tenantAuthPolicies: {},
         networkConfigs: {},
+        certAuthorities: {},
+        certEnrollments: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
@@ -146,6 +150,28 @@ function makeFreshStore() {
           tenantAuthPolicies: {
             ...state.tenantAuthPolicies,
             [tenantId]: { ...current, ...patch },
+          },
+        };
+      });
+    },
+    addCertAuthority(ca) {
+      set((state) => ({
+        certAuthorities: { ...state.certAuthorities, [ca.id]: ca },
+      }));
+    },
+    addCertEnrollment(enrollment) {
+      set((state) => ({
+        certEnrollments: { ...state.certEnrollments, [enrollment.id]: enrollment },
+      }));
+    },
+    updateCertEnrollment(enrollmentId, patch) {
+      set((state) => {
+        const current = state.certEnrollments[enrollmentId];
+        if (!current) return state;
+        return {
+          certEnrollments: {
+            ...state.certEnrollments,
+            [enrollmentId]: { ...current, ...patch },
           },
         };
       });

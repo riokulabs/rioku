@@ -44,6 +44,10 @@ interface MockStoreState {
   // Network config — keyed by tenant_id, at most one per tenant
   networkConfigs: Record<T.ID, T.NetworkConfig>;
 
+  // PKI — Certificate Authorities + Enrollments
+  certAuthorities: Record<T.ID, T.CertAuthority>;
+  certEnrollments: Record<T.ID, T.CertEnrollment>;
+
   // Sites
   sites: Record<T.ID, T.Site>;
 
@@ -119,6 +123,8 @@ interface EntityKindMap {
   aiSemanticRateLimits: T.AiSemanticRateLimit;
   aiToolBindings: T.AiToolBinding;
   mcpServers: T.McpServer;
+  certAuthorities: T.CertAuthority;
+  certEnrollments: T.CertEnrollment;
 }
 
 export type EntityKind = keyof EntityKindMap;
@@ -164,6 +170,22 @@ interface MockStoreActions {
    * No-ops silently if no config exists for the tenant yet.
    */
   updateNetworkConfig(tenantId: T.ID, patch: Partial<Omit<T.NetworkConfig, 'tenant_id'>>): void;
+
+  /**
+   * Add a new CertAuthority to the store.
+   */
+  addCertAuthority(ca: T.CertAuthority): void;
+
+  /**
+   * Add a new CertEnrollment to the store.
+   */
+  addCertEnrollment(enrollment: T.CertEnrollment): void;
+
+  /**
+   * Atomically apply a partial patch to a CertEnrollment.
+   * No-ops silently if the enrollment is not found.
+   */
+  updateCertEnrollment(enrollmentId: T.ID, patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>): void;
 
   /**
    * Reset the entire store to empty state (useful for re-seeding).
@@ -216,6 +238,8 @@ function emptyState(): MockStoreState {
     aiSemanticRateLimits: {},
     aiToolBindings: {},
     mcpServers: {},
+    certAuthorities: {},
+    certEnrollments: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -316,6 +340,31 @@ const storeInitializer = (
     });
   },
 
+  addCertAuthority(ca: T.CertAuthority) {
+    set((state) => ({
+      certAuthorities: { ...state.certAuthorities, [ca.id]: ca },
+    }));
+  },
+
+  addCertEnrollment(enrollment: T.CertEnrollment) {
+    set((state) => ({
+      certEnrollments: { ...state.certEnrollments, [enrollment.id]: enrollment },
+    }));
+  },
+
+  updateCertEnrollment(enrollmentId: T.ID, patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>) {
+    set((state) => {
+      const current = state.certEnrollments[enrollmentId];
+      if (!current) return state;
+      return {
+        certEnrollments: {
+          ...state.certEnrollments,
+          [enrollmentId]: { ...current, ...patch },
+        },
+      };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -326,7 +375,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 10,
+        version: 11,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -409,6 +458,12 @@ export const useMockStore = IS_VITEST
           // Additive; persisted stores from v9 simply get an empty map.
           if (version < 10) {
             state.networkConfigs = {};
+          }
+          // Version 11 — Plan 8b.7 adds certAuthorities + certEnrollments maps.
+          // Additive; persisted stores from v10 simply get empty maps.
+          if (version < 11) {
+            state.certAuthorities = {};
+            state.certEnrollments = {};
           }
           return state as unknown as MockStore;
         },

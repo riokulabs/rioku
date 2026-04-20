@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -418,5 +418,201 @@ describe('updateNetworkConfig', () => {
 
     const after = useMockStore.getState().networkConfigs[tenantId];
     expect((after?.updated_at ?? '') >= beforeAt).toBe(true);
+  });
+});
+
+// ─── addCertAuthority ─────────────────────────────────────────────────────────
+
+describe('addCertAuthority', () => {
+  it('creates a new CA in the store with correct fields', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    const ca = await addCertAuthority(tenantId, {
+      name: 'Test Root CA',
+      kind: 'internal',
+      subject: 'CN=Test Root CA',
+      certificate_pem: '',
+    });
+
+    const stored = useMockStore.getState().certAuthorities[ca.id];
+    expect(stored).toBeDefined();
+    expect(stored?.name).toBe('Test Root CA');
+    expect(stored?.kind).toBe('internal');
+    expect(stored?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits pki.ca.create audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    await addCertAuthority(tenantId, {
+      name: 'Audit Test CA',
+      kind: 'external',
+      subject: 'CN=Audit Test CA',
+      certificate_pem: '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n',
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'pki.ca.create');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits pki:ca-created host event', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('pki:ca-created', listener);
+
+    await addCertAuthority(tenantId, {
+      name: 'Event Test CA',
+      kind: 'internal',
+      subject: 'CN=Event Test CA',
+      certificate_pem: '',
+    });
+
+    expect(hostEvents.filter((t) => t === 'pki:ca-created').length).toBe(1);
+    mockBus.removeEventListener('pki:ca-created', listener);
+  });
+});
+
+// ─── addCertEnrollment ────────────────────────────────────────────────────────
+
+describe('addCertEnrollment', () => {
+  function getSeedCaId(tenantId: string): string {
+    const ca = Object.values(useMockStore.getState().certAuthorities).find(
+      (c) => c.tenant_id === tenantId,
+    );
+    if (!ca) throw new Error('No CA found for tenant');
+    return ca.id;
+  }
+
+  it('creates a pending enrollment in the store', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const caId = getSeedCaId(tenantId);
+
+    const enrollment = await addCertEnrollment(tenantId, {
+      ca_id: caId,
+      subject: 'CN=test-new.internal',
+      dns_sans: ['test-new.internal'],
+      validity_days: 90,
+    });
+
+    const stored = useMockStore.getState().certEnrollments[enrollment.id];
+    expect(stored).toBeDefined();
+    expect(stored?.state).toBe('pending');
+    expect(stored?.subject).toBe('CN=test-new.internal');
+    expect(stored?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits pki.enrollment.create audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const caId = getSeedCaId(tenantId);
+
+    await addCertEnrollment(tenantId, {
+      ca_id: caId,
+      subject: 'CN=audit-test.internal',
+      dns_sans: [],
+      validity_days: 30,
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'pki.enrollment.create');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits pki:enrollment-requested host event', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const caId = getSeedCaId(tenantId);
+
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('pki:enrollment-requested', listener);
+
+    await addCertEnrollment(tenantId, {
+      ca_id: caId,
+      subject: 'CN=event-test.internal',
+      dns_sans: [],
+      validity_days: 30,
+    });
+
+    expect(hostEvents.filter((t) => t === 'pki:enrollment-requested').length).toBe(1);
+    mockBus.removeEventListener('pki:enrollment-requested', listener);
+  });
+});
+
+// ─── revokeCertEnrollment ─────────────────────────────────────────────────────
+
+describe('revokeCertEnrollment', () => {
+  function getIssuedEnrollmentId(tenantId: string): string {
+    const enrollment = Object.values(useMockStore.getState().certEnrollments).find(
+      (e) => e.tenant_id === tenantId && e.state === 'issued',
+    );
+    if (!enrollment) throw new Error('No issued enrollment found for tenant');
+    return enrollment.id;
+  }
+
+  it('updates enrollment state to revoked', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const enrollmentId = getIssuedEnrollmentId(tenantId);
+
+    await revokeCertEnrollment(enrollmentId, 'Key compromised');
+
+    const enrollment = useMockStore.getState().certEnrollments[enrollmentId];
+    expect(enrollment?.state).toBe('revoked');
+  });
+
+  it('sets revocation_reason in store', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const enrollmentId = getIssuedEnrollmentId(tenantId);
+
+    await revokeCertEnrollment(enrollmentId, 'Superseded');
+
+    const enrollment = useMockStore.getState().certEnrollments[enrollmentId];
+    expect(enrollment?.revocation_reason).toBe('Superseded');
+    expect(enrollment?.revoked_at).toBeDefined();
+  });
+
+  it('emits pki.enrollment.revoke audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const enrollmentId = getIssuedEnrollmentId(tenantId);
+
+    await revokeCertEnrollment(enrollmentId, 'Test');
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'pki.enrollment.revoke');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits pki:enrollment-revoked host event', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const enrollmentId = getIssuedEnrollmentId(tenantId);
+
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('pki:enrollment-revoked', listener);
+
+    await revokeCertEnrollment(enrollmentId, 'Test reason');
+
+    expect(hostEvents.filter((t) => t === 'pki:enrollment-revoked').length).toBe(1);
+    mockBus.removeEventListener('pki:enrollment-revoked', listener);
+  });
+
+  it('no-ops silently for unknown enrollment id', async () => {
+    await expect(
+      revokeCertEnrollment('enrollment-nonexistent', 'whatever'),
+    ).resolves.toBeUndefined();
   });
 });

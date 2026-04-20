@@ -55,6 +55,8 @@ const nextBindingId = makeIdFactory('binding');
 const nextAccessPolicyId = makeIdFactory('acpol');
 const nextRbacPolicyId = makeIdFactory('rbacpol');
 const nextImpersonationId = makeIdFactory('imp');
+const nextCaId = makeIdFactory('ca');
+const nextEnrollmentId = makeIdFactory('enrollment');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -496,6 +498,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8b.6 — network config (admin: read + write).
     { permission: 'network:read' },
     { permission: 'network:write' },
+    // Plan 8b.7 — PKI (admin: read + write).
+    { permission: 'pki:read' },
+    { permission: 'pki:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -542,6 +547,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant-auth:read' },
     // Plan 8b.6 — network config (ops: read-only).
     { permission: 'network:read' },
+    // Plan 8b.7 — PKI (ops: read-only).
+    { permission: 'pki:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -584,6 +591,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant-auth:read' },
     // Plan 8b.6 — network config (viewer: read-only).
     { permission: 'network:read' },
+    // Plan 8b.7 — PKI (viewer: read-only).
+    { permission: 'pki:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -1030,6 +1039,140 @@ export function seedStore(store: StoreApi<MockStore>): void {
     };
   }
   store.setState({ networkConfigs });
+
+  // ── PKI: Certificate Authorities + Enrollments ───────────────────────────
+
+  const certAuthorities: Record<T.ID, T.CertAuthority> = {};
+  const certEnrollments: Record<T.ID, T.CertEnrollment> = {};
+
+  // Deterministic 64-char hex for PKI mock fingerprints
+  function pkiFp(seed: string): string {
+    let h = '';
+    for (let i = 0; i < 64; i++) {
+      h += ((seed.charCodeAt(i % seed.length) + i * 7) % 16).toString(16);
+    }
+    return h;
+  }
+
+  // Internal CA — one per tenant
+  const internalCaIds: Record<T.ID, T.ID> = {};
+  for (const tid of allTenantIds) {
+    const tenant = tenants.find((t) => t.id === tid)!;
+    const caId = nextCaId();
+    internalCaIds[tid] = caId;
+    certAuthorities[caId] = {
+      id: caId,
+      tenant_id: tid,
+      name: `${tenant.name} Internal Root`,
+      kind: 'internal',
+      subject: `CN=${tenant.name} Internal Root CA`,
+      issuer: `CN=${tenant.name} Internal Root CA`,
+      not_before: daysAgo(365),
+      not_after: daysFromNow(3650),
+      fingerprint_sha256: pkiFp(`internal-${tid}`),
+      certificate_pem: '',
+      created_at: daysAgo(365),
+    };
+  }
+
+  // External CA — one for Acme only (variety)
+  const externalCaId = nextCaId();
+  certAuthorities[externalCaId] = {
+    id: externalCaId,
+    tenant_id: acmeTenantId,
+    name: "Let's Encrypt Authority X3",
+    kind: 'external',
+    subject: "CN=Let's Encrypt Authority X3,O=Let's Encrypt,C=US",
+    issuer: 'CN=DST Root CA X3,O=Digital Signature Trust Co.',
+    not_before: daysAgo(180),
+    not_after: daysFromNow(180),
+    fingerprint_sha256: pkiFp(`external-acme-le-x3`),
+    certificate_pem: '-----BEGIN CERTIFICATE-----\nMIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/\n(mock PEM truncated for seed)\n-----END CERTIFICATE-----\n',
+    created_at: daysAgo(180),
+  };
+
+  store.setState({ certAuthorities });
+
+  // Enrollments — 4–5 per tenant in a spread of states
+  for (const tid of allTenantIds) {
+    const internalCaId = internalCaIds[tid]!;
+
+    // 1. issued enrollment
+    const e1Id = nextEnrollmentId();
+    const e1: T.CertEnrollment = {
+      id: e1Id,
+      tenant_id: tid,
+      ca_id: internalCaId,
+      subject: 'CN=api.internal',
+      dns_sans: ['api.internal', 'api.local'],
+      state: 'issued',
+      requested_at: daysAgo(30),
+      issued_at: daysAgo(29),
+      fingerprint_sha256: pkiFp(`enrollment-issued-1-${tid}`),
+    };
+    certEnrollments[e1Id] = e1;
+
+    // 2. issued enrollment (second)
+    const e2Id = nextEnrollmentId();
+    const e2: T.CertEnrollment = {
+      id: e2Id,
+      tenant_id: tid,
+      ca_id: internalCaId,
+      subject: 'CN=gateway.internal',
+      dns_sans: ['gateway.internal'],
+      state: 'issued',
+      requested_at: daysAgo(20),
+      issued_at: daysAgo(19),
+      fingerprint_sha256: pkiFp(`enrollment-issued-2-${tid}`),
+    };
+    certEnrollments[e2Id] = e2;
+
+    // 3. pending enrollment
+    const e3Id = nextEnrollmentId();
+    const e3: T.CertEnrollment = {
+      id: e3Id,
+      tenant_id: tid,
+      ca_id: internalCaId,
+      subject: 'CN=dashboard.internal',
+      dns_sans: ['dashboard.internal', 'admin.internal'],
+      state: 'pending',
+      requested_at: daysAgo(1),
+    };
+    certEnrollments[e3Id] = e3;
+
+    // 4. revoked enrollment
+    const e4Id = nextEnrollmentId();
+    const e4: T.CertEnrollment = {
+      id: e4Id,
+      tenant_id: tid,
+      ca_id: internalCaId,
+      subject: 'CN=legacy.internal',
+      dns_sans: ['legacy.internal'],
+      state: 'revoked',
+      requested_at: daysAgo(60),
+      issued_at: daysAgo(59),
+      revoked_at: daysAgo(10),
+      revocation_reason: 'Key compromised',
+      fingerprint_sha256: pkiFp(`enrollment-revoked-${tid}`),
+    };
+    certEnrollments[e4Id] = e4;
+  }
+
+  // Acme tenant: extra enrollment using the external Let's Encrypt CA
+  const e5Id = nextEnrollmentId();
+  certEnrollments[e5Id] = {
+    id: e5Id,
+    tenant_id: acmeTenantId,
+    ca_id: externalCaId,
+    subject: 'CN=acme.example.com',
+    dns_sans: ['acme.example.com', 'www.acme.example.com'],
+    state: 'issued',
+    requested_at: daysAgo(90),
+    issued_at: daysAgo(89),
+    fingerprint_sha256: pkiFp(`enrollment-acme-external`),
+  };
+
+  store.setState({ certEnrollments });
 
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 

@@ -10,12 +10,15 @@
  *
  * Task 8a.2 — Profile section.
  * Task 8a.3 — Tenant section.
+ * Task 8b.7 — PKI section.
  */
+import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, NetworkConfig, Tenant, TenantAuthPolicy, User } from '@/api/resources/types';
+import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, Tenant, TenantAuthPolicy, User } from '@/api/resources/types';
+import type { CreateCaValues, CreateEnrollmentValues } from './schemas';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
@@ -23,6 +26,9 @@ const nextAuditId = makeIdFactory('audit-profile');
 const nextTenantAuditId = makeIdFactory('audit-tenant');
 const nextAuthPolicyAuditId = makeIdFactory('audit-auth-policy');
 const nextNetworkConfigAuditId = makeIdFactory('audit-network-config');
+const nextPkiAuditId = makeIdFactory('audit-pki');
+const nextCaId = makeIdFactory('ca');
+const nextEnrollmentId = makeIdFactory('enrollment');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -385,4 +391,149 @@ export async function updateNetworkConfig(
   const state = useMockStore.getState();
   state.appendAudit(makeNetworkConfigAudit('tenant.update_network_config', tenantId));
   emitHostEvent('tenant:network-config-updated', { tenant_id: tenantId });
+}
+
+// ─── PKI selectors ────────────────────────────────────────────────────────────
+
+/**
+ * Returns CAs for the current tenant as a sorted array.
+ * Uses stable Zustand selector + useMemo per convention — no
+ * filter/sort inside useMockStore(s => ...).
+ */
+export function useCertAuthorities(): CertAuthority[] {
+  const allCas = useMockStore((s) => s.certAuthorities);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(
+    () =>
+      Object.values(allCas)
+        .filter((ca) => ca.tenant_id === currentTenantId)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    [allCas, currentTenantId],
+  );
+}
+
+/**
+ * Returns cert enrollments for the current tenant as a sorted array.
+ * Uses stable Zustand selector + useMemo per convention.
+ */
+export function useCertEnrollments(): CertEnrollment[] {
+  const allEnrollments = useMockStore((s) => s.certEnrollments);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(
+    () =>
+      Object.values(allEnrollments)
+        .filter((e) => e.tenant_id === currentTenantId)
+        .sort((a, b) => b.requested_at.localeCompare(a.requested_at)),
+    [allEnrollments, currentTenantId],
+  );
+}
+
+// ─── PKI audit helper ─────────────────────────────────────────────────────────
+
+function makePkiAudit(
+  action: string,
+  tenantId: ID,
+  resourceId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextPkiAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'pki',
+    resource_id: resourceId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── PKI mutations ────────────────────────────────────────────────────────────
+
+/** Create a new Certificate Authority and emit audit + host event. */
+export async function addCertAuthority(
+  tenantId: ID,
+  values: CreateCaValues,
+): Promise<CertAuthority> {
+  await simulateLatency('mutation');
+  const id = nextCaId();
+  const ca: CertAuthority = {
+    id,
+    tenant_id: tenantId,
+    name: values.name,
+    kind: values.kind,
+    subject: values.subject,
+    issuer: values.kind === 'internal' ? values.subject : values.subject,
+    not_before: now(),
+    not_after: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+    fingerprint_sha256: Array.from({ length: 64 }, (_, i) =>
+      (((id.charCodeAt(i % id.length) + i * 7) % 16)).toString(16),
+    ).join(''),
+    certificate_pem: values.certificate_pem,
+    created_at: now(),
+  };
+  useMockStore.setState((s) => ({
+    certAuthorities: { ...s.certAuthorities, [id]: ca },
+  }));
+  const state = useMockStore.getState();
+  state.appendAudit(makePkiAudit('pki.ca.create', tenantId, id));
+  emitHostEvent('pki:ca-created', { tenant_id: tenantId, ca_id: id });
+  return ca;
+}
+
+/** Create a new certificate enrollment and emit audit + host event. */
+export async function addCertEnrollment(
+  tenantId: ID,
+  values: CreateEnrollmentValues,
+): Promise<CertEnrollment> {
+  await simulateLatency('mutation');
+  const id = nextEnrollmentId();
+  const enrollment: CertEnrollment = {
+    id,
+    tenant_id: tenantId,
+    ca_id: values.ca_id,
+    subject: values.subject,
+    dns_sans: values.dns_sans,
+    state: 'pending',
+    requested_at: now(),
+  };
+  useMockStore.setState((s) => ({
+    certEnrollments: { ...s.certEnrollments, [id]: enrollment },
+  }));
+  const state = useMockStore.getState();
+  state.appendAudit(makePkiAudit('pki.enrollment.create', tenantId, id));
+  emitHostEvent('pki:enrollment-requested', { tenant_id: tenantId, enrollment_id: id });
+  return enrollment;
+}
+
+/** Revoke a certificate enrollment and emit audit + host event. */
+export async function revokeCertEnrollment(
+  enrollmentId: ID,
+  reason: string,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const enrollment = state.certEnrollments[enrollmentId];
+  if (!enrollment) return;
+
+  useMockStore.setState((s) => {
+    const current = s.certEnrollments[enrollmentId];
+    if (!current) return s;
+    return {
+      certEnrollments: {
+        ...s.certEnrollments,
+        [enrollmentId]: {
+          ...current,
+          state: 'revoked' as const,
+          revoked_at: now(),
+          ...(reason.length > 0 ? { revocation_reason: reason } : {}),
+        },
+      },
+    };
+  });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makePkiAudit('pki.enrollment.revoke', enrollment.tenant_id, enrollmentId));
+  emitHostEvent('pki:enrollment-revoked', { enrollment_id: enrollmentId, reason });
 }

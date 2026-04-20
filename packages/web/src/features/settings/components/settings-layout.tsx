@@ -39,6 +39,7 @@ import { ProfileSection } from '../sections/profile';
 import { TenantSection } from '../sections/tenant';
 import { AuthenticationSection } from '../sections/authentication';
 import { NetworkSection } from '../sections/network';
+import { PkiSection } from '../sections/pki';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -154,6 +155,8 @@ export function SettingsLayout() {
                 <AuthenticationSection />
               ) : activeSection.slug === 'network' ? (
                 <NetworkSection />
+              ) : activeSection.slug === 'pki' ? (
+                <PkiSection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

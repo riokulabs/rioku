@@ -87,3 +87,28 @@ export const networkConfigSchema = z.object({
 });
 
 export type NetworkConfigValues = z.infer<typeof networkConfigSchema>;
+
+// ─── PKI — Create CA ─────────────────────────────────────────────────────────
+
+export const createCaSchema = z.object({
+  name: z.string().min(1).max(100),
+  kind: z.enum(['internal', 'external']),
+  subject: z.string().min(1).max(200),
+  certificate_pem: z.string(),
+}).refine((v) => v.kind === 'internal' || v.certificate_pem.length > 0, {
+  message: 'PEM required for external CAs',
+  path: ['certificate_pem'],
+});
+
+export type CreateCaValues = z.infer<typeof createCaSchema>;
+
+// ─── PKI — Create Enrollment ──────────────────────────────────────────────────
+
+export const createEnrollmentSchema = z.object({
+  ca_id: z.string().min(1),
+  subject: z.string().min(1).max(200),
+  dns_sans: z.array(z.string().min(1)).default([]),
+  validity_days: z.number().int().min(1).max(3650),
+});
+
+export type CreateEnrollmentValues = z.infer<typeof createEnrollmentSchema>;
