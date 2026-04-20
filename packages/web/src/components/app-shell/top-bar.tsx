@@ -1,8 +1,48 @@
-import { Group, Title, TextInput, ActionIcon, Kbd, Flex, Box } from '@mantine/core';
+import {
+  Group,
+  Title,
+  TextInput,
+  ActionIcon,
+  Kbd,
+  Flex,
+  Box,
+  Indicator,
+  Popover,
+} from '@mantine/core';
 import { IconSearch, IconBell } from '@tabler/icons-react';
 import { spotlight } from '@mantine/spotlight';
+import { useDisclosure } from '@mantine/hooks';
+import { useMockStore } from '@/api/mock-store';
+import { InboxDropdown } from '@/features/notifications/components/inbox-dropdown';
+import { useUnreadCount } from '@/features/notifications/api';
 
+/**
+ * <TopBar> — workspace top bar.
+ *
+ * Hosts the branding + global spotlight launcher + notifications bell. The
+ * bell renders a Mantine <Indicator> showing unread count (capped to "99+"
+ * for display, hidden at zero) and opens the <InboxDropdown> in a Popover.
+ *
+ * Unread count is read via `useUnreadCount(currentUserId)`, which is backed
+ * by a Zustand selector — it re-renders on any store mutation to the
+ * `notifications` map, including live-emitted items written by
+ * `emitNotification` / `host.notify`. No additional stream subscription is
+ * needed here.
+ */
 export function TopBar() {
+  const currentUserId = useMockStore((s) => s.currentUserId);
+  const unread = useUnreadCount(currentUserId ?? '');
+  const [opened, { toggle, close }] = useDisclosure(false);
+
+  // Cap display at "99+" to keep the badge visually compact when a user has
+  // a flood of unread notifications. Aria label always carries the exact
+  // count so screen readers announce it precisely.
+  const displayCount = unread > 99 ? '99+' : String(unread);
+  const ariaLabel =
+    unread === 0
+      ? 'Notifications, no unread'
+      : `Notifications, ${String(unread)} unread`;
+
   return (
     <Flex h={56} px="md" align="center" gap="md">
       <Group gap="xs">
@@ -24,9 +64,47 @@ export function TopBar() {
         }}
       />
       <Box flex={1} />
-      <ActionIcon size="lg" variant="subtle" aria-label="Notifications">
-        <IconBell size={18} />
-      </ActionIcon>
+      <Popover
+        opened={opened}
+        onChange={(v) => {
+          if (!v) close();
+        }}
+        position="bottom-end"
+        width={400}
+        shadow="md"
+        withArrow
+        trapFocus
+      >
+        <Popover.Target>
+          <Indicator
+            label={displayCount}
+            size={16}
+            color="red"
+            disabled={unread === 0}
+            offset={4}
+            withBorder
+            aria-hidden
+          >
+            <ActionIcon
+              size="lg"
+              variant="subtle"
+              aria-label={ariaLabel}
+              onClick={toggle}
+              data-testid="topbar-bell"
+            >
+              <IconBell size={18} />
+            </ActionIcon>
+          </Indicator>
+        </Popover.Target>
+        <Popover.Dropdown p={0} data-testid="topbar-bell-dropdown">
+          {currentUserId !== null && (
+            <InboxDropdown
+              userId={currentUserId}
+              onClose={close}
+            />
+          )}
+        </Popover.Dropdown>
+      </Popover>
     </Flex>
   );
 }
