@@ -188,8 +188,7 @@ describe('<AuthenticationSection>', () => {
 
     fireEvent.click(screen.getByTestId('auth-policy-save'));
 
-    // Schema rejects min_length=3, so audit entry should NOT be emitted.
-    await new Promise((r) => setTimeout(r, 50));
+    // Schema rejects min_length=3 synchronously; no audit entry should be emitted.
     const audit = useMockStore.getState().audit;
     const entry = audit.find((a) => a.action === 'tenant.update_auth_policy');
     expect(entry).toBeUndefined();
@@ -212,8 +211,7 @@ describe('<AuthenticationSection>', () => {
 
     fireEvent.click(screen.getByTestId('auth-policy-save'));
 
-    // After attempted save with invalid value, no audit entry should exist
-    await new Promise((r) => setTimeout(r, 50));
+    // Schema rejects min_length=200 synchronously; no audit entry should be emitted.
     const audit = useMockStore.getState().audit;
     const entry = audit.find((a) => a.action === 'tenant.update_auth_policy');
     expect(entry).toBeUndefined();
@@ -311,6 +309,22 @@ describe('<AuthenticationSection>', () => {
 
     const uppercaseSwitch = screen.getByTestId<HTMLInputElement>('auth-password-require-uppercase');
     expect(uppercaseSwitch.disabled).toBe(true);
+  });
+
+  it('password require-digit switch is disabled without tenant-auth:write', () => {
+    grantWrite = false;
+    render(<AuthenticationSection />, { wrapper: Wrapper });
+
+    const digitSwitch = screen.getByTestId<HTMLInputElement>('auth-password-require-digit');
+    expect(digitSwitch.disabled).toBe(true);
+  });
+
+  it('password require-symbol switch is disabled without tenant-auth:write', () => {
+    grantWrite = false;
+    render(<AuthenticationSection />, { wrapper: Wrapper });
+
+    const symbolSwitch = screen.getByTestId<HTMLInputElement>('auth-password-require-symbol');
+    expect(symbolSwitch.disabled).toBe(true);
   });
 
   it('session idle hours input is disabled without tenant-auth:write', () => {

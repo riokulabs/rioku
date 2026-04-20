@@ -31,8 +31,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { useCurrentTenant } from '../api';
-import { useCurrentTenantAuthPolicy, updateTenantAuthPolicy } from '../api';
+import { useCurrentTenant, useCurrentTenantAuthPolicy, updateTenantAuthPolicy } from '../api';
 import { tenantAuthPolicySchema } from '../schemas';
 import type { TenantAuthPolicyValues } from '../schemas';
 

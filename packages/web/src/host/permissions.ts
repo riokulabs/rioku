@@ -25,6 +25,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'user:',
   'role:',
   'tenant:',
+  'tenant-auth:',
   'plugin:',
   'plugin-signer:',
   'session:',
