@@ -17,3 +17,6 @@ export type { TraceFilter, TraceStreamListener } from './types';
 export { TraceList } from './components/list';
 export { TraceFilterBar } from './components/filter-bar';
 export type { RangePreset } from './components/filter-bar';
+export { TraceDetail } from './components/detail';
+export { PromptCompletionView } from './components/prompt-completion-view';
+export { ToolCallList } from './components/tool-call-list';

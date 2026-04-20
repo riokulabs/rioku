@@ -17,7 +17,6 @@ import {
   Group,
   Drawer,
   Badge,
-  Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useMockStore } from '@/api/mock-store';
@@ -25,6 +24,7 @@ import { requirePermissions } from '@/hooks/use-before-load';
 import {
   TraceList,
   TraceFilterBar,
+  TraceDetail,
   useTraceList,
 } from '@/features/ai-traces';
 import type { RangePreset, TraceFilter } from '@/features/ai-traces';
@@ -177,10 +177,11 @@ function AiTracesPage() {
         padding="md"
       >
         {selected && (
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            Trace {selected.request_id} · tenant {tenantSlug}. Detail viewer
-            lands in task 3d.20.
-          </Text>
+          <TraceDetail
+            traceId={selected.id}
+            tenantSlug={tenantSlug}
+            onClose={closeDrawer}
+          />
         )}
       </Drawer>
     </Stack>
