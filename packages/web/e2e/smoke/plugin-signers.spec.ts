@@ -30,7 +30,9 @@ function makeFingerprint(seed: string): string {
   let out = '';
   for (let i = 0; i < 64; i++) {
     const c = seed.charCodeAt(i % seed.length);
-    out += alphabet[(c + i * 7) & 0xf];
+    // String#charAt is always string (empty string on oob), unlike the
+    // indexed-access form which trips `noUncheckedIndexedAccess`.
+    out += alphabet.charAt((c + i * 7) & 0xf);
   }
   return out;
 }

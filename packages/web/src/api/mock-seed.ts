@@ -371,6 +371,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'plugin-signer:read' },
     { permission: 'plugin-signer:write' },
     { permission: 'plugin-signer:delete' },
+    // Plugins (Plan 1; backfill for admin role — default_roles on
+    // BUILT_IN_PERMISSIONS list admin but the grants table was never updated
+    // when the permission catalog added them).
+    { permission: 'plugin:read' },
+    { permission: 'plugin:install' },
+    { permission: 'plugin:uninstall' },
+    { permission: 'plugin:enable' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -396,6 +403,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'dashboard:share' },
     // Plan 6 — plugin signers (read-only for ops).
     { permission: 'plugin-signer:read' },
+    // Plugins — ops can read + enable, not install or uninstall.
+    { permission: 'plugin:read' },
+    { permission: 'plugin:enable' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -422,6 +432,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'dashboard:read' },
     // Plan 6 — plugin signers (read-only for viewer).
     { permission: 'plugin-signer:read' },
+    // Plugins — viewer can read the catalog.
+    { permission: 'plugin:read' },
   ];
 
   const roleIds: T.ID[] = [];

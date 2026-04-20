@@ -9,11 +9,21 @@ const fingerprintSchema = z
   .regex(/^[0-9a-f]{64}$/, 'Fingerprint must be 64 lowercase hex characters (SHA-256).');
 
 export const createSignerSchema = z.object({
-  tenant_scope: z.string().nullable(),
+  // Optional on the form-level schema — the <SignerForm> derives the final
+  // tenant_scope from the scope segmented control + tenantId prop before
+  // invoking the API. The API-level payload always carries a concrete
+  // `tenant_scope: ID | null`. Making this optional here lets
+  // `schemaResolver` on the form values validate without a spurious
+  // "tenant_scope required" error.
+  tenant_scope: z.string().nullable().optional(),
   name: z.string().min(1).max(120),
   fingerprint: fingerprintSchema,
   description: z.string().max(500).optional(),
   status: z.enum(['verified', 'revoked', 'pending']).optional(),
+  // The form values include a `scope` segmented control; pass it through
+  // without validation (the scope-to-tenant_scope translation lives in
+  // handleSubmit).
+  scope: z.enum(['tenant', 'global']).optional(),
 });
 
 export const updateSignerSchema = z.object({
