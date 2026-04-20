@@ -29,6 +29,7 @@ import {
   Stack,
   Switch,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -39,6 +40,7 @@ import {
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { usePermission } from '@/hooks/use-permission';
 import {
   AuditDetail,
   AuditFilterBar,
@@ -215,6 +217,11 @@ function AuditPage() {
     setLiveCount(0);
   }, []);
 
+  // Export gate: users without audit:export cannot download. The API layer
+  // still redacts PII fields when the session lacks audit:read-sensitive,
+  // so no separate "redact sensitive" checkbox is needed in the UI.
+  const canExport = usePermission('audit:export');
+
   const handleExport = useCallback(
     (format: 'csv' | 'jsonl') => {
       try {
@@ -225,7 +232,8 @@ function AuditPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `audit-${new Date().toISOString().slice(0, 10)}.${format === 'csv' ? 'csv' : 'jsonl'}`;
+        const datestamp = new Date().toISOString().slice(0, 10);
+        a.download = `audit-${tenantSlug}-${datestamp}.${format === 'csv' ? 'csv' : 'jsonl'}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -238,7 +246,7 @@ function AuditPage() {
         notify.error('Export failed', 'Please try again.');
       }
     },
-    [tenantId, filter, rows.length],
+    [tenantId, tenantSlug, filter, rows.length],
   );
 
   return (
@@ -264,17 +272,30 @@ function AuditPage() {
             aria-label="Toggle live audit tail"
             data-testid="audit-live-tail-switch"
           />
-          <Menu shadow="md" width={160}>
+          <Menu shadow="md" width={160} disabled={!canExport}>
             <Menu.Target>
-              <Button
-                variant="subtle"
-                leftSection={<IconDownload size={14} />}
-                rightSection={<IconChevronDown size={14} />}
-                aria-label="Export audit entries"
-                data-testid="audit-export-menu"
+              <Tooltip
+                label="You don't have permission to export audit entries"
+                disabled={canExport}
+                withArrow
               >
-                Export
-              </Button>
+                {/* Tooltip requires its child to forward refs; wrapping the
+                    button in a span keeps the tooltip anchored even when
+                    the button is disabled (disabled buttons swallow
+                    pointer events otherwise). */}
+                <span>
+                  <Button
+                    variant="subtle"
+                    leftSection={<IconDownload size={14} />}
+                    rightSection={<IconChevronDown size={14} />}
+                    aria-label="Export audit entries"
+                    data-testid="audit-export-menu"
+                    disabled={!canExport}
+                  >
+                    Export
+                  </Button>
+                </span>
+              </Tooltip>
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item
