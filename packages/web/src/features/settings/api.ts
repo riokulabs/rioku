@@ -149,12 +149,11 @@ export async function updatePreferences(
     reduced_motion: boolean;
     notification_email: boolean;
     notification_in_app: boolean;
+    categories_muted: string[];
   },
 ): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
-  const user = state.users[userId];
-  const existingCats = user?.notification_preferences.categories_muted ?? [];
 
   state.updateEntity('users', userId, {
     locale: patch.locale,
@@ -163,7 +162,7 @@ export async function updatePreferences(
     notification_preferences: {
       email: patch.notification_email,
       in_app: patch.notification_in_app,
-      categories_muted: existingCats,
+      categories_muted: patch.categories_muted,
     },
     updated_at: now(),
   });

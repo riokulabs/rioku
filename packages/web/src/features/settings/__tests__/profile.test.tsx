@@ -390,4 +390,62 @@ describe('<ProfileSection> — preferences', () => {
     const btn = screen.getByTestId<HTMLButtonElement>('profile-preferences-save');
     expect(btn.disabled).toBe(true);
   });
+
+  it('renders all 3 built-in category checkboxes in the preferences subsection', () => {
+    render(<ProfileSection />, { wrapper: Wrapper });
+
+    expect(screen.getByTestId('profile-mute-category-system')).toBeDefined();
+    expect(screen.getByTestId('profile-mute-category-security')).toBeDefined();
+    expect(screen.getByTestId('profile-mute-category-audit')).toBeDefined();
+  });
+
+  it('toggling a category and saving writes it to categories_muted and emits audit + host event', async () => {
+    const hostEvents: { type: string; payload: unknown }[] = [];
+    const origDispatch = window.dispatchEvent.bind(window);
+    const spy = vi.spyOn(window, 'dispatchEvent').mockImplementation((event) => {
+      if (event instanceof CustomEvent && event.type.startsWith('rioku:')) {
+        hostEvents.push({ type: event.type, payload: event.detail });
+      }
+      return origDispatch(event);
+    });
+
+    render(<ProfileSection />, { wrapper: Wrapper });
+
+    // Click the "security" category checkbox to mute it.
+    const securityCheckbox = screen.getByTestId<HTMLInputElement>(
+      'profile-mute-category-security',
+    );
+    fireEvent.click(securityCheckbox);
+
+    fireEvent.click(screen.getByTestId('profile-preferences-save'));
+
+    await waitFor(() => {
+      const derrickId = getDerrickId();
+      const user = useMockStore.getState().users[derrickId];
+      expect(user?.notification_preferences.categories_muted).toContain('security');
+    });
+
+    await waitFor(() => {
+      const audit = useMockStore.getState().audit;
+      const entry = audit.find((a) => a.action === 'user.profile.update_preferences');
+      expect(entry).toBeDefined();
+    });
+
+    spy.mockRestore();
+  });
+
+  it('category checkboxes are disabled when user:update-own is missing', () => {
+    grantUpdate = false;
+    render(<ProfileSection />, { wrapper: Wrapper });
+
+    const systemCb = screen.getByTestId<HTMLInputElement>('profile-mute-category-system');
+    const securityCb = screen.getByTestId<HTMLInputElement>(
+      'profile-mute-category-security',
+    );
+    const auditCb = screen.getByTestId<HTMLInputElement>('profile-mute-category-audit');
+
+    expect(systemCb.disabled).toBe(true);
+    expect(securityCb.disabled).toBe(true);
+    expect(auditCb.disabled).toBe(true);
+  });
 });

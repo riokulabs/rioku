@@ -12,6 +12,7 @@ import { useCallback } from 'react';
 import {
   Alert,
   Button,
+  Checkbox,
   Fieldset,
   Group,
   Select,
@@ -27,9 +28,18 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { useActiveTheme } from '@/hooks/use-active-theme';
 import { BUILTIN_THEMES } from '@/theme';
+import { BUILT_IN_CATEGORIES } from '@/features/notifications/schemas';
 import { updatePreferences } from '../api';
 import { preferencesSchema, type PreferencesValues } from '../schemas';
 import type { User } from '@/api/resources/types';
+
+// ─── Category label map ───────────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<string, string> = {
+  system: 'System',
+  security: 'Security',
+  audit: 'Audit',
+};
 
 // ─── Timezone list ────────────────────────────────────────────────────────────
 
@@ -93,6 +103,7 @@ export function ProfilePreferences({ user }: ProfilePreferencesProps) {
       reduced_motion: user.reduced_motion,
       notification_email: user.notification_preferences.email,
       notification_in_app: user.notification_preferences.in_app,
+      categories_muted: user.notification_preferences.categories_muted,
     },
     validate: schemaResolver(preferencesSchema, { sync: true }),
   });
@@ -111,6 +122,7 @@ export function ProfilePreferences({ user }: ProfilePreferencesProps) {
           reduced_motion: values.reduced_motion,
           notification_email: values.notification_email,
           notification_in_app: values.notification_in_app,
+          categories_muted: values.categories_muted,
         });
 
         notify.success('Preferences saved');
@@ -186,8 +198,7 @@ export function ProfilePreferences({ user }: ProfilePreferencesProps) {
         <Fieldset legend="Notifications">
           <Stack gap="xs">
             <Text size="xs" c="var(--mantine-color-gray-7)">
-              Choose which channels deliver notifications to you. Category-level
-              preferences are available on the Notifications page.
+              Choose which channels deliver notifications to you.
             </Text>
             <Switch
               label="Email notifications"
@@ -207,6 +218,29 @@ export function ProfilePreferences({ user }: ProfilePreferencesProps) {
                 form.setFieldValue('notification_in_app', e.currentTarget.checked);
               }}
             />
+
+            {/* Mute categories */}
+            <Checkbox.Group
+              label="Mute categories"
+              description="Selected categories will not generate notifications."
+              value={form.values.categories_muted}
+              onChange={(val) => {
+                form.setFieldValue('categories_muted', val);
+              }}
+              data-testid="profile-mute-categories"
+            >
+              <Group gap="sm" mt="xs">
+                {BUILT_IN_CATEGORIES.map((cat) => (
+                  <Checkbox
+                    key={cat}
+                    value={cat}
+                    label={CATEGORY_LABELS[cat] ?? cat}
+                    disabled={!canUpdate}
+                    data-testid={`profile-mute-category-${cat}`}
+                  />
+                ))}
+              </Group>
+            </Checkbox.Group>
           </Stack>
         </Fieldset>
 

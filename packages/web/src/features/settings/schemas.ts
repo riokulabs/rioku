@@ -40,6 +40,7 @@ export const preferencesSchema = z.object({
   reduced_motion: z.boolean(),
   notification_email: z.boolean(),
   notification_in_app: z.boolean(),
+  categories_muted: z.array(z.string()),
 });
 
 export type PreferencesValues = z.infer<typeof preferencesSchema>;
