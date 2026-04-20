@@ -12,13 +12,11 @@ export default defineConfig({
     css: true,
     // Cap workers so local `pnpm test` doesn't peg every core.
     // CI can override via `vitest run --max-workers=N` if it wants more parallelism.
+    //
+    // Vitest 4 removed `test.poolOptions` in favour of a top-level
+    // `maxWorkers` option. See https://vitest.dev/guide/migration#pool-rework
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        maxThreads: '50%',
-        minThreads: 1,
-      },
-    },
+    maxWorkers: '50%',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],
