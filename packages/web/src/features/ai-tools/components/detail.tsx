@@ -27,8 +27,10 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { Link } from '@tanstack/react-router';
 import {
   IconAlertCircle,
+  IconExternalLink,
   IconTool,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -52,11 +54,17 @@ dayjs.extend(relativeTime);
 
 interface ToolDetailProps {
   toolId: string;
+  tenantSlug: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function ToolDetail({ toolId, onEdit, onClose }: ToolDetailProps) {
+export function ToolDetail({
+  toolId,
+  tenantSlug,
+  onEdit,
+  onClose,
+}: ToolDetailProps) {
   const tool = useToolDetail(toolId);
   const agentsUsing = useToolAgents(toolId);
   const auditEntries = useMockStore((s) => s.audit);
@@ -199,9 +207,23 @@ export function ToolDetail({ toolId, onEdit, onClose }: ToolDetailProps) {
 
       {/* Agents using this tool */}
       <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Agents using this tool ({String(agentsUsing.length)})
-        </Text>
+        <Group justify="space-between" align="center">
+          <Text size="sm" fw={600}>
+            Agents using this tool ({String(agentsUsing.length)})
+          </Text>
+          <Button
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast
+            component={Link as any}
+            to="/t/$tenant/ai/tool-routing"
+            params={{ tenant: tenantSlug }}
+            search={{ tool: tool.id }}
+            size="xs"
+            variant="subtle"
+            rightSection={<IconExternalLink size={12} />}
+          >
+            View all bindings for this tool
+          </Button>
+        </Group>
         {agentsUsing.length === 0 ? (
           <Text size="xs" c="var(--mantine-color-gray-7)">
             No agents currently bound to this tool.

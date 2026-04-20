@@ -8,9 +8,9 @@
  */
 import { useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
+import { Alert, Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPlus } from '@tabler/icons-react';
+import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
@@ -36,6 +36,8 @@ interface SearchParams {
   kinds: Kind[];
   enabled?: 'true' | 'false';
   dangerous?: 'true' | 'false';
+  /** Deep-link: filter to tools exposed by this MCP server id. */
+  mcp_server_id?: string;
   selected?: string;
 }
 
@@ -81,6 +83,9 @@ function AiToolsPage() {
       : search.dangerous === 'false'
         ? { dangerous: false }
         : {}),
+    ...(search.mcp_server_id !== undefined
+      ? { mcp_server_id: search.mcp_server_id }
+      : {}),
   };
 
   function setFilter(next: ToolFilter) {
@@ -103,6 +108,7 @@ function AiToolsPage() {
             : next.dangerous === false
               ? 'false'
               : '',
+        mcp_server_id: next.mcp_server_id ?? '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
@@ -169,6 +175,28 @@ function AiToolsPage() {
 
       <ToolFilterBar filter={filter} onChange={setFilter} />
 
+      {filter.mcp_server_id !== undefined && (
+        <Alert
+          variant="light"
+          color="blue"
+          icon={<IconInfoCircle size={16} />}
+          withCloseButton
+          onClose={() => {
+            const next: ToolFilter = { ...filter };
+            delete next.mcp_server_id;
+            setFilter(next);
+          }}
+        >
+          Showing tools exposed by MCP server{' '}
+          <strong>
+            {tenantId && filter.mcp_server_id
+              ? filter.mcp_server_id
+              : ''}
+          </strong>
+          . Close this banner to clear the filter.
+        </Alert>
+      )}
+
       <ToolList
         tenantId={tenantId}
         filter={filter}
@@ -188,6 +216,7 @@ function AiToolsPage() {
         {drawerMode === 'detail' && selectedTool && (
           <ToolDetail
             toolId={selectedTool.id}
+            tenantSlug={tenantSlug}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}
           />
@@ -236,6 +265,9 @@ export const Route = createFileRoute('/t/$tenant/ai/tools')({
       : s.dangerous === 'false'
         ? { dangerous: 'false' as const }
         : {}),
+    ...(typeof s.mcp_server_id === 'string' && s.mcp_server_id.length > 0
+      ? { mcp_server_id: s.mcp_server_id }
+      : {}),
     ...(typeof s.selected === 'string' ? { selected: s.selected } : {}),
   }),
 });

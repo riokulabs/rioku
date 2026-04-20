@@ -173,6 +173,7 @@ function AiAgentsPage() {
         {drawerMode === 'detail' && selectedAgent && (
           <AgentDetail
             agentId={selectedAgent.id}
+            tenantSlug={tenantSlug}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}
           />

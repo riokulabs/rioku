@@ -7,6 +7,9 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
+  Link: ({ children }: { children: React.ReactNode }) => (
+    <span data-link="true">{children}</span>
+  ),
 }));
 
 import { render, screen } from '@testing-library/react';
@@ -47,6 +50,7 @@ describe('AgentDetail', () => {
     wrap(
       <AgentDetail
         agentId={firstAgentId()}
+        tenantSlug="acme"
         onEdit={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -60,6 +64,7 @@ describe('AgentDetail', () => {
     wrap(
       <AgentDetail
         agentId="does-not-exist"
+        tenantSlug="acme"
         onEdit={vi.fn()}
         onClose={vi.fn()}
       />,
