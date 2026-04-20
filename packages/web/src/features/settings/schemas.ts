@@ -39,12 +39,6 @@ export const tenantNameSchema = z.object({
 
 export type TenantNameValues = z.infer<typeof tenantNameSchema>;
 
-export const tenantUrlModeSchema = z.object({
-  url_mode: z.enum(['path', 'subdomain']),
-});
-
-export type TenantUrlModeValues = z.infer<typeof tenantUrlModeSchema>;
-
 // ─── Preferences ──────────────────────────────────────────────────────────────
 
 export const preferencesSchema = z.object({

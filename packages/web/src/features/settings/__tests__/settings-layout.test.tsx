@@ -86,7 +86,8 @@ describe('SettingsLayout', () => {
 
   it('shows tenant section inline when ?section=tenant', () => {
     // Set current tenant so useCurrentTenant() returns a value.
-    const tenantId = Object.keys(useMockStore.getState().tenants)[0]!;
+    const [tenantId] = Object.keys(useMockStore.getState().tenants);
+    if (!tenantId) throw new Error('No tenants in store');
     useMockStore.setState({ currentTenantId: tenantId });
     mockSection = 'tenant';
     wrap(<SettingsLayout />);

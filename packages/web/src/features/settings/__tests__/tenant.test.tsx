@@ -285,30 +285,33 @@ describe('<TenantSection>', () => {
     grantWrite = false;
     render(<TenantSection />, { wrapper: Wrapper });
 
-    // SegmentedControl renders with aria-disabled or disabled at the container level.
+    // Mantine v9 SegmentedControl sets data-disabled on the root wrapper
+    // and disabled on each inner radio input when disabled={true}.
     const control = screen.getByTestId('tenant-url-mode-control');
-    // The element itself or a child will carry disabled indication.
-    expect(control).toBeDefined();
-    // Verify store is not mutated when write permission is absent.
-    const tenantId = getAcmeTenantId();
-    const before = useMockStore.getState().tenants[tenantId]?.url_mode;
-    expect(before).toBeDefined(); // Just confirming the store still has a value.
+    expect(control).toHaveAttribute('data-disabled', 'true');
+    // Also verify all radio inputs are disabled so the control cannot trigger mutations.
+    const radioInputs = control.querySelectorAll<HTMLInputElement>('input[type="radio"]');
+    expect(radioInputs.length).toBeGreaterThan(0);
+    radioInputs.forEach((input) => expect(input).toBeDisabled());
   });
 
   it('theme select is disabled without tenant:write', () => {
     grantWrite = false;
     render(<TenantSection />, { wrapper: Wrapper });
 
-    // Select renders an underlying input or button.
-    const themeSelect = screen.getByTestId('tenant-theme-select');
-    expect(themeSelect).toBeDefined();
+    // Mantine v9 Select places the data-testid on the underlying <input> element,
+    // which also receives the disabled attribute directly — so toBeDisabled() works.
+    const themeSelect = screen.getByTestId<HTMLInputElement>('tenant-theme-select');
+    expect(themeSelect).toBeDisabled();
   });
 
   it('logo dropzone is disabled without tenant:write', () => {
     grantWrite = false;
     render(<TenantSection />, { wrapper: Wrapper });
 
+    // The Dropzone is stubbed in tests as a plain <div> that spreads all extra props.
+    // When disabled={true} is passed, the stub renders disabled="" on the div.
     const dropzone = screen.getByTestId('tenant-logo-dropzone');
-    expect(dropzone).toBeDefined();
+    expect(dropzone).toHaveAttribute('disabled');
   });
 });
