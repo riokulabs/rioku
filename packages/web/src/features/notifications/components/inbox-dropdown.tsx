@@ -319,7 +319,7 @@ export function InboxDropdown({ userId, onClose }: InboxDropdownProps) {
               No notifications
             </Text>
             <Text size="xs" c="var(--mantine-color-gray-7)">
-              You're all caught up.
+              You&apos;re all caught up.
             </Text>
           </Stack>
         ) : (
