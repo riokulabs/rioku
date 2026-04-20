@@ -35,6 +35,7 @@ import { Route as TTenantRoutesRouteImport } from './routes/t.$tenant/routes'
 import { Route as TTenantPoliciesRouteImport } from './routes/t.$tenant/policies'
 import { Route as TTenantPluginsRouteImport } from './routes/t.$tenant/plugins'
 import { Route as TTenantMiddlewaresRouteImport } from './routes/t.$tenant/middlewares'
+import { Route as TTenantDashboardsRouteImport } from './routes/t.$tenant/dashboards'
 import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
 import { Route as TTenantApiExplorerRouteImport } from './routes/t.$tenant/api-explorer'
 import { Route as TTenantAiRouteImport } from './routes/t.$tenant/ai'
@@ -186,6 +187,11 @@ const TTenantMiddlewaresRoute = TTenantMiddlewaresRouteImport.update({
   path: '/middlewares',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantDashboardsRoute = TTenantDashboardsRouteImport.update({
+  id: '/dashboards',
+  path: '/dashboards',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantDashboardRoute = TTenantDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -319,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/ai': typeof TTenantAiRouteWithChildren
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/policies': typeof TTenantPoliciesRoute
@@ -366,6 +373,7 @@ export interface FileRoutesByTo {
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/policies': typeof TTenantPoliciesRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/t/$tenant/ai': typeof TTenantAiRouteWithChildren
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
+  '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
   '/t/$tenant/policies': typeof TTenantPoliciesRoute
@@ -466,6 +475,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai'
     | '/t/$tenant/api-explorer'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
     | '/t/$tenant/plugins'
     | '/t/$tenant/policies'
@@ -513,6 +523,7 @@ export interface FileRouteTypes {
     | '/reset-password/$token'
     | '/t/$tenant/api-explorer'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
     | '/t/$tenant/plugins'
     | '/t/$tenant/policies'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai'
     | '/t/$tenant/api-explorer'
     | '/t/$tenant/dashboard'
+    | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
     | '/t/$tenant/plugins'
     | '/t/$tenant/policies'
@@ -780,6 +792,13 @@ declare module '@tanstack/react-router' {
       path: '/middlewares'
       fullPath: '/t/$tenant/middlewares'
       preLoaderRoute: typeof TTenantMiddlewaresRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/dashboards': {
+      id: '/t/$tenant/dashboards'
+      path: '/dashboards'
+      fullPath: '/t/$tenant/dashboards'
+      preLoaderRoute: typeof TTenantDashboardsRouteImport
       parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/dashboard': {
@@ -1029,6 +1048,7 @@ interface TTenantRouteChildren {
   TTenantAiRoute: typeof TTenantAiRouteWithChildren
   TTenantApiExplorerRoute: typeof TTenantApiExplorerRoute
   TTenantDashboardRoute: typeof TTenantDashboardRoute
+  TTenantDashboardsRoute: typeof TTenantDashboardsRoute
   TTenantMiddlewaresRoute: typeof TTenantMiddlewaresRoute
   TTenantPluginsRoute: typeof TTenantPluginsRoute
   TTenantPoliciesRoute: typeof TTenantPoliciesRoute
@@ -1044,6 +1064,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantAiRoute: TTenantAiRouteWithChildren,
   TTenantApiExplorerRoute: TTenantApiExplorerRoute,
   TTenantDashboardRoute: TTenantDashboardRoute,
+  TTenantDashboardsRoute: TTenantDashboardsRoute,
   TTenantMiddlewaresRoute: TTenantMiddlewaresRoute,
   TTenantPluginsRoute: TTenantPluginsRoute,
   TTenantPoliciesRoute: TTenantPoliciesRoute,

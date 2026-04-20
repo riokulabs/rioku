@@ -39,3 +39,6 @@ export type {
   UpdateDashboardInput,
   DashboardExport,
 } from './types';
+
+export { DashboardList } from './components/list';
+export { DashboardFilterBar } from './components/filter-bar';
