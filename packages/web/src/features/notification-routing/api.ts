@@ -192,7 +192,8 @@ export async function reorderRoutingRules(
   const patchMap: Record<ID, NotificationRoutingRule> = { ...state.notificationRoutingRules };
   const updatedIds: ID[] = [];
   for (let i = 0; i < ruleIds.length; i++) {
-    const id = ruleIds[i]!;
+    const id = ruleIds[i];
+    if (id === undefined) continue;
     const current = patchMap[id];
     if (!current) continue;
     if (current.tenant_id !== tenantId) continue;
@@ -222,7 +223,11 @@ export async function reorderRoutingRules(
   });
 
   const next = useMockStore.getState().notificationRoutingRules;
-  return updatedIds
-    .map((id) => next[id]!)
-    .sort((a, b) => a.order_hint - b.order_hint);
+  const out: NotificationRoutingRule[] = [];
+  for (const id of updatedIds) {
+    const rule = next[id];
+    if (rule) out.push(rule);
+  }
+  out.sort((a, b) => a.order_hint - b.order_hint);
+  return out;
 }
