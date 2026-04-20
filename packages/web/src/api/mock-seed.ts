@@ -356,6 +356,12 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'mcp-server:read' },
     { permission: 'mcp-server:write' },
     { permission: 'mcp-server:delete' },
+    // Plan 4 — dashboards (full access).
+    { permission: 'dashboard:read' },
+    { permission: 'dashboard:write' },
+    { permission: 'dashboard:delete' },
+    { permission: 'dashboard:share' },
+    { permission: 'dashboard:set-default' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -372,6 +378,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'ai-rate-limit:write' },
     { permission: 'mcp-server:read' },
     { permission: 'mcp-server:write' },
+    // Plan 4 — dashboards (read/write/share; no delete, no set-default).
+    { permission: 'dashboard:read' },
+    { permission: 'dashboard:write' },
+    { permission: 'dashboard:share' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -392,6 +402,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'ai-trace:read' },
     { permission: 'ai-rate-limit:read' },
     { permission: 'mcp-server:read' },
+    // Plan 4 — dashboards (read only).
+    { permission: 'dashboard:read' },
   ];
 
   const roleIds: T.ID[] = [];

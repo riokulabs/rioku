@@ -40,6 +40,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'ai-trace:',
   'ai-rate-limit:',
   'mcp-server:',
+  'dashboard:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -421,6 +422,38 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'mcp-server:delete',
     description: 'Remove MCP servers',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // dashboard:*
+  {
+    key: 'dashboard:read',
+    description: 'View dashboards',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'dashboard:write',
+    description: 'Create and update dashboards and widgets',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'dashboard:delete',
+    description: 'Delete dashboards',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'dashboard:share',
+    description: 'Change dashboard scope / role sharing',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'dashboard:set-default',
+    description: 'Mark a dashboard as the tenant default',
     source: 'built-in',
     default_roles: ['admin'],
   },

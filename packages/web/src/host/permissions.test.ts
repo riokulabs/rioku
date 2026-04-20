@@ -133,6 +133,14 @@ describe('BUILT_IN_PERMISSIONS', () => {
     expect(keys).toContain('mcp-server:delete');
   });
 
+  it('contains all dashboard:* permissions', () => {
+    expect(keys).toContain('dashboard:read');
+    expect(keys).toContain('dashboard:write');
+    expect(keys).toContain('dashboard:delete');
+    expect(keys).toContain('dashboard:share');
+    expect(keys).toContain('dashboard:set-default');
+  });
+
   it('contains all 17 Plan 3 AI / MCP keys', () => {
     const expected = [
       'ai-provider:read', 'ai-provider:write', 'ai-provider:delete',
@@ -183,6 +191,7 @@ describe('RESERVED_PREFIXES', () => {
       'ai-trace:',
       'ai-rate-limit:',
       'mcp-server:',
+      'dashboard:',
     ];
     for (const prefix of expected) {
       expect(RESERVED_PREFIXES).toContain(prefix);
