@@ -45,3 +45,5 @@ export { DashboardFilterBar } from './components/filter-bar';
 export { DashboardViewer } from './components/viewer';
 export { VariablesPanel } from './components/variables-panel';
 export type { VariablesPanelProps } from './components/variables-panel';
+export { VersionHistoryDrawer } from './components/version-history-drawer';
+export type { VersionHistoryDrawerProps } from './components/version-history-drawer';

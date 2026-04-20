@@ -7,6 +7,7 @@
  *   - `shared`:   current user's roles must intersect dashboard.shared_role_ids.
  *   - `tenant`:   anyone with dashboard:read in the tenant.
  */
+import { useState } from 'react';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
@@ -15,6 +16,7 @@ import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   DashboardViewer,
+  VersionHistoryDrawer,
   createDashboard,
 } from '@/features/dashboards';
 import { useDashboardDetail } from '@/features/dashboards';
@@ -22,6 +24,7 @@ import { useDashboardDetail } from '@/features/dashboards';
 function DashboardViewerPage() {
   const { tenant, dashboardId } = Route.useParams();
   const navigate = useNavigate();
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const tenantRecord = useMockStore((s) =>
     Object.values(s.tenants).find((t) => t.slug === tenant),
@@ -72,10 +75,7 @@ function DashboardViewerPage() {
   }
 
   function handleVersionHistory(_id: string) {
-    notify.info(
-      'Version history pending',
-      'Version history drawer ships in Phase 4d.',
-    );
+    setHistoryOpen(true);
   }
 
   return (
@@ -95,6 +95,20 @@ function DashboardViewerPage() {
         onClone={(id) => { void handleClone(id); }}
         onVersionHistory={handleVersionHistory}
       />
+      {dashboard && (
+        <VersionHistoryDrawer
+          opened={historyOpen}
+          dashboard={dashboard}
+          onClose={() => {
+            setHistoryOpen(false);
+          }}
+          onRestored={() => {
+            // Restore writes a new version + updates the dashboard. The
+            // viewer's hooks re-read the store automatically.
+            setHistoryOpen(false);
+          }}
+        />
+      )}
     </Stack>
   );
 }

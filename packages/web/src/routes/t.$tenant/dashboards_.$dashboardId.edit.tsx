@@ -5,20 +5,26 @@
  * and the same scope rules as the viewer: personal dashboards must match the
  * owner; shared dashboards must intersect the user's role ids.
  */
+import { useState } from 'react';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { DashboardBuilderShell } from '@/features/dashboard-builder';
-import { notify } from '@/hooks/use-notify';
+import {
+  VersionHistoryDrawer,
+  useDashboardDetail,
+} from '@/features/dashboards';
 
 function DashboardBuilderPage() {
   const { tenant, dashboardId } = Route.useParams();
   const navigate = useNavigate();
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const tenantRecord = useMockStore((s) =>
     Object.values(s.tenants).find((t) => t.slug === tenant),
   );
   const tenantSlug = tenantRecord?.slug ?? tenant;
+  const dashboard = useDashboardDetail(dashboardId);
 
   function goBack(outcome: 'saved' | 'cancelled') {
     if (outcome === 'saved') {
@@ -35,18 +41,34 @@ function DashboardBuilderPage() {
   }
 
   function handleVersionHistory(_id: string) {
-    notify.info(
-      'Version history pending',
-      'Version history drawer ships in Phase 4d.',
-    );
+    setHistoryOpen(true);
   }
 
   return (
-    <DashboardBuilderShell
-      dashboardId={dashboardId}
-      onDone={goBack}
-      onVersionHistory={handleVersionHistory}
-    />
+    <>
+      <DashboardBuilderShell
+        dashboardId={dashboardId}
+        onDone={goBack}
+        onVersionHistory={handleVersionHistory}
+      />
+      {dashboard && (
+        <VersionHistoryDrawer
+          opened={historyOpen}
+          dashboard={dashboard}
+          onClose={() => {
+            setHistoryOpen(false);
+          }}
+          onRestored={() => {
+            setHistoryOpen(false);
+            // After restore, return to viewer.
+            void navigate({
+              to: '/t/$tenant/dashboards/$dashboardId',
+              params: { tenant: tenantSlug, dashboardId },
+            } as unknown as Parameters<typeof navigate>[0]);
+          }}
+        />
+      )}
+    </>
   );
 }
 

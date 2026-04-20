@@ -142,12 +142,16 @@ describe('<DashboardBuilderShell>', () => {
     await user.type(nameInput, 'Renamed dashboard');
 
     await user.click(screen.getByRole('button', { name: /Cancel/ }));
-    // Confirm modal appears.
-    expect(screen.getAllByText(/Discard changes\?/).length).toBeGreaterThan(0);
+    // Confirm modal appears (portal-rendered — wait for it).
+    const discardBtn = await screen.findByRole(
+      'button',
+      { name: /^Discard$/ },
+      { timeout: 3000 },
+    );
     expect(onDone).not.toHaveBeenCalled();
 
     // Clicking Discard triggers onDone('cancelled').
-    await user.click(screen.getByRole('button', { name: /^Discard$/ }));
+    await user.click(discardBtn);
     expect(onDone).toHaveBeenCalledWith('cancelled');
   });
 });
