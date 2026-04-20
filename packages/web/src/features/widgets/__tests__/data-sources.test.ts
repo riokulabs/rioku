@@ -10,8 +10,9 @@ import {
   DATA_SOURCE_ADAPTERS,
   WidgetQueryError,
   runWidgetQuery,
+  substituteVariables,
 } from '../data-sources';
-import type { Widget } from '@/api/resources/types';
+import type { DashboardVariable, Widget } from '@/api/resources/types';
 
 function makeWidget(partial: Partial<Widget> & { data_source: string; kind: string }): Widget {
   return {
@@ -180,5 +181,53 @@ describe('raw_query parsing', () => {
     });
     const result = runWidgetQuery(w, useMockStore.getState()) as { items: unknown[] };
     expect(result.items.length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe('substituteVariables', () => {
+  const vars: DashboardVariable[] = [
+    { name: 'tenant', kind: 'text', default: 'acme' },
+    { name: 'level', kind: 'enum', default: 'warn', options: ['info', 'warn', 'error'] },
+  ];
+
+  it('replaces $name with the variable default', () => {
+    const result = substituteVariables('{"tenant":"$tenant","level":"$level"}', vars);
+    expect(result).toBe('{"tenant":"acme","level":"warn"}');
+  });
+
+  it('leaves unknown $name tokens untouched', () => {
+    const result = substituteVariables('$tenant/$unknown', vars);
+    expect(result).toBe('acme/$unknown');
+  });
+
+  it('is a no-op for empty variables or empty query', () => {
+    expect(substituteVariables('', vars)).toBe('');
+    expect(substituteVariables('$tenant', [])).toBe('$tenant');
+  });
+
+  it('is applied by runWidgetQuery via the dashboard', () => {
+    // Pick a seeded dashboard and attach a variable for substitution.
+    const dashboards = useMockStore.getState().dashboards;
+    const dash = Object.values(dashboards)[0]!;
+    useMockStore.setState({
+      dashboards: {
+        ...dashboards,
+        [dash.id]: {
+          ...dash,
+          variables: [{ name: 'limit_count', kind: 'text', default: '3' }],
+        },
+      },
+    });
+    const w: Widget = {
+      ...makeWidget({
+        id: 'w-sub',
+        data_source: 'mock',
+        kind: 'top-n',
+        raw_query: '{"limit": $limit_count}',
+      }),
+      dashboard_id: dash.id,
+    };
+    const result = runWidgetQuery(w, useMockStore.getState()) as { items: unknown[] };
+    expect(result.items.length).toBeLessThanOrEqual(3);
   });
 });

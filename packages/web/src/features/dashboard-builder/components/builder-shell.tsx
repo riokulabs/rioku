@@ -30,6 +30,7 @@ import {
   Alert,
   Box,
   Button,
+  Drawer,
   Group,
   Modal,
   SegmentedControl,
@@ -42,6 +43,7 @@ import {
   IconAlertCircle,
   IconDeviceFloppy,
   IconHistory,
+  IconVariable,
   IconX,
 } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
@@ -50,6 +52,7 @@ import {
   updateDashboard,
   useDashboardDetail,
   useDashboardWidgets,
+  VariablesPanel,
 } from '@/features/dashboards';
 import type { Dashboard, Widget } from '@/api/resources/types';
 import {
@@ -197,6 +200,7 @@ function ShellInner({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [modeFlipOpen, setModeFlipOpen] = useState(false);
   const [modeFlipBusy, setModeFlipBusy] = useState(false);
+  const [variablesOpen, setVariablesOpen] = useState(false);
 
   const selectedWidget = useMemo(() => {
     if (selectedWidgetId === null) return null;
@@ -432,6 +436,17 @@ function ShellInner({
             ]}
             aria-label="Dashboard mode"
           />
+          <Button
+            variant="default"
+            size="xs"
+            leftSection={<IconVariable size={14} />}
+            onClick={() => {
+              setVariablesOpen(true);
+            }}
+            data-testid="builder-variables-open"
+          >
+            Variables
+          </Button>
           {onVersionHistory && (
             <Button
               variant="default"
@@ -552,6 +567,20 @@ function ShellInner({
           void handleConfirmModeFlip();
         }}
       />
+
+      <Drawer
+        opened={variablesOpen}
+        onClose={() => {
+          setVariablesOpen(false);
+        }}
+        position="right"
+        size="lg"
+        title="Dashboard variables"
+        withCloseButton
+        data-testid="variables-drawer"
+      >
+        <VariablesPanel dashboard={dashboard} />
+      </Drawer>
 
       <Modal
         opened={cancelOpen}

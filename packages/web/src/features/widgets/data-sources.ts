@@ -16,6 +16,7 @@
  */
 import type {
   AuditEntry,
+  DashboardVariable,
   Route,
   Service,
   Widget,
@@ -86,8 +87,36 @@ function parseAdvancedQuery(raw: string): NormalizedQuery {
   };
 }
 
-function resolveQuery(widget: Widget): NormalizedQuery {
-  if (widget.raw_query.trim().length > 0) return parseAdvancedQuery(widget.raw_query);
+// ─── Variable substitution ────────────────────────────────────────────────────
+
+/**
+ * Replace `$name` tokens in a raw-query string using the dashboard variables.
+ *
+ * Stage-1 rules:
+ *  - `$name` is substituted with `variable.default`.
+ *  - Unknown `$name` tokens are left untouched (never throw) so the adapter's
+ *    downstream JSON parse surfaces the error instead.
+ *  - Tokens inside string literals are substituted too (naive textual
+ *    substitution — sufficient for the current mock JSON syntax).
+ */
+export function substituteVariables(
+  raw: string,
+  variables: readonly DashboardVariable[],
+): string {
+  if (raw.length === 0 || variables.length === 0) return raw;
+  // Map for quick lookup. Variable names must match the `$name` regex below.
+  const byName = new Map<string, string>();
+  for (const v of variables) byName.set(v.name, v.default);
+  return raw.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, name: string) => {
+    const replacement = byName.get(name);
+    return replacement !== undefined ? replacement : match;
+  });
+}
+
+function resolveQuery(widget: Widget, variables: readonly DashboardVariable[]): NormalizedQuery {
+  if (widget.raw_query.trim().length > 0) {
+    return parseAdvancedQuery(substituteVariables(widget.raw_query, variables));
+  }
   if (widget.wizard_state !== undefined) return normalizeWizardState(widget.wizard_state);
   return { filters: [] };
 }
@@ -208,8 +237,18 @@ function coerceRows(arr: readonly unknown[]): Record<string, unknown>[] {
   return arr as unknown as Record<string, unknown>[];
 }
 
+/**
+ * Resolve the dashboard variables relevant for the widget (if any). When the
+ * widget's dashboard is not found (e.g. the widget was detached in a bad
+ * restore), variable substitution is a no-op.
+ */
+function widgetVariables(widget: Widget, state: MockStore): readonly DashboardVariable[] {
+  const dashboard = state.dashboards[widget.dashboard_id];
+  return dashboard?.variables ?? [];
+}
+
 function auditAdapter(widget: Widget, state: MockStore): unknown {
-  const query = resolveQuery(widget);
+  const query = resolveQuery(widget, widgetVariables(widget, state));
   const tenantId = state.currentTenantId;
   const rows = applyFilters(
     coerceRows(tenantFilter<AuditEntry>(state.audit, tenantId)),
@@ -219,7 +258,7 @@ function auditAdapter(widget: Widget, state: MockStore): unknown {
 }
 
 function servicesAdapter(widget: Widget, state: MockStore): unknown {
-  const query = resolveQuery(widget);
+  const query = resolveQuery(widget, widgetVariables(widget, state));
   const tenantId = state.currentTenantId;
   const services: Service[] = tenantFilter<Service>(Object.values(state.services), tenantId);
   const rows = applyFilters(coerceRows(services), query.filters);
@@ -227,14 +266,14 @@ function servicesAdapter(widget: Widget, state: MockStore): unknown {
 }
 
 function routesAdapter(widget: Widget, state: MockStore): unknown {
-  const query = resolveQuery(widget);
+  const query = resolveQuery(widget, widgetVariables(widget, state));
   const routes: Route[] = Object.values(state.routes);
   const rows = applyFilters(coerceRows(routes), query.filters);
   return finalShape(widget, rows, query);
 }
 
 function tracesAdapter(widget: Widget, state: MockStore): unknown {
-  const query = resolveQuery(widget);
+  const query = resolveQuery(widget, widgetVariables(widget, state));
   const tenantId = state.currentTenantId;
   const traces: AiTrace[] = tenantFilter<AiTrace>(Object.values(state.aiTraces), tenantId);
   const rows = applyFilters(coerceRows(traces), query.filters);
@@ -242,7 +281,7 @@ function tracesAdapter(widget: Widget, state: MockStore): unknown {
 }
 
 function notificationsAdapter(widget: Widget, state: MockStore): unknown {
-  const query = resolveQuery(widget);
+  const query = resolveQuery(widget, widgetVariables(widget, state));
   const notifs: NotificationItem[] = Object.values(state.notifications);
   const rows = applyFilters(coerceRows(notifs), query.filters);
   return finalShape(widget, rows, query);
@@ -255,7 +294,7 @@ function hashCode(s: string): number {
   return h >>> 0;
 }
 
-function mockAdapter(widget: Widget, _state: MockStore): unknown {
+function mockAdapter(widget: Widget, state: MockStore): unknown {
   const seed = hashCode(widget.id);
   const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < 20; i++) {
@@ -265,7 +304,7 @@ function mockAdapter(widget: Widget, _state: MockStore): unknown {
       label: `row-${String(i)}`,
     });
   }
-  const query = resolveQuery(widget);
+  const query = resolveQuery(widget, widgetVariables(widget, state));
   const filtered = applyFilters(rows, query.filters);
   return finalShape(widget, filtered, query);
 }

@@ -43,3 +43,5 @@ export type {
 export { DashboardList } from './components/list';
 export { DashboardFilterBar } from './components/filter-bar';
 export { DashboardViewer } from './components/viewer';
+export { VariablesPanel } from './components/variables-panel';
+export type { VariablesPanelProps } from './components/variables-panel';
