@@ -32,6 +32,28 @@ vi.mock('@/hooks/use-active-theme', () => ({
   useActiveTheme: () => ['dark', vi.fn()] as [string, (v: string) => void],
 }));
 
+// Stub @mantine/dropzone — used by ProfilePersonalInfo and TenantSection.
+// jsdom lacks ResizeObserver + File API internals required by the real Dropzone.
+function DropzoneStub({
+  children,
+  onDrop: _onDrop,
+  ...rest
+}: React.PropsWithChildren<Record<string, unknown>>) {
+  const testId = (rest['data-testid'] as string | undefined) ?? 'dropzone-stub';
+  return <div data-testid={testId} {...rest}>{children}</div>;
+}
+function NoopChild({ children }: React.PropsWithChildren) {
+  return <>{children}</>;
+}
+DropzoneStub.Accept = NoopChild;
+DropzoneStub.Reject = NoopChild;
+DropzoneStub.Idle = NoopChild;
+
+vi.mock('@mantine/dropzone', () => ({
+  Dropzone: DropzoneStub,
+  IMAGE_MIME_TYPE: ['image/png', 'image/jpeg'],
+}));
+
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { useMockStore } from '@/api/mock-store';
@@ -62,10 +84,13 @@ describe('SettingsLayout', () => {
     expect(screen.getByTestId('profile-section')).toBeDefined();
   });
 
-  it('shows tenant section when ?section=tenant', () => {
+  it('shows tenant section inline when ?section=tenant', () => {
+    // Set current tenant so useCurrentTenant() returns a value.
+    const tenantId = Object.keys(useMockStore.getState().tenants)[0]!;
+    useMockStore.setState({ currentTenantId: tenantId });
     mockSection = 'tenant';
     wrap(<SettingsLayout />);
-    expect(screen.getByText(/tenant settings/i)).toBeDefined();
+    expect(screen.getByTestId('tenant-section')).toBeDefined();
   });
 
   it('shows notifications section with link to the notifications subpage', () => {

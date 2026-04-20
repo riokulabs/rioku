@@ -43,12 +43,19 @@ export interface User {
 
 export interface Tenant {
   readonly id: ID;
-  slug: string;
+  slug: string;                        // displayed read-only in UI
   name: string;
   /** Hex accent color, e.g. '#22c55e' */
   accent: string;
   plan: 'community' | 'pro' | 'enterprise';
+  /** URL-addressing mode. `path` = `/t/<slug>/...`, `subdomain` = `<slug>.example.com`. */
+  url_mode: 'path' | 'subdomain';
+  /** Name of the registered theme (matches RegisteredTheme.name from @/theme). Optional — fallback is the system default. */
+  default_theme?: string;
+  /** URL or data URI of tenant logo. Empty string = cleared (same sentinel as avatar). */
+  logo_url?: string;
   readonly created_at: string;
+  updated_at: string;
 }
 
 export interface Membership {

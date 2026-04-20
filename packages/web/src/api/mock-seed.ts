@@ -225,7 +225,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
       name: 'Acme Corp',
       accent: '#22c55e',
       plan: 'enterprise',
+      url_mode: 'path',
+      default_theme: 'dark',
+      logo_url: '/logos/acme.png',
       created_at: daysAgo(90),
+      updated_at: daysAgo(5),
     },
     {
       id: betaTenantId,
@@ -233,7 +237,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
       name: 'Beta Inc',
       accent: '#3b82f6',
       plan: 'pro',
+      url_mode: 'subdomain',
       created_at: daysAgo(60),
+      updated_at: daysAgo(10),
     },
     {
       id: gammaTenantId,
@@ -241,7 +247,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
       name: 'Gamma Systems',
       accent: '#f59e0b',
       plan: 'community',
+      url_mode: 'path',
       created_at: daysAgo(30),
+      updated_at: daysAgo(2),
     },
   ];
   for (const t of tenants) addEntity('tenants', t);
@@ -479,6 +487,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-log:read' },
     // Plan 8a — self-profile update (all logged-in roles).
     { permission: 'user:update-own' },
+    // Plan 8a — tenant settings (admin: read + write).
+    { permission: 'tenant:read' },
+    { permission: 'tenant:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -519,6 +530,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-log:read' },
     // Plan 8a — self-profile update.
     { permission: 'user:update-own' },
+    // Plan 8a — tenant settings (ops: read-only).
+    { permission: 'tenant:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -555,6 +568,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-log:read' },
     // Plan 8a — self-profile update (all logged-in users can update their own profile).
     { permission: 'user:update-own' },
+    // Plan 8a — tenant settings (viewer: read-only).
+    { permission: 'tenant:read' },
   ];
 
   const roleIds: T.ID[] = [];

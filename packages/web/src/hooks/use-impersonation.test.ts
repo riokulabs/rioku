@@ -33,7 +33,9 @@ function seedStore() {
     name: 'Acme Corp',
     accent: '#22c55e',
     plan: 'enterprise',
+    url_mode: 'path',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   });
   useMockStore.setState({ currentUserId: 'user-test-admin', currentTenantId: 'tenant-test-01' });
 }

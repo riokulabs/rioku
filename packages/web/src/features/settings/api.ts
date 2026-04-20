@@ -1,5 +1,5 @@
 /**
- * Settings feature — mock API for Profile mutations.
+ * Settings feature — mock API for Profile and Tenant mutations.
  *
  * Backed by the Zustand mock store. Follows the conventions from
  * features/notification-channels/api.ts:
@@ -9,16 +9,18 @@
  *   - atomic setState(s => ({...})) for multi-field patches
  *
  * Task 8a.2 — Profile section.
+ * Task 8a.3 — Tenant section.
  */
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, User } from '@/api/resources/types';
+import type { AuditEntry, ID, Tenant, User } from '@/api/resources/types';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
 const nextAuditId = makeIdFactory('audit-profile');
+const nextTenantAuditId = makeIdFactory('audit-tenant');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -174,4 +176,99 @@ export async function updatePreferences(
     user_id: userId,
     fields: ['locale', 'timezone', 'reduced_motion', 'notification_preferences'],
   });
+}
+
+// ─── Tenant selectors ─────────────────────────────────────────────────────────
+
+/** Returns the current tenant from the store, or undefined. */
+export function useCurrentTenant(): Tenant | undefined {
+  return useMockStore((s) =>
+    s.currentTenantId ? s.tenants[s.currentTenantId] : undefined,
+  );
+}
+
+// ─── Tenant audit helper ──────────────────────────────────────────────────────
+
+function makeTenantAudit(
+  action: string,
+  tenantId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextTenantAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── Tenant mutations ─────────────────────────────────────────────────────────
+
+/** Update the tenant's display name. */
+export async function updateTenantName(tenantId: ID, name: string): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateEntity('tenants', tenantId, { name, updated_at: now() });
+  state.appendAudit(makeTenantAudit('tenant.update_name', tenantId));
+  emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['name'] });
+}
+
+/** Update the tenant's URL mode. */
+export async function updateTenantUrlMode(
+  tenantId: ID,
+  mode: 'path' | 'subdomain',
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateEntity('tenants', tenantId, { url_mode: mode, updated_at: now() });
+  state.appendAudit(makeTenantAudit('tenant.update_url_mode', tenantId));
+  emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['url_mode'] });
+}
+
+/** Update the tenant's default theme. Pass `undefined` to revert to system default. */
+export async function updateTenantDefaultTheme(
+  tenantId: ID,
+  themeName: string | undefined,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  if (themeName !== undefined) {
+    // Set a specific theme.
+    state.updateEntity('tenants', tenantId, { default_theme: themeName, updated_at: now() });
+  } else {
+    // Clear: delete the optional key by rebuilding the tenant object without it.
+    useMockStore.setState((s) => {
+      const t = s.tenants[tenantId];
+      if (!t) return s;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { default_theme: _removed, ...rest } = t;
+      return { tenants: { ...s.tenants, [tenantId]: { ...rest, updated_at: now() } } };
+    });
+  }
+  state.appendAudit(makeTenantAudit('tenant.update_default_theme', tenantId));
+  emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['default_theme'] });
+}
+
+/** Update the tenant's logo URL. Pass `null` to clear (stored as ''). */
+export async function updateTenantLogo(
+  tenantId: ID,
+  url: string | null,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const patch: Partial<Tenant> = {
+    logo_url: url ?? '',
+    updated_at: now(),
+  };
+  state.updateEntity('tenants', tenantId, patch);
+  const auditAction =
+    url === null ? 'tenant.logo_removed' : 'tenant.update_logo';
+  state.appendAudit(makeTenantAudit(auditAction, tenantId));
+  emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['logo_url'] });
 }

@@ -54,7 +54,9 @@ function CreateTenantForm({ onSuccess, onCancel }: { onSuccess: () => void; onCa
       name: values.name.trim(),
       accent: '#22c55e',
       plan: values.plan,
+      url_mode: 'path',
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     useMockStore.getState().addEntity('tenants', tenant);
     setSaving(false);

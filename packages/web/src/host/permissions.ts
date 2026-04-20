@@ -269,6 +269,18 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
 
   // tenant:*
   {
+    key: 'tenant:read',
+    description: 'View the current tenant record and settings',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'tenant:write',
+    description: 'Update tenant settings (name, url mode, theme, logo)',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
     key: 'tenant:switch',
     description: 'Switch the active tenant context',
     source: 'built-in',

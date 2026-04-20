@@ -36,6 +36,7 @@ import type { Icon } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
 import { ProfileSection } from '../sections/profile';
+import { TenantSection } from '../sections/tenant';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -145,6 +146,8 @@ export function SettingsLayout() {
               <Title order={3}>{activeSection.label}</Title>
               {activeSection.slug === 'profile' ? (
                 <ProfileSection />
+              ) : activeSection.slug === 'tenant' ? (
+                <TenantSection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

@@ -31,6 +31,20 @@ export const changePasswordSchema = z
 
 export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
+// ─── Tenant ───────────────────────────────────────────────────────────────────
+
+export const tenantNameSchema = z.object({
+  name: z.string().min(1, 'Tenant name is required').max(100, 'Tenant name too long'),
+});
+
+export type TenantNameValues = z.infer<typeof tenantNameSchema>;
+
+export const tenantUrlModeSchema = z.object({
+  url_mode: z.enum(['path', 'subdomain']),
+});
+
+export type TenantUrlModeValues = z.infer<typeof tenantUrlModeSchema>;
+
 // ─── Preferences ──────────────────────────────────────────────────────────────
 
 export const preferencesSchema = z.object({

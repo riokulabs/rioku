@@ -466,7 +466,9 @@ export async function bootstrap(
     name: setup.tenant_name,
     accent: '#22c55e',
     plan: 'community' as const,
+    url_mode: 'path' as const,
     created_at: now(),
+    updated_at: now(),
   };
 
   const user: User = {
