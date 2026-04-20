@@ -202,6 +202,43 @@ export interface AuditEntry {
   acted_as_admin?: boolean;
   payload?: unknown;
   diff?: { before: unknown; after: unknown };
+  // Plan 5 additions:
+  /** Correlates this audit entry with a gateway request id. */
+  request_id?: string;
+  /** Caller IP as observed at the gateway. Sensitive — masked without `audit:read-sensitive`. */
+  ip?: string;
+  /** Caller user-agent string. Sensitive — masked without `audit:read-sensitive`. */
+  user_agent?: string;
+  /** True when the actor confirmed TOTP within this request's auth chain. */
+  totp_verified?: boolean;
+  /** Access + RBAC policies evaluated for this request, with per-policy decision. */
+  policies_evaluated?: {
+    readonly policy_id: ID;
+    decision: 'allow' | 'deny';
+    reason?: string;
+  }[];
+}
+
+/**
+ * Tenant-scoped audit retention configuration.
+ *
+ * One row per tenant controls how long audit entries are kept (per tier) and
+ * how / whether they are auto-exported. Enforcement is a Stage 2+ daemon cron
+ * — Stage 1 only persists the policy.
+ */
+export interface AuditRetentionConfig {
+  readonly tenant_id: ID;
+  /** Days to retain per tier. */
+  retention_days: {
+    read: number;
+    'read-sensitive': number;
+    write: number;
+    destructive: number;
+  };
+  /** Export cadence. `never` disables the auto-export job. */
+  auto_export: 'daily' | 'weekly' | 'monthly' | 'never';
+  auto_export_format: 'csv' | 'jsonl';
+  readonly updated_at: string;
 }
 
 /**
