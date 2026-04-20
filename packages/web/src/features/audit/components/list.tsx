@@ -182,8 +182,11 @@ export function AuditList({ rows, onSelect }: AuditListProps) {
       },
       {
         id: 'totp',
-        header: '',
-        size: 40,
+        // Visible "TOTP" label so the sortable header button has discernible
+        // text (axe `button-name`). Keep the column compact — the value
+        // cell is a single icon, not a text string.
+        header: 'TOTP',
+        size: 56,
         accessorFn: (row) => row.totp_verified === true,
         cell: ({ row }) => {
           const e = row.original;
