@@ -44,3 +44,6 @@ export type {
 
 export { CelDiff } from './components/cel-diff';
 export type { CelDiffProps } from './components/cel-diff';
+
+export { AuditList } from './components/list';
+export type { AuditListProps } from './components/list';
