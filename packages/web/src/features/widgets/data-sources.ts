@@ -140,8 +140,31 @@ function aggregate(
   if (op === 'sum') return values.reduce((a, b) => a + b, 0);
   if (op === 'avg') return values.reduce((a, b) => a + b, 0) / values.length;
   if (op === 'min') return values.reduce((a, b) => (a < b ? a : b));
-  if (op === 'max') return values.reduce((a, b) => (a > b ? a : b));
-  return 0;
+  // op === 'max' (only remaining case)
+  return values.reduce((a, b) => (a > b ? a : b));
+}
+
+// ─── Safe coercion helpers ────────────────────────────────────────────────────
+
+/** Stringify a row value, avoiding '[object Object]'. */
+function asString(v: unknown, fallback = ''): string {
+  if (v === null || v === undefined) return fallback;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return fallback;
+}
+
+function asNumber(v: unknown, fallback = 0): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+}
+
+function rowGet(row: Record<string, unknown>, field: string): unknown {
+  return row[field];
 }
 
 function applyGroupAggregate<R extends Record<string, unknown>>(
@@ -152,10 +175,10 @@ function applyGroupAggregate<R extends Record<string, unknown>>(
 
   const bucket = new Map<string, number[]>();
   for (const row of rows) {
-    const key = String(row[query.group_by] ?? 'unknown');
-    const n = Number(row[query.aggregate.field]);
+    const key = asString(rowGet(row, query.group_by), 'unknown');
+    const n = asNumber(rowGet(row, query.aggregate.field));
     const arr = bucket.get(key) ?? [];
-    arr.push(Number.isFinite(n) ? n : 0);
+    arr.push(n);
     bucket.set(key, arr);
   }
   let groups: { key: string; value: number }[] = [];
@@ -181,8 +204,8 @@ function tenantFilter<T extends { tenant_id?: string | null }>(rows: T[], tenant
   return rows.filter((r) => r.tenant_id === tenantId || r.tenant_id === null);
 }
 
-function coerceRows(arr: unknown[]): Record<string, unknown>[] {
-  return arr as Record<string, unknown>[];
+function coerceRows(arr: readonly unknown[]): Record<string, unknown>[] {
+  return arr as unknown as Record<string, unknown>[];
 }
 
 function auditAdapter(widget: Widget, state: MockStore): unknown {
@@ -205,7 +228,8 @@ function servicesAdapter(widget: Widget, state: MockStore): unknown {
 
 function routesAdapter(widget: Widget, state: MockStore): unknown {
   const query = resolveQuery(widget);
-  const rows = applyFilters(coerceRows(Object.values(state.routes) as Route[]), query.filters);
+  const routes: Route[] = Object.values(state.routes);
+  const rows = applyFilters(coerceRows(routes), query.filters);
   return finalShape(widget, rows, query);
 }
 
@@ -257,66 +281,87 @@ function finalShape(widget: Widget, rows: Record<string, unknown>[], query: Norm
 
   switch (widget.kind) {
     case 'single-stat': {
-      const value = query.aggregate !== undefined
-        ? aggregate(rows.map((r) => Number(r[query.aggregate?.field ?? 'count']) || 0), query.aggregate.op)
-        : rows.length;
+      const agg = query.aggregate;
+      const value =
+        agg !== undefined
+          ? aggregate(rows.map((r) => asNumber(rowGet(r, agg.field))), agg.op)
+          : rows.length;
       return { value };
     }
     case 'sparkline':
     case 'time-series': {
       const points = limitedRows.slice(0, 20).map((r, i) => ({
-        x: r['x'] ?? i,
-        y: typeof r['y'] === 'number' ? r['y'] : i,
+        x: asNumber(rowGet(r, 'x'), i),
+        y: asNumber(rowGet(r, 'y'), i),
       }));
       return widget.kind === 'sparkline' ? { points } : { points, series: 'value' };
     }
     case 'stacked-bar': {
-      const categories = groups.length > 0 ? groups.map((g) => ({ label: g.key, value: g.value })) : limitedRows.map((r, i) => ({ label: String(r['label'] ?? `row-${String(i)}`), value: Number(r['y'] ?? 0) }));
+      const categories =
+        groups.length > 0
+          ? groups.map((g) => ({ label: g.key, value: g.value }))
+          : limitedRows.map((r, i) => ({
+              label: asString(rowGet(r, 'label'), `row-${String(i)}`),
+              value: asNumber(rowGet(r, 'y')),
+            }));
       return { categories, series: [{ name: 'value' }] };
     }
     case 'pie': {
-      const slices = groups.length > 0
-        ? groups.map((g) => ({ name: g.key, value: g.value }))
-        : limitedRows.slice(0, 6).map((r, i) => ({ name: String(r['label'] ?? `row-${String(i)}`), value: Number(r['y'] ?? 1) }));
+      const slices =
+        groups.length > 0
+          ? groups.map((g) => ({ name: g.key, value: g.value }))
+          : limitedRows.slice(0, 6).map((r, i) => ({
+              name: asString(rowGet(r, 'label'), `row-${String(i)}`),
+              value: asNumber(rowGet(r, 'y'), 1),
+            }));
       return { slices };
     }
     case 'top-n': {
-      const items = groups.length > 0
-        ? groups.map((g) => ({ name: g.key, value: g.value }))
-        : limitedRows
-            .slice(0, query.limit ?? 10)
-            .map((r, i) => ({ name: String(r['label'] ?? `row-${String(i)}`), value: Number(r['y'] ?? 0) }));
+      const items =
+        groups.length > 0
+          ? groups.map((g) => ({ name: g.key, value: g.value }))
+          : limitedRows.slice(0, query.limit ?? 10).map((r, i) => ({
+              name: asString(rowGet(r, 'label'), `row-${String(i)}`),
+              value: asNumber(rowGet(r, 'y')),
+            }));
       return { items };
     }
     case 'table': {
       return { rows: limitedRows };
     }
     case 'log-viewer': {
-      const lines = limitedRows.slice(0, 50).map((r) => ({
-        level: (r['level'] as 'info') ?? 'info',
-        ts: String(r['at'] ?? r['created_at'] ?? ''),
-        msg: String(r['action'] ?? r['title'] ?? r['label'] ?? 'event'),
-      }));
+      const lines = limitedRows.slice(0, 50).map((r) => {
+        const level = rowGet(r, 'level');
+        const normalizedLevel: 'debug' | 'info' | 'warn' | 'error' =
+          level === 'debug' || level === 'warn' || level === 'error' ? level : 'info';
+        return {
+          level: normalizedLevel,
+          ts: asString(rowGet(r, 'at') ?? rowGet(r, 'created_at')),
+          msg: asString(rowGet(r, 'action') ?? rowGet(r, 'title') ?? rowGet(r, 'label'), 'event'),
+        };
+      });
       return { lines };
     }
     case 'audit-tail': {
       const entries = limitedRows.slice(0, 20).map((r) => ({
-        id: String(r['id'] ?? ''),
-        at: String(r['at'] ?? ''),
-        action: String(r['action'] ?? ''),
-        actor_id: String(r['actor_id'] ?? ''),
-        outcome: String(r['outcome'] ?? 'success'),
+        id: asString(rowGet(r, 'id')),
+        at: asString(rowGet(r, 'at')),
+        action: asString(rowGet(r, 'action')),
+        actor_id: asString(rowGet(r, 'actor_id')),
+        outcome: asString(rowGet(r, 'outcome'), 'success'),
       }));
       return { entries };
     }
     case 'service-map': {
       const nodes = limitedRows.slice(0, 6).map((r, i) => ({
-        id: String(r['id'] ?? `n-${String(i)}`),
-        label: String(r['name'] ?? r['label'] ?? `svc-${String(i)}`),
+        id: asString(rowGet(r, 'id'), `n-${String(i)}`),
+        label: asString(rowGet(r, 'name') ?? rowGet(r, 'label'), `svc-${String(i)}`),
       }));
       const edges: { from: string; to: string }[] = [];
       for (let i = 0; i < nodes.length - 1; i++) {
-        edges.push({ from: nodes[i]!.id, to: nodes[i + 1]!.id });
+        const from = nodes[i];
+        const to = nodes[i + 1];
+        if (from && to) edges.push({ from: from.id, to: to.id });
       }
       return { nodes, edges };
     }

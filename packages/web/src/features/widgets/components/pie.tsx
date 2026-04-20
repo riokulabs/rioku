@@ -39,7 +39,7 @@ export function PieWidget({ widget, data, loading, error }: WidgetRenderProps) {
   const slices = data.slices.map((s, i) => ({
     name: s.name,
     value: s.value,
-    color: s.color ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length]!,
+    color: s.color ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length] ?? 'blue.6',
   }));
 
   return (

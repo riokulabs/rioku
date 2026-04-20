@@ -55,20 +55,47 @@ interface IntrospectedField {
 }
 
 /**
+ * Minimal shape of a Zod v4 def that we read via introspection. Zod's public
+ * types don't expose this surface, so we model only the fields we consume.
+ */
+interface ZodDefShape {
+  type?: string;
+  checks?: { _zod?: { def?: ZodCheckShape }; def?: ZodCheckShape }[];
+  innerType?: { _zod?: { def?: ZodDefShape }; _def?: ZodDefShape };
+  element?: { _zod?: { def?: ZodDefShape }; _def?: ZodDefShape };
+  entries?: Record<string, string | number>;
+}
+
+interface ZodCheckShape {
+  check?: string;
+  value?: unknown;
+  format?: string;
+  minimum?: number;
+}
+
+interface ZodInternal {
+  _zod?: { def?: ZodDefShape };
+  _def?: ZodDefShape;
+}
+
+function readDef(node: unknown): ZodDefShape | undefined {
+  const n = node as ZodInternal | null | undefined;
+  return n?._zod?.def ?? n?._def;
+}
+
+/**
  * Introspect a Zod node using the v4 `_zod.def` shape. Unwraps `optional`
  * layers first so the UI knows the field isn't required.
  */
-function introspect(node: z.ZodType<unknown>): IntrospectedField {
+function introspect(node: z.ZodType): IntrospectedField {
   let required = true;
-  // Walk through optional/default/nullable wrappers.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let def = (node as any)._zod?.def ?? (node as any)._def;
-  while (def !== undefined && (def.type === 'optional' || def.type === 'default' || def.type === 'nullable')) {
-    if (def.type === 'optional' || def.type === 'default' || def.type === 'nullable') {
-      required = false;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const inner = (def.innerType as any)?._zod?.def ?? (def.innerType as any)?._def;
+  let def: ZodDefShape | undefined = readDef(node);
+  while (
+    def !== undefined &&
+    (def.type === 'optional' || def.type === 'default' || def.type === 'nullable')
+  ) {
+    required = false;
+    const inner = readDef(def.innerType);
     if (!inner) break;
     def = inner;
   }
@@ -77,18 +104,22 @@ function introspect(node: z.ZodType<unknown>): IntrospectedField {
     return { type: 'unsupported', required, rawTypeName: 'unknown' };
   }
 
-  const rawTypeName = String(def.type ?? 'unknown');
+  const rawTypeName = def.type ?? 'unknown';
 
   if (def.type === 'string') {
     let minStringLength: number | undefined;
     for (const c of def.checks ?? []) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cd = (c as any)._zod?.def ?? (c as any).def;
-      if (cd?.check === 'min_length' && typeof cd?.minimum === 'number') {
+      const cd = c._zod?.def ?? c.def;
+      if (cd?.check === 'min_length' && typeof cd.minimum === 'number') {
         minStringLength = cd.minimum;
       }
     }
-    return { type: 'string', required, rawTypeName, ...(minStringLength !== undefined ? { minStringLength } : {}) };
+    return {
+      type: 'string',
+      required,
+      rawTypeName,
+      ...(minStringLength !== undefined ? { minStringLength } : {}),
+    };
   }
 
   if (def.type === 'number') {
@@ -96,11 +127,10 @@ function introspect(node: z.ZodType<unknown>): IntrospectedField {
     let max: number | undefined;
     let int = false;
     for (const c of def.checks ?? []) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cd = (c as any)._zod?.def ?? (c as any).def;
-      if (cd?.check === 'number_format' && cd?.format === 'safeint') int = true;
-      if (cd?.check === 'greater_than' && typeof cd?.value === 'number') min = cd.value;
-      if (cd?.check === 'less_than' && typeof cd?.value === 'number') max = cd.value;
+      const cd = c._zod?.def ?? c.def;
+      if (cd?.check === 'number_format' && cd.format === 'safeint') int = true;
+      if (cd?.check === 'greater_than' && typeof cd.value === 'number') min = cd.value;
+      if (cd?.check === 'less_than' && typeof cd.value === 'number') max = cd.value;
     }
     return {
       type: 'number',
@@ -122,8 +152,7 @@ function introspect(node: z.ZodType<unknown>): IntrospectedField {
   }
 
   if (def.type === 'array') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const inner = (def.element as any)?._zod?.def ?? (def.element as any)?._def;
+    const inner = readDef(def.element);
     if (inner?.type === 'string') {
       return { type: 'array-string', required, rawTypeName };
     }
@@ -224,7 +253,7 @@ export function SchemaForm<T extends Record<string, unknown>>({
   onChange,
   labels,
 }: SchemaFormProps<T>) {
-  const shape = schema.shape as Record<string, z.ZodType<unknown>>;
+  const shape = schema.shape as Record<string, z.ZodType>;
 
   return (
     <Stack gap="sm" aria-label="Widget schema form">

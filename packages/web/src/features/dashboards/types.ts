@@ -1,6 +1,12 @@
 /**
  * Dashboards feature-local types.
  */
+import type {
+  Dashboard,
+  DashboardVariable,
+  Widget,
+} from '@/api/resources/types';
+
 export type {
   Dashboard,
   DashboardVariable,
@@ -26,7 +32,7 @@ export interface CreateDashboardInput {
   scope?: 'personal' | 'tenant' | 'shared';
   owner_user_id?: string | null;
   shared_role_ids?: string[];
-  variables?: import('@/api/resources/types').DashboardVariable[];
+  variables?: DashboardVariable[];
 }
 
 export interface UpdateDashboardInput {
@@ -36,7 +42,7 @@ export interface UpdateDashboardInput {
   scope?: 'personal' | 'tenant' | 'shared';
   owner_user_id?: string | null;
   shared_role_ids?: string[];
-  variables?: import('@/api/resources/types').DashboardVariable[];
+  variables?: DashboardVariable[];
   layout?: Record<string, { x: number; y: number; w: number; h: number }>;
   widget_ids?: string[];
 }
@@ -45,8 +51,8 @@ export interface UpdateDashboardInput {
 export interface DashboardExport {
   version: string;
   exported_at: string;
-  dashboard: import('@/api/resources/types').Dashboard;
-  widgets: import('@/api/resources/types').Widget[];
+  dashboard: Dashboard;
+  widgets: Widget[];
 }
 
 export const DASHBOARD_EXPORT_VERSION = 'plan4-v1' as const;

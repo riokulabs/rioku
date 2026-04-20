@@ -49,9 +49,14 @@ export function TableWidget({ widget, data, loading, error }: WidgetRenderProps)
         <Table.Tbody>
           {data.rows.map((row, ri) => (
             <Table.Tr key={ri}>
-              {columns.map((c) => (
-                <Table.Td key={c}>{String(row[c] ?? '')}</Table.Td>
-              ))}
+              {columns.map((c) => {
+                const v = row[c];
+                let rendered = '';
+                if (typeof v === 'string') rendered = v;
+                else if (typeof v === 'number' || typeof v === 'boolean') rendered = String(v);
+                else if (v !== null && v !== undefined) rendered = JSON.stringify(v);
+                return <Table.Td key={c}>{rendered}</Table.Td>;
+              })}
             </Table.Tr>
           ))}
         </Table.Tbody>

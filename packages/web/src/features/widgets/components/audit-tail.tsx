@@ -13,7 +13,8 @@ interface AuditTailData {
     at: string;
     action: string;
     actor_id: string;
-    outcome: 'success' | 'denied' | 'error' | string;
+    /** Expected values: 'success' | 'denied' | 'error'; any string is tolerated. */
+    outcome: string;
   }[];
 }
 

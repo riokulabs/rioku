@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Data-source adapter tests — covers all 6 built-in adapters plus the
  * wizard_state / raw_query / parse-error branches.
@@ -90,7 +91,7 @@ describe('audit adapter', () => {
       },
     });
     const result = runWidgetQuery(w, useMockStore.getState()) as { rows: Record<string, unknown>[] };
-    expect(result.rows.every((r) => r['outcome'] === 'success')).toBe(true);
+    expect(result.rows.every((r) => r.outcome === 'success')).toBe(true);
   });
 });
 
@@ -145,7 +146,7 @@ describe('raw_query parsing', () => {
       raw_query: JSON.stringify({ filters: [{ field: 'x', op: '<', value: 5 }] }),
     });
     const result = runWidgetQuery(w, useMockStore.getState()) as { rows: Record<string, unknown>[] };
-    expect(result.rows.every((r) => (r['x'] as number) < 5)).toBe(true);
+    expect(result.rows.every((r) => (r.x as number) < 5)).toBe(true);
   });
 
   it('throws WidgetQueryError with detail on invalid JSON', () => {

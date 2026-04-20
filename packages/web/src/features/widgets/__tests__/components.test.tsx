@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Widget component smoke tests — each of the 10 built-in widgets renders its
  * happy path, loading skeleton, and error alert without crashing.
@@ -113,6 +114,6 @@ describe.each(Object.keys(BUILT_IN_WIDGETS))('widget component: %s', (kind) => {
       data: { bad: 'shape' },
       loading: false,
     });
-    expect(container.textContent ?? '').toContain('Invalid data');
+    expect(container.textContent).toContain('Invalid data');
   });
 });

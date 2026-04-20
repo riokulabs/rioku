@@ -1,6 +1,8 @@
 /**
  * Dashboard-builder feature-local types.
  */
+import type { WidgetWizardState } from '@/api/resources/types';
+
 export type { Dashboard, Widget, ID } from '@/api/resources/types';
 
 export interface AddWidgetInput {
@@ -9,7 +11,7 @@ export interface AddWidgetInput {
   data_source: string;
   config?: Record<string, unknown>;
   raw_query?: string;
-  wizard_state?: import('@/api/resources/types').WidgetWizardState;
+  wizard_state?: WidgetWizardState;
   position?: { x: number; y: number; w: number; h: number };
 }
 
@@ -19,7 +21,7 @@ export interface UpdateWidgetInput {
   data_source?: string;
   config?: Record<string, unknown>;
   raw_query?: string;
-  wizard_state?: import('@/api/resources/types').WidgetWizardState;
+  wizard_state?: WidgetWizardState;
   locked_advanced?: boolean;
 }
 

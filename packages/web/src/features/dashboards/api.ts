@@ -42,6 +42,41 @@ function getCurrentActorId(): string {
   return useMockStore.getState().currentUserId ?? 'unknown';
 }
 
+/** Strip mutable / relational fields from a dashboard for snapshot embedding. */
+function dashboardSnapshotOf(
+  d: Dashboard,
+): DashboardVersion['snapshot']['dashboard'] {
+  return {
+    name: d.name,
+    default: d.default,
+    widget_ids: [...d.widget_ids],
+    ...(d.description !== undefined ? { description: d.description } : {}),
+    owner_user_id: d.owner_user_id,
+    mode: d.mode,
+    scope: d.scope,
+    shared_role_ids: [...d.shared_role_ids],
+    layout: { ...d.layout },
+    variables: [...d.variables],
+  };
+}
+
+/** Strip mutable / relational fields from a widget for snapshot embedding. */
+function widgetSnapshotOf(
+  w: Widget,
+): DashboardVersion['snapshot']['widgets'][number] {
+  return {
+    id: w.id,
+    kind: w.kind,
+    title: w.title,
+    config: w.config,
+    position: w.position,
+    data_source: w.data_source,
+    raw_query: w.raw_query,
+    ...(w.wizard_state !== undefined ? { wizard_state: w.wizard_state } : {}),
+    locked_advanced: w.locked_advanced,
+  };
+}
+
 function makeAuditEntry(
   actorId: string,
   tenantId: string | null,
@@ -291,16 +326,9 @@ export async function snapshotDashboard(
   for (const wid of dashboard.widget_ids) {
     const w = state.widgets[wid];
     if (!w) continue;
-    const { dashboard_id: _dId, created_at: _cAt, updated_at: _uAt, ...rest } = w;
-    widgetSnapshots.push(rest);
+    widgetSnapshots.push(widgetSnapshotOf(w));
   }
-  const {
-    id: _id,
-    tenant_id: _tId,
-    created_at: _dashCAt,
-    updated_at: _dashUAt,
-    ...dashRest
-  } = dashboard;
+  const dashRest = dashboardSnapshotOf(dashboard);
 
   const version: DashboardVersion = {
     id: nextVersionId(),
@@ -452,11 +480,8 @@ export async function importDashboardJson(
   if (!parsed.success) {
     throw new DashboardImportError(`Invalid dashboard export: ${parsed.error.message}`);
   }
-  if (parsed.data.version !== DASHBOARD_EXPORT_VERSION) {
-    throw new DashboardImportError(
-      `Unsupported dashboard export version: ${parsed.data.version}`,
-    );
-  }
+  // The schema pins the version literal to DASHBOARD_EXPORT_VERSION — any
+  // mismatch surfaces as a safeParse failure above.
 
   const dashId = nextDashboardId();
   const idRemap = new Map<string, string>();

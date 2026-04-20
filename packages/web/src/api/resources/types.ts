@@ -268,15 +268,13 @@ export interface Widget {
    */
   position: { x: number; y: number; w: number; h: number };
   // New in Plan 4:
-  /** Data-source kind — one of the 6 built-in sources or a plugin-declared id. */
-  data_source:
-    | 'audit'
-    | 'services'
-    | 'routes'
-    | 'traces'
-    | 'notifications'
-    | 'mock'
-    | string;
+  /**
+   * Data-source kind — one of the 6 built-in sources or a plugin-declared id.
+   *
+   * Builtin values: `'audit' | 'services' | 'routes' | 'traces' | 'notifications' | 'mock'`.
+   * Plugin adapters may register arbitrary string ids.
+   */
+  data_source: string;
   /** For advanced mode: raw query text. Empty = wizard-built. */
   raw_query: string;
   /** Wizard state — preserved when flipping to advanced (one-way for non-trivial widgets). */

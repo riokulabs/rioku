@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * <SchemaForm> tests — covers each supported Zod primitive + the optional
  * unwrap path + the unsupported-type fallback.
@@ -17,9 +18,9 @@ describe('<SchemaForm>', () => {
     const schema = z.object({ title: z.string() });
     const onChange = vi.fn();
     wrap(<SchemaForm schema={schema} value={{ title: 'hello' }} onChange={onChange} />);
-    const input = screen.getByLabelText(/Title/) as HTMLInputElement;
+    const input = screen.getByLabelText(/Title/);
     expect(input).toBeTruthy();
-    expect(input.value).toBe('hello');
+    expect((input as HTMLInputElement).value).toBe('hello');
   });
 
   it('renders NumberInput for z.number().int()', () => {
@@ -33,8 +34,8 @@ describe('<SchemaForm>', () => {
     const schema = z.object({ active: z.boolean() });
     const onChange = vi.fn();
     wrap(<SchemaForm schema={schema} value={{ active: true }} onChange={onChange} />);
-    const sw = screen.getByRole('switch', { name: /Active/ }) as HTMLInputElement;
-    expect(sw.checked).toBe(true);
+    const sw = screen.getByRole('switch', { name: /Active/ });
+    expect((sw as HTMLInputElement).checked).toBe(true);
   });
 
   it('renders Select for z.enum()', () => {
@@ -44,7 +45,7 @@ describe('<SchemaForm>', () => {
       <SchemaForm schema={schema} value={{ kind: 'apple' }} onChange={onChange} />,
     );
     // Mantine Select labels via aria-labelledby; assert the label text appears.
-    expect(container.textContent ?? '').toContain('Kind');
+    expect(container.textContent).toContain('Kind');
     expect(container.querySelector('[role="combobox"], input')).toBeTruthy();
   });
 
@@ -89,7 +90,7 @@ describe('<SchemaForm>', () => {
     const schema = z.object({ title: z.string(), active: z.boolean() });
     const onChange = vi.fn();
     wrap(<SchemaForm schema={schema} value={{ title: 'a', active: false }} onChange={onChange} />);
-    const input = screen.getByLabelText(/Title/) as HTMLInputElement;
+    const input = screen.getByLabelText(/Title/);
     fireEvent.change(input, { target: { value: 'b' } });
     expect(onChange).toHaveBeenCalledWith({ title: 'b', active: false });
   });

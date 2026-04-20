@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Dashboard-builder API tests — widget CRUD + layout + mode-flip semantics.
  */

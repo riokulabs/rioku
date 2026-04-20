@@ -72,34 +72,43 @@ function requireDashboard(id: string): Dashboard {
  * Re-runs whenever the widget's mutable fields change.
  */
 export function useWidgetData(widget: Widget | undefined): WidgetDataState {
-  const [state, setState] = useState<WidgetDataState>({ data: undefined, loading: true });
+  const [state, setStateRaw] = useState<WidgetDataState>({ data: undefined, loading: true });
 
   const signature = widget
-    ? `${widget.id}|${widget.kind}|${widget.data_source}|${widget.raw_query}|${String(widget.updated_at)}`
+    ? `${widget.id}|${widget.kind}|${widget.data_source}|${widget.raw_query}|${widget.updated_at}`
     : 'none';
 
   useEffect(() => {
-    if (!widget) {
-      setState({ data: undefined, loading: false });
-      return;
-    }
-    let cancelled = false;
-    setState({ data: undefined, loading: true });
-    void (async () => {
-      await simulateLatency('query');
-      if (cancelled) return;
-      try {
-        const data = runWidgetQuery(widget, useMockStore.getState());
-        if (!cancelled) setState({ data, loading: false });
-      } catch (e) {
-        if (!cancelled) {
-          const msg = e instanceof WidgetQueryError ? e.message : 'Query failed';
-          setState({ data: undefined, loading: false, error: msg });
-        }
+    const w = widget;
+    // Box so TypeScript-eslint sees the cancellation flag as dynamically mutable.
+    const flag = { cancelled: false };
+    // Schedule the async query in a microtask so we're not synchronously
+    // calling setState inside the effect body.
+    queueMicrotask(() => {
+      if (flag.cancelled) return;
+      if (!w) {
+        setStateRaw({ data: undefined, loading: false });
+        return;
       }
-    })();
+      setStateRaw({ data: undefined, loading: true });
+      void (async () => {
+        await simulateLatency('query');
+        if (flag.cancelled) return;
+        try {
+          const data = runWidgetQuery(w, useMockStore.getState());
+          // flag.cancelled may have flipped across the microtask boundary.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (!flag.cancelled) setStateRaw({ data, loading: false });
+        } catch (e) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (flag.cancelled) return;
+          const msg = e instanceof WidgetQueryError ? e.message : 'Query failed';
+          setStateRaw({ data: undefined, loading: false, error: msg });
+        }
+      })();
+    });
     return () => {
-      cancelled = true;
+      flag.cancelled = true;
     };
   // signature encodes the subset of widget fields this hook reacts to
   // eslint-disable-next-line react-hooks/exhaustive-deps
