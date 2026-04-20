@@ -9,7 +9,7 @@
  * Permission guard: ai-trace:read. Sensitive search (prompt/completion text)
  * is gated inside the filter bar on ai-trace:read-sensitive.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import {
   Stack,
@@ -17,15 +17,19 @@ import {
   Group,
   Drawer,
   Badge,
+  Switch,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconAccessPoint } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   TraceList,
   TraceFilterBar,
   TraceDetail,
+  LiveTailBadge,
   useTraceList,
+  useTraceStream,
 } from '@/features/ai-traces';
 import type { RangePreset, TraceFilter } from '@/features/ai-traces';
 import type { AiTrace } from '@/api/resources/types';
@@ -138,7 +142,20 @@ function AiTracesPage() {
   const visibleRows = useMemo(() => baseRows.slice(0, MAX_ROWS), [baseRows]);
   const totalCount = baseRows.length;
 
-  // Drawer state — detail viewer lands in Task 3d.20.
+  // Live-tail toggle. `useTraceStream` subscribes to the mock-SSE bus while
+  // `tailEnabled` is true; the store re-renders via Zustand so the list
+  // picks up prepended rows automatically. We only track a counter here.
+  const [tailEnabled, setTailEnabled] = useState(false);
+  const [liveCount, setLiveCount] = useState(0);
+  const handleLiveTrace = useCallback(() => {
+    setLiveCount((c) => c + 1);
+  }, []);
+  useTraceStream(tenantId, tailEnabled, handleLiveTrace);
+  useEffect(() => {
+    if (!tailEnabled) setLiveCount(0);
+  }, [tailEnabled]);
+
+  // Drawer state for detail viewer.
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
     useDisclosure(false);
   const [selected, setSelected] = useState<AiTrace | null>(null);
@@ -156,6 +173,19 @@ function AiTracesPage() {
           <Badge variant="light" color="gray" size="sm">
             Showing {String(visibleRows.length)} of {String(totalCount)}
           </Badge>
+          {tailEnabled && <LiveTailBadge liveCount={liveCount} />}
+        </Group>
+        <Group gap="sm">
+          <Switch
+            label="Live tail"
+            checked={tailEnabled}
+            onChange={(e) => {
+              setTailEnabled(e.currentTarget.checked);
+            }}
+            thumbIcon={<IconAccessPoint size={10} />}
+            aria-label="Toggle live trace tail"
+            data-testid="live-tail-switch"
+          />
         </Group>
       </Group>
 
