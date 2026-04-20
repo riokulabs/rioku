@@ -69,7 +69,9 @@ describe('<InstalledPluginDetail> — signer chip', () => {
     useMockStore.setState((s) => {
       const target = s.plugins[existing.id];
       if (!target) return s;
-      const { signer_id: _omit, ...rest } = target;
+      // Rebuild without signer_id to satisfy exactOptionalPropertyTypes.
+      const rest: typeof target = { ...target };
+      delete rest.signer_id;
       return { ...s, plugins: { ...s.plugins, [existing.id]: rest } };
     });
 

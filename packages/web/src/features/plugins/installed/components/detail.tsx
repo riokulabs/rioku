@@ -190,8 +190,7 @@ function SignerChip({ signerId }: SignerChipProps) {
             </CopyButton>
           </Group>
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            Scope:{' '}
-            {signer.tenant_scope === null ? 'Global' : signer.tenant_scope}
+            Scope: {signer.tenant_scope ?? 'Global'}
           </Text>
           {signer.description && (
             <Text size="xs">{signer.description}</Text>

@@ -38,7 +38,10 @@ import {
 import type { PluginSigner, SignerFilter } from '@/features/plugin-signers';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
-type ScopeTab = 'global' | string; // string = tenant_id for per-tenant tabs
+/** Active tab — either the sentinel 'global' OR a tenant id string. The
+ *  union collapses to `string` at runtime; keeping a named alias documents
+ *  the intent even if it's structurally equivalent to string. */
+type ScopeTab = string;
 
 type Status = PluginSigner['status'];
 const STATUS_VALUES: readonly Status[] = ['verified', 'pending', 'revoked'];

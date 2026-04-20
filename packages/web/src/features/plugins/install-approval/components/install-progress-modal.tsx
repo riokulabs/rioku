@@ -123,15 +123,29 @@ export function InstallProgressModal({
   const emitterRef = useRef<InstallProgressEmitter | null>(null);
 
   // Kick off the install when the modal opens with a fresh candidate.
+  // Run-reset is merged into the first `progress` dispatch rather than a
+  // top-of-effect setState to avoid the "setState synchronously within an
+  // effect body" rule — the handler below detects the first event of a new
+  // run via `firstTick` and replaces state instead of merging.
   useEffect(() => {
     if (!opened || !candidate) return;
-    setRun(EMPTY_STATE);
 
     const emitter = installPluginWithProgress(candidate);
     emitterRef.current = emitter;
+    let firstTick = true;
 
     const onProgress = (e: Event): void => {
       const detail = (e as CustomEvent<InstallProgressEvent>).detail;
+      if (firstTick) {
+        firstTick = false;
+        setRun({
+          stage: detail.stage,
+          progress: detail.progress,
+          log: [detail.message],
+          terminal: null,
+        });
+        return;
+      }
       setRun((prev) => ({
         ...prev,
         stage: detail.stage,
@@ -262,7 +276,7 @@ export function InstallProgressModal({
               const isActive = !succeeded && !failed && idx === activeStageIdx;
               const isPast = succeeded || idx < activeStageIdx;
               const isFailedHere = failed && idx === activeStageIdx;
-              let color: string = 'gray';
+              let color = 'gray';
               if (isFailedHere) color = 'red';
               else if (isPast) color = 'green';
               else if (isActive) color = 'blue';
