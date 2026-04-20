@@ -144,7 +144,7 @@ export function Sidebar() {
               // Plugin icons are typed as React.ComponentType (no enforced props).
               // We cast to accept size to match the Tabler-icons convention used
               // by first-party nav items.
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               const Icon = entry.icon as React.ComponentType<{ size?: number }> | undefined;
               return (
                 <NavLink

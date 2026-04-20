@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <SchemaForm> tests — covers each supported Zod primitive + the optional
  * unwrap path + the unsupported-type fallback.

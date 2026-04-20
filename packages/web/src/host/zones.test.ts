@@ -12,7 +12,7 @@ const registeredIds: string[] = [];
 function reg(zone: string): string {
   const id = registerZone({
     zone,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     component: (() => null) as any,
     source: 'plugin',
     pluginName: 'test-plugin',

@@ -10,7 +10,7 @@ const registeredIds: string[] = [];
 function reg(section: string, source: 'first-party' | 'plugin' = 'plugin', order?: number): string {
   const id = registerSettingsPanel({
     section,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     component: (() => null) as any,
     scope: 'tenant',
     source,

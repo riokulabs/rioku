@@ -10,7 +10,7 @@ function regWidget(type: string, source: 'first-party' | 'plugin' = 'plugin'): v
     type,
     displayName: `Widget ${type}`,
     schema: { input: null, config: null },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     component: (() => null) as any,
     source,
   });
@@ -28,7 +28,7 @@ describe('registerWidget', () => {
       type: 'chart',
       displayName: 'Updated Chart',
       schema: { input: null, config: null },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       component: (() => null) as any,
       source: 'plugin',
     });

@@ -186,6 +186,6 @@ export interface RiokuHost {
  * the top level (or receive the host object from the plugin-loader).
  */
 export function useHost(): Readonly<RiokuHost> {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   return useMemo<Readonly<RiokuHost>>(() => buildHost(), []);
 }

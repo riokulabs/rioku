@@ -15,7 +15,7 @@ vi.mock('./mock-latency', () => ({
 
 const mockParseCel = vi.fn<(...args: unknown[]) => unknown>();
 vi.mock('../lib/cel-parser', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+   
   parseCel: (...args: unknown[]) => mockParseCel(...args),
 }));
 

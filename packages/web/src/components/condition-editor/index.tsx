@@ -102,7 +102,7 @@ export function ConditionEditor({
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
       editorRef.current = editor;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+       
       monacoRef.current = monaco as typeof MonacoNS;
       registerCelLanguage(monaco as typeof MonacoNS);
 

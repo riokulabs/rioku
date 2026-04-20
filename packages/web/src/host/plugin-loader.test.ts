@@ -92,7 +92,7 @@ describe('plugin-loader', () => {
     setMockPlugin((host) => {
       host.zones.register({
         zone: 'dashboard.header',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         component: (() => null) as any,
         source: 'plugin',
         pluginName: 'test-plugin',
@@ -127,7 +127,7 @@ describe('plugin-loader', () => {
     setMockPlugin((host) => {
       host.zones.register({
         zone: 'unload.zone',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         component: (() => null) as any,
         source: 'plugin',
         pluginName: 'unload-test',
@@ -182,7 +182,7 @@ describe('plugin-loader', () => {
     setMockPlugin((host) => {
       host.zones.register({
         zone: 'throw.zone',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         component: (() => null) as any,
         source: 'plugin',
         pluginName: 'throwing-plugin',

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * Widget component smoke tests — each of the 10 built-in widgets renders its
  * happy path, loading skeleton, and error alert without crashing.

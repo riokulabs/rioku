@@ -49,7 +49,7 @@ export function Providers({ children }: { children: ReactNode }) {
       },
     });
     // Run once — setNotifyBackend is idempotent; backend is a module singleton.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Resolve theme: if user hasn't manually picked (still default 'dark'),

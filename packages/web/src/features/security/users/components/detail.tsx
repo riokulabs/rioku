@@ -428,7 +428,7 @@ export function UserDetail({
                               size="xs"
                               variant="default"
                               onClick={() => {
-                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                 
                                 setEditingRoles(({ [m.id]: _removed, ...rest }) => rest);
                               }}
                             >

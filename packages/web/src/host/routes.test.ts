@@ -6,7 +6,7 @@ const registeredIds: string[] = [];
 function reg(path: string): string {
   const id = registerRoute({
     path,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     component: (() => null) as any,
     source: 'plugin',
     pluginName: 'test',
