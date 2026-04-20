@@ -38,6 +38,7 @@ import { useMockStore } from '@/api/mock-store';
 import { ProfileSection } from '../sections/profile';
 import { TenantSection } from '../sections/tenant';
 import { AuthenticationSection } from '../sections/authentication';
+import { NetworkSection } from '../sections/network';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -151,6 +152,8 @@ export function SettingsLayout() {
                 <TenantSection />
               ) : activeSection.slug === 'authentication' ? (
                 <AuthenticationSection />
+              ) : activeSection.slug === 'network' ? (
+                <NetworkSection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

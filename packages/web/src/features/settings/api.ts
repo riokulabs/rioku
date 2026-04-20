@@ -15,13 +15,14 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, Tenant, TenantAuthPolicy, User } from '@/api/resources/types';
+import type { AuditEntry, ID, NetworkConfig, Tenant, TenantAuthPolicy, User } from '@/api/resources/types';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
 const nextAuditId = makeIdFactory('audit-profile');
 const nextTenantAuditId = makeIdFactory('audit-tenant');
 const nextAuthPolicyAuditId = makeIdFactory('audit-auth-policy');
+const nextNetworkConfigAuditId = makeIdFactory('audit-network-config');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -328,4 +329,60 @@ export async function updateTenantAuthPolicy(
   const state = useMockStore.getState();
   state.appendAudit(makeAuthPolicyAudit('tenant.update_auth_policy', tenantId));
   emitHostEvent('tenant:auth-policy-updated', { tenant_id: tenantId });
+}
+
+// ─── Network config selectors ─────────────────────────────────────────────────
+
+/** Returns the network config for the current tenant, or undefined if not found. */
+export function useCurrentNetworkConfig(): NetworkConfig | undefined {
+  return useMockStore((s) =>
+    s.currentTenantId ? s.networkConfigs[s.currentTenantId] : undefined,
+  );
+}
+
+// ─── Network config audit helper ─────────────────────────────────────────────
+
+function makeNetworkConfigAudit(
+  action: string,
+  tenantId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextNetworkConfigAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── Network config mutations ─────────────────────────────────────────────────
+
+/**
+ * Atomically apply a partial patch to the tenant's network config and emit
+ * audit + host events.
+ */
+export async function updateNetworkConfig(
+  tenantId: ID,
+  patch: Partial<Omit<NetworkConfig, 'tenant_id' | 'updated_at'>>,
+): Promise<void> {
+  await simulateLatency('mutation');
+  useMockStore.setState((s) => {
+    const current = s.networkConfigs[tenantId];
+    if (!current) return s;
+    return {
+      networkConfigs: {
+        ...s.networkConfigs,
+        [tenantId]: { ...current, ...patch, updated_at: now() },
+      },
+    };
+  });
+  const state = useMockStore.getState();
+  state.appendAudit(makeNetworkConfigAudit('tenant.update_network_config', tenantId));
+  emitHostEvent('tenant:network-config-updated', { tenant_id: tenantId });
 }

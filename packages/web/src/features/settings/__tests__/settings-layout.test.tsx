@@ -32,6 +32,24 @@ vi.mock('@/hooks/use-active-theme', () => ({
   useActiveTheme: () => ['dark', vi.fn()] as [string, (v: string) => void],
 }));
 
+// Stub Monaco editor — lazy-loaded by NetworkSection.
+vi.mock('@monaco-editor/react', () => {
+  const MockEditor = ({
+    value,
+    onChange,
+  }: {
+    value?: string;
+    onChange?: (v: string | undefined) => void;
+  }) => (
+    <textarea
+      data-testid="monaco-stub"
+      value={value ?? ''}
+      onChange={(e) => onChange?.(e.target.value)}
+    />
+  );
+  return { default: MockEditor };
+});
+
 // Stub @mantine/dropzone — used by ProfilePersonalInfo and TenantSection.
 // jsdom lacks ResizeObserver + File API internals required by the real Dropzone.
 function DropzoneStub({
@@ -103,11 +121,15 @@ describe('SettingsLayout', () => {
     expect(screen.getByText(/plan 7/i)).toBeDefined();
   });
 
-  it('shows network section with Plan 8 label', () => {
+  it('shows network section inline when ?section=network', () => {
+    // Set current tenant so useCurrentNetworkConfig() returns a value.
+    const [tenantId] = Object.keys(useMockStore.getState().tenants);
+    if (!tenantId) throw new Error('No tenants in store');
+    useMockStore.setState({ currentTenantId: tenantId });
     mockSection = 'network';
     wrap(<SettingsLayout />);
-    expect(screen.getByText(/network settings/i)).toBeDefined();
-    expect(screen.getByText(/plan 8/i)).toBeDefined();
+    // NetworkSection is now rendered inline — check for its fieldsets.
+    expect(screen.getByTestId('fieldset-listen-addresses')).toBeDefined();
   });
 
   it('calls navigate when subnav item is clicked', () => {

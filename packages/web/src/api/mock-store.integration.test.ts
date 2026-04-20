@@ -32,6 +32,7 @@ function makeFreshStore() {
     adminAudit: [],
     auditRetentionConfigs: {},
     tenantAuthPolicies: {},
+    networkConfigs: {},
     sites: {},
     dashboards: {},
     widgets: {},
@@ -119,9 +120,22 @@ function makeFreshStore() {
         aiTraces: {},
         mcpServers: {},
         tenantAuthPolicies: {},
+        networkConfigs: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
+      });
+    },
+    updateNetworkConfig(tenantId, patch) {
+      set((state) => {
+        const current = state.networkConfigs[tenantId];
+        if (!current) return state;
+        return {
+          networkConfigs: {
+            ...state.networkConfigs,
+            [tenantId]: { ...current, ...patch },
+          },
+        };
       });
     },
     updateTenantAuthPolicy(tenantId, patch) {

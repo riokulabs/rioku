@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -339,5 +339,84 @@ describe('updateTenantAuthPolicy', () => {
     // The fake tenant should still have no policy
     const policy = useMockStore.getState().tenantAuthPolicies[fakeTenantId];
     expect(policy).toBeUndefined();
+  });
+});
+
+// ─── updateNetworkConfig ──────────────────────────────────────────────────────
+
+describe('updateNetworkConfig', () => {
+  it('updates http3_enabled in store (happy path)', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    await updateNetworkConfig(tenantId, { http3_enabled: false });
+
+    const config = useMockStore.getState().networkConfigs[tenantId];
+    expect(config?.http3_enabled).toBe(false);
+  });
+
+  it('updates upstream_timeouts in store', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    await updateNetworkConfig(tenantId, {
+      upstream_timeouts: { connect: 30, read: 120, write: 120, idle: 300 },
+    });
+
+    const config = useMockStore.getState().networkConfigs[tenantId];
+    expect(config?.upstream_timeouts.connect).toBe(30);
+    expect(config?.upstream_timeouts.idle).toBe(300);
+  });
+
+  it('emits tenant.update_network_config audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    await updateNetworkConfig(tenantId, { http3_enabled: false });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tenant.update_network_config');
+    if (!entry) throw new Error('audit entry not found');
+    expect(entry.tenant_id).toBe(tenantId);
+    expect(entry.outcome).toBe('success');
+  });
+
+  it('emits tenant:network-config-updated host event', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tenant:network-config-updated', listener);
+
+    await updateNetworkConfig(tenantId, { http3_enabled: false });
+
+    expect(hostEvents.filter((t) => t === 'tenant:network-config-updated').length).toBe(1);
+
+    mockBus.removeEventListener('tenant:network-config-updated', listener);
+  });
+
+  it('no-ops silently for unknown tenant', async () => {
+    const fakeTenantId = 'tenant-nonexistent';
+    await expect(
+      updateNetworkConfig(fakeTenantId, { http3_enabled: false }),
+    ).resolves.toBeUndefined();
+
+    const config = useMockStore.getState().networkConfigs[fakeTenantId];
+    expect(config).toBeUndefined();
+  });
+
+  it('refreshes updated_at on mutation', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    const before = useMockStore.getState().networkConfigs[tenantId];
+    const beforeAt = before?.updated_at ?? '';
+
+    await new Promise((r) => setTimeout(r, 5));
+    await updateNetworkConfig(tenantId, { http3_enabled: false });
+
+    const after = useMockStore.getState().networkConfigs[tenantId];
+    expect((after?.updated_at ?? '') >= beforeAt).toBe(true);
   });
 });

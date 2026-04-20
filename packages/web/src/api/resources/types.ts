@@ -286,6 +286,27 @@ export interface TenantAuthPolicy {
 }
 
 /**
+ * Per-tenant network configuration. Applies to the Caddy managed process
+ * and upstream connections.
+ */
+export interface NetworkConfig {
+  readonly tenant_id: ID;
+  /** Daemon listen addresses — tuples of address + port (e.g. ':443'). Read-only in stage 1. */
+  listen_addresses: string[];
+  /** Caddy JSON config overrides. Free-form JSON string (not parsed at stage 1). */
+  caddy_config_overrides: string;
+  http3_enabled: boolean;
+  /** Default upstream timeouts in seconds. */
+  upstream_timeouts: {
+    connect: number;   // 1..300
+    read: number;      // 1..3600
+    write: number;     // 1..3600
+    idle: number;      // 1..3600
+  };
+  readonly updated_at: string;
+}
+
+/**
  * Admin-side audit entry — extends AuditEntry with hash-chain fields.
  * Written to the separate adminAudit log in the mock store.
  */

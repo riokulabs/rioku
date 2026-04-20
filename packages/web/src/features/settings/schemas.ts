@@ -72,3 +72,18 @@ export const tenantAuthPolicySchema = z.object({
 });
 
 export type TenantAuthPolicyValues = z.infer<typeof tenantAuthPolicySchema>;
+
+// ─── Network config ───────────────────────────────────────────────────────────
+
+export const networkConfigSchema = z.object({
+  caddy_config_overrides: z.string(),   // JSON string; validated at blur in component
+  http3_enabled: z.boolean(),
+  upstream_timeouts: z.object({
+    connect: z.number().int().min(1).max(300),
+    read: z.number().int().min(1).max(3600),
+    write: z.number().int().min(1).max(3600),
+    idle: z.number().int().min(1).max(3600),
+  }),
+});
+
+export type NetworkConfigValues = z.infer<typeof networkConfigSchema>;

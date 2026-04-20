@@ -47,6 +47,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'notification-channel:',
   'notification-routing:',
   'notification-log:',
+  'network:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -592,6 +593,20 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     description: 'View the notification delivery log',
     source: 'built-in',
     default_roles: ['viewer', 'ops', 'admin'],
+  },
+
+  // network:* (Plan 8b — daemon network configuration)
+  {
+    key: 'network:read',
+    description: 'View daemon network configuration',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'network:write',
+    description: 'Update daemon network configuration (Caddy overrides, HTTP3, timeouts)',
+    source: 'built-in',
+    default_roles: ['admin'],
   },
 ];
 

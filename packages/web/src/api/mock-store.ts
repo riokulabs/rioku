@@ -41,6 +41,8 @@ interface MockStoreState {
   auditRetentionConfigs: Record<T.ID, T.AuditRetentionConfig>;
   // Auth policy — keyed by tenant_id, at most one per tenant
   tenantAuthPolicies: Record<T.ID, T.TenantAuthPolicy>;
+  // Network config — keyed by tenant_id, at most one per tenant
+  networkConfigs: Record<T.ID, T.NetworkConfig>;
 
   // Sites
   sites: Record<T.ID, T.Site>;
@@ -158,6 +160,12 @@ interface MockStoreActions {
   updateTenantAuthPolicy(tenantId: T.ID, patch: Partial<Omit<T.TenantAuthPolicy, 'tenant_id'>>): void;
 
   /**
+   * Atomically apply a partial patch to a NetworkConfig.
+   * No-ops silently if no config exists for the tenant yet.
+   */
+  updateNetworkConfig(tenantId: T.ID, patch: Partial<Omit<T.NetworkConfig, 'tenant_id'>>): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -188,6 +196,7 @@ function emptyState(): MockStoreState {
     adminAudit: [],
     auditRetentionConfigs: {},
     tenantAuthPolicies: {},
+    networkConfigs: {},
     sites: {},
     dashboards: {},
     widgets: {},
@@ -294,6 +303,19 @@ const storeInitializer = (
     });
   },
 
+  updateNetworkConfig(tenantId: T.ID, patch: Partial<Omit<T.NetworkConfig, 'tenant_id'>>) {
+    set((state) => {
+      const current = state.networkConfigs[tenantId];
+      if (!current) return state;
+      return {
+        networkConfigs: {
+          ...state.networkConfigs,
+          [tenantId]: { ...current, ...patch },
+        },
+      };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -304,7 +326,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 9,
+        version: 10,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -382,6 +404,11 @@ export const useMockStore = IS_VITEST
           // Additive; persisted stores from v8 simply get an empty map.
           if (version < 9) {
             state.tenantAuthPolicies = {};
+          }
+          // Version 10 — Plan 8b adds networkConfigs (tenant_id → config).
+          // Additive; persisted stores from v9 simply get an empty map.
+          if (version < 10) {
+            state.networkConfigs = {};
           }
           return state as unknown as MockStore;
         },

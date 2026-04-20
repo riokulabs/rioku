@@ -493,6 +493,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8a.4 — tenant auth policy (admin: read + write).
     { permission: 'tenant-auth:read' },
     { permission: 'tenant-auth:write' },
+    // Plan 8b.6 — network config (admin: read + write).
+    { permission: 'network:read' },
+    { permission: 'network:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -537,6 +540,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant:read' },
     // Plan 8a.4 — tenant auth policy (ops: read-only).
     { permission: 'tenant-auth:read' },
+    // Plan 8b.6 — network config (ops: read-only).
+    { permission: 'network:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -577,6 +582,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant:read' },
     // Plan 8a.4 — tenant auth policy (viewer: read-only).
     { permission: 'tenant-auth:read' },
+    // Plan 8b.6 — network config (viewer: read-only).
+    { permission: 'network:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -1008,6 +1015,21 @@ export function seedStore(store: StoreApi<MockStore>): void {
     };
   }
   store.setState({ tenantAuthPolicies });
+
+  // ── Network configs (1 per tenant) ──────────────────────────────────────────
+
+  const networkConfigs: Record<T.ID, T.NetworkConfig> = {};
+  for (const tid of allTenantIds) {
+    networkConfigs[tid] = {
+      tenant_id: tid,
+      listen_addresses: [':443', ':80'],
+      caddy_config_overrides: '{}\n',
+      http3_enabled: true,
+      upstream_timeouts: { connect: 10, read: 60, write: 60, idle: 120 },
+      updated_at: daysAgo(5),
+    };
+  }
+  store.setState({ networkConfigs });
 
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 
