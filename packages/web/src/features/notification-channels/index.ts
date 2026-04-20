@@ -37,3 +37,10 @@ export type {
   TestChannelResult,
   UpdateChannelInput,
 } from './types';
+
+export { ChannelList } from './components/list';
+export { ChannelFilterBar } from './components/filter-bar';
+export { ChannelDetail } from './components/detail';
+export { ChannelForm } from './components/form';
+export { ChannelKindConfigPanel } from './components/kind-config-panel';
+export { TestPanel } from './components/test-panel';
