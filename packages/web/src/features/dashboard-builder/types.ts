@@ -1,7 +1,7 @@
 /**
  * Dashboard-builder feature-local types.
  */
-import type { WidgetWizardState } from '@/api/resources/types';
+import type { Widget, WidgetWizardState } from '@/api/resources/types';
 
 export type { Dashboard, Widget, ID } from '@/api/resources/types';
 
@@ -45,4 +45,35 @@ export class LayoutValidationError extends Error {
     super(message);
     this.name = 'LayoutValidationError';
   }
+}
+
+// ─── Wizard + config-panel types ──────────────────────────────────────────────
+
+export interface WizardDraft {
+  title: string;
+  kind: string;
+  data_source: string;
+  wizard_state: WidgetWizardState;
+}
+
+export interface DataSourceDescriptor {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface AskQuestionWizardProps {
+  dashboardId: string;
+  /** When editing an existing widget, provide it; omit for create. */
+  widget?: Widget;
+  mode: 'create' | 'edit';
+  onSave: (widget: Widget) => void;
+  onCancel: () => void;
+}
+
+export interface WidgetConfigPanelProps {
+  dashboardId: string;
+  widget: Widget;
+  onSave: (widget: Widget) => void;
+  onClose: () => void;
 }
