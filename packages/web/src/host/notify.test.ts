@@ -70,4 +70,32 @@ describe('emitPluginNotification', () => {
     }).not.toThrow();
     expect(writes).toHaveBeenCalled();
   });
+
+  it('accepts dot-separated plugin categories (plugin:<name>.sub.sub)', () => {
+    const { backend, writes } = makeBackend();
+    setNotifyBackend(backend);
+    emitPluginNotification({
+      pluginName: 'com.rioku.slack',
+      category: 'plugin:com.rioku.slack.channel-created',
+      title: 't',
+      body: 'b',
+      severity: 'info',
+    });
+    expect(writes).toHaveBeenCalled();
+  });
+
+  it('forwards an optional action payload to the backend', () => {
+    const { backend, writes } = makeBackend();
+    setNotifyBackend(backend);
+    emitPluginNotification({
+      pluginName: 'acme',
+      category: 'plugin:acme:done',
+      title: 't',
+      body: 'b',
+      severity: 'success',
+      action: { label: 'Open', href: '/somewhere' },
+    });
+    const arg = writes.mock.calls[0]?.[0] as { action?: { label: string; href: string } };
+    expect(arg.action).toEqual({ label: 'Open', href: '/somewhere' });
+  });
 });

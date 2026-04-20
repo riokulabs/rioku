@@ -1,6 +1,6 @@
 import { MantineProvider, createTheme, localStorageColorSchemeManager } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
-import { Notifications, notifications } from '@mantine/notifications';
+import { Notifications } from '@mantine/notifications';
 import '@mantine/spotlight/styles.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
@@ -12,6 +12,8 @@ import { BUILTIN_THEMES } from '@/theme';
 import { getDir } from '@/i18n/dir';
 import { queryClient } from '@/api/query-client';
 import { setNotifyBackend } from '@/host/notify';
+import { useMockStore } from '@/api/mock-store';
+import { emitNotification } from '@/features/notifications';
 
 const colorSchemeManager = localStorageColorSchemeManager({ key: 'rioku-color-scheme' });
 
@@ -27,21 +29,22 @@ export function Providers({ children }: { children: ReactNode }) {
   const pluginThemes = usePluginThemes();
 
   // Wire the notify backend once at mount — must run before any plugin code.
-  // Stable backend object: `notifications.show` is a module-level singleton.
+  // The backend forwards plugin emissions to `emitNotification` which writes
+  // the inbox entry, dispatches on the inbox-stream bus, and fires the
+  // Mantine toast. Tenant / user default to the current session when the
+  // plugin omits them.
   useEffect(() => {
     setNotifyBackend({
       write(input) {
-        notifications.show({
+        const state = useMockStore.getState();
+        emitNotification({
+          tenant_id: input.tenant ?? state.currentTenantId ?? null,
+          user_id: input.user ?? state.currentUserId ?? 'unknown',
+          category: input.category,
+          severity: input.severity,
           title: input.title,
-          message: input.body,
-          color:
-            input.severity === 'error'
-              ? 'red'
-              : input.severity === 'warn'
-                ? 'orange'
-                : input.severity === 'success'
-                  ? 'green'
-                  : 'blue',
+          body: input.body,
+          ...(input.action ? { action: input.action } : {}),
         });
       },
     });
