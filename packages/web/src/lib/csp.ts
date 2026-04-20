@@ -23,10 +23,13 @@ export function prodCsp(nonce: string, daemonOrigin = "'self'"): string {
   ].join('; ');
 }
 
-export function devCsp(nonce: string, viteHost: string, vitePort: number): string {
+export function devCsp(_nonce: string, viteHost: string, vitePort: number): string {
+  // Dev mode deliberately omits the nonce (and strict-dynamic) — presence of
+  // either in script-src disables the 'unsafe-inline' fallback that Vite's
+  // React Refresh preamble + HMR client rely on.
   return [
     ...common,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' 'unsafe-inline'`,
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
     `connect-src 'self' ws://${viteHost}:${String(vitePort)} http://${viteHost}:${String(vitePort)}`,
   ].join('; ');
 }

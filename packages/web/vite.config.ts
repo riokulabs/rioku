@@ -25,7 +25,9 @@ function devCsp(nonce: string, viteHost: string, vitePort: number): string {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' 'unsafe-inline'`,
+    // Dev mode: no nonce, no strict-dynamic — either would silently disable
+    // 'unsafe-inline', and Vite's React Refresh preamble is inline without a nonce.
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
     `connect-src 'self' ws://${viteHost}:${String(vitePort)} http://${viteHost}:${String(vitePort)}`,
   ].join('; ');
 }
