@@ -238,14 +238,61 @@ export interface Site {
 
 // ─── Dashboards + widgets ─────────────────────────────────────────────────────
 
+export interface WidgetWizardState {
+  dimensions: string[];
+  measures: {
+    field: string;
+    aggregation: 'count' | 'sum' | 'avg' | 'min' | 'max';
+    alias?: string;
+  }[];
+  filters: {
+    field: string;
+    op: '==' | '!=' | '>' | '<' | 'in' | 'contains';
+    value: unknown;
+  }[];
+  group_by?: string;
+  order_by?: { field: string; direction: 'asc' | 'desc' };
+  limit?: number;
+}
+
 export interface Widget {
   readonly id: ID;
   readonly dashboard_id: ID;
+  /** Widget type id — built-in (single-stat, sparkline, …) or plugin-registered. */
   kind: string;
   title: string;
   config: Record<string, unknown>;
-  /** Grid position */
+  /**
+   * Legacy grid position. Canonical layout source is `Dashboard.layout`.
+   * TODO(Plan 4c): remove once all builder paths migrate to `Dashboard.layout`.
+   */
   position: { x: number; y: number; w: number; h: number };
+  // New in Plan 4:
+  /** Data-source kind — one of the 6 built-in sources or a plugin-declared id. */
+  data_source:
+    | 'audit'
+    | 'services'
+    | 'routes'
+    | 'traces'
+    | 'notifications'
+    | 'mock'
+    | string;
+  /** For advanced mode: raw query text. Empty = wizard-built. */
+  raw_query: string;
+  /** Wizard state — preserved when flipping to advanced (one-way for non-trivial widgets). */
+  wizard_state?: WidgetWizardState;
+  /** True when widget has been flipped to advanced and wizard view is disabled. */
+  locked_advanced: boolean;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface DashboardVariable {
+  name: string;
+  kind: 'text' | 'enum' | 'interval';
+  default: string;
+  /** Populated when kind === 'enum'. */
+  options?: string[];
 }
 
 export interface Dashboard {
@@ -254,7 +301,34 @@ export interface Dashboard {
   name: string;
   default: boolean;
   widget_ids: ID[];
+  // New in Plan 4:
+  description?: string;
+  /** null = tenant-shared. */
+  owner_user_id: ID | null;
+  mode: 'metabase' | 'grafana';
+  /** Scope: 'personal' = owner-only, 'tenant' = all tenant members, 'shared' = role-restricted. */
+  scope: 'personal' | 'tenant' | 'shared';
+  /** Roles allowed to view when scope === 'shared'. */
+  shared_role_ids: ID[];
+  /** Grid layout (w,h,x,y per widget) keyed by widget id. Canonical layout source. */
+  layout: Record<ID, { x: number; y: number; w: number; h: number }>;
+  /** Grafana-mode variables (only relevant when mode === 'grafana'). */
+  variables: DashboardVariable[];
   readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface DashboardVersion {
+  readonly id: ID;
+  readonly dashboard_id: ID;
+  readonly version: number;
+  readonly created_at: string;
+  readonly created_by: ID;
+  description?: string;
+  snapshot: {
+    dashboard: Omit<Dashboard, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>;
+    widgets: Omit<Widget, 'dashboard_id' | 'created_at' | 'updated_at'>[];
+  };
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
