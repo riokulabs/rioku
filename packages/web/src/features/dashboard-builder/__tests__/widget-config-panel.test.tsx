@@ -8,6 +8,29 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+
+// Monaco is lazy-loaded by AdvancedEditor. Stub with a plain textarea so
+// jsdom doesn't choke on ResizeObserver / workers.
+vi.mock('@monaco-editor/react', () => {
+  const MockEditor = ({
+    value,
+    onChange,
+    options,
+  }: {
+    value?: string;
+    onChange?: (v: string | undefined) => void;
+    options?: { readOnly?: boolean };
+  }) => (
+    <textarea
+      data-testid="monaco-stub"
+      aria-label="advanced-query-editor"
+      value={value ?? ''}
+      readOnly={options?.readOnly ?? false}
+      onChange={(e) => onChange?.(e.target.value)}
+    />
+  );
+  return { default: MockEditor };
+});
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import type { Widget } from '@/api/resources/types';
@@ -77,7 +100,7 @@ describe('<WidgetConfigPanel>', () => {
     expect(saved.title).toBe('Renamed widget');
   });
 
-  it('shows advanced-mode placeholder for locked widgets', () => {
+  it('shows advanced editor for locked widgets', () => {
     const widget = firstWidget();
     wrap(
       <WidgetConfigPanel
@@ -88,7 +111,11 @@ describe('<WidgetConfigPanel>', () => {
       />,
     );
     expect(screen.getAllByText(/Advanced mode/).length).toBeGreaterThan(0);
-    expect(screen.getByTestId('advanced-editor-open')).toBeTruthy();
+    expect(screen.getByTestId('advanced-editor')).toBeTruthy();
+    // Save button lands disabled (no dirty change yet).
+    expect(
+      (screen.getByTestId('advanced-editor-save') as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('close button calls onClose', async () => {

@@ -13,19 +13,17 @@
  */
 import { useState } from 'react';
 import {
-  Alert,
-  Button,
   Divider,
   Group,
   Stack,
-  Text,
   TextInput,
   ActionIcon,
 } from '@mantine/core';
-import { IconCode, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { updateWidget } from '../api';
 import type { WidgetConfigPanelProps } from '../types';
+import { AdvancedEditor } from './advanced-editor';
 import { AskQuestionWizard } from './ask-question-wizard';
 
 export function WidgetConfigPanel(props: WidgetConfigPanelProps) {
@@ -96,7 +94,7 @@ function WidgetConfigPanelInner({
       <Divider />
 
       {widget.locked_advanced ? (
-        <AdvancedPlaceholder />
+        <AdvancedEditor widget={widget} onSave={onSave} />
       ) : (
         <AskQuestionWizard
           dashboardId={dashboardId}
@@ -109,33 +107,5 @@ function WidgetConfigPanelInner({
         />
       )}
     </Stack>
-  );
-}
-
-function AdvancedPlaceholder() {
-  return (
-    <Alert
-      color="violet"
-      variant="light"
-      icon={<IconCode size={16} />}
-      title="Advanced mode"
-    >
-      <Stack gap="xs">
-        <Text size="sm">
-          This widget was flipped to advanced mode — its raw query can only be
-          edited in the Advanced editor (ships in Phase 4d).
-        </Text>
-        <Group>
-          <Button
-            variant="default"
-            size="xs"
-            disabled
-            data-testid="advanced-editor-open"
-          >
-            Edit in Advanced mode
-          </Button>
-        </Group>
-      </Stack>
-    </Alert>
   );
 }
