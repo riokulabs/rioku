@@ -145,7 +145,7 @@ export function NetworkSection() {
         http3_enabled: form.values.http3_enabled,
         upstream_timeouts: form.values.upstream_timeouts,
       });
-      form.resetDirty();
+      form.resetDirty(form.values);
       notify.success(
         'Config preview updated',
         'Changes apply at stage 2.',
@@ -164,7 +164,7 @@ export function NetworkSection() {
       {/* 1. Listen addresses */}
       <Fieldset legend="Listen addresses" data-testid="fieldset-listen-addresses">
         <Stack gap="xs">
-          <Text size="sm" c="var(--mantine-color-gray-6)">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             Editable in stage 2
           </Text>
           <Group gap="xs" wrap="wrap">
@@ -266,29 +266,22 @@ export function NetworkSection() {
 
       {/* Save */}
       <Group justify="flex-end">
-        {!canWrite && (
-          <Tooltip label="Requires network:write permission">
-            <span>
-              <Button
-                leftSection={<IconLock size={14} />}
-                disabled
-                data-testid="save-button"
-              >
-                Save
-              </Button>
-            </span>
-          </Tooltip>
-        )}
-        {canWrite && (
-          <Button
-            onClick={() => { void handleSave(); }}
-            loading={saving}
-            disabled={saveDisabled}
-            data-testid="save-button"
-          >
-            Save
-          </Button>
-        )}
+        <Tooltip
+          label="Requires network:write permission"
+          disabled={canWrite}
+        >
+          <span>
+            <Button
+              leftSection={!canWrite ? <IconLock size={14} /> : undefined}
+              onClick={() => { void handleSave(); }}
+              loading={saving}
+              disabled={saveDisabled}
+              data-testid="save-button"
+            >
+              Save
+            </Button>
+          </span>
+        </Tooltip>
       </Group>
     </Stack>
   );

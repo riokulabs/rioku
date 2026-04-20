@@ -234,6 +234,32 @@ describe('NetworkSection JSON validation', () => {
   });
 });
 
+// ─── Post-save button state ───────────────────────────────────────────────────
+
+describe('NetworkSection post-save button state', () => {
+  it('Save button returns to disabled after save (resetDirty baseline)', async () => {
+    render(<NetworkSection />, { wrapper: Wrapper });
+
+    // Initially disabled — form not dirty
+    expect(screen.getByTestId('save-button').hasAttribute('disabled')).toBe(true);
+
+    // Make dirty by toggling HTTP/3
+    const switchInput = screen.getByTestId<HTMLInputElement>('http3-switch');
+    fireEvent.click(switchInput);
+
+    // Should now be enabled
+    expect(screen.getByTestId('save-button').hasAttribute('disabled')).toBe(false);
+
+    // Save
+    fireEvent.click(screen.getByTestId('save-button'));
+
+    // After save completes, button should return to disabled (resetDirty baseline updated)
+    await waitFor(() => {
+      expect(screen.getByTestId('save-button').hasAttribute('disabled')).toBe(true);
+    });
+  });
+});
+
 // ─── API integration (updateNetworkConfig) ───────────────────────────────────
 // Extended tests are in api.test.ts; these are light integration checks.
 
