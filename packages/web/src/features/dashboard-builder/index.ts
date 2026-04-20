@@ -26,3 +26,6 @@ export type {
   UpdateWidgetInput,
   WidgetDataState,
 } from './types';
+
+export { SchemaForm } from './components/schema-form';
+export type { SchemaFormProps } from './components/schema-form';
