@@ -20,7 +20,7 @@ vi.mock('@tanstack/react-router', () => ({
     params: _params,
     ...rest
   }: React.PropsWithChildren<{ to: string; params?: Record<string, string> }> &
-    Record<string, unknown>) => <a {...rest}>{children as React.ReactNode}</a>,
+    Record<string, unknown>) => <a {...rest}>{children}</a>,
 }));
 
 import { render, screen, fireEvent } from '@testing-library/react';
