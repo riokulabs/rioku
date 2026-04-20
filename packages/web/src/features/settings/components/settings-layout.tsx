@@ -9,29 +9,32 @@
  */
 import { useMemo } from 'react';
 import {
-  Group,
-  Stack,
-  NavLink,
   Box,
-  Title,
+  Button,
+  Group,
+  NavLink,
+  Stack,
   Text,
+  Title,
 } from '@mantine/core';
 import {
-  IconUser,
-  IconBuilding,
-  IconShield,
-  IconBell,
-  IconNetwork,
-  IconCertificate,
-  IconLock,
-  IconChartBar,
-  IconPlug,
-  IconCode,
   IconAlertTriangle,
+  IconArrowRight,
+  IconBell,
+  IconBuilding,
+  IconCertificate,
+  IconChartBar,
+  IconCode,
+  IconLock,
+  IconNetwork,
+  IconPlug,
+  IconShield,
+  IconUser,
 } from '@tabler/icons-react';
-import { useSearch, useNavigate } from '@tanstack/react-router';
+import { Link, useSearch, useNavigate } from '@tanstack/react-router';
 import type { Icon } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
+import { useMockStore } from '@/api/mock-store';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -56,6 +59,18 @@ const SECTIONS: SettingsSection[] = [
   { slug: 'danger-zone', label: 'Danger zone', icon: IconAlertTriangle, plan: 'Plan 1e' },
 ];
 
+/**
+ * Sections that have a real landing subroute now. These render a "Open <page>"
+ * anchor instead of the placeholder EmptyState so users can jump straight into
+ * the implemented UI.
+ */
+const SECTION_ROUTES: Record<string, { to: string; linkLabel: string }> = {
+  notifications: {
+    to: '/t/$tenant/settings/notifications',
+    linkLabel: 'Open notifications',
+  },
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const DEFAULT_SECTION = SECTIONS[0];
@@ -66,6 +81,14 @@ export function SettingsLayout() {
   const search: any = useSearch({ strict: false });
   const navigate = useNavigate();
 
+  // Derive tenant slug from the active mock-store tenant — the layout is
+  // rendered inside a `/t/$tenant` tree, but the test harness stubs the router
+  // so we avoid `useParams()` here.
+  const tenantSlug = useMockStore((s) => {
+    const tenant = s.tenants[s.currentTenantId ?? ''];
+    return tenant?.slug ?? '';
+  });
+
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const activeSlug = (typeof search.section === 'string' ? search.section as string : null) ?? DEFAULT_SECTION?.slug ?? 'profile';
 
@@ -73,6 +96,8 @@ export function SettingsLayout() {
     () => SECTIONS.find((s) => s.slug === activeSlug) ?? DEFAULT_SECTION ?? SECTIONS[0],
     [activeSlug],
   );
+
+  const sectionRoute = activeSection ? SECTION_ROUTES[activeSection.slug] : undefined;
 
   function handleSectionClick(slug: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
@@ -117,11 +142,35 @@ export function SettingsLayout() {
           {activeSection && (
             <>
               <Title order={3}>{activeSection.label}</Title>
-              <EmptyState
-                icon={activeSection.icon}
-                title={`${activeSection.label} settings`}
-                description={`This section will be populated in ${activeSection.plan}.`}
-              />
+              {sectionRoute ? (
+                <Stack gap="sm" align="flex-start">
+                  <Text size="sm">
+                    {activeSection.label} settings live on a dedicated page — it
+                    manages channels, routing rules, and the delivery log.
+                  </Text>
+                  <Button
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast
+                    component={Link as any}
+                    to={sectionRoute.to}
+                    params={{ tenant: tenantSlug }}
+                    rightSection={<IconArrowRight size={14} />}
+                    variant="light"
+                    size="sm"
+                    data-testid={`settings-section-open-${activeSection.slug}`}
+                  >
+                    {sectionRoute.linkLabel}
+                  </Button>
+                  <Text size="xs" c="var(--mantine-color-gray-7)">
+                    ({activeSection.plan})
+                  </Text>
+                </Stack>
+              ) : (
+                <EmptyState
+                  icon={activeSection.icon}
+                  title={`${activeSection.label} settings`}
+                  description={`This section will be populated in ${activeSection.plan}.`}
+                />
+              )}
             </>
           )}
         </Stack>

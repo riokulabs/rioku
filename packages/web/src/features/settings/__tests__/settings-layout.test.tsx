@@ -11,6 +11,16 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({ section: mockSection }),
   useNavigate: () => mockNavigate,
   useRouter: () => ({ navigate: mockNavigate }),
+  // SettingsLayout renders a <Link> for the notifications sub-route after
+  // Plan 7c. Stub it with a plain anchor so the layout test doesn't need the
+  // full TanStack Router runtime.
+  Link: ({
+    children,
+    to: _to,
+    params: _params,
+    ...rest
+  }: React.PropsWithChildren<{ to: string; params?: Record<string, string> }> &
+    Record<string, unknown>) => <a {...rest}>{children as React.ReactNode}</a>,
 }));
 
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -45,10 +55,12 @@ describe('SettingsLayout', () => {
     expect(screen.getByText(/tenant settings/i)).toBeDefined();
   });
 
-  it('shows notifications section with Plan 7 label', () => {
+  it('shows notifications section with link to the notifications subpage', () => {
     mockSection = 'notifications';
     wrap(<SettingsLayout />);
-    expect(screen.getByText(/notifications settings/i)).toBeDefined();
+    // Plan 7 switched notifications from an EmptyState to a live sub-route,
+    // so the layout now renders an "Open notifications" anchor + plan label.
+    expect(screen.getByTestId('settings-section-open-notifications')).toBeDefined();
     expect(screen.getByText(/plan 7/i)).toBeDefined();
   });
 
