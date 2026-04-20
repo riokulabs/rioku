@@ -122,20 +122,13 @@ interface MockStoreActions {
    * Add a single entity to a Record-indexed collection.
    * The entity must have an `id` field.
    */
-  addEntity<K extends EntityKind>(
-    kind: K,
-    entity: EntityKindMap[K] & { id: T.ID },
-  ): void;
+  addEntity<K extends EntityKind>(kind: K, entity: EntityKindMap[K] & { id: T.ID }): void;
 
   /**
    * Merge a partial patch into an existing entity.
    * No-ops silently if the entity is not found.
    */
-  updateEntity<K extends EntityKind>(
-    kind: K,
-    id: T.ID,
-    patch: Partial<EntityKindMap[K]>,
-  ): void;
+  updateEntity<K extends EntityKind>(kind: K, id: T.ID, patch: Partial<EntityKindMap[K]>): void;
 
   /**
    * Remove an entity by ID from a Record-indexed collection.
@@ -208,114 +201,131 @@ function emptyState(): MockStoreState {
 
 // ─── Store creation ───────────────────────────────────────────────────────────
 
-export const useMockStore = create<MockStore>()(
-  persist(
-    (set, get) => ({
-      ...emptyState(),
+// Under Vitest the persist middleware becomes an expensive hot path: every
+// `addEntity` / `appendAudit` call triggers a full JSON.stringify of the
+// store (hundreds of entities after seeding). Running 16+ tests each with a
+// `reset()` + `seedStore()` in `beforeEach` produces thousands of full-state
+// serializations, which overwhelms the default 2 GB Node heap. Tests don't
+// need persistence, so skip the middleware entirely when Vitest is active.
+// Note: `import.meta.env.VITEST` is NOT populated by Vitest 4 (only MODE is
+// set to "test"), so we read `process.env.VITEST` via `globalThis`. The web
+// tsconfig intentionally omits `@types/node`, so we access `process` through
+// an unknown-cast to avoid polluting the browser-facing type surface.
+const IS_VITEST = (() => {
+  const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+  return proc?.env?.VITEST === 'true';
+})();
 
-      addEntity<K extends EntityKind>(
-        kind: K,
-        entity: EntityKindMap[K] & { id: T.ID },
-      ) {
-        set((state) => ({
-          [kind]: {
-            ...(state[kind] as Record<T.ID, EntityKindMap[K]>),
-            [entity.id]: entity,
-          },
-        }));
-      },
+const storeInitializer = (
+  set: (
+    partial:
+      | MockStore
+      | Partial<MockStore>
+      | ((state: MockStore) => MockStore | Partial<MockStore>),
+  ) => void,
+  get: () => MockStore,
+): MockStore => ({
+  ...emptyState(),
 
-      updateEntity<K extends EntityKind>(
-        kind: K,
-        id: T.ID,
-        patch: Partial<EntityKindMap[K]>,
-      ) {
-        const current = (get()[kind] as Record<T.ID, EntityKindMap[K]>)[id];
-        if (!current) return;
-        set((state) => ({
-          [kind]: {
-            ...(state[kind] as Record<T.ID, EntityKindMap[K]>),
-            [id]: { ...current, ...patch },
-          },
-        }));
+  addEntity<K extends EntityKind>(kind: K, entity: EntityKindMap[K] & { id: T.ID }) {
+    set((state) => ({
+      [kind]: {
+        ...(state[kind] as Record<T.ID, EntityKindMap[K]>),
+        [entity.id]: entity,
       },
+    }));
+  },
 
-      deleteEntity(kind: EntityKind, id: T.ID) {
-        set((state) => {
-          const next = {
-            ...(state[kind] as Record<T.ID, EntityKindMap[typeof kind]>),
-          };
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete next[id];
-          return { [kind]: next };
-        });
+  updateEntity<K extends EntityKind>(kind: K, id: T.ID, patch: Partial<EntityKindMap[K]>) {
+    const current = (get()[kind] as Record<T.ID, EntityKindMap[K]>)[id];
+    if (!current) return;
+    set((state) => ({
+      [kind]: {
+        ...(state[kind] as Record<T.ID, EntityKindMap[K]>),
+        [id]: { ...current, ...patch },
       },
+    }));
+  },
 
-      appendAudit(entry: T.AuditEntry) {
-        set((state) => ({ audit: [...state.audit, entry] }));
-      },
+  deleteEntity(kind: EntityKind, id: T.ID) {
+    set((state) => {
+      const next = {
+        ...(state[kind] as Record<T.ID, EntityKindMap[typeof kind]>),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[id];
+      return { [kind]: next };
+    });
+  },
 
-      appendAdminAudit(entry: T.AdminAuditEntry) {
-        set((state) => ({ adminAudit: [...state.adminAudit, entry] }));
-      },
+  appendAudit(entry: T.AuditEntry) {
+    set((state) => ({ audit: [...state.audit, entry] }));
+  },
 
-      reset() {
-        set(emptyState());
-      },
-    }),
-    {
-      name: 'rioku-mock-store',
-      version: 5,
-      storage: createJSONStorage(() => {
-        // Fall back to a no-op storage in environments without localStorage
-        // (e.g. SSR, certain test runners). Persist still works in-memory.
-        if (typeof window === 'undefined') {
-          return {
-            getItem: () => null,
-            setItem: () => undefined,
-            removeItem: () => undefined,
-          };
-        }
-        return window.localStorage;
-      }),
-      migrate: (persistedState, version) => {
-        const state = persistedState as Record<string, unknown>;
-        // Version 3 — add totp_enrolled, backup_codes, force_password_change
-        // to existing User records; fill pendingAuthUserId if absent.
-        if (version < 3) {
-          const users = (state.users ?? {}) as Record<string, Record<string, unknown>>;
-          for (const [id, user] of Object.entries(users)) {
-            users[id] = {
-              totp_enrolled: user.totp_enabled ?? false,
-              force_password_change: false,
-              ...user,
+  appendAdminAudit(entry: T.AdminAuditEntry) {
+    set((state) => ({ adminAudit: [...state.adminAudit, entry] }));
+  },
+
+  reset() {
+    set(emptyState());
+  },
+});
+
+export const useMockStore = IS_VITEST
+  ? create<MockStore>()(storeInitializer)
+  : create<MockStore>()(
+      persist(storeInitializer, {
+        name: 'rioku-mock-store',
+        version: 5,
+        storage: createJSONStorage(() => {
+          // Fall back to a no-op storage in environments without localStorage
+          // (e.g. SSR, certain test runners). Persist still works in-memory.
+          if (typeof window === 'undefined') {
+            return {
+              getItem: () => null,
+              setItem: () => undefined,
+              removeItem: () => undefined,
             };
           }
-          state.users = users;
-          state.pendingAuthUserId = null;
-        }
-        // Version 4 — add aiSemanticRateLimits + aiToolBindings maps; older
-        // stores drop their persisted AI data (Plan 3 expanded types made old
-        // seeds incompatible).
-        if (version < 4) {
-          state.aiProviders = {};
-          state.aiAgents = {};
-          state.aiTools = {};
-          state.aiTraces = {};
-          state.mcpServers = {};
-          state.aiSemanticRateLimits = {};
-          state.aiToolBindings = {};
-        }
-        // Version 5 — Plan 4 expanded dashboards + widgets shape; older seeds
-        // lack mode/scope/layout/variables/data_source/wizard_state. Drop and re-seed.
-        if (version < 5) {
-          state.dashboards = {};
-          state.widgets = {};
-          state.dashboardVersions = {};
-          state.userHomeDashboards = {};
-        }
-        return state as unknown as MockStore;
-      },
-    },
-  ),
-);
+          return window.localStorage;
+        }),
+        migrate: (persistedState, version) => {
+          const state = persistedState as Record<string, unknown>;
+          // Version 3 — add totp_enrolled, backup_codes, force_password_change
+          // to existing User records; fill pendingAuthUserId if absent.
+          if (version < 3) {
+            const users = (state.users ?? {}) as Record<string, Record<string, unknown>>;
+            for (const [id, user] of Object.entries(users)) {
+              users[id] = {
+                totp_enrolled: user.totp_enabled ?? false,
+                force_password_change: false,
+                ...user,
+              };
+            }
+            state.users = users;
+            state.pendingAuthUserId = null;
+          }
+          // Version 4 — add aiSemanticRateLimits + aiToolBindings maps; older
+          // stores drop their persisted AI data (Plan 3 expanded types made old
+          // seeds incompatible).
+          if (version < 4) {
+            state.aiProviders = {};
+            state.aiAgents = {};
+            state.aiTools = {};
+            state.aiTraces = {};
+            state.mcpServers = {};
+            state.aiSemanticRateLimits = {};
+            state.aiToolBindings = {};
+          }
+          // Version 5 — Plan 4 expanded dashboards + widgets shape; older seeds
+          // lack mode/scope/layout/variables/data_source/wizard_state. Drop and re-seed.
+          if (version < 5) {
+            state.dashboards = {};
+            state.widgets = {};
+            state.dashboardVersions = {};
+            state.userHomeDashboards = {};
+          }
+          return state as unknown as MockStore;
+        },
+      }),
+    );
