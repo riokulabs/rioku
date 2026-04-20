@@ -58,7 +58,7 @@ import { Route as TTenantAiRateLimitsRouteImport } from './routes/t.$tenant/ai/r
 import { Route as TTenantAiProvidersRouteImport } from './routes/t.$tenant/ai/providers'
 import { Route as TTenantAiMcpServersRouteImport } from './routes/t.$tenant/ai/mcp-servers'
 import { Route as TTenantAiAgentsRouteImport } from './routes/t.$tenant/ai/agents'
-import { Route as TTenantDashboardsDashboardIdEditRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId.edit'
+import { Route as TTenantDashboardsDashboardIdEditRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId_.edit'
 
 const TenantsRoute = TenantsRouteImport.update({
   id: '/tenants',
@@ -311,9 +311,9 @@ const TTenantAiAgentsRoute = TTenantAiAgentsRouteImport.update({
 } as any)
 const TTenantDashboardsDashboardIdEditRoute =
   TTenantDashboardsDashboardIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => TTenantDashboardsDashboardIdRoute,
+    id: '/dashboards_/$dashboardId_/edit',
+    path: '/dashboards/$dashboardId/edit',
+    getParentRoute: () => TTenantRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -355,7 +355,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
-  '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRouteWithChildren
+  '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -405,7 +405,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
-  '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRouteWithChildren
+  '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -458,7 +458,7 @@ export interface FileRoutesById {
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
-  '/t/$tenant/dashboards_/$dashboardId': typeof TTenantDashboardsDashboardIdRouteWithChildren
+  '/t/$tenant/dashboards_/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -468,7 +468,7 @@ export interface FileRoutesById {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services_/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
-  '/t/$tenant/dashboards_/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
+  '/t/$tenant/dashboards_/$dashboardId_/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -623,7 +623,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services_/$serviceId'
     | '/t/$tenant/ai/'
-    | '/t/$tenant/dashboards_/$dashboardId/edit'
+    | '/t/$tenant/dashboards_/$dashboardId_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -981,12 +981,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantAiAgentsRouteImport
       parentRoute: typeof TTenantAiRoute
     }
-    '/t/$tenant/dashboards_/$dashboardId/edit': {
-      id: '/t/$tenant/dashboards_/$dashboardId/edit'
-      path: '/edit'
+    '/t/$tenant/dashboards_/$dashboardId_/edit': {
+      id: '/t/$tenant/dashboards_/$dashboardId_/edit'
+      path: '/dashboards/$dashboardId/edit'
       fullPath: '/t/$tenant/dashboards/$dashboardId/edit'
       preLoaderRoute: typeof TTenantDashboardsDashboardIdEditRouteImport
-      parentRoute: typeof TTenantDashboardsDashboardIdRoute
+      parentRoute: typeof TTenantRoute
     }
   }
 }
@@ -1084,21 +1084,6 @@ const TTenantSecurityRouteWithChildren = TTenantSecurityRoute._addFileChildren(
   TTenantSecurityRouteChildren,
 )
 
-interface TTenantDashboardsDashboardIdRouteChildren {
-  TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
-}
-
-const TTenantDashboardsDashboardIdRouteChildren: TTenantDashboardsDashboardIdRouteChildren =
-  {
-    TTenantDashboardsDashboardIdEditRoute:
-      TTenantDashboardsDashboardIdEditRoute,
-  }
-
-const TTenantDashboardsDashboardIdRouteWithChildren =
-  TTenantDashboardsDashboardIdRoute._addFileChildren(
-    TTenantDashboardsDashboardIdRouteChildren,
-  )
-
 interface TTenantRouteChildren {
   TTenantAiRoute: typeof TTenantAiRouteWithChildren
   TTenantApiExplorerRoute: typeof TTenantApiExplorerRoute
@@ -1112,8 +1097,9 @@ interface TTenantRouteChildren {
   TTenantServicesRoute: typeof TTenantServicesRoute
   TTenantSettingsRoute: typeof TTenantSettingsRoute
   TTenantSitesRoute: typeof TTenantSitesRoute
-  TTenantDashboardsDashboardIdRoute: typeof TTenantDashboardsDashboardIdRouteWithChildren
+  TTenantDashboardsDashboardIdRoute: typeof TTenantDashboardsDashboardIdRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
+  TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
 }
 
 const TTenantRouteChildren: TTenantRouteChildren = {
@@ -1129,9 +1115,9 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantServicesRoute: TTenantServicesRoute,
   TTenantSettingsRoute: TTenantSettingsRoute,
   TTenantSitesRoute: TTenantSitesRoute,
-  TTenantDashboardsDashboardIdRoute:
-    TTenantDashboardsDashboardIdRouteWithChildren,
+  TTenantDashboardsDashboardIdRoute: TTenantDashboardsDashboardIdRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
+  TTenantDashboardsDashboardIdEditRoute: TTenantDashboardsDashboardIdEditRoute,
 }
 
 const TTenantRouteWithChildren =

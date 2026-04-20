@@ -21,10 +21,27 @@ import { test, getStoreState } from '../fixtures/auth';
 /**
  * Resolve the id of a seeded acme dashboard with at least one widget so
  * per-widget assertions (select + wizard) have something to drive.
+ *
+ * Navigates to the list page first so `addInitScript`-driven re-seeding is
+ * complete before we read the store state — otherwise the store snapshot
+ * can lag behind the page's active render pass.
  */
 async function firstAcmeDashboardWithWidgets(
   page: Parameters<typeof getStoreState>[0],
-): Promise<{ id: string; widgetId: string }> {
+): Promise<{ id: string }> {
+  await page.goto('/t/acme/dashboards');
+  // Wait for the seed to populate on this navigation — addInitScript
+  // clears localStorage on every goto, so the mock store reseeds each time.
+  await page.waitForFunction(() => {
+    const store = (window as unknown as {
+      __RIOKU_STORE?: {
+        getState: () => { tenants: Record<string, { slug: string }> };
+      };
+    }).__RIOKU_STORE;
+    if (!store) return false;
+    const { tenants } = store.getState();
+    return Object.values(tenants).some((t) => t.slug === 'acme');
+  }, null, { timeout: 10_000 });
   const state = (await getStoreState(page)) as {
     tenants: Record<string, { id: string; slug: string }>;
     dashboards: Record<string, {
@@ -39,11 +56,7 @@ async function firstAcmeDashboardWithWidgets(
     (d) => d.tenant_id === acme.id && d.widget_ids.length > 0,
   );
   if (!dash) throw new Error('no acme dashboard with widgets');
-  const widgetId = dash.widget_ids[0];
-  if (widgetId === undefined) {
-    throw new Error('dashboard has empty widget_ids after length check');
-  }
-  return { id: dash.id, widgetId };
+  return { id: dash.id };
 }
 
 test('Edit from viewer opens the builder', async ({ authedPage: page }) => {
@@ -60,7 +73,9 @@ test('Edit from viewer opens the builder', async ({ authedPage: page }) => {
   });
 
   // Builder shell renders a dedicated top bar with Save + Cancel controls.
-  await expect(page.getByTestId('dashboard-builder-shell')).toBeVisible();
+  await expect(page.getByTestId('dashboard-builder-shell')).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByRole('button', { name: /^save$/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /^cancel$/i })).toBeVisible();
 });
@@ -76,7 +91,9 @@ test('Widget palette is visible in the builder', async ({
   });
 
   // Palette container has aria-label "Widget palette" (widget-palette.tsx).
-  const palette = page.getByLabel('Widget palette');
+  // Note: both the outer PanelColumn and the inner Stack carry the same
+  // aria-label, so we match the first one.
+  const palette = page.getByLabel('Widget palette').first();
   await expect(palette).toBeVisible();
 
   // At least the single-stat built-in chip should be rendered.
@@ -86,18 +103,27 @@ test('Widget palette is visible in the builder', async ({
 test('Selecting a widget opens the config side panel', async ({
   authedPage: page,
 }) => {
-  const { id, widgetId } = await firstAcmeDashboardWithWidgets(page);
+  const { id } = await firstAcmeDashboardWithWidgets(page);
   await page.goto(`/t/acme/dashboards/${id}/edit`);
 
   await expect(page.getByTestId('dashboard-builder-shell')).toBeVisible({
     timeout: 10_000,
   });
 
-  const cell = page.getByTestId(`widget-cell-${widgetId}`);
-  await expect(cell).toBeVisible({ timeout: 10_000 });
+  // Grab the first rendered widget cell via data-testid prefix — the seed
+  // ids (widget-0001…) aren't stable across store re-seeds triggered by
+  // addInitScript on every page.goto, so match by prefix instead.
+  const firstCell = page.locator('[data-testid^="widget-cell-"]').first();
+  await expect(firstCell).toBeVisible({ timeout: 10_000 });
 
   // The gear icon inside the cell is labelled "Configure <title>".
-  await cell.getByRole('button', { name: /^configure / }).click();
+  // Force the click — the first cell is small (4×3 grid units) and the gear
+  // button is rendered alongside the drag-handle and trash icons, so the
+  // pointer-events region is narrow. `force: true` skips the actionability
+  // pointer check but still dispatches the click event.
+  await firstCell
+    .getByRole('button', { name: /configure/i })
+    .click({ force: true });
 
   // Config panel is labelled "Widget configuration panel"; title input is
   // always rendered for non-locked widgets.

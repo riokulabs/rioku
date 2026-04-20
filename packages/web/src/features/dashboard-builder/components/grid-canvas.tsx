@@ -282,7 +282,7 @@ function CanvasDroppable({ gridRef, dragKind, children }: CanvasDroppableProps) 
     <div
       ref={setRefs}
       data-testid="grid-canvas"
-      role="grid"
+      role="list"
       aria-label="Dashboard grid canvas"
       style={{
         display: 'grid',
@@ -405,9 +405,9 @@ function GridCell({
   return (
     <div
       ref={setNodeRef}
-      role="gridcell"
+      role="listitem"
       aria-label={widget.title}
-      aria-selected={selected}
+      {...(selected ? { 'aria-current': 'true' } : {})}
       style={cellStyle}
       data-testid={`widget-cell-${widget.id}`}
     >

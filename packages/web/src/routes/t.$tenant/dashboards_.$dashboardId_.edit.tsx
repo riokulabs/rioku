@@ -73,7 +73,7 @@ function DashboardBuilderPage() {
 }
 
 export const Route = createFileRoute(
-  '/t/$tenant/dashboards_/$dashboardId/edit',
+  '/t/$tenant/dashboards_/$dashboardId_/edit',
 )({
   beforeLoad: (ctx) => {
     // 1. Baseline permission + auth check.

@@ -468,8 +468,12 @@ test('bootstrap first-run creates root user and tenant', async ({
 
 test('signed-in user can sign out via sidebar', async ({ authedPage: page }) => {
   // Navigate to the dashboard (authedPage has Derrick pre-seeded).
+  // Plan 4b changed the route to render the tenant's default dashboard inline
+  // (e.g. acme → "Overview"), or a StockDashboard fallback. Assert on a stable
+  // sidebar element instead of the page heading, which is now dashboard-name
+  // dependent.
   await page.goto('/t/acme/dashboard');
-  await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^dashboard$/i })).toBeVisible();
 
   // A11y sweep on dashboard post-login.
   await expectNoA11yViolations(page);

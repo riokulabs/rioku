@@ -4,8 +4,11 @@ import { expectNoA11yViolations } from '../axe';
 test('app shell renders', async ({ page }) => {
   await page.goto('/t/acme/dashboard');
 
-  // Dashboard heading
-  await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
+  // Plan 4b changed /t/$tenant/dashboard to render the tenant default dashboard
+  // inline — acme's default is named "Overview", so the main heading is no
+  // longer "Dashboard". Assert against the sidebar nav link instead, which is
+  // always present regardless of the resolved home dashboard.
+  await expect(page.getByRole('link', { name: /^dashboard$/i })).toBeVisible();
 
   // Tenant pill in sidebar footer shows "acme"
   await expect(page.getByText('acme').first()).toBeVisible();

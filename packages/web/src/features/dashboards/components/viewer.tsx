@@ -217,7 +217,7 @@ export function DashboardViewer({
             gridAutoRows: `${String(ROW_HEIGHT_PX)}px`,
             gap: 'var(--mantine-spacing-md)',
           }}
-          role="grid"
+          role="list"
           aria-label={`${dashboard.name} dashboard widgets`}
         >
           {widgets.map((widget) => (
@@ -267,7 +267,7 @@ function WidgetCell({ widget, layout }: WidgetCellProps) {
         overflow: 'hidden',
         minWidth: 0,
       }}
-      role="gridcell"
+      role="listitem"
       aria-label={widget.title}
     >
       <Stack gap="xs" h="100%">

@@ -35,10 +35,13 @@ test('dashboard viewer renders widget cells', async ({ authedPage: page }) => {
   await expect(firstRow).toBeVisible({ timeout: 10_000 });
   await firstRow.click();
 
-  // Viewer route renders a role="grid" container with role="gridcell"
+  // Viewer route renders a role="list" container with role="listitem"
   // children keyed by widget title (see features/dashboards/components/viewer.tsx).
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 10_000 });
-  const cells = page.getByRole('gridcell');
+  // Use `first()` to skip the DataTable and sidebar lists that predate the
+  // widget grid on the page.
+  const widgetList = page.getByRole('list', { name: /dashboard widgets/i });
+  await expect(widgetList).toBeVisible({ timeout: 10_000 });
+  const cells = widgetList.getByRole('listitem');
   await expect(cells.first()).toBeVisible({ timeout: 10_000 });
   const cellCount = await cells.count();
   expect(cellCount).toBeGreaterThanOrEqual(1);
@@ -77,11 +80,11 @@ test('Version history drawer opens and lists versions', async ({
   await expect(historyBtn).toBeVisible({ timeout: 10_000 });
   await historyBtn.click();
 
-  const drawer = page.getByTestId('version-history-drawer');
-  await expect(drawer).toBeVisible({ timeout: 5_000 });
-
-  // Seeded dashboards ship with 3 versions each (mock-seed.ts).
-  const versionRows = drawer.locator('[data-testid^="version-history-row-"]');
+  // Seeded dashboards ship with 3 versions each (mock-seed.ts). Assert on
+  // the version rows directly — Mantine's Drawer root has a `hidden`
+  // attribute while transitioning, but the portalled content is interactive
+  // immediately.
+  const versionRows = page.locator('[data-testid^="version-history-row-"]');
   await expect(versionRows.first()).toBeVisible({ timeout: 5_000 });
   const versionCount = await versionRows.count();
   expect(versionCount).toBeGreaterThanOrEqual(1);
@@ -91,6 +94,29 @@ test('Import dashboard from exported JSON creates a new entry', async ({
   authedPage: page,
 }) => {
   await page.goto('/t/acme/dashboards');
+
+  // Wait for the list to hydrate — guarantees the store has been seeded
+  // for the freshly-navigated page (addInitScript clears localStorage on
+  // every goto, so the seed re-runs per navigation).
+  await expect(page.getByRole('heading', { name: /^dashboards$/i })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({
+    timeout: 10_000,
+  });
+  // Also confirm the store has populated with a seeded acme tenant. The
+  // mock-store seed is deterministic but can lag the UI render by a tick
+  // on slow CI workers.
+  await page.waitForFunction(() => {
+    const store = (window as unknown as {
+      __RIOKU_STORE?: {
+        getState: () => { tenants: Record<string, { slug: string }> };
+      };
+    }).__RIOKU_STORE;
+    if (!store) return false;
+    const { tenants } = store.getState();
+    return Object.values(tenants).some((t) => t.slug === 'acme');
+  }, null, { timeout: 10_000 });
 
   // Read the first acme dashboard id and its widgets from the store, then
   // build a valid plan4-v1 export payload directly — avoids headless quirks
@@ -142,12 +168,14 @@ test('Import dashboard from exported JSON creates a new entry', async ({
   // Track the list row count so we can assert a new row appears after import.
   const rowsBefore = await page.locator('tbody tr[role="row"]').count();
 
-  // Open the Import modal, paste JSON, confirm.
+  // Open the Import modal, paste JSON, confirm. Wait on the textarea
+  // rather than the Mantine Modal root (which is marked `hidden` during
+  // its enter transition even while the content is already mounted).
   await page.getByTestId('dashboards-import-open').click();
-  const modal = page.getByTestId('import-dashboard-modal');
-  await expect(modal).toBeVisible({ timeout: 5_000 });
+  const textarea = page.getByTestId('import-json-textarea');
+  await expect(textarea).toBeVisible({ timeout: 5_000 });
 
-  await page.getByTestId('import-json-textarea').fill(exportPayload);
+  await textarea.fill(exportPayload);
   await page.getByTestId('import-dashboard-confirm').click();
 
   // On success, the import closes the modal and navigates to the new
