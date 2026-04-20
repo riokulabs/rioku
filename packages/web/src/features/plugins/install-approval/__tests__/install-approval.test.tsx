@@ -117,6 +117,7 @@ describe('InstallApprovalModal — approve path', () => {
       },
       { timeout: 2000 },
     );
+    // Non-streaming mode: first arg is the installed Plugin record.
     const arg = onApprove.mock.calls[0]?.[0] as { slug: string } | undefined;
     expect(arg?.slug).toBe('com.example.safe');
   });

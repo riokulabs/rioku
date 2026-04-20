@@ -44,8 +44,20 @@ import type { ApprovalCandidate, Plugin } from '../types';
 interface InstallApprovalModalProps {
   candidate: ApprovalCandidate | null;
   opened: boolean;
-  onApprove: (plugin: Plugin) => void;
+  /**
+   * Called when the user approves.
+   *
+   * When `streaming` is false (default) the modal installs the plugin
+   * synchronously via `installPlugin()` and passes the resulting Plugin
+   * record. When `streaming` is true the modal does NOT install — it hands
+   * the approved candidate back to the parent, which should open the
+   * <InstallProgressModal> to run the streaming install.
+   */
+  onApprove: (plugin: Plugin | null, candidate: ApprovalCandidate) => void;
   onCancel: () => void;
+  /** When true, approval hands the candidate back to the parent instead of
+   *  installing synchronously. Used to chain into <InstallProgressModal>. */
+  streaming?: boolean;
 }
 
 /** Extracts `zones` array from an unknown manifest shape. */
@@ -81,6 +93,7 @@ export function InstallApprovalModal({
   opened,
   onApprove,
   onCancel,
+  streaming = false,
 }: InstallApprovalModalProps) {
   const [secondConfirm, setSecondConfirm] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -97,6 +110,14 @@ export function InstallApprovalModal({
   async function handleApprove() {
     if (!candidate) return;
     if (requiresSecondConfirm && !secondConfirm) return;
+    if (streaming) {
+      // Hand the candidate back to the parent; it will open the streaming
+      // progress modal. The parent fires the "installed" notification after
+      // the stream completes to avoid duplicate toasts.
+      setSecondConfirm(false);
+      onApprove(null, candidate);
+      return;
+    }
     setInstalling(true);
     try {
       const plugin = await installPlugin(candidate);
@@ -105,7 +126,7 @@ export function InstallApprovalModal({
         `${plugin.display_name} v${plugin.version} is now active.`,
       );
       setSecondConfirm(false);
-      onApprove(plugin);
+      onApprove(plugin, candidate);
     } catch {
       notify.error('Install failed', 'Please try again.');
     } finally {

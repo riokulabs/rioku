@@ -32,7 +32,10 @@ import {
 } from '@/features/plugins/installed';
 import { MarketplaceGrid } from '@/features/plugins/marketplace';
 import { InstallByReferenceForms } from '@/features/plugins/install-by-reference';
-import { InstallApprovalModal } from '@/features/plugins/install-approval';
+import {
+  InstallApprovalModal,
+  InstallProgressModal,
+} from '@/features/plugins/install-approval';
 import type {
   Plugin,
   MarketplaceListing,
@@ -145,6 +148,14 @@ function PluginsPage() {
   const [approvalCandidate, setApprovalCandidate] =
     useState<ApprovalCandidate | null>(null);
 
+  // Install-progress modal (streaming) — opened after approval is granted.
+  const [
+    progressOpened,
+    { open: openProgress, close: closeProgress },
+  ] = useDisclosure(false);
+  const [progressCandidate, setProgressCandidate] =
+    useState<ApprovalCandidate | null>(null);
+
   function handleMarketplaceInstall(listing: MarketplaceListing) {
     setApprovalCandidate(listingToApproval(listing));
     openApproval();
@@ -155,10 +166,30 @@ function PluginsPage() {
     openApproval();
   }
 
-  function handleApprovalDone() {
+  /**
+   * Streaming approval → progress handoff.
+   *
+   * The approval modal is in `streaming` mode, so on Approve it hands the
+   * candidate back instead of installing synchronously. We close the approval
+   * modal, stash the candidate, and open the progress modal which kicks off
+   * installPluginWithProgress() internally.
+   */
+  function handleApprovalApprove(_plugin: Plugin | null, candidate: ApprovalCandidate) {
     closeApproval();
     setApprovalCandidate(null);
-    // Switch to Installed tab after a successful install for visibility
+    setProgressCandidate(candidate);
+    openProgress();
+  }
+
+  function handleApprovalCancel() {
+    closeApproval();
+    setApprovalCandidate(null);
+  }
+
+  function handleProgressComplete(_pluginId: string) {
+    closeProgress();
+    setProgressCandidate(null);
+    // Switch to Installed tab after a successful install for visibility.
     void navigate({
       to: '/t/$tenant/plugins',
       params: { tenant: tenantSlug },
@@ -170,9 +201,9 @@ function PluginsPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  function handleApprovalCancel() {
-    closeApproval();
-    setApprovalCandidate(null);
+  function handleProgressClose() {
+    closeProgress();
+    setProgressCandidate(null);
   }
 
   return (
@@ -245,8 +276,16 @@ function PluginsPage() {
       <InstallApprovalModal
         candidate={approvalCandidate}
         opened={approvalOpened}
-        onApprove={handleApprovalDone}
+        streaming
+        onApprove={handleApprovalApprove}
         onCancel={handleApprovalCancel}
+      />
+
+      <InstallProgressModal
+        candidate={progressCandidate}
+        opened={progressOpened}
+        onComplete={handleProgressComplete}
+        onClose={handleProgressClose}
       />
     </Stack>
   );
