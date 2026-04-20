@@ -50,3 +50,6 @@ export type { AuditListProps } from './components/list';
 
 export { AuditFilterBar } from './components/filter-bar';
 export type { AuditFilterBarProps } from './components/filter-bar';
+
+export { AuditDetail } from './components/detail';
+export type { AuditDetailProps } from './components/detail';
