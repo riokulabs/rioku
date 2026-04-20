@@ -12,5 +12,14 @@ export {
   enablePlugin,
   disablePlugin,
   uninstallPlugin,
+  installPluginWithProgress,
+  getBuildLog,
+} from './api';
+export type {
+  InstallProgressStage,
+  InstallProgressEvent,
+  InstallCompleteEvent,
+  InstallFailedEvent,
+  InstallProgressEmitter,
 } from './api';
 export type { InstalledPluginFilter, Plugin } from './types';
