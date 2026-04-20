@@ -42,6 +42,10 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'ai-rate-limit:',
   'mcp-server:',
   'dashboard:',
+  'notification:',
+  'notification-channel:',
+  'notification-routing:',
+  'notification-log:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -501,6 +505,62 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     description: 'Mark a dashboard as the tenant default',
     source: 'built-in',
     default_roles: ['admin'],
+  },
+
+  // notification:* (Plan 7 — inbox read + own-item manage)
+  {
+    key: 'notification:read',
+    description: 'View notifications in the inbox',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'notification:manage-own',
+    description: 'Mark own notifications read/unread and archive/unarchive them',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+
+  // notification-channel:* (Plan 7 — outbound channel CRUD + test)
+  {
+    key: 'notification-channel:read',
+    description: 'View notification delivery channels and their configuration',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'notification-channel:write',
+    description: 'Create, update, or delete notification delivery channels',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+  {
+    key: 'notification-channel:test',
+    description: 'Send a test notification through a channel',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+
+  // notification-routing:* (Plan 7 — routing rules)
+  {
+    key: 'notification-routing:read',
+    description: 'View notification routing rules',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'notification-routing:write',
+    description: 'Create, update, delete, or reorder notification routing rules',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
+
+  // notification-log:* (Plan 7 — delivery log, read-only)
+  {
+    key: 'notification-log:read',
+    description: 'View the notification delivery log',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
   },
 ];
 

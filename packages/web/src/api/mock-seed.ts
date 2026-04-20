@@ -378,6 +378,15 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'plugin:install' },
     { permission: 'plugin:uninstall' },
     { permission: 'plugin:enable' },
+    // Plan 7 — notifications (full access).
+    { permission: 'notification:read' },
+    { permission: 'notification:manage-own' },
+    { permission: 'notification-channel:read' },
+    { permission: 'notification-channel:write' },
+    { permission: 'notification-channel:test' },
+    { permission: 'notification-routing:read' },
+    { permission: 'notification-routing:write' },
+    { permission: 'notification-log:read' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -406,6 +415,16 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plugins — ops can read + enable, not install or uninstall.
     { permission: 'plugin:read' },
     { permission: 'plugin:enable' },
+    // Plan 7 — notifications (read + own-manage + channel/routing write + test;
+    // ops does NOT get delete-only perms since none exist in the catalog).
+    { permission: 'notification:read' },
+    { permission: 'notification:manage-own' },
+    { permission: 'notification-channel:read' },
+    { permission: 'notification-channel:write' },
+    { permission: 'notification-channel:test' },
+    { permission: 'notification-routing:read' },
+    { permission: 'notification-routing:write' },
+    { permission: 'notification-log:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -434,6 +453,12 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'plugin-signer:read' },
     // Plugins — viewer can read the catalog.
     { permission: 'plugin:read' },
+    // Plan 7 — notifications (read + own-manage only; no write/test).
+    { permission: 'notification:read' },
+    { permission: 'notification:manage-own' },
+    { permission: 'notification-channel:read' },
+    { permission: 'notification-routing:read' },
+    { permission: 'notification-log:read' },
   ];
 
   const roleIds: T.ID[] = [];

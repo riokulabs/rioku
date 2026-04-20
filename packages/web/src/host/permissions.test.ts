@@ -145,6 +145,23 @@ describe('BUILT_IN_PERMISSIONS', () => {
     expect(keys).toContain('dashboard:set-default');
   });
 
+  it('contains all 8 Plan 7 notification keys', () => {
+    const expected = [
+      'notification:read',
+      'notification:manage-own',
+      'notification-channel:read',
+      'notification-channel:write',
+      'notification-channel:test',
+      'notification-routing:read',
+      'notification-routing:write',
+      'notification-log:read',
+    ];
+    expect(expected).toHaveLength(8);
+    for (const key of expected) {
+      expect(keys).toContain(key);
+    }
+  });
+
   it('contains all 17 Plan 3 AI / MCP keys', () => {
     const expected = [
       'ai-provider:read', 'ai-provider:write', 'ai-provider:delete',
@@ -196,6 +213,10 @@ describe('RESERVED_PREFIXES', () => {
       'ai-rate-limit:',
       'mcp-server:',
       'dashboard:',
+      'notification:',
+      'notification-channel:',
+      'notification-routing:',
+      'notification-log:',
     ];
     for (const prefix of expected) {
       expect(RESERVED_PREFIXES).toContain(prefix);
