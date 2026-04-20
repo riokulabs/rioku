@@ -20,6 +20,10 @@ function seedStore() {
     disabled: false,
     totp_enabled: true,
     totp_enrolled: true,
+    timezone: 'America/Los_Angeles',
+    locale: 'en',
+    reduced_motion: false,
+    notification_preferences: { email: true, in_app: true, categories_muted: [] },
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });

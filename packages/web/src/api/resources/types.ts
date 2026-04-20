@@ -23,6 +23,20 @@ export interface User {
   backup_codes?: string[];
   /** User must change password on next login. */
   force_password_change?: boolean;
+  /** Optional profile avatar URL. If absent, UI falls back to initials. */
+  avatar_url?: string;
+  /** IANA timezone string, e.g. 'America/Los_Angeles'. */
+  timezone: string;
+  /** BCP 47 locale code, e.g. 'en' | 'ar'. */
+  locale: string;
+  /** When true, animations and transitions are suppressed in the UI. */
+  reduced_motion: boolean;
+  /** Per-channel and per-category notification preferences. */
+  notification_preferences: {
+    email: boolean;
+    in_app: boolean;
+    categories_muted: string[];
+  };
   readonly created_at: string;
   updated_at: string;
 }

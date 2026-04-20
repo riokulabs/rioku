@@ -476,6 +476,10 @@ export async function bootstrap(
     totp_enabled: false,
     totp_enrolled: false,
     force_password_change: false,
+    timezone: 'America/Los_Angeles',
+    locale: 'en',
+    reduced_motion: false,
+    notification_preferences: { email: true, in_app: true, categories_muted: [] as string[] },
     created_at: now(),
     updated_at: now(),
   };

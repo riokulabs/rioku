@@ -252,23 +252,108 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   const derrickId = nextUserId();
 
-  interface UserSeed { email: string; name: string; disabled: boolean }
+  interface UserSeed {
+    email: string;
+    name: string;
+    disabled: boolean;
+    timezone: string;
+    locale: string;
+    reduced_motion: boolean;
+    avatar_url?: string;
+    notification_preferences: T.User['notification_preferences'];
+  }
   const userSeeds: UserSeed[] = [
-    { email: 'derrick@rioku.dev', name: 'Derrick M.', disabled: false },
-    { email: 'alice@acme.com', name: 'Alice Chen', disabled: false },
-    { email: 'bob@acme.com', name: 'Bob Nakamura', disabled: false },
-    { email: 'carol@acme.com', name: 'Carol Osei', disabled: false },
-    { email: 'dave@acme.com', name: 'Dave Patel', disabled: false },
-    { email: 'eve@beta.io', name: 'Eve Rossi', disabled: false },
-    { email: 'frank@beta.io', name: 'Frank Liu', disabled: false },
-    { email: 'grace@beta.io', name: 'Grace Kim', disabled: false },
-    { email: 'hank@gamma.dev', name: 'Hank Torres', disabled: false },
-    { email: 'iris@gamma.dev', name: 'Iris Müller', disabled: false },
-    { email: 'jack@gamma.dev', name: 'Jack Brennan', disabled: false },
-    { email: 'kate@acme.com', name: 'Kate Okonkwo', disabled: true },
-    { email: 'lena@beta.io', name: 'Lena Svensson', disabled: false },
-    { email: 'mike@gamma.dev', name: 'Mike Popov', disabled: false },
-    { email: 'nina@acme.com', name: 'Nina Andrade', disabled: false },
+    // i=0  Derrick — west coast, avatar placeholder, default notifications
+    {
+      email: 'derrick@rioku.dev', name: 'Derrick M.', disabled: false,
+      timezone: 'America/Los_Angeles', locale: 'en', reduced_motion: false,
+      avatar_url: '/avatars/derrick.png',
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=1  Alice — east coast
+    {
+      email: 'alice@acme.com', name: 'Alice Chen', disabled: false,
+      timezone: 'America/New_York', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=2  Bob — Tokyo
+    {
+      email: 'bob@acme.com', name: 'Bob Nakamura', disabled: false,
+      timezone: 'Asia/Tokyo', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=3  Carol — London, Arabic locale (RTL demo)
+    {
+      email: 'carol@acme.com', name: 'Carol Osei', disabled: false,
+      timezone: 'Europe/London', locale: 'ar', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=4  Dave — east coast
+    {
+      email: 'dave@acme.com', name: 'Dave Patel', disabled: false,
+      timezone: 'America/New_York', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=5  Eve — Paris, in-app notifications off, prefers reduced motion
+    {
+      email: 'eve@beta.io', name: 'Eve Rossi', disabled: false,
+      timezone: 'Europe/Paris', locale: 'en', reduced_motion: true,
+      notification_preferences: { email: true, in_app: false, categories_muted: [] },
+    },
+    // i=6  Frank — Tokyo
+    {
+      email: 'frank@beta.io', name: 'Frank Liu', disabled: false,
+      timezone: 'Asia/Tokyo', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=7  Grace — west coast
+    {
+      email: 'grace@beta.io', name: 'Grace Kim', disabled: false,
+      timezone: 'America/Los_Angeles', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=8  Hank — Chicago, audit category muted
+    {
+      email: 'hank@gamma.dev', name: 'Hank Torres', disabled: false,
+      timezone: 'America/Chicago', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: ['audit'] },
+    },
+    // i=9  Iris — Berlin
+    {
+      email: 'iris@gamma.dev', name: 'Iris Müller', disabled: false,
+      timezone: 'Europe/Berlin', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=10 Jack — Dublin
+    {
+      email: 'jack@gamma.dev', name: 'Jack Brennan', disabled: false,
+      timezone: 'Europe/Dublin', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=11 Kate — Sydney, disabled account
+    {
+      email: 'kate@acme.com', name: 'Kate Okonkwo', disabled: true,
+      timezone: 'Australia/Sydney', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: false, in_app: false, categories_muted: [] },
+    },
+    // i=12 Lena — Stockholm
+    {
+      email: 'lena@beta.io', name: 'Lena Svensson', disabled: false,
+      timezone: 'Europe/Stockholm', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=13 Mike — Moscow
+    {
+      email: 'mike@gamma.dev', name: 'Mike Popov', disabled: false,
+      timezone: 'Europe/Moscow', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
+    // i=14 Nina — São Paulo
+    {
+      email: 'nina@acme.com', name: 'Nina Andrade', disabled: false,
+      timezone: 'America/Sao_Paulo', locale: 'en', reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    },
   ];
 
   const userIds: T.ID[] = [derrickId];
@@ -277,9 +362,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
   }
 
   for (let i = 0; i < userSeeds.length; i++) {
-     
+
     const seed = userSeeds[i]!;
-     
+
     const id = userIds[i]!;
     const user: T.User = {
       id,
@@ -290,6 +375,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
       // Derrick (i === 0) has TOTP enrolled so login can exercise the challenge flow.
       totp_enrolled: i === 0 || i % 3 === 0,
       force_password_change: false,
+      ...(seed.avatar_url !== undefined ? { avatar_url: seed.avatar_url } : {}),
+      timezone: seed.timezone,
+      locale: seed.locale,
+      reduced_motion: seed.reduced_motion,
+      notification_preferences: seed.notification_preferences,
       created_at: daysAgo(90 - i * 4),
       updated_at: daysAgo(i),
     };

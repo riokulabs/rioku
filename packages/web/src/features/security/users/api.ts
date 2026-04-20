@@ -151,6 +151,10 @@ export async function inviteUser(
       totp_enabled: forceTotpOnFirstLogin,
       totp_enrolled: false,
       force_password_change: true,
+      timezone: 'America/Los_Angeles',
+      locale: 'en',
+      reduced_motion: false,
+      notification_preferences: { email: true, in_app: true, categories_muted: [] },
       created_at: now(),
       updated_at: now(),
     };
