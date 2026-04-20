@@ -33,6 +33,8 @@ function makeFreshStore() {
     sites: {},
     dashboards: {},
     widgets: {},
+    dashboardVersions: {},
+    userHomeDashboards: {},
     notifications: {},
     notificationChannels: {},
     notificationRoutingRules: {},
@@ -100,6 +102,8 @@ function makeFreshStore() {
         sites: {},
         dashboards: {},
         widgets: {},
+        dashboardVersions: {},
+        userHomeDashboards: {},
         notifications: {},
         notificationChannels: {},
         notificationRoutingRules: {},
@@ -189,6 +193,10 @@ describe('mock-store seed integrity', () => {
 
   it('seeds 30 widgets (4+5+6+7+8 across 5 dashboards)', () => {
     expect(Object.keys(store.getState().widgets)).toHaveLength(30);
+  });
+
+  it('seeds 15 dashboard versions (3 per dashboard)', () => {
+    expect(Object.keys(store.getState().dashboardVersions)).toHaveLength(15);
   });
 
   it('seeds 4 plugins', () => {

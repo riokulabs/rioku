@@ -37,6 +37,7 @@ const nextAuditId = makeIdFactory('audit');
 const nextSiteId = makeIdFactory('site');
 const nextDashboardId = makeIdFactory('dashboard');
 const nextWidgetId = makeIdFactory('widget');
+const nextDashVerId = makeIdFactory('dashver');
 const nextNotifId = makeIdFactory('notif');
 const nextChannelId = makeIdFactory('channel');
 const nextRuleId = makeIdFactory('rule');
@@ -751,33 +752,86 @@ export function seedStore(store: StoreApi<MockStore>): void {
     appendAudit(entry);
   }
 
-  // ── Dashboards (5) + Widgets (4–8 each) ──────────────────────────────────
+  // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 
   const dashboardNames = ['Overview', 'API Health', 'Security', 'AI Usage', 'Billing'];
-  const widgetKinds = ['metric', 'chart', 'table', 'status', 'heatmap', 'gauge', 'timeline', 'list'];
+  /** Rotates through the 10 built-in widget kinds (Plan 4 §4a.4). */
+  const builtinWidgetKinds = [
+    'single-stat',
+    'sparkline',
+    'time-series',
+    'stacked-bar',
+    'table',
+    'pie',
+    'service-map',
+    'log-viewer',
+    'audit-tail',
+    'top-n',
+  ];
+  /** Data sources rotated across widgets. */
+  const builtinDataSources = ['audit', 'services', 'routes', 'traces'];
+  /** Trivial widget types whose wizard_state round-trips cleanly. */
+  const trivialKinds = new Set(['single-stat', 'sparkline', 'time-series']);
 
   for (let di = 0; di < 5; di++) {
     const dashId = nextDashboardId();
     const widgetCount = 4 + (di % 5); // 4–8 widgets
     const widgetIds: T.ID[] = [];
+    const layout: Record<T.ID, { x: number; y: number; w: number; h: number }> = {};
+    const widgetSnapshots: Omit<T.Widget, 'dashboard_id' | 'created_at' | 'updated_at'>[] = [];
+    const dashCreatedAt = daysAgo(70 - di * 10);
 
     for (let wi = 0; wi < widgetCount; wi++) {
       const wid = nextWidgetId();
       widgetIds.push(wid);
+      const kind = pick(builtinWidgetKinds, wi + di);
+      const dataSource = pick(builtinDataSources, wi + di);
+      const position = {
+        x: (wi % 3) * 4,
+        y: Math.floor(wi / 3) * 3,
+        w: 4,
+        h: 3,
+      };
+      layout[wid] = position;
+
+      /** Trivial types get a wizard_state; one-way types leave wizard_state undefined. */
+      const wizardState: T.WidgetWizardState | undefined = trivialKinds.has(kind)
+        ? {
+            dimensions: [],
+            measures: [
+              { field: 'count', aggregation: 'count' },
+            ],
+            filters: [],
+            limit: 100,
+          }
+        : undefined;
+
       const widget: T.Widget = {
         id: wid,
         dashboard_id: dashId,
-        kind: pick(widgetKinds, wi + di),
-        title: `${dashboardNames[di]!} — ${pick(widgetKinds, wi + di)}`,
+        kind,
+        title: `${dashboardNames[di]!} — ${kind}`,
         config: { refresh_interval: 30 + wi * 10 },
-        position: {
-          x: (wi % 3) * 4,
-          y: Math.floor(wi / 3) * 3,
-          w: 4,
-          h: 3,
-        },
+        position,
+        data_source: dataSource,
+        raw_query: '',
+        ...(wizardState !== undefined ? { wizard_state: wizardState } : {}),
+        locked_advanced: false,
+        created_at: dashCreatedAt,
+        updated_at: dashCreatedAt,
       };
       addEntity('widgets', widget);
+      widgetSnapshots.push({
+        id: widget.id,
+        kind: widget.kind,
+        title: widget.title,
+        config: widget.config,
+        position: widget.position,
+        data_source: widget.data_source,
+        raw_query: widget.raw_query,
+        ...(widget.wizard_state !== undefined ? { wizard_state: widget.wizard_state } : {}),
+        locked_advanced: widget.locked_advanced,
+      });
     }
 
     const dashboard: T.Dashboard = {
@@ -786,9 +840,51 @@ export function seedStore(store: StoreApi<MockStore>): void {
       name: dashboardNames[di]!,
       default: di === 0,
       widget_ids: widgetIds,
-      created_at: daysAgo(70 - di * 10),
+      description: `Seeded ${dashboardNames[di]!} dashboard for demo purposes.`,
+      owner_user_id: null,
+      mode: 'metabase',
+      scope: 'tenant',
+      shared_role_ids: [],
+      layout,
+      variables: [],
+      created_at: dashCreatedAt,
+      updated_at: dashCreatedAt,
     };
     addEntity('dashboards', dashboard);
+
+    // 3 version history entries per dashboard — initial, "added widget", current.
+    const baseDashboardSnapshot: Omit<T.Dashboard, 'id' | 'tenant_id' | 'created_at' | 'updated_at'> = {
+      name: dashboard.name,
+      default: dashboard.default,
+      widget_ids: [...widgetIds],
+      ...(dashboard.description !== undefined ? { description: dashboard.description } : {}),
+      owner_user_id: dashboard.owner_user_id,
+      mode: dashboard.mode,
+      scope: dashboard.scope,
+      shared_role_ids: [...dashboard.shared_role_ids],
+      layout: { ...layout },
+      variables: [...dashboard.variables],
+    };
+
+    const versionDescriptions = ['Initial snapshot', `Added widget ${widgetIds[0] ?? ''}`, 'Current state'];
+    for (let vi = 0; vi < 3; vi++) {
+      const vid = nextDashVerId();
+      const version: T.DashboardVersion = {
+        id: vid,
+        dashboard_id: dashId,
+        version: vi + 1,
+        created_at: daysAgo(70 - di * 10 - vi * 5),
+        created_by: derrickId,
+        ...(versionDescriptions[vi] !== undefined
+          ? { description: versionDescriptions[vi] }
+          : {}),
+        snapshot: {
+          dashboard: baseDashboardSnapshot,
+          widgets: widgetSnapshots.map((w) => ({ ...w })),
+        },
+      };
+      addEntity('dashboardVersions', version);
+    }
   }
 
   // ── Plugins (4 installed) ─────────────────────────────────────────────────

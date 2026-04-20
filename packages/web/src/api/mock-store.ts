@@ -44,6 +44,9 @@ interface MockStoreState {
   // Dashboards + widgets
   dashboards: Record<T.ID, T.Dashboard>;
   widgets: Record<T.ID, T.Widget>;
+  dashboardVersions: Record<T.ID, T.DashboardVersion>;
+  /** Per-user "my home" dashboard override. Keyed by user id. */
+  userHomeDashboards: Record<T.ID, T.ID>;
 
   // Notifications
   notifications: Record<T.ID, T.NotificationItem>;
@@ -94,6 +97,7 @@ interface EntityKindMap {
   sites: T.Site;
   dashboards: T.Dashboard;
   widgets: T.Widget;
+  dashboardVersions: T.DashboardVersion;
   notifications: T.NotificationItem;
   notificationChannels: T.NotificationChannel;
   notificationRoutingRules: T.NotificationRoutingRule;
@@ -180,6 +184,8 @@ function emptyState(): MockStoreState {
     sites: {},
     dashboards: {},
     widgets: {},
+    dashboardVersions: {},
+    userHomeDashboards: {},
     notifications: {},
     notificationChannels: {},
     notificationRoutingRules: {},
@@ -259,7 +265,7 @@ export const useMockStore = create<MockStore>()(
     }),
     {
       name: 'rioku-mock-store',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => {
         // Fall back to a no-op storage in environments without localStorage
         // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -299,6 +305,14 @@ export const useMockStore = create<MockStore>()(
           state.mcpServers = {};
           state.aiSemanticRateLimits = {};
           state.aiToolBindings = {};
+        }
+        // Version 5 — Plan 4 expanded dashboards + widgets shape; older seeds
+        // lack mode/scope/layout/variables/data_source/wizard_state. Drop and re-seed.
+        if (version < 5) {
+          state.dashboards = {};
+          state.widgets = {};
+          state.dashboardVersions = {};
+          state.userHomeDashboards = {};
         }
         return state as unknown as MockStore;
       },
