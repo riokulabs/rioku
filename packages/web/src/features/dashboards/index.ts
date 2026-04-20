@@ -42,3 +42,4 @@ export type {
 
 export { DashboardList } from './components/list';
 export { DashboardFilterBar } from './components/filter-bar';
+export { DashboardViewer } from './components/viewer';
