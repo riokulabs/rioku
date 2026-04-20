@@ -217,18 +217,42 @@ function AdminPluginSignersPage() {
           })}
         </Tabs.List>
 
-        <Stack gap="md" pt="md">
-          <SignerFilterBar filter={filter} onChange={setFilter} />
-
-          <SignerList
-            tenantScope={tenantScope}
-            filter={filter}
-            onSelect={handleRowClick}
-            onVerify={(s) => void handleVerify(s)}
-            onRevoke={(s) => void handleRevoke(s)}
-            onDelete={handleDeleteFromList}
-          />
-        </Stack>
+        {/*
+          Each tab owns a matching <Tabs.Panel> so Mantine's aria-controls
+          wiring lines up with a real panel. All panels render the same
+          SignerFilterBar + SignerList; the `tenantScope` prop drives the
+          filter so each tab surfaces the right rows. keepMounted={false}
+          on the parent <Tabs> means only the active panel mounts, so the
+          SignerList only renders once per tab activation.
+        */}
+        <Tabs.Panel value="global" pt="md">
+          <Stack gap="md">
+            <SignerFilterBar filter={filter} onChange={setFilter} />
+            <SignerList
+              tenantScope={tenantScope}
+              filter={filter}
+              onSelect={handleRowClick}
+              onVerify={(s) => void handleVerify(s)}
+              onRevoke={(s) => void handleRevoke(s)}
+              onDelete={handleDeleteFromList}
+            />
+          </Stack>
+        </Tabs.Panel>
+        {tenantScopeIds.map((tid) => (
+          <Tabs.Panel key={tid} value={tid} pt="md">
+            <Stack gap="md">
+              <SignerFilterBar filter={filter} onChange={setFilter} />
+              <SignerList
+                tenantScope={tenantScope}
+                filter={filter}
+                onSelect={handleRowClick}
+                onVerify={(s) => void handleVerify(s)}
+                onRevoke={(s) => void handleRevoke(s)}
+                onDelete={handleDeleteFromList}
+              />
+            </Stack>
+          </Tabs.Panel>
+        ))}
       </Tabs>
 
       <Drawer
