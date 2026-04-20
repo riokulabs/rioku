@@ -28,3 +28,8 @@ export type {
   RoutingRuleFilter,
   UpdateRoutingRuleInput,
 } from './types';
+
+export { RoutingRuleList } from './components/list';
+export { RoutingRuleFilterBar } from './components/filter-bar';
+export { RoutingRuleDetail } from './components/detail';
+export { RoutingRuleForm } from './components/form';

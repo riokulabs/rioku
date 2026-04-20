@@ -1,11 +1,12 @@
 /**
- * <ChannelDetail> — drawer content for a notification channel.
+ * <RoutingRuleDetail> — drawer content for a notification routing rule.
  *
  * Sections:
- *   - Header (name, kind badge, enabled Switch)
- *   - Configuration (read-only via <ChannelKindConfigPanel readOnly>)
- *   - <TestPanel>
- *   - Recent deliveries via this channel (last 10 from the delivery log)
+ *   - Header (name, event_filter badge, enabled Switch)
+ *   - Channels (chips)
+ *   - Recent matches (last 10 deliveries routed through this rule's channels
+ *     — best-effort join via channel_ids since delivery log does not carry
+ *     a rule_id today)
  *   - Audit tail
  *   - Actions (Edit, Delete — typed-name confirm)
  */
@@ -25,45 +26,19 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconBell,
-  IconBrandSlack,
-  IconBrandTeams,
-  IconDeviceMobile,
-  IconMail,
-  IconUrgent,
-  IconWebhook,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconRoute } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import type { NotificationChannel } from '@/api/resources/types';
-import { deleteChannel, updateChannel, useChannelDetail } from '../api';
-import { ChannelKindConfigPanel } from './kind-config-panel';
-import { TestPanel } from './test-panel';
+import {
+  deleteRoutingRule,
+  updateRoutingRule,
+  useRoutingRuleDetail,
+} from '../api';
 
 dayjs.extend(relativeTime);
-
-const KIND_COLORS: Record<NotificationChannel['kind'], string> = {
-  email: 'blue',
-  slack: 'grape',
-  webhook: 'cyan',
-  pagerduty: 'red',
-  teams: 'indigo',
-  sms: 'teal',
-};
-
-const KIND_ICONS = {
-  email: IconMail,
-  slack: IconBrandSlack,
-  webhook: IconWebhook,
-  pagerduty: IconUrgent,
-  teams: IconBrandTeams,
-  sms: IconDeviceMobile,
-} as const;
 
 const STATUS_COLOR: Record<string, string> = {
   delivered: 'green',
@@ -72,73 +47,87 @@ const STATUS_COLOR: Record<string, string> = {
   pending: 'gray',
 };
 
-interface ChannelDetailProps {
-  channelId: string;
+interface RoutingRuleDetailProps {
+  ruleId: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps) {
-  const channel = useChannelDetail(channelId);
+export function RoutingRuleDetail({
+  ruleId,
+  onEdit,
+  onClose,
+}: RoutingRuleDetailProps) {
+  const rule = useRoutingRuleDetail(ruleId);
+  const channels = useMockStore((s) => s.notificationChannels);
   const deliveryLog = useMockStore((s) => s.notificationDeliveryLog);
   const auditEntries = useMockStore((s) => s.audit);
 
-  const canWrite = usePermission('notification-channel:write');
+  const canWrite = usePermission('notification-routing:write');
 
-  const recentDeliveries = useMemo(() => {
-    if (!channel) return [];
+  const boundChannels = useMemo(() => {
+    if (!rule) return [];
+    return rule.channel_ids
+      .map((cid) => channels[cid])
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+  }, [rule, channels]);
+
+  const recentMatches = useMemo(() => {
+    if (!rule) return [];
+    const channelSet = new Set(rule.channel_ids);
     return Object.values(deliveryLog)
-      .filter((e) => e.channel_id === channel.id)
+      .filter((d) => channelSet.has(d.channel_id))
       .slice()
       .sort((a, b) => b.last_attempted_at.localeCompare(a.last_attempted_at))
       .slice(0, 10);
-  }, [deliveryLog, channel]);
+  }, [rule, deliveryLog]);
 
   const auditTail = useMemo(() => {
-    if (!channel) return [];
+    if (!rule) return [];
     return auditEntries
       .filter(
-        (e) => e.resource_type === 'notification-channel' && e.resource_id === channel.id,
+        (e) =>
+          e.resource_type === 'notification-routing-rule' &&
+          e.resource_id === rule.id,
       )
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
-  }, [auditEntries, channel]);
+  }, [auditEntries, rule]);
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  if (!channel) {
+  if (!rule) {
     return (
       <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-        Channel not found.
+        Routing rule not found.
       </Alert>
     );
   }
 
-  // Capture the narrowed channel for closures that run after render.
-  const definedChannel = channel;
-  const KindIcon = KIND_ICONS[definedChannel.kind];
+  // Capture the narrowed rule for closures that run after render.
+  const definedRule = rule;
 
   async function handleToggle(enabled: boolean) {
     try {
-      await updateChannel(channelId, { enabled });
+      await updateRoutingRule(ruleId, { enabled });
     } catch {
-      notify.error('Failed to update channel', 'Please try again.');
+      notify.error('Failed to update rule', 'Please try again.');
     }
   }
 
   async function handleDelete() {
-    if (deleteInput !== definedChannel.name) return;
+    if (deleteInput !== definedRule.name) return;
     setDeleting(true);
     try {
-      await deleteChannel(channelId);
-      notify.success('Channel deleted', `${definedChannel.name} was removed.`);
+      await deleteRoutingRule(ruleId);
+      notify.success('Rule deleted', `${definedRule.name} was removed.`);
       closeDelete();
       onClose();
     } catch {
-      notify.error('Failed to delete channel', 'Please try again.');
+      notify.error('Failed to delete rule', 'Please try again.');
     } finally {
       setDeleting(false);
       setDeleteInput('');
@@ -150,25 +139,26 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group gap="sm" wrap="nowrap">
-          <KindIcon size={28} color="var(--mantine-color-blue-6)" />
+          <IconRoute size={28} color="var(--mantine-color-indigo-6)" />
           <Stack gap={2}>
             <Group gap="xs">
-              <Title order={4}>{channel.name}</Title>
-              <Badge size="sm" variant="light" color={KIND_COLORS[channel.kind]}>
-                {channel.kind}
+              <Title order={4}>{rule.name}</Title>
+              <Badge size="sm" variant="light" color="indigo" ff="monospace">
+                {rule.event_filter}
               </Badge>
               <Switch
                 size="sm"
-                checked={channel.enabled}
+                checked={rule.enabled}
                 disabled={!canWrite}
-                aria-label={`Toggle ${channel.name}`}
+                aria-label={`Toggle ${rule.name}`}
                 onChange={(e) => {
                   void handleToggle(e.currentTarget.checked);
                 }}
               />
             </Group>
             <Text size="xs" c="var(--mantine-color-gray-7)">
-              Created {dayjs(channel.created_at).fromNow()}
+              Order hint: {String(rule.order_hint)} · created{' '}
+              {dayjs(rule.created_at).fromNow()}
             </Text>
           </Stack>
         </Group>
@@ -179,52 +169,57 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
 
       <Divider />
 
-      {/* Configuration (read-only) */}
+      {/* Channels */}
       <Stack gap="xs">
         <Text size="sm" fw={600}>
-          Configuration
+          Channels ({String(boundChannels.length)})
         </Text>
-        <ChannelKindConfigPanel
-          kind={channel.kind}
-          value={channel.config}
-          onChange={() => {
-            // read-only
-          }}
-          readOnly
-        />
+        {boundChannels.length === 0 ? (
+          <Text size="xs" c="var(--mantine-color-gray-7)">
+            No channels bound — this rule will not deliver anywhere.
+          </Text>
+        ) : (
+          <Group gap={6}>
+            {boundChannels.map((c) => (
+              <Badge key={c.id} size="sm" variant="light" color="blue">
+                {c.name} — {c.kind}
+              </Badge>
+            ))}
+          </Group>
+        )}
       </Stack>
 
       <Divider />
 
-      {/* Test panel */}
-      <TestPanel channelId={channel.id} channelName={channel.name} />
-
-      <Divider />
-
-      {/* Recent deliveries */}
+      {/* Recent matches */}
       <Stack gap="xs">
         <Text size="sm" fw={600}>
-          Recent deliveries ({String(recentDeliveries.length)})
+          Recent deliveries via bound channels ({String(recentMatches.length)})
         </Text>
-        {recentDeliveries.length === 0 ? (
+        {recentMatches.length === 0 ? (
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            No deliveries have used this channel yet.
+            No deliveries have touched this rule&apos;s channels yet.
           </Text>
         ) : (
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>When</Table.Th>
+                <Table.Th>Channel</Table.Th>
                 <Table.Th>Status</Table.Th>
                 <Table.Th>Attempts</Table.Th>
-                <Table.Th>Notification</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {recentDeliveries.map((d) => (
+              {recentMatches.map((d) => (
                 <Table.Tr key={d.id}>
                   <Table.Td>
                     <Text size="xs">{dayjs(d.last_attempted_at).fromNow()}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs">
+                      {channels[d.channel_id]?.name ?? d.channel_id}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
                     <Badge
@@ -238,11 +233,6 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
                   <Table.Td>
                     <Text size="xs" ff="monospace">
                       {String(d.attempts)}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
-                      {d.notification_id}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -261,7 +251,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
         </Text>
         {auditTail.length === 0 ? (
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            No audit entries for this channel yet.
+            No audit entries for this rule yet.
           </Text>
         ) : (
           <Table striped highlightOnHover>
@@ -305,32 +295,31 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
           variant="subtle"
           color="red"
           disabled={!canWrite}
-          leftSection={<IconBell size={14} />}
           onClick={openDelete}
         >
           Delete…
         </Button>
       </Group>
 
-      {/* Delete modal — typed-name confirm */}
+      {/* Delete modal */}
       <Modal
         opened={deleteOpened}
         onClose={() => {
           closeDelete();
           setDeleteInput('');
         }}
-        title="Delete channel"
+        title="Delete routing rule"
         size="sm"
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the channel. Routing rules that reference it
-            will stop delivering until they are updated.
+            This permanently deletes the rule. Notifications that matched its
+            event filter will no longer be routed to its channels.
           </Alert>
           <Text size="sm">
             Type{' '}
             <Text component="span" fw={600} ff="monospace">
-              {channel.name}
+              {rule.name}
             </Text>{' '}
             to confirm.
           </Text>
@@ -339,7 +328,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
             onChange={(e) => {
               setDeleteInput(e.currentTarget.value);
             }}
-            placeholder={channel.name}
+            placeholder={rule.name}
             data-autofocus
           />
           <Group justify="flex-end" gap="sm">
@@ -357,7 +346,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
               color="red"
               size="sm"
               loading={deleting}
-              disabled={deleteInput !== channel.name}
+              disabled={deleteInput !== rule.name}
               onClick={() => void handleDelete()}
             >
               Delete permanently

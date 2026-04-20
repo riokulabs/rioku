@@ -45,6 +45,8 @@ import { Route as UnauthResetPasswordTokenRouteImport } from './routes/_unauth/r
 import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$token'
 import { Route as TTenantSettingsIndexRouteImport } from './routes/t.$tenant/settings/index'
 import { Route as TTenantAiIndexRouteImport } from './routes/t.$tenant/ai/index'
+import { Route as TTenantSettingsNotificationRoutingRouteImport } from './routes/t.$tenant/settings/notification-routing'
+import { Route as TTenantSettingsNotificationChannelsRouteImport } from './routes/t.$tenant/settings/notification-channels'
 import { Route as TTenantSettingsAuditRetentionRouteImport } from './routes/t.$tenant/settings/audit-retention'
 import { Route as TTenantServicesServiceIdRouteImport } from './routes/t.$tenant/services_.$serviceId'
 import { Route as TTenantSecurityUsersRouteImport } from './routes/t.$tenant/security/users'
@@ -245,6 +247,18 @@ const TTenantAiIndexRoute = TTenantAiIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TTenantAiRoute,
 } as any)
+const TTenantSettingsNotificationRoutingRoute =
+  TTenantSettingsNotificationRoutingRouteImport.update({
+    id: '/notification-routing',
+    path: '/notification-routing',
+    getParentRoute: () => TTenantSettingsRoute,
+  } as any)
+const TTenantSettingsNotificationChannelsRoute =
+  TTenantSettingsNotificationChannelsRouteImport.update({
+    id: '/notification-channels',
+    path: '/notification-channels',
+    getParentRoute: () => TTenantSettingsRoute,
+  } as any)
 const TTenantSettingsAuditRetentionRoute =
   TTenantSettingsAuditRetentionRouteImport.update({
     id: '/audit-retention',
@@ -399,6 +413,8 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
+  '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
+  '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
@@ -453,6 +469,8 @@ export interface FileRoutesByTo {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
+  '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
+  '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/ai': typeof TTenantAiIndexRoute
   '/t/$tenant/settings': typeof TTenantSettingsIndexRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
@@ -511,6 +529,8 @@ export interface FileRoutesById {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services_/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
+  '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
+  '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/dashboards_/$dashboardId_/edit': typeof TTenantDashboardsDashboardIdEditRoute
@@ -569,6 +589,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services/$serviceId'
     | '/t/$tenant/settings/audit-retention'
+    | '/t/$tenant/settings/notification-channels'
+    | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/ai/'
     | '/t/$tenant/settings/'
     | '/t/$tenant/dashboards/$dashboardId/edit'
@@ -623,6 +645,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services/$serviceId'
     | '/t/$tenant/settings/audit-retention'
+    | '/t/$tenant/settings/notification-channels'
+    | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/ai'
     | '/t/$tenant/settings'
     | '/t/$tenant/dashboards/$dashboardId/edit'
@@ -680,6 +704,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services_/$serviceId'
     | '/t/$tenant/settings/audit-retention'
+    | '/t/$tenant/settings/notification-channels'
+    | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/ai/'
     | '/t/$tenant/settings/'
     | '/t/$tenant/dashboards_/$dashboardId_/edit'
@@ -949,6 +975,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantAiIndexRouteImport
       parentRoute: typeof TTenantAiRoute
     }
+    '/t/$tenant/settings/notification-routing': {
+      id: '/t/$tenant/settings/notification-routing'
+      path: '/notification-routing'
+      fullPath: '/t/$tenant/settings/notification-routing'
+      preLoaderRoute: typeof TTenantSettingsNotificationRoutingRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/notification-channels': {
+      id: '/t/$tenant/settings/notification-channels'
+      path: '/notification-channels'
+      fullPath: '/t/$tenant/settings/notification-channels'
+      preLoaderRoute: typeof TTenantSettingsNotificationChannelsRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
     '/t/$tenant/settings/audit-retention': {
       id: '/t/$tenant/settings/audit-retention'
       path: '/audit-retention'
@@ -1182,11 +1222,17 @@ const TTenantSecurityRouteWithChildren = TTenantSecurityRoute._addFileChildren(
 
 interface TTenantSettingsRouteChildren {
   TTenantSettingsAuditRetentionRoute: typeof TTenantSettingsAuditRetentionRoute
+  TTenantSettingsNotificationChannelsRoute: typeof TTenantSettingsNotificationChannelsRoute
+  TTenantSettingsNotificationRoutingRoute: typeof TTenantSettingsNotificationRoutingRoute
   TTenantSettingsIndexRoute: typeof TTenantSettingsIndexRoute
 }
 
 const TTenantSettingsRouteChildren: TTenantSettingsRouteChildren = {
   TTenantSettingsAuditRetentionRoute: TTenantSettingsAuditRetentionRoute,
+  TTenantSettingsNotificationChannelsRoute:
+    TTenantSettingsNotificationChannelsRoute,
+  TTenantSettingsNotificationRoutingRoute:
+    TTenantSettingsNotificationRoutingRoute,
   TTenantSettingsIndexRoute: TTenantSettingsIndexRoute,
 }
 
