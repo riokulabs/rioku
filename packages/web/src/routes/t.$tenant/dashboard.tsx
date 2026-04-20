@@ -142,7 +142,7 @@ function DashboardPage() {
   //    active tenant).
   if (userHomeId) {
     const home = dashboards[userHomeId];
-    if (home && home.tenant_id === currentTenantId) {
+    if (home?.tenant_id === currentTenantId) {
       return <DashboardViewer dashboardId={userHomeId} />;
     }
   }

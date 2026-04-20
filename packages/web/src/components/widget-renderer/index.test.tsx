@@ -58,7 +58,7 @@ describe('<WidgetRenderer>', () => {
       component: ({ data, config }) => (
         <div data-testid="plugin-widget">
           data={String((data as { v?: number } | null)?.v ?? 'none')}
-          config={String((config as { foo?: string }).foo ?? 'none')}
+          config={(config as { foo?: string }).foo ?? 'none'}
         </div>
       ),
       source: 'plugin',
