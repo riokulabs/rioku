@@ -46,6 +46,7 @@ import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$
 import { Route as TTenantSettingsIndexRouteImport } from './routes/t.$tenant/settings/index'
 import { Route as TTenantAiIndexRouteImport } from './routes/t.$tenant/ai/index'
 import { Route as TTenantSettingsNotificationRoutingRouteImport } from './routes/t.$tenant/settings/notification-routing'
+import { Route as TTenantSettingsNotificationDeliveryRouteImport } from './routes/t.$tenant/settings/notification-delivery'
 import { Route as TTenantSettingsNotificationChannelsRouteImport } from './routes/t.$tenant/settings/notification-channels'
 import { Route as TTenantSettingsAuditRetentionRouteImport } from './routes/t.$tenant/settings/audit-retention'
 import { Route as TTenantServicesServiceIdRouteImport } from './routes/t.$tenant/services_.$serviceId'
@@ -253,6 +254,12 @@ const TTenantSettingsNotificationRoutingRoute =
     path: '/notification-routing',
     getParentRoute: () => TTenantSettingsRoute,
   } as any)
+const TTenantSettingsNotificationDeliveryRoute =
+  TTenantSettingsNotificationDeliveryRouteImport.update({
+    id: '/notification-delivery',
+    path: '/notification-delivery',
+    getParentRoute: () => TTenantSettingsRoute,
+  } as any)
 const TTenantSettingsNotificationChannelsRoute =
   TTenantSettingsNotificationChannelsRouteImport.update({
     id: '/notification-channels',
@@ -414,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
   '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
+  '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
@@ -470,6 +478,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
   '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
+  '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/ai': typeof TTenantAiIndexRoute
   '/t/$tenant/settings': typeof TTenantSettingsIndexRoute
@@ -530,6 +539,7 @@ export interface FileRoutesById {
   '/t/$tenant/services_/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
   '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
+  '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
@@ -590,6 +600,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/services/$serviceId'
     | '/t/$tenant/settings/audit-retention'
     | '/t/$tenant/settings/notification-channels'
+    | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/ai/'
     | '/t/$tenant/settings/'
@@ -646,6 +657,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/services/$serviceId'
     | '/t/$tenant/settings/audit-retention'
     | '/t/$tenant/settings/notification-channels'
+    | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/ai'
     | '/t/$tenant/settings'
@@ -705,6 +717,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/services_/$serviceId'
     | '/t/$tenant/settings/audit-retention'
     | '/t/$tenant/settings/notification-channels'
+    | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/ai/'
     | '/t/$tenant/settings/'
@@ -982,6 +995,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSettingsNotificationRoutingRouteImport
       parentRoute: typeof TTenantSettingsRoute
     }
+    '/t/$tenant/settings/notification-delivery': {
+      id: '/t/$tenant/settings/notification-delivery'
+      path: '/notification-delivery'
+      fullPath: '/t/$tenant/settings/notification-delivery'
+      preLoaderRoute: typeof TTenantSettingsNotificationDeliveryRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
     '/t/$tenant/settings/notification-channels': {
       id: '/t/$tenant/settings/notification-channels'
       path: '/notification-channels'
@@ -1223,6 +1243,7 @@ const TTenantSecurityRouteWithChildren = TTenantSecurityRoute._addFileChildren(
 interface TTenantSettingsRouteChildren {
   TTenantSettingsAuditRetentionRoute: typeof TTenantSettingsAuditRetentionRoute
   TTenantSettingsNotificationChannelsRoute: typeof TTenantSettingsNotificationChannelsRoute
+  TTenantSettingsNotificationDeliveryRoute: typeof TTenantSettingsNotificationDeliveryRoute
   TTenantSettingsNotificationRoutingRoute: typeof TTenantSettingsNotificationRoutingRoute
   TTenantSettingsIndexRoute: typeof TTenantSettingsIndexRoute
 }
@@ -1231,6 +1252,8 @@ const TTenantSettingsRouteChildren: TTenantSettingsRouteChildren = {
   TTenantSettingsAuditRetentionRoute: TTenantSettingsAuditRetentionRoute,
   TTenantSettingsNotificationChannelsRoute:
     TTenantSettingsNotificationChannelsRoute,
+  TTenantSettingsNotificationDeliveryRoute:
+    TTenantSettingsNotificationDeliveryRoute,
   TTenantSettingsNotificationRoutingRoute:
     TTenantSettingsNotificationRoutingRoute,
   TTenantSettingsIndexRoute: TTenantSettingsIndexRoute,

@@ -13,3 +13,7 @@ export { deliveryLogFilterSchema, deliveryStatusSchema } from './schemas';
 export type { DeliveryLogFilterFormValues } from './schemas';
 
 export type { DeliveryLogFilter, NotificationDeliveryLogEntry } from './types';
+
+export { DeliveryLogList } from './components/list';
+export { DeliveryLogFilterBar } from './components/filter-bar';
+export { DeliveryLogDetail } from './components/detail';
