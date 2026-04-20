@@ -2,36 +2,59 @@
  * <InstalledPluginDetail> — drawer content for an installed plugin.
  *
  * Sections:
- *   - Identity header (name, slug, version, parts)
+ *   - Identity header (name, slug, version, parts, signer chip)
  *   - Declared permissions (green = registered, red dot = unknown)
+ *   - Build log (collapsible; only rendered when last_build_log is set)
  *   - Audit tail (last 10 entries)
  *   - Settings deep link
  *   - Enable/Disable + Uninstall actions
+ *
+ * Plan 6 (Task 6b.5) additions:
+ *   - Signer chip that surfaces verified / revoked / pending status plus the
+ *     first 8 chars of the signer fingerprint. Clicking the chip opens an
+ *     inline <SignerDetailBadge>. Unsigned plugins show an orange "Unsigned"
+ *     badge.
+ *   - Build log section renders `plugin.last_build_log` inside a monospace
+ *     box with a copy button. Used primarily for failed installs but the
+ *     seeded broken plugin also exposes one for visual QA.
  */
 import { useState } from 'react';
 import {
+  Accordion,
+  ActionIcon,
   Alert,
   Badge,
   Button,
   Code,
+  CopyButton,
   Divider,
   Group,
+  HoverCard,
   Stack,
   Table,
   Text,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import {
   IconAlertCircle,
   IconAlertTriangle,
+  IconCheck,
   IconCircleCheck,
+  IconCircleX,
+  IconClock,
+  IconCopy,
   IconExternalLink,
+  IconFileText,
   IconPlug,
+  IconShieldLock,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import dayjs from 'dayjs';
 import { notify } from '@/hooks/use-notify';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
+import { useSignerDetail } from '@/features/plugin-signers';
+import type { PluginSigner } from '@/features/plugin-signers';
 import { PART_COLORS } from '../../shared/constants';
 import {
   useInstalledPlugin,
@@ -45,13 +68,147 @@ interface InstalledPluginDetailProps {
   tenantSlug: string;
   onUninstall: () => void;
   onClose: () => void;
+  /** When true, the build-log accordion mounts open. Used to deep-link from
+   *  the install-progress modal after a failed install. */
+  initialBuildLogOpen?: boolean;
 }
+
+// ─── Signer chip ──────────────────────────────────────────────────────────────
+
+/**
+ * Per-status visual config for the signer chip. Verified = green, revoked =
+ * red, pending = gray. Matches the signer list/detail styling.
+ */
+const SIGNER_STATUS_CONFIG: Record<
+  PluginSigner['status'],
+  { color: string; label: string; Icon: typeof IconCircleCheck }
+> = {
+  verified: { color: 'green', label: 'verified', Icon: IconCircleCheck },
+  revoked: { color: 'red', label: 'revoked', Icon: IconCircleX },
+  pending: { color: 'gray', label: 'pending', Icon: IconClock },
+};
+
+function fingerprintShort(fp: string): string {
+  return fp.slice(0, 8);
+}
+
+interface SignerChipProps {
+  signerId: string | undefined;
+}
+
+/** Chip in the plugin-detail header showing signer status + short fingerprint.
+ *  Click opens a HoverCard/Popover-style inline detail view. */
+function SignerChip({ signerId }: SignerChipProps) {
+  const signer = useSignerDetail(signerId ?? '');
+
+  if (!signerId) {
+    // Unsigned = orange warning chip.
+    return (
+      <Tooltip
+        label="This plugin has no signer attached. Install with caution."
+        withArrow
+      >
+        <Badge
+          color="orange"
+          variant="light"
+          size="sm"
+          leftSection={<IconAlertTriangle size={10} />}
+          data-testid="plugin-signer-chip-unsigned"
+        >
+          Unsigned
+        </Badge>
+      </Tooltip>
+    );
+  }
+
+  if (!signer) {
+    // Signer id set but record missing (deleted) — flag as broken trust.
+    return (
+      <Badge
+        color="red"
+        variant="light"
+        size="sm"
+        leftSection={<IconAlertCircle size={10} />}
+        data-testid="plugin-signer-chip-missing"
+      >
+        Signer missing
+      </Badge>
+    );
+  }
+
+  const status = SIGNER_STATUS_CONFIG[signer.status];
+
+  return (
+    <HoverCard width={320} shadow="md" withArrow position="bottom-start">
+      <HoverCard.Target>
+        <Badge
+          color={status.color}
+          variant="light"
+          size="sm"
+          leftSection={<status.Icon size={10} />}
+          style={{ cursor: 'pointer' }}
+          data-testid="plugin-signer-chip"
+          data-status={signer.status}
+        >
+          {signer.name} · {fingerprintShort(signer.fingerprint)}
+        </Badge>
+      </HoverCard.Target>
+      <HoverCard.Dropdown>
+        <Stack gap="xs">
+          <Group gap="xs">
+            <IconShieldLock size={14} />
+            <Text size="sm" fw={600}>
+              {signer.name}
+            </Text>
+            <Badge color={status.color} variant="light" size="xs">
+              {status.label}
+            </Badge>
+          </Group>
+          <Group gap={4} wrap="nowrap">
+            <Text size="xs" c="var(--mantine-color-gray-7)" fw={500}>
+              Fingerprint:
+            </Text>
+            <Text
+              size="xs"
+              ff="monospace"
+              style={{ wordBreak: 'break-all' }}
+            >
+              {signer.fingerprint}
+            </Text>
+            <CopyButton value={signer.fingerprint} timeout={2000}>
+              {({ copied, copy }) => (
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color={copied ? 'teal' : 'gray'}
+                  onClick={copy}
+                  aria-label="Copy signer fingerprint"
+                >
+                  {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                </ActionIcon>
+              )}
+            </CopyButton>
+          </Group>
+          <Text size="xs" c="var(--mantine-color-gray-7)">
+            Scope:{' '}
+            {signer.tenant_scope === null ? 'Global' : signer.tenant_scope}
+          </Text>
+          {signer.description && (
+            <Text size="xs">{signer.description}</Text>
+          )}
+        </Stack>
+      </HoverCard.Dropdown>
+    </HoverCard>
+  );
+}
+
 
 export function InstalledPluginDetail({
   pluginId,
   tenantSlug,
   onUninstall,
   onClose,
+  initialBuildLogOpen = false,
 }: InstalledPluginDetailProps) {
   const plugin = useInstalledPlugin(pluginId);
   const auditTail = usePluginAuditTail(pluginId, 10);
@@ -94,7 +251,7 @@ export function InstalledPluginDetail({
         <Group gap="sm" wrap="nowrap">
           <IconPlug size={28} color="var(--mantine-color-violet-6)" />
           <Stack gap={2}>
-            <Group gap="xs">
+            <Group gap="xs" wrap="wrap">
               <Title order={4}>{plugin.display_name}</Title>
               {plugin.has_errors && (
                 <Badge color="red" size="sm" variant="light">
@@ -104,6 +261,7 @@ export function InstalledPluginDetail({
               <Badge color={plugin.enabled ? 'green' : 'gray'} size="sm" variant="light">
                 {plugin.enabled ? 'enabled' : 'disabled'}
               </Badge>
+              <SignerChip signerId={plugin.signer_id} />
             </Group>
             <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
               {plugin.slug} · v{plugin.version}
@@ -212,6 +370,65 @@ export function InstalledPluginDetail({
           </Stack>
         )}
       </Stack>
+
+      {/* Build log (only rendered when captured) */}
+      {plugin.last_build_log && (
+        <>
+          <Divider />
+          <Accordion
+            variant="separated"
+            defaultValue={initialBuildLogOpen ? 'build-log' : null}
+            data-testid="plugin-build-log-accordion"
+          >
+            <Accordion.Item value="build-log">
+              <Accordion.Control icon={<IconFileText size={16} />}>
+                <Group gap="xs">
+                  <Text size="sm" fw={600}>
+                    Build log
+                  </Text>
+                  {plugin.build_state === 'failed' && (
+                    <Badge size="xs" color="red" variant="light">
+                      build failed
+                    </Badge>
+                  )}
+                </Group>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="xs">
+                  <Group justify="flex-end">
+                    <CopyButton value={plugin.last_build_log} timeout={2000}>
+                      {({ copied, copy }) => (
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          leftSection={
+                            copied ? <IconCheck size={14} /> : <IconCopy size={14} />
+                          }
+                          onClick={copy}
+                        >
+                          {copied ? 'Copied' : 'Copy log'}
+                        </Button>
+                      )}
+                    </CopyButton>
+                  </Group>
+                  <Code
+                    block
+                    style={{
+                      maxHeight: 320,
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {plugin.last_build_log}
+                  </Code>
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
+        </>
+      )}
 
       <Divider />
 
