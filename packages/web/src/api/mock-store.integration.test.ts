@@ -42,6 +42,7 @@ function makeFreshStore() {
     notificationDeliveryLog: {},
     plugins: {},
     marketplaceListings: {},
+    pluginSigners: {},
     aiProviders: {},
     aiAgents: {},
     aiTools: {},

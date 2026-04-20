@@ -44,6 +44,7 @@ const nextRuleId = makeIdFactory('rule');
 const nextDeliveryId = makeIdFactory('delivery');
 const nextPluginId = makeIdFactory('plugin');
 const nextMarketId = makeIdFactory('market');
+const nextSignerId = makeIdFactory('signer');
 const nextProvId = makeIdFactory('aiprov');
 const nextAgentId = makeIdFactory('agent');
 const nextToolId = makeIdFactory('tool');
@@ -959,15 +960,110 @@ export function seedStore(store: StoreApi<MockStore>): void {
     }
   }
 
+  // ── Plugin signers (6) ────────────────────────────────────────────────────
+  // Deterministic 64-hex-char fingerprints derived from the seed key. Three
+  // globals (null tenant_scope) — two verified + one revoked — plus two
+  // tenant-scoped verified signers and one pending tenant signer.
+
+  function fakeFingerprint(seed: string): string {
+    let acc = '';
+    for (let i = 0; i < 64; i++) {
+      const c = seed.charCodeAt(i % seed.length);
+      const n = (i * 7 + c) & 0xf;
+      acc += n.toString(16);
+    }
+    return acc;
+  }
+
+  const signerSeeds: {
+    key: string;
+    tenant_scope: T.ID | null;
+    name: string;
+    status: T.PluginSigner['status'];
+    description: string;
+  }[] = [
+    {
+      key: 'rioku-labs',
+      tenant_scope: null,
+      name: 'Rioku Labs',
+      status: 'verified',
+      description: 'Official Rioku publisher — first-party plugins.',
+    },
+    {
+      key: 'caddy-labs',
+      tenant_scope: null,
+      name: 'Caddy Labs',
+      status: 'verified',
+      description: 'Caddy upstream — vendored Caddy-native plugins.',
+    },
+    {
+      key: 'revoked-publisher',
+      tenant_scope: null,
+      name: 'Legacy CaddyGateway Team',
+      status: 'revoked',
+      description: 'Pre-rename key; superseded by Rioku Labs. Do not trust.',
+    },
+    {
+      key: 'acme-internal',
+      tenant_scope: acmeTenantId,
+      name: 'Acme Internal',
+      status: 'verified',
+      description: 'Acme Corp private publisher for internal billing tooling.',
+    },
+    {
+      key: 'beta-platform',
+      tenant_scope: betaTenantId,
+      name: 'Beta Platform Team',
+      status: 'verified',
+      description: 'Beta Inc platform team — internal observability plugins.',
+    },
+    {
+      key: 'gamma-experimental',
+      tenant_scope: gammaTenantId,
+      name: 'Gamma Experimental',
+      status: 'pending',
+      description: 'Gamma Systems R&D key — awaiting root-of-trust review.',
+    },
+  ];
+
+  const signerIdByKey = new Map<string, T.ID>();
+  for (let i = 0; i < signerSeeds.length; i++) {
+    const s = signerSeeds[i]!;
+    const id = nextSignerId();
+    signerIdByKey.set(s.key, id);
+    const signer: T.PluginSigner = {
+      id,
+      tenant_scope: s.tenant_scope,
+      name: s.name,
+      fingerprint: fakeFingerprint(s.key),
+      status: s.status,
+      description: s.description,
+      created_at: daysAgo(180 - i * 15),
+    };
+    addEntity('pluginSigners', signer);
+  }
+
   // ── Plugins (4 installed) ─────────────────────────────────────────────────
 
-  const pluginSeeds = [
+  const pluginSeeds: {
+    slug: string;
+    display_name: string;
+    version: string;
+    parts: T.Plugin['parts'];
+    has_errors: boolean;
+    /** Key into signerIdByKey — undefined = unsigned / dev-mode. */
+    signerKey?: string;
+    last_build_log?: string;
+    sbom_uri?: string;
+  }[] = [
     {
       slug: 'com.acme.billing',
       display_name: 'Acme Billing',
       version: '1.3.2',
       parts: ['admin'] as T.Plugin['parts'],
       has_errors: false,
+      signerKey: 'acme-internal',
+      sbom_uri: 'oci://registry.acme.com/billing/sbom@sha256:abc123',
     },
     {
       slug: 'com.example.dashboards',
@@ -975,6 +1071,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
       version: '0.9.1',
       parts: ['admin'] as T.Plugin['parts'],
       has_errors: false,
+      signerKey: 'rioku-labs',
     },
     {
       slug: 'com.rioku.official-slack',
@@ -982,6 +1079,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
       version: '2.0.0',
       parts: ['daemon', 'admin'] as T.Plugin['parts'],
       has_errors: false,
+      signerKey: 'rioku-labs',
+      sbom_uri: 'https://sbom.rioku.dev/slack/2.0.0.spdx.json',
     },
     {
       slug: 'com.example.broken-plugin',
@@ -989,6 +1088,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
       version: '0.1.0',
       parts: ['admin'] as T.Plugin['parts'],
       has_errors: true,
+      // Intentionally unsigned — the demo's failure mode includes missing provenance.
+      last_build_log:
+        'Error: module not found @acme/missing-dep\n  at bundler:42\n  at Object.<anonymous> (/build/plugin.js:17:5)\n  exit code 1',
     },
   ];
 
@@ -1004,9 +1106,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
       declared_permissions: [`${p.slug}.read`, `${p.slug}.write`],
       manifest: { slug: p.slug, version: p.version },
       has_errors: p.has_errors,
-      // Plan 6 additions — signer wiring comes in Task 6a.2.
       build_state: p.has_errors ? 'failed' : 'stable',
-      cosign_verified: !p.has_errors,
+      cosign_verified: !p.has_errors && p.signerKey !== undefined,
+      ...(p.signerKey !== undefined && signerIdByKey.has(p.signerKey)
+        ? { signer_id: signerIdByKey.get(p.signerKey)! }
+        : {}),
+      ...(p.last_build_log !== undefined ? { last_build_log: p.last_build_log } : {}),
+      ...(p.sbom_uri !== undefined ? { sbom_uri: p.sbom_uri } : {}),
     };
     addEntity('plugins', plugin);
   }

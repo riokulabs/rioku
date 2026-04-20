@@ -59,6 +59,7 @@ interface MockStoreState {
   // Plugins
   plugins: Record<T.ID, T.Plugin>;
   marketplaceListings: Record<T.ID, T.MarketplaceListing>;
+  pluginSigners: Record<T.ID, T.PluginSigner>;
 
   // AI
   aiProviders: Record<T.ID, T.AiProvider>;
@@ -106,6 +107,7 @@ interface EntityKindMap {
   notificationDeliveryLog: T.NotificationDeliveryLogEntry;
   plugins: T.Plugin;
   marketplaceListings: T.MarketplaceListing;
+  pluginSigners: T.PluginSigner;
   aiProviders: T.AiProvider;
   aiAgents: T.AiAgent;
   aiTools: T.AiTool;
@@ -188,6 +190,7 @@ function emptyState(): MockStoreState {
     notificationDeliveryLog: {},
     plugins: {},
     marketplaceListings: {},
+    pluginSigners: {},
     aiProviders: {},
     aiAgents: {},
     aiTools: {},
@@ -279,7 +282,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 6,
+        version: 7,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -332,6 +335,15 @@ export const useMockStore = IS_VITEST
           // Additive; persisted stores from v5 simply get an empty map.
           if (version < 6) {
             state.auditRetentionConfigs = {};
+          }
+          // Version 7 — Plan 6 extends Plugin (build_state, cosign_verified,
+          // signer_id, last_build_log, sbom_uri) and adds pluginSigners map.
+          // Drop and re-seed plugins so the required new fields are populated
+          // from the current seed data, and initialise pluginSigners to {}.
+          if (version < 7) {
+            state.plugins = {};
+            state.marketplaceListings = {};
+            state.pluginSigners = {};
           }
           return state as unknown as MockStore;
         },
