@@ -11,6 +11,7 @@
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
+import type { User } from '@/api/resources/types';
 import type {
   LoginResult,
   TotpResult,
@@ -468,7 +469,7 @@ export async function bootstrap(
     created_at: now(),
   };
 
-  const user = {
+  const user: User = {
     id: userId,
     email: setup.email,
     name: setup.name,
@@ -479,7 +480,7 @@ export async function bootstrap(
     timezone: 'America/Los_Angeles',
     locale: 'en',
     reduced_motion: false,
-    notification_preferences: { email: true, in_app: true, categories_muted: [] as string[] },
+    notification_preferences: { email: true, in_app: true, categories_muted: [] },
     created_at: now(),
     updated_at: now(),
   };
