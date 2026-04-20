@@ -52,7 +52,11 @@ export function MetricsSparkline({
       );
     }
     return (
-      <Box style={{ width: SM_WIDTH, height: SM_HEIGHT }}>
+      <Box
+        role="img"
+        aria-label={`Matches sparkline for rule ${ruleId}`}
+        style={{ width: SM_WIDTH, height: SM_HEIGHT }}
+      >
         <AreaChart
           h={SM_HEIGHT}
           w={SM_WIDTH}
@@ -67,7 +71,6 @@ export function MetricsSparkline({
           withGradient
           strokeWidth={1.5}
           gridAxis="none"
-          aria-label={`Matches sparkline for rule ${ruleId}`}
         />
       </Box>
     );
@@ -94,17 +97,18 @@ export function MetricsSparkline({
     );
   }
   return (
-    <AreaChart
-      h={LG_HEIGHT}
-      data={data}
-      dataKey="timestamp"
-      series={[{ name: 'matches', color: 'blue.6', label: 'Matches' }]}
-      curveType="monotone"
-      withGradient
-      withTooltip
-      withXAxis={false}
-      strokeWidth={2}
-      aria-label={`Matches chart for rule ${ruleId}`}
-    />
+    <Box role="img" aria-label={`Matches chart for rule ${ruleId}`}>
+      <AreaChart
+        h={LG_HEIGHT}
+        data={data}
+        dataKey="timestamp"
+        series={[{ name: 'matches', color: 'blue.6', label: 'Matches' }]}
+        curveType="monotone"
+        withGradient
+        withTooltip
+        withXAxis={false}
+        strokeWidth={2}
+      />
+    </Box>
   );
 }
