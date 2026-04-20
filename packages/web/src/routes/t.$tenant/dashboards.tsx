@@ -170,10 +170,8 @@ function DashboardsListPage() {
   }
 
   function handleEdit(d: Dashboard) {
-    // Full builder ships in Phase 4c; for now, follow the row click target
-    // (the viewer gate) so permission + scope checks still apply.
     void navigate({
-      to: '/t/$tenant/dashboards/$dashboardId',
+      to: '/t/$tenant/dashboards/$dashboardId/edit',
       params: { tenant: tenantSlug, dashboardId: d.id },
     } as unknown as Parameters<typeof navigate>[0]);
   }
@@ -209,6 +207,24 @@ function DashboardsListPage() {
     openDelete();
   }
 
+  async function handleCreate() {
+    try {
+      const created = await createDashboard(tenantId, {
+        name: 'Untitled dashboard',
+        mode: 'metabase',
+        scope: 'tenant',
+        owner_user_id: null,
+      });
+      notify.success('Dashboard created', 'Starting builder…');
+      void navigate({
+        to: '/t/$tenant/dashboards/$dashboardId/edit',
+        params: { tenant: tenantSlug, dashboardId: created.id },
+      } as unknown as Parameters<typeof navigate>[0]);
+    } catch (e) {
+      notify.error('Create failed', (e as Error).message);
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return;
     try {
@@ -229,10 +245,7 @@ function DashboardsListPage() {
           leftSection={<IconPlus size={16} />}
           disabled={!canWrite}
           onClick={() => {
-            notify.info(
-              'Builder pending',
-              'The dashboard builder ships in Phase 4c.',
-            );
+            void handleCreate();
           }}
         >
           New dashboard

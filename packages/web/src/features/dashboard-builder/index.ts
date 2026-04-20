@@ -25,7 +25,20 @@ export type {
   AddWidgetInput,
   UpdateWidgetInput,
   WidgetDataState,
+  WizardDraft,
+  DataSourceDescriptor,
+  AskQuestionWizardProps,
+  WidgetConfigPanelProps,
 } from './types';
 
 export { SchemaForm } from './components/schema-form';
 export type { SchemaFormProps } from './components/schema-form';
+
+export { GridCanvas } from './components/grid-canvas';
+export type { GridCanvasProps } from './components/grid-canvas';
+export { WidgetPalette } from './components/widget-palette';
+export type { WidgetPaletteProps } from './components/widget-palette';
+export { AskQuestionWizard } from './components/ask-question-wizard';
+export { WidgetConfigPanel } from './components/widget-config-panel';
+export { DashboardBuilderShell } from './components/builder-shell';
+export type { DashboardBuilderShellProps } from './components/builder-shell';

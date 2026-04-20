@@ -38,12 +38,11 @@ function DashboardViewerPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  function handleEdit(_id: string) {
-    // Full builder ships in Phase 4c.
-    notify.info(
-      'Builder pending',
-      'The dashboard builder ships in Phase 4c.',
-    );
+  function handleEdit(id: string) {
+    void navigate({
+      to: '/t/$tenant/dashboards/$dashboardId/edit',
+      params: { tenant: tenantSlug, dashboardId: id },
+    } as unknown as Parameters<typeof navigate>[0]);
   }
 
   async function handleClone(id: string) {
