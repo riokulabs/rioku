@@ -99,12 +99,14 @@ describe('installPluginWithProgress', () => {
 
     expect(seen.length).toBeGreaterThan(3);
     for (let i = 1; i < seen.length; i++) {
-      const prev = seen[i - 1]!.progress;
-      const curr = seen[i]!.progress;
-      expect(curr).toBeGreaterThanOrEqual(prev);
+      const prev = seen[i - 1];
+      const curr = seen[i];
+      if (!prev || !curr) throw new Error('seen[] hole — unexpected');
+      expect(curr.progress).toBeGreaterThanOrEqual(prev.progress);
     }
     // Last event of a successful run should be 'complete' with progress=100.
-    const last = seen[seen.length - 1]!;
+    const last = seen[seen.length - 1];
+    if (!last) throw new Error('no progress events captured');
     expect(last.stage).toBe('complete');
     expect(last.progress).toBe(100);
   });
@@ -190,8 +192,8 @@ describe('getBuildLog', () => {
     const broken = Object.values(useMockStore.getState().plugins).find(
       (p) => p.slug === 'com.example.broken-plugin',
     );
-    expect(broken?.id).toBeDefined();
-    const log = getBuildLog(broken!.id);
+    if (!broken) throw new Error('broken-plugin seed missing');
+    const log = getBuildLog(broken.id);
     expect(log).toBeDefined();
     expect(log).toContain('module not found');
   });
@@ -200,7 +202,8 @@ describe('getBuildLog', () => {
     const ok = Object.values(useMockStore.getState().plugins).find(
       (p) => p.slug === 'com.acme.billing',
     );
-    expect(getBuildLog(ok!.id)).toBeUndefined();
+    if (!ok) throw new Error('acme billing seed missing');
+    expect(getBuildLog(ok.id)).toBeUndefined();
   });
 
   it('returns undefined for unknown plugin ids', () => {
