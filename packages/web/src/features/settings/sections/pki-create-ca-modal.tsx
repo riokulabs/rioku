@@ -73,6 +73,7 @@ export function CreateCaModal({ opened, onClose, tenantId, canWrite }: CreateCaM
     onClose();
   }
 
+  // duration=0 prevents JSDOM animation hangs in tests
   return (
     <Modal
       opened={opened}

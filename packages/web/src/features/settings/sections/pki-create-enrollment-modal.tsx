@@ -77,6 +77,7 @@ export function CreateEnrollmentModal({ opened, onClose, tenantId, canWrite }: C
     onClose();
   }
 
+  // duration=0 prevents JSDOM animation hangs in tests
   return (
     <Modal
       opened={opened}

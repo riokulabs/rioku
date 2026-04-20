@@ -299,6 +299,31 @@ describe('mock-store seed integrity', () => {
     expect(Object.keys(store.getState().mcpServers)).toHaveLength(3);
   });
 
+  it('seeds certAuthorities (3 internal + 1 external)', () => {
+    const cas = Object.values(store.getState().certAuthorities);
+    const internal = cas.filter(c => c.kind === 'internal');
+    const external = cas.filter(c => c.kind === 'external');
+    expect(cas.length).toBe(4);
+    expect(internal.length).toBe(3);
+    expect(external.length).toBe(1);
+  });
+
+  it('seeds 13 cert enrollments across tenants and states', () => {
+    const enrollments = Object.values(store.getState().certEnrollments);
+    expect(enrollments.length).toBe(13);
+    // verify a spread of states exists
+    expect(enrollments.some(e => e.state === 'pending')).toBe(true);
+    expect(enrollments.some(e => e.state === 'issued')).toBe(true);
+    expect(enrollments.some(e => e.state === 'revoked')).toBe(true);
+  });
+
+  it('every cert enrollment references a valid ca_id (FK integrity)', () => {
+    const { certAuthorities, certEnrollments } = store.getState();
+    for (const enrollment of Object.values(certEnrollments)) {
+      expect(certAuthorities[enrollment.ca_id]).toBeDefined();
+    }
+  });
+
   it('seeds 1 impersonation session', () => {
     expect(Object.keys(store.getState().impersonationSessions)).toHaveLength(1);
   });

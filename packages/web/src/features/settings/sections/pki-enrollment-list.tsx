@@ -4,7 +4,7 @@
  * Shows pending/issued/revoked enrollments for the current tenant.
  * Task 8b.7
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -175,12 +175,14 @@ function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevok
       </Drawer>
 
       {/* Revoke confirmation modal */}
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Modal
         opened={revokeOpen}
         onClose={() => { setRevokeOpen(false); }}
         title="Revoke certificate"
         size="sm"
         data-testid="revoke-confirm-modal"
+        transitionProps={{ duration: 0 }}
       >
         <Stack gap="sm">
           <Text size="sm">
@@ -221,7 +223,10 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
   const [filter, setFilter] = useState<StateFilter>('all');
   const [selectedEnrollment, setSelectedEnrollment] = useState<CertEnrollment | null>(null);
 
-  const caMap = Object.fromEntries(cas.map((ca) => [ca.id, ca.name]));
+  const caMap = useMemo(
+    () => Object.fromEntries(cas.map((ca) => [ca.id, ca.name])),
+    [cas],
+  );
 
   const filtered = filter === 'all'
     ? enrollments

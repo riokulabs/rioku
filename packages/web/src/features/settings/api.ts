@@ -465,7 +465,8 @@ export async function addCertAuthority(
     name: values.name,
     kind: values.kind,
     subject: values.subject,
-    issuer: values.kind === 'internal' ? values.subject : values.subject,
+    // Mock: real implementation would parse issuer from certificate_pem for external CAs
+    issuer: values.subject,
     not_before: now(),
     not_after: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
     fingerprint_sha256: Array.from({ length: 64 }, (_, i) =>
@@ -474,10 +475,8 @@ export async function addCertAuthority(
     certificate_pem: values.certificate_pem,
     created_at: now(),
   };
-  useMockStore.setState((s) => ({
-    certAuthorities: { ...s.certAuthorities, [id]: ca },
-  }));
   const state = useMockStore.getState();
+  state.addCertAuthority(ca);
   state.appendAudit(makePkiAudit('pki.ca.create', tenantId, id));
   emitHostEvent('pki:ca-created', { tenant_id: tenantId, ca_id: id });
   return ca;
@@ -499,10 +498,8 @@ export async function addCertEnrollment(
     state: 'pending',
     requested_at: now(),
   };
-  useMockStore.setState((s) => ({
-    certEnrollments: { ...s.certEnrollments, [id]: enrollment },
-  }));
   const state = useMockStore.getState();
+  state.addCertEnrollment(enrollment);
   state.appendAudit(makePkiAudit('pki.enrollment.create', tenantId, id));
   emitHostEvent('pki:enrollment-requested', { tenant_id: tenantId, enrollment_id: id });
   return enrollment;
@@ -518,20 +515,10 @@ export async function revokeCertEnrollment(
   const enrollment = state.certEnrollments[enrollmentId];
   if (!enrollment) return;
 
-  useMockStore.setState((s) => {
-    const current = s.certEnrollments[enrollmentId];
-    if (!current) return s;
-    return {
-      certEnrollments: {
-        ...s.certEnrollments,
-        [enrollmentId]: {
-          ...current,
-          state: 'revoked' as const,
-          revoked_at: now(),
-          ...(reason.length > 0 ? { revocation_reason: reason } : {}),
-        },
-      },
-    };
+  state.updateCertEnrollment(enrollmentId, {
+    state: 'revoked',
+    revoked_at: now(),
+    ...(reason.length > 0 ? { revocation_reason: reason } : {}),
   });
   const updatedState = useMockStore.getState();
   updatedState.appendAudit(makePkiAudit('pki.enrollment.revoke', enrollment.tenant_id, enrollmentId));
