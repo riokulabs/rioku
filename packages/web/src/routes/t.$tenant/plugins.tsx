@@ -325,5 +325,14 @@ export const Route = createFileRoute('/t/$tenant/plugins')({
           ? search.tags.filter((t): t is string => typeof t === 'string')
           : undefined,
     f: typeof search.f === 'string' ? search.f : undefined,
+    // Marketplace polish (Plan 6): category sidebar + sort + verified toggle.
+    verified:
+      search.verified === 'true' || search.verified === true
+        ? 'true'
+        : undefined,
+    sort:
+      typeof search.sort === 'string'
+        ? search.sort
+        : undefined,
   }),
 });

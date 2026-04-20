@@ -52,6 +52,17 @@ describe('MarketplaceGrid', () => {
     const arg = onInstall.mock.calls[0]?.[0] as { slug: string } | undefined;
     expect(arg?.slug).toBeTruthy();
   });
+
+  it('renders the category sidebar + verified-only toggle + sort select', () => {
+    wrap(<MarketplaceGrid onInstall={vi.fn()} />);
+
+    // Sidebar: "All plugins" always present.
+    expect(screen.getByTestId('category-all')).toBeTruthy();
+    // Verified-only switch present.
+    expect(screen.getByTestId('marketplace-verified-toggle')).toBeTruthy();
+    // Sort select present.
+    expect(screen.getByTestId('marketplace-sort-select')).toBeTruthy();
+  });
 });
 
 describe('useMarketplaceListings selector', () => {
