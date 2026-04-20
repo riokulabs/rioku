@@ -1,19 +1,11 @@
 /**
- * /t/$tenant/settings — tenant settings page.
- *
- * Individual sections apply finer guards in later plans.
- * Current guard: tenant:switch (all authenticated members can view).
- *
- * Task 1d.79
+ * Settings section layout route.
+ * Renders a simple outlet — the app shell handles the sidebar navigation.
+ * The index page (/t/$tenant/settings) and sibling subroutes (like
+ * /t/$tenant/settings/audit-retention) render inside this outlet.
  */
-import { createFileRoute } from '@tanstack/react-router';
-import { requirePermissions } from '@/hooks/use-before-load';
-import { SettingsLayout } from '@/features/settings';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/t/$tenant/settings')({
-  beforeLoad: requirePermissions({ required: ['tenant:switch'] }),
-  component: SettingsLayout,
-  validateSearch: (search: Record<string, unknown>) => ({
-    section: typeof search.section === 'string' ? search.section : undefined,
-  }),
+  component: () => <Outlet />,
 });

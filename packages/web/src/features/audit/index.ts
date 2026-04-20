@@ -55,3 +55,5 @@ export { AuditDetail } from './components/detail';
 export type { AuditDetailProps } from './components/detail';
 
 export { LiveTailBadge, useAuditStream } from './components/streaming-tail';
+
+export { RetentionConfigForm } from './components/retention-config-form';

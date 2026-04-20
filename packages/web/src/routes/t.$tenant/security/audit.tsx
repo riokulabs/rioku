@@ -19,8 +19,9 @@
  * the `useAuditStream` hook is used only to bump the "+N" badge counter.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import {
+  Anchor,
   Badge,
   Button,
   Drawer,
@@ -262,6 +263,16 @@ function AuditPage() {
           )}
         </Group>
         <Group gap="sm">
+          <Anchor
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast
+            component={Link as any}
+            to="/t/$tenant/settings/audit-retention"
+            params={{ tenant: tenantSlug }}
+            size="sm"
+            data-testid="audit-retention-link"
+          >
+            Configure retention
+          </Anchor>
           <Switch
             label="Live tail"
             checked={tailEnabled}
