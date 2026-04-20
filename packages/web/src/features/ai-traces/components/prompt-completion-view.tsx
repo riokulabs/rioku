@@ -18,8 +18,12 @@ interface PromptCompletionViewProps {
   completion: string;
 }
 
-/** Language hints — we treat prompts as Markdown-ish and completions as bash
- *  (the only other `text`-compatible grammar loaded by <CodeBlock>). */
+/** Language hints — <CodeBlock> only loads a small subset of Shiki grammars
+ *  (json/yaml/typescript/javascript/bash + `text` fallback). Markdown is NOT
+ *  in that subset, so prompts render as plain text. Adding `markdown` would
+ *  mean pulling a new grammar import in `components/code-block/index.tsx`
+ *  and bloating the Shiki chunk — not worth it for the prompt block alone.
+ *  Completions are free-form model output; plain text is also correct. */
 const PROMPT_LANG = 'text' as const;
 const COMPLETION_LANG = 'text' as const;
 

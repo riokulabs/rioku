@@ -25,8 +25,11 @@ interface LiveTailBadgeProps {
 }
 
 export function LiveTailBadge({ liveCount }: LiveTailBadgeProps) {
+  // role="status" + aria-live="polite" announces the "+N" counter to screen
+  // readers when new traces arrive. aria-atomic ensures the entire badge
+  // content is read together on each update rather than diffed.
   return (
-    <>
+    <div role="status" aria-live="polite" aria-atomic="true">
       <style>{LIVE_PULSE_KEYFRAMES}</style>
       <Badge
         color="teal"
@@ -39,7 +42,7 @@ export function LiveTailBadge({ liveCount }: LiveTailBadgeProps) {
       >
         LIVE{liveCount > 0 ? ` +${String(liveCount)}` : ''}
       </Badge>
-    </>
+    </div>
   );
 }
 

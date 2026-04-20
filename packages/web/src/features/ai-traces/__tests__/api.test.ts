@@ -98,6 +98,41 @@ describe('useTraceList', () => {
       expect(t.at >= mid.at).toBe(true);
     }
   });
+
+  it('includes traces on the end day when `until` is set to end-of-day', () => {
+    // Mirrors what <TraceFilterBar> emits for a custom range: the UI pushes
+    // the end date to 23:59:59.999 so `trace.at >= until` still excludes the
+    // next day but keeps every trace recorded on the selected end day.
+    const tenantId = tenantIdBySlug('acme');
+    const all = Object.values(useMockStore.getState().aiTraces)
+      .filter((t) => t.tenant_id === tenantId)
+      .sort((a, b) => (a.at < b.at ? -1 : 1));
+    expect(all.length).toBeGreaterThan(0);
+    const target = all[all.length - 1]!;
+    const targetDay = new Date(target.at);
+    // Naive midnight-UTC "until" would exclude the target trace — assert the
+    // broken behaviour first so the end-of-day fix is meaningful.
+    const naiveUntil = new Date(targetDay);
+    naiveUntil.setUTCHours(0, 0, 0, 0);
+    const { result: naive } = renderHook(() =>
+      useTraceList(tenantId, {
+        ...emptyFilter(),
+        until: naiveUntil.toISOString(),
+      }),
+    );
+    expect(naive.current.some((t) => t.id === target.id)).toBe(false);
+
+    // End-of-day "until" should INCLUDE the target trace.
+    const endOfDay = new Date(targetDay);
+    endOfDay.setHours(23, 59, 59, 999);
+    const { result: inclusive } = renderHook(() =>
+      useTraceList(tenantId, {
+        ...emptyFilter(),
+        until: endOfDay.toISOString(),
+      }),
+    );
+    expect(inclusive.current.some((t) => t.id === target.id)).toBe(true);
+  });
 });
 
 describe('subscribeTraceStream', () => {

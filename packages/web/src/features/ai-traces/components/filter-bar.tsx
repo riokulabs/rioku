@@ -127,8 +127,16 @@ export function TraceFilterBar({
     const next: TraceFilter = { ...filter };
     if (range[0]) next.since = range[0].toISOString();
     else delete next.since;
-    if (range[1]) next.until = range[1].toISOString();
-    else delete next.until;
+    if (range[1]) {
+      // DatePickerInput yields midnight on the selected end date. The api
+      // layer treats `until` as an exclusive upper bound (`trace.at >= until`
+      // filters out the trace), so a naive midnight-ISO would exclude every
+      // trace on the end day. Push to end-of-day so the selected day is
+      // inclusive — matches operator intuition for "Apr 1 → Apr 5".
+      const endDate = new Date(range[1]);
+      endDate.setHours(23, 59, 59, 999);
+      next.until = endDate.toISOString();
+    } else delete next.until;
     onChange(next, 'custom');
   }
 
