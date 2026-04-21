@@ -174,6 +174,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
               {!key.revoked && key.display_status === 'active' && (
                 <Tooltip label="Rotate" withArrow>
                   <ActionIcon
+                    aria-label="Rotate API key"
                     size="sm"
                     variant="subtle"
                     loading={isLoading}
@@ -186,6 +187,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
               {!key.revoked && (
                 <Tooltip label="Revoke" withArrow>
                   <ActionIcon
+                    aria-label="Revoke API key"
                     size="sm"
                     variant="subtle"
                     color="orange"
@@ -198,6 +200,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
               )}
               <Tooltip label="Delete" withArrow>
                 <ActionIcon
+                  aria-label="Delete API key"
                   size="sm"
                   variant="subtle"
                   color="red"
