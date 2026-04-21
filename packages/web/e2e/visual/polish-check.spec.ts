@@ -17,7 +17,7 @@
  * Known gaps per spec: Monaco/Scalar/tiptap may have RTL layout issues.
  * Screenshots saved to e2e/screenshots/polish/ for human review (gitignored).
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // ---------------------------------------------------------------------------
 // Paths — use import.meta.url + URL to avoid node: imports in browser tsconfig
@@ -50,7 +50,7 @@ interface PageConfig {
   path: string;
   waitTestId?: string;
   waitHeading?: RegExp;
-  waitSignal?: (page: import('@playwright/test').Page) => Promise<void>;
+  waitSignal?: (page: Page) => Promise<void>;
   /** Skip horizontal overflow check (e.g. third-party renderers) */
   skipOverflowCheck?: boolean;
 }
@@ -96,7 +96,7 @@ const PAGES: PageConfig[] = [
 // ---------------------------------------------------------------------------
 
 /** Wait for the mock store to be seeded with Derrick's session. */
-async function waitForSeed(page: import('@playwright/test').Page): Promise<void> {
+async function waitForSeed(page: Page): Promise<void> {
   await page.waitForFunction(
     () => {
       const store = (
@@ -116,7 +116,7 @@ async function waitForSeed(page: import('@playwright/test').Page): Promise<void>
 
 /** Wait for page-specific ready signal. */
 async function waitForReady(
-  page: import('@playwright/test').Page,
+  page: Page,
   config: PageConfig,
 ): Promise<void> {
   if (config.waitSignal) {
@@ -192,7 +192,7 @@ for (const colorScheme of COLOR_SCHEMES) {
           );
           expect(
             scrollWidth,
-            `Horizontal overflow: body.scrollWidth (${scrollWidth}) > viewport width (${viewport.width})`,
+            `Horizontal overflow: body.scrollWidth (${String(scrollWidth)}) > viewport width (${String(viewport.width)})`,
           ).toBeLessThanOrEqual(viewport.width + 5);
         }
 
