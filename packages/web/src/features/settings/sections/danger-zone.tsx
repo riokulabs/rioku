@@ -89,8 +89,10 @@ export function DangerZoneSection() {
             disabled={canHardReset}
           >
             <span>
+              {/* color="red.8" pins to red.8 (#e03131) so white text meets
+                  WCAG AA (4.5:1) regardless of primaryShade. Task 9a.1. */}
               <Button
-                color="red"
+                color="red.8"
                 disabled={!canHardReset}
                 onClick={() => { setHardResetOpen(true); }}
                 data-testid="danger-zone-hard-reset-button"
@@ -151,8 +153,10 @@ export function DangerZoneSection() {
                 Super-admin only.
               </Text>
             </div>
+            {/* color="red.8" pins to red.8 (#e03131) so white text meets
+                WCAG AA (4.5:1) regardless of primaryShade. Task 9a.1. */}
             <Button
-              color="red"
+              color="red.8"
               onClick={() => { setDeleteOpen(true); }}
               data-testid="danger-zone-delete-button"
             >

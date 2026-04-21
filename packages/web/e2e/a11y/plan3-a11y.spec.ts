@@ -5,14 +5,10 @@
  * Only `critical` / `serious` impact violations fail the test — matching the
  * convention in e2e/a11y/plan2-a11y.spec.ts.
  *
- * The `color-contrast` rule is suppressed for the same reason documented in
- * plan2-a11y.spec.ts: Mantine's dark-mode `--mantine-color-dimmed` token
- * (#828282 on the table background and #495057 on pagination disabled states)
- * is surfaced by shared DataTable internals shipped before Plan 3. Fixing
- * this is a framework-theme decision that belongs in a separate contrast
- * audit of the Mantine theme, not in Plan 3 feature code. The spec is still
- * meaningful — it catches missing labels, duplicate IDs, ARIA-role misuse,
- * and other structural issues in the pages Plan 3 introduces.
+ * `color-contrast` is no longer suppressed — the dark-mode dimmed token was
+ * fixed in Task 9a.1 by overriding `--mantine-color-dimmed` to
+ * `var(--mantine-color-dark-1)` (#A6A7AB) in global.css, which yields ~7.2:1
+ * against the dark.7 page background (exceeds WCAG AA 4.5:1).
  */
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -52,7 +48,6 @@ for (const route of plan3Routes) {
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-      .disableRules(['color-contrast'])
       .analyze();
 
     const blocking = results.violations.filter(

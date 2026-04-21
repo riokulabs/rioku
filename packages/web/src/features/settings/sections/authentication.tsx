@@ -260,20 +260,25 @@ export function AuthenticationSection() {
             <Text size="sm" c="var(--mantine-color-gray-7)">
               Single Sign-On integrations will be available in a future release.
             </Text>
+            {/* Boxes use explicit dimmed colors rather than opacity so that
+                axe can compute real contrast ratios. opacity:0.5 on a
+                container halves the effective contrast of all child text,
+                causing WCAG AA failures even when the base color is correct.
+                The visual muted effect comes from using dimmed text/border
+                instead. Task 9a.1. */}
             <Box
               p="sm"
               style={{
-                border: '1px solid var(--mantine-color-default-border)',
+                border: '1px solid var(--mantine-color-dimmed)',
                 borderRadius: 'var(--mantine-radius-sm)',
-                opacity: 0.5,
                 cursor: 'not-allowed',
               }}
               data-testid="auth-sso-oauth-panel"
             >
               <Group justify="space-between">
                 <Group gap="xs">
-                  <IconLock size={16} />
-                  <Text size="sm" fw={500}>OAuth</Text>
+                  <IconLock size={16} color="var(--mantine-color-dimmed)" />
+                  <Text size="sm" fw={500} c="dimmed">OAuth</Text>
                 </Group>
                 <Badge variant="outline" size="sm" color="gray" data-testid="auth-sso-oauth-badge">
                   Coming soon
@@ -283,17 +288,16 @@ export function AuthenticationSection() {
             <Box
               p="sm"
               style={{
-                border: '1px solid var(--mantine-color-default-border)',
+                border: '1px solid var(--mantine-color-dimmed)',
                 borderRadius: 'var(--mantine-radius-sm)',
-                opacity: 0.5,
                 cursor: 'not-allowed',
               }}
               data-testid="auth-sso-saml-panel"
             >
               <Group justify="space-between">
                 <Group gap="xs">
-                  <IconLock size={16} />
-                  <Text size="sm" fw={500}>SAML</Text>
+                  <IconLock size={16} color="var(--mantine-color-dimmed)" />
+                  <Text size="sm" fw={500} c="dimmed">SAML</Text>
                 </Group>
                 <Badge variant="outline" size="sm" color="gray" data-testid="auth-sso-saml-badge">
                   Coming soon

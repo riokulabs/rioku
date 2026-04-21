@@ -17,11 +17,10 @@
  * Only `critical` / `serious` impact violations fail the test — same
  * convention as plan2–7 a11y specs.
  *
- * `color-contrast` is suppressed: Mantine's dark-mode dimmed token surfaces
- * on shared internals pre-date Plan 8 and fixing that is a theme-level
- * decision tracked separately (Plan 9). This spec still catches missing
- * labels, duplicate ids, ARIA-role misuse, and other structural a11y issues
- * in Plan 8 section code.
+ * `color-contrast` is no longer suppressed — the dark-mode dimmed token was
+ * fixed in Task 9a.1 by overriding `--mantine-color-dimmed` to
+ * `var(--mantine-color-dark-1)` (#A6A7AB) in global.css, which yields ~7.2:1
+ * against the dark.7 page background (exceeds WCAG AA 4.5:1).
  */
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -41,7 +40,6 @@ test('no critical/serious axe violations on settings?section=profile', async ({
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -64,7 +62,6 @@ test('no critical/serious axe violations on settings?section=tenant', async ({
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -87,7 +84,6 @@ test('no critical/serious axe violations on settings?section=authentication', as
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -113,7 +109,6 @@ test('no critical/serious axe violations on settings?section=network', async ({
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -136,7 +131,6 @@ test('no critical/serious axe violations on settings?section=pki', async ({
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -159,7 +153,6 @@ test('no critical/serious axe violations on settings?section=tls', async ({
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -182,7 +175,6 @@ test('no critical/serious axe violations on settings?section=observability', asy
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -205,7 +197,6 @@ test('no critical/serious axe violations on settings?section=integrations', asyn
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -228,7 +219,6 @@ test('no critical/serious axe violations on settings?section=plugins', async ({
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(
@@ -251,7 +241,6 @@ test('no critical/serious axe violations on settings?section=danger-zone', async
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(['color-contrast'])
     .analyze();
 
   const blocking = results.violations.filter(

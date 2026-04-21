@@ -81,8 +81,11 @@ export function McpHealthChip({ health }: McpHealthChipProps) {
 // ─── DangerousToolBadge ───────────────────────────────────────────────────────
 
 export function DangerousToolBadge() {
+  // color="red.8" pins the shade to red.8 (#e03131) so that the filled badge
+  // meets WCAG AA contrast (4.5:1 with white) regardless of the theme's
+  // primaryShade.dark setting. Task 9a.1.
   return (
-    <Badge color="red" variant="filled" size="sm">
+    <Badge color="red.8" variant="filled" size="sm">
       Dangerous
     </Badge>
   );
