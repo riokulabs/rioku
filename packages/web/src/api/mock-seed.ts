@@ -18,6 +18,7 @@ import {
   BUILT_IN_PERMISSIONS,
   registerPermission,
 } from '../host/permissions';
+import { seedZones } from '../host/seed-zones';
 import { DEFAULT_TLS_CIPHERS } from '../features/settings/tls-constants';
 import type { StoreApi } from 'zustand';
 import type * as T from './resources/types';
@@ -2256,4 +2257,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   // ── Context — current user / tenant ──────────────────────────────────────
   store.setState({ currentUserId: derrickId, currentTenantId: acmeTenantId });
+
+  // ── Zone contributions — demo plugin settings panels ─────────────────────
+  // Registers a demo zone contribution for plugin-settings.com.acme.billing so
+  // the "plugin has settings" code path is exercised in dev + tests.
+  seedZones();
 }

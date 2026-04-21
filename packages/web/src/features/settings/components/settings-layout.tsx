@@ -43,6 +43,7 @@ import { PkiSection } from '../sections/pki';
 import { TlsSection } from '../sections/tls';
 import { ObservabilitySection } from '../sections/observability';
 import { IntegrationsSection } from '../sections/integrations';
+import { PluginSettingsSection } from '../sections/plugin-settings';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -166,6 +167,8 @@ export function SettingsLayout() {
                 <ObservabilitySection />
               ) : activeSection.slug === 'integrations' ? (
                 <IntegrationsSection />
+              ) : activeSection.slug === 'plugins' ? (
+                <PluginSettingsSection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">
