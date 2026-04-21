@@ -298,6 +298,92 @@ describe('<ObservabilityLogs> form', () => {
   });
 });
 
+// ─── Logs form — schema validation ───────────────────────────────────────────
+
+describe('<ObservabilityLogs> schema validation', () => {
+  it('rejects max_size_mb above 1024', async () => {
+    const tenantId = getAcmeTenantId();
+    render(<ObservabilityLogs tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
+
+    const auditBefore = useMockStore.getState().audit.length;
+
+    const maxSizeInput = screen.getByTestId('logs-max-size-input');
+    fireEvent.change(maxSizeInput, { target: { value: '2000' } });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('logs-save-button'));
+    });
+
+    // Give form a tick to validate
+    await new Promise((r) => setTimeout(r, 50));
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.logs.rotation.max_size_mb).toBe(100);
+    expect(useMockStore.getState().audit.length).toBe(auditBefore);
+  });
+
+  it('rejects max_size_mb below minimum (0)', async () => {
+    const tenantId = getAcmeTenantId();
+    render(<ObservabilityLogs tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
+
+    const auditBefore = useMockStore.getState().audit.length;
+
+    const maxSizeInput = screen.getByTestId('logs-max-size-input');
+    fireEvent.change(maxSizeInput, { target: { value: '0' } });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('logs-save-button'));
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.logs.rotation.max_size_mb).toBe(100);
+    expect(useMockStore.getState().audit.length).toBe(auditBefore);
+  });
+
+  it('rejects max_age_days above 365', async () => {
+    const tenantId = getAcmeTenantId();
+    render(<ObservabilityLogs tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
+
+    const auditBefore = useMockStore.getState().audit.length;
+
+    const maxAgeInput = screen.getByTestId('logs-max-age-input');
+    fireEvent.change(maxAgeInput, { target: { value: '500' } });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('logs-save-button'));
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.logs.rotation.max_age_days).toBe(30);
+    expect(useMockStore.getState().audit.length).toBe(auditBefore);
+  });
+
+  it('saves logs config with valid max_size_mb and appends audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    render(<ObservabilityLogs tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
+
+    const auditBefore = useMockStore.getState().audit.length;
+
+    const maxSizeInput = screen.getByTestId('logs-max-size-input');
+    fireEvent.change(maxSizeInput, { target: { value: '512' } });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('logs-save-button'));
+    });
+
+    await waitFor(() => {
+      const config = useMockStore.getState().observabilityConfigs[tenantId];
+      expect(config?.logs.rotation.max_size_mb).toBe(512);
+    });
+
+    expect(useMockStore.getState().audit.length).toBeGreaterThan(auditBefore);
+  });
+});
+
 // ─── Traces form ──────────────────────────────────────────────────────────────
 
 describe('<ObservabilityTraces> form', () => {
@@ -348,6 +434,50 @@ describe('<ObservabilityTraces> form', () => {
     });
 
     mockBus.removeEventListener('tenant:observability-updated', listener);
+  });
+});
+
+// ─── Traces form — schema validation ─────────────────────────────────────────
+
+describe('<ObservabilityTraces> schema validation', () => {
+  it('rejects sample_rate above 1 (1.5)', async () => {
+    const tenantId = getAcmeTenantId();
+    render(<ObservabilityTraces tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
+
+    const auditBefore = useMockStore.getState().audit.length;
+
+    const sampleInput = screen.getByTestId('traces-sample-rate-input');
+    fireEvent.change(sampleInput, { target: { value: '1.5' } });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('traces-save-button'));
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.traces.sample_rate).toBe(0.1);
+    expect(useMockStore.getState().audit.length).toBe(auditBefore);
+  });
+
+  it('rejects sample_rate below 0 (-0.5)', async () => {
+    const tenantId = getAcmeTenantId();
+    render(<ObservabilityTraces tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
+
+    const auditBefore = useMockStore.getState().audit.length;
+
+    const sampleInput = screen.getByTestId('traces-sample-rate-input');
+    fireEvent.change(sampleInput, { target: { value: '-0.5' } });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('traces-save-button'));
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.traces.sample_rate).toBe(0.1);
+    expect(useMockStore.getState().audit.length).toBe(auditBefore);
   });
 });
 
