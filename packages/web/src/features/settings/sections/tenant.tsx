@@ -337,6 +337,7 @@ export function TenantSection() {
               h={64}
               fit="contain"
               radius="sm"
+              alt="Tenant logo preview"
               data-testid="tenant-logo-preview"
             />
           )}
@@ -366,6 +367,7 @@ export function TenantSection() {
                   maxSize={3 * 1024 ** 2}
                   maxFiles={1}
                   disabled={!canWrite || logoLoading}
+                  inputProps={{ 'aria-label': 'Upload tenant logo image' }}
                   data-testid="tenant-logo-dropzone"
                 >
                   <Group gap="xs" style={{ pointerEvents: 'none' }}>

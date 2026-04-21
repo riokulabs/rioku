@@ -344,6 +344,7 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
                               variant="subtle"
                               disabled={!canWrite}
                               px={6}
+                              aria-label={`Webhook actions for ${ep.name}`}
                               data-testid={`webhook-actions-${ep.id}`}
                             >
                               <IconDotsVertical size={14} />

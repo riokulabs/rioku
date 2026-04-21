@@ -157,6 +157,7 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
                 maxSize={3 * 1024 ** 2}
                 maxFiles={1}
                 disabled={!canUpdate || avatarLoading}
+                inputProps={{ 'aria-label': 'Upload avatar image' }}
                 data-testid="profile-avatar-dropzone"
               >
                 <Group gap="xs" style={{ pointerEvents: 'none' }}>

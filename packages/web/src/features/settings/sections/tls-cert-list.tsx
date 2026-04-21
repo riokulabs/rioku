@@ -313,6 +313,7 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
                           checked={cert.auto_renew}
                           disabled={cert.source === 'manual' || !canWrite || togglingIds.has(cert.id)}
                           onChange={(e) => { void handleToggleAutoRenew(cert, e.currentTarget.checked); }}
+                          aria-label={`Auto-renew for ${cert.domain}`}
                           data-testid={`cert-auto-renew-${cert.id}`}
                         />
                       </span>
@@ -321,7 +322,12 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
                   <Table.Td>
                     <Menu position="bottom-end" withinPortal>
                       <Menu.Target>
-                        <ActionIcon variant="subtle" size="sm" data-testid={`cert-actions-${cert.id}`}>
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          aria-label={`Certificate actions for ${cert.domain}`}
+                          data-testid={`cert-actions-${cert.id}`}
+                        >
                           <IconDots size={14} />
                         </ActionIcon>
                       </Menu.Target>
