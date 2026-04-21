@@ -47,7 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
       { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
-      { label: 'Analytics', to: '/t/acme/analytics', icon: IconChartBar },
+      { label: 'Analytics', to: '/t/acme/dashboards', icon: IconChartBar },
       { label: 'Notifications', to: '/t/acme/notifications', icon: IconBell },
     ],
   },
@@ -139,7 +139,7 @@ export function Sidebar({ onNavLinkClick }: SidebarProps) {
                 label={item.label}
                 leftSection={<item.icon size={16} />}
                 active={location.pathname.startsWith(item.to)}
-                onClick={onNavLinkClick}
+                {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
               />
             ))}
           </Stack>
@@ -173,7 +173,7 @@ export function Sidebar({ onNavLinkClick }: SidebarProps) {
                   }
                   leftSection={Icon ? <Icon size={16} /> : <IconPlug size={16} />}
                   active={location.pathname.startsWith(entry.path)}
-                  onClick={onNavLinkClick}
+                  {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
                 />
               );
             })}

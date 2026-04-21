@@ -22,6 +22,7 @@ import {
   Tooltip,
   useMatches,
   ActionIcon,
+  type TitleOrder,
 } from '@mantine/core';
 import {
   IconDownload,
@@ -79,7 +80,7 @@ export function DashboardViewer({
   // On mobile, collapse action buttons to icon-only to save horizontal space.
   const isMobile = useMatches({ base: true, sm: false });
   // Title shrinks one step on mobile to avoid wrapping with badge beside it.
-  const titleOrder = useMatches({ base: 3, sm: 2 });
+  const titleOrder = useMatches({ base: 3, sm: 2 }) as TitleOrder;
 
   const handleExport = useCallback(() => {
     if (!dashboard) return;

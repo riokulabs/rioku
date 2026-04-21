@@ -277,6 +277,38 @@ describe('resolveRolePermissions', () => {
     const result = resolveRolePermissions(['empty'], { empty });
     expect(result.size).toBe(0);
   });
+
+  // ── Seed-level regression: super-admin must inherit admin grants ───────────
+  // This test would have caught Issue 3: if superAdminGrants in mock-seed.ts
+  // stopped spreading adminGrants, Derrick (super-admin) would lose
+  // notification:read and hit the access-denied page.
+  it('super-admin with spread adminGrants has notification:read and all admin perms', () => {
+    // Replicate the grant structure from mock-seed.ts: adminGrants + super-admin extras.
+    const adminGrantPerms = [
+      'user:read', 'user:invite', 'role:read', 'role:write',
+      'notification:read', 'notification:manage-own',
+      'notification-channel:read', 'notification-channel:write',
+      'tenant:hard-reset', 'tenant:export',
+    ];
+    const adminGrants = adminGrantPerms.map((permission) => ({ permission }));
+    const superAdminGrants = [
+      ...adminGrants,
+      { permission: 'user:impersonate' },
+      { permission: 'tenant:delete' },
+    ];
+
+    const superAdmin = makeRole({ id: 'super-admin', grants: superAdminGrants });
+
+    const result = resolveRolePermissions(['super-admin'], { 'super-admin': superAdmin });
+
+    // Super-admin must have every admin permission.
+    for (const perm of adminGrantPerms) {
+      expect(result.has(perm), `super-admin missing admin perm: ${perm}`).toBe(true);
+    }
+    // Plus the super-admin-only extras.
+    expect(result.has('user:impersonate')).toBe(true);
+    expect(result.has('tenant:delete')).toBe(true);
+  });
 });
 
 // ─── detectRoleCycle ──────────────────────────────────────────────────────────

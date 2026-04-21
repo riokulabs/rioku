@@ -87,6 +87,18 @@ describe('Sidebar', () => {
     );
   });
 
+  it('Analytics entry in General group links to /dashboards (not /analytics)', () => {
+    wrap(<Sidebar />);
+    const carriers = document.querySelectorAll('[data-link-to]');
+    const analyticsEntry = Array.from(carriers).find(
+      (el) => el.textContent.trim() === 'Analytics',
+    );
+    expect(analyticsEntry, 'Analytics nav entry not found').toBeDefined();
+    // Must point to the existing /dashboards route, not the non-existent /analytics route.
+    expect(analyticsEntry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
+    expect(analyticsEntry?.getAttribute('data-link-to')).not.toBe('/t/acme/analytics');
+  });
+
   it('renders all seven AI entries with expected hrefs', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');

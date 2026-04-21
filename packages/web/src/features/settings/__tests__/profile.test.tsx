@@ -99,6 +99,26 @@ beforeEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+describe('<ProfileSection> — undefined user guard', () => {
+  it('renders a loading state instead of crashing when currentUserId is null', () => {
+    // Force the store to have no logged-in user. This simulates a race condition
+    // (or a future bug) where ProfileSection mounts before the session is set.
+    // Without the `if (!user) { return <Loader/> }` guard, this would throw
+    // "Cannot read properties of undefined (reading 'email')" inside
+    // ProfilePersonalInfo at user.email.
+    useMockStore.setState({ currentUserId: null });
+
+    render(<ProfileSection />, { wrapper: Wrapper });
+
+    // Must render the loading fallback, not crash.
+    expect(screen.getByTestId('profile-loading')).toBeDefined();
+
+    // The full section must NOT be in the DOM.
+    expect(screen.queryByTestId('profile-section')).toBeNull();
+    expect(screen.queryByTestId('profile-email-input')).toBeNull();
+  });
+});
+
 describe('<ProfileSection>', () => {
   it('renders all 5 subsections', () => {
     render(<ProfileSection />, { wrapper: Wrapper });
