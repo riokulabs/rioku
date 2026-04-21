@@ -22,6 +22,17 @@ export default defineConfig({
     // against the production build; bypassing here lets E2E smoke tests
     // verify UI behaviour without being blocked by dev-server nonce mismatch.
     bypassCSP: true,
+    // Increase the default assertion timeout. The authedPage fixture clears
+    // localStorage on every navigation, triggering a full mock-store re-seed
+    // (dynamic import + seedStore). With Plan 8's larger seed (including
+    // seed-zones.tsx importing Mantine components), re-seeding can take
+    // 6–12 s on a shared Vite dev server. 15 s is sufficient headroom.
+    actionTimeout: 15000,
+  },
+  expect: {
+    // Same reasoning as actionTimeout above: first-page-load assertions need
+    // time for the mock store to finish seeding after each navigation.
+    timeout: 15000,
   },
   projects: [
     {

@@ -17,7 +17,7 @@
  * Pre-existing failures in plugin-dev-sideload.spec.ts (Plan 9 scope) are
  * unrelated to this file.
  */
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ import { test } from '../fixtures/auth';
  * must wait for currentUserId to become non-null before asserting page content.
  */
 async function gotoSettings(
-  page: import('@playwright/test').Page,
+  page: Page,
   url: string,
 ): Promise<void> {
   await page.goto(url);
