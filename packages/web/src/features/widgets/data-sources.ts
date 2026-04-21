@@ -191,6 +191,31 @@ function asNumber(v: unknown, fallback = 0): number {
   return fallback;
 }
 
+/**
+ * Return the first numeric field value found in a row (skipping common id/date
+ * fields). Used as a fallback when rows from real data sources lack a `y` field.
+ */
+const SKIP_NUMERIC_FIELDS = new Set(['x', 'position', 'port', 'timeout', 'refresh_interval']);
+function firstNumericValue(row: Record<string, unknown>): number {
+  for (const [k, v] of Object.entries(row)) {
+    if (SKIP_NUMERIC_FIELDS.has(k)) continue;
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+  }
+  return 0;
+}
+
+/**
+ * Best-effort string label from a row — tries common label fields before
+ * falling back to index.
+ */
+function firstLabelValue(row: Record<string, unknown>, fallback: string): string {
+  for (const field of ['name', 'title', 'label', 'id', 'action', 'path', 'host']) {
+    const v = rowGet(row, field);
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return fallback;
+}
+
 function rowGet(row: Record<string, unknown>, field: string): unknown {
   return row[field];
 }
@@ -293,19 +318,125 @@ function hashCode(s: string): number {
   return h >>> 0;
 }
 
+// ─── Rich mock-data generators (kind-aware) ───────────────────────────────────
+
+/** Sinusoidal + seeded noise for time-series / sparkline points. */
+function mockTimePoints(seed: number, count: number): { x: string; y: number }[] {
+  const base = 40 + (seed % 60);
+  const amp = 15 + (seed % 25);
+  const points: { x: string; y: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const noise = ((seed * (i + 1) * 6271) % 21) - 10;
+    const y = Math.max(1, Math.round(base + amp * Math.sin((i / count) * Math.PI * 2) + noise));
+    const d = new Date(Date.now() - (count - i) * 60 * 60 * 1000);
+    points.push({ x: `${d.getHours().toString().padStart(2, '0')}:00`, y });
+  }
+  return points;
+}
+
+const MOCK_ENDPOINTS = [
+  '/api/v1/users',
+  '/api/v1/sessions',
+  '/api/v1/tokens',
+  '/api/v1/routes',
+  '/api/v1/services',
+  '/api/v1/audit',
+  '/api/v1/traces',
+  '/api/v1/plugins',
+  '/api/v1/keys',
+  '/api/v1/agents',
+];
+
+const MOCK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const MOCK_SERVICE_NODES = [
+  { id: 'gateway', label: 'gateway' },
+  { id: 'api', label: 'api' },
+  { id: 'auth', label: 'auth' },
+  { id: 'billing', label: 'billing' },
+  { id: 'worker', label: 'worker' },
+  { id: 'postgres', label: 'postgres' },
+  { id: 'valkey', label: 'valkey' },
+];
+
+const MOCK_SERVICE_EDGES = [
+  { from: 'gateway', to: 'api' },
+  { from: 'api', to: 'auth' },
+  { from: 'api', to: 'billing' },
+  { from: 'api', to: 'worker' },
+  { from: 'api', to: 'postgres' },
+  { from: 'worker', to: 'valkey' },
+];
+
+/**
+ * Kind-aware mock adapter — returns realistic stub data shaped for each widget
+ * kind so charts render with visible bars/lines/slices rather than zero values.
+ */
 function mockAdapter(widget: Widget, state: MockStore): unknown {
   const seed = hashCode(widget.id);
-  const rows: Record<string, unknown>[] = [];
-  for (let i = 0; i < 20; i++) {
-    rows.push({
-      x: i,
-      y: ((seed + i * 7919) % 100) + 1,
-      label: `row-${String(i)}`,
-    });
+
+  switch (widget.kind) {
+    case 'sparkline':
+      return { points: mockTimePoints(seed, 24) };
+
+    case 'time-series':
+      return { points: mockTimePoints(seed, 24), series: 'req/s' };
+
+    case 'stacked-bar': {
+      const categories = MOCK_DAYS.map((day, i) => {
+        const base = 200 + ((seed + i * 1301) % 600);
+        const success = Math.round(base * (0.75 + ((seed + i * 97) % 15) / 100));
+        const client = Math.round(base * (0.12 + ((seed + i * 53) % 8) / 100));
+        const server = Math.round(base * (0.04 + ((seed + i * 37) % 5) / 100));
+        return { label: day, success, 'client-error': client, 'server-error': server };
+      });
+      return {
+        categories,
+        series: [
+          { name: 'success', color: 'green.6' },
+          { name: 'client-error', color: 'yellow.6' },
+          { name: 'server-error', color: 'red.6' },
+        ],
+      };
+    }
+
+    case 'pie':
+      return {
+        slices: [
+          { name: 'Success', value: 78 + ((seed % 10) - 5), color: 'green.6' },
+          { name: 'Error 4xx', value: 12 + ((seed % 6) - 3), color: 'yellow.6' },
+          { name: 'Error 5xx', value: 6 + ((seed % 4) - 2), color: 'red.6' },
+          { name: 'Timeout', value: 4 + ((seed % 3) - 1), color: 'orange.6' },
+        ],
+      };
+
+    case 'top-n': {
+      const zipf = [1247, 891, 612, 432, 287, 198, 143, 97, 64, 41];
+      const items = MOCK_ENDPOINTS.slice(0, 10).map((ep, i) => ({
+        name: ep,
+        value: Math.round((zipf[i] ?? 20) * (0.8 + ((seed + i * 127) % 40) / 100)),
+      }));
+      return { items };
+    }
+
+    case 'service-map':
+      return { nodes: MOCK_SERVICE_NODES, edges: MOCK_SERVICE_EDGES };
+
+    default: {
+      // Generic rows for single-stat, table, log-viewer, audit-tail
+      const rows: Record<string, unknown>[] = [];
+      for (let i = 0; i < 20; i++) {
+        rows.push({
+          x: i,
+          y: ((seed + i * 7919) % 100) + 1,
+          label: `row-${String(i)}`,
+        });
+      }
+      const query = resolveQuery(widget, widgetVariables(widget, state));
+      const filtered = applyFilters(rows, query.filters);
+      return finalShape(widget, filtered, query);
+    }
   }
-  const query = resolveQuery(widget, widgetVariables(widget, state));
-  const filtered = applyFilters(rows, query.filters);
-  return finalShape(widget, filtered, query);
 }
 
 /**
@@ -338,30 +469,54 @@ function finalShape(widget: Widget, rows: Record<string, unknown>[], query: Norm
       const categories =
         groups.length > 0
           ? groups.map((g) => ({ label: g.key, value: g.value }))
-          : limitedRows.map((r, i) => ({
-              label: asString(rowGet(r, 'label'), `row-${String(i)}`),
-              value: asNumber(rowGet(r, 'y')),
-            }));
+          : limitedRows.map((r, i) => {
+              const y = asNumber(rowGet(r, 'y'), -1);
+              const value = y >= 0 ? y : firstNumericValue(r);
+              return {
+                label: firstLabelValue(r, `row-${String(i)}`),
+                value,
+              };
+            });
       return { categories, series: [{ name: 'value' }] };
     }
     case 'pie': {
-      const slices =
+      const rawSlices =
         groups.length > 0
           ? groups.map((g) => ({ name: g.key, value: g.value }))
-          : limitedRows.slice(0, 6).map((r, i) => ({
-              name: asString(rowGet(r, 'label'), `row-${String(i)}`),
-              value: asNumber(rowGet(r, 'y'), 1),
-            }));
+          : limitedRows.slice(0, 6).map((r, i) => {
+              const y = asNumber(rowGet(r, 'y'), -1);
+              const value = y >= 0 ? y : firstNumericValue(r);
+              return {
+                name: firstLabelValue(r, `row-${String(i)}`),
+                value,
+              };
+            });
+      // Guard: if all values are 0, distribute evenly so the pie is visible.
+      // Recharts renders nothing when all data values are 0.
+      const allZero = rawSlices.length > 0 && rawSlices.every((s) => s.value === 0);
+      const slices = allZero ? rawSlices.map((s) => ({ ...s, value: 1 })) : rawSlices;
       return { slices };
     }
     case 'top-n': {
-      const items =
+      const rawItems =
         groups.length > 0
           ? groups.map((g) => ({ name: g.key, value: g.value }))
-          : limitedRows.slice(0, query.limit ?? 10).map((r, i) => ({
-              name: asString(rowGet(r, 'label'), `row-${String(i)}`),
-              value: asNumber(rowGet(r, 'y')),
-            }));
+          : limitedRows.slice(0, query.limit ?? 10).map((r, i) => {
+              const y = asNumber(rowGet(r, 'y'), -1);
+              const value = y >= 0 ? y : firstNumericValue(r);
+              return {
+                name: firstLabelValue(r, `row-${String(i)}`),
+                value,
+              };
+            });
+      // If all values are 0 (e.g. rows from a data source with no numeric
+      // metrics), synthesise Zipf-distributed counts so the widget looks
+      // meaningful rather than an all-zero ranking.
+      const allZero = rawItems.every((it) => it.value === 0);
+      const zipfBase = [1247, 891, 612, 432, 287, 198, 143, 97, 64, 41];
+      const items = allZero
+        ? rawItems.map((it, i) => ({ name: it.name, value: zipfBase[i] ?? Math.max(1, 30 - i * 3) }))
+        : rawItems;
       return { items };
     }
     case 'table': {

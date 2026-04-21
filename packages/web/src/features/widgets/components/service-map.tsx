@@ -82,7 +82,7 @@ export function ServiceMapWidget({ widget, data, loading, error }: WidgetRenderP
                 fill="white"
                 fontSize={10}
               >
-                {n.label.slice(0, 6)}
+                {n.label.length > 7 ? `${n.label.slice(0, 6)}…` : n.label}
               </text>
             </g>
           );
