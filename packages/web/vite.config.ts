@@ -174,6 +174,13 @@ export default defineConfig(({ mode }) => {
               id.includes('@tanstack/react-table')
             )
               return 'tanstack';
+            // Zod must be its own chunk before scalar so that Rolldown does not
+            // bundle Zod into the scalar chunk. Without this, features that use
+            // Zod for form validation (agents, settings, routes, …) end up with
+            // a static import from scalar, pulling the entire 900+ KB scalar chunk
+            // into every lazy route's dependency closure.
+            if (id.includes('/node_modules/zod/') || id.includes('/node_modules/.pnpm/zod@'))
+              return 'zod';
             if (id.includes('@scalar/api-reference-react')) return 'scalar';
             if (id.includes('@monaco-editor/react')) return 'monaco';
             if (id.includes('shiki')) return 'shiki';
