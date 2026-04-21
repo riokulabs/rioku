@@ -46,10 +46,9 @@ import {
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { WebhookEndpoint } from '@/api/resources/types';
-import { useWebhookEndpoints, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint } from '../api';
+import { useWebhookEndpoints, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint, useCurrentTenant } from '../api';
 import { webhookEndpointSchema } from '../schemas';
 import type { WebhookEndpointValues } from '../schemas';
-import { useCurrentTenant } from '../api';
 
 // ─── OAuth connector card definitions ────────────────────────────────────────
 
@@ -127,7 +126,11 @@ function WebhookModal({ opened, onClose, tenantId, existing }: WebhookModalProps
         await addWebhookEndpoint(tenantId, values);
         notify.success('Webhook created', `"${values.name}" has been created.`);
       }
-      form.resetDirty(form.values);
+      if (existing != null) {
+        form.resetDirty(form.values);
+      } else {
+        form.reset();
+      }
       onClose();
     } catch (e) {
       notify.error('Save failed', (e as Error).message);
