@@ -57,6 +57,19 @@ const PAGES: MobilePageConfig[] = [
     },
   },
   {
+    // Direct dashboard viewer — uses seed dashboard-0004 "AI Usage" which
+    // contains chart widgets (stacked-bar, pie, service-map, table).
+    slug: 'dashboard-viewer-ai-usage',
+    path: '/t/acme/dashboards/dashboard-0004',
+    waitSignal: async (page) => {
+      await Promise.race([
+        page.getByRole('list', { name: /AI Usage dashboard widgets/i }).waitFor({ timeout: 15_000 }),
+        page.getByRole('heading', { name: /AI Usage/i }).first().waitFor({ timeout: 15_000 }),
+        page.locator('[data-type="main"]').waitFor({ timeout: 15_000 }),
+      ]);
+    },
+  },
+  {
     slug: 'services',
     path: '/t/acme/services',
     waitHeading: /^services$/i,
@@ -195,6 +208,27 @@ test.describe('mobile audit — iPhone 12 Pro (390×844)', () => {
           sidebarInfo.width <= 200 || burgerVisible,
           `Sidebar is ${String(sidebarInfo.width)}px wide on 390px viewport — either collapse it or show a burger toggle`,
         ).toBe(true);
+      }
+
+      // ── Widget card overflow check (dashboard-viewer pages only) ─────────
+      // Asserts that chart widget cards don't have content overflowing them
+      // horizontally (scrollWidth > clientWidth indicates overflow that causes
+      // layout breakage on narrow viewports).
+      if (pageConfig.slug.startsWith('dashboard-viewer')) {
+        const widgetCards = page.locator('[role="listitem"]');
+        const cardCount = await widgetCards.count();
+        for (let i = 0; i < cardCount; i++) {
+          const card = widgetCards.nth(i);
+          const cardLabel = await card.getAttribute('aria-label').catch(() => `card-${String(i)}`);
+          const overflow = await card.evaluate((el) => ({
+            scrollWidth: el.scrollWidth,
+            clientWidth: el.clientWidth,
+          }));
+          expect(
+            overflow.scrollWidth,
+            `Widget card "${cardLabel ?? String(i)}" has horizontal overflow: scrollWidth (${String(overflow.scrollWidth)}) > clientWidth (${String(overflow.clientWidth)})`,
+          ).toBeLessThanOrEqual(overflow.clientWidth + 2);
+        }
       }
     });
   }

@@ -9,6 +9,7 @@ import {
   Indicator,
   Popover,
   Burger,
+  Tooltip,
 } from '@mantine/core';
 import { IconSearch, IconBell } from '@tabler/icons-react';
 import { spotlight } from '@mantine/spotlight';
@@ -85,6 +86,21 @@ export function TopBar({ navOpened, onNavToggle }: TopBarProps) {
           spotlight.open();
         }}
       />
+      {/* Mobile: icon-only search button that opens Spotlight */}
+      <Tooltip label="Search" withArrow hiddenFrom="sm">
+        <ActionIcon
+          size="lg"
+          variant="subtle"
+          aria-label="Search"
+          hiddenFrom="sm"
+          onClick={() => {
+            spotlight.open();
+          }}
+          data-testid="topbar-search-mobile"
+        >
+          <IconSearch size={18} />
+        </ActionIcon>
+      </Tooltip>
       <Box flex={1} visibleFrom="sm" />
       <Popover
         opened={opened}

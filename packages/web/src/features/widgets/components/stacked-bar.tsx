@@ -40,9 +40,10 @@ export function StackedBarWidget({ widget, data, loading, error }: WidgetRenderP
   }));
 
   return (
-    <Box role="img" aria-label={`Stacked bar chart for ${widget.title}`}>
+    <Box role="img" aria-label={`Stacked bar chart for ${widget.title}`} w="100%">
       <BarChart
         h={200}
+        w="100%"
         data={data.categories}
         dataKey="label"
         type="stacked"

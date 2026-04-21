@@ -21,6 +21,7 @@ import {
   Title,
   Tooltip,
   useMatches,
+  ActionIcon,
 } from '@mantine/core';
 import {
   IconDownload,
@@ -29,6 +30,7 @@ import {
   IconLayoutDashboard,
   IconPencil,
   IconStar,
+  IconCopy,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -74,6 +76,10 @@ export function DashboardViewer({
   // On mobile collapse the 12-col grid to a single column so widgets don't
   // render at sub-100px widths. Tablet gets 6 cols (half layout).
   const effectiveColumns = useMatches({ base: 1, sm: 6, md: GRID_COLUMNS });
+  // On mobile, collapse action buttons to icon-only to save horizontal space.
+  const isMobile = useMatches({ base: true, sm: false });
+  // Title shrinks one step on mobile to avoid wrapping with badge beside it.
+  const titleOrder = useMatches({ base: 3, sm: 2 });
 
   const handleExport = useCallback(() => {
     if (!dashboard) return;
@@ -118,10 +124,10 @@ export function DashboardViewer({
     <Stack gap="md" p="md">
       {/* Header */}
       <Stack gap={4}>
-        <Group justify="space-between" align="flex-start" wrap="wrap">
+        <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
           <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-            <Group gap="sm" align="center">
-              <Title order={2}>{dashboard.name}</Title>
+            <Group gap="sm" align="center" wrap="wrap">
+              <Title order={titleOrder}>{dashboard.name}</Title>
               <Badge
                 size="sm"
                 variant="light"
@@ -152,47 +158,114 @@ export function DashboardViewer({
             </Tooltip>
           </Stack>
 
-          <Group gap="xs" wrap="wrap">
+          {/* Action buttons — full labels on ≥sm, icon-only on mobile */}
+          <Group gap="xs" wrap="wrap" style={{ flexShrink: 0 }}>
             {canWrite && onEdit && (
-              <Button
-                variant="default"
-                leftSection={<IconPencil size={14} />}
-                onClick={() => { onEdit(dashboard.id); }}
-              >
-                Edit
-              </Button>
+              isMobile ? (
+                <Tooltip label="Edit" withArrow>
+                  <ActionIcon
+                    variant="default"
+                    size="lg"
+                    aria-label="Edit dashboard"
+                    onClick={() => { onEdit(dashboard.id); }}
+                  >
+                    <IconPencil size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="default"
+                  leftSection={<IconPencil size={14} />}
+                  onClick={() => { onEdit(dashboard.id); }}
+                >
+                  Edit
+                </Button>
+              )
             )}
             {canWrite && onClone && (
+              isMobile ? (
+                <Tooltip label="Clone" withArrow>
+                  <ActionIcon
+                    variant="default"
+                    size="lg"
+                    aria-label="Clone dashboard"
+                    onClick={() => { onClone(dashboard.id); }}
+                  >
+                    <IconCopy size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="default"
+                  onClick={() => { onClone(dashboard.id); }}
+                >
+                  Clone
+                </Button>
+              )
+            )}
+            {isMobile ? (
+              <Tooltip label="Export JSON" withArrow>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  aria-label="Export JSON"
+                  onClick={handleExport}
+                >
+                  <IconDownload size={16} />
+                </ActionIcon>
+              </Tooltip>
+            ) : (
               <Button
                 variant="default"
-                onClick={() => { onClone(dashboard.id); }}
+                leftSection={<IconDownload size={14} />}
+                onClick={handleExport}
               >
-                Clone
+                Export JSON
               </Button>
             )}
-            <Button
-              variant="default"
-              leftSection={<IconDownload size={14} />}
-              onClick={handleExport}
-            >
-              Export JSON
-            </Button>
-            <Button
-              variant="default"
-              leftSection={<IconHome size={14} />}
-              disabled={currentUserId === null}
-              onClick={() => { void handleMakeMyHome(); }}
-            >
-              Make this my home
-            </Button>
-            {onVersionHistory && (
+            {isMobile ? (
+              <Tooltip label="Set as home" withArrow>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  aria-label="Set as home dashboard"
+                  disabled={currentUserId === null}
+                  onClick={() => { void handleMakeMyHome(); }}
+                >
+                  <IconHome size={16} />
+                </ActionIcon>
+              </Tooltip>
+            ) : (
               <Button
                 variant="default"
-                leftSection={<IconHistory size={14} />}
-                onClick={() => { onVersionHistory(dashboard.id); }}
+                leftSection={<IconHome size={14} />}
+                disabled={currentUserId === null}
+                onClick={() => { void handleMakeMyHome(); }}
               >
-                Version history
+                Make this my home
               </Button>
+            )}
+            {onVersionHistory && (
+              isMobile ? (
+                <Tooltip label="Version history" withArrow>
+                  <ActionIcon
+                    variant="default"
+                    size="lg"
+                    aria-label="Version history"
+                    onClick={() => { onVersionHistory(dashboard.id); }}
+                  >
+                    <IconHistory size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="default"
+                  leftSection={<IconHistory size={14} />}
+                  onClick={() => { onVersionHistory(dashboard.id); }}
+                >
+                  Version history
+                </Button>
+              )
             )}
           </Group>
         </Group>
@@ -218,7 +291,9 @@ export function DashboardViewer({
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${String(effectiveColumns)}, 1fr)`,
-            gridAutoRows: `${String(ROW_HEIGHT_PX)}px`,
+            // On mobile single-column, use auto rows so chart cards expand to
+            // fit their content instead of being clipped to 80px row height.
+            gridAutoRows: effectiveColumns === 1 ? 'auto' : `${String(ROW_HEIGHT_PX)}px`,
             gap: 'var(--mantine-spacing-md)',
           }}
           role="list"
@@ -277,15 +352,18 @@ function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
         gridRow: effectiveCols === 1 ? undefined : `${String(row + 1)} / span ${String(h)}`,
         overflow: 'hidden',
         minWidth: 0,
+        // On mobile auto-row layout, allow card height to grow with content.
+        // On desktop fixed-row grid, fill the assigned grid area.
+        height: effectiveCols === 1 ? 'auto' : '100%',
       }}
       role="listitem"
       aria-label={widget.title}
     >
-      <Stack gap="xs" h="100%">
+      <Stack gap="xs" style={{ height: effectiveCols === 1 ? 'auto' : '100%' }}>
         <Text size="sm" fw={600}>
           {widget.title}
         </Text>
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ flex: effectiveCols === 1 ? undefined : 1, minHeight: 0 }}>
           <WidgetRenderer {...rendererProps} />
         </div>
       </Stack>

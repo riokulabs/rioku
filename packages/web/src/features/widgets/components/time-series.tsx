@@ -39,9 +39,10 @@ export function TimeSeriesWidget({ widget, data, loading, error }: WidgetRenderP
   const chartData = data.points.map((p) => ({ x: p.x, [label]: p.y }));
 
   return (
-    <Box role="img" aria-label={`Time-series for ${widget.title}`}>
+    <Box role="img" aria-label={`Time-series for ${widget.title}`} w="100%">
       <LineChart
         h={200}
+        w="100%"
         data={chartData}
         dataKey="x"
         series={[{ name: label, color: 'blue.6' }]}

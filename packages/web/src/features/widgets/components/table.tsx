@@ -37,8 +37,8 @@ export function TableWidget({ widget, data, loading, error }: WidgetRenderProps)
   const columns = data.columns ?? (data.rows.length > 0 ? Object.keys(data.rows[0] ?? {}) : []);
 
   return (
-    <ScrollArea.Autosize mah={240} aria-label={`Table for ${widget.title}`}>
-      <Table striped withTableBorder>
+    <ScrollArea.Autosize mah={240} aria-label={`Table for ${widget.title}`} style={{ maxWidth: '100%' }}>
+      <Table striped withTableBorder style={{ minWidth: 'max-content' }}>
         <Table.Thead>
           <Table.Tr>
             {columns.map((c) => (

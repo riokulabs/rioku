@@ -43,8 +43,13 @@ export function PieWidget({ widget, data, loading, error }: WidgetRenderProps) {
   }));
 
   return (
-    <Box role="img" aria-label={`Pie chart for ${widget.title}`}>
-      <PieChart h={200} data={slices} withTooltip />
+    <Box
+      role="img"
+      aria-label={`Pie chart for ${widget.title}`}
+      style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+    >
+      {/* size controls the SVG diameter; centre it in the full-width Box */}
+      <PieChart size={160} data={slices} withTooltip />
     </Box>
   );
 }
