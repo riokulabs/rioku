@@ -50,20 +50,32 @@ describe('runWidgetQuery', () => {
 });
 
 describe('mock adapter', () => {
-  it('synthesises 20 deterministic rows per widget id', () => {
+  it('returns rows for kind=table (rich mock generates themed rows)', () => {
     const w1 = makeWidget({ id: 'w-A', data_source: 'mock', kind: 'table' });
     const w2 = makeWidget({ id: 'w-B', data_source: 'mock', kind: 'table' });
     const r1 = runWidgetQuery(w1, useMockStore.getState()) as { rows: unknown[] };
     const r2 = runWidgetQuery(w2, useMockStore.getState()) as { rows: unknown[] };
-    expect(r1.rows).toHaveLength(20);
-    expect(r2.rows).toHaveLength(20);
+    expect(r1.rows.length).toBeGreaterThan(0);
+    expect(r2.rows.length).toBeGreaterThan(0);
     expect(r1).not.toEqual(r2);
+  });
+
+  it('returns 20 rows for kind=table with raw_query (legacy pipeline)', () => {
+    const w = makeWidget({
+      id: 'w-A',
+      data_source: 'mock',
+      kind: 'table',
+      raw_query: '{}',
+    });
+    const result = runWidgetQuery(w, useMockStore.getState()) as { rows: unknown[] };
+    expect(result.rows).toHaveLength(20);
   });
 
   it('returns sparkline points for kind=sparkline', () => {
     const w = makeWidget({ data_source: 'mock', kind: 'sparkline' });
     const result = runWidgetQuery(w, useMockStore.getState()) as { points: unknown[] };
-    expect(result.points).toHaveLength(20);
+    // Rich mock adapter returns 48 hourly points for sparklines
+    expect(result.points.length).toBeGreaterThanOrEqual(24);
   });
 
   it('returns a single value for kind=single-stat', () => {

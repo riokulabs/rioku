@@ -9,6 +9,7 @@ import type { WidgetRenderProps } from '../types';
 
 interface SparklineData {
   points: { x: string | number; y: number }[];
+  color?: string;
 }
 
 function isSparklineData(data: unknown): data is SparklineData {
@@ -20,7 +21,7 @@ function isSparklineData(data: unknown): data is SparklineData {
 }
 
 export function SparklineWidget({ widget, data, loading, error }: WidgetRenderProps) {
-  if (loading) return <Skeleton height={60} width="100%" radius="sm" />;
+  if (loading) return <Skeleton height={72} width="100%" radius="sm" />;
   if (error)
     return (
       <Alert color="red" title="Widget error" variant="light">
@@ -34,24 +35,26 @@ export function SparklineWidget({ widget, data, loading, error }: WidgetRenderPr
       </Alert>
     );
 
-  const chartData = data.points.map((p) => ({ x: String(p.x), y: p.y }));
+  const color = data.color ?? 'blue.5';
+  const chartData = data.points.map((p) => ({ x: String(p.x), value: p.y }));
 
   return (
-    <Box role="img" aria-label={`Sparkline for ${widget.title}`} style={{ height: 60, width: '100%' }}>
+    <Box role="img" aria-label={`Sparkline for ${widget.title}`} style={{ height: 72, width: '100%' }}>
       <AreaChart
-        h={60}
+        h={72}
         w="100%"
         data={chartData}
         dataKey="x"
-        series={[{ name: 'y', color: 'blue.6' }]}
+        series={[{ name: 'value', color }]}
         curveType="monotone"
         withXAxis={false}
         withYAxis={false}
         withDots={false}
         withTooltip={false}
         withGradient
-        strokeWidth={1.5}
+        strokeWidth={2}
         gridAxis="none"
+        fillOpacity={0.18}
       />
     </Box>
   );
