@@ -37,9 +37,9 @@ export function SparklineWidget({ widget, data, loading, error }: WidgetRenderPr
   const chartData = data.points.map((p) => ({ x: String(p.x), y: p.y }));
 
   return (
-    <Box role="img" aria-label={`Sparkline for ${widget.title}`} style={{ height: 60, width: '100%' }}>
+    <Box role="img" aria-label={`Sparkline for ${widget.title}`} style={{ width: '100%', height: 60 }}>
       <AreaChart
-        h={60}
+        h="100%"
         w="100%"
         data={chartData}
         dataKey="x"

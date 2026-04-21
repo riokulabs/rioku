@@ -46,10 +46,19 @@ export function PieWidget({ widget, data, loading, error }: WidgetRenderProps) {
     <Box
       role="img"
       aria-label={`Pie chart for ${widget.title}`}
-      style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+      style={{ width: '100%', minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
     >
-      {/* size controls the SVG diameter; centre it in the full-width Box */}
-      <PieChart size={160} data={slices} withTooltip />
+      {/*
+       * PieChart size prop sets --chart-size CSS var internally.
+       * Force explicit pixel dimensions via style so ResponsiveContainer
+       * always sees a non-zero bounding rect regardless of parent layout.
+       */}
+      <PieChart
+        size={160}
+        data={slices}
+        withTooltip
+        style={{ width: 160, height: 160, flexShrink: 0 }}
+      />
     </Box>
   );
 }
