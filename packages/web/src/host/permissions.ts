@@ -698,6 +698,26 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     source: 'built-in',
     default_roles: ['admin'],
   },
+
+  // tenant danger-zone (Plan 8c.13 — hard reset, export, delete)
+  {
+    key: 'tenant:hard-reset',
+    description: 'Hard-reset all data for the current tenant (triple-confirm)',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'tenant:export',
+    description: 'Export all tenant data as JSON',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'tenant:delete',
+    description: 'Delete a tenant (super-admin only; triple-confirm)',
+    source: 'built-in',
+    default_roles: ['super-admin'],
+  },
 ];
 
 // ─── In-memory permission registry ───────────────────────────────────────────

@@ -5,10 +5,13 @@
  * verifies reset() clears all state.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createStore } from 'zustand';
 import type { MockStore } from './mock-store';
+import { useMockStore } from './mock-store';
 import { seedStore } from './mock-seed';
+import { deleteTenant, exportTenantJson } from '../features/settings/api';
+import { _internals } from '../features/settings/api';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -566,5 +569,129 @@ describe('mock-store seed integrity', () => {
     expect(s.audit).toHaveLength(0);
     expect(s.currentUserId).toBeNull();
     expect(s.currentTenantId).toBeNull();
+  });
+});
+
+// ─── deleteTenant cascade integration ────────────────────────────────────────
+//
+// These tests use useMockStore (the singleton) because deleteTenant in api.ts
+// operates on useMockStore.setState directly.
+
+describe('deleteTenant cascade removes all tenant-scoped records', () => {
+  beforeEach(() => {
+    useMockStore.getState().reset();
+    seedStore(useMockStore);
+  });
+
+  function getAcmeTenantId(): string {
+    const state = useMockStore.getState();
+    const tenant = Object.values(state.tenants).find((t) => t.slug === 'acme');
+    if (!tenant) throw new Error('Acme tenant not found in seed data');
+    return tenant.id;
+  }
+
+  it('removes the tenant record', async () => {
+    const tenantId = getAcmeTenantId();
+    await deleteTenant(tenantId);
+    expect(useMockStore.getState().tenants[tenantId]).toBeUndefined();
+  });
+
+  it('cascade-removes services for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantId();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().services).filter(
+      (x) => x.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes routes for the deleted tenant (via parent service)', async () => {
+    const tenantId = getAcmeTenantId();
+    const state = useMockStore.getState();
+    // Count routes that belong to this tenant (via service).
+    const beforeRouteCount = Object.values(state.routes).filter((r) => {
+      const svc = state.services[r.service_id];
+      return svc?.tenant_id === tenantId;
+    }).length;
+    expect(beforeRouteCount).toBeGreaterThan(0);
+
+    await deleteTenant(tenantId);
+
+    const afterState = useMockStore.getState();
+    const afterRoutes = Object.values(afterState.routes).filter((r) => {
+      const svc = afterState.services[r.service_id];
+      return svc?.tenant_id === tenantId;
+    });
+    expect(afterRoutes).toHaveLength(0);
+  });
+
+  it('cascade-removes memberships for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantId();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().memberships).filter(
+      (m) => m.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes webhook endpoints for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantId();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().webhookEndpoints).filter(
+      (x) => x.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('leaves other tenants and their records intact', async () => {
+    const tenantId = getAcmeTenantId();
+    const stateBefore = useMockStore.getState();
+    const otherTenants = Object.values(stateBefore.tenants).filter(
+      (t) => t.id !== tenantId,
+    );
+    expect(otherTenants.length).toBeGreaterThan(0);
+
+    await deleteTenant(tenantId);
+
+    const stateAfter = useMockStore.getState();
+    for (const t of otherTenants) {
+      expect(stateAfter.tenants[t.id]).toBeDefined();
+      // Their services should still exist
+      const services = Object.values(stateAfter.services).filter(
+        (s) => s.tenant_id === t.id,
+      );
+      expect(services.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('exportTenantJson creates Blob with tenant data', async () => {
+    const tenantId = getAcmeTenantId();
+
+    let capturedBlob: Blob | null = null;
+    let capturedFilename: string | null = null;
+
+    // Uses _internals indirection so the spy works in ESM (same-module calls
+    // bypass the module-namespace replacement that vi.spyOn(module, fn) does).
+    vi.spyOn(_internals, '_triggerBlobDownload').mockImplementation(
+      (blob: Blob, filename: string) => {
+        capturedBlob = blob;
+        capturedFilename = filename;
+      },
+    );
+
+    await exportTenantJson(tenantId);
+
+    expect(capturedBlob).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const blob: Blob = capturedBlob!;
+    expect(blob.type).toBe('application/json');
+    expect(capturedFilename).toMatch(/^acme-export-/);
+
+    const text = await blob.text();
+    const data = JSON.parse(text) as Record<string, unknown>;
+    expect(data.tenant).toBeDefined();
+    expect((data.tenant as Record<string, unknown>).id).toBe(tenantId);
+
+    vi.restoreAllMocks();
   });
 });

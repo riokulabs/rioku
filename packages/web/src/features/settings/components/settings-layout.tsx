@@ -44,6 +44,7 @@ import { TlsSection } from '../sections/tls';
 import { ObservabilitySection } from '../sections/observability';
 import { IntegrationsSection } from '../sections/integrations';
 import { PluginSettingsSection } from '../sections/plugin-settings';
+import { DangerZoneSection } from '../sections/danger-zone';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -169,6 +170,8 @@ export function SettingsLayout() {
                 <IntegrationsSection />
               ) : activeSection.slug === 'plugins' ? (
                 <PluginSettingsSection />
+              ) : activeSection.slug === 'danger-zone' ? (
+                <DangerZoneSection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

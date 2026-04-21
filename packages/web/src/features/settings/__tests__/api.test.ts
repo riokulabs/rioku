@@ -11,11 +11,11 @@
  * Task 8b.8 — TLS section.
  * Task 8b.9 — Observability section.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers, updateObservabilityMetrics, updateObservabilityLogs, updateObservabilityTraces, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers, updateObservabilityMetrics, updateObservabilityLogs, updateObservabilityTraces, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint, hardResetTenant, exportTenantJson, deleteTenant, _internals } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -1152,5 +1152,182 @@ describe('deleteWebhookEndpoint', () => {
     expect(hostEvents.length).toBeGreaterThan(0);
 
     mockBus.removeEventListener('integrations:webhook-deleted', listener);
+  });
+});
+
+// ─── Danger zone ──────────────────────────────────────────────────────────────
+
+function getAcmeTenantIdForDangerZone(): string {
+  const state = useMockStore.getState();
+  const tenant = Object.values(state.tenants).find((t) => t.slug === 'acme');
+  if (!tenant) throw new Error('Acme tenant not found in seed data');
+  return tenant.id;
+}
+
+describe('hardResetTenant', () => {
+  it('appends tenant.hard_reset audit entry', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await hardResetTenant(tenantId);
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tenant.hard_reset');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tenant:hard-reset host event', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('tenant:hard-reset', listener);
+
+    await hardResetTenant(tenantId);
+
+    expect(hostEvents.length).toBeGreaterThan(0);
+    mockBus.removeEventListener('tenant:hard-reset', listener);
+  });
+
+  it('re-seeds the store (store has tenants after reset)', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await hardResetTenant(tenantId);
+    // Store should have been re-seeded (3 tenants)
+    expect(Object.keys(useMockStore.getState().tenants).length).toBe(3);
+  });
+});
+
+describe('exportTenantJson', () => {
+  let capturedBlob: Blob | null = null;
+  let capturedFilename: string | null = null;
+
+  beforeEach(() => {
+    capturedBlob = null;
+    capturedFilename = null;
+
+    // Spy on the internal download trigger to capture blob + filename
+    // without needing to mock document.createElement or URL APIs.
+    // Uses _internals indirection so the spy works in ESM (same-module calls
+    // bypass the module-namespace replacement that vi.spyOn(module, fn) does).
+    vi.spyOn(_internals, '_triggerBlobDownload').mockImplementation(
+      (blob: Blob, filename: string) => {
+        capturedBlob = blob;
+        capturedFilename = filename;
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('creates a Blob of type application/json', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await exportTenantJson(tenantId);
+    expect(capturedBlob).not.toBeNull();
+    expect(capturedBlob?.type).toBe('application/json');
+  });
+
+  it('export filename starts with tenant slug', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await exportTenantJson(tenantId);
+    expect(capturedFilename).toMatch(/^acme-export-/);
+    expect(capturedFilename).toMatch(/\.json$/);
+  });
+
+  it('appends tenant.export audit entry', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await exportTenantJson(tenantId);
+    const entry = useMockStore.getState().audit.find((a) => a.action === 'tenant.export');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tenant:exported host event', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('tenant:exported', listener);
+
+    await exportTenantJson(tenantId);
+
+    expect(hostEvents.length).toBeGreaterThan(0);
+    mockBus.removeEventListener('tenant:exported', listener);
+  });
+
+  it('exported JSON contains tenant, services, and exported_at fields', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await exportTenantJson(tenantId);
+    const blob = capturedBlob;
+    if (!blob) throw new Error('No blob captured');
+    const text = await blob.text();
+    const data = JSON.parse(text) as Record<string, unknown>;
+    expect(data.tenant).toBeDefined();
+    expect(data.services).toBeDefined();
+    expect(Array.isArray(data.services)).toBe(true);
+    expect(data.exported_at).toBeDefined();
+  });
+});
+
+describe('deleteTenant', () => {
+  it('removes the tenant from the store', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    expect(useMockStore.getState().tenants[tenantId]).toBeUndefined();
+  });
+
+  it('appends tenant.delete audit entry before deletion', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    // The audit entry is appended before the cascaded delete, so we look at
+    // any tenant_id reference still in the audit log.
+    const entry = useMockStore.getState().audit.find(
+      (a) => a.action === 'tenant.delete',
+    );
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tenant:deleted host event', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('tenant:deleted', listener);
+
+    await deleteTenant(tenantId);
+
+    expect(hostEvents.length).toBeGreaterThan(0);
+    mockBus.removeEventListener('tenant:deleted', listener);
+  });
+
+  it('cascade-removes tenant-scoped services', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remainingServices = Object.values(useMockStore.getState().services).filter(
+      (s) => s.tenant_id === tenantId,
+    );
+    expect(remainingServices).toHaveLength(0);
+  });
+
+  it('cascade-removes tenant-scoped memberships', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().memberships).filter(
+      (m) => m.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('leaves other tenants intact', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    const stateBefore = useMockStore.getState();
+    const otherTenants = Object.values(stateBefore.tenants).filter(
+      (t) => t.id !== tenantId,
+    );
+    expect(otherTenants.length).toBeGreaterThan(0);
+
+    await deleteTenant(tenantId);
+
+    const stateAfter = useMockStore.getState();
+    for (const t of otherTenants) {
+      expect(stateAfter.tenants[t.id]).toBeDefined();
+    }
   });
 });

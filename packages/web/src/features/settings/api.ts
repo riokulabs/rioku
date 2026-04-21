@@ -14,12 +14,14 @@
  * Task 8b.8 — TLS section.
  * Task 8b.9 — Observability section.
  * Task 8c.11 — Integrations section (webhook endpoints).
+ * Task 8c.13 — Danger zone (hard reset, export, delete tenant).
  */
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
+import { seedStore } from '@/api/mock-seed';
 import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User, WebhookEndpoint } from '@/api/resources/types';
 import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues, WebhookEndpointValues } from './schemas';
 
@@ -37,6 +39,7 @@ const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
 const nextTlsCertId = makeIdFactory('tlscert');
 const nextWebhookId = makeIdFactory('webhook');
+const nextDangerZoneAuditId = makeIdFactory('audit-danger-zone');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -854,4 +857,246 @@ export async function deleteWebhookEndpoint(id: ID): Promise<void> {
   const updatedState = useMockStore.getState();
   updatedState.appendAudit(makeIntegrationsAudit('tenant.webhook.delete', endpoint.tenant_id, id));
   emitHostEvent('integrations:webhook-deleted', { tenant_id: endpoint.tenant_id, webhook_id: id });
+}
+
+// ─── Danger zone ──────────────────────────────────────────────────────────────
+
+function makeDangerZoneAudit(
+  action: string,
+  tenantId: ID,
+  tier: AuditEntry['tier'] = 'destructive',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextDangerZoneAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+/**
+ * Hard-reset all tenant data for the given tenant back to seed defaults.
+ *
+ * Stage-1 limitation: this resets the ENTIRE store (all tenants), then
+ * re-seeds. A true per-tenant reset would require iterating every
+ * tenant-scoped collection and rebuilding only this tenant's records — that
+ * is deferred to stage 2 when we have real API endpoints.
+ *
+ * The UI shows a warning banner in the modal to communicate this limitation.
+ */
+export async function hardResetTenant(tenantId: ID): Promise<void> {
+  await simulateLatency('mutation');
+  useMockStore.getState().reset();
+  seedStore(useMockStore);
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeDangerZoneAudit('tenant.hard_reset', tenantId));
+  emitHostEvent('tenant:hard-reset', { tenant_id: tenantId });
+}
+
+/**
+ * Trigger a browser download of the given Blob with the given filename.
+ *
+ * Exposed via `_internals` so tests can spy on it:
+ *   `vi.spyOn(_internals, '_triggerBlobDownload').mockImplementation(...)`
+ *
+ * Internal calls go through `_internals._triggerBlobDownload(...)` so the spy
+ * intercepts the call even in ESM where direct local-binding calls bypass the
+ * module-namespace replacement.
+ */
+export function _triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Mutable internals object — lets tests spy on internal helpers even in ESM
+ * where `vi.spyOn(module, 'fn')` cannot intercept same-module calls.
+ */
+export const _internals = { _triggerBlobDownload };
+
+/**
+ * Export all tenant-scoped data as a JSON blob and trigger a browser download.
+ *
+ * Collects all entity collections filtered to the given tenantId, bundles
+ * them into a structured JSON object, and triggers a download of
+ * `<slug>-export-<timestamp>.json`.
+ */
+export async function exportTenantJson(tenantId: ID): Promise<void> {
+  await simulateLatency('query');
+  const s = useMockStore.getState();
+  const tenant = s.tenants[tenantId];
+  if (!tenant) throw new Error('Tenant not found');
+
+  const exportedAt = now();
+
+  const payload = {
+    tenant,
+    services: Object.values(s.services).filter((x) => x.tenant_id === tenantId),
+    // Routes are keyed by service_id (not tenant_id directly); include routes
+    // whose service belongs to this tenant.
+    routes: Object.values(s.routes).filter((r) => {
+      const svc = s.services[r.service_id];
+      return svc?.tenant_id === tenantId;
+    }),
+    users: Object.values(s.memberships)
+      .filter((m) => m.tenant_id === tenantId)
+      .map((m) => ({ ...s.users[m.user_id], membership: m }))
+      .filter((u) => u.id != null),
+    sites: Object.values(s.sites).filter((x) => x.tenant_id === tenantId),
+    middlewares: Object.values(s.middlewares).filter((x) => x.tenant_id === tenantId),
+    ai_agents: Object.values(s.aiAgents).filter((x) => x.tenant_id === tenantId),
+    dashboards: Object.values(s.dashboards).filter((x) => x.tenant_id === tenantId),
+    notifications: Object.values(s.notifications).filter((x) => x.tenant_id === tenantId),
+    audit_entries: s.audit.filter((x) => x.tenant_id === tenantId),
+    network_config: s.networkConfigs[tenantId] ?? null,
+    tls_config: s.tlsConfigs[tenantId] ?? null,
+    observability_config: s.observabilityConfigs[tenantId] ?? null,
+    cert_authorities: Object.values(s.certAuthorities).filter((x) => x.tenant_id === tenantId),
+    cert_enrollments: Object.values(s.certEnrollments).filter((x) => x.tenant_id === tenantId),
+    webhook_endpoints: Object.values(s.webhookEndpoints).filter((x) => x.tenant_id === tenantId),
+    tenant_auth_policy: s.tenantAuthPolicies[tenantId] ?? null,
+    exported_at: exportedAt,
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const timestamp = exportedAt.replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `${tenant.slug}-export-${timestamp}.json`;
+
+  // Trigger browser download. Uses _internals indirection so tests can spy
+  // via vi.spyOn(_internals, '_triggerBlobDownload') in ESM environments.
+  _internals._triggerBlobDownload(blob, filename);
+
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeDangerZoneAudit('tenant.export', tenantId, 'write'));
+  emitHostEvent('tenant:exported', { tenant_id: tenantId });
+}
+
+/**
+ * Delete the tenant and cascade-delete all tenant-scoped records.
+ *
+ * Uses atomic setState to remove the tenant + all entities whose tenant_id
+ * matches the given tenantId. Returns a promise so the caller can navigate
+ * away after deletion.
+ */
+export async function deleteTenant(tenantId: ID): Promise<void> {
+  await simulateLatency('mutation');
+
+  // Emit audit + host event BEFORE deleting (so the entry is captured).
+  const preState = useMockStore.getState();
+  preState.appendAudit(makeDangerZoneAudit('tenant.delete', tenantId));
+  emitHostEvent('tenant:deleted', { tenant_id: tenantId });
+
+  // Atomic cascade delete.
+  useMockStore.setState((s) => {
+    // Helper to filter a Record<ID, T> by tenant_id field.
+    function filterOut<T extends { readonly tenant_id: ID }>(
+      map: Record<ID, T>,
+    ): Record<ID, T> {
+      const next: Record<ID, T> = {};
+      for (const [k, v] of Object.entries(map)) {
+        if (v.tenant_id !== tenantId) next[k] = v;
+      }
+      return next;
+    }
+
+    // Memberships for this tenant — collect user IDs to check orphan cleanup.
+    const membershipEntries = Object.values(s.memberships).filter(
+      (m) => m.tenant_id === tenantId,
+    );
+    const membershipIds = new Set(membershipEntries.map((m) => m.id));
+
+    const nextMemberships: Record<ID, (typeof s.memberships)[string]> = {};
+    for (const [k, v] of Object.entries(s.memberships)) {
+      if (!membershipIds.has(k)) nextMemberships[k] = v;
+    }
+
+    // Roles scoped to this tenant.
+    const nextRoles: Record<ID, (typeof s.roles)[string]> = {};
+    for (const [k, v] of Object.entries(s.roles)) {
+      if (v.tenant_id !== tenantId) nextRoles[k] = v;
+    }
+
+    // Notifications: tenant_id can be null (cross-tenant broadcasts).
+    const nextNotifications: Record<ID, (typeof s.notifications)[string]> = {};
+    for (const [k, v] of Object.entries(s.notifications)) {
+      if (v.tenant_id !== tenantId) nextNotifications[k] = v;
+    }
+
+    // Per-tenant singleton records keyed by tenantId.
+    const nextNetworkConfigs = { ...s.networkConfigs };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextNetworkConfigs[tenantId];
+    const nextTenantAuthPolicies = { ...s.tenantAuthPolicies };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextTenantAuthPolicies[tenantId];
+    const nextTlsConfigs = { ...s.tlsConfigs };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextTlsConfigs[tenantId];
+    const nextObservabilityConfigs = { ...s.observabilityConfigs };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextObservabilityConfigs[tenantId];
+    const nextAuditRetentionConfigs = { ...s.auditRetentionConfigs };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextAuditRetentionConfigs[tenantId];
+
+    // Remove the tenant itself.
+    const nextTenants = { ...s.tenants };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextTenants[tenantId];
+
+    // If the deleted tenant is the current tenant, clear the context.
+    const nextCurrentTenantId =
+      s.currentTenantId === tenantId ? null : s.currentTenantId;
+
+    return {
+      tenants: nextTenants,
+      memberships: nextMemberships,
+      roles: nextRoles,
+      services: filterOut(s.services),
+      // Routes are keyed by service_id, not tenant_id directly. Cascade-remove
+      // routes whose parent service belongs to this tenant.
+      routes: (() => {
+        const nextRoutes: Record<ID, (typeof s.routes)[string]> = {};
+        for (const [k, v] of Object.entries(s.routes)) {
+          const svc = s.services[v.service_id];
+          if (svc?.tenant_id !== tenantId) nextRoutes[k] = v;
+        }
+        return nextRoutes;
+      })(),
+      middlewares: filterOut(s.middlewares),
+      sites: filterOut(s.sites),
+      apiKeys: filterOut(s.apiKeys),
+      sessions: filterOut(s.sessions),
+      certAuthorities: filterOut(s.certAuthorities),
+      certEnrollments: filterOut(s.certEnrollments),
+      tlsCertificates: filterOut(s.tlsCertificates),
+      observabilityConfigs: nextObservabilityConfigs,
+      webhookEndpoints: filterOut(s.webhookEndpoints),
+      dashboards: filterOut(s.dashboards),
+      aiProviders: filterOut(s.aiProviders),
+      aiAgents: filterOut(s.aiAgents),
+      aiTools: filterOut(s.aiTools),
+      mcpServers: filterOut(s.mcpServers),
+      notificationChannels: filterOut(s.notificationChannels),
+      notifications: nextNotifications,
+      networkConfigs: nextNetworkConfigs,
+      tenantAuthPolicies: nextTenantAuthPolicies,
+      tlsConfigs: nextTlsConfigs,
+      auditRetentionConfigs: nextAuditRetentionConfigs,
+      currentTenantId: nextCurrentTenantId,
+    };
+  });
 }

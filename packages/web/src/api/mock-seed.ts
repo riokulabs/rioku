@@ -518,6 +518,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8c.11 — Integrations (admin: read + write).
     { permission: 'integrations:read' },
     { permission: 'integrations:write' },
+    // Plan 8c.13 — Danger zone (admin: hard-reset + export; delete is super-admin only).
+    { permission: 'tenant:hard-reset' },
+    { permission: 'tenant:export' },
+    // tenant:delete is super-admin only (same placement as user:impersonate above).
+    { permission: 'tenant:delete' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
