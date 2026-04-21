@@ -65,3 +65,26 @@
   --mantine-color-red-filled: var(--mantine-color-red-8);
   --mantine-color-red-filled-hover: var(--mantine-color-red-9);
 }
+
+/**
+ * API Explorer — scrollbar leak defence.
+ *
+ * Scalar's style.css writes global scrollbar styles onto <body> / *.  When the
+ * explorer is NOT mounted (the `:has` selector finds no [data-testid] node in
+ * the tree), we hard-reset those properties so the browser reverts to its
+ * default rendering.  The useEffect cleanup in explorer.tsx already removes the
+ * inline styles on unmount; this CSS rule is a belt-and-suspenders fallback for
+ * any Scalar rules that land in a stylesheet rather than as inline styles.
+ */
+body:not(:has([data-testid='api-explorer'])) {
+  scrollbar-color: initial;
+  scrollbar-width: initial;
+}
+
+body:not(:has([data-testid='api-explorer'])) *::-webkit-scrollbar-thumb {
+  background-color: initial;
+}
+
+body:not(:has([data-testid='api-explorer'])) *::-webkit-scrollbar-track {
+  background-color: initial;
+}
