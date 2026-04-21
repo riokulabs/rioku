@@ -144,3 +144,45 @@ export const tlsUploadSchema = z.object({
 });
 
 export type TlsUploadValues = z.infer<typeof tlsUploadSchema>;
+
+// ─── Observability — Metrics config ──────────────────────────────────────────
+
+export const metricsConfigSchema = z.object({
+  scrape_endpoint: z.string().min(1).max(200).refine((v) => v.startsWith('/'), {
+    message: 'Must start with /',
+  }),
+  scrape_auth: z.enum(['none', 'bearer', 'mtls']),
+  retention_days: z.number().int().min(0).max(3650),
+});
+
+export type MetricsConfigValues = z.infer<typeof metricsConfigSchema>;
+
+// ─── Observability — Logs config ──────────────────────────────────────────────
+
+const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
+
+export const logsConfigSchema = z.object({
+  levels: z.object({
+    daemon: logLevelSchema,
+    caddy: logLevelSchema,
+    plugin: logLevelSchema,
+  }),
+  format: z.enum(['json', 'text']),
+  rotation: z.object({
+    max_size_mb: z.number().int().min(1).max(1024),
+    max_backups: z.number().int().min(0).max(100),
+    max_age_days: z.number().int().min(0).max(365),
+    compress: z.boolean(),
+  }),
+});
+
+export type LogsConfigValues = z.infer<typeof logsConfigSchema>;
+
+// ─── Observability — Traces config ───────────────────────────────────────────
+
+export const tracesConfigSchema = z.object({
+  retention_days: z.number().int().min(0).max(365),
+  sample_rate: z.number().min(0).max(1),
+});
+
+export type TracesConfigValues = z.infer<typeof tracesConfigSchema>;

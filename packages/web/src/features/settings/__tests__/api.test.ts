@@ -8,12 +8,13 @@
  * Task 8a.3 — Tenant section (name, url_mode, default_theme, logo).
  * Task 8a.4 — Authentication section (tenant auth policy).
  * Task 8b.8 — TLS section.
+ * Task 8b.9 — Observability section.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers, updateObservabilityMetrics, updateObservabilityLogs, updateObservabilityTraces } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -878,5 +879,155 @@ describe('updateTlsCiphers', () => {
 
     expect(hostEvents.filter((t) => t === 'tls:config-updated').length).toBe(1);
     mockBus.removeEventListener('tls:config-updated', listener);
+  });
+});
+
+// ─── Observability API tests ──────────────────────────────────────────────────
+
+function getAcmeTenantIdObs(): string {
+  const state = useMockStore.getState();
+  const tenant = Object.values(state.tenants).find((t) => t.slug === 'acme');
+  if (!tenant) throw new Error('Acme tenant not found in seed data');
+  return tenant.id;
+}
+
+describe('updateObservabilityMetrics', () => {
+  it('updates metrics config in store', async () => {
+    const tenantId = getAcmeTenantIdObs();
+
+    await updateObservabilityMetrics(tenantId, {
+      scrape_endpoint: '/custom-metrics',
+      scrape_auth: 'none',
+      retention_days: 60,
+    });
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.metrics.scrape_endpoint).toBe('/custom-metrics');
+    expect(config?.metrics.scrape_auth).toBe('none');
+    expect(config?.metrics.retention_days).toBe(60);
+  });
+
+  it('emits tenant.observability.update_metrics audit entry', async () => {
+    const tenantId = getAcmeTenantIdObs();
+
+    await updateObservabilityMetrics(tenantId, {
+      scrape_endpoint: '/metrics',
+      scrape_auth: 'bearer',
+      retention_days: 30,
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tenant.observability.update_metrics');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tenant:observability-updated host event', async () => {
+    const tenantId = getAcmeTenantIdObs();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('tenant:observability-updated', listener);
+
+    await updateObservabilityMetrics(tenantId, {
+      scrape_endpoint: '/metrics',
+      scrape_auth: 'mtls',
+      retention_days: 30,
+    });
+
+    expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'metrics').length).toBe(1);
+    mockBus.removeEventListener('tenant:observability-updated', listener);
+  });
+});
+
+describe('updateObservabilityLogs', () => {
+  it('updates logs config in store', async () => {
+    const tenantId = getAcmeTenantIdObs();
+
+    await updateObservabilityLogs(tenantId, {
+      levels: { daemon: 'debug', caddy: 'warn', plugin: 'error' },
+      format: 'text',
+      rotation: { max_size_mb: 50, max_backups: 3, max_age_days: 7, compress: false },
+    });
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.logs.levels.daemon).toBe('debug');
+    expect(config?.logs.format).toBe('text');
+    expect(config?.logs.rotation.max_size_mb).toBe(50);
+    expect(config?.logs.rotation.compress).toBe(false);
+  });
+
+  it('emits tenant.observability.update_logs audit entry', async () => {
+    const tenantId = getAcmeTenantIdObs();
+
+    await updateObservabilityLogs(tenantId, {
+      levels: { daemon: 'info', caddy: 'info', plugin: 'info' },
+      format: 'json',
+      rotation: { max_size_mb: 100, max_backups: 5, max_age_days: 30, compress: true },
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tenant.observability.update_logs');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tenant:observability-updated host event with subsystem=logs', async () => {
+    const tenantId = getAcmeTenantIdObs();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('tenant:observability-updated', listener);
+
+    await updateObservabilityLogs(tenantId, {
+      levels: { daemon: 'info', caddy: 'info', plugin: 'warn' },
+      format: 'json',
+      rotation: { max_size_mb: 100, max_backups: 5, max_age_days: 30, compress: true },
+    });
+
+    expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'logs').length).toBe(1);
+    mockBus.removeEventListener('tenant:observability-updated', listener);
+  });
+});
+
+describe('updateObservabilityTraces', () => {
+  it('updates traces config in store', async () => {
+    const tenantId = getAcmeTenantIdObs();
+
+    await updateObservabilityTraces(tenantId, {
+      retention_days: 30,
+      sample_rate: 0.5,
+    });
+
+    const config = useMockStore.getState().observabilityConfigs[tenantId];
+    expect(config?.traces.retention_days).toBe(30);
+    expect(config?.traces.sample_rate).toBe(0.5);
+  });
+
+  it('emits tenant.observability.update_traces audit entry', async () => {
+    const tenantId = getAcmeTenantIdObs();
+
+    await updateObservabilityTraces(tenantId, {
+      retention_days: 7,
+      sample_rate: 0.1,
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tenant.observability.update_traces');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tenant:observability-updated host event with subsystem=traces', async () => {
+    const tenantId = getAcmeTenantIdObs();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('tenant:observability-updated', listener);
+
+    await updateObservabilityTraces(tenantId, {
+      retention_days: 14,
+      sample_rate: 1.0,
+    });
+
+    expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'traces').length).toBe(1);
+    mockBus.removeEventListener('tenant:observability-updated', listener);
   });
 });

@@ -810,6 +810,46 @@ export interface TlsCertificate {
 }
 
 /**
+ * Per-tenant observability configuration. Covers metrics, logs, and traces.
+ * Audit retention is stored separately in AuditRetentionConfig (Plan 5).
+ */
+export interface ObservabilityConfig {
+  readonly tenant_id: ID;
+  metrics: {
+    /** Prometheus scrape endpoint path (e.g. '/metrics'). */
+    scrape_endpoint: string;
+    /** Scrape-side auth mode. */
+    scrape_auth: 'none' | 'bearer' | 'mtls';
+    /** Days of metric retention. */
+    retention_days: number;
+  };
+  logs: {
+    /** Log level per component (daemon / caddy / plugin). */
+    levels: {
+      daemon: LogLevel;
+      caddy: LogLevel;
+      plugin: LogLevel;
+    };
+    /** 'json' = structured, 'text' = plain. */
+    format: 'json' | 'text';
+    rotation: {
+      max_size_mb: number;      // 1..1024
+      max_backups: number;      // 0..100
+      max_age_days: number;     // 0..365 (0 = disabled)
+      compress: boolean;
+    };
+  };
+  traces: {
+    retention_days: number;    // 0..365 (0 = disabled)
+    /** Sample rate 0.0 - 1.0; 1.0 = every trace. */
+    sample_rate: number;
+  };
+  readonly updated_at: string;
+}
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
  * Per-tenant ACME + TLS configuration.
  */
 export interface TlsConfig {

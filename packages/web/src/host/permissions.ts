@@ -50,6 +50,9 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'network:',
   'pki:',
   'tls:',
+  'metrics:',
+  'logs:',
+  'traces:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -635,6 +638,48 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'tls:write',
     description: 'Manage TLS certificates, ACME config, and cipher suites',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // metrics:* (Plan 8b.9 — Prometheus scrape endpoint config)
+  {
+    key: 'metrics:read',
+    description: 'View metrics scrape config',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'metrics:write',
+    description: 'Update metrics scrape config',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // logs:* (Plan 8b.9 — log levels and rotation config)
+  {
+    key: 'logs:read',
+    description: 'View log levels and rotation config',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'logs:write',
+    description: 'Update log levels and rotation config',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // traces:* (Plan 8b.9 — trace retention and sampling config)
+  {
+    key: 'traces:read',
+    description: 'View trace retention and sampling config',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'traces:write',
+    description: 'Update trace retention and sampling config',
     source: 'built-in',
     default_roles: ['admin'],
   },

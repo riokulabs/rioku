@@ -56,6 +56,7 @@ function makeFreshStore() {
     certEnrollments: {},
     tlsCertificates: {},
     tlsConfigs: {},
+    observabilityConfigs: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -129,6 +130,7 @@ function makeFreshStore() {
         certEnrollments: {},
         tlsCertificates: {},
         tlsConfigs: {},
+        observabilityConfigs: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
@@ -213,6 +215,29 @@ function makeFreshStore() {
           tlsConfigs: {
             ...state.tlsConfigs,
             [tenantId]: { ...current, ...patch },
+          },
+        };
+      });
+    },
+    updateObservabilityConfig(tenantId, patch) {
+      set((state) => {
+        const current = state.observabilityConfigs[tenantId];
+        if (!current) return state;
+        const nextMetrics = patch.metrics != null ? { ...current.metrics, ...patch.metrics } : current.metrics;
+        const nextLogs = patch.logs != null
+          ? { ...current.logs, ...patch.logs, levels: { ...current.logs.levels, ...patch.logs.levels }, rotation: { ...current.logs.rotation, ...patch.logs.rotation } }
+          : current.logs;
+        const nextTraces = patch.traces != null ? { ...current.traces, ...patch.traces } : current.traces;
+        return {
+          observabilityConfigs: {
+            ...state.observabilityConfigs,
+            [tenantId]: {
+              ...current,
+              metrics: nextMetrics,
+              logs: nextLogs,
+              traces: nextTraces,
+              updated_at: new Date().toISOString(),
+            },
           },
         };
       });
@@ -392,6 +417,33 @@ describe('mock-store seed integrity', () => {
       expect(tlsConfigs[tid]).toBeDefined();
     }
     expect(Object.keys(tlsConfigs)).toHaveLength(tenantIds.length);
+  });
+
+  // ── Observability seed integrity ───────────────────────────────────────────
+
+  it('seeds one ObservabilityConfig per tenant', () => {
+    const { observabilityConfigs, tenants } = store.getState();
+    const tenantIds = Object.keys(tenants);
+    for (const tid of tenantIds) {
+      expect(observabilityConfigs[tid]).toBeDefined();
+    }
+    expect(Object.keys(observabilityConfigs)).toHaveLength(tenantIds.length);
+  });
+
+  it('every ObservabilityConfig has valid sane defaults', () => {
+    const { observabilityConfigs } = store.getState();
+    for (const config of Object.values(observabilityConfigs)) {
+      expect(config.metrics.scrape_endpoint).toBe('/metrics');
+      expect(config.metrics.scrape_auth).toBe('bearer');
+      expect(config.metrics.retention_days).toBe(30);
+      expect(config.logs.levels.daemon).toBe('info');
+      expect(config.logs.levels.caddy).toBe('info');
+      expect(config.logs.levels.plugin).toBe('warn');
+      expect(config.logs.format).toBe('json');
+      expect(config.logs.rotation.compress).toBe(true);
+      expect(config.traces.retention_days).toBe(7);
+      expect(config.traces.sample_rate).toBe(0.1);
+    }
   });
 
   // ── Relational integrity ───────────────────────────────────────────────────

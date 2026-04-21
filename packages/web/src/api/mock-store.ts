@@ -52,6 +52,9 @@ interface MockStoreState {
   tlsCertificates: Record<T.ID, T.TlsCertificate>;
   tlsConfigs: Record<T.ID, T.TlsConfig>;
 
+  // Observability — per-tenant config
+  observabilityConfigs: Record<T.ID, T.ObservabilityConfig>;
+
   // Sites
   sites: Record<T.ID, T.Site>;
 
@@ -215,6 +218,13 @@ interface MockStoreActions {
   updateTlsConfig(tenantId: T.ID, patch: Partial<Omit<T.TlsConfig, 'tenant_id'>>): void;
 
   /**
+   * Deep-merge a patch into an ObservabilityConfig.
+   * Sub-objects (metrics, logs, traces) are shallow-merged individually.
+   * No-ops silently if no config exists for the tenant.
+   */
+  updateObservabilityConfig(tenantId: T.ID, patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -269,6 +279,7 @@ function emptyState(): MockStoreState {
     certEnrollments: {},
     tlsCertificates: {},
     tlsConfigs: {},
+    observabilityConfigs: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -435,6 +446,30 @@ const storeInitializer = (
     });
   },
 
+  updateObservabilityConfig(tenantId: T.ID, patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>) {
+    set((state) => {
+      const current = state.observabilityConfigs[tenantId];
+      if (!current) return state;
+      const nextMetrics = patch.metrics != null ? { ...current.metrics, ...patch.metrics } : current.metrics;
+      const nextLogs = patch.logs != null
+        ? { ...current.logs, ...patch.logs, levels: { ...current.logs.levels, ...patch.logs.levels }, rotation: { ...current.logs.rotation, ...patch.logs.rotation } }
+        : current.logs;
+      const nextTraces = patch.traces != null ? { ...current.traces, ...patch.traces } : current.traces;
+      return {
+        observabilityConfigs: {
+          ...state.observabilityConfigs,
+          [tenantId]: {
+            ...current,
+            metrics: nextMetrics,
+            logs: nextLogs,
+            traces: nextTraces,
+            updated_at: new Date().toISOString(),
+          },
+        },
+      };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -445,7 +480,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 12,
+        version: 13,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -540,6 +575,11 @@ export const useMockStore = IS_VITEST
           if (version < 12) {
             state.tlsCertificates = {};
             state.tlsConfigs = {};
+          }
+          // Version 13 — Plan 8b.9 adds observabilityConfigs map.
+          // Additive; persisted stores from v12 simply get an empty map.
+          if (version < 13) {
+            state.observabilityConfigs = {};
           }
           return state as unknown as MockStore;
         },

@@ -41,6 +41,7 @@ import { AuthenticationSection } from '../sections/authentication';
 import { NetworkSection } from '../sections/network';
 import { PkiSection } from '../sections/pki';
 import { TlsSection } from '../sections/tls';
+import { ObservabilitySection } from '../sections/observability';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -160,6 +161,8 @@ export function SettingsLayout() {
                 <PkiSection />
               ) : activeSection.slug === 'tls' ? (
                 <TlsSection />
+              ) : activeSection.slug === 'observability' ? (
+                <ObservabilitySection />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

@@ -12,14 +12,15 @@
  * Task 8a.3 — Tenant section.
  * Task 8b.7 — PKI section.
  * Task 8b.8 — TLS section.
+ * Task 8b.9 — Observability section.
  */
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User } from '@/api/resources/types';
-import type { CreateCaValues, CreateEnrollmentValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues } from './schemas';
+import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User } from '@/api/resources/types';
+import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues } from './schemas';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ const nextAuthPolicyAuditId = makeIdFactory('audit-auth-policy');
 const nextNetworkConfigAuditId = makeIdFactory('audit-network-config');
 const nextPkiAuditId = makeIdFactory('audit-pki');
 const nextTlsAuditId = makeIdFactory('audit-tls');
+const nextObservabilityAuditId = makeIdFactory('audit-observability');
 const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
 const nextTlsCertId = makeIdFactory('tlscert');
@@ -677,4 +679,78 @@ export async function updateTlsCiphers(
   const updatedState = useMockStore.getState();
   updatedState.appendAudit(makeTlsAudit('tls.ciphers.update', tenantId, tenantId));
   emitHostEvent('tls:config-updated', { tenant_id: tenantId });
+}
+
+// ─── Observability selectors ──────────────────────────────────────────────────
+
+/**
+ * Returns the observability config for the current tenant, or undefined if not found.
+ * Uses stable Zustand selector.
+ */
+export function useCurrentObservabilityConfig(): ObservabilityConfig | undefined {
+  return useMockStore((s) =>
+    s.currentTenantId ? s.observabilityConfigs[s.currentTenantId] : undefined,
+  );
+}
+
+// ─── Observability audit helper ───────────────────────────────────────────────
+
+function makeObservabilityAudit(
+  action: string,
+  tenantId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextObservabilityAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── Observability mutations ──────────────────────────────────────────────────
+
+/** Update metrics config for a tenant and emit audit + host event. */
+export async function updateObservabilityMetrics(
+  tenantId: ID,
+  patch: MetricsConfigValues,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateObservabilityConfig(tenantId, { metrics: patch });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeObservabilityAudit('tenant.observability.update_metrics', tenantId));
+  emitHostEvent('tenant:observability-updated', { tenant_id: tenantId, subsystem: 'metrics' });
+}
+
+/** Update logs config for a tenant and emit audit + host event. */
+export async function updateObservabilityLogs(
+  tenantId: ID,
+  patch: LogsConfigValues,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateObservabilityConfig(tenantId, { logs: patch });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeObservabilityAudit('tenant.observability.update_logs', tenantId));
+  emitHostEvent('tenant:observability-updated', { tenant_id: tenantId, subsystem: 'logs' });
+}
+
+/** Update traces config for a tenant and emit audit + host event. */
+export async function updateObservabilityTraces(
+  tenantId: ID,
+  patch: TracesConfigValues,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateObservabilityConfig(tenantId, { traces: patch });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeObservabilityAudit('tenant.observability.update_traces', tenantId));
+  emitHostEvent('tenant:observability-updated', { tenant_id: tenantId, subsystem: 'traces' });
 }

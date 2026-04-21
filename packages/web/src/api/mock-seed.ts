@@ -506,6 +506,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8b.8 — TLS (admin: read + write).
     { permission: 'tls:read' },
     { permission: 'tls:write' },
+    // Plan 8b.9 — Observability (admin: read + write for all 3 subsystems).
+    { permission: 'metrics:read' },
+    { permission: 'metrics:write' },
+    { permission: 'logs:read' },
+    { permission: 'logs:write' },
+    { permission: 'traces:read' },
+    { permission: 'traces:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -556,6 +563,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'pki:read' },
     // Plan 8b.8 — TLS (ops: read-only).
     { permission: 'tls:read' },
+    // Plan 8b.9 — Observability (ops: read-only for all 3 subsystems).
+    { permission: 'metrics:read' },
+    { permission: 'logs:read' },
+    { permission: 'traces:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -602,6 +613,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'pki:read' },
     // Plan 8b.8 — TLS (viewer: read-only).
     { permission: 'tls:read' },
+    // Plan 8b.9 — Observability (viewer: read-only for all 3 subsystems).
+    { permission: 'metrics:read' },
+    { permission: 'logs:read' },
+    { permission: 'traces:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -1278,6 +1293,42 @@ export function seedStore(store: StoreApi<MockStore>): void {
   }
 
   store.setState({ tlsCertificates, tlsConfigs });
+
+  // ── Observability configs (1 per tenant) ──────────────────────────────────
+
+  const observabilityConfigs: Record<T.ID, T.ObservabilityConfig> = {};
+
+  for (const tid of allTenantIds) {
+    observabilityConfigs[tid] = {
+      tenant_id: tid,
+      metrics: {
+        scrape_endpoint: '/metrics',
+        scrape_auth: 'bearer',
+        retention_days: 30,
+      },
+      logs: {
+        levels: {
+          daemon: 'info',
+          caddy: 'info',
+          plugin: 'warn',
+        },
+        format: 'json',
+        rotation: {
+          max_size_mb: 100,
+          max_backups: 5,
+          max_age_days: 30,
+          compress: true,
+        },
+      },
+      traces: {
+        retention_days: 7,
+        sample_rate: 0.1,
+      },
+      updated_at: daysAgo(1),
+    };
+  }
+
+  store.setState({ observabilityConfigs });
 
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 
