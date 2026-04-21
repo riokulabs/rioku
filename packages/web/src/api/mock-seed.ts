@@ -18,6 +18,7 @@ import {
   BUILT_IN_PERMISSIONS,
   registerPermission,
 } from '../host/permissions';
+import { DEFAULT_TLS_CIPHERS } from '../features/settings/tls-constants';
 import type { StoreApi } from 'zustand';
 import type * as T from './resources/types';
 import type { MockStore } from './mock-store';
@@ -1184,18 +1185,6 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   // ── TLS: Certificates + per-tenant configs ────────────────────────────────
 
-  const DEFAULT_CIPHERS = [
-    'TLS_AES_128_GCM_SHA256',
-    'TLS_AES_256_GCM_SHA384',
-    'TLS_CHACHA20_POLY1305_SHA256',
-    'ECDHE-ECDSA-AES128-GCM-SHA256',
-    'ECDHE-RSA-AES128-GCM-SHA256',
-    'ECDHE-ECDSA-AES256-GCM-SHA384',
-    'ECDHE-RSA-AES256-GCM-SHA384',
-    'ECDHE-ECDSA-CHACHA20-POLY1305',
-    'ECDHE-RSA-CHACHA20-POLY1305',
-  ];
-
   // Deterministic 64-char hex for TLS mock fingerprints (same pattern as pkiFp)
   function tlsFp(seed: string): string {
     let h = '';
@@ -1283,7 +1272,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
         email: `admin@${tenant.slug}.example`,
         dns_challenge: false,
       },
-      allowed_ciphers: [...DEFAULT_CIPHERS],
+      allowed_ciphers: [...DEFAULT_TLS_CIPHERS],
       updated_at: daysAgo(5),
     };
   }

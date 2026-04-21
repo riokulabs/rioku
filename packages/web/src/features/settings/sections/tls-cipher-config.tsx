@@ -17,6 +17,7 @@ import { IconLock } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { useCurrentTlsConfig, updateTlsCiphers } from '../api';
 import { tlsCiphersSchema } from '../schemas';
+import { ALL_TLS_CIPHERS } from '../tls-constants';
 import type { TlsCiphersValues } from '../schemas';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -25,23 +26,6 @@ interface TlsCipherConfigProps {
   tenantId: string;
   canWrite: boolean;
 }
-
-// ─── Available cipher list ────────────────────────────────────────────────────
-
-export const ALL_CIPHERS = [
-  'TLS_AES_128_GCM_SHA256',
-  'TLS_AES_256_GCM_SHA384',
-  'TLS_CHACHA20_POLY1305_SHA256',
-  'ECDHE-ECDSA-AES128-GCM-SHA256',
-  'ECDHE-RSA-AES128-GCM-SHA256',
-  'ECDHE-ECDSA-AES256-GCM-SHA384',
-  'ECDHE-RSA-AES256-GCM-SHA384',
-  'ECDHE-ECDSA-CHACHA20-POLY1305',
-  'ECDHE-RSA-CHACHA20-POLY1305',
-  // Additional legacy-compatible options (TLS 1.2)
-  'ECDHE-RSA-AES128-SHA256',
-  'ECDHE-RSA-AES256-SHA384',
-];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -87,7 +71,7 @@ export function TlsCipherConfig({ tenantId, canWrite }: TlsCipherConfigProps) {
           <MultiSelect
             label="Allowed cipher suites"
             description="TLS 1.2 and 1.3 cipher suites that Caddy will accept. At least one is required."
-            data={ALL_CIPHERS}
+            data={[...ALL_TLS_CIPHERS]}
             searchable
             clearable
             required

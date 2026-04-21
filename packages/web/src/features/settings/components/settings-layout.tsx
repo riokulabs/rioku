@@ -125,7 +125,7 @@ export function SettingsLayout() {
         }}
         p="sm"
       >
-        <Text size="xs" c="dimmed" tt="uppercase" fw={600} px="xs" pt="xs" pb="xs">
+        <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600} px="xs" pt="xs" pb="xs">
           Settings
         </Text>
         <Stack gap={2}>

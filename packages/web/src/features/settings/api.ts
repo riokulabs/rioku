@@ -589,18 +589,23 @@ export async function addTlsCertificate(
   values: TlsUploadValues,
 ): Promise<TlsCertificate> {
   await simulateLatency('mutation');
+  // Destructure key_pem explicitly so it can never be accidentally spread into
+  // the cert object. A future dev adding `...values` would immediately see the
+  // unused variable and know the key must stay out of the store.
+  const { domain, certificate_pem, key_pem: _keyPem } = values;
+  void _keyPem; // key PEM is never persisted — private keys must not reach the store
   const id = nextTlsCertId();
   const cert: TlsCertificate = {
     id,
     tenant_id: tenantId,
-    domain: values.domain,
+    domain,
     issuer: 'Manual',
     source: 'manual',
     issued_at: now(),
     expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     auto_renew: false,
-    certificate_pem: values.certificate_pem,
-    // key_pem from values is NOT stored — private keys must never be persisted.
+    certificate_pem,
+    // key_pem is never stored — private keys must not reach the store.
     fingerprint_sha256: Array.from({ length: 64 }, (_, i) =>
       (((id.charCodeAt(i % id.length) + i * 11) % 16)).toString(16),
     ).join(''),

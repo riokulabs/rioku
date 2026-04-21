@@ -92,6 +92,7 @@ interface PemDrawerProps {
 function PemDrawer({ cert, onClose }: PemDrawerProps) {
   if (!cert) return null;
 
+  // duration=0 prevents JSDOM animation hangs in tests
   return (
     <Drawer
       opened
@@ -100,6 +101,7 @@ function PemDrawer({ cert, onClose }: PemDrawerProps) {
       position="right"
       size="lg"
       data-testid="cert-pem-drawer"
+      transitionProps={{ duration: 0 }}
     >
       <Stack gap="md">
         <Stack gap={4}>
