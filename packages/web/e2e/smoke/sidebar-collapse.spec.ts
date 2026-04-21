@@ -2,11 +2,10 @@
  * Sidebar collapse screenshots — verifies the desktop collapse toggle works.
  * Saves screenshots to e2e/screenshots/sidebar-collapse-{open,closed}.png.
  */
-import { join } from 'path';
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-const SCREENSHOTS_DIR = join(new URL('.', import.meta.url).pathname, '../screenshots');
+const SCREENSHOTS_DIR = new URL('../screenshots/', import.meta.url).pathname;
 
 test('sidebar collapse toggle — screenshot open and closed states', async ({
   authedPage: page,
@@ -16,7 +15,7 @@ test('sidebar collapse toggle — screenshot open and closed states', async ({
 
   // Screenshot: expanded (default) state.
   await page.screenshot({
-    path: join(SCREENSHOTS_DIR, 'sidebar-collapse-open.png'),
+    path: `${SCREENSHOTS_DIR}sidebar-collapse-open.png`,
     fullPage: false,
   });
 
@@ -30,7 +29,7 @@ test('sidebar collapse toggle — screenshot open and closed states', async ({
 
   // Screenshot: collapsed state.
   await page.screenshot({
-    path: join(SCREENSHOTS_DIR, 'sidebar-collapse-closed.png'),
+    path: `${SCREENSHOTS_DIR}sidebar-collapse-closed.png`,
     fullPage: false,
   });
 

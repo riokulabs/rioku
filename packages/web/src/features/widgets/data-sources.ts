@@ -375,12 +375,18 @@ const MOCK_SERVICE_EDGES = [
 function mockAdapter(widget: Widget, state: MockStore): unknown {
   const seed = hashCode(widget.id);
 
-  switch (widget.kind) {
-    case 'sparkline':
-      return { points: mockTimePoints(seed, 24) };
+  const query = resolveQuery(widget, widgetVariables(widget, state));
 
-    case 'time-series':
-      return { points: mockTimePoints(seed, 24), series: 'req/s' };
+  switch (widget.kind) {
+    case 'sparkline': {
+      const count = query.limit ?? 20;
+      return { points: mockTimePoints(seed, count) };
+    }
+
+    case 'time-series': {
+      const count = query.limit ?? 24;
+      return { points: mockTimePoints(seed, count), series: 'req/s' };
+    }
 
     case 'stacked-bar': {
       const categories = MOCK_DAYS.map((day, i) => {
@@ -412,7 +418,8 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
     case 'top-n': {
       const zipf = [1247, 891, 612, 432, 287, 198, 143, 97, 64, 41];
-      const items = MOCK_ENDPOINTS.slice(0, 10).map((ep, i) => ({
+      const limit = query.limit ?? 10;
+      const items = MOCK_ENDPOINTS.slice(0, limit).map((ep, i) => ({
         name: ep,
         value: Math.round((zipf[i] ?? 20) * (0.8 + ((seed + i * 127) % 40) / 100)),
       }));
@@ -432,7 +439,6 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
           label: `row-${String(i)}`,
         });
       }
-      const query = resolveQuery(widget, widgetVariables(widget, state));
       const filtered = applyFilters(rows, query.filters);
       return finalShape(widget, filtered, query);
     }
