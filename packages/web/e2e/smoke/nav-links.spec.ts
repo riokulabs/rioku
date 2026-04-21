@@ -6,9 +6,6 @@
  *   2. Assert the URL path contains the expected route segment.
  *   3. Assert the page does NOT render a "Not Found" message.
  *
- * This spec would have caught Issue 2 (Analytics → /t/acme/analytics 404)
- * because clicking the "Analytics" link would have landed on a not-found page.
- *
  * NOTE: Links that require specific permissions for Derrick (super-admin) are
  * included — all routes guarded by requirePermissions should pass because the
  * seeded Derrick user holds superAdminGrants which includes all permissions.
@@ -26,10 +23,9 @@ const NAV_LINKS: { label: string; to: string }[] = [
   // General
   { label: 'Dashboard', to: '/t/acme/dashboard' },
   { label: 'Sites', to: '/t/acme/sites' },
-  { label: 'Analytics', to: '/t/acme/dashboards' },
   { label: 'Notifications', to: '/t/acme/notifications' },
   // Analytics
-  { label: 'Dashboards', to: '/t/acme/dashboards' },
+  { label: 'Insights', to: '/t/acme/dashboards' },
   // AI
   { label: 'Providers', to: '/t/acme/ai/providers' },
   { label: 'Agents', to: '/t/acme/ai/agents' },
@@ -37,6 +33,7 @@ const NAV_LINKS: { label: string; to: string }[] = [
   { label: 'Rate limits', to: '/t/acme/ai/rate-limits' },
   { label: 'Traces', to: '/t/acme/ai/traces' },
   { label: 'MCP servers', to: '/t/acme/ai/mcp-servers' },
+  { label: 'Access policies', to: '/t/acme/security/access-policies' },
   // API management
   { label: 'Services', to: '/t/acme/services' },
   { label: 'Routes', to: '/t/acme/routes' },
@@ -54,14 +51,7 @@ const NAV_LINKS: { label: string; to: string }[] = [
   { label: 'Settings', to: '/t/acme/settings' },
 ];
 
-// Links with labels that appear multiple times in the sidebar (e.g. "Analytics"
-// in General and "Dashboards" in the Analytics group both go to /t/acme/dashboards).
-// We deduplicate by destination so we only navigate once per unique URL.
-const UNIQUE_DESTINATIONS = Array.from(
-  new Map(NAV_LINKS.map((l) => [l.to, l])).values(),
-);
-
-for (const { label, to } of UNIQUE_DESTINATIONS) {
+for (const { label, to } of NAV_LINKS) {
   test(`nav link "${label}" (${to}) does not 404`, async ({ authedPage: page }) => {
     // Navigate directly rather than clicking so we're not dependent on the
     // sidebar rendering correctly in every test (that's covered by sidebar.test.tsx).
@@ -80,15 +70,15 @@ for (const { label, to } of UNIQUE_DESTINATIONS) {
   });
 }
 
-test('sidebar Analytics link navigates to /t/acme/dashboards (not /analytics)', async ({
+test('sidebar Insights link navigates to /t/acme/dashboards', async ({
   authedPage: page,
 }) => {
   await page.goto('/t/acme/dashboard');
 
-  // Find the "Analytics" link in the General group — it should point to /dashboards.
-  const analyticsLink = page.getByRole('link', { name: /^analytics$/i });
-  await expect(analyticsLink).toBeVisible();
-  await analyticsLink.click();
+  // The "Insights" link in the Analytics group should point to /dashboards.
+  const insightsLink = page.getByRole('link', { name: /^insights$/i });
+  await expect(insightsLink).toBeVisible();
+  await insightsLink.click();
 
   await expect(page).toHaveURL(/\/t\/acme\/dashboards/);
   await expect(page.getByText(/not found/i).first()).not.toBeVisible({ timeout: 5000 });

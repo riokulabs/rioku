@@ -9,6 +9,7 @@ import { ImpersonationBanner } from './impersonation-banner';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [navOpened, { toggle: toggleNav, close: closeNav }] = useDisclosure(false);
+  const [navDesktopOpened, { toggle: toggleNavDesktop }] = useDisclosure(true);
 
   return (
     <>
@@ -16,11 +17,20 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <ImpersonationBanner />
       <AppShell
         header={{ height: 56 }}
-        navbar={{ width: 240, breakpoint: 'sm', collapsed: { mobile: !navOpened } }}
+        navbar={{
+          width: 240,
+          breakpoint: 'sm',
+          collapsed: { mobile: !navOpened, desktop: !navDesktopOpened },
+        }}
         padding="md"
       >
         <AppShell.Header>
-          <TopBar navOpened={navOpened} onNavToggle={toggleNav} />
+          <TopBar
+            navOpened={navOpened}
+            onNavToggle={toggleNav}
+            navDesktopOpened={navDesktopOpened}
+            onNavDesktopToggle={toggleNavDesktop}
+          />
         </AppShell.Header>
         <AppShell.Navbar>
           <Sidebar onNavLinkClick={closeNav} />

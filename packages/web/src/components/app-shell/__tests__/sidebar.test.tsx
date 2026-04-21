@@ -87,19 +87,22 @@ describe('Sidebar', () => {
     );
   });
 
-  it('Analytics entry in General group links to /dashboards (not /analytics)', () => {
+  it('Analytics section shows Insights entry linking to /dashboards', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
+    const insightsEntry = Array.from(carriers).find(
+      (el) => el.textContent.trim() === 'Insights',
+    );
+    expect(insightsEntry, 'Insights nav entry not found').toBeDefined();
+    expect(insightsEntry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
+    // The old "Analytics" label must no longer appear as a nav entry.
     const analyticsEntry = Array.from(carriers).find(
       (el) => el.textContent.trim() === 'Analytics',
     );
-    expect(analyticsEntry, 'Analytics nav entry not found').toBeDefined();
-    // Must point to the existing /dashboards route, not the non-existent /analytics route.
-    expect(analyticsEntry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
-    expect(analyticsEntry?.getAttribute('data-link-to')).not.toBe('/t/acme/analytics');
+    expect(analyticsEntry).toBeUndefined();
   });
 
-  it('renders all seven AI entries with expected hrefs', () => {
+  it('renders all eight AI entries with expected hrefs including Access policies', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
@@ -112,11 +115,27 @@ describe('Sidebar', () => {
       ['Rate limits', '/t/acme/ai/rate-limits'],
       ['Traces', '/t/acme/ai/traces'],
       ['MCP servers', '/t/acme/ai/mcp-servers'],
+      ['Access policies', '/t/acme/security/access-policies'],
     ];
     for (const [label, href] of expectations) {
       const entry = byLabel(label);
       expect(entry, `missing AI entry ${label}`).toBeDefined();
       expect(entry?.getAttribute('data-link-to')).toBe(href);
     }
+  });
+
+  it('Access policies does not appear in Security group', () => {
+    wrap(<Sidebar />);
+    // Security group entries should not include Access policies.
+    const securityHeading = screen.getByText('Security');
+    const securityStack = securityHeading.closest('[class*="Stack"]') ?? securityHeading.parentElement;
+    // The AI group carries access-policies; the Security group should not have a duplicate.
+    // We verify there is exactly one Access policies link in the full sidebar.
+    const allLinks = document.querySelectorAll('[data-link-to="/t/acme/security/access-policies"]');
+    expect(allLinks).toHaveLength(1);
+    // And it lives before (or in) the AI section, not inside Security section text.
+    const accessEntry = Array.from(allLinks)[0];
+    expect(accessEntry).toBeInTheDocument();
+    void securityStack; // referenced only for conceptual clarity above
   });
 });

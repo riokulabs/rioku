@@ -3,7 +3,6 @@ import {
   IconDashboard,
   IconWorld,
   IconRobot,
-  IconChartBar,
   IconUsers,
   IconKey,
   IconShield,
@@ -47,14 +46,13 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
       { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
-      { label: 'Analytics', to: '/t/acme/dashboards', icon: IconChartBar },
       { label: 'Notifications', to: '/t/acme/notifications', icon: IconBell },
     ],
   },
   {
     heading: 'Analytics',
     items: [
-      { label: 'Dashboards', to: '/t/acme/dashboards', icon: IconLayoutDashboard },
+      { label: 'Insights', to: '/t/acme/dashboards', icon: IconLayoutDashboard },
     ],
   },
   {
@@ -67,6 +65,12 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Rate limits', to: '/t/acme/ai/rate-limits', icon: IconGauge },
       { label: 'Traces', to: '/t/acme/ai/traces', icon: IconHistory },
       { label: 'MCP servers', to: '/t/acme/ai/mcp-servers', icon: IconServer },
+      // TODO(stage-2): dual view for API-scoped vs AI-scoped access policies
+      {
+        label: 'Access policies',
+        to: '/t/acme/security/access-policies',
+        icon: IconShield,
+      },
     ],
   },
   {
@@ -85,11 +89,6 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Users', to: '/t/acme/security/users', icon: IconUsers },
       { label: 'Roles', to: '/t/acme/security/roles', icon: IconBadge },
       { label: 'API keys', to: '/t/acme/security/api-keys', icon: IconKey },
-      {
-        label: 'Access policies',
-        to: '/t/acme/security/access-policies',
-        icon: IconShield,
-      },
       {
         label: 'RBAC policies',
         to: '/t/acme/security/rbac-policies',
@@ -138,7 +137,11 @@ export function Sidebar({ onNavLinkClick }: SidebarProps) {
                 to={item.to}
                 label={item.label}
                 leftSection={<item.icon size={16} />}
-                active={location.pathname.startsWith(item.to)}
+                active={
+                  item.to === '/t/acme/dashboard'
+                    ? location.pathname === item.to
+                    : location.pathname.startsWith(item.to)
+                }
                 {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
               />
             ))}

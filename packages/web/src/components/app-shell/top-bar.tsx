@@ -35,9 +35,12 @@ interface TopBarProps {
   /** Controls the mobile nav burger state. Omitted on AdminLayout (no burger). */
   navOpened?: boolean;
   onNavToggle?: () => void;
+  /** Controls the desktop sidebar collapse state. */
+  navDesktopOpened?: boolean;
+  onNavDesktopToggle?: () => void;
 }
 
-export function TopBar({ navOpened, onNavToggle }: TopBarProps) {
+export function TopBar({ navOpened, onNavToggle, navDesktopOpened, onNavDesktopToggle }: TopBarProps) {
   const currentUserId = useMockStore((s) => s.currentUserId);
   const unread = useUnreadCount(currentUserId ?? '');
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -57,7 +60,7 @@ export function TopBar({ navOpened, onNavToggle }: TopBarProps) {
 
   return (
     <Flex h={56} px="md" align="center" gap="md">
-      {/* Burger — only rendered when nav toggle is wired (AppLayout, not AdminLayout) */}
+      {/* Mobile burger — only rendered when nav toggle is wired (AppLayout, not AdminLayout) */}
       {onNavToggle !== undefined && (
         <Burger
           opened={navOpened ?? false}
@@ -65,6 +68,17 @@ export function TopBar({ navOpened, onNavToggle }: TopBarProps) {
           hiddenFrom="sm"
           size="sm"
           aria-label={navOpened ? 'Close navigation' : 'Open navigation'}
+        />
+      )}
+      {/* Desktop burger — collapses/expands the sidebar on sm+ viewports */}
+      {onNavDesktopToggle !== undefined && (
+        <Burger
+          opened={navDesktopOpened ?? true}
+          onClick={onNavDesktopToggle}
+          visibleFrom="sm"
+          size="sm"
+          aria-label={navDesktopOpened ? 'Collapse navigation' : 'Expand navigation'}
+          data-testid="topbar-burger-desktop"
         />
       )}
       <Group gap="xs">
