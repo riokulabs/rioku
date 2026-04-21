@@ -53,6 +53,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'metrics:',
   'logs:',
   'traces:',
+  'integrations:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -680,6 +681,20 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'traces:write',
     description: 'Update trace retention and sampling config',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // integrations:* (Plan 8c.11 — external OAuth connectors + inbound webhooks)
+  {
+    key: 'integrations:read',
+    description: 'View external integrations (OAuth connectors, inbound webhooks)',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'integrations:write',
+    description: 'Configure external integrations',
     source: 'built-in',
     default_roles: ['admin'],
   },

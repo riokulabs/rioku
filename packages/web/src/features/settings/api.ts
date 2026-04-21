@@ -13,14 +13,15 @@
  * Task 8b.7 — PKI section.
  * Task 8b.8 — TLS section.
  * Task 8b.9 — Observability section.
+ * Task 8c.11 — Integrations section (webhook endpoints).
  */
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User } from '@/api/resources/types';
-import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues } from './schemas';
+import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User, WebhookEndpoint } from '@/api/resources/types';
+import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues, WebhookEndpointValues } from './schemas';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
@@ -31,9 +32,11 @@ const nextNetworkConfigAuditId = makeIdFactory('audit-network-config');
 const nextPkiAuditId = makeIdFactory('audit-pki');
 const nextTlsAuditId = makeIdFactory('audit-tls');
 const nextObservabilityAuditId = makeIdFactory('audit-observability');
+const nextIntegrationsAuditId = makeIdFactory('audit-integrations');
 const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
 const nextTlsCertId = makeIdFactory('tlscert');
+const nextWebhookId = makeIdFactory('webhook');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -753,4 +756,102 @@ export async function updateObservabilityTraces(
   const updatedState = useMockStore.getState();
   updatedState.appendAudit(makeObservabilityAudit('tenant.observability.update_traces', tenantId));
   emitHostEvent('tenant:observability-updated', { tenant_id: tenantId, subsystem: 'traces' });
+}
+
+// ─── Integrations — Webhook endpoints ────────────────────────────────────────
+
+/**
+ * Returns all webhook endpoints for the current tenant, sorted by name.
+ * Uses stable Zustand selector + useMemo per convention.
+ */
+export function useWebhookEndpoints(): WebhookEndpoint[] {
+  const allEndpoints = useMockStore((s) => s.webhookEndpoints);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(
+    () =>
+      Object.values(allEndpoints)
+        .filter((e) => e.tenant_id === currentTenantId)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [allEndpoints, currentTenantId],
+  );
+}
+
+// ─── Integrations audit helper ────────────────────────────────────────────────
+
+function makeIntegrationsAudit(
+  action: string,
+  tenantId: ID,
+  resourceId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextIntegrationsAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'webhook_endpoint',
+    resource_id: resourceId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+/** Generate a random 32-char hex secret for a webhook endpoint. */
+function generateWebhookSecret(): string {
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Create a new webhook endpoint and emit audit + host event. */
+export async function addWebhookEndpoint(
+  tenantId: ID,
+  values: WebhookEndpointValues,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const id = nextWebhookId();
+  const endpoint: WebhookEndpoint = {
+    id,
+    tenant_id: tenantId,
+    name: values.name,
+    path: values.path,
+    expected_event_types: values.expected_event_types,
+    secret: generateWebhookSecret(),
+    enabled: values.enabled,
+    created_at: now(),
+  };
+  const state = useMockStore.getState();
+  state.addWebhookEndpoint(endpoint);
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeIntegrationsAudit('tenant.webhook.create', tenantId, id));
+  emitHostEvent('integrations:webhook-added', { tenant_id: tenantId, webhook_id: id });
+}
+
+/** Update an existing webhook endpoint and emit audit + host event. */
+export async function updateWebhookEndpoint(
+  id: ID,
+  patch: Partial<WebhookEndpointValues>,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const endpoint = state.webhookEndpoints[id];
+  if (!endpoint) return;
+  state.updateWebhookEndpoint(id, patch);
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeIntegrationsAudit('tenant.webhook.update', endpoint.tenant_id, id));
+  emitHostEvent('integrations:webhook-updated', { tenant_id: endpoint.tenant_id, webhook_id: id });
+}
+
+/** Delete a webhook endpoint and emit audit + host event. */
+export async function deleteWebhookEndpoint(id: ID): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const endpoint = state.webhookEndpoints[id];
+  if (!endpoint) return;
+  state.deleteWebhookEndpoint(id);
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeIntegrationsAudit('tenant.webhook.delete', endpoint.tenant_id, id));
+  emitHostEvent('integrations:webhook-deleted', { tenant_id: endpoint.tenant_id, webhook_id: id });
 }

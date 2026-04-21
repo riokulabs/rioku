@@ -57,6 +57,7 @@ function makeFreshStore() {
     tlsCertificates: {},
     tlsConfigs: {},
     observabilityConfigs: {},
+    webhookEndpoints: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -131,6 +132,7 @@ function makeFreshStore() {
         tlsCertificates: {},
         tlsConfigs: {},
         observabilityConfigs: {},
+        webhookEndpoints: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
@@ -240,6 +242,31 @@ function makeFreshStore() {
             },
           },
         };
+      });
+    },
+    addWebhookEndpoint(endpoint) {
+      set((state) => ({
+        webhookEndpoints: { ...state.webhookEndpoints, [endpoint.id]: endpoint },
+      }));
+    },
+    updateWebhookEndpoint(id, patch) {
+      set((state) => {
+        const current = state.webhookEndpoints[id];
+        if (!current) return state;
+        return {
+          webhookEndpoints: {
+            ...state.webhookEndpoints,
+            [id]: { ...current, ...patch },
+          },
+        };
+      });
+    },
+    deleteWebhookEndpoint(id) {
+      set((state) => {
+        const next = { ...state.webhookEndpoints };
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete next[id];
+        return { webhookEndpoints: next };
       });
     },
   }));
@@ -503,6 +530,28 @@ describe('mock-store seed integrity', () => {
     const userIds = new Set(Object.keys(users));
     for (const n of Object.values(notifications)) {
       expect(userIds.has(n.user_id), `notification ${n.id} → user ${n.user_id}`).toBe(true);
+    }
+  });
+
+  // ── Webhook endpoint seed integrity ───────────────────────────────────────
+
+  it('each tenant has exactly 2 webhook endpoints', () => {
+    const { webhookEndpoints, tenants } = store.getState();
+    const tenantIds = Object.keys(tenants);
+    for (const tid of tenantIds) {
+      const eps = Object.values(webhookEndpoints).filter((e) => e.tenant_id === tid);
+      expect(eps.length).toBe(2);
+    }
+  });
+
+  it('each webhook endpoint has a unique 32-char hex secret', () => {
+    const { webhookEndpoints } = store.getState();
+    const secrets = Object.values(webhookEndpoints).map((e) => e.secret);
+    // All secrets are unique
+    expect(new Set(secrets).size).toBe(secrets.length);
+    // All secrets are 32 lowercase hex chars
+    for (const secret of secrets) {
+      expect(secret).toMatch(/^[0-9a-f]{32}$/);
     }
   });
 

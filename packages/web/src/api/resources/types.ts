@@ -849,6 +849,24 @@ export interface ObservabilityConfig {
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+// ─── Integrations ─────────────────────────────────────────────────────────────
+
+/**
+ * External inbound webhook endpoint. Stage-1 placeholder — real handler
+ * registration happens at stage 2+.
+ */
+export interface WebhookEndpoint {
+  readonly id: ID;
+  readonly tenant_id: ID;
+  name: string;
+  path: string;                      // e.g. "/webhooks/github-events"
+  /** Stage-1 placeholder — static list in UI; not consulted at runtime. */
+  expected_event_types: string[];
+  secret: string;                    // fake random 32-char hex
+  enabled: boolean;
+  readonly created_at: string;
+}
+
 /**
  * Per-tenant ACME + TLS configuration.
  */

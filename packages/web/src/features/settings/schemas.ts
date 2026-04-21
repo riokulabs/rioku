@@ -186,3 +186,14 @@ export const tracesConfigSchema = z.object({
 });
 
 export type TracesConfigValues = z.infer<typeof tracesConfigSchema>;
+
+// ─── Integrations — Webhook endpoint ─────────────────────────────────────────
+
+export const webhookEndpointSchema = z.object({
+  name: z.string().min(1).max(100),
+  path: z.string().refine((v) => v.startsWith('/webhooks/'), { message: 'Must start with /webhooks/' }),
+  expected_event_types: z.array(z.string()).default([]),
+  enabled: z.boolean(),
+});
+
+export type WebhookEndpointValues = z.infer<typeof webhookEndpointSchema>;

@@ -55,6 +55,9 @@ interface MockStoreState {
   // Observability — per-tenant config
   observabilityConfigs: Record<T.ID, T.ObservabilityConfig>;
 
+  // Integrations — inbound webhook endpoints
+  webhookEndpoints: Record<T.ID, T.WebhookEndpoint>;
+
   // Sites
   sites: Record<T.ID, T.Site>;
 
@@ -225,6 +228,22 @@ interface MockStoreActions {
   updateObservabilityConfig(tenantId: T.ID, patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>): void;
 
   /**
+   * Add a new WebhookEndpoint to the store.
+   */
+  addWebhookEndpoint(endpoint: T.WebhookEndpoint): void;
+
+  /**
+   * Apply a partial patch to a WebhookEndpoint.
+   * No-ops silently if the endpoint is not found.
+   */
+  updateWebhookEndpoint(id: T.ID, patch: Partial<Omit<T.WebhookEndpoint, 'id' | 'tenant_id' | 'created_at'>>): void;
+
+  /**
+   * Remove a WebhookEndpoint by ID.
+   */
+  deleteWebhookEndpoint(id: T.ID): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -280,6 +299,7 @@ function emptyState(): MockStoreState {
     tlsCertificates: {},
     tlsConfigs: {},
     observabilityConfigs: {},
+    webhookEndpoints: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -470,6 +490,34 @@ const storeInitializer = (
     });
   },
 
+  addWebhookEndpoint(endpoint: T.WebhookEndpoint) {
+    set((state) => ({
+      webhookEndpoints: { ...state.webhookEndpoints, [endpoint.id]: endpoint },
+    }));
+  },
+
+  updateWebhookEndpoint(id: T.ID, patch: Partial<Omit<T.WebhookEndpoint, 'id' | 'tenant_id' | 'created_at'>>) {
+    set((state) => {
+      const current = state.webhookEndpoints[id];
+      if (!current) return state;
+      return {
+        webhookEndpoints: {
+          ...state.webhookEndpoints,
+          [id]: { ...current, ...patch },
+        },
+      };
+    });
+  },
+
+  deleteWebhookEndpoint(id: T.ID) {
+    set((state) => {
+      const next = { ...state.webhookEndpoints };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[id];
+      return { webhookEndpoints: next };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -480,7 +528,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 13,
+        version: 14,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -580,6 +628,11 @@ export const useMockStore = IS_VITEST
           // Additive; persisted stores from v12 simply get an empty map.
           if (version < 13) {
             state.observabilityConfigs = {};
+          }
+          // Version 14 — Plan 8c.11 adds webhookEndpoints map.
+          // Additive; persisted stores from v13 simply get an empty map.
+          if (version < 14) {
+            state.webhookEndpoints = {};
           }
           return state as unknown as MockStore;
         },

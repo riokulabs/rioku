@@ -59,6 +59,7 @@ const nextImpersonationId = makeIdFactory('imp');
 const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
 const nextTlsCertId = makeIdFactory('tlscert');
+const nextWebhookId = makeIdFactory('webhook');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -513,6 +514,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'logs:write' },
     { permission: 'traces:read' },
     { permission: 'traces:write' },
+    // Plan 8c.11 — Integrations (admin: read + write).
+    { permission: 'integrations:read' },
+    { permission: 'integrations:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -567,6 +571,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'metrics:read' },
     { permission: 'logs:read' },
     { permission: 'traces:read' },
+    // Plan 8c.11 — Integrations (ops: read-only).
+    { permission: 'integrations:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -617,6 +623,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'metrics:read' },
     { permission: 'logs:read' },
     { permission: 'traces:read' },
+    // Plan 8c.11 — Integrations (viewer: read-only).
+    { permission: 'integrations:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -2200,6 +2208,51 @@ export function seedStore(store: StoreApi<MockStore>): void {
     scope: ['read', 'write'],
   };
   addEntity('impersonationSessions', impersonation);
+
+  // ── Webhook endpoints (2 per tenant) ─────────────────────────────────────
+  //
+  // Stage-1 placeholder — real webhook handler registration happens at stage 2+.
+  // Each tenant gets a GitHub events endpoint (enabled) and a Stripe endpoint (disabled).
+
+  /** Deterministic 32-char hex secrets for seed data (not truly random). */
+  const webhookSecrets: Record<string, string> = {
+    [`${acmeTenantId}-gh`]:  'a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    [`${acmeTenantId}-str`]: 'b2c3d4e5f607182930a4b5c6d7e8f901',
+    [`${betaTenantId}-gh`]:  'c3d4e5f6071829304050607080900a0b',
+    [`${betaTenantId}-str`]: 'd4e5f607182930405060708090a0b0c0',
+    [`${gammaTenantId}-gh`]: 'e5f6071829304050607080900a0b0c0d',
+    [`${gammaTenantId}-str`]:'f607182930405060708090a0b0c0d0e0',
+  };
+
+  const webhookEndpoints: Record<T.ID, T.WebhookEndpoint> = {};
+
+  for (const tid of allTenantIds) {
+    const ghId = nextWebhookId();
+    webhookEndpoints[ghId] = {
+      id: ghId,
+      tenant_id: tid,
+      name: 'GitHub events',
+      path: '/webhooks/github',
+      expected_event_types: ['push', 'pull_request'],
+      secret: webhookSecrets[`${tid}-gh`] ?? 'aabbccddeeff00112233445566778899',
+      enabled: true,
+      created_at: daysAgo(30),
+    };
+
+    const strId = nextWebhookId();
+    webhookEndpoints[strId] = {
+      id: strId,
+      tenant_id: tid,
+      name: 'Stripe events',
+      path: '/webhooks/stripe',
+      expected_event_types: ['invoice.paid'],
+      secret: webhookSecrets[`${tid}-str`] ?? '00112233445566778899aabbccddeeff',
+      enabled: false,
+      created_at: daysAgo(15),
+    };
+  }
+
+  store.setState({ webhookEndpoints });
 
   // ── Context — current user / tenant ──────────────────────────────────────
   store.setState({ currentUserId: derrickId, currentTenantId: acmeTenantId });

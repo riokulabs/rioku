@@ -3,6 +3,7 @@
  *
  * Tests mutation functions directly (bypassing Dropzone/UI stubs) to verify
  * store persistence, audit emission, and host event emission.
+ * Task 8c.11 — Webhook endpoint CRUD.
  *
  * Task 8a.2 — Profile section (avatar).
  * Task 8a.3 — Tenant section (name, url_mode, default_theme, logo).
@@ -14,7 +15,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers, updateObservabilityMetrics, updateObservabilityLogs, updateObservabilityTraces } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers, updateObservabilityMetrics, updateObservabilityLogs, updateObservabilityTraces, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -1029,5 +1030,127 @@ describe('updateObservabilityTraces', () => {
 
     expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'traces').length).toBe(1);
     mockBus.removeEventListener('tenant:observability-updated', listener);
+  });
+});
+
+// ─── Webhook endpoint API tests ───────────────────────────────────────────────
+
+function getAcmeTenantIdWebhook(): string {
+  const state = useMockStore.getState();
+  const tenant = Object.values(state.tenants).find((t) => t.slug === 'acme');
+  if (!tenant) throw new Error('Acme tenant not found in seed data');
+  return tenant.id;
+}
+
+describe('addWebhookEndpoint', () => {
+  it('creates a new webhook endpoint in the store with a generated secret', async () => {
+    const tenantId = getAcmeTenantIdWebhook();
+    const beforeCount = Object.keys(useMockStore.getState().webhookEndpoints).length;
+
+    await addWebhookEndpoint(tenantId, {
+      name: 'Test webhook',
+      path: '/webhooks/test',
+      expected_event_types: ['ping', 'push'],
+      enabled: true,
+    });
+
+    const state = useMockStore.getState();
+    expect(Object.keys(state.webhookEndpoints).length).toBe(beforeCount + 1);
+
+    const created = Object.values(state.webhookEndpoints).find(
+      (e) => e.name === 'Test webhook',
+    );
+    expect(created).toBeDefined();
+    expect(created?.path).toBe('/webhooks/test');
+    expect(created?.tenant_id).toBe(tenantId);
+    expect(created?.secret).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it('emits tenant.webhook.create audit entry and integrations:webhook-added host event', async () => {
+    const tenantId = getAcmeTenantIdWebhook();
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('integrations:webhook-added', listener);
+
+    await addWebhookEndpoint(tenantId, {
+      name: 'Audit test webhook',
+      path: '/webhooks/audit-test',
+      expected_event_types: [],
+      enabled: false,
+    });
+
+    const audit = useMockStore.getState().audit;
+    expect(audit.some((a) => a.action === 'tenant.webhook.create')).toBe(true);
+    expect(hostEvents.length).toBeGreaterThan(0);
+
+    mockBus.removeEventListener('integrations:webhook-added', listener);
+  });
+});
+
+describe('updateWebhookEndpoint', () => {
+  it('updates an existing webhook endpoint in the store', async () => {
+    const tenantId = getAcmeTenantIdWebhook();
+    const ep = Object.values(useMockStore.getState().webhookEndpoints).find(
+      (e) => e.tenant_id === tenantId,
+    );
+    if (!ep) throw new Error('No webhook endpoint found for acme');
+
+    await updateWebhookEndpoint(ep.id, { name: 'Renamed webhook', enabled: false });
+
+    const updated = useMockStore.getState().webhookEndpoints[ep.id];
+    expect(updated?.name).toBe('Renamed webhook');
+    expect(updated?.enabled).toBe(false);
+  });
+
+  it('emits tenant.webhook.update audit entry and integrations:webhook-updated host event', async () => {
+    const tenantId = getAcmeTenantIdWebhook();
+    const ep = Object.values(useMockStore.getState().webhookEndpoints).find(
+      (e) => e.tenant_id === tenantId,
+    );
+    if (!ep) throw new Error('No webhook endpoint found for acme');
+
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('integrations:webhook-updated', listener);
+
+    await updateWebhookEndpoint(ep.id, { name: 'Updated for audit' });
+
+    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.update')).toBe(true);
+    expect(hostEvents.length).toBeGreaterThan(0);
+
+    mockBus.removeEventListener('integrations:webhook-updated', listener);
+  });
+});
+
+describe('deleteWebhookEndpoint', () => {
+  it('removes the webhook endpoint from the store', async () => {
+    const tenantId = getAcmeTenantIdWebhook();
+    const ep = Object.values(useMockStore.getState().webhookEndpoints).find(
+      (e) => e.tenant_id === tenantId,
+    );
+    if (!ep) throw new Error('No webhook endpoint found for acme');
+
+    await deleteWebhookEndpoint(ep.id);
+
+    expect(useMockStore.getState().webhookEndpoints[ep.id]).toBeUndefined();
+  });
+
+  it('emits tenant.webhook.delete audit entry and integrations:webhook-deleted host event', async () => {
+    const tenantId = getAcmeTenantIdWebhook();
+    const ep = Object.values(useMockStore.getState().webhookEndpoints).find(
+      (e) => e.tenant_id === tenantId,
+    );
+    if (!ep) throw new Error('No webhook endpoint found for acme');
+
+    const hostEvents: CustomEvent[] = [];
+    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    mockBus.addEventListener('integrations:webhook-deleted', listener);
+
+    await deleteWebhookEndpoint(ep.id);
+
+    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.delete')).toBe(true);
+    expect(hostEvents.length).toBeGreaterThan(0);
+
+    mockBus.removeEventListener('integrations:webhook-deleted', listener);
   });
 });
