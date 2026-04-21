@@ -70,6 +70,7 @@ export function SettingsSearch({
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      if (sections.length === 0) return;
       onFocusedIndexChange(
         focusedIndex < sections.length - 1 ? focusedIndex + 1 : 0,
       );
@@ -77,6 +78,7 @@ export function SettingsSearch({
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
+      if (sections.length === 0) return;
       onFocusedIndexChange(
         focusedIndex > 0 ? focusedIndex - 1 : sections.length - 1,
       );
@@ -104,7 +106,6 @@ export function SettingsSearch({
         value={query}
         onChange={(e) => {
           onChange(e.currentTarget.value);
-          onFocusedIndexChange(0);
         }}
         onKeyDown={handleKeyDown}
         aria-label="Search settings sections"
@@ -128,7 +129,7 @@ export function SettingsSearch({
               label={section.label}
               leftSection={<section.icon size={16} />}
               active={activeSlug === section.slug}
-              data-focused={focusedIndex === idx && query.length > 0 ? true : undefined}
+              data-focused={focusedIndex === idx && query.length > 0 ? 'true' : undefined}
               style={
                 focusedIndex === idx && query.length > 0
                   ? { outline: '2px solid var(--mantine-color-blue-5)', borderRadius: 4 }
