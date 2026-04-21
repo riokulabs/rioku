@@ -1355,138 +1355,55 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   store.setState({ observabilityConfigs });
 
-  // ── Dashboards (5) + Widgets (5–8 each, thematic) + 3 versions each ─────────
-  //
-  // Each dashboard has a curated set of widgets with real titles, appropriate
-  // kinds, and `data_source: 'mock'` so the rich mock adapter generates
-  // kind-specific realistic data (see data-sources.ts mockAdapter).
+  // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 
-  interface WidgetSpec {
-    kind: string;
-    title: string;
-    /** x, y, w, h in 12-column grid units */
-    pos: [number, number, number, number];
-    refresh?: number;
-  }
-
-  const DASHBOARD_SPECS: {
-    name: string;
-    description: string;
-    isDefault: boolean;
-    widgets: WidgetSpec[];
-  }[] = [
-    {
-      name: 'Overview',
-      description: 'High-level traffic and health metrics across all services.',
-      isDefault: true,
-      widgets: [
-        // Row 0: three single-stats + one sparkline
-        { kind: 'single-stat', title: 'Total Requests (24h)',    pos: [0, 0, 3, 2], refresh: 30 },
-        { kind: 'single-stat', title: 'Error Rate',              pos: [3, 0, 3, 2], refresh: 30 },
-        { kind: 'single-stat', title: 'Active Sessions',         pos: [6, 0, 3, 2], refresh: 60 },
-        { kind: 'sparkline',   title: 'Request Rate Trend',      pos: [9, 0, 3, 2], refresh: 30 },
-        // Row 1: time-series (wide) + top-n
-        { kind: 'time-series', title: 'Requests over Time',      pos: [0, 2, 8, 4], refresh: 60 },
-        { kind: 'top-n',       title: 'Top Routes by Traffic',   pos: [8, 2, 4, 4], refresh: 120 },
-        // Row 2: stacked-bar (wide)
-        { kind: 'stacked-bar', title: 'Requests by Service (Daily)', pos: [0, 6, 12, 4], refresh: 300 },
-      ],
-    },
-    {
-      name: 'API Health',
-      description: 'Latency percentiles, uptime, error rates and dependency graph.',
-      isDefault: false,
-      widgets: [
-        // Row 0: stats
-        { kind: 'single-stat', title: 'p95 Latency',             pos: [0, 0, 3, 2], refresh: 30 },
-        { kind: 'single-stat', title: 'Uptime',                  pos: [3, 0, 3, 2], refresh: 60 },
-        { kind: 'single-stat', title: 'Error Rate',              pos: [6, 0, 3, 2], refresh: 30 },
-        { kind: 'sparkline',   title: 'Latency Trend',           pos: [9, 0, 3, 2], refresh: 30 },
-        // Row 1: latency time-series + service map
-        { kind: 'time-series', title: 'Latency (p50 / p95 / p99)', pos: [0, 2, 7, 4], refresh: 60 },
-        { kind: 'service-map', title: 'Service Dependencies',    pos: [7, 2, 5, 4], refresh: 300 },
-        // Row 2: stacked bar + table
-        { kind: 'stacked-bar', title: 'HTTP Status Codes (Daily)', pos: [0, 6, 6, 4], refresh: 120 },
-        { kind: 'table',       title: 'Slowest Endpoints',       pos: [6, 6, 6, 4], refresh: 120 },
-      ],
-    },
-    {
-      name: 'Security',
-      description: 'Failed logins, active threats, audit events and top attack sources.',
-      isDefault: false,
-      widgets: [
-        // Row 0: stats
-        { kind: 'single-stat', title: 'Failed Logins (24h)',     pos: [0, 0, 4, 2], refresh: 60 },
-        { kind: 'single-stat', title: 'Active Threats',          pos: [4, 0, 4, 2], refresh: 60 },
-        { kind: 'sparkline',   title: 'Denied Requests Trend',   pos: [8, 0, 4, 2], refresh: 60 },
-        // Row 1: audit tail + pie
-        { kind: 'audit-tail',  title: 'Recent Security Events',  pos: [0, 2, 7, 5], refresh: 30 },
-        { kind: 'pie',         title: 'Events by Severity',      pos: [7, 2, 5, 5], refresh: 120 },
-        // Row 2: top-n + table
-        { kind: 'top-n',       title: 'Top Sources of Failed Logins', pos: [0, 7, 5, 4], refresh: 120 },
-        { kind: 'table',       title: 'Recent Audit Entries',    pos: [5, 7, 7, 4], refresh: 60 },
-      ],
-    },
-    {
-      name: 'AI Usage',
-      description: 'LLM proxy invocations, token consumption and per-agent breakdowns.',
-      isDefault: false,
-      widgets: [
-        // Row 0: stats
-        { kind: 'single-stat', title: 'Total Invocations',       pos: [0, 0, 3, 2], refresh: 60 },
-        { kind: 'single-stat', title: 'Tokens Used (24h)',       pos: [3, 0, 3, 2], refresh: 60 },
-        { kind: 'single-stat', title: 'Avg Cost per Call',       pos: [6, 0, 3, 2], refresh: 300 },
-        { kind: 'sparkline',   title: 'Token Usage Trend',       pos: [9, 0, 3, 2], refresh: 60 },
-        // Row 1: invocations over time + pie
-        { kind: 'time-series', title: 'Invocations over Time',   pos: [0, 2, 7, 4], refresh: 60 },
-        { kind: 'pie',         title: 'Usage by Provider',       pos: [7, 2, 5, 4], refresh: 300 },
-        // Row 2: stacked bar (token by model) + top-n
-        { kind: 'stacked-bar', title: 'Token Usage by Model (Daily)', pos: [0, 6, 7, 4], refresh: 300 },
-        { kind: 'top-n',       title: 'Most-Used Agents',        pos: [7, 6, 5, 4], refresh: 120 },
-      ],
-    },
-    {
-      name: 'Billing',
-      description: 'Month-to-date spend, projections, and cost breakdown by category.',
-      isDefault: false,
-      widgets: [
-        // Row 0: stats
-        { kind: 'single-stat', title: 'MTD Spend',               pos: [0, 0, 4, 2], refresh: 300 },
-        { kind: 'single-stat', title: 'Projected Monthly',       pos: [4, 0, 4, 2], refresh: 300 },
-        { kind: 'sparkline',   title: 'Daily Spend Trend',       pos: [8, 0, 4, 2], refresh: 300 },
-        // Row 1: daily spend over time + pie
-        { kind: 'time-series', title: 'Daily Spend (30d)',        pos: [0, 2, 7, 4], refresh: 3600 },
-        { kind: 'pie',         title: 'Spend by Category',       pos: [7, 2, 5, 4], refresh: 3600 },
-        // Row 2: top cost drivers + invoice table
-        { kind: 'top-n',       title: 'Top Cost Drivers',        pos: [0, 6, 5, 4], refresh: 3600 },
-        { kind: 'table',       title: 'Invoice History',         pos: [5, 6, 7, 4], refresh: 3600 },
-      ],
-    },
+  const dashboardNames = ['Overview', 'API Health', 'Security', 'AI Usage', 'Billing'];
+  /** Rotates through the 10 built-in widget kinds (Plan 4 §4a.4). */
+  const builtinWidgetKinds = [
+    'single-stat',
+    'sparkline',
+    'time-series',
+    'stacked-bar',
+    'table',
+    'pie',
+    'service-map',
+    'log-viewer',
+    'audit-tail',
+    'top-n',
   ];
-
+  /** Data sources rotated across widgets. */
+  const builtinDataSources = ['audit', 'services', 'routes', 'traces'];
   /** Trivial widget types whose wizard_state round-trips cleanly. */
   const trivialKinds = new Set(['single-stat', 'sparkline', 'time-series']);
 
-  for (let di = 0; di < DASHBOARD_SPECS.length; di++) {
-    const spec = DASHBOARD_SPECS[di]!;
+  for (let di = 0; di < 5; di++) {
     const dashId = nextDashboardId();
+    const widgetCount = 4 + (di % 5); // 4–8 widgets
     const widgetIds: T.ID[] = [];
     const layout: Record<T.ID, { x: number; y: number; w: number; h: number }> = {};
     const widgetSnapshots: Omit<T.Widget, 'dashboard_id' | 'created_at' | 'updated_at'>[] = [];
     const dashCreatedAt = daysAgo(70 - di * 10);
 
-    for (const ws of spec.widgets) {
+    for (let wi = 0; wi < widgetCount; wi++) {
       const wid = nextWidgetId();
       widgetIds.push(wid);
-      const [px, py, pw, ph] = ws.pos;
-      const position = { x: px, y: py, w: pw, h: ph };
+      const kind = pick(builtinWidgetKinds, wi + di);
+      const dataSource = pick(builtinDataSources, wi + di);
+      const position = {
+        x: (wi % 3) * 4,
+        y: Math.floor(wi / 3) * 3,
+        w: 4,
+        h: 3,
+      };
       layout[wid] = position;
 
       /** Trivial types get a wizard_state; one-way types leave wizard_state undefined. */
-      const wizardState: T.WidgetWizardState | undefined = trivialKinds.has(ws.kind)
+      const wizardState: T.WidgetWizardState | undefined = trivialKinds.has(kind)
         ? {
             dimensions: [],
-            measures: [{ field: 'count', aggregation: 'count' }],
+            measures: [
+              { field: 'count', aggregation: 'count' },
+            ],
             filters: [],
             limit: 100,
           }
@@ -1495,11 +1412,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
       const widget: T.Widget = {
         id: wid,
         dashboard_id: dashId,
-        kind: ws.kind,
-        title: ws.title,
-        config: { refresh_interval: ws.refresh ?? 60 },
+        kind,
+        title: `${dashboardNames[di]!} — ${kind}`,
+        config: { refresh_interval: 30 + wi * 10 },
         position,
-        data_source: 'mock',
+        data_source: dataSource,
         raw_query: '',
         ...(wizardState !== undefined ? { wizard_state: wizardState } : {}),
         locked_advanced: false,
@@ -1523,10 +1440,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     const dashboard: T.Dashboard = {
       id: dashId,
       tenant_id: pick(allTenantIds, di),
-      name: spec.name,
-      default: spec.isDefault,
+      name: dashboardNames[di]!,
+      default: di === 0,
       widget_ids: widgetIds,
-      description: spec.description,
+      description: `Seeded ${dashboardNames[di]!} dashboard for demo purposes.`,
       owner_user_id: null,
       mode: 'metabase',
       scope: 'tenant',

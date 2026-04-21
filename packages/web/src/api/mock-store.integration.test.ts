@@ -343,8 +343,8 @@ describe('mock-store seed integrity', () => {
     expect(Object.keys(store.getState().dashboards)).toHaveLength(5);
   });
 
-  it('seeds 37 widgets (7+8+7+8+7 across 5 curated dashboards)', () => {
-    expect(Object.keys(store.getState().widgets)).toHaveLength(37);
+  it('seeds 30 widgets (4+5+6+7+8 across 5 dashboards)', () => {
+    expect(Object.keys(store.getState().widgets)).toHaveLength(30);
   });
 
   it('seeds 15 dashboard versions (3 per dashboard)', () => {
