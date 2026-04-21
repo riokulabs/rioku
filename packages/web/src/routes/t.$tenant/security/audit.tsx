@@ -326,7 +326,7 @@ function AuditPage() {
         onClose={handleDrawerClose}
         title={selectedEntry ? `Audit · ${selectedEntry.action}` : 'Audit entry'}
         position="right"
-        size="xl"
+        size="min(520px, 95vw)"
         padding="md"
       >
         {selectedEntry && <AuditDetail entry={selectedEntry} onClose={handleDrawerClose} />}

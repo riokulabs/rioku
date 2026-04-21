@@ -8,6 +8,7 @@ import {
   Box,
   Indicator,
   Popover,
+  Burger,
 } from '@mantine/core';
 import { IconSearch, IconBell } from '@tabler/icons-react';
 import { spotlight } from '@mantine/spotlight';
@@ -29,7 +30,13 @@ import { useUnreadCount } from '@/features/notifications/api';
  * `emitNotification` / `host.notify`. No additional stream subscription is
  * needed here.
  */
-export function TopBar() {
+interface TopBarProps {
+  /** Controls the mobile nav burger state. Omitted on AdminLayout (no burger). */
+  navOpened?: boolean;
+  onNavToggle?: () => void;
+}
+
+export function TopBar({ navOpened, onNavToggle }: TopBarProps) {
   const currentUserId = useMockStore((s) => s.currentUserId);
   const unread = useUnreadCount(currentUserId ?? '');
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -49,6 +56,16 @@ export function TopBar() {
 
   return (
     <Flex h={56} px="md" align="center" gap="md">
+      {/* Burger — only rendered when nav toggle is wired (AppLayout, not AdminLayout) */}
+      {onNavToggle !== undefined && (
+        <Burger
+          opened={navOpened ?? false}
+          onClick={onNavToggle}
+          hiddenFrom="sm"
+          size="sm"
+          aria-label={navOpened ? 'Close navigation' : 'Open navigation'}
+        />
+      )}
       <Group gap="xs">
         <Box c="green" fw={700} style={{ fontSize: 20 }}>
           ◆

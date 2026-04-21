@@ -241,7 +241,7 @@ function NotificationsPage() {
         onClose={handleDrawerClose}
         title={selectedItem ? `Notification · ${selectedItem.title}` : 'Notification'}
         position="right"
-        size="xl"
+        size="min(520px, 95vw)"
         padding="md"
       >
         {selectedItem && (

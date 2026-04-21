@@ -96,7 +96,7 @@ function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevok
         onClose={onClose}
         title={enrollment.subject}
         position="right"
-        size="lg"
+        size="min(400px, 95vw)"
         data-testid="enrollment-detail-drawer"
       >
         <Stack gap="md">

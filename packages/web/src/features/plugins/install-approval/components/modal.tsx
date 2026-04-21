@@ -150,7 +150,7 @@ export function InstallApprovalModal({
           <Text fw={600}>Review plugin install</Text>
         </Group>
       }
-      size="lg"
+      size="min(600px, 95vw)"
     >
       {candidate && (
         <Stack gap="md">

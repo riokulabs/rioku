@@ -15,6 +15,7 @@ import {
   Stack,
   Text,
   Title,
+  useMatches,
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -91,6 +92,10 @@ export function SettingsLayout() {
   const search: any = useSearch({ strict: false });
   const navigate = useNavigate();
 
+  // On mobile (< sm = 768px), stack sidebar above content vertically.
+  // useMatches returns the value for the first matching breakpoint.
+  const isSmallScreen = useMatches({ base: true, sm: false });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
 
@@ -129,13 +134,18 @@ export function SettingsLayout() {
   }
 
   return (
-    <Group align="flex-start" gap={0} style={{ height: '100%', overflowX: 'auto' }}>
-      {/* Subnav sidebar */}
+    <Group
+      align="flex-start"
+      gap={0}
+      style={{ height: '100%' }}
+      wrap={isSmallScreen ? 'wrap' : 'nowrap'}
+    >
+      {/* Subnav sidebar — full width on mobile, fixed 220px on sm+ */}
       <Box
         style={{
-          width: 220,
-          borderRight: '1px solid var(--mantine-color-default-border)',
-          height: '100%',
+          width: isSmallScreen ? '100%' : 220,
+          borderRight: isSmallScreen ? 'none' : '1px solid var(--mantine-color-default-border)',
+          borderBottom: isSmallScreen ? '1px solid var(--mantine-color-default-border)' : 'none',
           flexShrink: 0,
         }}
         p="sm"
@@ -155,7 +165,7 @@ export function SettingsLayout() {
       </Box>
 
       {/* Section content */}
-      <Box flex={1} p="md">
+      <Box flex={1} p="md" style={{ minWidth: 0 }}>
         <Stack gap="md">
           {activeSection && (
             <>

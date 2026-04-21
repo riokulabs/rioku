@@ -178,7 +178,7 @@ export function VersionHistoryDrawer({
         opened={opened}
         onClose={onClose}
         position="right"
-        size="xl"
+        size="min(520px, 95vw)"
         title={
           <Group gap="xs">
             <IconHistory size={18} />

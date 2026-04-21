@@ -595,7 +595,7 @@ function ShellInner({
           setVariablesOpen(false);
         }}
         position="right"
-        size="lg"
+        size="min(400px, 95vw)"
         title="Dashboard variables"
         withCloseButton
         data-testid="variables-drawer"

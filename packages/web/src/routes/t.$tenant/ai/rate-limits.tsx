@@ -182,7 +182,7 @@ function AiRateLimitsPage() {
         onClose={closeDrawer}
         title={drawerTitle}
         position="right"
-        size="xl"
+        size="min(520px, 95vw)"
         padding="md"
       >
         {drawerMode === 'detail' && selectedRule && (

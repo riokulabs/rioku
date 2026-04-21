@@ -108,7 +108,15 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  /**
+   * Called when a nav link is clicked. Used by AppLayout to close the mobile
+   * drawer after navigation. Optional — not needed on desktop.
+   */
+  onNavLinkClick?: () => void;
+}
+
+export function Sidebar({ onNavLinkClick }: SidebarProps) {
   const { location } = useRouterState();
 
   // Plugin-contributed sidebar entries, grouped
@@ -131,6 +139,7 @@ export function Sidebar() {
                 label={item.label}
                 leftSection={<item.icon size={16} />}
                 active={location.pathname.startsWith(item.to)}
+                onClick={onNavLinkClick}
               />
             ))}
           </Stack>
@@ -146,7 +155,7 @@ export function Sidebar() {
               // Plugin icons are typed as React.ComponentType (no enforced props).
               // We cast to accept size to match the Tabler-icons convention used
               // by first-party nav items.
-               
+
               const Icon = entry.icon as React.ComponentType<{ size?: number }> | undefined;
               return (
                 <NavLink
@@ -164,6 +173,7 @@ export function Sidebar() {
                   }
                   leftSection={Icon ? <Icon size={16} /> : <IconPlug size={16} />}
                   active={location.pathname.startsWith(entry.path)}
+                  onClick={onNavLinkClick}
                 />
               );
             })}

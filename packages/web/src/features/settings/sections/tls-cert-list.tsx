@@ -100,7 +100,7 @@ function PemDrawer({ cert, onClose }: PemDrawerProps) {
       onClose={onClose}
       title={`Certificate PEM — ${cert.domain}`}
       position="right"
-      size="lg"
+      size="min(400px, 95vw)"
       data-testid="cert-pem-drawer"
       transitionProps={{ duration: 0 }}
     >

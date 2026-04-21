@@ -266,7 +266,7 @@ function PluginsPage() {
         onClose={closeDrawer}
         title={selectedPlugin ? selectedPlugin.display_name : 'Plugin detail'}
         position="right"
-        size="xl"
+        size="min(520px, 95vw)"
         padding="md"
       >
         {selectedPlugin && (

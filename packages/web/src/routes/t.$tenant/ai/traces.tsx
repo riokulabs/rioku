@@ -239,7 +239,7 @@ function AiTracesPage() {
         onClose={closeDrawer}
         title={selected ? `Trace · ${selected.request_id}` : 'Trace detail'}
         position="right"
-        size="xl"
+        size="min(520px, 95vw)"
         padding="md"
       >
         {selected && (

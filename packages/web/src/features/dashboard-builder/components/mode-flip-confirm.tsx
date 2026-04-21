@@ -135,7 +135,7 @@ function ModeFlipConfirmDialogInner(props: ModeFlipConfirmDialogProps) {
       onClose={onCancel}
       title="Switch dashboard to Grafana mode?"
       centered
-      size="lg"
+      size="min(600px, 95vw)"
     >
       <Stack gap="md">
         <Alert

@@ -140,7 +140,7 @@ function NotificationDeliveryPage() {
         onClose={closeDrawer}
         title="Delivery details"
         position="right"
-        size="lg"
+        size="min(400px, 95vw)"
         padding="md"
       >
         {selected && (

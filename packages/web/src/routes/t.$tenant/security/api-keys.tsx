@@ -86,7 +86,7 @@ function ApiKeysPage() {
         onClose={closeDrawer}
         title={drawerTitle}
         position="right"
-        size="lg"
+        size="min(400px, 95vw)"
         padding="md"
       >
         {drawerMode === 'create' && (

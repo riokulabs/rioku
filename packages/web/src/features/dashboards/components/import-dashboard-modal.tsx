@@ -127,7 +127,7 @@ export function ImportDashboardModal({
       onClose={handleClose}
       title="Import dashboard"
       centered
-      size="lg"
+      size="min(600px, 95vw)"
       data-testid="import-dashboard-modal"
     >
       <Stack gap="md">

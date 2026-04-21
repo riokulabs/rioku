@@ -59,7 +59,7 @@ function CaDetailDrawer({ ca, onClose }: CaDetailDrawerProps) {
       onClose={onClose}
       title={ca.name}
       position="right"
-      size="lg"
+      size="min(400px, 95vw)"
       data-testid="ca-detail-drawer"
     >
       <Stack gap="md">

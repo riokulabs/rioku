@@ -20,6 +20,7 @@ import {
   Text,
   Title,
   Tooltip,
+  useMatches,
 } from '@mantine/core';
 import {
   IconDownload,
@@ -70,6 +71,9 @@ export function DashboardViewer({
   const widgets = useDashboardWidgets(dashboardId);
   const currentUserId = useMockStore((s) => s.currentUserId);
   const canWrite = usePermission('dashboard:write');
+  // On mobile collapse the 12-col grid to a single column so widgets don't
+  // render at sub-100px widths. Tablet gets 6 cols (half layout).
+  const effectiveColumns = useMatches({ base: 1, sm: 6, md: GRID_COLUMNS });
 
   const handleExport = useCallback(() => {
     if (!dashboard) return;
@@ -213,7 +217,7 @@ export function DashboardViewer({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${String(GRID_COLUMNS)}, 1fr)`,
+            gridTemplateColumns: `repeat(${String(effectiveColumns)}, 1fr)`,
             gridAutoRows: `${String(ROW_HEIGHT_PX)}px`,
             gap: 'var(--mantine-spacing-md)',
           }}
@@ -225,6 +229,7 @@ export function DashboardViewer({
               key={widget.id}
               widget={widget}
               layout={dashboard.layout[widget.id]}
+              effectiveCols={effectiveColumns}
             />
           ))}
         </div>
@@ -236,18 +241,24 @@ export function DashboardViewer({
 interface WidgetCellProps {
   widget: Widget;
   layout: { x: number; y: number; w: number; h: number } | undefined;
+  /** The effective column count driving the grid (1 on mobile, 6 on tablet, 12 on desktop). */
+  effectiveCols: number;
 }
 
-function WidgetCell({ widget, layout }: WidgetCellProps) {
+function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
   const { data, loading, error } = useWidgetData(widget);
 
   // Fall back to widget.position if no layout record — matches the legacy
   // placement used in pre-Plan-4 seeds.
   const pos = layout ?? widget.position;
-  const w = Math.max(1, Math.min(GRID_COLUMNS, pos.w));
+
+  // On mobile / reduced-column grid, clamp span and position to the effective
+  // column count so CSS grid doesn't create implicit extra columns.
+  const w = Math.max(1, Math.min(effectiveCols, pos.w));
   const h = Math.max(1, pos.h);
-  const col = Math.max(0, Math.min(GRID_COLUMNS - 1, pos.x));
-  const row = Math.max(0, pos.y);
+  // On single-column layout force all widgets to column 1 (ignore x).
+  const col = effectiveCols === 1 ? 0 : Math.max(0, Math.min(effectiveCols - 1, pos.x));
+  const row = effectiveCols === 1 ? 0 : Math.max(0, pos.y);
 
   const rendererProps = {
     widget,
@@ -263,7 +274,7 @@ function WidgetCell({ widget, layout }: WidgetCellProps) {
       p="md"
       style={{
         gridColumn: `${String(col + 1)} / span ${String(w)}`,
-        gridRow: `${String(row + 1)} / span ${String(h)}`,
+        gridRow: effectiveCols === 1 ? undefined : `${String(row + 1)} / span ${String(h)}`,
         overflow: 'hidden',
         minWidth: 0,
       }}

@@ -251,7 +251,7 @@ export function InstallProgressModal({
           </Text>
         </Group>
       }
-      size="lg"
+      size="min(600px, 95vw)"
       // While in-flight we disallow backdrop dismiss to prevent orphaned runs.
       closeOnClickOutside={!canCancel}
       closeOnEscape={!canCancel}
