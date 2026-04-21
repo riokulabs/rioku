@@ -9,6 +9,7 @@
  * dynamic import — see `src/routes/t.$tenant/api-explorer.tsx`.
  */
 import { ApiReferenceReact } from '@scalar/api-reference-react';
+import '@scalar/api-reference-react/style.css';
 import { openapiSpec } from '@/api-explorer';
 
 export function ApiExplorer() {

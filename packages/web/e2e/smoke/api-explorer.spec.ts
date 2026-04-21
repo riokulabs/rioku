@@ -57,6 +57,32 @@ test('API explorer renders the Scalar reference UI', async ({ authedPage: page }
     await expect(scalarRoot).toBeVisible({ timeout: 15000 });
   }
 
+  // Visual sanity: assert no images inside the explorer are giant (broken
+  // layout indicator).  Without Scalar's style.css the client-libraries icons
+  // and logo SVGs render at natural size (~800-1000px tall).  With styles
+  // loaded they are capped to 14px (icons) or small fixed heights.
+  const oversizedImages = await container
+    .locator('img, svg')
+    .evaluateAll((els) =>
+      els
+        .filter((el) => (el as HTMLElement).clientHeight > 600)
+        .map((el) => ({
+          tag: el.tagName.toLowerCase(),
+          clientHeight: (el as HTMLElement).clientHeight,
+          clientWidth: (el as HTMLElement).clientWidth,
+          src: el instanceof HTMLImageElement ? el.src : '',
+          id: (el as HTMLElement).id.slice(0, 80),
+        })),
+    );
+
+  if (oversizedImages.length > 0) {
+    console.error('[api-explorer] oversized images/SVGs (layout broken):\n', JSON.stringify(oversizedImages, null, 2));
+  }
+  expect(
+    oversizedImages,
+    `Expected no images/SVGs taller than 600px inside the explorer — Scalar style.css may be missing.\n${JSON.stringify(oversizedImages, null, 2)}`,
+  ).toHaveLength(0);
+
   // Screenshot for visual debugging (saved to e2e/screenshots/, git-ignored).
   await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
   console.log('[api-explorer] screenshot saved to', SCREENSHOT_PATH);
