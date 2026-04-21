@@ -1358,18 +1358,26 @@ export function seedStore(store: StoreApi<MockStore>): void {
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 
   const dashboardNames = ['Overview', 'API Health', 'Security', 'AI Usage', 'Billing'];
-  /** Rotates through the 10 built-in widget kinds (Plan 4 §4a.4). */
-  const builtinWidgetKinds = [
-    'single-stat',
-    'sparkline',
-    'time-series',
-    'stacked-bar',
-    'table',
-    'pie',
-    'service-map',
-    'log-viewer',
-    'audit-tail',
-    'top-n',
+  /** Per-dashboard widget kind lists — curated to reflect an API gateway platform. */
+  const widgetsByDashboard: string[][] = [
+    // Overview: summary dashboard — single-stats + trend lines + service breakdown
+    ['single-stat', 'single-stat', 'single-stat', 'sparkline', 'time-series', 'stacked-bar', 'top-n'],
+    // API Health: traffic/errors/latency focus — no audit-tail, no log-viewer
+    ['single-stat', 'single-stat', 'time-series', 'time-series', 'stacked-bar', 'service-map', 'top-n'],
+    // Security: audit events, threat breakdown, attack sources
+    ['single-stat', 'single-stat', 'audit-tail', 'pie', 'top-n', 'log-viewer'],
+    // AI Usage: invocations, token usage, provider breakdown, agent ranking
+    ['single-stat', 'single-stat', 'sparkline', 'time-series', 'pie', 'top-n', 'stacked-bar'],
+    // Billing: spend charts, cost breakdown
+    ['single-stat', 'single-stat', 'time-series', 'stacked-bar', 'pie', 'top-n'],
+  ];
+  /** Per-dashboard, per-widget human-readable titles. */
+  const titlesByDashboard: string[][] = [
+    ['Total Requests (24h)', 'Error Rate', 'Active Sessions', 'Request throughput', 'Requests over time', 'Requests by service', 'Top routes'],
+    ['p95 Latency', 'Uptime %', 'Latency (p50/p95/p99)', 'Request volume', 'HTTP status by hour', 'Service dependencies', 'Slowest endpoints'],
+    ['Failed logins (24h)', 'Active threats', 'Recent security events', 'Events by severity', 'Top attack sources', 'Security log tail'],
+    ['Total invocations', 'Tokens used', 'Invocations over time', 'Tokens by model', 'Usage by provider', 'Most-used agents', 'Daily usage'],
+    ['MTD spend', 'Projected monthly', 'Daily spend', 'Spend by provider', 'Cost categories', 'Top cost drivers'],
   ];
   /** Data sources rotated across widgets. */
   const builtinDataSources = ['audit', 'services', 'routes', 'traces'];
@@ -1378,7 +1386,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   for (let di = 0; di < 5; di++) {
     const dashId = nextDashboardId();
-    const widgetCount = 4 + (di % 5); // 4–8 widgets
+    const kindsForThisDash = widgetsByDashboard[di]!;
+    const widgetCount = kindsForThisDash.length;
     const widgetIds: T.ID[] = [];
     const layout: Record<T.ID, { x: number; y: number; w: number; h: number }> = {};
     const widgetSnapshots: Omit<T.Widget, 'dashboard_id' | 'created_at' | 'updated_at'>[] = [];
@@ -1387,7 +1396,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     for (let wi = 0; wi < widgetCount; wi++) {
       const wid = nextWidgetId();
       widgetIds.push(wid);
-      const kind = pick(builtinWidgetKinds, wi + di);
+      const kind = kindsForThisDash[wi]!;
       const dataSource = pick(builtinDataSources, wi + di);
       const position = {
         x: (wi % 3) * 4,
@@ -1413,7 +1422,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
         id: wid,
         dashboard_id: dashId,
         kind,
-        title: `${dashboardNames[di]!} — ${kind}`,
+        title: titlesByDashboard[di]![wi] ?? `${dashboardNames[di]!} — ${kind}`,
         config: { refresh_interval: 30 + wi * 10 },
         position,
         data_source: dataSource,
