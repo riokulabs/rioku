@@ -7,12 +7,11 @@
  *
  * spec / Task 1d.79
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
   Group,
-  NavLink,
   Stack,
   Text,
   Title,
@@ -34,6 +33,7 @@ import {
 import { Link, useSearch, useNavigate } from '@tanstack/react-router';
 import type { Icon } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
+import { SettingsSearch } from './settings-search';
 import { useMockStore } from '@/api/mock-store';
 import { ProfileSection } from '../sections/profile';
 import { TenantSection } from '../sections/tenant';
@@ -91,6 +91,9 @@ export function SettingsLayout() {
   const search: any = useSearch({ strict: false });
   const navigate = useNavigate();
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
   // Derive tenant slug from the active mock-store tenant — the layout is
   // rendered inside a `/t/$tenant` tree, but the test harness stubs the router
   // so we avoid `useParams()` here.
@@ -106,6 +109,14 @@ export function SettingsLayout() {
     () => SECTIONS.find((s) => s.slug === activeSlug) ?? DEFAULT_SECTION ?? SECTIONS[0],
     [activeSlug],
   );
+
+  const visibleSections = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return SECTIONS;
+    return SECTIONS.filter(
+      (s) => s.label.toLowerCase().includes(q) || s.slug.toLowerCase().includes(q),
+    );
+  }, [searchQuery]);
 
   const sectionRoute = activeSection ? SECTION_ROUTES[activeSection.slug] : undefined;
 
@@ -132,18 +143,15 @@ export function SettingsLayout() {
         <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600} px="xs" pt="xs" pb="xs">
           Settings
         </Text>
-        <Stack gap={2}>
-          {SECTIONS.map((section) => (
-            <NavLink
-              key={section.slug}
-              label={section.label}
-              leftSection={<section.icon size={16} />}
-              active={activeSlug === section.slug}
-              onClick={() => { handleSectionClick(section.slug); }}
-              data-testid={`settings-nav-${section.slug}`}
-            />
-          ))}
-        </Stack>
+        <SettingsSearch
+          sections={visibleSections}
+          query={searchQuery}
+          onChange={(q) => { setSearchQuery(q); setFocusedIndex(0); }}
+          activeSlug={activeSlug}
+          focusedIndex={focusedIndex}
+          onFocusedIndexChange={setFocusedIndex}
+          onSectionClick={handleSectionClick}
+        />
       </Box>
 
       {/* Section content */}

@@ -160,4 +160,76 @@ describe('SettingsLayout', () => {
       expect(screen.getByTestId(`settings-nav-${slug}`)).toBeDefined();
     }
   });
+
+  // ─── Search / filter tests ─────────────────────────────────────────────────
+
+  it('renders the search input', () => {
+    wrap(<SettingsLayout />);
+    expect(screen.getByTestId('settings-search-input')).toBeDefined();
+  });
+
+  it('typing "pro" filters to only Profile', () => {
+    wrap(<SettingsLayout />);
+    const input = screen.getByTestId('settings-search-input');
+    fireEvent.change(input, { target: { value: 'pro' } });
+    // Profile should still be visible
+    expect(screen.getByTestId('settings-nav-profile')).toBeDefined();
+    // Unrelated sections like tenant should be hidden
+    expect(screen.queryByTestId('settings-nav-tenant')).toBeNull();
+  });
+
+  it('shows empty state when no sections match', () => {
+    wrap(<SettingsLayout />);
+    const input = screen.getByTestId('settings-search-input');
+    fireEvent.change(input, { target: { value: 'zzznomatch999' } });
+    expect(screen.getByTestId('settings-search-empty')).toBeDefined();
+  });
+
+  it('Escape clears the search query', () => {
+    wrap(<SettingsLayout />);
+    const input = screen.getByTestId<HTMLInputElement>('settings-search-input');
+    fireEvent.change(input, { target: { value: 'pro' } });
+    expect(input.value).toBe('pro');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('');
+    // All 11 sections should be visible again
+    expect(screen.getAllByTestId(/settings-nav-/).length).toBe(11);
+  });
+
+  it('ArrowDown moves keyboard focus through filtered results', () => {
+    wrap(<SettingsLayout />);
+    const input = screen.getByTestId('settings-search-input');
+    // Filter to sections matching "t" (tenant, authentication, notifications, tls, integrations)
+    fireEvent.change(input, { target: { value: 't' } });
+    // Press ArrowDown once — focused index should move from 0 to 1
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    // The second visible nav item should have data-focused attribute
+    const focused = document.querySelector('[data-focused="true"]');
+    expect(focused).not.toBeNull();
+  });
+
+  it('Enter navigates to the focused section', () => {
+    wrap(<SettingsLayout />);
+    const input = screen.getByTestId('settings-search-input');
+    // Filter to just "profile"
+    fireEvent.change(input, { target: { value: 'profile' } });
+    // Press Enter — should call navigate with profile slug
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(mockNavigate).toHaveBeenCalled();
+  });
+
+  it('active section content still renders when filtered out of sidebar', () => {
+    mockSection = 'tenant';
+    const [tenantId] = Object.keys(useMockStore.getState().tenants);
+    if (!tenantId) throw new Error('No tenants in store');
+    useMockStore.setState({ currentTenantId: tenantId });
+    wrap(<SettingsLayout />);
+    const input = screen.getByTestId('settings-search-input');
+    // Filter to "pro" — hides tenant from sidebar
+    fireEvent.change(input, { target: { value: 'pro' } });
+    // Sidebar nav item for tenant is gone
+    expect(screen.queryByTestId('settings-nav-tenant')).toBeNull();
+    // But the main panel still shows Tenant section content
+    expect(screen.getByTestId('tenant-section')).toBeDefined();
+  });
 });
