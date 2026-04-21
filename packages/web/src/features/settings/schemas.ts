@@ -112,3 +112,35 @@ export const createEnrollmentSchema = z.object({
 });
 
 export type CreateEnrollmentValues = z.infer<typeof createEnrollmentSchema>;
+
+// ─── TLS — ACME config ────────────────────────────────────────────────────────
+
+export const tlsAcmeConfigSchema = z.object({
+  provider: z.enum(['lets-encrypt', 'zerossl', 'custom']),
+  email: z.email(),
+  directory_url: z.url().optional(),
+  dns_challenge: z.boolean(),
+}).refine((v) => v.provider !== 'custom' || (v.directory_url != null && v.directory_url.length > 0), {
+  message: 'Directory URL required when provider is custom',
+  path: ['directory_url'],
+});
+
+export type TlsAcmeConfigValues = z.infer<typeof tlsAcmeConfigSchema>;
+
+// ─── TLS — Cipher suites ──────────────────────────────────────────────────────
+
+export const tlsCiphersSchema = z.object({
+  allowed_ciphers: z.array(z.string()).min(1, 'At least one cipher must be allowed'),
+});
+
+export type TlsCiphersValues = z.infer<typeof tlsCiphersSchema>;
+
+// ─── TLS — Upload cert (domain + PEM files) ───────────────────────────────────
+
+export const tlsUploadSchema = z.object({
+  domain: z.string().min(1),
+  certificate_pem: z.string().min(1, 'Certificate PEM required'),
+  key_pem: z.string().min(1, 'Private key PEM required'),
+});
+
+export type TlsUploadValues = z.infer<typeof tlsUploadSchema>;

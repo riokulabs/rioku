@@ -11,14 +11,15 @@
  * Task 8a.2 — Profile section.
  * Task 8a.3 — Tenant section.
  * Task 8b.7 — PKI section.
+ * Task 8b.8 — TLS section.
  */
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, Tenant, TenantAuthPolicy, User } from '@/api/resources/types';
-import type { CreateCaValues, CreateEnrollmentValues } from './schemas';
+import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User } from '@/api/resources/types';
+import type { CreateCaValues, CreateEnrollmentValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues } from './schemas';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
@@ -27,8 +28,10 @@ const nextTenantAuditId = makeIdFactory('audit-tenant');
 const nextAuthPolicyAuditId = makeIdFactory('audit-auth-policy');
 const nextNetworkConfigAuditId = makeIdFactory('audit-network-config');
 const nextPkiAuditId = makeIdFactory('audit-pki');
+const nextTlsAuditId = makeIdFactory('audit-tls');
 const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
+const nextTlsCertId = makeIdFactory('tlscert');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -523,4 +526,150 @@ export async function revokeCertEnrollment(
   const updatedState = useMockStore.getState();
   updatedState.appendAudit(makePkiAudit('pki.enrollment.revoke', enrollment.tenant_id, enrollmentId));
   emitHostEvent('pki:enrollment-revoked', { enrollment_id: enrollmentId, reason });
+}
+
+// ─── TLS selectors ────────────────────────────────────────────────────────────
+
+/**
+ * Returns TLS certificates for the current tenant as a sorted array.
+ * Uses stable Zustand selector + useMemo per convention.
+ */
+export function useTlsCertificates(): TlsCertificate[] {
+  const allCerts = useMockStore((s) => s.tlsCertificates);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(
+    () =>
+      Object.values(allCerts)
+        .filter((c) => c.tenant_id === currentTenantId)
+        .sort((a, b) => a.domain.localeCompare(b.domain)),
+    [allCerts, currentTenantId],
+  );
+}
+
+/**
+ * Returns the TLS config for the current tenant, or undefined if not found.
+ */
+export function useCurrentTlsConfig(): TlsConfig | undefined {
+  return useMockStore((s) =>
+    s.currentTenantId ? s.tlsConfigs[s.currentTenantId] : undefined,
+  );
+}
+
+// ─── TLS audit helper ─────────────────────────────────────────────────────────
+
+function makeTlsAudit(
+  action: string,
+  tenantId: ID,
+  resourceId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextTlsAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tls',
+    resource_id: resourceId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── TLS mutations ────────────────────────────────────────────────────────────
+
+/**
+ * Add a new TLS certificate (manual upload) and emit audit + host event.
+ * NOTE: key_pem is validated by schema but never stored here — private keys
+ * must not be persisted in frontend state.
+ */
+export async function addTlsCertificate(
+  tenantId: ID,
+  values: TlsUploadValues,
+): Promise<TlsCertificate> {
+  await simulateLatency('mutation');
+  const id = nextTlsCertId();
+  const cert: TlsCertificate = {
+    id,
+    tenant_id: tenantId,
+    domain: values.domain,
+    issuer: 'Manual',
+    source: 'manual',
+    issued_at: now(),
+    expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    auto_renew: false,
+    certificate_pem: values.certificate_pem,
+    // key_pem from values is NOT stored — private keys must never be persisted.
+    fingerprint_sha256: Array.from({ length: 64 }, (_, i) =>
+      (((id.charCodeAt(i % id.length) + i * 11) % 16)).toString(16),
+    ).join(''),
+    created_at: now(),
+  };
+  const state = useMockStore.getState();
+  state.addTlsCertificate(cert);
+  state.appendAudit(makeTlsAudit('tls.certificate.upload', tenantId, id));
+  emitHostEvent('tls:certificate-added', { tenant_id: tenantId, cert_id: id });
+  return cert;
+}
+
+/** Toggle auto-renew on an ACME cert and emit audit + host event. */
+export async function toggleCertAutoRenew(certId: ID, enabled: boolean): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const cert = state.tlsCertificates[certId];
+  if (!cert) return;
+
+  state.updateTlsCertificate(certId, { auto_renew: enabled });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeTlsAudit('tls.certificate.toggle_auto_renew', cert.tenant_id, certId));
+  emitHostEvent('tls:certificate-updated', { cert_id: certId, auto_renew: enabled });
+}
+
+/** Delete a TLS certificate and emit audit + host event. */
+export async function deleteTlsCertificate(certId: ID): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const cert = state.tlsCertificates[certId];
+  if (!cert) return;
+
+  state.deleteTlsCertificate(certId);
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeTlsAudit('tls.certificate.delete', cert.tenant_id, certId));
+  emitHostEvent('tls:certificate-deleted', { cert_id: certId });
+}
+
+/** Update ACME config for a tenant and emit audit + host event. */
+export async function updateTlsAcmeConfig(
+  tenantId: ID,
+  values: TlsAcmeConfigValues,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const config = state.tlsConfigs[tenantId];
+  if (!config) return;
+
+  const acmePatch: TlsConfig['acme'] = {
+    provider: values.provider,
+    email: values.email,
+    dns_challenge: values.dns_challenge,
+    ...(values.directory_url != null ? { directory_url: values.directory_url } : {}),
+  };
+  state.updateTlsConfig(tenantId, { acme: acmePatch, updated_at: now() });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeTlsAudit('tls.acme.update', tenantId, tenantId));
+  emitHostEvent('tls:config-updated', { tenant_id: tenantId });
+}
+
+/** Update allowed cipher suites for a tenant and emit audit + host event. */
+export async function updateTlsCiphers(
+  tenantId: ID,
+  ciphers: TlsCiphersValues['allowed_ciphers'],
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateTlsConfig(tenantId, { allowed_ciphers: ciphers, updated_at: now() });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeTlsAudit('tls.ciphers.update', tenantId, tenantId));
+  emitHostEvent('tls:config-updated', { tenant_id: tenantId });
 }

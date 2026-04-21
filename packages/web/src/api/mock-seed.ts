@@ -57,6 +57,7 @@ const nextRbacPolicyId = makeIdFactory('rbacpol');
 const nextImpersonationId = makeIdFactory('imp');
 const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
+const nextTlsCertId = makeIdFactory('tlscert');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -501,6 +502,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8b.7 — PKI (admin: read + write).
     { permission: 'pki:read' },
     { permission: 'pki:write' },
+    // Plan 8b.8 — TLS (admin: read + write).
+    { permission: 'tls:read' },
+    { permission: 'tls:write' },
   ];
 
   // ops role (index 1) — everything except *:delete and ai-trace:read-sensitive.
@@ -549,6 +553,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'network:read' },
     // Plan 8b.7 — PKI (ops: read-only).
     { permission: 'pki:read' },
+    // Plan 8b.8 — TLS (ops: read-only).
+    { permission: 'tls:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -593,6 +599,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'network:read' },
     // Plan 8b.7 — PKI (viewer: read-only).
     { permission: 'pki:read' },
+    // Plan 8b.8 — TLS (viewer: read-only).
+    { permission: 'tls:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -1173,6 +1181,114 @@ export function seedStore(store: StoreApi<MockStore>): void {
   };
 
   store.setState({ certEnrollments });
+
+  // ── TLS: Certificates + per-tenant configs ────────────────────────────────
+
+  const DEFAULT_CIPHERS = [
+    'TLS_AES_128_GCM_SHA256',
+    'TLS_AES_256_GCM_SHA384',
+    'TLS_CHACHA20_POLY1305_SHA256',
+    'ECDHE-ECDSA-AES128-GCM-SHA256',
+    'ECDHE-RSA-AES128-GCM-SHA256',
+    'ECDHE-ECDSA-AES256-GCM-SHA384',
+    'ECDHE-RSA-AES256-GCM-SHA384',
+    'ECDHE-ECDSA-CHACHA20-POLY1305',
+    'ECDHE-RSA-CHACHA20-POLY1305',
+  ];
+
+  // Deterministic 64-char hex for TLS mock fingerprints (same pattern as pkiFp)
+  function tlsFp(seed: string): string {
+    let h = '';
+    for (let i = 0; i < 64; i++) {
+      h += ((seed.charCodeAt(i % seed.length) + i * 13) % 16).toString(16);
+    }
+    return h;
+  }
+
+  const tlsCertificates: Record<T.ID, T.TlsCertificate> = {};
+  const tlsConfigs: Record<T.ID, T.TlsConfig> = {};
+
+  for (const tid of allTenantIds) {
+    const tenant = tenants.find((t) => t.id === tid)!;
+
+    // 1. Active ACME cert with auto_renew=true
+    const c1Id = nextTlsCertId();
+    tlsCertificates[c1Id] = {
+      id: c1Id,
+      tenant_id: tid,
+      domain: `api.${tenant.slug}.example`,
+      issuer: "Let's Encrypt",
+      source: 'acme',
+      issued_at: daysAgo(30),
+      expires_at: daysFromNow(60),
+      auto_renew: true,
+      certificate_pem: '',
+      fingerprint_sha256: tlsFp(`acme-active-${tid}`),
+      created_at: daysAgo(30),
+    };
+
+    // 2. Expiring-soon ACME cert (< 30 days, auto_renew=false)
+    const c2Id = nextTlsCertId();
+    tlsCertificates[c2Id] = {
+      id: c2Id,
+      tenant_id: tid,
+      domain: `gateway.${tenant.slug}.example`,
+      issuer: 'ZeroSSL',
+      source: 'acme',
+      issued_at: daysAgo(60),
+      expires_at: daysFromNow(20),
+      auto_renew: false,
+      certificate_pem: '',
+      fingerprint_sha256: tlsFp(`acme-expiring-${tid}`),
+      created_at: daysAgo(60),
+    };
+
+    // 3. Manual upload cert
+    const c3Id = nextTlsCertId();
+    tlsCertificates[c3Id] = {
+      id: c3Id,
+      tenant_id: tid,
+      domain: `admin.${tenant.slug}.example`,
+      issuer: 'Manual',
+      source: 'manual',
+      issued_at: daysAgo(10),
+      expires_at: daysFromNow(355),
+      auto_renew: false,
+      certificate_pem: '-----BEGIN CERTIFICATE-----\n(mock PEM for seed)\n-----END CERTIFICATE-----\n',
+      fingerprint_sha256: tlsFp(`manual-upload-${tid}`),
+      created_at: daysAgo(10),
+    };
+
+    // 4. Expired ACME cert (for variety)
+    const c4Id = nextTlsCertId();
+    tlsCertificates[c4Id] = {
+      id: c4Id,
+      tenant_id: tid,
+      domain: `legacy.${tenant.slug}.example`,
+      issuer: "Let's Encrypt",
+      source: 'acme',
+      issued_at: daysAgo(120),
+      expires_at: daysAgo(30),
+      auto_renew: false,
+      certificate_pem: '',
+      fingerprint_sha256: tlsFp(`acme-expired-${tid}`),
+      created_at: daysAgo(120),
+    };
+
+    // Per-tenant TLS config
+    tlsConfigs[tid] = {
+      tenant_id: tid,
+      acme: {
+        provider: 'lets-encrypt',
+        email: `admin@${tenant.slug}.example`,
+        dns_challenge: false,
+      },
+      allowed_ciphers: [...DEFAULT_CIPHERS],
+      updated_at: daysAgo(5),
+    };
+  }
+
+  store.setState({ tlsCertificates, tlsConfigs });
 
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 

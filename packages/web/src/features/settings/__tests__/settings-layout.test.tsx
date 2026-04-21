@@ -132,6 +132,16 @@ describe('SettingsLayout', () => {
     expect(screen.getByTestId('fieldset-listen-addresses')).toBeDefined();
   });
 
+  it('shows TLS section inline when ?section=tls', () => {
+    // Set current tenant so useCurrentTenant() and TLS selectors return values.
+    const tenantId = Object.keys(useMockStore.getState().tenants)[0];
+    if (!tenantId) throw new Error('No tenants in store');
+    useMockStore.setState({ currentTenantId: tenantId });
+    mockSection = 'tls';
+    wrap(<SettingsLayout />);
+    expect(screen.getByTestId('tls-section')).toBeDefined();
+  });
+
   it('calls navigate when subnav item is clicked', () => {
     wrap(<SettingsLayout />);
     const tenantNav = screen.getByTestId('settings-nav-tenant');

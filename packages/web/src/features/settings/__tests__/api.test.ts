@@ -7,12 +7,13 @@
  * Task 8a.2 — Profile section (avatar).
  * Task 8a.3 — Tenant section (name, url_mode, default_theme, logo).
  * Task 8a.4 — Authentication section (tenant auth policy).
+ * Task 8b.8 — TLS section.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment } from '../api';
+import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers } from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -614,5 +615,268 @@ describe('revokeCertEnrollment', () => {
     await expect(
       revokeCertEnrollment('enrollment-nonexistent', 'whatever'),
     ).resolves.toBeUndefined();
+  });
+});
+
+// ─── TLS API ──────────────────────────────────────────────────────────────────
+
+describe('addTlsCertificate', () => {
+  it('adds a new cert to the store with source=manual', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const countBefore = Object.values(useMockStore.getState().tlsCertificates)
+      .filter((c) => c.tenant_id === tenantId).length;
+
+    await addTlsCertificate(tenantId, {
+      domain: 'new.example.com',
+      certificate_pem: '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n',
+      key_pem: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
+    });
+
+    const certs = Object.values(useMockStore.getState().tlsCertificates)
+      .filter((c) => c.tenant_id === tenantId);
+    expect(certs.length).toBe(countBefore + 1);
+    const newCert = certs.find((c) => c.domain === 'new.example.com');
+    expect(newCert).toBeDefined();
+    expect(newCert?.source).toBe('manual');
+    // key_pem must never be stored
+    expect(JSON.stringify(useMockStore.getState().tlsCertificates)).not.toContain('BEGIN PRIVATE KEY');
+  });
+
+  it('emits tls.certificate.upload audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+
+    await addTlsCertificate(tenantId, {
+      domain: 'audit.example.com',
+      certificate_pem: '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n',
+      key_pem: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tls.certificate.upload');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tls:certificate-added host event', async () => {
+    const tenantId = getAcmeTenantId();
+    useMockStore.setState({ currentTenantId: tenantId });
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tls:certificate-added', listener);
+
+    await addTlsCertificate(tenantId, {
+      domain: 'event.example.com',
+      certificate_pem: '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n',
+      key_pem: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
+    });
+
+    expect(hostEvents.filter((t) => t === 'tls:certificate-added').length).toBe(1);
+    mockBus.removeEventListener('tls:certificate-added', listener);
+  });
+});
+
+describe('toggleCertAutoRenew', () => {
+  it('updates auto_renew on an existing ACME cert', async () => {
+    const tenantId = getAcmeTenantId();
+    const cert = Object.values(useMockStore.getState().tlsCertificates)
+      .find((c) => c.tenant_id === tenantId && c.source === 'acme');
+    if (!cert) throw new Error('No ACME cert in seed data');
+
+    // Toggle to false first if auto_renew is true, or to true if false
+    const newValue = !cert.auto_renew;
+    await toggleCertAutoRenew(cert.id, newValue);
+
+    const updated = useMockStore.getState().tlsCertificates[cert.id];
+    expect(updated?.auto_renew).toBe(newValue);
+  });
+
+  it('emits tls.certificate.toggle_auto_renew audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    const cert = Object.values(useMockStore.getState().tlsCertificates)
+      .find((c) => c.tenant_id === tenantId && c.source === 'acme');
+    if (!cert) throw new Error('No ACME cert in seed data');
+
+    await toggleCertAutoRenew(cert.id, true);
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tls.certificate.toggle_auto_renew');
+    expect(entry).toBeDefined();
+  });
+
+  it('emits tls:certificate-updated host event', async () => {
+    const tenantId = getAcmeTenantId();
+    const cert = Object.values(useMockStore.getState().tlsCertificates)
+      .find((c) => c.tenant_id === tenantId && c.source === 'acme');
+    if (!cert) throw new Error('No ACME cert in seed data');
+
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tls:certificate-updated', listener);
+
+    await toggleCertAutoRenew(cert.id, false);
+
+    expect(hostEvents.filter((t) => t === 'tls:certificate-updated').length).toBe(1);
+    mockBus.removeEventListener('tls:certificate-updated', listener);
+  });
+
+  it('no-ops for unknown cert id', async () => {
+    await expect(toggleCertAutoRenew('nonexistent-cert', true)).resolves.toBeUndefined();
+  });
+});
+
+describe('deleteTlsCertificate', () => {
+  it('removes the cert from the store', async () => {
+    const tenantId = getAcmeTenantId();
+    const cert = Object.values(useMockStore.getState().tlsCertificates)
+      .find((c) => c.tenant_id === tenantId);
+    if (!cert) throw new Error('No cert in seed data');
+
+    await deleteTlsCertificate(cert.id);
+
+    expect(useMockStore.getState().tlsCertificates[cert.id]).toBeUndefined();
+  });
+
+  it('emits tls.certificate.delete audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+    const cert = Object.values(useMockStore.getState().tlsCertificates)
+      .find((c) => c.tenant_id === tenantId);
+    if (!cert) throw new Error('No cert in seed data');
+
+    await deleteTlsCertificate(cert.id);
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tls.certificate.delete');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tls:certificate-deleted host event', async () => {
+    const tenantId = getAcmeTenantId();
+    const cert = Object.values(useMockStore.getState().tlsCertificates)
+      .find((c) => c.tenant_id === tenantId);
+    if (!cert) throw new Error('No cert in seed data');
+
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tls:certificate-deleted', listener);
+
+    await deleteTlsCertificate(cert.id);
+
+    expect(hostEvents.filter((t) => t === 'tls:certificate-deleted').length).toBe(1);
+    mockBus.removeEventListener('tls:certificate-deleted', listener);
+  });
+
+  it('no-ops for unknown cert id', async () => {
+    await expect(deleteTlsCertificate('nonexistent-cert')).resolves.toBeUndefined();
+  });
+});
+
+describe('updateTlsAcmeConfig', () => {
+  it('updates acme config in the store', async () => {
+    const tenantId = getAcmeTenantId();
+
+    await updateTlsAcmeConfig(tenantId, {
+      provider: 'zerossl',
+      email: 'new@example.com',
+      dns_challenge: true,
+    });
+
+    const config = useMockStore.getState().tlsConfigs[tenantId];
+    expect(config?.acme.provider).toBe('zerossl');
+    expect(config?.acme.email).toBe('new@example.com');
+    expect(config?.acme.dns_challenge).toBe(true);
+  });
+
+  it('sets directory_url when provider is custom', async () => {
+    const tenantId = getAcmeTenantId();
+
+    await updateTlsAcmeConfig(tenantId, {
+      provider: 'custom',
+      email: 'admin@example.com',
+      dns_challenge: false,
+      directory_url: 'https://acme.custom.com/directory',
+    });
+
+    const config = useMockStore.getState().tlsConfigs[tenantId];
+    expect(config?.acme.provider).toBe('custom');
+    expect(config?.acme.directory_url).toBe('https://acme.custom.com/directory');
+  });
+
+  it('emits tls.acme.update audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+
+    await updateTlsAcmeConfig(tenantId, {
+      provider: 'lets-encrypt',
+      email: 'audit@example.com',
+      dns_challenge: false,
+    });
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tls.acme.update');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tls:config-updated host event', async () => {
+    const tenantId = getAcmeTenantId();
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tls:config-updated', listener);
+
+    await updateTlsAcmeConfig(tenantId, {
+      provider: 'lets-encrypt',
+      email: 'event@example.com',
+      dns_challenge: false,
+    });
+
+    expect(hostEvents.filter((t) => t === 'tls:config-updated').length).toBe(1);
+    mockBus.removeEventListener('tls:config-updated', listener);
+  });
+
+  it('no-ops silently for unknown tenant id', async () => {
+    await expect(
+      updateTlsAcmeConfig('nonexistent-tenant', {
+        provider: 'lets-encrypt',
+        email: 'noop@example.com',
+        dns_challenge: false,
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe('updateTlsCiphers', () => {
+  it('updates allowed_ciphers in the store', async () => {
+    const tenantId = getAcmeTenantId();
+    const newCiphers = ['TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256'];
+
+    await updateTlsCiphers(tenantId, newCiphers);
+
+    const config = useMockStore.getState().tlsConfigs[tenantId];
+    expect(config?.allowed_ciphers).toEqual(newCiphers);
+  });
+
+  it('emits tls.ciphers.update audit entry', async () => {
+    const tenantId = getAcmeTenantId();
+
+    await updateTlsCiphers(tenantId, ['TLS_AES_128_GCM_SHA256']);
+
+    const audit = useMockStore.getState().audit;
+    const entry = audit.find((a) => a.action === 'tls.ciphers.update');
+    expect(entry).toBeDefined();
+    expect(entry?.tenant_id).toBe(tenantId);
+  });
+
+  it('emits tls:config-updated host event', async () => {
+    const tenantId = getAcmeTenantId();
+    const hostEvents: string[] = [];
+    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    mockBus.addEventListener('tls:config-updated', listener);
+
+    await updateTlsCiphers(tenantId, ['TLS_AES_256_GCM_SHA384']);
+
+    expect(hostEvents.filter((t) => t === 'tls:config-updated').length).toBe(1);
+    mockBus.removeEventListener('tls:config-updated', listener);
   });
 });

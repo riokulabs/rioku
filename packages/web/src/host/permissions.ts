@@ -49,6 +49,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'notification-log:',
   'network:',
   'pki:',
+  'tls:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -620,6 +621,20 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'pki:write',
     description: 'Create CAs, trigger enrollments, revoke certificates',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // tls:* (Plan 8b.8 — TLS certificates, ACME config, cipher suites)
+  {
+    key: 'tls:read',
+    description: 'View TLS certificates and ACME configuration',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'tls:write',
+    description: 'Manage TLS certificates, ACME config, and cipher suites',
     source: 'built-in',
     default_roles: ['admin'],
   },

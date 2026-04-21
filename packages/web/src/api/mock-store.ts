@@ -48,6 +48,10 @@ interface MockStoreState {
   certAuthorities: Record<T.ID, T.CertAuthority>;
   certEnrollments: Record<T.ID, T.CertEnrollment>;
 
+  // TLS — Certificates + per-tenant config
+  tlsCertificates: Record<T.ID, T.TlsCertificate>;
+  tlsConfigs: Record<T.ID, T.TlsConfig>;
+
   // Sites
   sites: Record<T.ID, T.Site>;
 
@@ -125,6 +129,7 @@ interface EntityKindMap {
   mcpServers: T.McpServer;
   certAuthorities: T.CertAuthority;
   certEnrollments: T.CertEnrollment;
+  tlsCertificates: T.TlsCertificate;
 }
 
 export type EntityKind = keyof EntityKindMap;
@@ -188,6 +193,28 @@ interface MockStoreActions {
   updateCertEnrollment(enrollmentId: T.ID, patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>): void;
 
   /**
+   * Add a new TlsCertificate to the store.
+   */
+  addTlsCertificate(cert: T.TlsCertificate): void;
+
+  /**
+   * Atomically apply a partial patch to a TlsCertificate.
+   * No-ops silently if the cert is not found.
+   */
+  updateTlsCertificate(certId: T.ID, patch: Partial<Omit<T.TlsCertificate, 'id' | 'tenant_id'>>): void;
+
+  /**
+   * Remove a TlsCertificate by ID.
+   */
+  deleteTlsCertificate(certId: T.ID): void;
+
+  /**
+   * Atomically apply a partial patch to a TlsConfig.
+   * No-ops silently if no config exists for the tenant.
+   */
+  updateTlsConfig(tenantId: T.ID, patch: Partial<Omit<T.TlsConfig, 'tenant_id'>>): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -240,6 +267,8 @@ function emptyState(): MockStoreState {
     mcpServers: {},
     certAuthorities: {},
     certEnrollments: {},
+    tlsCertificates: {},
+    tlsConfigs: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -365,6 +394,47 @@ const storeInitializer = (
     });
   },
 
+  addTlsCertificate(cert: T.TlsCertificate) {
+    set((state) => ({
+      tlsCertificates: { ...state.tlsCertificates, [cert.id]: cert },
+    }));
+  },
+
+  updateTlsCertificate(certId: T.ID, patch: Partial<Omit<T.TlsCertificate, 'id' | 'tenant_id'>>) {
+    set((state) => {
+      const current = state.tlsCertificates[certId];
+      if (!current) return state;
+      return {
+        tlsCertificates: {
+          ...state.tlsCertificates,
+          [certId]: { ...current, ...patch },
+        },
+      };
+    });
+  },
+
+  deleteTlsCertificate(certId: T.ID) {
+    set((state) => {
+      const next = { ...state.tlsCertificates };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[certId];
+      return { tlsCertificates: next };
+    });
+  },
+
+  updateTlsConfig(tenantId: T.ID, patch: Partial<Omit<T.TlsConfig, 'tenant_id'>>) {
+    set((state) => {
+      const current = state.tlsConfigs[tenantId];
+      if (!current) return state;
+      return {
+        tlsConfigs: {
+          ...state.tlsConfigs,
+          [tenantId]: { ...current, ...patch },
+        },
+      };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -375,7 +445,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 11,
+        version: 12,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -464,6 +534,12 @@ export const useMockStore = IS_VITEST
           if (version < 11) {
             state.certAuthorities = {};
             state.certEnrollments = {};
+          }
+          // Version 12 — Plan 8b.8 adds tlsCertificates + tlsConfigs maps.
+          // Additive; persisted stores from v11 simply get empty maps.
+          if (version < 12) {
+            state.tlsCertificates = {};
+            state.tlsConfigs = {};
           }
           return state as unknown as MockStore;
         },

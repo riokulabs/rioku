@@ -785,3 +785,45 @@ export interface AiToolBinding {
   enabled: boolean;
   readonly created_at: string;
 }
+
+/**
+ * TLS certificate. Represents an issued cert for a domain — either ACME-automated
+ * or operator-uploaded manually.
+ */
+export interface TlsCertificate {
+  readonly id: ID;
+  readonly tenant_id: ID;
+  domain: string;                    // e.g. "api.example.com"
+  /** e.g. "Let's Encrypt", "ZeroSSL", "Self-signed", or "Manual" */
+  issuer: string;
+  source: 'acme' | 'manual';
+  /** ISO-8601 */
+  issued_at: string;
+  expires_at: string;
+  /** Only applies to acme source. Stage-1 toggle only. */
+  auto_renew: boolean;
+  /** Cert PEM (for manual uploads; empty for ACME-managed). */
+  certificate_pem: string;
+  /** Fake SHA-256 hex (64 chars) */
+  fingerprint_sha256: string;
+  readonly created_at: string;
+}
+
+/**
+ * Per-tenant ACME + TLS configuration.
+ */
+export interface TlsConfig {
+  readonly tenant_id: ID;
+  acme: {
+    provider: 'lets-encrypt' | 'zerossl' | 'custom';
+    /** Account email for ACME registration */
+    email: string;
+    /** For provider='custom', the ACME directory URL */
+    directory_url?: string;
+    /** When true, use DNS-01 challenge instead of HTTP-01 */
+    dns_challenge: boolean;
+  };
+  /** Allowed TLS 1.2/1.3 cipher suites (openssl-style names). */
+  allowed_ciphers: string[];
+  readonly updated_at: string;
+}

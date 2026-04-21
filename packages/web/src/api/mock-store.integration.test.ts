@@ -54,6 +54,8 @@ function makeFreshStore() {
     mcpServers: {},
     certAuthorities: {},
     certEnrollments: {},
+    tlsCertificates: {},
+    tlsConfigs: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -125,6 +127,8 @@ function makeFreshStore() {
         networkConfigs: {},
         certAuthorities: {},
         certEnrollments: {},
+        tlsCertificates: {},
+        tlsConfigs: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
@@ -172,6 +176,43 @@ function makeFreshStore() {
           certEnrollments: {
             ...state.certEnrollments,
             [enrollmentId]: { ...current, ...patch },
+          },
+        };
+      });
+    },
+    addTlsCertificate(cert) {
+      set((state) => ({
+        tlsCertificates: { ...state.tlsCertificates, [cert.id]: cert },
+      }));
+    },
+    updateTlsCertificate(certId, patch) {
+      set((state) => {
+        const current = state.tlsCertificates[certId];
+        if (!current) return state;
+        return {
+          tlsCertificates: {
+            ...state.tlsCertificates,
+            [certId]: { ...current, ...patch },
+          },
+        };
+      });
+    },
+    deleteTlsCertificate(certId) {
+      set((state) => {
+        const next = { ...state.tlsCertificates };
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete next[certId];
+        return { tlsCertificates: next };
+      });
+    },
+    updateTlsConfig(tenantId, patch) {
+      set((state) => {
+        const current = state.tlsConfigs[tenantId];
+        if (!current) return state;
+        return {
+          tlsConfigs: {
+            ...state.tlsConfigs,
+            [tenantId]: { ...current, ...patch },
           },
         };
       });
@@ -326,6 +367,31 @@ describe('mock-store seed integrity', () => {
 
   it('seeds 1 impersonation session', () => {
     expect(Object.keys(store.getState().impersonationSessions)).toHaveLength(1);
+  });
+
+  // ── TLS seed integrity ─────────────────────────────────────────────────────
+
+  it('seeds 4 TLS certs per tenant (12 total)', () => {
+    const certs = Object.values(store.getState().tlsCertificates);
+    // 3 tenants × 4 certs each
+    expect(certs.length).toBe(12);
+  });
+
+  it('every tlsCertificate has a valid tenant_id', () => {
+    const { tlsCertificates, tenants } = store.getState();
+    const tenantIds = new Set(Object.keys(tenants));
+    for (const cert of Object.values(tlsCertificates)) {
+      expect(tenantIds.has(cert.tenant_id), `tlsCert ${cert.id} → tenant ${cert.tenant_id}`).toBe(true);
+    }
+  });
+
+  it('seeds one TlsConfig per tenant', () => {
+    const { tlsConfigs, tenants } = store.getState();
+    const tenantIds = Object.keys(tenants);
+    for (const tid of tenantIds) {
+      expect(tlsConfigs[tid]).toBeDefined();
+    }
+    expect(Object.keys(tlsConfigs)).toHaveLength(tenantIds.length);
   });
 
   // ── Relational integrity ───────────────────────────────────────────────────
