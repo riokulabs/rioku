@@ -55,19 +55,20 @@ export function TopBar() {
         </Box>
         <Title order={4}>Rioku</Title>
       </Group>
-      <Box flex={1} />
+      <Box flex={1} visibleFrom="sm" />
       <TextInput
         placeholder="Search or jump to…"
         leftSection={<IconSearch size={16} />}
         rightSection={<Kbd>⌘K</Kbd>}
         rightSectionWidth={60}
-        style={{ minWidth: 320 }}
+        style={{ width: '100%', maxWidth: 480 }}
+        visibleFrom="sm"
         readOnly
         onClick={() => {
           spotlight.open();
         }}
       />
-      <Box flex={1} />
+      <Box flex={1} visibleFrom="sm" />
       <Popover
         opened={opened}
         onChange={(v) => {

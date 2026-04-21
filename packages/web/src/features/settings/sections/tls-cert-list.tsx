@@ -8,6 +8,7 @@ import { useState } from 'react';
 import {
   ActionIcon,
   Badge,
+  Box,
   Button,
   Code,
   Drawer,
@@ -239,7 +240,7 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
   return (
     <>
       <Stack gap="sm" data-testid="tls-cert-list">
-        <Group justify="space-between" align="center">
+        <Group justify="space-between" align="center" wrap="wrap">
           <Title order={5}>TLS Certificates</Title>
           <Tooltip label="Requires tls:write permission" disabled={canWrite}>
             <span>
@@ -261,6 +262,7 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
             No TLS certificates configured.
           </Text>
         ) : (
+          <Box style={{ overflowX: 'auto' }}>
           <Table striped highlightOnHover data-testid="cert-table">
             <Table.Thead>
               <Table.Tr>
@@ -358,6 +360,7 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
               ))}
             </Table.Tbody>
           </Table>
+          </Box>
         )}
       </Stack>
 

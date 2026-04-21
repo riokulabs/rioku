@@ -129,7 +129,7 @@ export function SettingsLayout() {
   }
 
   return (
-    <Group align="flex-start" gap={0} style={{ height: '100%' }}>
+    <Group align="flex-start" gap={0} style={{ height: '100%', overflowX: 'auto' }}>
       {/* Subnav sidebar */}
       <Box
         style={{
