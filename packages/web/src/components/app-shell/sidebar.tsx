@@ -23,6 +23,7 @@ import {
   IconHistory,
   IconLayoutDashboard,
   IconBell,
+  IconBadge,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -81,7 +82,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'Security',
     items: [
-      { label: 'Users & roles', to: '/t/acme/security/users', icon: IconUsers },
+      { label: 'Users', to: '/t/acme/security/users', icon: IconUsers },
+      { label: 'Roles', to: '/t/acme/security/roles', icon: IconBadge },
       { label: 'API keys', to: '/t/acme/security/api-keys', icon: IconKey },
       {
         label: 'Access policies',
