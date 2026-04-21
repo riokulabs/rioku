@@ -1174,16 +1174,16 @@ describe('hardResetTenant', () => {
     expect(entry?.tenant_id).toBe(tenantId);
   });
 
-  it('emits tenant:hard-reset host event', async () => {
+  it('emits tenant:hard-reset-all-store host event', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     const hostEvents: CustomEvent[] = [];
     const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
-    mockBus.addEventListener('tenant:hard-reset', listener);
+    mockBus.addEventListener('tenant:hard-reset-all-store', listener);
 
     await hardResetTenant(tenantId);
 
     expect(hostEvents.length).toBeGreaterThan(0);
-    mockBus.removeEventListener('tenant:hard-reset', listener);
+    mockBus.removeEventListener('tenant:hard-reset-all-store', listener);
   });
 
   it('re-seeds the store (store has tenants after reset)', async () => {
@@ -1273,12 +1273,12 @@ describe('deleteTenant', () => {
     expect(useMockStore.getState().tenants[tenantId]).toBeUndefined();
   });
 
-  it('appends tenant.delete audit entry before deletion', async () => {
+  it('appends tenant.delete audit entry to admin audit log after deletion', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     await deleteTenant(tenantId);
-    // The audit entry is appended before the cascaded delete, so we look at
-    // any tenant_id reference still in the audit log.
-    const entry = useMockStore.getState().audit.find(
+    // The tenant.delete entry is written to the cross-tenant adminAudit log
+    // (not the per-tenant audit array) so it survives the cascade filter.
+    const entry = useMockStore.getState().adminAudit.find(
       (a) => a.action === 'tenant.delete',
     );
     expect(entry).toBeDefined();
@@ -1329,5 +1329,120 @@ describe('deleteTenant', () => {
     for (const t of otherTenants) {
       expect(stateAfter.tenants[t.id]).toBeDefined();
     }
+  });
+
+  it('filters tenant audit log entries for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = useMockStore.getState().audit.filter(
+      (a) => a.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes impersonation sessions for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().impersonationSessions).filter(
+      (s) => s.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes access policies for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().accessPolicies).filter(
+      (p) => p.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes rbac policies for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().rbacPolicies).filter(
+      (p) => p.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes AI traces for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().aiTraces).filter(
+      (t) => t.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes AI semantic rate limits for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().aiSemanticRateLimits).filter(
+      (r) => r.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes AI tool bindings for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().aiToolBindings).filter(
+      (b) => b.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes notification routing rules for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().notificationRoutingRules).filter(
+      (r) => r.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes notification delivery log entries for the deleted tenant', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    await deleteTenant(tenantId);
+    const remaining = Object.values(useMockStore.getState().notificationDeliveryLog).filter(
+      (e) => e.tenant_id === tenantId,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('cascade-removes orphaned widgets when parent dashboards are deleted', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    const stateBefore = useMockStore.getState();
+    const deletedDashboardIds = new Set(
+      Object.values(stateBefore.dashboards)
+        .filter((d) => d.tenant_id === tenantId)
+        .map((d) => d.id),
+    );
+
+    await deleteTenant(tenantId);
+
+    const orphanedWidgets = Object.values(useMockStore.getState().widgets).filter(
+      (w) => deletedDashboardIds.has(w.dashboard_id),
+    );
+    expect(orphanedWidgets).toHaveLength(0);
+  });
+
+  it('cascade-removes orphaned dashboard versions when parent dashboards are deleted', async () => {
+    const tenantId = getAcmeTenantIdForDangerZone();
+    const stateBefore = useMockStore.getState();
+    const deletedDashboardIds = new Set(
+      Object.values(stateBefore.dashboards)
+        .filter((d) => d.tenant_id === tenantId)
+        .map((d) => d.id),
+    );
+
+    await deleteTenant(tenantId);
+
+    const orphanedVersions = Object.values(useMockStore.getState().dashboardVersions).filter(
+      (v) => deletedDashboardIds.has(v.dashboard_id),
+    );
+    expect(orphanedVersions).toHaveLength(0);
   });
 });

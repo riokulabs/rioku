@@ -222,7 +222,7 @@ describe('DangerZoneSection — hard reset modal', () => {
   it('hard reset emits audit entry and host event', async () => {
     const hostEvents: CustomEvent[] = [];
     const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
-    mockBus.addEventListener('tenant:hard-reset', listener);
+    mockBus.addEventListener('tenant:hard-reset-all-store', listener);
 
     render(<DangerZoneSection />, { wrapper: Wrapper });
     fireEvent.click(screen.getByTestId('danger-zone-hard-reset-button'));
@@ -252,7 +252,7 @@ describe('DangerZoneSection — hard reset modal', () => {
     });
 
     expect(hostEvents.length).toBeGreaterThan(0);
-    mockBus.removeEventListener('tenant:hard-reset', listener);
+    mockBus.removeEventListener('tenant:hard-reset-all-store', listener);
   });
 
   it('hard-reset-modal has transitionProps duration=0 (JSDOM comment)', async () => {
@@ -439,8 +439,10 @@ describe('DangerZoneSection — delete tenant modal', () => {
     fireEvent.click(screen.getByTestId('delete-tenant-submit-button'));
 
     await waitFor(() => {
-      const audit = useMockStore.getState().audit;
-      const entry = audit.find(
+      // The tenant.delete entry is written to the cross-tenant adminAudit log,
+      // not the per-tenant audit array (which is filtered during cascade delete).
+      const adminAudit = useMockStore.getState().adminAudit;
+      const entry = adminAudit.find(
         (a) => a.action === 'tenant.delete' && a.tenant_id === tenantId,
       );
       expect(entry).toBeDefined();

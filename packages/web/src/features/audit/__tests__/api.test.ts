@@ -53,14 +53,17 @@ function emptyFilter(): AuditFilter {
   };
 }
 
-/** Sign in as an admin in the target tenant so permission-gated paths pass. */
+/** Sign in as an admin (or super-admin) in the target tenant so permission-gated paths pass. */
 function signInAdmin(tenantId: string): string {
   const s = useMockStore.getState();
   const membership = Object.values(s.memberships).find(
     (m) =>
       m.tenant_id === tenantId &&
       m.state === 'active' &&
-      m.role_ids.some((rid) => s.roles[rid]?.name === 'admin'),
+      m.role_ids.some((rid) => {
+        const name = s.roles[rid]?.name;
+        return name === 'admin' || name === 'super-admin';
+      }),
   );
   if (!membership) throw new Error('No admin membership seeded for tenant');
   useMockStore.setState({

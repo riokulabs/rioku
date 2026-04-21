@@ -22,6 +22,7 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { seedStore } from '@/api/mock-seed';
+import { logAdminAuditEntry } from '@/api/resources/audit';
 import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User, WebhookEndpoint } from '@/api/resources/types';
 import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues, WebhookEndpointValues } from './schemas';
 
@@ -883,12 +884,12 @@ function makeDangerZoneAudit(
 /**
  * Hard-reset all tenant data for the given tenant back to seed defaults.
  *
- * Stage-1 limitation: this resets the ENTIRE store (all tenants), then
- * re-seeds. A true per-tenant reset would require iterating every
- * tenant-scoped collection and rebuilding only this tenant's records — that
- * is deferred to stage 2 when we have real API endpoints.
+ * STAGE-1 LIMITATION: this resets the entire mock store, not just the
+ * specified tenant. Stage 2 will scope to the specific tenant_id.
  *
  * The UI shows a warning banner in the modal to communicate this limitation.
+ * The host event is named `tenant:hard-reset-all-store` to make explicit that
+ * subscribers will see a full-store wipe, not a scoped per-tenant reset.
  */
 export async function hardResetTenant(tenantId: ID): Promise<void> {
   await simulateLatency('mutation');
@@ -896,7 +897,7 @@ export async function hardResetTenant(tenantId: ID): Promise<void> {
   seedStore(useMockStore);
   const updatedState = useMockStore.getState();
   updatedState.appendAudit(makeDangerZoneAudit('tenant.hard_reset', tenantId));
-  emitHostEvent('tenant:hard-reset', { tenant_id: tenantId });
+  emitHostEvent('tenant:hard-reset-all-store', { tenant_id: tenantId });
 }
 
 /**
@@ -990,13 +991,16 @@ export async function exportTenantJson(tenantId: ID): Promise<void> {
  * Uses atomic setState to remove the tenant + all entities whose tenant_id
  * matches the given tenantId. Returns a promise so the caller can navigate
  * away after deletion.
+ *
+ * The tenant.delete audit entry is written to the super-admin cross-tenant
+ * audit log (adminAudit) AFTER the cascade completes — this avoids the entry
+ * being wiped when the tenant audit log is filtered. The host event is emitted
+ * before the cascade so subscribers can react before state is torn down.
  */
 export async function deleteTenant(tenantId: ID): Promise<void> {
   await simulateLatency('mutation');
 
-  // Emit audit + host event BEFORE deleting (so the entry is captured).
-  const preState = useMockStore.getState();
-  preState.appendAudit(makeDangerZoneAudit('tenant.delete', tenantId));
+  // Emit host event before deleting so consumers can react to the event.
   emitHostEvent('tenant:deleted', { tenant_id: tenantId });
 
   // Atomic cascade delete.
@@ -1034,6 +1038,30 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
     for (const [k, v] of Object.entries(s.notifications)) {
       if (v.tenant_id !== tenantId) nextNotifications[k] = v;
     }
+
+    // Dashboards belonging to this tenant — collect IDs for widget orphan cleanup.
+    const deletedDashboardIds = new Set(
+      Object.values(s.dashboards)
+        .filter((d) => d.tenant_id === tenantId)
+        .map((d) => d.id),
+    );
+
+    // Widgets whose parent dashboard is being deleted (FK: dashboard_id).
+    const nextWidgets: Record<ID, (typeof s.widgets)[string]> = {};
+    for (const [k, v] of Object.entries(s.widgets)) {
+      if (!deletedDashboardIds.has(v.dashboard_id)) nextWidgets[k] = v;
+    }
+
+    // DashboardVersions whose parent dashboard is being deleted (FK: dashboard_id).
+    const nextDashboardVersions: Record<ID, (typeof s.dashboardVersions)[string]> = {};
+    for (const [k, v] of Object.entries(s.dashboardVersions)) {
+      if (!deletedDashboardIds.has(v.dashboard_id)) nextDashboardVersions[k] = v;
+    }
+
+    // Audit log: filter out all entries scoped to this tenant.
+    // The tenant.delete entry is written to the cross-tenant adminAudit log
+    // (after setState returns) so it is not lost here.
+    const nextAudit = s.audit.filter((a) => a.tenant_id !== tenantId);
 
     // Per-tenant singleton records keyed by tenantId.
     const nextNetworkConfigs = { ...s.networkConfigs };
@@ -1080,23 +1108,47 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
       sites: filterOut(s.sites),
       apiKeys: filterOut(s.apiKeys),
       sessions: filterOut(s.sessions),
+      impersonationSessions: filterOut(s.impersonationSessions),
+      accessPolicies: filterOut(s.accessPolicies),
+      rbacPolicies: filterOut(s.rbacPolicies),
       certAuthorities: filterOut(s.certAuthorities),
       certEnrollments: filterOut(s.certEnrollments),
       tlsCertificates: filterOut(s.tlsCertificates),
       observabilityConfigs: nextObservabilityConfigs,
       webhookEndpoints: filterOut(s.webhookEndpoints),
       dashboards: filterOut(s.dashboards),
+      widgets: nextWidgets,
+      dashboardVersions: nextDashboardVersions,
       aiProviders: filterOut(s.aiProviders),
       aiAgents: filterOut(s.aiAgents),
       aiTools: filterOut(s.aiTools),
+      aiTraces: filterOut(s.aiTraces),
+      aiSemanticRateLimits: filterOut(s.aiSemanticRateLimits),
+      aiToolBindings: filterOut(s.aiToolBindings),
       mcpServers: filterOut(s.mcpServers),
       notificationChannels: filterOut(s.notificationChannels),
+      notificationRoutingRules: filterOut(s.notificationRoutingRules),
+      notificationDeliveryLog: filterOut(s.notificationDeliveryLog),
       notifications: nextNotifications,
       networkConfigs: nextNetworkConfigs,
       tenantAuthPolicies: nextTenantAuthPolicies,
       tlsConfigs: nextTlsConfigs,
       auditRetentionConfigs: nextAuditRetentionConfigs,
+      audit: nextAudit,
       currentTenantId: nextCurrentTenantId,
     };
+  });
+
+  // Write the deletion audit entry to the super-admin cross-tenant log AFTER
+  // the cascade so it cannot be wiped by the tenant audit filter above.
+  const state = useMockStore.getState();
+  await logAdminAuditEntry({
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action: 'tenant.delete',
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    tier: 'destructive',
   });
 }

@@ -411,6 +411,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     'editor',
     'developer',
     'com.acme.billing:invoice-admin',
+    'super-admin',
   ] as const;
 
   // Wide-permission grants for the admin role (index 3) so requirePermissions guards pass.
@@ -418,7 +419,6 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'user:read' },
     { permission: 'user:invite' },
     { permission: 'user:disable' },
-    { permission: 'user:impersonate' },
     { permission: 'role:read' },
     { permission: 'role:write' },
     { permission: 'role:delete' },
@@ -521,7 +521,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
     // Plan 8c.13 — Danger zone (admin: hard-reset + export; delete is super-admin only).
     { permission: 'tenant:hard-reset' },
     { permission: 'tenant:export' },
-    // tenant:delete is super-admin only (same placement as user:impersonate above).
+    // tenant:delete and user:impersonate are super-admin only — see superAdminGrants below.
+  ];
+
+  // Super-admin grants: all admin grants + super-admin-only permissions.
+  const superAdminGrants: T.Grant[] = [
+    ...adminGrants,
+    { permission: 'user:impersonate' },
     { permission: 'tenant:delete' },
   ];
 
@@ -643,25 +649,30 @@ export function seedStore(store: StoreApi<MockStore>): void {
       tenant_id: pick(allTenantIds, i),
       name: roleName,
       parent_ids: i > 0 ? [roleIds[0]!] : [],
-      grants: i === 3
-        ? adminGrants
-        : i === 1
-          ? opsGrants
-          : i === 0
-            ? viewerGrants
-            : [{ permission: `rioku.${roleName}.read` }],
+      grants: i === 8
+        ? superAdminGrants
+        : i === 3
+          ? adminGrants
+          : i === 1
+            ? opsGrants
+            : i === 0
+              ? viewerGrants
+              : [{ permission: `rioku.${roleName}.read` }],
       denies: [],
-      system: i < 4,
+      system: i < 4 || i === 8,
     };
     addEntity('roles', role);
   }
 
-  const [viewerRoleId, , , adminRoleId] = roleIds as [T.ID, T.ID, T.ID, T.ID, ...T.ID[]];
+  const [viewerRoleId, , , adminRoleId, , , , , superAdminRoleId] = roleIds as [
+    T.ID, T.ID, T.ID, T.ID, T.ID, T.ID, T.ID, T.ID, T.ID, ...T.ID[]
+  ];
 
   // ── Memberships — wire users to tenants ───────────────────────────────────
 
   const membershipData: { userId: T.ID; tenantId: T.ID; roleId: T.ID }[] = [
-    { userId: derrickId, tenantId: acmeTenantId, roleId: adminRoleId },
+    // Derrick is super-admin: the only seeded user who holds tenant:delete + user:impersonate.
+    { userId: derrickId, tenantId: acmeTenantId, roleId: superAdminRoleId },
     { userId: userIds[1]!, tenantId: acmeTenantId, roleId: viewerRoleId },
     { userId: userIds[2]!, tenantId: acmeTenantId, roleId: viewerRoleId },
     { userId: userIds[3]!, tenantId: acmeTenantId, roleId: viewerRoleId },

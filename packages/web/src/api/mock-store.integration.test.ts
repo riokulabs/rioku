@@ -295,8 +295,8 @@ describe('mock-store seed integrity', () => {
     expect(Object.keys(store.getState().users)).toHaveLength(15);
   });
 
-  it('seeds 8 roles', () => {
-    expect(Object.keys(store.getState().roles)).toHaveLength(8);
+  it('seeds 9 roles', () => {
+    expect(Object.keys(store.getState().roles)).toHaveLength(9);
   });
 
   it('seeds 15 memberships', () => {
