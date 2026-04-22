@@ -4,7 +4,7 @@
  * Columns: name, email, membership state, roles (truncated), actions.
  * Filter controls: status dropdown + async name/email search via useOpaqueFilter.
  */
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import {
   Badge,
@@ -16,11 +16,12 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconUser } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
-import { DataTable } from '@/components/data-table';
+import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
+import { notify } from '@/hooks/use-notify';
 import { useOpaqueFilter } from '@/hooks/use-opaque-filter';
 import { useMockStore } from '@/api/mock-store';
-import { useUserList } from '../api';
+import { useUserList, deactivateMembership } from '../api';
 import { MembershipActions } from './membership-actions';
 import type { UserWithMembership, UserFilter } from '../types';
 
@@ -79,6 +80,57 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
   );
 
   const users = useUserList(tenantId, filter);
+
+  // Keep a stable ref to the current users array so bulk handlers can map
+  // row indices (TanStack Table default row IDs) back to membership IDs.
+  // Updating via useEffect avoids mutating a ref during render.
+  const usersRef = useRef<UserWithMembership[]>([]);
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
+  const handleBulkDeactivate = useCallback(async (rowIds: string[]) => {
+    const memberships = rowIds
+      .map((id) => usersRef.current[Number(id)])
+      .filter((u): u is UserWithMembership => u !== undefined)
+      .filter((u) => u.membership.state === 'active')
+      .map((u) => u.membership.id);
+
+    if (memberships.length === 0) {
+      notify.warn('Nothing to do', 'No active memberships in the selection.');
+      return;
+    }
+
+    let failed = 0;
+    for (const mid of memberships) {
+      try {
+        await deactivateMembership(mid);
+      } catch {
+        failed++;
+      }
+    }
+    const succeeded = memberships.length - failed;
+    if (succeeded > 0) {
+      notify.success(
+        'Memberships deactivated',
+        `${String(succeeded)} membership${succeeded !== 1 ? 's' : ''} deactivated.`,
+      );
+    }
+    if (failed > 0) {
+      notify.error(
+        'Some deactivations failed',
+        `${String(failed)} membership${failed !== 1 ? 's' : ''} could not be deactivated.`,
+      );
+    }
+  }, []);
+
+  const bulkActions = useMemo<BulkAction[]>(() => [
+    {
+      label: 'Deactivate selected',
+      color: 'orange',
+      onClick: (ids) => { void handleBulkDeactivate(ids); },
+    },
+  ], [handleBulkDeactivate]);
 
   const columns = useMemo<ColumnDef<UserWithMembership>[]>(
     () => [
@@ -184,6 +236,8 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
         pagination={{ pageSize: 20 }}
         urlSyncKey="users"
         onRowClick={onSelect}
+        rowSelection="multiple"
+        bulkActions={bulkActions}
         emptyState={
           <EmptyState
             icon={IconUser}
