@@ -66,7 +66,7 @@ export function ApiKeyDetailDrawer({
       <Group justify="space-between" align="flex-start">
         <Stack gap={2}>
           <Text fw={600}>{key.name}</Text>
-          <Text size="xs" ff="monospace" c="dimmed">
+          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
             {key.prefix}…
           </Text>
         </Stack>
@@ -82,7 +82,7 @@ export function ApiKeyDetailDrawer({
           <Text size="sm" fw={500} w={100}>
             Scope:
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {key.scope.join(', ') || '—'}
           </Text>
         </Group>
@@ -96,7 +96,7 @@ export function ApiKeyDetailDrawer({
           <Text size="sm" fw={500} w={100}>
             Last used:
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {key.last_used_summary ?? '—'}
           </Text>
         </Group>

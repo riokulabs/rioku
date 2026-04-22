@@ -59,7 +59,7 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
             }}
             label="Permission"
           />
-          <ActionIcon color="red" variant="subtle" onClick={onRemove} aria-label="Remove grant">
+          <ActionIcon color="red.8" variant="subtle" onClick={onRemove} aria-label="Remove grant">
             <IconTrash size={14} />
           </ActionIcon>
         </Group>
@@ -206,7 +206,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
           </Group>
         </Stack>
         <Group gap="xs">
-          <Button size="xs" variant="light" color="red" onClick={onDelete}>
+          <Button size="xs" variant="light" color="red.8" onClick={onDelete}>
             Delete
           </Button>
         </Group>
@@ -225,7 +225,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
         {/* ── Parents ── */}
         <Tabs.Panel value="parents" pt="md">
           <Stack gap="sm">
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="var(--mantine-color-gray-7)">
               Roles this role inherits grants from. Self and cycles are rejected.
             </Text>
             {parentError && (
@@ -250,7 +250,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
         {/* ── Grants ── */}
         <Tabs.Panel value="grants" pt="md">
           <Stack gap="sm">
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="var(--mantine-color-gray-7)">
               Permissions explicitly granted by this role. Inherited grants come from parent roles.
             </Text>
             {grantRows.map((row) => (
@@ -277,7 +277,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
         {/* ── Denies ── */}
         <Tabs.Panel value="denies" pt="md">
           <Stack gap="sm">
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="var(--mantine-color-gray-7)">
               Permissions explicitly denied by this role. Denies override inherited grants.
             </Text>
             <PermissionSelector label="Denied permissions" value={denies} onChange={setDenies} />
@@ -295,7 +295,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
             {/* ── Overview: all permissions this role effectively grants ── */}
             <Tabs.Panel value="overview" pt="md">
               <Stack gap="xs">
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c="var(--mantine-color-gray-7)">
                   Full set of permissions this role effectively grants (own grants + inherited from
                   parents).
                 </Text>
@@ -333,7 +333,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
                   </>
                 )}
                 {!previewUserId && (
-                  <Text size="sm" c="dimmed">
+                  <Text size="sm" c="var(--mantine-color-gray-7)">
                     Select a user to trace effective permissions.
                   </Text>
                 )}

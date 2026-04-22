@@ -171,7 +171,9 @@ function NotificationChannelsPage() {
         onDelete={(c) => void handleDeleteFromList(c)}
       />
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
         title={drawerTitle}

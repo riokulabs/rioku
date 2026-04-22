@@ -175,7 +175,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
                 <Table.Td>
                   <ActionIcon
                     variant="subtle"
-                    color="red"
+                    color="red.8"
                     aria-label={`Remove ${m.alias}`}
                     onClick={() => {
                       void handleRemove(m.upstream_id, m.alias);

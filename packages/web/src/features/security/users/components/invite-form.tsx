@@ -88,13 +88,13 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
           </Text>
           <Paper withBorder p="sm" radius="sm">
             <Group gap="sm" align="center">
-              <Text size="sm" ff="monospace" c="dimmed">
+              <Text size="sm" ff="monospace" c="var(--mantine-color-gray-7)">
                 /invite/
               </Text>
               <IdBadge id={inviteToken} label={inviteToken} />
             </Group>
           </Paper>
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="var(--mantine-color-gray-7)">
             In Phase 1e, this link will be emailed to the user. For now, copy it manually.
           </Text>
         </Stack>

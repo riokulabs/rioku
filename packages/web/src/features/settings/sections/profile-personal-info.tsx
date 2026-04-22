@@ -169,7 +169,7 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
           {avatarPreview !== null && (
             <Button
               variant="subtle"
-              color="red"
+              color="red.8"
               size="xs"
               onClick={() => {
                 void handleRemoveAvatar();

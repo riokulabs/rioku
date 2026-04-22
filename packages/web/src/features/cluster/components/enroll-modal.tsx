@@ -57,7 +57,7 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
   return (
     <Modal opened={opened} onClose={handleClose} title="Enroll new cluster node" size="lg">
       <Stack gap="md">
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="var(--mantine-color-gray-7)">
           Generate a single-use enrollment token. Run the displayed command on the new node to join
           it to the cluster. The token expires in 7 days.
         </Text>
@@ -85,7 +85,7 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
             </Text>
 
             <Stack gap={4}>
-              <Text size="xs" c="dimmed" fw={500} tt="uppercase">
+              <Text size="xs" c="var(--mantine-color-gray-7)" fw={500} tt="uppercase">
                 Join command
               </Text>
               <Group align="flex-start" gap="xs" wrap="nowrap">
@@ -110,7 +110,7 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
               </Group>
             </Stack>
 
-            <Text size="xs" c="dimmed">
+            <Text size="xs" c="var(--mantine-color-gray-7)">
               Replace <Code>&lt;NODE_ADDRESS&gt;</Code> with the IP or hostname of the new node
               (e.g. <Code>10.0.4.5:7777</Code>).
             </Text>

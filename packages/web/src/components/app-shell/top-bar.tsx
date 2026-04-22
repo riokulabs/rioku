@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconSearch, IconBell } from '@tabler/icons-react';
+import { RiokuLogo } from '@/components/rioku-logo';
 import { spotlight } from '@mantine/spotlight';
 import { useDisclosure } from '@mantine/hooks';
 import { useMockStore } from '@/api/mock-store';
@@ -85,9 +86,7 @@ export function TopBar({
         />
       )}
       <Group gap="xs">
-        <Box c="green" fw={700} style={{ fontSize: 20 }}>
-          ◆
-        </Box>
+        <RiokuLogo size={22} />
         <Title order={4}>Rioku</Title>
       </Group>
       <Box flex={1} visibleFrom="sm" />

@@ -419,7 +419,7 @@ function GridCell({
               <Tooltip label="Remove" withArrow>
                 <ActionIcon
                   variant="subtle"
-                  color="red"
+                  color="red.8"
                   size="sm"
                   aria-label={`Remove ${widget.title}`}
                   onClick={(e) => {

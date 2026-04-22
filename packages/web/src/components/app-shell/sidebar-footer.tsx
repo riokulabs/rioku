@@ -141,12 +141,20 @@ export function SidebarFooter() {
             ))
           ) : (
             // Fallback when no currentUserId (e.g. not yet authenticated) —
-            // show static slugs from the URL context
-            <>
-              <Menu.Item>acme</Menu.Item>
-              <Menu.Item>beta</Menu.Item>
-              <Menu.Item>gamma</Menu.Item>
-            </>
+            // show all tenants from the store
+            Object.values(allTenants)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((t) => (
+                <Menu.Item
+                  key={t.id}
+                  onClick={() => {
+                    handleTenantSwitch(t);
+                  }}
+                  data-testid={`tenant-option-${t.slug}`}
+                >
+                  {t.slug}
+                </Menu.Item>
+              ))
           )}
         </Menu.Dropdown>
       </Menu>
@@ -212,7 +220,7 @@ export function SidebarFooter() {
                 >
                   {t.displayName}
                   {t.source === 'plugin' && (
-                    <Text component="span" size="xs" c="dimmed" ml={4}>
+                    <Text component="span" size="xs" c="var(--mantine-color-gray-7)" ml={4}>
                       (plugin)
                     </Text>
                   )}

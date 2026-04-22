@@ -218,7 +218,7 @@ function DeleteConfirmModal({ cert, onClose, onDeleted }: DeleteConfirmProps) {
             Cancel
           </Button>
           <Button
-            color="red"
+            color="red.8"
             loading={deleting}
             onClick={() => {
               void handleDelete();

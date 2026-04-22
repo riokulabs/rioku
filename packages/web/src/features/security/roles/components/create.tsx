@@ -35,7 +35,7 @@ export function RoleCreate({ tenantId: _tenantId, onSave, onCancel }: RoleCreate
     setSaving(true);
     try {
       await onSave(values);
-      form.resetDirty();
+      form.resetDirty(form.values);
     } finally {
       setSaving(false);
     }

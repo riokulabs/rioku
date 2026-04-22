@@ -112,7 +112,7 @@ export function AuthenticationSection() {
           absolute_hours: policy.session_timeouts.absolute_hours,
         },
       });
-      form.resetDirty();
+      form.resetDirty(form.values);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id]);
@@ -288,7 +288,7 @@ export function AuthenticationSection() {
               <Group justify="space-between">
                 <Group gap="xs">
                   <IconLock size={16} color="var(--mantine-color-dimmed)" />
-                  <Text size="sm" fw={500} c="dimmed">
+                  <Text size="sm" fw={500} c="var(--mantine-color-gray-7)">
                     OAuth
                   </Text>
                 </Group>
@@ -309,7 +309,7 @@ export function AuthenticationSection() {
               <Group justify="space-between">
                 <Group gap="xs">
                   <IconLock size={16} color="var(--mantine-color-dimmed)" />
-                  <Text size="sm" fw={500} c="dimmed">
+                  <Text size="sm" fw={500} c="var(--mantine-color-gray-7)">
                     SAML
                   </Text>
                 </Group>

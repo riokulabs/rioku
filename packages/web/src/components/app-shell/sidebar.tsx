@@ -25,14 +25,14 @@ import {
   IconBadge,
   IconTopologyRing,
 } from '@tabler/icons-react';
-import { Link, useRouterState } from '@tanstack/react-router';
+import { Link, useParams, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
 import { useSidebarEntries } from '@/hooks/use-sidebar-entries';
 import { SidebarFooter } from './sidebar-footer';
 
 interface NavItem {
   label: string;
-  to: string;
+  suffix: string;
   icon: FC<{ size?: number }>;
 }
 
@@ -45,29 +45,29 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'General',
     items: [
-      { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
-      { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
-      { label: 'Notifications', to: '/t/acme/notifications', icon: IconBell },
+      { label: 'Dashboard', suffix: 'dashboard', icon: IconDashboard },
+      { label: 'Sites', suffix: 'sites', icon: IconWorld },
+      { label: 'Notifications', suffix: 'notifications', icon: IconBell },
     ],
   },
   {
     heading: 'Analytics',
-    items: [{ label: 'Insights', to: '/t/acme/dashboards', icon: IconLayoutDashboard }],
+    items: [{ label: 'Insights', suffix: 'dashboards', icon: IconLayoutDashboard }],
   },
   {
     heading: 'AI',
     items: [
-      { label: 'Providers', to: '/t/acme/ai/providers', icon: IconBrain },
-      { label: 'Agents', to: '/t/acme/ai/agents', icon: IconRobot },
-      { label: 'Tools', to: '/t/acme/ai/tools', icon: IconTool },
-      { label: 'Tool routing', to: '/t/acme/ai/tool-routing', icon: IconRouter },
-      { label: 'Rate limits', to: '/t/acme/ai/rate-limits', icon: IconGauge },
-      { label: 'Traces', to: '/t/acme/ai/traces', icon: IconHistory },
-      { label: 'MCP servers', to: '/t/acme/ai/mcp-servers', icon: IconServer },
+      { label: 'Providers', suffix: 'ai/providers', icon: IconBrain },
+      { label: 'Agents', suffix: 'ai/agents', icon: IconRobot },
+      { label: 'Tools', suffix: 'ai/tools', icon: IconTool },
+      { label: 'Tool routing', suffix: 'ai/tool-routing', icon: IconRouter },
+      { label: 'Rate limits', suffix: 'ai/rate-limits', icon: IconGauge },
+      { label: 'Traces', suffix: 'ai/traces', icon: IconHistory },
+      { label: 'MCP servers', suffix: 'ai/mcp-servers', icon: IconServer },
       // TODO(stage-2): dual view for API-scoped vs AI-scoped access policies
       {
         label: 'Access policies',
-        to: '/t/acme/security/access-policies',
+        suffix: 'security/access-policies',
         icon: IconShield,
       },
     ],
@@ -75,34 +75,34 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'API management',
     items: [
-      { label: 'Services', to: '/t/acme/services', icon: IconServer },
-      { label: 'Routes', to: '/t/acme/routes', icon: IconRoute },
-      { label: 'Policies', to: '/t/acme/policies', icon: IconShield },
-      { label: 'Middlewares', to: '/t/acme/middlewares', icon: IconStack },
-      { label: 'API Explorer', to: '/t/acme/api-explorer', icon: IconBook },
+      { label: 'Services', suffix: 'services', icon: IconServer },
+      { label: 'Routes', suffix: 'routes', icon: IconRoute },
+      { label: 'Policies', suffix: 'policies', icon: IconShield },
+      { label: 'Middlewares', suffix: 'middlewares', icon: IconStack },
+      { label: 'API Explorer', suffix: 'api-explorer', icon: IconBook },
     ],
   },
   {
     heading: 'Security',
     items: [
-      { label: 'Users', to: '/t/acme/security/users', icon: IconUsers },
-      { label: 'Roles', to: '/t/acme/security/roles', icon: IconBadge },
-      { label: 'API keys', to: '/t/acme/security/api-keys', icon: IconKey },
+      { label: 'Users', suffix: 'security/users', icon: IconUsers },
+      { label: 'Roles', suffix: 'security/roles', icon: IconBadge },
+      { label: 'API keys', suffix: 'security/api-keys', icon: IconKey },
       {
         label: 'RBAC policies',
-        to: '/t/acme/security/rbac-policies',
+        suffix: 'security/rbac-policies',
         icon: IconScale,
       },
-      { label: 'Sessions', to: '/t/acme/security/sessions', icon: IconDevices },
-      { label: 'Audit', to: '/t/acme/security/audit', icon: IconFileText },
+      { label: 'Sessions', suffix: 'security/sessions', icon: IconDevices },
+      { label: 'Audit', suffix: 'security/audit', icon: IconFileText },
     ],
   },
   {
     heading: 'System',
     items: [
-      { label: 'Cluster', to: '/t/acme/cluster', icon: IconTopologyRing },
-      { label: 'Plugins', to: '/t/acme/plugins', icon: IconPlug },
-      { label: 'Settings', to: '/t/acme/settings', icon: IconSettings },
+      { label: 'Cluster', suffix: 'cluster', icon: IconTopologyRing },
+      { label: 'Plugins', suffix: 'plugins', icon: IconPlug },
+      { label: 'Settings', suffix: 'settings', icon: IconSettings },
     ],
   },
 ];
@@ -117,6 +117,9 @@ interface SidebarProps {
 
 export function Sidebar({ onNavLinkClick }: SidebarProps) {
   const { location } = useRouterState();
+  // Derive tenant from URL params; fall back to 'acme' when rendering outside
+  // a tenant route (e.g. the tenants picker page).
+  const { tenant: tenantSlug = 'acme' } = useParams({ strict: false });
 
   // Plugin-contributed sidebar entries, grouped
   const pluginEntries = useSidebarEntries('plugins');
@@ -129,22 +132,26 @@ export function Sidebar({ onNavLinkClick }: SidebarProps) {
             <Text size="xs" tt="uppercase" fw={600} px="xs" pt="xs">
               {group.heading}
             </Text>
-            {group.items.map((item) => (
-              <NavLink
-                key={item.label}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-                component={Link as any}
-                to={item.to}
-                label={item.label}
-                leftSection={<item.icon size={16} />}
-                active={
-                  item.to === '/t/acme/dashboard'
-                    ? location.pathname === item.to
-                    : location.pathname.startsWith(item.to)
-                }
-                {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
-              />
-            ))}
+            {group.items.map((item) => {
+              const to = `/t/${tenantSlug}/${item.suffix}`;
+              const dashboardPath = `/t/${tenantSlug}/dashboard`;
+              return (
+                <NavLink
+                  key={item.label}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+                  component={Link as any}
+                  to={to}
+                  label={item.label}
+                  leftSection={<item.icon size={16} />}
+                  active={
+                    to === dashboardPath
+                      ? location.pathname === to
+                      : location.pathname.startsWith(to)
+                  }
+                  {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
+                />
+              );
+            })}
           </Stack>
         ))}
 

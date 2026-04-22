@@ -152,7 +152,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
         header: 'Email',
         accessorFn: (row) => row.user.email,
         cell: ({ getValue }) => (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {getValue<string>()}
           </Text>
         ),
@@ -179,7 +179,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
           const val = getValue<string>();
           const truncated = val.length > 40 ? `${val.slice(0, 37)}…` : val;
           return (
-            <Text size="sm" c="dimmed" title={val}>
+            <Text size="sm" c="var(--mantine-color-gray-7)" title={val}>
               {truncated || '—'}
             </Text>
           );

@@ -167,7 +167,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         header: 'Key prefix',
         accessorFn: (row) => row.prefix,
         cell: ({ getValue }) => (
-          <Text size="xs" ff="monospace" c="dimmed">
+          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
             {getValue<string>()}…
           </Text>
         ),
@@ -189,7 +189,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         header: 'Last used',
         accessorFn: (row) => row.last_used_summary,
         cell: ({ getValue }) => (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {getValue<string | undefined>() ?? '—'}
           </Text>
         ),
@@ -202,7 +202,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
           const days = row.original.expires_in_days;
           if (days === undefined)
             return (
-              <Text size="sm" c="dimmed">
+              <Text size="sm" c="var(--mantine-color-gray-7)">
                 Never
               </Text>
             );
@@ -274,7 +274,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
                   aria-label="Delete API key"
                   size="sm"
                   variant="subtle"
-                  color="red"
+                  color="red.8"
                   loading={isLoading}
                   onClick={() => void handleDelete(key.id)}
                 >

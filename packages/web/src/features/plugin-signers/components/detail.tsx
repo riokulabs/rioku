@@ -280,7 +280,7 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
         >
           <Button
             size="sm"
-            color="red"
+            color="red.8"
             variant="subtle"
             disabled={!canDelete || deleteBlocked}
             onClick={openDelete}
@@ -395,7 +395,7 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== signer.name}

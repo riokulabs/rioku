@@ -59,7 +59,7 @@ export function ColumnVisibilityMenu<TData>({ table }: ColumnVisibilityMenuProps
       <Menu.Dropdown>
         {columns.length === 0 && (
           <Menu.Item disabled>
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="var(--mantine-color-gray-7)">
               No hideable columns
             </Text>
           </Menu.Item>

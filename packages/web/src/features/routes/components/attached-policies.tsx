@@ -106,7 +106,7 @@ export function AttachedPolicies({ routeId }: AttachedPoliciesProps) {
                   <Button
                     size="xs"
                     variant="subtle"
-                    color="red"
+                    color="red.8"
                     loading={busyId === p.id}
                     onClick={() => void handleDetach(p.id)}
                   >

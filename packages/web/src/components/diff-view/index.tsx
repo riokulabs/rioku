@@ -120,12 +120,12 @@ function DiffRow({ node, compact }: { node: DiffNode; compact: boolean }) {
     return (
       <>
         <Box style={{ paddingLeft: indent }}>
-          <Text size="xs" fw={600} c="dimmed" ff="monospace">
+          <Text size="xs" fw={600} c="var(--mantine-color-gray-7)" ff="monospace">
             {node.key}:
           </Text>
         </Box>
         <Box style={{ paddingLeft: indent }}>
-          <Text size="xs" fw={600} c="dimmed" ff="monospace">
+          <Text size="xs" fw={600} c="var(--mantine-color-gray-7)" ff="monospace">
             {node.key}:
           </Text>
         </Box>
@@ -152,7 +152,7 @@ function DiffRow({ node, compact }: { node: DiffNode; compact: boolean }) {
         })}
       >
         <Group gap={4} wrap="nowrap">
-          <Text size="xs" c="dimmed" ff="monospace" style={{ minWidth: 80 }}>
+          <Text size="xs" c="var(--mantine-color-gray-7)" ff="monospace" style={{ minWidth: 80 }}>
             {node.key}:
           </Text>
           <Text
@@ -184,7 +184,7 @@ function DiffRow({ node, compact }: { node: DiffNode; compact: boolean }) {
         })}
       >
         <Group gap={4} wrap="nowrap">
-          <Text size="xs" c="dimmed" ff="monospace" style={{ minWidth: 80 }}>
+          <Text size="xs" c="var(--mantine-color-gray-7)" ff="monospace" style={{ minWidth: 80 }}>
             {node.key}:
           </Text>
           <Text
@@ -247,7 +247,7 @@ export function DiffView({
           <Text
             size="xs"
             fw={500}
-            c="dimmed"
+            c="var(--mantine-color-gray-7)"
             ta="center"
             py={4}
             style={(theme) => ({
@@ -260,7 +260,7 @@ export function DiffView({
           <Text
             size="xs"
             fw={500}
-            c="dimmed"
+            c="var(--mantine-color-gray-7)"
             ta="center"
             py={4}
             style={(theme) => ({
@@ -281,7 +281,7 @@ export function DiffView({
       </SimpleGrid>
 
       {compact && changedCount === 0 && (
-        <Text size="xs" c="dimmed" ta="center" py="xs">
+        <Text size="xs" c="var(--mantine-color-gray-7)" ta="center" py="xs">
           No changes
         </Text>
       )}

@@ -174,7 +174,9 @@ function AiMcpServersPage() {
         onDelete={handleDeleteFromList}
       />
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
         title={drawerTitle}

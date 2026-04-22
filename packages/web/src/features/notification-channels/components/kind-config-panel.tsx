@@ -322,7 +322,7 @@ function WebhookHeaderEditor({
                   <ActionIcon
                     size="sm"
                     variant="subtle"
-                    color="red"
+                    color="red.8"
                     disabled={readOnly}
                     aria-label={`Remove header ${k}`}
                     onClick={() => {

@@ -286,7 +286,7 @@ export function SiteDetail({ siteId, tenantSlug, onEdit, onClose }: SiteDetailPr
             </Button>
           </Tooltip>
         )}
-        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
+        <Button size="sm" variant="subtle" color="red.8" onClick={openDelete}>
           Delete…
         </Button>
       </Group>

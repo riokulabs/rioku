@@ -2,32 +2,33 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Container, Title, Card, Group, Text, Button, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { detectTenantMode, useActiveTenantSlug } from '@/hooks/use-tenant';
-
-// Stage-1 stub: hardcoded tenants. Phase 1c seeds via mock-store.
-const STUB_TENANTS = ['acme', 'beta', 'gamma'];
+import { useMockStore } from '@/api/mock-store';
 
 function TenantPicker() {
   const navigate = useNavigate();
   const mode = detectTenantMode();
   const currentSlug = useActiveTenantSlug();
 
-  function handleSelect(tenant: string) {
+  const tenants = useMockStore((s) => s.tenants);
+  const tenantList = Object.values(tenants).sort((a, b) => a.name.localeCompare(b.name));
+
+  function handleSelect(slug: string) {
     if (mode === 'subdomain') {
       modals.openConfirmModal({
         title: 'Switch tenant',
         children: (
           <Text size="sm">
-            Switching to <strong>{tenant}</strong> will sign you out of{' '}
+            Switching to <strong>{slug}</strong> will sign you out of{' '}
             <strong>{currentSlug ?? 'current tenant'}</strong>. Continue?
           </Text>
         ),
         labels: { confirm: 'Continue', cancel: 'Cancel' },
         onConfirm: () => {
-          void navigate({ to: '/t/$tenant/dashboard', params: { tenant } });
+          void navigate({ to: '/t/$tenant/dashboard', params: { tenant: slug } });
         },
       });
     } else {
-      void navigate({ to: '/t/$tenant/dashboard', params: { tenant } });
+      void navigate({ to: '/t/$tenant/dashboard', params: { tenant: slug } });
     }
   }
 
@@ -37,12 +38,15 @@ function TenantPicker() {
       <Text mb="xl" mt="xs" size="sm">
         Select a tenant to continue.
       </Text>
-      {STUB_TENANTS.map((tenant) => (
-        <Card key={tenant} withBorder mb="sm" padding="md">
+      {tenantList.map((tenant) => (
+        <Card key={tenant.id} withBorder mb="sm" padding="md">
           <Group justify="space-between" align="center">
             <Group gap="sm">
+              <Text fw={600} size="sm">
+                {tenant.name}
+              </Text>
               <Badge variant="light" color="green">
-                {tenant}
+                {tenant.slug}
               </Badge>
               {mode === 'subdomain' && (
                 <Text size="xs" c="dimmed">
@@ -54,7 +58,7 @@ function TenantPicker() {
               variant="default"
               size="sm"
               onClick={() => {
-                handleSelect(tenant);
+                handleSelect(tenant.slug);
               }}
             >
               Open

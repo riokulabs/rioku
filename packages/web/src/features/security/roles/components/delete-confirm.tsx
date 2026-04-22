@@ -48,7 +48,7 @@ export function RoleDeleteConfirm({ role, onConfirm, onCancel }: RoleDeleteConfi
         <Button variant="default" onClick={onCancel}>
           Cancel
         </Button>
-        <Button color="red" onClick={() => void onConfirm()}>
+        <Button color="red.8" onClick={() => void onConfirm()}>
           Delete role
         </Button>
       </Group>

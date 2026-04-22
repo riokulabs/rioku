@@ -161,7 +161,7 @@ function diffTokens(beforeTokens: string[], afterTokens: string[]): SideTokens {
 
 /**
  * Color hints per token kind. Uses explicit hex values rather than Mantine
- * `c="dimmed"` so the panel meets WCAG AA against the default background.
+ * `c="var(--mantine-color-gray-7)"` so the panel meets WCAG AA against the default background.
  */
 const TOKEN_COLORS: Record<TokenKind, string> = {
   added: 'var(--mantine-color-teal-4)',

@@ -74,7 +74,7 @@ export function RbacPolicyList({ onSelect }: RbacPolicyListProps) {
         header: 'Created',
         size: 140,
         cell: ({ getValue }) => (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {dayjs(getValue<string>()).format('MMM D, YYYY')}
           </Text>
         ),

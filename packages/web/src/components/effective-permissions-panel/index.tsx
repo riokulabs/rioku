@@ -139,7 +139,7 @@ function ConditionBadge({ condition }: { condition: string }) {
 function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
   if (grants.length === 0) {
     return (
-      <Text size="sm" c="dimmed" ta="center" py="md">
+      <Text size="sm" c="var(--mantine-color-gray-7)" ta="center" py="md">
         No permissions match.
       </Text>
     );
@@ -190,7 +190,7 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
 function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
   if (grants.length === 0) {
     return (
-      <Text size="sm" c="dimmed" ta="center" py="md">
+      <Text size="sm" c="var(--mantine-color-gray-7)" ta="center" py="md">
         No permissions match.
       </Text>
     );
@@ -307,7 +307,7 @@ export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePerm
       {/* Empty state */}
       {allGrants.length === 0 && (
         <Box py="md">
-          <Text size="sm" c="dimmed" ta="center">
+          <Text size="sm" c="var(--mantine-color-gray-7)" ta="center">
             No effective permissions found. Assign a role to this{' '}
             {scope === 'user' ? 'user' : 'role'}.
           </Text>

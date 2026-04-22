@@ -269,7 +269,7 @@ function DeleteWebhookModal({ endpoint, onClose }: DeleteWebhookModalProps) {
             Cancel
           </Button>
           <Button
-            color="red"
+            color="red.8"
             loading={deleting}
             onClick={() => {
               void handleDelete();

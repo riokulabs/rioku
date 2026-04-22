@@ -14,6 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
   useRouterState: () => ({ location: { pathname: '/t/acme/dashboard' } }),
+  useParams: () => ({ tenant: 'acme' }),
   Link: ({ children, to }: { children?: React.ReactNode; to?: string }) => (
     <span data-link-to={to ?? ''}>{children}</span>
   ),

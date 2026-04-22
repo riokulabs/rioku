@@ -260,7 +260,7 @@ export function ServiceDetail({
         <Button
           size="sm"
           variant="subtle"
-          color="red"
+          color="red.8"
           disabled={deleteBlocked}
           onClick={openDelete}
           title={deleteBlocked ? 'Remove attached routes before deleting' : undefined}
@@ -415,7 +415,7 @@ export function ServiceDetail({
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== service.name}

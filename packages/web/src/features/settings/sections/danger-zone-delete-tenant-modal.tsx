@@ -114,7 +114,7 @@ export function DeleteTenantModal({
             Cancel
           </Button>
           <Button
-            color="red"
+            color="red.8"
             disabled={!allConfirmed}
             loading={loading}
             onClick={() => {

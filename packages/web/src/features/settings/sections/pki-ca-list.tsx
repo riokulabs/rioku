@@ -135,7 +135,7 @@ function CaDetailDrawer({ ca, onClose }: CaDetailDrawerProps) {
 
         <Tooltip label="Revocation available in stage 2" position="bottom">
           <span>
-            <Button variant="light" color="red" size="sm" disabled data-testid="ca-revoke-button">
+            <Button variant="light" color="red.8" size="sm" disabled data-testid="ca-revoke-button">
               Revoke / Delete (stage 2)
             </Button>
           </span>

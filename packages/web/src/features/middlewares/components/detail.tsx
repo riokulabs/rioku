@@ -194,7 +194,7 @@ export function MiddlewareDetail({ middlewareId, onEdit, onClose }: MiddlewareDe
         <Button size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
+        <Button size="sm" variant="subtle" color="red.8" onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -242,7 +242,7 @@ export function MiddlewareDetail({ middlewareId, onEdit, onClose }: MiddlewareDe
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== middleware.name}

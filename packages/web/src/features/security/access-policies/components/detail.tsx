@@ -35,7 +35,7 @@ export function AccessPolicyDetail({ policy, onEdit, onDelete }: AccessPolicyDet
           <Button size="xs" variant="light" onClick={onEdit}>
             Edit
           </Button>
-          <Button size="xs" variant="light" color="red" onClick={onDelete}>
+          <Button size="xs" variant="light" color="red.8" onClick={onDelete}>
             Delete
           </Button>
         </Group>
@@ -56,13 +56,13 @@ export function AccessPolicyDetail({ policy, onEdit, onDelete }: AccessPolicyDet
       </Stack>
 
       <Stack gap="xs">
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--mantine-color-gray-7)">
           Created {dayjs(policy.created_at).format('MMM D, YYYY HH:mm')}
         </Text>
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--mantine-color-gray-7)">
           ID: <code>{policy.id}</code>
         </Text>
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--mantine-color-gray-7)">
           Tenant: <code>{policy.tenant_id}</code>
         </Text>
       </Stack>

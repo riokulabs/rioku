@@ -45,7 +45,9 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
       await new Promise<void>((resolve) => setTimeout(resolve, 1500));
 
       const saved = consumeReturnUrl();
-      const dest = saved ?? returnUrl ?? `/t/${result.tenant_id}/dashboard`;
+      // Fall back to /tenants so multi-tenant users can choose their context.
+      // TODO(stage-2): subdomain routing may change this default destination.
+      const dest = saved ?? returnUrl ?? '/tenants';
       await navigate({ to: dest });
     } finally {
       setSubmitting(false);

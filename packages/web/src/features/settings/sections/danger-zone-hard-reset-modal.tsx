@@ -123,7 +123,7 @@ export function HardResetModal({ opened, onClose, tenantId, tenantSlug }: HardRe
             Cancel
           </Button>
           <Button
-            color="red"
+            color="red.8"
             disabled={!allConfirmed}
             loading={loading}
             onClick={() => {

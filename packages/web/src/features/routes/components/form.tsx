@@ -276,7 +276,7 @@ export function RouteForm({
                     aria-label={`Header ${String(i + 1)} value`}
                   />
                   <ActionIcon
-                    color="red"
+                    color="red.8"
                     variant="subtle"
                     onClick={() => {
                       removeHeaderRow(i);

@@ -399,7 +399,7 @@ export function TenantSection() {
             {logoPreview !== null && (
               <Button
                 variant="subtle"
-                color="red"
+                color="red.8"
                 size="xs"
                 onClick={() => {
                   void handleRemoveLogo();

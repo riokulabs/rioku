@@ -25,7 +25,7 @@ export function EmptyState({ icon: IconComponent, title, description, action }: 
         </ThemeIcon>
         <Title order={4}>{title}</Title>
         {description && (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {description}
           </Text>
         )}

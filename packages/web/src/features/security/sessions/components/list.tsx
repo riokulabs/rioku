@@ -67,7 +67,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
         header: 'IP',
         accessorFn: (row) => row.ip,
         cell: ({ getValue }) => (
-          <Text size="xs" ff="monospace" c="dimmed">
+          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
             {getValue<string>()}
           </Text>
         ),
@@ -77,7 +77,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
         header: 'Location',
         accessorFn: (row) => row.location,
         cell: ({ getValue }) => (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {getValue<string>()}
           </Text>
         ),
@@ -131,7 +131,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
             <Button
               size="xs"
               variant="subtle"
-              color="red"
+              color="red.8"
               loading={revokingId === sess.id}
               onClick={() => void handleRevoke(sess.id)}
             >
@@ -151,7 +151,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
     <Stack gap="sm">
       {hasOtherSessions && (
         <Group justify="flex-end">
-          <Button size="sm" variant="light" color="red" onClick={openRevokeAll}>
+          <Button size="sm" variant="light" color="red.8" onClick={openRevokeAll}>
             Revoke all other sessions
           </Button>
         </Group>

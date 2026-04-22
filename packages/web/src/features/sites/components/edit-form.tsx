@@ -248,7 +248,7 @@ export function SiteEditForm({ initialValues, onSuccess, onCancel }: SiteEditFor
                   w={90}
                 />
                 <ActionIcon
-                  color="red"
+                  color="red.8"
                   variant="subtle"
                   onClick={() => {
                     removeRedirect(i);

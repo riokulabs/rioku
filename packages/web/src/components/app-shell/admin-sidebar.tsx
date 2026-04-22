@@ -65,7 +65,7 @@ export function AdminSidebar() {
 
         {ADMIN_NAV_GROUPS.map((group) => (
           <Stack key={group.heading} gap={2} mb="md">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600} px="xs" pt="xs">
+            <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600} px="xs" pt="xs">
               {group.heading}
             </Text>
             {group.items.map((item) => (
