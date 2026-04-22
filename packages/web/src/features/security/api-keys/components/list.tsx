@@ -3,8 +3,8 @@
  */
 import { useMemo, useState, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge, Text, Select, Stack, Group, ActionIcon, Tooltip } from '@mantine/core';
-import { IconKey, IconTrash, IconRefresh, IconBan } from '@tabler/icons-react';
+import { Badge, Text, Select, Stack, Group, ActionIcon, TextInput, Tooltip } from '@mantine/core';
+import { IconKey, IconSearch, IconTrash, IconRefresh, IconBan } from '@tabler/icons-react';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
@@ -36,12 +36,23 @@ interface ApiKeyListProps {
 export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   const [filter, setFilter] = useState<ApiKeyFilter>(DEFAULT_FILTER);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const handleStatusChange = useCallback((value: string | null) => {
     setFilter({ status: (value ?? 'all') as ApiKeyFilter['status'] });
   }, []);
 
   const keys = useApiKeyList(tenantId, filter);
+
+  const filteredKeys = useMemo(() => {
+    if (!search.trim()) return keys;
+    const q = search.toLowerCase();
+    return keys.filter(
+      (k) =>
+        k.name.toLowerCase().includes(q) ||
+        k.prefix.toLowerCase().includes(q),
+    );
+  }, [keys, search]);
 
   async function handleRevoke(id: string) {
     setLoadingId(id);
@@ -292,6 +303,16 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   return (
     <Stack gap="sm">
       <Group gap="sm" align="flex-end">
+        <TextInput
+          leftSection={<IconSearch size={16} />}
+          placeholder="Search API keys…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.currentTarget.value);
+          }}
+          style={{ flex: 1 }}
+          aria-label="Search API keys"
+        />
         <Select
           data={STATUS_OPTIONS}
           value={filter.status}
@@ -302,7 +323,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
       </Group>
 
       <DataTable
-        data={keys}
+        data={filteredKeys}
         columns={columns}
         sorting
         pagination={{ pageSize: 20 }}
