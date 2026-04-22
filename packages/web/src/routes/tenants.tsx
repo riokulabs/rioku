@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { Container, Title, Card, Group, Text, Button, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';
@@ -97,12 +97,5 @@ function TenantPicker() {
 }
 
 export const Route = createFileRoute('/tenants')({
-  beforeLoad: () => {
-    const { currentUserId } = useMockStore.getState();
-    if (currentUserId === null) {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: '/login', search: { return: '/tenants' } });
-    }
-  },
   component: TenantPicker,
 });
