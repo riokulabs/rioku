@@ -25,7 +25,7 @@ test('Ctrl+K opens spotlight and Services result navigates correctly', async ({
   await expect(spotlightSearchInput).toBeVisible({ timeout: 5000 });
 
   // Search for "services"
-  await spotlightSearchInput.type('services');
+  await spotlightSearchInput.fill('services');
   await page.waitForTimeout(300);
 
   // Mantine Spotlight renders each action as an UnstyledButton with data-action
