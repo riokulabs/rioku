@@ -95,8 +95,8 @@ export function SettingsLayout() {
     return tenant?.slug ?? '';
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const activeSlug =
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     (typeof search.section === 'string' ? (search.section as string) : null) ??
     DEFAULT_SECTION?.slug ??
     'profile';
