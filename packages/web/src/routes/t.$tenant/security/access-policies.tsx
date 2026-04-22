@@ -7,6 +7,7 @@
  */
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
+import { requirePermissions } from '@/hooks/use-before-load';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
@@ -122,5 +123,6 @@ function AccessPoliciesPage() {
 }
 
 export const Route = createFileRoute('/t/$tenant/security/access-policies')({
+  beforeLoad: requirePermissions({ required: ['policy:read'] }),
   component: AccessPoliciesPage,
 });
