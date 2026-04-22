@@ -39,11 +39,7 @@ interface SiteFilterBarProps {
   serviceOptions: { value: string; label: string }[];
 }
 
-export function SiteFilterBar({
-  filter,
-  onChange,
-  serviceOptions,
-}: SiteFilterBarProps) {
+export function SiteFilterBar({ filter, onChange, serviceOptions }: SiteFilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
@@ -71,9 +67,7 @@ export function SiteFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            tls_mode: value.filter((v): v is TlsMode =>
-              (TLS_VALUES as Set<string>).has(v),
-            ),
+            tls_mode: value.filter((v): v is TlsMode => (TLS_VALUES as Set<string>).has(v)),
           });
         }}
         placeholder={filter.tls_mode.length === 0 ? 'All TLS modes' : undefined}
@@ -103,11 +97,7 @@ export function SiteFilterBar({
         onChange={(value) => {
           onChange({ ...filter, linked_service_ids: value });
         }}
-        placeholder={
-          filter.linked_service_ids.length === 0
-            ? 'All linked services'
-            : undefined
-        }
+        placeholder={filter.linked_service_ids.length === 0 ? 'All linked services' : undefined}
         w={240}
         clearable
         searchable

@@ -17,16 +17,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  CopyButton,
-  Group,
-  Menu,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, CopyButton, Group, Menu, Stack, Text, Tooltip } from '@mantine/core';
 import {
   IconCheck,
   IconCircleCheck,
@@ -122,12 +113,7 @@ export function SignerList({
                 {s.name}
               </Text>
               {s.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={s.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={s.description}>
                   {s.description}
                 </Text>
               )}
@@ -194,12 +180,7 @@ export function SignerList({
         cell: ({ row }) => {
           const cfg = STATUS_CONFIG[row.original.status];
           return (
-            <Badge
-              size="sm"
-              color={cfg.color}
-              variant="light"
-              leftSection={<cfg.Icon size={10} />}
-            >
+            <Badge size="sm" color={cfg.color} variant="light" leftSection={<cfg.Icon size={10} />}>
               {cfg.label}
             </Badge>
           );

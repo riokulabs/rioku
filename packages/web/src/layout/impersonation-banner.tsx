@@ -41,9 +41,8 @@ export function ImpersonationBanner() {
       title: 'End impersonation session?',
       children: (
         <Text size="sm">
-          This will end the impersonation session in <strong>{tenantName}</strong> and
-          return you to the super-admin area. The session exit will be logged to
-          both audit logs.
+          This will end the impersonation session in <strong>{tenantName}</strong> and return you to
+          the super-admin area. The session exit will be logged to both audit logs.
         </Text>
       ),
       labels: { confirm: 'Yes, end session', cancel: 'Stay in session' },

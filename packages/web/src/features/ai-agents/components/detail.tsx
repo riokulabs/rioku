@@ -44,12 +44,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import {
-  ProviderKindBadge,
-  formatCost,
-  formatTokens,
-  shortenPrompt,
-} from '@/features/ai-shared';
+import { ProviderKindBadge, formatCost, formatTokens, shortenPrompt } from '@/features/ai-shared';
 import {
   deleteAgent,
   rotateScopedCredential,
@@ -69,12 +64,7 @@ interface AgentDetailProps {
   onClose: () => void;
 }
 
-export function AgentDetail({
-  agentId,
-  tenantSlug,
-  onEdit,
-  onClose,
-}: AgentDetailProps) {
+export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetailProps) {
   const agent = useAgentDetail(agentId);
   const tools = useAgentTools(agentId);
   const recentTraces = useAgentTraces(agentId, 10);
@@ -87,19 +77,15 @@ export function AgentDetail({
   const auditTail = useMemo(() => {
     if (!agent) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'ai-agent' && e.resource_id === agent.id,
-      )
+      .filter((e) => e.resource_type === 'ai-agent' && e.resource_id === agent.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, agent]);
 
   const [promptOpened, { toggle: togglePrompt }] = useDisclosure(false);
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
-  const [rotateOpened, { open: openRotate, close: closeRotate }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const [rotateOpened, { open: openRotate, close: closeRotate }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [rotateValue, setRotateValue] = useState('');
@@ -201,11 +187,7 @@ export function AgentDetail({
           variant="subtle"
           size="xs"
           leftSection={
-            promptOpened ? (
-              <IconChevronDown size={14} />
-            ) : (
-              <IconChevronRight size={14} />
-            )
+            promptOpened ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />
           }
           onClick={togglePrompt}
           style={{ alignSelf: 'flex-start' }}
@@ -292,10 +274,7 @@ export function AgentDetail({
             temperature: {agent.temperature.toFixed(2)}
           </Text>
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            stop:{' '}
-            {agent.stop_sequences.length === 0
-              ? 'none'
-              : agent.stop_sequences.join(', ')}
+            stop: {agent.stop_sequences.length === 0 ? 'none' : agent.stop_sequences.join(', ')}
           </Text>
         </Group>
       </Stack>
@@ -315,12 +294,7 @@ export function AgentDetail({
         >
           Rotate credential
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -378,20 +352,14 @@ export function AgentDetail({
                       size="xs"
                       variant="light"
                       color={
-                        t.status === 'success'
-                          ? 'green'
-                          : t.status === 'timeout'
-                            ? 'yellow'
-                            : 'red'
+                        t.status === 'success' ? 'green' : t.status === 'timeout' ? 'yellow' : 'red'
                       }
                     >
                       {t.status}
                     </Badge>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {formatTokens(t.input_tokens + t.output_tokens)}
-                    </Text>
+                    <Text size="xs">{formatTokens(t.input_tokens + t.output_tokens)}</Text>
                   </Table.Td>
                   <Table.Td>
                     <Text size="xs">{String(t.latency_ms)}ms</Text>
@@ -448,9 +416,7 @@ export function AgentDetail({
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}

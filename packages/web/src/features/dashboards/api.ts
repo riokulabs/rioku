@@ -9,17 +9,9 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AuditEntry,
-  Dashboard,
-  DashboardVersion,
-  Widget,
-} from '@/api/resources/types';
+import type { AuditEntry, Dashboard, DashboardVersion, Widget } from '@/api/resources/types';
 import { dashboardExportSchema } from './schemas';
-import {
-  DASHBOARD_EXPORT_VERSION,
-  DashboardImportError,
-} from './types';
+import { DASHBOARD_EXPORT_VERSION, DashboardImportError } from './types';
 import type {
   CreateDashboardInput,
   DashboardExport,
@@ -43,9 +35,7 @@ function getCurrentActorId(): string {
 }
 
 /** Strip mutable / relational fields from a dashboard for snapshot embedding. */
-function dashboardSnapshotOf(
-  d: Dashboard,
-): DashboardVersion['snapshot']['dashboard'] {
+function dashboardSnapshotOf(d: Dashboard): DashboardVersion['snapshot']['dashboard'] {
   return {
     name: d.name,
     default: d.default,
@@ -61,9 +51,7 @@ function dashboardSnapshotOf(
 }
 
 /** Strip mutable / relational fields from a widget for snapshot embedding. */
-function widgetSnapshotOf(
-  w: Widget,
-): DashboardVersion['snapshot']['widgets'][number] {
+function widgetSnapshotOf(w: Widget): DashboardVersion['snapshot']['widgets'][number] {
   return {
     id: w.id,
     kind: w.kind,
@@ -99,10 +87,7 @@ function makeAuditEntry(
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useDashboardList(
-  tenantId: string,
-  filter: DashboardFilter,
-): Dashboard[] {
+export function useDashboardList(tenantId: string, filter: DashboardFilter): Dashboard[] {
   const dashboards = useMockStore((s) => s.dashboards);
 
   const search = filter.search.toLowerCase().trim();
@@ -180,17 +165,12 @@ export async function createDashboard(
   };
   const state = useMockStore.getState();
   state.addEntity('dashboards', dashboard);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'dashboard.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'dashboard.create', id));
   emitHostEvent('dashboard.created', { dashboard_id: id, tenant_id: tenantId });
   return dashboard;
 }
 
-export async function updateDashboard(
-  id: string,
-  input: UpdateDashboardInput,
-): Promise<Dashboard> {
+export async function updateDashboard(id: string, input: UpdateDashboardInput): Promise<Dashboard> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const current = state.dashboards[id];
@@ -248,13 +228,7 @@ export async function deleteDashboard(id: string): Promise<void> {
     };
   });
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      dashboard.tenant_id,
-      'dashboard.delete',
-      id,
-      'destructive',
-    ),
+    makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'dashboard.delete', id, 'destructive'),
   );
   emitHostEvent('dashboard.deleted', { dashboard_id: id, tenant_id: dashboard.tenant_id });
 }
@@ -347,12 +321,7 @@ export async function snapshotDashboard(
     },
   }));
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      dashboard.tenant_id,
-      'dashboard.snapshot',
-      dashboardId,
-    ),
+    makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'dashboard.snapshot', dashboardId),
   );
   emitHostEvent('dashboard.snapshot', { dashboard_id: dashboardId, version: nextVersion });
   return version;
@@ -526,9 +495,7 @@ export async function importDashboardJson(
   });
 
   const state = useMockStore.getState();
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'dashboard.import', dashId),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'dashboard.import', dashId));
   emitHostEvent('dashboard.imported', { dashboard_id: dashId, tenant_id: tenantId });
   return dashboard;
 }

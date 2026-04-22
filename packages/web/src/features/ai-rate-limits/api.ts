@@ -10,10 +10,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AiSemanticRateLimit,
-  AuditEntry,
-} from '@/api/resources/types';
+import type { AiSemanticRateLimit, AuditEntry } from '@/api/resources/types';
 import type {
   CreateRateLimitInput,
   MetricWindow,
@@ -100,20 +97,15 @@ function mulberry32(seed: number): () => number {
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useRateLimitList(
-  tenantId: string,
-  filter: RateLimitFilter,
-): AiSemanticRateLimit[] {
+export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiSemanticRateLimit[] {
   const rules = useMockStore((s) => s.aiSemanticRateLimits);
   const search = filter.search.toLowerCase().trim();
   const results: AiSemanticRateLimit[] = [];
   for (const rule of Object.values(rules)) {
     if (rule.tenant_id !== tenantId) continue;
     if (filter.scopes.length > 0 && !filter.scopes.includes(rule.scope)) continue;
-    if (filter.actions.length > 0 && !filter.actions.includes(rule.action))
-      continue;
-    if (filter.enabled !== undefined && rule.enabled !== filter.enabled)
-      continue;
+    if (filter.actions.length > 0 && !filter.actions.includes(rule.action)) continue;
+    if (filter.enabled !== undefined && rule.enabled !== filter.enabled) continue;
     if (search) {
       const nameMatch = rule.name.toLowerCase().includes(search);
       const descMatch = rule.description?.toLowerCase().includes(search) ?? false;
@@ -154,14 +146,7 @@ export async function createRateLimit(
   };
   const state = useMockStore.getState();
   state.addEntity('aiSemanticRateLimits', rule);
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      tenantId,
-      'ai-rate-limit.create',
-      id,
-    ),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-rate-limit.create', id));
   emitHostEvent('ai-rate-limit.created', {
     rule_id: id,
     tenant_id: tenantId,
@@ -200,12 +185,7 @@ export async function updateRateLimit(
   if (!updated) throw new Error(`Rate limit ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-rate-limit.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-rate-limit.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('ai-rate-limit.updated', {
@@ -223,13 +203,7 @@ export async function deleteRateLimit(id: string): Promise<void> {
 
   state.deleteEntity('aiSemanticRateLimits', id);
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      rule.tenant_id,
-      'ai-rate-limit.delete',
-      id,
-      'destructive',
-    ),
+    makeAuditEntry(getCurrentActorId(), rule.tenant_id, 'ai-rate-limit.delete', id, 'destructive'),
   );
   emitHostEvent('ai-rate-limit.deleted', {
     rule_id: id,
@@ -243,10 +217,7 @@ export async function deleteRateLimit(id: string): Promise<void> {
  * Cheap Jaccard-token-overlap match against the rule's exemplars. Returns
  * the highest-scoring exemplar and whether it clears the rule's threshold.
  */
-export function simulateMatch(
-  ruleId: string,
-  candidateText: string,
-): SimulateMatchResult {
+export function simulateMatch(ruleId: string, candidateText: string): SimulateMatchResult {
   const rule = useMockStore.getState().aiSemanticRateLimits[ruleId];
   if (!rule) throw new Error(`Rate limit ${ruleId} not found`);
 
@@ -276,10 +247,7 @@ export function simulateMatch(
  * always ends at the call moment; bucket timestamps are ISO strings marking
  * the bucket's START.
  */
-export function useRateLimitMetrics(
-  ruleId: string,
-  window: MetricWindow,
-): RateLimitMetricsPoint[] {
+export function useRateLimitMetrics(ruleId: string, window: MetricWindow): RateLimitMetricsPoint[] {
   // Hook into the store so sparklines refresh when the rule itself changes.
   const rule = useMockStore((s) => s.aiSemanticRateLimits[ruleId]);
 

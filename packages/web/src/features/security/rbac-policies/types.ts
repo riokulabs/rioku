@@ -14,11 +14,7 @@
 export type { ID } from '@/api/resources/types';
 
 /** Policy types per spec §7.4. */
-export type RbacPolicyType =
-  | 'totp-required'
-  | 'step-up-required'
-  | 'login-window'
-  | 'custom';
+export type RbacPolicyType = 'totp-required' | 'step-up-required' | 'login-window' | 'custom';
 
 /** Full RBAC policy shape used in the feature UI. */
 export interface RbacPolicyFull {

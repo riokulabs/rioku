@@ -81,16 +81,12 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
   const [revoking, setRevoking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
 
   const auditTail = useMemo(() => {
     if (!signer) return [];
     return auditEntries
-      .filter(
-        (e) =>
-          e.resource_type === 'plugin-signer' && e.resource_id === signer.id,
-      )
+      .filter((e) => e.resource_type === 'plugin-signer' && e.resource_id === signer.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -248,10 +244,7 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
             Edit
           </Button>
         )}
-        <Tooltip
-          disabled={canWrite}
-          label="Requires plugin-signer:write permission"
-        >
+        <Tooltip disabled={canWrite} label="Requires plugin-signer:write permission">
           <Button
             size="sm"
             color="green"
@@ -264,10 +257,7 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
             Verify
           </Button>
         </Tooltip>
-        <Tooltip
-          disabled={canWrite}
-          label="Requires plugin-signer:write permission"
-        >
+        <Tooltip disabled={canWrite} label="Requires plugin-signer:write permission">
           <Button
             size="sm"
             color="orange"
@@ -354,9 +344,7 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -377,8 +365,8 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the signer allow-list entry. Plugins still
-            referencing it must be reassigned first.
+            This permanently deletes the signer allow-list entry. Plugins still referencing it must
+            be reassigned first.
           </Alert>
           <Text size="sm">
             Type{' '}

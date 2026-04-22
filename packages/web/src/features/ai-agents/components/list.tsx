@@ -6,22 +6,8 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Group,
-  Menu,
-  ActionIcon,
-  Switch,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconRobot,
-  IconPlayerPlay,
-} from '@tabler/icons-react';
+import { Badge, Text, Stack, Group, Menu, ActionIcon, Switch } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconRobot, IconPlayerPlay } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { ProviderKindBadge } from '@/features/ai-shared';
@@ -77,12 +63,7 @@ export function AgentList({
                 {a.name}
               </Text>
               {a.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={a.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={a.description}>
                   {a.description}
                 </Text>
               )}

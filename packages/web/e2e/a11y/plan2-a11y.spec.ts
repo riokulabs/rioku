@@ -32,9 +32,7 @@ const plan2Routes = [
 ] as const;
 
 for (const route of plan2Routes) {
-  test(`no critical/serious axe violations on ${route.path}`, async ({
-    authedPage: page,
-  }) => {
+  test(`no critical/serious axe violations on ${route.path}`, async ({ authedPage: page }) => {
     await page.goto(route.path);
 
     // Wait for the page heading to confirm the route hydrated before running

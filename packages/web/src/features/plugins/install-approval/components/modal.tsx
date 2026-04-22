@@ -34,11 +34,7 @@ import {
 } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { PART_COLORS } from '../../shared/constants';
-import {
-  installPlugin,
-  isAdminLevelPermission,
-  adminLevelPermissions,
-} from '../api';
+import { installPlugin, isAdminLevelPermission, adminLevelPermissions } from '../api';
 import type { ApprovalCandidate, Plugin } from '../types';
 
 interface InstallApprovalModalProps {
@@ -63,9 +59,9 @@ interface InstallApprovalModalProps {
 /** Extracts `zones` array from an unknown manifest shape. */
 function extractZones(manifest: unknown): string[] {
   if (
-    manifest
-    && typeof manifest === 'object'
-    && Array.isArray((manifest as { zones?: unknown }).zones)
+    manifest &&
+    typeof manifest === 'object' &&
+    Array.isArray((manifest as { zones?: unknown }).zones)
   ) {
     return (manifest as { zones: unknown[] }).zones.filter(
       (z): z is string => typeof z === 'string',
@@ -77,9 +73,9 @@ function extractZones(manifest: unknown): string[] {
 /** Extracts `api_scopes` array from an unknown manifest shape. */
 function extractApiScopes(manifest: unknown): string[] {
   if (
-    manifest
-    && typeof manifest === 'object'
-    && Array.isArray((manifest as { api_scopes?: unknown }).api_scopes)
+    manifest &&
+    typeof manifest === 'object' &&
+    Array.isArray((manifest as { api_scopes?: unknown }).api_scopes)
   ) {
     return (manifest as { api_scopes: unknown[] }).api_scopes.filter(
       (s): s is string => typeof s === 'string',
@@ -98,9 +94,7 @@ export function InstallApprovalModal({
   const [secondConfirm, setSecondConfirm] = useState(false);
   const [installing, setInstalling] = useState(false);
 
-  const adminPerms = candidate
-    ? adminLevelPermissions(candidate.declared_permissions)
-    : [];
+  const adminPerms = candidate ? adminLevelPermissions(candidate.declared_permissions) : [];
   const requiresSecondConfirm = adminPerms.length > 0;
   const canApprove = requiresSecondConfirm ? secondConfirm : true;
 
@@ -180,12 +174,7 @@ export function InstallApprovalModal({
             )}
             <Group gap={4} mt={6}>
               {candidate.parts.map((part) => (
-                <Badge
-                  key={part}
-                  size="xs"
-                  color={PART_COLORS[part]}
-                  variant="light"
-                >
+                <Badge key={part} size="xs" color={PART_COLORS[part]} variant="light">
                   {part}
                 </Badge>
               ))}
@@ -216,10 +205,7 @@ export function InstallApprovalModal({
                           aria-label="admin-level permission"
                         />
                       ) : (
-                        <IconCircleCheck
-                          size={14}
-                          color="var(--mantine-color-green-6)"
-                        />
+                        <IconCircleCheck size={14} color="var(--mantine-color-green-6)" />
                       )}
                       {admin ? (
                         <Code c="var(--mantine-color-red-7)">{perm}</Code>
@@ -289,8 +275,7 @@ export function InstallApprovalModal({
               <Stack gap="xs">
                 <Text size="xs">
                   This plugin requests {adminPerms.length} permission
-                  {adminPerms.length === 1 ? '' : 's'} that grant admin-tier
-                  access:
+                  {adminPerms.length === 1 ? '' : 's'} that grant admin-tier access:
                 </Text>
                 <Stack gap={2}>
                   {adminPerms.map((p) => (
@@ -313,11 +298,7 @@ export function InstallApprovalModal({
 
           {/* ── Actions ── */}
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              leftSection={<IconX size={14} />}
-              onClick={handleCancel}
-            >
+            <Button variant="default" leftSection={<IconX size={14} />} onClick={handleCancel}>
               Decline
             </Button>
             <Button

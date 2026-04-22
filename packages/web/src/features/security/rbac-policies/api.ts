@@ -61,7 +61,10 @@ export function useRbacPolicy(id: string): RbacPolicyFull | undefined {
 export async function createRbacPolicyMutation(
   tenantId: string,
   // Allow condition/window to be string | undefined for Zod 4 optional field compatibility
-  payload: Omit<RbacPolicyPayload, 'condition' | 'window'> & { condition?: string | undefined; window?: string | undefined },
+  payload: Omit<RbacPolicyPayload, 'condition' | 'window'> & {
+    condition?: string | undefined;
+    window?: string | undefined;
+  },
 ): Promise<RbacPolicyFull> {
   await simulateLatency('mutation');
   const id = nextId();
@@ -94,7 +97,12 @@ export async function createRbacPolicyMutation(
 
 export async function updateRbacPolicyMutation(
   id: string,
-  payload: Partial<Omit<RbacPolicyPayload, 'condition' | 'window'> & { condition?: string | undefined; window?: string | undefined }>,
+  payload: Partial<
+    Omit<RbacPolicyPayload, 'condition' | 'window'> & {
+      condition?: string | undefined;
+      window?: string | undefined;
+    }
+  >,
 ): Promise<void> {
   await simulateLatency('mutation');
   const patch: Partial<{ name: string; role_id: string }> = {};

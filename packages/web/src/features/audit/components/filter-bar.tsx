@@ -31,11 +31,7 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-  IconChevronDown,
-  IconChevronRight,
-  IconSearch,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconSearch } from '@tabler/icons-react';
 import { MultiSelectAsync, type MultiSelectAsyncPage } from '@/components/multi-select-async';
 import { usePermission } from '@/hooks/use-permission';
 import { searchActors, searchResourceIds } from '../api';
@@ -45,16 +41,36 @@ import type { AuditFilter } from '../types';
 
 /** Canonical seeded action catalog — mirrors mock-seed. */
 const ACTION_OPTIONS = [
-  'user.login', 'user.logout', 'user.invite', 'user.disable',
-  'role.create', 'role.update', 'role.delete',
-  'service.create', 'service.update', 'service.delete', 'service.health_check',
-  'route.create', 'route.update', 'route.delete',
-  'api_key.create', 'api_key.revoke',
-  'session.create', 'session.revoke',
-  'access-policy.create', 'access-policy.update', 'access-policy.delete',
-  'rbac-policy.create', 'rbac-policy.update', 'rbac-policy.delete',
-  'plugin.install', 'plugin.enable', 'plugin.disable',
-  'tenant.update', 'site.create', 'site.update',
+  'user.login',
+  'user.logout',
+  'user.invite',
+  'user.disable',
+  'role.create',
+  'role.update',
+  'role.delete',
+  'service.create',
+  'service.update',
+  'service.delete',
+  'service.health_check',
+  'route.create',
+  'route.update',
+  'route.delete',
+  'api_key.create',
+  'api_key.revoke',
+  'session.create',
+  'session.revoke',
+  'access-policy.create',
+  'access-policy.update',
+  'access-policy.delete',
+  'rbac-policy.create',
+  'rbac-policy.update',
+  'rbac-policy.delete',
+  'plugin.install',
+  'plugin.enable',
+  'plugin.disable',
+  'tenant.update',
+  'site.create',
+  'site.update',
   'audit.retention.update',
 ].map((a) => ({ value: a, label: a }));
 
@@ -75,8 +91,17 @@ function narrowOutcomes(values: string[]): AuditFilter['outcomes'] {
 }
 
 const RESOURCE_TYPE_OPTIONS = [
-  'user', 'role', 'service', 'route', 'api_key', 'session',
-  'access-policy', 'rbac-policy', 'plugin', 'tenant', 'site',
+  'user',
+  'role',
+  'service',
+  'route',
+  'api_key',
+  'session',
+  'access-policy',
+  'rbac-policy',
+  'plugin',
+  'tenant',
+  'site',
   'audit-retention',
 ].map((r) => ({ value: r, label: r }));
 
@@ -108,11 +133,7 @@ export interface AuditFilterBarProps {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function AuditFilterBar({
-  tenantId,
-  filter,
-  onChange,
-}: AuditFilterBarProps) {
+export function AuditFilterBar({ tenantId, filter, onChange }: AuditFilterBarProps) {
   const canReadSensitive = usePermission('audit:read-sensitive');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(filter.search);
@@ -189,9 +210,7 @@ export function AuditFilterBar({
   const searchInputEl = (
     <TextInput
       placeholder={
-        canReadSensitive
-          ? 'Search action, resource, payload…'
-          : 'Sensitive search disabled'
+        canReadSensitive ? 'Search action, resource, payload…' : 'Sensitive search disabled'
       }
       leftSection={<IconSearch size={14} />}
       value={canReadSensitive ? searchInput : ''}
@@ -212,10 +231,7 @@ export function AuditFilterBar({
         {canReadSensitive ? (
           searchInputEl
         ) : (
-          <Tooltip
-            label="You need audit:read-sensitive to search entry payloads."
-            withArrow
-          >
+          <Tooltip label="You need audit:read-sensitive to search entry payloads." withArrow>
             <div style={{ flex: 1, minWidth: 240 }}>{searchInputEl}</div>
           </Tooltip>
         )}
@@ -272,11 +288,7 @@ export function AuditFilterBar({
           variant="subtle"
           size="sm"
           leftSection={
-            advancedOpen ? (
-              <IconChevronDown size={14} />
-            ) : (
-              <IconChevronRight size={14} />
-            )
+            advancedOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />
           }
           onClick={() => {
             setAdvancedOpen((v) => !v);
@@ -291,11 +303,7 @@ export function AuditFilterBar({
 
       {/* Advanced row — actor + resource-id + date range */}
       <Collapse expanded={advancedOpen}>
-        <Stack
-          gap="sm"
-          id="audit-advanced-filters"
-          data-testid="audit-advanced-filters"
-        >
+        <Stack gap="sm" id="audit-advanced-filters" data-testid="audit-advanced-filters">
           <Group gap="sm" align="flex-end" wrap="wrap">
             <div style={{ flex: 1, minWidth: 280 }}>
               <MultiSelectAsync

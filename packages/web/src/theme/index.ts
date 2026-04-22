@@ -18,7 +18,25 @@ export interface RegisteredTheme {
 
 export const BUILTIN_THEMES: RegisteredTheme[] = [
   { name: 'dark', displayName: 'Dark', colorScheme: 'dark', theme: darkTheme, source: 'built-in' },
-  { name: 'light', displayName: 'Light', colorScheme: 'light', theme: lightTheme, source: 'built-in' },
-  { name: 'hc-dark', displayName: 'High Contrast Dark', colorScheme: 'dark', theme: hcDarkTheme, source: 'built-in' },
-  { name: 'hc-light', displayName: 'High Contrast Light', colorScheme: 'light', theme: hcLightTheme, source: 'built-in' },
+  {
+    name: 'light',
+    displayName: 'Light',
+    colorScheme: 'light',
+    theme: lightTheme,
+    source: 'built-in',
+  },
+  {
+    name: 'hc-dark',
+    displayName: 'High Contrast Dark',
+    colorScheme: 'dark',
+    theme: hcDarkTheme,
+    source: 'built-in',
+  },
+  {
+    name: 'hc-light',
+    displayName: 'High Contrast Light',
+    colorScheme: 'light',
+    theme: hcLightTheme,
+    source: 'built-in',
+  },
 ];

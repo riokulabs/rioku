@@ -58,7 +58,11 @@ function DropzoneStub({
   ...rest
 }: React.PropsWithChildren<Record<string, unknown>>) {
   const testId = (rest['data-testid'] as string | undefined) ?? 'dropzone-stub';
-  return <div data-testid={testId} {...rest}>{children}</div>;
+  return (
+    <div data-testid={testId} {...rest}>
+      {children}
+    </div>
+  );
 }
 function NoopChild({ children }: React.PropsWithChildren) {
   return <>{children}</>;
@@ -154,9 +158,17 @@ describe('SettingsLayout', () => {
   it('renders all expected section nav items', () => {
     wrap(<SettingsLayout />);
     const expectedSlugs = [
-      'profile', 'tenant', 'authentication', 'notifications',
-      'network', 'pki', 'tls', 'observability', 'integrations',
-      'plugins', 'danger-zone',
+      'profile',
+      'tenant',
+      'authentication',
+      'notifications',
+      'network',
+      'pki',
+      'tls',
+      'observability',
+      'integrations',
+      'plugins',
+      'danger-zone',
     ];
     for (const slug of expectedSlugs) {
       expect(screen.getByTestId(`settings-nav-${slug}`)).toBeDefined();

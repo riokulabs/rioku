@@ -25,10 +25,7 @@ function Controlled({
   searchFn,
   initialValue = [],
 }: {
-  searchFn: (
-    query: string,
-    cursor?: string,
-  ) => Promise<MultiSelectAsyncPage>;
+  searchFn: (query: string, cursor?: string) => Promise<MultiSelectAsyncPage>;
   initialValue?: string[];
 }) {
   const [value, setValue] = useState(initialValue);
@@ -92,9 +89,7 @@ describe('<MultiSelectAsync>', () => {
   });
 
   it('selecting an option adds a pill and removing the pill clears it', async () => {
-    const searchFn = vi.fn().mockResolvedValue(
-      makePage([{ handle: 'user_1', label: 'Alice' }]),
-    );
+    const searchFn = vi.fn().mockResolvedValue(makePage([{ handle: 'user_1', label: 'Alice' }]));
     render(<Controlled searchFn={searchFn} />, { wrapper: Wrapper });
     fireEvent.focus(screen.getByPlaceholderText('Search actors'));
     const option = await screen.findByText('Alice');
@@ -113,21 +108,15 @@ describe('<MultiSelectAsync>', () => {
     if (removeBtn) fireEvent.click(removeBtn);
     // Back to no pills — the remove button disappears from the DOM.
     await waitFor(() => {
-      expect(
-        document.querySelector('.mantine-Pill-remove'),
-      ).toBeNull();
+      expect(document.querySelector('.mantine-Pill-remove')).toBeNull();
     });
   });
 
   it('shows Load more when the first page has a cursor, and fetches next page on click', async () => {
     const searchFn = vi
       .fn()
-      .mockImplementationOnce(() =>
-        Promise.resolve(makePage([{ handle: 'u1', label: 'A' }], '1')),
-      )
-      .mockImplementationOnce(() =>
-        Promise.resolve(makePage([{ handle: 'u2', label: 'B' }])),
-      );
+      .mockImplementationOnce(() => Promise.resolve(makePage([{ handle: 'u1', label: 'A' }], '1')))
+      .mockImplementationOnce(() => Promise.resolve(makePage([{ handle: 'u2', label: 'B' }])));
 
     render(<Controlled searchFn={searchFn} />, { wrapper: Wrapper });
     fireEvent.focus(screen.getByPlaceholderText('Search actors'));
@@ -143,10 +132,7 @@ describe('<MultiSelectAsync>', () => {
 
   it('renders pre-selected handles as pills before any fetch resolves', () => {
     const searchFn = vi.fn().mockResolvedValue(makePage([]));
-    render(
-      <Controlled searchFn={searchFn} initialValue={['user_42']} />,
-      { wrapper: Wrapper },
-    );
+    render(<Controlled searchFn={searchFn} initialValue={['user_42']} />, { wrapper: Wrapper });
     // Shows handle as fallback label.
     expect(screen.getByText('user_42')).toBeInTheDocument();
   });
@@ -165,8 +151,6 @@ describe('<MultiSelectAsync>', () => {
       );
     }
     render(<Disabled />, { wrapper: Wrapper });
-    expect(
-      screen.queryByRole('button', { name: /remove/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
   });
 });

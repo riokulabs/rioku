@@ -9,16 +9,7 @@
  *   - Error message for failed / retrying attempts
  */
 import { Link } from '@tanstack/react-router';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Anchor, Badge, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle, IconExternalLink, IconInbox } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';

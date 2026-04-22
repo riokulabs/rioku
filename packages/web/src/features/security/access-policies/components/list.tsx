@@ -42,10 +42,7 @@ export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
         cell: ({ getValue }) => {
           const v = getValue<string>();
           return (
-            <StatusBadge
-              kind={v === 'allow' ? 'active' : 'error'}
-              size="sm"
-            >
+            <StatusBadge kind={v === 'allow' ? 'active' : 'error'} size="sm">
               {v}
             </StatusBadge>
           );
@@ -55,9 +52,7 @@ export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
         accessorKey: 'priority',
         header: 'Priority',
         size: 90,
-        cell: ({ getValue }) => (
-          <Text size="sm">{getValue<number>()}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{getValue<number>()}</Text>,
       },
       {
         accessorKey: 'condition',
@@ -65,12 +60,16 @@ export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
         cell: ({ getValue }) => {
           const full = getValue<string>();
           const truncated =
-            full.length > MAX_CONDITION_LEN
-              ? `${full.slice(0, MAX_CONDITION_LEN)}…`
-              : full;
+            full.length > MAX_CONDITION_LEN ? `${full.slice(0, MAX_CONDITION_LEN)}…` : full;
           return (
             <Tooltip label={full} multiline maw={400} disabled={full.length <= MAX_CONDITION_LEN}>
-              <Text size="sm" style={{ fontFamily: 'monospace', cursor: full.length > MAX_CONDITION_LEN ? 'help' : undefined }}>
+              <Text
+                size="sm"
+                style={{
+                  fontFamily: 'monospace',
+                  cursor: full.length > MAX_CONDITION_LEN ? 'help' : undefined,
+                }}
+              >
                 {truncated}
               </Text>
             </Tooltip>

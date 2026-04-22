@@ -4,12 +4,12 @@ Multi-select permission picker backed by the full Rioku permission catalog.
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `value` | `string[]` | required | Selected permission keys |
-| `onChange` | `(v: string[]) => void` | required | Called with new selection |
-| `label` | `string` | — | Optional field label |
-| `excludePermissions` | `string[]` | `[]` | Permission keys to hide (useful for role-editor parent exclusion) |
+| Prop                 | Type                    | Default  | Description                                                       |
+| -------------------- | ----------------------- | -------- | ----------------------------------------------------------------- |
+| `value`              | `string[]`              | required | Selected permission keys                                          |
+| `onChange`           | `(v: string[]) => void` | required | Called with new selection                                         |
+| `label`              | `string`                | —        | Optional field label                                              |
+| `excludePermissions` | `string[]`              | `[]`     | Permission keys to hide (useful for role-editor parent exclusion) |
 
 ## Behaviour
 

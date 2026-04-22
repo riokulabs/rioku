@@ -46,13 +46,15 @@ test('API explorer renders the Scalar reference UI', async ({ authedPage: page }
   // Scalar v0.9.x renders Vue internals inside `<div data-v-app="">`.
   // Check for Scalar-specific class names or data attributes.
   const scalarRoot = container.locator('[data-v-app], .scalar-app, [class*="scalar"]').first();
-  const hasScalarDom = await scalarRoot.count() > 0;
+  const hasScalarDom = (await scalarRoot.count()) > 0;
   console.log('[api-explorer] Scalar DOM nodes found:', hasScalarDom);
 
   // Fallback: if the Scalar class names changed, assert the body contains
   // meaningful API reference content.
   if (!hasScalarDom) {
-    await expect(page.locator('body')).toContainText(/api|paths|openapi|reference/i, { timeout: 15000 });
+    await expect(page.locator('body')).toContainText(/api|paths|openapi|reference/i, {
+      timeout: 15000,
+    });
   } else {
     await expect(scalarRoot).toBeVisible({ timeout: 15000 });
   }
@@ -61,22 +63,23 @@ test('API explorer renders the Scalar reference UI', async ({ authedPage: page }
   // layout indicator).  Without Scalar's style.css the client-libraries icons
   // and logo SVGs render at natural size (~800-1000px tall).  With styles
   // loaded they are capped to 14px (icons) or small fixed heights.
-  const oversizedImages = await container
-    .locator('img, svg')
-    .evaluateAll((els) =>
-      els
-        .filter((el) => (el as HTMLElement).clientHeight > 600)
-        .map((el) => ({
-          tag: el.tagName.toLowerCase(),
-          clientHeight: (el as HTMLElement).clientHeight,
-          clientWidth: (el as HTMLElement).clientWidth,
-          src: el instanceof HTMLImageElement ? el.src : '',
-          id: (el as HTMLElement).id.slice(0, 80),
-        })),
-    );
+  const oversizedImages = await container.locator('img, svg').evaluateAll((els) =>
+    els
+      .filter((el) => (el as HTMLElement).clientHeight > 600)
+      .map((el) => ({
+        tag: el.tagName.toLowerCase(),
+        clientHeight: (el as HTMLElement).clientHeight,
+        clientWidth: (el as HTMLElement).clientWidth,
+        src: el instanceof HTMLImageElement ? el.src : '',
+        id: (el as HTMLElement).id.slice(0, 80),
+      })),
+  );
 
   if (oversizedImages.length > 0) {
-    console.error('[api-explorer] oversized images/SVGs (layout broken):\n', JSON.stringify(oversizedImages, null, 2));
+    console.error(
+      '[api-explorer] oversized images/SVGs (layout broken):\n',
+      JSON.stringify(oversizedImages, null, 2),
+    );
   }
   expect(
     oversizedImages,
@@ -93,5 +96,8 @@ test('API explorer renders the Scalar reference UI', async ({ authedPage: page }
   if (consoleErrors.length > 0) {
     console.error('[api-explorer] console errors during render:\n', consoleErrors.join('\n'));
   }
-  expect(consoleErrors, `Expected no console errors but got:\n${consoleErrors.join('\n')}`).toHaveLength(0);
+  expect(
+    consoleErrors,
+    `Expected no console errors but got:\n${consoleErrors.join('\n')}`,
+  ).toHaveLength(0);
 });

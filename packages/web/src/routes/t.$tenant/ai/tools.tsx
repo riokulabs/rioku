@@ -54,9 +54,7 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseKindsCsv(v: unknown): Kind[] {
-  return parseCsv(v).filter((s): s is Kind =>
-    (KIND_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Kind => (KIND_VALUES as readonly string[]).includes(s));
 }
 
 function AiToolsPage() {
@@ -64,9 +62,7 @@ function AiToolsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -83,9 +79,7 @@ function AiToolsPage() {
       : search.dangerous === 'false'
         ? { dangerous: false }
         : {}),
-    ...(search.mcp_server_id !== undefined
-      ? { mcp_server_id: search.mcp_server_id }
-      : {}),
+    ...(search.mcp_server_id !== undefined ? { mcp_server_id: search.mcp_server_id } : {}),
   };
 
   function setFilter(next: ToolFilter) {
@@ -96,26 +90,15 @@ function AiToolsPage() {
         ...prev,
         search: next.search,
         kinds: next.kinds.join(','),
-        enabled:
-          next.enabled === true
-            ? 'true'
-            : next.enabled === false
-              ? 'false'
-              : '',
-        dangerous:
-          next.dangerous === true
-            ? 'true'
-            : next.dangerous === false
-              ? 'false'
-              : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
+        dangerous: next.dangerous === true ? 'true' : next.dangerous === false ? 'false' : '',
         mcp_server_id: next.mcp_server_id ?? '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedTool, setSelectedTool] = useState<AiTool | null>(null);
 
@@ -162,7 +145,7 @@ function AiToolsPage() {
       ? 'Create tool'
       : drawerMode === 'edit'
         ? `Edit — ${selectedTool?.name ?? ''}`
-        : selectedTool?.name ?? 'Tool detail';
+        : (selectedTool?.name ?? 'Tool detail');
 
   return (
     <Stack gap="md" p="md">
@@ -188,12 +171,8 @@ function AiToolsPage() {
           }}
         >
           Showing tools exposed by MCP server{' '}
-          <strong>
-            {tenantId && filter.mcp_server_id
-              ? filter.mcp_server_id
-              : ''}
-          </strong>
-          . Close this banner to clear the filter.
+          <strong>{tenantId && filter.mcp_server_id ? filter.mcp_server_id : ''}</strong>. Close
+          this banner to clear the filter.
         </Alert>
       )}
 

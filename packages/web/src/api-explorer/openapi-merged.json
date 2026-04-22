@@ -47,9 +47,7 @@
             }
           }
         ],
-        "tags": [
-          "BuildService"
-        ]
+        "tags": ["BuildService"]
       },
       "post": {
         "operationId": "BuildService_TriggerBuild",
@@ -84,9 +82,7 @@
             }
           }
         },
-        "tags": [
-          "BuildService"
-        ],
+        "tags": ["BuildService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -134,9 +130,7 @@
             }
           }
         ],
-        "tags": [
-          "BuildService"
-        ],
+        "tags": ["BuildService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -174,9 +168,7 @@
             }
           }
         },
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -214,9 +206,7 @@
             }
           }
         },
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -290,9 +280,7 @@
             }
           }
         ],
-        "tags": [
-          "ClusterService"
-        ]
+        "tags": ["ClusterService"]
       }
     },
     "/api/v1/audit": {
@@ -390,9 +378,7 @@
             }
           }
         ],
-        "tags": [
-          "ConfigService"
-        ]
+        "tags": ["ConfigService"]
       }
     },
     "/api/v1/config": {
@@ -431,9 +417,7 @@
             }
           }
         ],
-        "tags": [
-          "ConfigService"
-        ]
+        "tags": ["ConfigService"]
       },
       "post": {
         "operationId": "ConfigService_ApplyChange",
@@ -459,9 +443,7 @@
             }
           }
         },
-        "tags": [
-          "ConfigService"
-        ],
+        "tags": ["ConfigService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -508,9 +490,7 @@
             }
           }
         },
-        "tags": [
-          "ConfigService"
-        ],
+        "tags": ["ConfigService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -548,9 +528,7 @@
             }
           }
         },
-        "tags": [
-          "ConfigService"
-        ],
+        "tags": ["ConfigService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -599,9 +577,7 @@
             }
           }
         ],
-        "tags": [
-          "HealthService"
-        ]
+        "tags": ["HealthService"]
       }
     },
     "/api/v1/health/caddy": {
@@ -629,9 +605,7 @@
             }
           }
         },
-        "tags": [
-          "HealthService"
-        ]
+        "tags": ["HealthService"]
       }
     },
     "/api/v1/plugins": {
@@ -712,9 +686,7 @@
             }
           }
         ],
-        "tags": [
-          "PluginService"
-        ]
+        "tags": ["PluginService"]
       },
       "post": {
         "operationId": "PluginService_InstallPlugin",
@@ -749,9 +721,7 @@
             }
           }
         },
-        "tags": [
-          "PluginService"
-        ],
+        "tags": ["PluginService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -815,9 +785,7 @@
             }
           }
         ],
-        "tags": [
-          "PluginService"
-        ]
+        "tags": ["PluginService"]
       }
     },
     "/api/v1/plugins/{pluginId}/config": {
@@ -855,9 +823,7 @@
             }
           }
         ],
-        "tags": [
-          "PluginService"
-        ]
+        "tags": ["PluginService"]
       },
       "put": {
         "operationId": "PluginService_SetPluginConfig",
@@ -893,9 +859,7 @@
             }
           }
         ],
-        "tags": [
-          "PluginService"
-        ],
+        "tags": ["PluginService"],
         "requestBody": {
           "required": true,
           "content": {
@@ -977,9 +941,7 @@
             }
           }
         ],
-        "tags": [
-          "TrafficService"
-        ]
+        "tags": ["TrafficService"]
       }
     },
     "/api/v1/traffic/sessions/{sessionId}": {
@@ -1017,9 +979,7 @@
             }
           }
         ],
-        "tags": [
-          "TrafficService"
-        ]
+        "tags": ["TrafficService"]
       }
     },
     "/api/v1/traffic/stats": {
@@ -1088,9 +1048,7 @@
             }
           }
         ],
-        "tags": [
-          "TrafficService"
-        ]
+        "tags": ["TrafficService"]
       }
     },
     "/api/v1/traffic/tokens": {
@@ -1170,9 +1128,7 @@
             }
           }
         ],
-        "tags": [
-          "TrafficService"
-        ]
+        "tags": ["TrafficService"]
       }
     },
     "/api/v1/traffic/traces": {
@@ -1286,9 +1242,7 @@
             }
           }
         ],
-        "tags": [
-          "TrafficService"
-        ]
+        "tags": ["TrafficService"]
       }
     },
     "/api/v1/traffic/traces/{traceId}": {
@@ -1326,9 +1280,7 @@
             }
           }
         ],
-        "tags": [
-          "TrafficService"
-        ]
+        "tags": ["TrafficService"]
       }
     }
   },
@@ -1479,11 +1431,7 @@
       },
       "v1BuildTarget": {
         "type": "string",
-        "enum": [
-          "BUILD_TARGET_UNSPECIFIED",
-          "BUILD_TARGET_CADDY",
-          "BUILD_TARGET_DAEMON"
-        ],
+        "enum": ["BUILD_TARGET_UNSPECIFIED", "BUILD_TARGET_CADDY", "BUILD_TARGET_DAEMON"],
         "default": "BUILD_TARGET_UNSPECIFIED"
       },
       "v1SwapResult": {
@@ -1673,11 +1621,7 @@
       },
       "v1NodeRole": {
         "type": "string",
-        "enum": [
-          "NODE_ROLE_UNSPECIFIED",
-          "NODE_ROLE_BOOTSTRAP",
-          "NODE_ROLE_MEMBER"
-        ],
+        "enum": ["NODE_ROLE_UNSPECIFIED", "NODE_ROLE_BOOTSTRAP", "NODE_ROLE_MEMBER"],
         "default": "NODE_ROLE_UNSPECIFIED"
       },
       "v1NodeState": {
@@ -1719,9 +1663,7 @@
       },
       "protobufNullValue": {
         "type": "string",
-        "enum": [
-          "NULL_VALUE"
-        ],
+        "enum": ["NULL_VALUE"],
         "default": "NULL_VALUE",
         "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
       },
@@ -1991,12 +1933,7 @@
       },
       "v1PathMatcherType": {
         "type": "string",
-        "enum": [
-          "TYPE_UNSPECIFIED",
-          "TYPE_EXACT",
-          "TYPE_PREFIX",
-          "TYPE_REGEXP"
-        ],
+        "enum": ["TYPE_UNSPECIFIED", "TYPE_EXACT", "TYPE_PREFIX", "TYPE_REGEXP"],
         "default": "TYPE_UNSPECIFIED"
       },
       "v1Policy": {
@@ -2043,11 +1980,7 @@
       },
       "v1PolicyOpAction": {
         "type": "string",
-        "enum": [
-          "ACTION_UNSPECIFIED",
-          "UPSERT",
-          "DELETE"
-        ],
+        "enum": ["ACTION_UNSPECIFIED", "UPSERT", "DELETE"],
         "default": "ACTION_UNSPECIFIED"
       },
       "v1PolicyType": {
@@ -2123,11 +2056,7 @@
       },
       "v1RouteOpAction": {
         "type": "string",
-        "enum": [
-          "ACTION_UNSPECIFIED",
-          "UPSERT",
-          "DELETE"
-        ],
+        "enum": ["ACTION_UNSPECIFIED", "UPSERT", "DELETE"],
         "default": "ACTION_UNSPECIFIED"
       },
       "v1Service": {
@@ -2193,11 +2122,7 @@
       },
       "v1ServiceOpAction": {
         "type": "string",
-        "enum": [
-          "ACTION_UNSPECIFIED",
-          "UPSERT",
-          "DELETE"
-        ],
+        "enum": ["ACTION_UNSPECIFIED", "UPSERT", "DELETE"],
         "default": "ACTION_UNSPECIFIED"
       },
       "v1TLSMode": {

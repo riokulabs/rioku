@@ -39,9 +39,7 @@ test('seeded sites render on /t/acme/sites', async ({ authedPage: page }) => {
   expect(count).toBeGreaterThan(0);
 });
 
-test('wizard creates a site and the row appears in the list', async ({
-  authedPage: page,
-}) => {
+test('wizard creates a site and the row appears in the list', async ({ authedPage: page }) => {
   await page.goto('/t/acme/sites');
 
   const domain = uniqueDomain();
@@ -84,31 +82,31 @@ test('wizard creates a site and the row appears in the list', async ({
   // visible in the list (close drawer by clicking backdrop would be racy;
   // instead assert the row is in the DOM — the list component subscribes to
   // the mock store and refreshes automatically).
-  await expect(
-    page.getByText(domain, { exact: false }).first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(domain, { exact: false }).first()).toBeVisible({ timeout: 10_000 });
 });
 
-test('delete modal removes a newly-created site', async ({
-  authedPage: page,
-}) => {
+test('delete modal removes a newly-created site', async ({ authedPage: page }) => {
   // Seed a site directly via the mock store so we don't coupling the delete
   // test to the wizard behaviour (covered above).
   const domain = uniqueDomain();
   await page.goto('/t/acme/sites');
   // goto() triggers addInitScript (localStorage.clear) which forces the
   // store to re-seed. Wait for the seed to finish before probing tenants.
-  await page.waitForFunction(() => {
-    const store = (
-      window as unknown as {
-        __RIOKU_STORE?: {
-          getState: () => { tenants: Record<string, unknown> };
-        };
-      }
-    ).__RIOKU_STORE;
-    if (!store) return false;
-    return Object.keys(store.getState().tenants).length > 0;
-  }, null, { timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: {
+            getState: () => { tenants: Record<string, unknown> };
+          };
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      return Object.keys(store.getState().tenants).length > 0;
+    },
+    null,
+    { timeout: 10_000 },
+  );
 
   await page.evaluate((dom) => {
     const store = (
@@ -168,24 +166,25 @@ test('Advanced configuration deep-link navigates to the linked service', async (
   await page.goto('/t/acme/sites');
   // Wait for the mock-store re-seed to finish after the page load so the
   // tenants/sites collections are populated before we probe them.
-  await page.waitForFunction(() => {
-    const store = (
-      window as unknown as {
-        __RIOKU_STORE?: {
-          getState: () => {
-            tenants: Record<string, unknown>;
-            sites: Record<string, unknown>;
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: {
+            getState: () => {
+              tenants: Record<string, unknown>;
+              sites: Record<string, unknown>;
+            };
           };
-        };
-      }
-    ).__RIOKU_STORE;
-    if (!store) return false;
-    const state = store.getState();
-    return (
-      Object.keys(state.tenants).length > 0 &&
-      Object.keys(state.sites).length > 0
-    );
-  }, null, { timeout: 10_000 });
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      const state = store.getState();
+      return Object.keys(state.tenants).length > 0 && Object.keys(state.sites).length > 0;
+    },
+    null,
+    { timeout: 10_000 },
+  );
 
   // Pick the first seeded site that has a linked service. The list exposes
   // the underlying store state to the probe so we can pick a row that has a
@@ -242,8 +241,7 @@ test('Advanced configuration deep-link navigates to the linked service', async (
   // The file-based route generates either /services_/<id> or /services/<id>
   // depending on whether the _flat_ route wins over the folder route in the
   // local tree. Accept both.
-  await expect(page).toHaveURL(
-    new RegExp(`/t/acme/services_?/${pick.serviceId}`),
-    { timeout: 5_000 },
-  );
+  await expect(page).toHaveURL(new RegExp(`/t/acme/services_?/${pick.serviceId}`), {
+    timeout: 5_000,
+  });
 });

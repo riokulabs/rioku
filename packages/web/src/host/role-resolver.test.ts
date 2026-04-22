@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveRolePermissions,
-  detectRoleCycle,
-  validateRoleSave,
-} from './role-resolver';
+import { resolveRolePermissions, detectRoleCycle, validateRoleSave } from './role-resolver';
 import type { Role } from '../api/resources/types';
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -26,10 +22,7 @@ describe('resolveRolePermissions', () => {
   it('flat grants: returns all grants for a single role', () => {
     const viewer = makeRole({
       id: 'viewer',
-      grants: [
-        { permission: 'service:read' },
-        { permission: 'route:read' },
-      ],
+      grants: [{ permission: 'service:read' }, { permission: 'route:read' }],
     });
     const allRoles = { viewer };
 
@@ -132,10 +125,7 @@ describe('resolveRolePermissions', () => {
   it('explicit deny: contractor extends viewer but denies audit:read', () => {
     const viewer = makeRole({
       id: 'viewer',
-      grants: [
-        { permission: 'service:read' },
-        { permission: 'audit:read' },
-      ],
+      grants: [{ permission: 'service:read' }, { permission: 'audit:read' }],
     });
     const contractor = makeRole({
       id: 'contractor',
@@ -234,9 +224,9 @@ describe('resolveRolePermissions', () => {
 
     const result = resolveRolePermissions(['restricted'], allRoles);
 
-    expect(result.has('service:read')).toBe(true);  // inherited, not denied
-    expect(result.has('route:read')).toBe(true);    // inherited, not denied
-    expect(result.has('audit:read')).toBe(false);   // denied by child
+    expect(result.has('service:read')).toBe(true); // inherited, not denied
+    expect(result.has('route:read')).toBe(true); // inherited, not denied
+    expect(result.has('audit:read')).toBe(false); // denied by child
   });
 
   it('multiple denies in different parents: all applied to child', () => {
@@ -285,10 +275,16 @@ describe('resolveRolePermissions', () => {
   it('super-admin with spread adminGrants has notification:read and all admin perms', () => {
     // Replicate the grant structure from mock-seed.ts: adminGrants + super-admin extras.
     const adminGrantPerms = [
-      'user:read', 'user:invite', 'role:read', 'role:write',
-      'notification:read', 'notification:manage-own',
-      'notification-channel:read', 'notification-channel:write',
-      'tenant:hard-reset', 'tenant:export',
+      'user:read',
+      'user:invite',
+      'role:read',
+      'role:write',
+      'notification:read',
+      'notification:manage-own',
+      'notification-channel:read',
+      'notification-channel:write',
+      'tenant:hard-reset',
+      'tenant:export',
     ];
     const adminGrants = adminGrantPerms.map((permission) => ({ permission }));
     const superAdminGrants = [

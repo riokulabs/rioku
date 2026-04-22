@@ -79,8 +79,7 @@ describe('requirePermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Wire getState on the mocked useMockStore function object
-    (useMockStore as unknown as { getState: () => StoreState }).getState = () =>
-      mockGetState();
+    (useMockStore as unknown as { getState: () => StoreState }).getState = () => mockGetState();
   });
 
   it('returns true when user has the required permission', () => {

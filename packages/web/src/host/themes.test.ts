@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  registerPluginTheme,
-  unregisterPluginTheme,
-  listPluginThemes,
-} from './themes';
+import { registerPluginTheme, unregisterPluginTheme, listPluginThemes } from './themes';
 import type { RegisteredTheme } from '@/theme';
 
 function makeTheme(name: string): RegisteredTheme {
@@ -17,7 +13,9 @@ function makeTheme(name: string): RegisteredTheme {
 }
 
 beforeEach(() => {
-  listPluginThemes().forEach((t) => { unregisterPluginTheme(t.name); });
+  listPluginThemes().forEach((t) => {
+    unregisterPluginTheme(t.name);
+  });
 });
 
 describe('registerPluginTheme', () => {
@@ -61,6 +59,8 @@ describe('unregisterPluginTheme', () => {
   });
 
   it('no-ops for unknown name', () => {
-    expect(() => { unregisterPluginTheme('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterPluginTheme('ghost');
+    }).not.toThrow();
   });
 });

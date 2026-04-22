@@ -50,7 +50,13 @@ function TenantPicker() {
                 </Text>
               )}
             </Group>
-            <Button variant="default" size="sm" onClick={() => { handleSelect(tenant); }}>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                handleSelect(tenant);
+              }}
+            >
               Open
             </Button>
           </Group>

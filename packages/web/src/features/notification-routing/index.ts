@@ -17,10 +17,7 @@ export {
   updateRoutingRuleSchema,
 } from './schemas';
 
-export type {
-  CreateRoutingRuleFormValues,
-  UpdateRoutingRuleFormValues,
-} from './schemas';
+export type { CreateRoutingRuleFormValues, UpdateRoutingRuleFormValues } from './schemas';
 
 export type {
   CreateRoutingRuleInput,

@@ -15,14 +15,7 @@
  */
 import { useCallback, useMemo } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import {
-  Badge,
-  Button,
-  Drawer,
-  Group,
-  Stack,
-  Title,
-} from '@mantine/core';
+import { Badge, Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
@@ -96,9 +89,7 @@ function NotificationsPage() {
   const navigate = useNavigate();
 
   const currentUserId = useMockStore((s) => s.currentUserId) ?? '';
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
   const canManageOwn = usePermission('notification:manage-own');
@@ -139,8 +130,9 @@ function NotificationsPage() {
 
   const unreadCount = useUnreadCount(currentUserId);
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(Boolean(search.selected));
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(
+    Boolean(search.selected),
+  );
   const selectedItem = useMemo<NotificationItem | null>(() => {
     if (!search.selected) return null;
     // Detail drawer should resolve against ALL notifications, not just the
@@ -244,9 +236,7 @@ function NotificationsPage() {
         size="min(520px, 95vw)"
         padding="md"
       >
-        {selectedItem && (
-          <NotificationDetail item={selectedItem} onClose={handleDrawerClose} />
-        )}
+        {selectedItem && <NotificationDetail item={selectedItem} onClose={handleDrawerClose} />}
       </Drawer>
     </Stack>
   );
@@ -261,8 +251,6 @@ export const Route = createFileRoute('/t/$tenant/notifications')({
     search: typeof s.search === 'string' ? s.search : '',
     read: parseRead(s.read),
     archived: parseBool(s.archived),
-    ...(typeof s.selected === 'string' && s.selected.length > 0
-      ? { selected: s.selected }
-      : {}),
+    ...(typeof s.selected === 'string' && s.selected.length > 0 ? { selected: s.selected } : {}),
   }),
 });

@@ -7,31 +7,15 @@
  */
 import { useMemo, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Group,
-  Menu,
-  ActionIcon,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconRefresh,
-  IconPencil,
-  IconTrash,
-  IconServer,
-} from '@tabler/icons-react';
+import { Badge, Text, Stack, Group, Menu, ActionIcon } from '@mantine/core';
+import { IconDots, IconRefresh, IconPencil, IconTrash, IconServer } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
 import { useMockStore } from '@/api/mock-store';
-import {
-  HealthChip,
-  ProtocolBadge,
-} from '@/features/api-mgmt-shared';
+import { HealthChip, ProtocolBadge } from '@/features/api-mgmt-shared';
 import { useServiceList, deleteService } from '../api';
 import type { Service, ServiceFilter } from '../types';
 
@@ -92,13 +76,18 @@ export function ServiceList({
     }
   }, []);
 
-  const bulkActions = useMemo<BulkAction[]>(() => [
-    {
-      label: 'Delete selected',
-      color: 'red',
-      onClick: (ids) => { void handleBulkDelete(ids); },
-    },
-  ], [handleBulkDelete]);
+  const bulkActions = useMemo<BulkAction[]>(
+    () => [
+      {
+        label: 'Delete selected',
+        color: 'red',
+        onClick: (ids) => {
+          void handleBulkDelete(ids);
+        },
+      },
+    ],
+    [handleBulkDelete],
+  );
 
   const columns = useMemo<ColumnDef<Service>[]>(
     () => [
@@ -166,9 +155,7 @@ export function ServiceList({
         header: 'Routes',
         size: 90,
         accessorFn: (row) => routeCounts[row.id] ?? 0,
-        cell: ({ getValue }) => (
-          <Text size="sm">{String(getValue<number>())}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{String(getValue<number>())}</Text>,
       },
       {
         id: 'tags',

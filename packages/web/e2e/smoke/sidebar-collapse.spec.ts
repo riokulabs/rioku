@@ -49,5 +49,8 @@ test('sidebar collapse toggle — screenshot open and closed states', async ({
 
   const boxExpanded = await sidebar.boundingBox();
   const isExpanded = boxExpanded !== null && boxExpanded.width > 100;
-  expect(isExpanded, `sidebar should be expanded again (got box: ${JSON.stringify(boxExpanded)})`).toBe(true);
+  expect(
+    isExpanded,
+    `sidebar should be expanded again (got box: ${JSON.stringify(boxExpanded)})`,
+  ).toBe(true);
 });

@@ -108,11 +108,7 @@ describe('ProviderFilterBar', () => {
   it('renders search, kind, and enabled controls', () => {
     wrap(<ProviderFilterBar filter={DEFAULT_FILTER} onChange={vi.fn()} />);
     expect(screen.getAllByLabelText('Search providers').length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by provider kind').length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by enabled').length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by provider kind').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by enabled').length).toBeGreaterThan(0);
   });
 });

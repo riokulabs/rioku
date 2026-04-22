@@ -18,17 +18,7 @@
  * disabled (+ a hint is shown) when the caller lacks the perm.
  */
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  Textarea,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Box, Button, Divider, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
 import {
   IconAlertCircle,
   IconArrowBackUp,
@@ -61,13 +51,7 @@ const LazyMonaco = lazy(async () => {
   const mod = await import('@monaco-editor/react');
   const Editor = mod.default;
   return {
-    default: ({
-      value,
-      language,
-      onChange,
-      height = 220,
-      readOnly = false,
-    }: MonacoEditorProps) => (
+    default: ({ value, language, onChange, height = 220, readOnly = false }: MonacoEditorProps) => (
       <Editor
         value={value}
         language={language}
@@ -120,31 +104,21 @@ export function AdvancedEditor({ widget, onSave }: AdvancedEditorProps) {
   const [flipping, setFlipping] = useState(false);
   const [previewEnabled, setPreviewEnabled] = useState(false);
 
-  const language = useMemo(
-    () => editorLanguage(widget.data_source),
-    [widget.data_source],
-  );
+  const language = useMemo(() => editorLanguage(widget.data_source), [widget.data_source]);
 
   // Preview uses a cloned widget with the currently-edited draft so the user
   // sees their WIP query, not the last-saved one.
-  const previewWidget: Widget = useMemo(
-    () => ({ ...widget, raw_query: draft }),
-    [widget, draft],
-  );
+  const previewWidget: Widget = useMemo(() => ({ ...widget, raw_query: draft }), [widget, draft]);
   const previewData = useWidgetData(previewEnabled ? previewWidget : undefined);
 
   const definition = BUILT_IN_WIDGETS[widget.kind];
-  const canFlipToWizard =
-    definition?.roundTripMode === 'clean' && !widget.locked_advanced;
+  const canFlipToWizard = definition?.roundTripMode === 'clean' && !widget.locked_advanced;
 
   const dirty = draft !== widget.raw_query;
 
   const handleSave = useCallback(async () => {
     if (!canWrite) {
-      notify.error(
-        'Permission denied',
-        'You need dashboard:write to edit the advanced query.',
-      );
+      notify.error('Permission denied', 'You need dashboard:write to edit the advanced query.');
       return;
     }
     setSaving(true);
@@ -161,10 +135,7 @@ export function AdvancedEditor({ widget, onSave }: AdvancedEditorProps) {
 
   const handleFlipToWizard = useCallback(async () => {
     if (!canWrite) {
-      notify.error(
-        'Permission denied',
-        'You need dashboard:write to flip this widget.',
-      );
+      notify.error('Permission denied', 'You need dashboard:write to flip this widget.');
       return;
     }
     if (widget.locked_advanced) {
@@ -278,10 +249,7 @@ export function AdvancedEditor({ widget, onSave }: AdvancedEditorProps) {
           Preview
         </Button>
         {canFlipToWizard && (
-          <Tooltip
-            label="Clears the raw query and returns the widget to wizard mode."
-            withArrow
-          >
+          <Tooltip label="Clears the raw query and returns the widget to wizard mode." withArrow>
             <Button
               size="xs"
               variant="default"
@@ -317,9 +285,7 @@ export function AdvancedEditor({ widget, onSave }: AdvancedEditorProps) {
               widget={previewWidget}
               data={previewData.data}
               loading={previewData.loading}
-              {...(previewData.error !== undefined
-                ? { error: previewData.error }
-                : {})}
+              {...(previewData.error !== undefined ? { error: previewData.error } : {})}
             />
           </Box>
         </>

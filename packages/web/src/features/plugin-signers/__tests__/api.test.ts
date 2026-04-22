@@ -4,13 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import {
-  createSigner,
-  updateSigner,
-  deleteSigner,
-  verifySigner,
-  revokeSigner,
-} from '../api';
+import { createSigner, updateSigner, deleteSigner, verifySigner, revokeSigner } from '../api';
 import { SignerInUseError } from '../types';
 
 beforeEach(() => {

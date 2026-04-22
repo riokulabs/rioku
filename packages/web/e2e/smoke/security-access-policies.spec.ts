@@ -14,12 +14,8 @@ test('seeded access policies render on /t/acme/security/access-policies', async 
 }) => {
   await page.goto('/t/acme/security/access-policies');
 
-  await expect(
-    page.getByRole('heading', { name: /^access policies$/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: /create policy/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^access policies$/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /create policy/i })).toBeVisible();
 
   const rows = page.locator('tbody tr[role="row"]');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
@@ -27,9 +23,7 @@ test('seeded access policies render on /t/acme/security/access-policies', async 
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('row click opens access policy detail drawer', async ({
-  authedPage: page,
-}) => {
+test('row click opens access policy detail drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/access-policies');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -40,9 +34,7 @@ test('row click opens access policy detail drawer', async ({
   await expect(drawer).toBeVisible();
 });
 
-test('create policy button opens editor drawer', async ({
-  authedPage: page,
-}) => {
+test('create policy button opens editor drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/access-policies');
 
   await page.getByRole('button', { name: /create policy/i }).click();

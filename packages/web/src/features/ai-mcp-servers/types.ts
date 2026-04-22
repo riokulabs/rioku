@@ -1,11 +1,7 @@
 /**
  * Feature-local types for MCP servers.
  */
-export type {
-  McpServer,
-  AiTool,
-  ID,
-} from '@/api/resources/types';
+export type { McpServer, AiTool, ID } from '@/api/resources/types';
 
 import type { McpServer } from '@/api/resources/types';
 

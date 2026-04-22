@@ -22,9 +22,8 @@ interface ProfileToggleProps {
 
 const TOOLTIPS: Record<ImpersonationProfile, string> = {
   minimal:
-    'Super-admin\'s full permissions in that tenant. Use when you need write access to diagnose or fix an issue.',
-  full:
-    'Read-only by default. Explicit opt-in to write/destructive tiers. Safer for audit and investigation.',
+    "Super-admin's full permissions in that tenant. Use when you need write access to diagnose or fix an issue.",
+  full: 'Read-only by default. Explicit opt-in to write/destructive tiers. Safer for audit and investigation.',
 };
 
 export function ProfileToggle({ value, onChange }: ProfileToggleProps) {
@@ -37,7 +36,9 @@ export function ProfileToggle({ value, onChange }: ProfileToggleProps) {
         <Tooltip label={TOOLTIPS[value]} multiline w={280} withArrow>
           <SegmentedControl
             value={value}
-            onChange={(v: ImpersonationProfile) => { onChange(v); }}
+            onChange={(v: ImpersonationProfile) => {
+              onChange(v);
+            }}
             data={[
               {
                 value: 'minimal',

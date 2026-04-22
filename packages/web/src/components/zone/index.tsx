@@ -39,12 +39,7 @@ export function Zone({ id, fallback }: ZoneProps) {
   }
 
   return (
-    <Stack
-      role="region"
-      aria-label={`Plugin contributions for ${id}`}
-      gap="xs"
-      data-zone={id}
-    >
+    <Stack role="region" aria-label={`Plugin contributions for ${id}`} gap="xs" data-zone={id}>
       {contributions.map((contrib) => {
         const Component = contrib.component;
         return <Component key={contrib.id} />;

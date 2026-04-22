@@ -12,20 +12,12 @@
  */
 import { useMemo, useState, useCallback } from 'react';
 import { useMockStore } from '@/api/mock-store';
-import {
-  AUDIT_STREAM_TOPIC,
-  auditStreamBus,
-  publishAudit,
-} from '@/api/audit-stream-bus';
+import { AUDIT_STREAM_TOPIC, auditStreamBus, publishAudit } from '@/api/audit-stream-bus';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { resolveRolePermissions } from '@/host/role-resolver';
-import type {
-  AuditEntry,
-  AuditRetentionConfig,
-  ID,
-} from '@/api/resources/types';
+import type { AuditEntry, AuditRetentionConfig, ID } from '@/api/resources/types';
 import type {
   ActorCandidate,
   AsyncSearchPage,
@@ -83,9 +75,7 @@ function currentUserHasPermission(key: string): boolean {
   if (!s.currentUserId) return false;
   const memberships = Object.values(s.memberships).filter(
     (m) =>
-      m.user_id === s.currentUserId &&
-      m.tenant_id === s.currentTenantId &&
-      m.state === 'active',
+      m.user_id === s.currentUserId && m.tenant_id === s.currentTenantId && m.state === 'active',
   );
   const roleIds = memberships.flatMap((m) => m.role_ids);
   return resolveRolePermissions(roleIds, s.roles).has(key);
@@ -93,11 +83,7 @@ function currentUserHasPermission(key: string): boolean {
 
 // ─── Filter matcher ──────────────────────────────────────────────────────────
 
-function matchesFilter(
-  entry: AuditEntry,
-  tenantId: string,
-  filter: AuditFilter,
-): boolean {
+function matchesFilter(entry: AuditEntry, tenantId: string, filter: AuditFilter): boolean {
   if (entry.tenant_id !== tenantId) return false;
 
   if (filter.actions.length > 0 && !filter.actions.includes(entry.action)) {
@@ -106,10 +92,7 @@ function matchesFilter(
   if (filter.outcomes.length > 0 && !filter.outcomes.includes(entry.outcome)) {
     return false;
   }
-  if (
-    filter.resource_types.length > 0 &&
-    !filter.resource_types.includes(entry.resource_type)
-  ) {
+  if (filter.resource_types.length > 0 && !filter.resource_types.includes(entry.resource_type)) {
     return false;
   }
   if (filter.tiers.length > 0 && !filter.tiers.includes(entry.tier)) {
@@ -131,8 +114,7 @@ function matchesFilter(
       const decoded = decodeResourceHandle(h);
       if (!decoded) return false;
       return (
-        decoded.resource_type === entry.resource_type &&
-        decoded.resource_id === entry.resource_id
+        decoded.resource_type === entry.resource_type && decoded.resource_id === entry.resource_id
       );
     });
     if (!ok) return false;
@@ -176,10 +158,7 @@ function sortDesc(a: AuditEntry, b: AuditEntry): number {
  * happen outside the selector so the hook identity is stable when unrelated
  * store slices update.
  */
-export function useAuditList(
-  tenantId: string,
-  filter: AuditFilter,
-): AuditEntry[] {
+export function useAuditList(tenantId: string, filter: AuditFilter): AuditEntry[] {
   const audit = useMockStore((s) => s.audit);
   return useMemo(() => {
     const out: AuditEntry[] = [];
@@ -207,10 +186,7 @@ export function useAuditListInfinite(
 
   // When the filter reference changes we want to reset to page 1. Use the
   // `full.length` + a stable reset key derived from filter identity.
-  const currentSlice = useMemo(
-    () => full.slice(0, pages * pageSize),
-    [full, pages, pageSize],
-  );
+  const currentSlice = useMemo(() => full.slice(0, pages * pageSize), [full, pages, pageSize]);
 
   const hasNextPage = currentSlice.length < full.length;
 
@@ -229,10 +205,7 @@ export function useAuditListInfinite(
 /** Detail selector — returns the audit entry with id `entryId`, or undefined. */
 export function useAuditDetail(entryId: string): AuditEntry | undefined {
   const audit = useMockStore((s) => s.audit);
-  return useMemo(
-    () => audit.find((e) => e.id === entryId),
-    [audit, entryId],
-  );
+  return useMemo(() => audit.find((e) => e.id === entryId), [audit, entryId]);
 }
 
 // ─── Streaming tail ──────────────────────────────────────────────────────────
@@ -243,10 +216,7 @@ export function useAuditDetail(entryId: string): AuditEntry | undefined {
  * matches (including the `null` super-admin case when `tenantId === null`).
  * Returns an unsubscribe function.
  */
-export function subscribeAuditStream(
-  tenantId: string,
-  onEntry: AuditStreamListener,
-): () => void {
+export function subscribeAuditStream(tenantId: string, onEntry: AuditStreamListener): () => void {
   const handler = (e: Event): void => {
     const detail = (e as CustomEvent<AuditEntry>).detail;
     if (detail.tenant_id !== tenantId) return;
@@ -269,8 +239,7 @@ function csvEscape(value: string | number | null | undefined): string {
   return s;
 }
 
-const CSV_HEADER =
-  'at,actor_id,action,resource_type,resource_id,outcome,tier,ip,request_id';
+const CSV_HEADER = 'at,actor_id,action,resource_type,resource_id,outcome,tier,ip,request_id';
 
 const REDACTED = '[redacted]';
 
@@ -281,10 +250,7 @@ const REDACTED = '[redacted]';
  * the `ip` column is replaced with `[redacted]`. `user_agent` is not a CSV
  * column; the JSONL export carries the full (redacted) shape.
  */
-export function exportAuditCsv(
-  tenantId: string,
-  filter: AuditFilter,
-): Blob {
+export function exportAuditCsv(tenantId: string, filter: AuditFilter): Blob {
   const canReadSensitive = currentUserHasPermission('audit:read-sensitive');
   const state = useMockStore.getState();
 
@@ -296,7 +262,7 @@ export function exportAuditCsv(
 
   const rows: string[] = [CSV_HEADER];
   for (const e of matched) {
-    const ipCell = canReadSensitive ? e.ip ?? '' : e.ip ? REDACTED : '';
+    const ipCell = canReadSensitive ? (e.ip ?? '') : e.ip ? REDACTED : '';
     rows.push(
       [
         csvEscape(e.at),
@@ -324,10 +290,7 @@ export function exportAuditCsv(
  *   - `user_agent` → `[redacted]`
  *   - `payload`    → `null`
  */
-export function exportAuditJsonl(
-  tenantId: string,
-  filter: AuditFilter,
-): Blob {
+export function exportAuditJsonl(tenantId: string, filter: AuditFilter): Blob {
   const canReadSensitive = currentUserHasPermission('audit:read-sensitive');
   const state = useMockStore.getState();
 
@@ -448,9 +411,7 @@ export async function searchResourceIds(
 // ─── Retention config ────────────────────────────────────────────────────────
 
 /** Read the retention config for a tenant. Returns `undefined` if none seeded. */
-export function useRetentionConfig(
-  tenantId: string,
-): AuditRetentionConfig | undefined {
+export function useRetentionConfig(tenantId: string): AuditRetentionConfig | undefined {
   return useMockStore((s) => s.auditRetentionConfigs[tenantId]);
 }
 

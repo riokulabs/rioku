@@ -18,7 +18,14 @@ import { emitNotification } from '@/features/notifications';
 const colorSchemeManager = localStorageColorSchemeManager({ key: 'rioku-color-scheme' });
 
 // Dark theme is always present as the first built-in; used as fallback.
-const DARK_THEME = BUILTIN_THEMES.find((t) => t.name === 'dark') ?? BUILTIN_THEMES[0] ?? { name: 'dark', displayName: 'Dark', colorScheme: 'dark' as const, theme: {}, source: 'built-in' as const };
+const DARK_THEME = BUILTIN_THEMES.find((t) => t.name === 'dark') ??
+  BUILTIN_THEMES[0] ?? {
+    name: 'dark',
+    displayName: 'Dark',
+    colorScheme: 'dark' as const,
+    theme: {},
+    source: 'built-in' as const,
+  };
 
 export function Providers({ children }: { children: ReactNode }) {
   const [activeThemeName, setActiveThemeName] = useActiveTheme();
@@ -49,7 +56,6 @@ export function Providers({ children }: { children: ReactNode }) {
       },
     });
     // Run once — setNotifyBackend is idempotent; backend is a module singleton.
-     
   }, []);
 
   // Resolve theme: if user hasn't manually picked (still default 'dark'),

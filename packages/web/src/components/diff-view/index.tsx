@@ -14,15 +14,7 @@
  * compact=true hides unchanged keys.
  */
 import { useMemo } from 'react';
-import {
-  Paper,
-  Text,
-  SimpleGrid,
-  Box,
-  Group,
-  Stack,
-  Badge,
-} from '@mantine/core';
+import { Paper, Text, SimpleGrid, Box, Group, Stack, Badge } from '@mantine/core';
 
 // ── Diff node types ───────────────────────────────────────────────────────────
 
@@ -46,11 +38,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-function diffObjects(
-  before: unknown,
-  after: unknown,
-  depth = 0,
-): DiffNode[] {
+function diffObjects(before: unknown, after: unknown, depth = 0): DiffNode[] {
   const beforeObj: Record<string, unknown> = isPlainObject(before) ? before : {};
   const afterObj: Record<string, unknown> = isPlainObject(after) ? after : {};
 
@@ -169,7 +157,11 @@ function DiffRow({ node, compact }: { node: DiffNode; compact: boolean }) {
           </Text>
           <Text
             size="xs"
-            {...(leftColor ? { c: leftColor } : node.status === 'added' ? { c: 'dimmed' as const } : {})}
+            {...(leftColor
+              ? { c: leftColor }
+              : node.status === 'added'
+                ? { c: 'dimmed' as const }
+                : {})}
             ff="monospace"
             style={{ wordBreak: 'break-all' }}
           >
@@ -197,7 +189,11 @@ function DiffRow({ node, compact }: { node: DiffNode; compact: boolean }) {
           </Text>
           <Text
             size="xs"
-            {...(rightColor ? { c: rightColor } : node.status === 'removed' ? { c: 'dimmed' as const } : {})}
+            {...(rightColor
+              ? { c: rightColor }
+              : node.status === 'removed'
+                ? { c: 'dimmed' as const }
+                : {})}
             ff="monospace"
             style={{ wordBreak: 'break-all' }}
           >
@@ -248,13 +244,29 @@ export function DiffView({
           </Badge>
         </Group>
         <SimpleGrid cols={2} spacing={0}>
-          <Text size="xs" fw={500} c="dimmed" ta="center" py={4}
-            style={(theme) => ({ borderBottom: `1px solid ${theme.colors.gray[3]}`, backgroundColor: theme.colors.red[0] })}
+          <Text
+            size="xs"
+            fw={500}
+            c="dimmed"
+            ta="center"
+            py={4}
+            style={(theme) => ({
+              borderBottom: `1px solid ${theme.colors.gray[3]}`,
+              backgroundColor: theme.colors.red[0],
+            })}
           >
             Before
           </Text>
-          <Text size="xs" fw={500} c="dimmed" ta="center" py={4}
-            style={(theme) => ({ borderBottom: `1px solid ${theme.colors.gray[3]}`, backgroundColor: theme.colors.green[0] })}
+          <Text
+            size="xs"
+            fw={500}
+            c="dimmed"
+            ta="center"
+            py={4}
+            style={(theme) => ({
+              borderBottom: `1px solid ${theme.colors.gray[3]}`,
+              backgroundColor: theme.colors.green[0],
+            })}
           >
             After
           </Text>

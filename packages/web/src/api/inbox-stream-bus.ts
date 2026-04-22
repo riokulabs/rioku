@@ -26,7 +26,5 @@ export type InboxStreamEvent = CustomEvent<NotificationItem>;
  * `CustomEvent<NotificationItem>` whose `detail` is the item.
  */
 export function publishInbox(item: NotificationItem): void {
-  inboxStreamBus.dispatchEvent(
-    new CustomEvent(INBOX_STREAM_TOPIC, { detail: item }),
-  );
+  inboxStreamBus.dispatchEvent(new CustomEvent(INBOX_STREAM_TOPIC, { detail: item }));
 }

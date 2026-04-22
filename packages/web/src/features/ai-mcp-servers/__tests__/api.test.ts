@@ -45,9 +45,7 @@ describe('createMcpServer + updateMcpServer + deleteMcpServer', () => {
   });
 
   it('updates fields and records a diff', async () => {
-    const existing = Object.values(
-      useMockStore.getState().mcpServers,
-    )[0]!;
+    const existing = Object.values(useMockStore.getState().mcpServers)[0]!;
     const after = await updateMcpServer(existing.id, {
       name: 'renamed-mcp',
       enabled: false,
@@ -80,9 +78,7 @@ describe('createMcpServer + updateMcpServer + deleteMcpServer', () => {
       (s) => s.exposed_tool_count > 0,
     );
     expect(refed).toBeDefined();
-    await expect(deleteMcpServer(refed!.id)).rejects.toThrow(
-      /Cannot delete MCP server/,
-    );
+    await expect(deleteMcpServer(refed!.id)).rejects.toThrow(/Cannot delete MCP server/);
     // Server still present.
     expect(useMockStore.getState().mcpServers[refed!.id]).toBeDefined();
   });

@@ -17,14 +17,7 @@
  * Intentionally does NOT support single-select — single-select has a
  * different interaction pattern (no pill removal, clear button instead).
  */
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Combobox,
   Pill,
@@ -54,10 +47,7 @@ export interface MultiSelectAsyncProps {
    * Async candidate search. Receives the current query string (possibly
    * empty) and an optional pagination cursor; returns a page of candidates.
    */
-  searchFn: (
-    query: string,
-    cursor?: string,
-  ) => Promise<MultiSelectAsyncPage>;
+  searchFn: (query: string, cursor?: string) => Promise<MultiSelectAsyncPage>;
   /** Debounce delay for search-input → fetch. Default 250ms. */
   debounceMs?: number;
   /** Disables the input entirely. Pills are still visible (read-only). */
@@ -112,22 +102,19 @@ export function MultiSelectAsync({
   // render-derived memoization, not a side-channel.
   const [labelCache, setLabelCache] = useState<Record<string, string>>({});
 
-  const mergeIntoCache = useCallback(
-    (page: MultiSelectAsyncPage) => {
-      setLabelCache((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        for (const it of page.items) {
-          if (next[it.handle] !== it.label) {
-            next[it.handle] = it.label;
-            changed = true;
-          }
+  const mergeIntoCache = useCallback((page: MultiSelectAsyncPage) => {
+    setLabelCache((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const it of page.items) {
+        if (next[it.handle] !== it.label) {
+          next[it.handle] = it.label;
+          changed = true;
         }
-        return changed ? next : prev;
-      });
-    },
-    [],
-  );
+      }
+      return changed ? next : prev;
+    });
+  }, []);
 
   // Abort previous in-flight fetches when the query changes so stale results
   // don't clobber fresh ones. We do this via a monotonic request id rather
@@ -238,9 +225,7 @@ export function MultiSelectAsync({
               height: 14,
               border: '1px solid var(--mantine-color-gray-5)',
               borderRadius: 3,
-              background: active
-                ? 'var(--mantine-color-blue-5)'
-                : 'transparent',
+              background: active ? 'var(--mantine-color-blue-5)' : 'transparent',
             }}
           />
           <Text size="sm">{it.label}</Text>
@@ -283,11 +268,7 @@ export function MultiSelectAsync({
                   combobox.openDropdown();
                 }}
                 onKeyDown={(event) => {
-                  if (
-                    event.key === 'Backspace' &&
-                    query.length === 0 &&
-                    value.length > 0
-                  ) {
+                  if (event.key === 'Backspace' && query.length === 0 && value.length > 0) {
                     event.preventDefault();
                     const last = value[value.length - 1];
                     if (last) handleRemove(last);
@@ -302,9 +283,7 @@ export function MultiSelectAsync({
 
       <Combobox.Dropdown>
         <Combobox.Options>
-          {options.length === 0 && !loading && (
-            <Combobox.Empty>No results</Combobox.Empty>
-          )}
+          {options.length === 0 && !loading && <Combobox.Empty>No results</Combobox.Empty>}
           {options}
         </Combobox.Options>
         {(loading || hasMore) && (

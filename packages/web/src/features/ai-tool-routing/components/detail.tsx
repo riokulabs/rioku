@@ -24,21 +24,12 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconEye,
-  IconRouter,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconEye, IconRouter } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import {
-  deleteBinding,
-  previewCondition,
-  updateBinding,
-  useBindingDetail,
-} from '../api';
+import { deleteBinding, previewCondition, updateBinding, useBindingDetail } from '../api';
 import type { PreviewConditionResult } from '../types';
 
 dayjs.extend(relativeTime);
@@ -49,11 +40,7 @@ interface BindingDetailProps {
   onClose: () => void;
 }
 
-export function BindingDetail({
-  bindingId,
-  onEdit,
-  onClose,
-}: BindingDetailProps) {
+export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps) {
   const binding = useBindingDetail(bindingId);
   const agents = useMockStore((s) => s.aiAgents);
   const tools = useMockStore((s) => s.aiTools);
@@ -62,17 +49,13 @@ export function BindingDetail({
   const auditTail = useMemo(() => {
     if (!binding) return [];
     return auditEntries
-      .filter(
-        (e) =>
-          e.resource_type === 'ai-tool-binding' && e.resource_id === binding.id,
-      )
+      .filter((e) => e.resource_type === 'ai-tool-binding' && e.resource_id === binding.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, binding]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [conditionDraft, setConditionDraft] = useState<string | null>(null);
@@ -260,11 +243,7 @@ export function BindingDetail({
               {preview && (
                 <Text
                   size="xs"
-                  c={
-                    preview.parses
-                      ? 'var(--mantine-color-green-7)'
-                      : 'var(--mantine-color-red-7)'
-                  }
+                  c={preview.parses ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-7)'}
                 >
                   {preview.parses
                     ? `Parses · sample evaluates ${preview.sample_result === true ? 'true' : 'false'}`
@@ -291,12 +270,7 @@ export function BindingDetail({
         <Button size="sm" onClick={onEdit}>
           Edit full form
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -333,9 +307,7 @@ export function BindingDetail({
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -356,8 +328,8 @@ export function BindingDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This unlinks the tool from the agent. Existing agent invocations
-            will stop being able to call this tool.
+            This unlinks the tool from the agent. Existing agent invocations will stop being able to
+            call this tool.
           </Alert>
           <Text size="sm">
             Type{' '}

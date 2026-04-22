@@ -16,14 +16,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Group,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
   IconAlertTriangle,
   IconArchive,
@@ -173,11 +166,7 @@ export function NotificationList({ rows, onSelect }: NotificationListProps) {
         header: 'State',
         size: 110,
         accessorFn: (row) =>
-          row.archived_at !== null
-            ? 'archived'
-            : row.read_at === null
-              ? 'unread'
-              : 'read',
+          row.archived_at !== null ? 'archived' : row.read_at === null ? 'unread' : 'read',
         cell: ({ getValue }) => {
           const v = getValue<string>();
           const color = v === 'unread' ? 'blue' : v === 'archived' ? 'gray' : 'teal';

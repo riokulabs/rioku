@@ -56,6 +56,8 @@ describe('unregisterRoute', () => {
   });
 
   it('no-ops for unknown id', () => {
-    expect(() => { unregisterRoute('ghost-id'); }).not.toThrow();
+    expect(() => {
+      unregisterRoute('ghost-id');
+    }).not.toThrow();
   });
 });

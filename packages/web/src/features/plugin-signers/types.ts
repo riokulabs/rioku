@@ -37,9 +37,7 @@ export class SignerInUseError extends Error {
   readonly code = 'SIGNER_IN_USE';
   readonly pluginIds: string[];
   constructor(pluginIds: string[]) {
-    super(
-      `Signer cannot be deleted — ${String(pluginIds.length)} plugin(s) reference it.`,
-    );
+    super(`Signer cannot be deleted — ${String(pluginIds.length)} plugin(s) reference it.`);
     this.name = 'SignerInUseError';
     this.pluginIds = pluginIds;
   }

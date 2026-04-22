@@ -370,9 +370,7 @@ test('invite token flow creates active membership and redirects to dashboard', a
 
 // ─── Test 9: bootstrap first-run creates root user + tenant ──────────────────
 
-test('bootstrap first-run creates root user and tenant', async ({
-  clearSessionPage: page,
-}) => {
+test('bootstrap first-run creates root user and tenant', async ({ clearSessionPage: page }) => {
   // Clear all users/tenants/memberships from the store AND from persisted
   // localStorage so that when page.goto('/bootstrap') triggers addInitScript
   // (which patches localStorage) and the page reloads, the store re-hydrates

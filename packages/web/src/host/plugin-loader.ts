@@ -248,10 +248,7 @@ export async function loadSandboxedPlugin(manifestUrl: string): Promise<LoadResu
   // Stage-1: log the handshake; real capability-exchange lands later.
   const channel = new MessageChannel();
   channel.port1.onmessage = (e) => {
-    console.info(
-      `[plugin-sandbox] message from "${manifest.name}":`,
-      e.data,
-    );
+    console.info(`[plugin-sandbox] message from "${manifest.name}":`, e.data);
   };
   // Transfer port2 to the iframe once it loads
   iframe.addEventListener(
@@ -389,7 +386,8 @@ let _pluginImporter: PluginImporter = (url) =>
  * Restore to default by calling with `undefined`.
  */
 export function _setPluginImporterForTest(fn: PluginImporter | undefined): void {
-  _pluginImporter = fn ?? ((url) => import(/* @vite-ignore */ url) as Promise<Record<string, unknown>>);
+  _pluginImporter =
+    fn ?? ((url) => import(/* @vite-ignore */ url) as Promise<Record<string, unknown>>);
 }
 
 // ─── Tracked host wrapper ─────────────────────────────────────────────────────

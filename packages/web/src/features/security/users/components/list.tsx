@@ -6,14 +6,7 @@
  */
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Select,
-  TextInput,
-  Group,
-  Stack,
-} from '@mantine/core';
+import { Badge, Text, Select, TextInput, Group, Stack } from '@mantine/core';
 import { IconSearch, IconUser } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, type BulkAction } from '@/components/data-table';
@@ -75,9 +68,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
   // Suppress debouncedSearch lint warning — it's used via handleSearchChange
   void debouncedSearch;
 
-  const tenantData = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.id === tenantId),
-  );
+  const tenantData = useMockStore((s) => Object.values(s.tenants).find((t) => t.id === tenantId));
 
   const users = useUserList(tenantId, filter);
 
@@ -124,13 +115,18 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
     }
   }, []);
 
-  const bulkActions = useMemo<BulkAction[]>(() => [
-    {
-      label: 'Deactivate selected',
-      color: 'orange',
-      onClick: (ids) => { void handleBulkDeactivate(ids); },
-    },
-  ], [handleBulkDeactivate]);
+  const bulkActions = useMemo<BulkAction[]>(
+    () => [
+      {
+        label: 'Deactivate selected',
+        color: 'orange',
+        onClick: (ids) => {
+          void handleBulkDeactivate(ids);
+        },
+      },
+    ],
+    [handleBulkDeactivate],
+  );
 
   const columns = useMemo<ColumnDef<UserWithMembership>[]>(
     () => [
@@ -169,11 +165,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
         cell: ({ getValue }) => {
           const state = getValue<string>();
           return (
-            <Badge
-              size="sm"
-              color={STATE_COLORS[state] ?? 'gray'}
-              variant="light"
-            >
+            <Badge size="sm" color={STATE_COLORS[state] ?? 'gray'} variant="light">
               {state}
             </Badge>
           );
@@ -216,7 +208,9 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
           placeholder="Search name or email…"
           leftSection={<IconSearch size={14} />}
           value={searchInput}
-          onChange={(e) => { handleSearchChange(e.currentTarget.value); }}
+          onChange={(e) => {
+            handleSearchChange(e.currentTarget.value);
+          }}
           style={{ flex: 1 }}
           aria-label="Search users by name or email"
         />

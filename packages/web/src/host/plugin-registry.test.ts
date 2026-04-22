@@ -68,7 +68,9 @@ describe('registerPlugin', () => {
 
   it('re-register same name updates manifest but preserves contributions', () => {
     usePluginRegistry.getState().registerPlugin(makeManifest('my-plugin'));
-    usePluginRegistry.getState().trackContribution('my-plugin', 'zones', { zone: 'service.header', id: 'zone-0001' });
+    usePluginRegistry
+      .getState()
+      .trackContribution('my-plugin', 'zones', { zone: 'service.header', id: 'zone-0001' });
 
     const updated = makeManifest('my-plugin');
     updated.version = '2.0.0';
@@ -117,7 +119,9 @@ describe('trackContribution', () => {
   });
 
   it('appends to routes bucket', () => {
-    usePluginRegistry.getState().trackContribution('my-plugin', 'routes', { path: '/foo', id: 'r1' });
+    usePluginRegistry
+      .getState()
+      .trackContribution('my-plugin', 'routes', { path: '/foo', id: 'r1' });
     expect(getPlugin('my-plugin')?.contributions.routes).toHaveLength(1);
   });
 
@@ -199,9 +203,7 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
   }
 
   function setMockPlugin(defaultExport: (host: RiokuHost) => void | Promise<void>): void {
-    _setPluginImporterForTest((_url: string) =>
-      Promise.resolve({ default: defaultExport }),
-    );
+    _setPluginImporterForTest((_url: string) => Promise.resolve({ default: defaultExport }));
   }
 
   const manifest = {
@@ -259,7 +261,10 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
         type: 'com.roundtrip:widget',
         displayName: 'Roundtrip Widget',
         schema: { input: {}, config: {} },
-        component: (() => null) as unknown as React.ComponentType<{ data: unknown; config: unknown }>,
+        component: (() => null) as unknown as React.ComponentType<{
+          data: unknown;
+          config: unknown;
+        }>,
         source: 'plugin',
         pluginName: 'roundtrip-plugin',
       });
@@ -332,7 +337,10 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
         type: 'com.roundtrip:bye-widget',
         displayName: 'Bye Widget',
         schema: { input: {}, config: {} },
-        component: (() => null) as unknown as React.ComponentType<{ data: unknown; config: unknown }>,
+        component: (() => null) as unknown as React.ComponentType<{
+          data: unknown;
+          config: unknown;
+        }>,
         source: 'plugin',
       });
       host.spotlight.registerCommand({
@@ -367,32 +375,28 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
     // Sanity check — everything registered before unload.
     expect(listAllZones()).toContain('unload.zone');
     expect(listPluginRoutes().some((r) => r.path === '/plugins/roundtrip/bye')).toBe(true);
-    expect(listSidebarEntries('plugins').some((s) => s.path === '/plugins/roundtrip/bye')).toBe(true);
+    expect(listSidebarEntries('plugins').some((s) => s.path === '/plugins/roundtrip/bye')).toBe(
+      true,
+    );
     expect(listPluginThemes().some((t) => t.name === 'roundtrip-bye-theme')).toBe(true);
     expect(listWidgets().some((w) => w.type === 'com.roundtrip:bye-widget')).toBe(true);
     expect(listSpotlightCommands().some((c) => c.id === 'roundtrip-bye-cmd')).toBe(true);
-    expect(
-      listSpotlightResources().some((r) => r.type === 'com.roundtrip:search'),
-    ).toBe(true);
-    expect(
-      listPluginEndpoints().some((e) => e.path === '/roundtrip/action'),
-    ).toBe(true);
+    expect(listSpotlightResources().some((r) => r.type === 'com.roundtrip:search')).toBe(true);
+    expect(listPluginEndpoints().some((e) => e.path === '/roundtrip/action')).toBe(true);
     expect(getPermissionRegistry().has('com.roundtrip:bye')).toBe(true);
 
     await unloadPlugin('roundtrip-plugin');
 
     expect(listAllZones()).not.toContain('unload.zone');
     expect(listPluginRoutes().some((r) => r.path === '/plugins/roundtrip/bye')).toBe(false);
-    expect(listSidebarEntries('plugins').some((s) => s.path === '/plugins/roundtrip/bye')).toBe(false);
+    expect(listSidebarEntries('plugins').some((s) => s.path === '/plugins/roundtrip/bye')).toBe(
+      false,
+    );
     expect(listPluginThemes().some((t) => t.name === 'roundtrip-bye-theme')).toBe(false);
     expect(listWidgets().some((w) => w.type === 'com.roundtrip:bye-widget')).toBe(false);
     expect(listSpotlightCommands().some((c) => c.id === 'roundtrip-bye-cmd')).toBe(false);
-    expect(
-      listSpotlightResources().some((r) => r.type === 'com.roundtrip:search'),
-    ).toBe(false);
-    expect(
-      listPluginEndpoints().some((e) => e.path === '/roundtrip/action'),
-    ).toBe(false);
+    expect(listSpotlightResources().some((r) => r.type === 'com.roundtrip:search')).toBe(false);
+    expect(listPluginEndpoints().some((e) => e.path === '/roundtrip/action')).toBe(false);
     expect(getPermissionRegistry().has('com.roundtrip:bye')).toBe(false);
     expect(getPlugin('roundtrip-plugin')).toBeUndefined();
   });
@@ -468,9 +472,7 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
 describe('re-register same plugin id', () => {
   it('preserves contributions across idempotent re-registration', () => {
     usePluginRegistry.getState().registerPlugin(makeManifest('rere'));
-    usePluginRegistry
-      .getState()
-      .trackContribution('rere', 'zones', { zone: 'foo', id: 'z1' });
+    usePluginRegistry.getState().trackContribution('rere', 'zones', { zone: 'foo', id: 'z1' });
 
     // Second call with same name and updated manifest version
     const updated = makeManifest('rere');

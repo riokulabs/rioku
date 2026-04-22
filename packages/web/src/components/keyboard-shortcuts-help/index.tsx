@@ -20,7 +20,14 @@ export function KeyboardShortcutsHelp() {
   const [opened, setOpened] = useState(false);
 
   // `?` = shift+/ — Mantine useHotkeys ignores input/textarea/select by default
-  useHotkeys([['?', () => { setOpened((o) => !o); }]]);
+  useHotkeys([
+    [
+      '?',
+      () => {
+        setOpened((o) => !o);
+      },
+    ],
+  ]);
 
   const rows = SHORTCUTS.map((row, i) => (
     <Table.Tr key={i}>
@@ -42,7 +49,9 @@ export function KeyboardShortcutsHelp() {
   return (
     <Modal
       opened={opened}
-      onClose={() => { setOpened(false); }}
+      onClose={() => {
+        setOpened(false);
+      }}
       title="Keyboard shortcuts"
       size="md"
       transitionProps={{ duration: 0 }}

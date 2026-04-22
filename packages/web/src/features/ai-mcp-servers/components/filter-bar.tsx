@@ -2,12 +2,7 @@
  * <McpServerFilterBar> — search + health + auth-kind + enabled filters.
  */
 import { useEffect, useState } from 'react';
-import {
-  Group,
-  TextInput,
-  MultiSelect,
-  SegmentedControl,
-} from '@mantine/core';
+import { Group, TextInput, MultiSelect, SegmentedControl } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import type { McpServer } from '@/api/resources/types';
@@ -29,12 +24,7 @@ const AUTH_OPTIONS: { value: AuthKind; label: string }[] = [
   { value: 'api-key', label: 'API key' },
 ];
 
-const HEALTH_SET = new Set<Health>([
-  'healthy',
-  'degraded',
-  'unreachable',
-  'disabled',
-]);
+const HEALTH_SET = new Set<Health>(['healthy', 'degraded', 'unreachable', 'disabled']);
 const AUTH_SET = new Set<AuthKind>(['none', 'bearer', 'api-key']);
 
 interface McpServerFilterBarProps {
@@ -42,10 +32,7 @@ interface McpServerFilterBarProps {
   onChange: (next: McpServerFilter) => void;
 }
 
-export function McpServerFilterBar({
-  filter,
-  onChange,
-}: McpServerFilterBarProps) {
+export function McpServerFilterBar({ filter, onChange }: McpServerFilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
@@ -55,8 +42,7 @@ export function McpServerFilterBar({
     }
   }, [debouncedSearch, filter, onChange]);
 
-  const enabledValue =
-    filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
+  const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
 
   return (
     <Group gap="sm" align="flex-end">
@@ -76,9 +62,7 @@ export function McpServerFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            healths: value.filter((v): v is Health =>
-              (HEALTH_SET as Set<string>).has(v),
-            ),
+            healths: value.filter((v): v is Health => (HEALTH_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.healths.length === 0 ? 'All healths' : undefined}
@@ -92,9 +76,7 @@ export function McpServerFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            auth_kinds: value.filter((v): v is AuthKind =>
-              (AUTH_SET as Set<string>).has(v),
-            ),
+            auth_kinds: value.filter((v): v is AuthKind => (AUTH_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.auth_kinds.length === 0 ? 'All auth' : undefined}

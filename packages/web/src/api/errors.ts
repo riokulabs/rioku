@@ -67,11 +67,7 @@ export class ValidationError extends ApiError {
 
 /** 5xx server error. */
 export class ServerError extends ApiError {
-  constructor(options?: {
-    status?: number;
-    correlationId?: string;
-    cause?: unknown;
-  }) {
+  constructor(options?: { status?: number; correlationId?: string; cause?: unknown }) {
     super('Server error', { status: options?.status ?? 500, ...options });
     this.name = 'ServerError';
     Object.setPrototypeOf(this, new.target.prototype);

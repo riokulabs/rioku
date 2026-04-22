@@ -9,10 +9,7 @@
  *
  * Task 8b.7
  */
-import {
-  Alert,
-  Stack,
-} from '@mantine/core';
+import { Alert, Stack } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { usePermission } from '@/hooks/use-permission';
 import { useCurrentTenant } from '../api';

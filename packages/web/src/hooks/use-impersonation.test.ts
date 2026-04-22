@@ -97,17 +97,13 @@ describe('useImpersonation', () => {
 
     // Admin audit
     expect(state.adminAudit.length).toBeGreaterThan(0);
-    const adminEntry = state.adminAudit.find(
-      (e) => e.action === 'impersonation:enter',
-    );
+    const adminEntry = state.adminAudit.find((e) => e.action === 'impersonation:enter');
     expect(adminEntry).toBeDefined();
     expect(adminEntry?.impersonation_session_id).toBe(sessionId);
     expect(adminEntry?.kind).toBe('admin');
 
     // Tenant audit
-    const tenantEntry = state.audit.find(
-      (e) => e.action === 'impersonation:enter',
-    );
+    const tenantEntry = state.audit.find((e) => e.action === 'impersonation:enter');
     expect(tenantEntry).toBeDefined();
     expect(tenantEntry?.impersonation_session_id).toBe(sessionId);
     expect(tenantEntry?.acted_as_admin).toBe(true);
@@ -124,12 +120,8 @@ describe('useImpersonation', () => {
     const sessionId = result.current.session?.id;
     const state = useMockStore.getState();
 
-    const adminEntry = state.adminAudit.find(
-      (e) => e.action === 'impersonation:enter',
-    );
-    const tenantEntry = state.audit.find(
-      (e) => e.action === 'impersonation:enter',
-    );
+    const adminEntry = state.adminAudit.find((e) => e.action === 'impersonation:enter');
+    const tenantEntry = state.audit.find((e) => e.action === 'impersonation:enter');
 
     expect(adminEntry?.impersonation_session_id).toBe(sessionId);
     expect(tenantEntry?.impersonation_session_id).toBe(sessionId);
@@ -163,12 +155,8 @@ describe('useImpersonation', () => {
     });
 
     const state = useMockStore.getState();
-    const adminExitEntry = state.adminAudit.find(
-      (e) => e.action === 'impersonation:exit',
-    );
-    const tenantExitEntry = state.audit.find(
-      (e) => e.action === 'impersonation:exit',
-    );
+    const adminExitEntry = state.adminAudit.find((e) => e.action === 'impersonation:exit');
+    const tenantExitEntry = state.audit.find((e) => e.action === 'impersonation:exit');
 
     expect(adminExitEntry).toBeDefined();
     expect(tenantExitEntry).toBeDefined();

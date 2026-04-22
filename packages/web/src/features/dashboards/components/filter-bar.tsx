@@ -97,9 +97,7 @@ export function DashboardFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            modes: value.filter((v): v is Mode =>
-              (MODE_SET as Set<string>).has(v),
-            ),
+            modes: value.filter((v): v is Mode => (MODE_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.modes.length === 0 ? 'All modes' : undefined}
@@ -113,9 +111,7 @@ export function DashboardFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            scopes: value.filter((v): v is Scope =>
-              (SCOPE_SET as Set<string>).has(v),
-            ),
+            scopes: value.filter((v): v is Scope => (SCOPE_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.scopes.length === 0 ? 'All scopes' : undefined}

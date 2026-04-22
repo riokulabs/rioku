@@ -38,9 +38,7 @@ const useZoneStore = create<ZoneStore>()(() => ({ contributions: [] }));
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 /** Register a component for a zone. Returns the id for later unregistration. */
-export function registerZone(
-  contrib: Omit<ZoneContribution, 'id'>,
-): string {
+export function registerZone(contrib: Omit<ZoneContribution, 'id'>): string {
   const id = nextZoneId();
   useZoneStore.setState((state) => ({
     contributions: [...state.contributions, { ...contrib, id }],
@@ -75,7 +73,5 @@ export function listAllZones(): string[] {
  * would always re-render for filtered arrays).
  */
 export function useZoneContributions(zone: string): ZoneContribution[] {
-  return useZoneStore(
-    useShallow((state) => state.contributions.filter((c) => c.zone === zone)),
-  );
+  return useZoneStore(useShallow((state) => state.contributions.filter((c) => c.zone === zone)));
 }

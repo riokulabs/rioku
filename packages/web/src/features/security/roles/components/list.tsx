@@ -42,18 +42,14 @@ export function RoleList({ onSelect }: RoleListProps) {
         header: 'Users',
         size: 80,
         accessorFn: (row) => userCounts[row.id] ?? 0,
-        cell: ({ getValue }) => (
-          <Text size="sm">{getValue<number>()}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{getValue<number>()}</Text>,
       },
       {
         id: 'parent_count',
         header: 'Parents',
         size: 90,
         accessorFn: (row) => row.parent_ids.length,
-        cell: ({ getValue }) => (
-          <Text size="sm">{getValue<number>()}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{getValue<number>()}</Text>,
       },
       {
         id: 'deny_count',
@@ -67,9 +63,7 @@ export function RoleList({ onSelect }: RoleListProps) {
               {count}
             </Text>
           ) : (
-            <Text size="sm">
-              {count}
-            </Text>
+            <Text size="sm">{count}</Text>
           );
         },
       },
@@ -78,9 +72,7 @@ export function RoleList({ onSelect }: RoleListProps) {
         header: 'Grants',
         size: 80,
         accessorFn: (row) => row.grants.length,
-        cell: ({ getValue }) => (
-          <Text size="sm">{getValue<number>()}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{getValue<number>()}</Text>,
       },
     ],
     [userCounts],

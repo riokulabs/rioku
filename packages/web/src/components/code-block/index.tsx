@@ -30,17 +30,12 @@ import { IconCopy, IconCheck } from '@tabler/icons-react';
 
 // ── Supported languages ───────────────────────────────────────────────────────
 
-export type SupportedLanguage =
-  | 'json'
-  | 'yaml'
-  | 'typescript'
-  | 'javascript'
-  | 'bash'
-  | 'text';
+export type SupportedLanguage = 'json' | 'yaml' | 'typescript' | 'javascript' | 'bash' | 'text';
 
 // ── Shiki lazy-loader (singleton promise) ─────────────────────────────────────
 
-let shikiPromise: Promise<(code: string, lang: SupportedLanguage, theme: string) => string> | null = null;
+let shikiPromise: Promise<(code: string, lang: SupportedLanguage, theme: string) => string> | null =
+  null;
 
 function loadShiki(): Promise<(code: string, lang: SupportedLanguage, theme: string) => string> {
   shikiPromise ??= (async () => {
@@ -65,17 +60,8 @@ function loadShiki(): Promise<(code: string, lang: SupportedLanguage, theme: str
       import('shiki/langs/bash.mjs'),
     ]);
     const highlighter = await createHighlighterCore({
-      themes: [
-        import('shiki/themes/vitesse-dark.mjs'),
-        import('shiki/themes/vitesse-light.mjs'),
-      ],
-      langs: [
-        langJson.default,
-        langYaml.default,
-        langTs.default,
-        langJs.default,
-        langBash.default,
-      ],
+      themes: [import('shiki/themes/vitesse-dark.mjs'), import('shiki/themes/vitesse-light.mjs')],
+      langs: [langJson.default, langYaml.default, langTs.default, langJs.default, langBash.default],
       engine: createJavaScriptRegexEngine(),
     });
     return (code: string, lang: SupportedLanguage, theme: string): string => {
@@ -128,7 +114,9 @@ export function CodeBlock({
         if (!active) return;
         setRenderState({ key: renderKey, html: null, error: true });
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderKey]);
 
@@ -140,12 +128,7 @@ export function CodeBlock({
   const showCopy = copyable;
 
   return (
-    <Paper
-      withBorder
-      radius="sm"
-      style={{ overflow: 'hidden' }}
-      data-testid="code-block"
-    >
+    <Paper withBorder radius="sm" style={{ overflow: 'hidden' }} data-testid="code-block">
       {/* ── Header bar ──────────────────────────────────────────────────── */}
       {(hasTitle || showCopy) && (
         <Group
@@ -187,9 +170,7 @@ export function CodeBlock({
       )}
 
       {/* ── Code body ───────────────────────────────────────────────────── */}
-      <ScrollArea
-        style={maxHeight ? { maxHeight: `${String(maxHeight)}px` } : undefined}
-      >
+      <ScrollArea style={maxHeight ? { maxHeight: `${String(maxHeight)}px` } : undefined}>
         {error ? (
           /* Fallback: plain <pre> if shiki fails to load */
           <Box

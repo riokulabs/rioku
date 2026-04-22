@@ -227,9 +227,7 @@ export function NotificationDetail({ item, onClose: _onClose }: NotificationDeta
           <Button
             size="xs"
             variant="default"
-            leftSection={
-              item.read_at === null ? <IconEye size={12} /> : <IconEyeOff size={12} />
-            }
+            leftSection={item.read_at === null ? <IconEye size={12} /> : <IconEyeOff size={12} />}
             onClick={() => {
               void handleToggleRead();
             }}
@@ -242,11 +240,7 @@ export function NotificationDetail({ item, onClose: _onClose }: NotificationDeta
             size="xs"
             variant="default"
             leftSection={
-              item.archived_at === null ? (
-                <IconArchive size={12} />
-              ) : (
-                <IconArchiveOff size={12} />
-              )
+              item.archived_at === null ? <IconArchive size={12} /> : <IconArchiveOff size={12} />
             }
             onClick={() => {
               void handleToggleArchive();

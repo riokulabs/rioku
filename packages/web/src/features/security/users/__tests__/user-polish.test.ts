@@ -146,9 +146,7 @@ describe('revokeInvite', () => {
 describe('updateMembershipRoles', () => {
   it('updates the role_ids on the membership', async () => {
     const state = useMockStore.getState();
-    const membership = Object.values(state.memberships).find(
-      (m) => m.state === 'active',
-    );
+    const membership = Object.values(state.memberships).find((m) => m.state === 'active');
     if (!membership) throw new Error('No active membership');
 
     const roleIds = Object.keys(state.roles).slice(0, 2);
@@ -160,9 +158,7 @@ describe('updateMembershipRoles', () => {
 
   it('emits a membership:role:update audit entry with diff', async () => {
     const state = useMockStore.getState();
-    const membership = Object.values(state.memberships).find(
-      (m) => m.state === 'active',
-    );
+    const membership = Object.values(state.memberships).find((m) => m.state === 'active');
     if (!membership) throw new Error('No active membership');
     const auditBefore = state.audit.length;
     const newRoles = ['r1'];

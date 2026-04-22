@@ -23,23 +23,13 @@ describe('<DiffView>', () => {
   });
 
   it('shows unchanged keys in both columns', () => {
-    wrap(
-      <DiffView
-        before={{ name: 'Alice' }}
-        after={{ name: 'Alice' }}
-      />,
-    );
+    wrap(<DiffView before={{ name: 'Alice' }} after={{ name: 'Alice' }} />);
     // "0 changed" badge
     expect(screen.getByText('0 changed')).toBeInTheDocument();
   });
 
   it('highlights changed values', () => {
-    wrap(
-      <DiffView
-        before={{ role: 'viewer' }}
-        after={{ role: 'editor' }}
-      />,
-    );
+    wrap(<DiffView before={{ role: 'viewer' }} after={{ role: 'editor' }} />);
     expect(screen.getByText('1 changed')).toBeInTheDocument();
     // Both values rendered
     expect(screen.getAllByText(/"viewer"/i).length).toBeGreaterThan(0);
@@ -47,12 +37,7 @@ describe('<DiffView>', () => {
   });
 
   it('shows added keys with "—" on the left', () => {
-    wrap(
-      <DiffView
-        before={{}}
-        after={{ newField: 'hello' }}
-      />,
-    );
+    wrap(<DiffView before={{}} after={{ newField: 'hello' }} />);
     expect(screen.getByText('1 changed')).toBeInTheDocument();
     // The "—" placeholder for left side
     const dashes = screen.getAllByText('—');
@@ -60,12 +45,7 @@ describe('<DiffView>', () => {
   });
 
   it('shows removed keys with "—" on the right', () => {
-    wrap(
-      <DiffView
-        before={{ oldField: 'bye' }}
-        after={{}}
-      />,
-    );
+    wrap(<DiffView before={{ oldField: 'bye' }} after={{}} />);
     expect(screen.getByText('1 changed')).toBeInTheDocument();
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThan(0);

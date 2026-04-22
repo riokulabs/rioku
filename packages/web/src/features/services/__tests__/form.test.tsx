@@ -48,28 +48,14 @@ function upstreamInput(): HTMLInputElement {
 
 describe('ServiceForm (create)', () => {
   it('renders name, upstream, and a Create button', () => {
-    wrap(
-      <ServiceForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<ServiceForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />);
     expect(nameInput()).toBeInTheDocument();
     expect(upstreamInput()).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create service/i })).toBeInTheDocument();
   });
 
   it('shows validation error on empty name submit', async () => {
-    wrap(
-      <ServiceForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<ServiceForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /create service/i }));
     await waitFor(() => {
       const errors = screen.queryAllByText(/required|name|least|small/i);
@@ -80,12 +66,7 @@ describe('ServiceForm (create)', () => {
   it('submits successfully and calls onSuccess', async () => {
     const onSuccess = vi.fn();
     wrap(
-      <ServiceForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={onSuccess}
-        onCancel={vi.fn()}
-      />,
+      <ServiceForm mode="create" tenantId={acmeId()} onSuccess={onSuccess} onCancel={vi.fn()} />,
     );
     fireEvent.change(nameInput(), { target: { value: 'test-service' } });
     fireEvent.change(upstreamInput(), {

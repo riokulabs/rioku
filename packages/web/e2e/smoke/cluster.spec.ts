@@ -11,9 +11,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('cluster page renders with heading and nodes', async ({
-  authedPage: page,
-}) => {
+test('cluster page renders with heading and nodes', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
 
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
@@ -28,9 +26,7 @@ test('cluster page renders with heading and nodes', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('node list shows role and status badges', async ({
-  authedPage: page,
-}) => {
+test('node list shows role and status badges', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
@@ -38,9 +34,7 @@ test('node list shows role and status badges', async ({
   await expect(page.getByText(/primary/i).first()).toBeVisible({ timeout: 10_000 });
 });
 
-test('clicking a row opens the node detail drawer', async ({
-  authedPage: page,
-}) => {
+test('clicking a row opens the node detail drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
@@ -53,9 +47,7 @@ test('clicking a row opens the node detail drawer', async ({
   await expect(page.getByText(/node details/i)).toBeVisible();
 });
 
-test('enroll modal generates a token and shows join command', async ({
-  authedPage: page,
-}) => {
+test('enroll modal generates a token and shows join command', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
@@ -79,13 +71,11 @@ test('enroll modal generates a token and shows join command', async ({
   await expect(modal.getByText(/rioku cluster join/i)).toBeVisible();
 });
 
-test('active enrollment tokens section is visible', async ({
-  authedPage: page,
-}) => {
+test('active enrollment tokens section is visible', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
-  await expect(
-    page.getByRole('heading', { name: /active enrollment tokens/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /active enrollment tokens/i })).toBeVisible({
+    timeout: 10_000,
+  });
 });

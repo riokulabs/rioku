@@ -14,11 +14,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
-import {
-  DashboardViewer,
-  VersionHistoryDrawer,
-  createDashboard,
-} from '@/features/dashboards';
+import { DashboardViewer, VersionHistoryDrawer, createDashboard } from '@/features/dashboards';
 import { useDashboardDetail } from '@/features/dashboards';
 
 function DashboardViewerPage() {
@@ -26,9 +22,7 @@ function DashboardViewerPage() {
   const navigate = useNavigate();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantSlug = tenantRecord?.slug ?? tenant;
   const tenantId = tenantRecord?.id ?? '';
 
@@ -53,9 +47,7 @@ function DashboardViewerPage() {
     try {
       const cloned = await createDashboard(tenantId, {
         name: `${dashboard.name} (copy)`,
-        ...(dashboard.description !== undefined
-          ? { description: dashboard.description }
-          : {}),
+        ...(dashboard.description !== undefined ? { description: dashboard.description } : {}),
         mode: dashboard.mode,
         scope: dashboard.scope,
         owner_user_id: dashboard.owner_user_id,
@@ -81,18 +73,16 @@ function DashboardViewerPage() {
   return (
     <Stack gap={0}>
       <Group p="md" pb={0}>
-        <Button
-          variant="subtle"
-          leftSection={<IconArrowLeft size={14} />}
-          onClick={handleBack}
-        >
+        <Button variant="subtle" leftSection={<IconArrowLeft size={14} />} onClick={handleBack}>
           All dashboards
         </Button>
       </Group>
       <DashboardViewer
         dashboardId={dashboardId}
         onEdit={handleEdit}
-        onClone={(id) => { void handleClone(id); }}
+        onClone={(id) => {
+          void handleClone(id);
+        }}
         onVersionHistory={handleVersionHistory}
       />
       {dashboard && (
@@ -121,8 +111,7 @@ export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId')({
     // 2. Scope enforcement.
     const { params } = ctx;
     const { dashboardId } = params as { dashboardId: string };
-    const { dashboards, currentUserId, currentTenantId, memberships } =
-      useMockStore.getState();
+    const { dashboards, currentUserId, currentTenantId, memberships } = useMockStore.getState();
     const dashboard = dashboards[dashboardId];
     if (!dashboard) {
       // Missing dashboard → let the component render its not-found state.
@@ -160,9 +149,7 @@ export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId')({
           for (const rid of m.role_ids) userRoleIds.add(rid);
         }
       }
-      const intersects = dashboard.shared_role_ids.some((rid) =>
-        userRoleIds.has(rid),
-      );
+      const intersects = dashboard.shared_role_ids.some((rid) => userRoleIds.has(rid));
       if (!intersects) {
         // eslint-disable-next-line @typescript-eslint/only-throw-error
         throw redirect({

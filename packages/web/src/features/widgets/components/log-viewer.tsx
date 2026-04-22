@@ -12,9 +12,7 @@ interface LogViewerData {
 
 function isLogViewerData(data: unknown): data is LogViewerData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    Array.isArray((data as { lines?: unknown }).lines)
+    typeof data === 'object' && data !== null && Array.isArray((data as { lines?: unknown }).lines)
   );
 }
 

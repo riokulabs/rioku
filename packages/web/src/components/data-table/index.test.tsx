@@ -320,7 +320,9 @@ describe('DataTable', () => {
 
       // Find a navigate call that encodes the sort param
       const hasSortParam = mockNavigate.mock.calls.some((call) => {
-        const opts = call[0] as { search?: (prev: Record<string, unknown>) => Record<string, unknown> };
+        const opts = call[0] as {
+          search?: (prev: Record<string, unknown>) => Record<string, unknown>;
+        };
         if (typeof opts.search !== 'function') return false;
         const result = opts.search({});
         return typeof result.services_sort === 'string';
@@ -372,7 +374,11 @@ describe('DataTable', () => {
       // This test uses a custom loadingState to verify DataTable's own axe compliance.
       const { container } = renderTable({
         isLoading: true,
-        loadingState: <div role="status" aria-label="Loading table data">Loading…</div>,
+        loadingState: (
+          <div role="status" aria-label="Loading table data">
+            Loading…
+          </div>
+        ),
       });
       const results = await axe(container);
       expect(results).toHaveNoViolations();

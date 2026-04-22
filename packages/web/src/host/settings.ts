@@ -41,9 +41,7 @@ const useSettingsStore = create<SettingsStore>()(() => ({ panels: [] }));
  * Register a settings panel. Returns the id for later unregistration.
  * Rejects duplicate section + component combinations via generated id check.
  */
-export function registerSettingsPanel(
-  panel: Omit<SettingsPanel, 'id'>,
-): string {
+export function registerSettingsPanel(panel: Omit<SettingsPanel, 'id'>): string {
   const id = nextSettingsId();
   useSettingsStore.setState((state) => ({
     panels: [...state.panels, { ...panel, id }],

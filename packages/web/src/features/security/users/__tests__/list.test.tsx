@@ -38,13 +38,7 @@ describe('UserList', () => {
     if (!acmeTenant) throw new Error('No acme tenant seeded');
 
     const onSelect = vi.fn();
-    wrap(
-      <UserList
-        tenantId={acmeTenant.id}
-        tenantSlug="acme"
-        onSelect={onSelect}
-      />,
-    );
+    wrap(<UserList tenantId={acmeTenant.id} tenantSlug="acme" onSelect={onSelect} />);
 
     // Acme has 6 members (derrick + users 1-4 + user 11 + user 14)
     const rows = screen.getAllByRole('row');
@@ -58,13 +52,7 @@ describe('UserList', () => {
     if (!acmeTenant) throw new Error('No acme tenant seeded');
 
     const onSelect = vi.fn();
-    wrap(
-      <UserList
-        tenantId={acmeTenant.id}
-        tenantSlug="acme"
-        onSelect={onSelect}
-      />,
-    );
+    wrap(<UserList tenantId={acmeTenant.id} tenantSlug="acme" onSelect={onSelect} />);
 
     const dataRows = screen.getAllByRole('row').slice(1);
     const firstRow = dataRows[0];
@@ -75,13 +63,7 @@ describe('UserList', () => {
 
   it('shows empty state when no users match tenant', () => {
     const onSelect = vi.fn();
-    wrap(
-      <UserList
-        tenantId="nonexistent-tenant-id"
-        tenantSlug="none"
-        onSelect={onSelect}
-      />,
-    );
+    wrap(<UserList tenantId="nonexistent-tenant-id" tenantSlug="none" onSelect={onSelect} />);
     expect(screen.getAllByText(/No users yet/i).length).toBeGreaterThan(0);
   });
 
@@ -91,13 +73,7 @@ describe('UserList', () => {
     if (!acmeTenant) throw new Error('No acme tenant seeded');
 
     const onSelect = vi.fn();
-    wrap(
-      <UserList
-        tenantId={acmeTenant.id}
-        tenantSlug="acme"
-        onSelect={onSelect}
-      />,
-    );
+    wrap(<UserList tenantId={acmeTenant.id} tenantSlug="acme" onSelect={onSelect} />);
 
     // Status dropdown is present (getAllByLabelText because Mantine renders multiple aria elements)
     expect(screen.getAllByLabelText(/Filter by membership status/i).length).toBeGreaterThan(0);

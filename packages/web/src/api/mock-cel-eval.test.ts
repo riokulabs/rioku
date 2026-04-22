@@ -15,7 +15,6 @@ vi.mock('./mock-latency', () => ({
 
 const mockParseCel = vi.fn<(...args: unknown[]) => unknown>();
 vi.mock('../lib/cel-parser', () => ({
-   
   parseCel: (...args: unknown[]) => mockParseCel(...args),
 }));
 
@@ -99,9 +98,7 @@ describe('mockCelEvaluate', () => {
       'j == 10',
     ];
 
-    const results = await Promise.all(
-      expressions.map((expr) => mockCelEvaluate(expr, {})),
-    );
+    const results = await Promise.all(expressions.map((expr) => mockCelEvaluate(expr, {})));
 
     const values = results.map((r) => (r.ok ? r.value : null));
     // With 10 samples and 70/30 split, we expect at least one false

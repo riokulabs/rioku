@@ -49,7 +49,10 @@ const PAGES: MobilePageConfig[] = [
     waitSignal: async (page) => {
       // Wait for either the stock heading OR the dashboard viewer widget list
       await Promise.race([
-        page.getByRole('heading', { name: /^dashboard$/i }).first().waitFor({ timeout: 15_000 }),
+        page
+          .getByRole('heading', { name: /^dashboard$/i })
+          .first()
+          .waitFor({ timeout: 15_000 }),
         page.getByRole('list', { name: /dashboard widgets/i }).waitFor({ timeout: 15_000 }),
         // Fallback: at minimum the AppShell main content should be present
         page.locator('[data-type="main"]').waitFor({ timeout: 15_000 }),
@@ -63,8 +66,13 @@ const PAGES: MobilePageConfig[] = [
     path: '/t/acme/dashboards/dashboard-0004',
     waitSignal: async (page) => {
       await Promise.race([
-        page.getByRole('list', { name: /AI Usage dashboard widgets/i }).waitFor({ timeout: 15_000 }),
-        page.getByRole('heading', { name: /AI Usage/i }).first().waitFor({ timeout: 15_000 }),
+        page
+          .getByRole('list', { name: /AI Usage dashboard widgets/i })
+          .waitFor({ timeout: 15_000 }),
+        page
+          .getByRole('heading', { name: /AI Usage/i })
+          .first()
+          .waitFor({ timeout: 15_000 }),
         page.locator('[data-type="main"]').waitFor({ timeout: 15_000 }),
       ]);
     },
@@ -141,9 +149,9 @@ async function waitForReady(page: Page, config: MobilePageConfig): Promise<void>
   } else if (config.waitTestId) {
     await expect(page.getByTestId(config.waitTestId)).toBeVisible({ timeout: 15_000 });
   } else if (config.waitHeading) {
-    await expect(
-      page.getByRole('heading', { name: config.waitHeading }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: config.waitHeading }).first()).toBeVisible({
+      timeout: 15_000,
+    });
   }
 }
 

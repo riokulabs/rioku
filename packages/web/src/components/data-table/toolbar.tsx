@@ -21,7 +21,9 @@ export function GlobalSearchInput({ value, onChange }: GlobalSearchInputProps) {
       leftSection={<IconSearch size={16} />}
       placeholder="Search…"
       value={value}
-      onChange={(e) => { onChange(e.currentTarget.value); }}
+      onChange={(e) => {
+        onChange(e.currentTarget.value);
+      }}
       size="sm"
       aria-label="Search table"
       style={{ minWidth: 200 }}
@@ -63,10 +65,7 @@ export function ColumnVisibilityMenu<TData>({ table }: ColumnVisibilityMenuProps
           </Menu.Item>
         )}
         {columns.map((col) => {
-          const header =
-            typeof col.columnDef.header === 'string'
-              ? col.columnDef.header
-              : col.id;
+          const header = typeof col.columnDef.header === 'string' ? col.columnDef.header : col.id;
 
           return (
             <Menu.Item
@@ -138,7 +137,9 @@ export function BulkActionsBar({
           variant="light"
           color={action.color ?? 'blue'}
           disabled={action.disabled ?? false}
-          onClick={() => { action.onClick(selectedRowIds); }}
+          onClick={() => {
+            action.onClick(selectedRowIds);
+          }}
         >
           {action.label}
         </Button>
@@ -182,7 +183,8 @@ export function DataTableToolbar<TData>({
   bulkActions = [],
   onClearSelection,
 }: DataTableToolbarProps<TData>) {
-  const showToolbar = (showGlobalFilter ?? false) || (showColumnVisibility ?? false) || bulkActions.length > 0;
+  const showToolbar =
+    (showGlobalFilter ?? false) || (showColumnVisibility ?? false) || bulkActions.length > 0;
 
   if (!showToolbar && selectedCount === 0) return null;
 

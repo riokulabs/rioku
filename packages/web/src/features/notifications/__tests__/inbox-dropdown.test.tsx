@@ -58,7 +58,12 @@ function currentUserId(): ID {
   return id;
 }
 
-function setupFixture(): { userId: ID; system: NotificationItem; security: NotificationItem; plugin: NotificationItem } {
+function setupFixture(): {
+  userId: ID;
+  system: NotificationItem;
+  security: NotificationItem;
+  plugin: NotificationItem;
+} {
   const userId = currentUserId();
   // Replace the store's notifications with a small deterministic fixture so we
   // can assert specific groups / rows without wrestling with seed noise.
@@ -106,12 +111,16 @@ describe('<InboxDropdown>', () => {
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
     expect(screen.getByTestId('inbox-group-system')).toBeInTheDocument();
     expect(screen.getByTestId('inbox-group-security')).toBeInTheDocument();
-    expect(
-      screen.getByTestId('inbox-group-plugin:com.example.slack'),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId(`inbox-row-title-${system.id}`)).toHaveTextContent('System test notification');
-    expect(screen.getByTestId(`inbox-row-title-${security.id}`)).toHaveTextContent('Security test notification');
-    expect(screen.getByTestId(`inbox-row-title-${plugin.id}`)).toHaveTextContent('Plugin test notification');
+    expect(screen.getByTestId('inbox-group-plugin:com.example.slack')).toBeInTheDocument();
+    expect(screen.getByTestId(`inbox-row-title-${system.id}`)).toHaveTextContent(
+      'System test notification',
+    );
+    expect(screen.getByTestId(`inbox-row-title-${security.id}`)).toHaveTextContent(
+      'Security test notification',
+    );
+    expect(screen.getByTestId(`inbox-row-title-${plugin.id}`)).toHaveTextContent(
+      'Plugin test notification',
+    );
   });
 
   it('category filter chip narrows the list to the selected bucket', () => {
@@ -142,9 +151,7 @@ describe('<InboxDropdown>', () => {
     const btn = screen.getByTestId(`inbox-row-archive-${system.id}`);
     fireEvent.click(btn);
     await waitFor(() => {
-      expect(
-        screen.queryByTestId(`inbox-row-${system.id}`),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`inbox-row-${system.id}`)).not.toBeInTheDocument();
     });
   });
 

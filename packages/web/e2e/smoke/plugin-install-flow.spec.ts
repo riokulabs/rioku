@@ -35,9 +35,7 @@ import { test } from '../fixtures/auth';
 const SUCCESS_SLUG = 'com.rioku.jwt-auth';
 const SUCCESS_DISPLAY_NAME = 'JWT Auth';
 
-test('marketplace tab renders Install buttons on listing cards', async ({
-  authedPage: page,
-}) => {
+test('marketplace tab renders Install buttons on listing cards', async ({ authedPage: page }) => {
   await page.goto('/t/acme/plugins?tab=marketplace');
 
   await expect(page.getByRole('heading', { name: /^plugins$/i })).toBeVisible();
@@ -80,15 +78,15 @@ test('install from marketplace streams progress and reaches a terminal state', a
   await page.getByRole('button', { name: /approve & install/i }).click();
 
   // Progress modal title contains the display name.
-  await expect(
-    page.getByText(new RegExp(`installing ${SUCCESS_DISPLAY_NAME}`, 'i')),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(new RegExp(`installing ${SUCCESS_DISPLAY_NAME}`, 'i'))).toBeVisible({
+    timeout: 5_000,
+  });
 
   // All 4 stage badges appear at least in the disabled/gray state from the first tick.
   for (const stage of ['fetching', 'verifying', 'building', 'swapping']) {
-    await expect(
-      page.getByTestId(`install-progress-stage-${stage}`),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId(`install-progress-stage-${stage}`)).toBeVisible({
+      timeout: 5_000,
+    });
   }
 
   // Wait for a terminal state: either the success alert, the install toast,
@@ -120,15 +118,15 @@ test('install from marketplace streams progress and reaches a terminal state', a
   // Success path: progress modal auto-closes after the 1.5s dwell and the
   // route auto-navigates to the Installed tab. The new plugin should appear
   // on the Installed tab.
-  await expect(
-    page.getByRole('tab', { name: /^installed$/i, selected: true }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('tab', { name: /^installed$/i, selected: true })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // The installed list surfaces the new plugin's slug (mono subtext under
   // the display name). Assert by slug to avoid name-vs-marketplace diffs.
-  await expect(
-    page.getByText(SUCCESS_SLUG, { exact: true }).first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(SUCCESS_SLUG, { exact: true }).first()).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test('install approval cancel returns user to the marketplace without installing', async ({

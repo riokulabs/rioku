@@ -79,14 +79,7 @@ export function WidgetPalette({ dashboard }: WidgetPaletteProps) {
           dashboard.mode === 'metabase' && def.roundTripMode === 'one-way'
             ? 'Advanced-mode only'
             : undefined;
-        return (
-          <PaletteItem
-            key={def.type}
-            def={def}
-            disabled={disabled}
-            modeLabel={modeLabel}
-          />
-        );
+        return <PaletteItem key={def.type} def={def} disabled={disabled} modeLabel={modeLabel} />;
       })}
     </Stack>
   );

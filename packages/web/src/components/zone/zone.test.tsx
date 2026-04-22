@@ -82,8 +82,18 @@ describe('<Zone>', () => {
       return <div data-testid="widget-2">Two</div>;
     }
 
-    const id1 = registerZone({ zone: 'test.multi.zone', component: WidgetOne, source: 'plugin', pluginName: 'p1' });
-    const id2 = registerZone({ zone: 'test.multi.zone', component: WidgetTwo, source: 'plugin', pluginName: 'p2' });
+    const id1 = registerZone({
+      zone: 'test.multi.zone',
+      component: WidgetOne,
+      source: 'plugin',
+      pluginName: 'p1',
+    });
+    const id2 = registerZone({
+      zone: 'test.multi.zone',
+      component: WidgetTwo,
+      source: 'plugin',
+      pluginName: 'p2',
+    });
 
     render(<Zone id="test.multi.zone" />, { wrapper });
     expect(screen.getByTestId('widget-1')).toBeInTheDocument();

@@ -7,15 +7,7 @@
  *   - Matched exemplar Chip (when score > 0)
  */
 import { useState } from 'react';
-import {
-  Badge,
-  Button,
-  Group,
-  Progress,
-  Stack,
-  Text,
-  Textarea,
-} from '@mantine/core';
+import { Badge, Button, Group, Progress, Stack, Text, Textarea } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { simulateMatch } from '../api';
@@ -79,16 +71,11 @@ export function Simulator({ ruleId }: SimulatorProps) {
         {result && (
           <Stack gap={6}>
             <Group gap="xs">
-              <Badge
-                color={result.matched ? 'red' : 'green'}
-                variant="light"
-                size="sm"
-              >
+              <Badge color={result.matched ? 'red' : 'green'} variant="light" size="sm">
                 {result.matched ? 'Match' : 'No match'}
               </Badge>
               <Text size="xs" c="var(--mantine-color-gray-7)">
-                score {result.score.toFixed(3)} · threshold{' '}
-                {threshold.toFixed(3)}
+                score {result.score.toFixed(3)} · threshold {threshold.toFixed(3)}
               </Text>
             </Group>
             <Progress.Root size="md">
@@ -97,10 +84,7 @@ export function Simulator({ ruleId }: SimulatorProps) {
                 color={result.matched ? 'red' : 'blue'}
                 aria-label={`Similarity ${String(scorePct)} percent`}
               />
-              <Progress.Section
-                value={Math.max(0, thresholdPct - scorePct)}
-                color="gray.3"
-              />
+              <Progress.Section value={Math.max(0, thresholdPct - scorePct)} color="gray.3" />
             </Progress.Root>
             {result.matched_exemplar && (
               <Group gap={4}>

@@ -102,7 +102,7 @@ export function ConditionEditor({
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
       editorRef.current = editor;
-       
+
       monacoRef.current = monaco as typeof MonacoNS;
       registerCelLanguage(monaco as typeof MonacoNS);
 

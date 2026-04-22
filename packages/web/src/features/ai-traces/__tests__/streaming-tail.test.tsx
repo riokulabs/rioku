@@ -15,10 +15,7 @@ import { ModalsProvider } from '@mantine/modals';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { invokeAgentMock } from '@/features/ai-agents/api';
-import {
-  LiveTailBadge,
-  useTraceStream,
-} from '../components/streaming-tail';
+import { LiveTailBadge, useTraceStream } from '../components/streaming-tail';
 
 function wrap(ui: React.ReactNode) {
   return render(
@@ -34,9 +31,7 @@ beforeEach(() => {
 });
 
 function acmeId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant');
   return acme.id;
 }
@@ -66,7 +61,9 @@ describe('useTraceStream', () => {
     if (!agent) throw new Error('No agent seeded');
 
     const onTrace = vi.fn();
-    renderHook(() => { useTraceStream(tenantId, true, onTrace); });
+    renderHook(() => {
+      useTraceStream(tenantId, true, onTrace);
+    });
 
     await invokeAgentMock(agent.id, { prompt: 'live-tail test' });
     expect(onTrace).toHaveBeenCalledTimes(1);
@@ -80,7 +77,9 @@ describe('useTraceStream', () => {
     if (!agent) throw new Error('No agent seeded');
 
     const onTrace = vi.fn();
-    renderHook(() => { useTraceStream(tenantId, false, onTrace); });
+    renderHook(() => {
+      useTraceStream(tenantId, false, onTrace);
+    });
 
     await invokeAgentMock(agent.id, { prompt: 'no-tail test' });
     expect(onTrace).not.toHaveBeenCalled();
@@ -94,7 +93,9 @@ describe('useTraceStream', () => {
     if (!agent) throw new Error('No agent seeded');
 
     const onTrace = vi.fn();
-    const hook = renderHook(() => { useTraceStream(tenantId, true, onTrace); });
+    const hook = renderHook(() => {
+      useTraceStream(tenantId, true, onTrace);
+    });
     await invokeAgentMock(agent.id, { prompt: 'first' });
     hook.unmount();
     await invokeAgentMock(agent.id, { prompt: 'second' });

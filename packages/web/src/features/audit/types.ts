@@ -5,11 +5,7 @@
  * handles for PII-sensitive values (actor + resource-id), and listener
  * callback signatures for the mock streaming bus.
  */
-import type {
-  AuditEntry,
-  AuditRetentionConfig,
-  ID,
-} from '@/api/resources/types';
+import type { AuditEntry, AuditRetentionConfig, ID } from '@/api/resources/types';
 
 export type { AuditEntry, AuditRetentionConfig, ID };
 

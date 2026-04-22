@@ -14,13 +14,9 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
   useRouterState: () => ({ location: { pathname: '/t/acme/dashboard' } }),
-  Link: ({
-    children,
-    to,
-  }: {
-    children?: React.ReactNode;
-    to?: string;
-  }) => <span data-link-to={to ?? ''}>{children}</span>,
+  Link: ({ children, to }: { children?: React.ReactNode; to?: string }) => (
+    <span data-link-to={to ?? ''}>{children}</span>
+  ),
 }));
 
 vi.mock('@/hooks/use-sidebar-entries', () => ({
@@ -46,21 +42,13 @@ describe('Sidebar', () => {
     expect(sitesLink).toBeInTheDocument();
     // Confirm the Sites href matches the tenant-prefixed pattern.
     const hrefCarriers = document.querySelectorAll('[data-link-to]');
-    const siteEntry = Array.from(hrefCarriers).find((el) =>
-      el.textContent.includes('Sites'),
-    );
+    const siteEntry = Array.from(hrefCarriers).find((el) => el.textContent.includes('Sites'));
     expect(siteEntry?.getAttribute('data-link-to')).toBe('/t/acme/sites');
   });
 
   it('renders all API management entries', () => {
     wrap(<Sidebar />);
-    for (const label of [
-      'Services',
-      'Routes',
-      'Policies',
-      'Middlewares',
-      'API Explorer',
-    ]) {
+    for (const label of ['Services', 'Routes', 'Policies', 'Middlewares', 'API Explorer']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -70,35 +58,21 @@ describe('Sidebar', () => {
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
       Array.from(carriers).find((el) => el.textContent.trim() === label);
-    expect(byLabel('Services')?.getAttribute('data-link-to')).toBe(
-      '/t/acme/services',
-    );
-    expect(byLabel('Routes')?.getAttribute('data-link-to')).toBe(
-      '/t/acme/routes',
-    );
-    expect(byLabel('Policies')?.getAttribute('data-link-to')).toBe(
-      '/t/acme/policies',
-    );
-    expect(byLabel('Middlewares')?.getAttribute('data-link-to')).toBe(
-      '/t/acme/middlewares',
-    );
-    expect(byLabel('API Explorer')?.getAttribute('data-link-to')).toBe(
-      '/t/acme/api-explorer',
-    );
+    expect(byLabel('Services')?.getAttribute('data-link-to')).toBe('/t/acme/services');
+    expect(byLabel('Routes')?.getAttribute('data-link-to')).toBe('/t/acme/routes');
+    expect(byLabel('Policies')?.getAttribute('data-link-to')).toBe('/t/acme/policies');
+    expect(byLabel('Middlewares')?.getAttribute('data-link-to')).toBe('/t/acme/middlewares');
+    expect(byLabel('API Explorer')?.getAttribute('data-link-to')).toBe('/t/acme/api-explorer');
   });
 
   it('Analytics section shows Insights entry linking to /dashboards', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
-    const insightsEntry = Array.from(carriers).find(
-      (el) => el.textContent.trim() === 'Insights',
-    );
+    const insightsEntry = Array.from(carriers).find((el) => el.textContent.trim() === 'Insights');
     expect(insightsEntry, 'Insights nav entry not found').toBeDefined();
     expect(insightsEntry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
     // The old "Analytics" label must no longer appear as a nav entry.
-    const analyticsEntry = Array.from(carriers).find(
-      (el) => el.textContent.trim() === 'Analytics',
-    );
+    const analyticsEntry = Array.from(carriers).find((el) => el.textContent.trim() === 'Analytics');
     expect(analyticsEntry).toBeUndefined();
   });
 
@@ -128,7 +102,8 @@ describe('Sidebar', () => {
     wrap(<Sidebar />);
     // Security group entries should not include Access policies.
     const securityHeading = screen.getByText('Security');
-    const securityStack = securityHeading.closest('[class*="Stack"]') ?? securityHeading.parentElement;
+    const securityStack =
+      securityHeading.closest('[class*="Stack"]') ?? securityHeading.parentElement;
     // The AI group carries access-policies; the Security group should not have a duplicate.
     // We verify there is exactly one Access policies link in the full sidebar.
     const allLinks = document.querySelectorAll('[data-link-to="/t/acme/security/access-policies"]');

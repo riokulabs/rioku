@@ -18,37 +18,21 @@ import { useCallback, useMemo, useState } from 'react';
 import { notifications as mantineNotifications } from '@mantine/notifications';
 
 import { useMockStore } from '@/api/mock-store';
-import {
-  INBOX_STREAM_TOPIC,
-  inboxStreamBus,
-  publishInbox,
-} from '@/api/inbox-stream-bus';
+import { INBOX_STREAM_TOPIC, inboxStreamBus, publishInbox } from '@/api/inbox-stream-bus';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import type { AuditEntry, ID, NotificationItem } from '@/api/resources/types';
 
-import {
-  BUILT_IN_CATEGORIES,
-  PLUGIN_CATEGORY_REGEX,
-  emitNotificationInputSchema,
-} from './schemas';
-import type {
-  EmitNotificationInput,
-  InboxFilter,
-  InboxStreamListener,
-} from './types';
+import { BUILT_IN_CATEGORIES, PLUGIN_CATEGORY_REGEX, emitNotificationInputSchema } from './schemas';
+import type { EmitNotificationInput, InboxFilter, InboxStreamListener } from './types';
 
 const nextNotifId = makeIdFactory('notif-emit');
 const nextAuditId = makeIdFactory('audit-notif');
 
 // ─── Filter matcher ──────────────────────────────────────────────────────────
 
-function matchesFilter(
-  item: NotificationItem,
-  userId: ID,
-  filter: InboxFilter,
-): boolean {
+function matchesFilter(item: NotificationItem, userId: ID, filter: InboxFilter): boolean {
   if (item.user_id !== userId) return false;
 
   if (!filter.includeArchived && item.archived_at !== null) return false;
@@ -83,10 +67,7 @@ function sortDesc(a: NotificationItem, b: NotificationItem): number {
  * sorting happen outside the selector so the hook identity is stable when
  * unrelated store slices update.
  */
-export function useNotificationList(
-  userId: ID,
-  filter: InboxFilter,
-): NotificationItem[] {
+export function useNotificationList(userId: ID, filter: InboxFilter): NotificationItem[] {
   const notifications = useMockStore((s) => s.notifications);
   return useMemo(() => {
     const out: NotificationItem[] = [];
@@ -143,10 +124,7 @@ export function useNotificationListInfinite(
   const full = useNotificationList(userId, filter);
   const [pages, setPages] = useState(1);
 
-  const currentSlice = useMemo(
-    () => full.slice(0, pages * pageSize),
-    [full, pages, pageSize],
-  );
+  const currentSlice = useMemo(() => full.slice(0, pages * pageSize), [full, pages, pageSize]);
 
   const hasNextPage = currentSlice.length < full.length;
 
@@ -338,10 +316,7 @@ export async function unarchive(id: ID): Promise<NotificationItem | undefined> {
  * Stage 2 replaces this with a real SSE subscription; the signature stays
  * identical.
  */
-export function subscribeInboxStream(
-  userId: ID,
-  onNotification: InboxStreamListener,
-): () => void {
+export function subscribeInboxStream(userId: ID, onNotification: InboxStreamListener): () => void {
   const handler = (e: Event): void => {
     const detail = (e as CustomEvent<NotificationItem>).detail;
     if (detail.user_id !== userId) return;
@@ -441,12 +416,7 @@ export function emitNotification(input: EmitNotificationInput): NotificationItem
     color: severityToToastColor(item.severity),
     title: item.title,
     message: item.body,
-    autoClose:
-      item.severity === 'error'
-        ? 8000
-        : item.severity === 'warn'
-          ? 6000
-          : 4000,
+    autoClose: item.severity === 'error' ? 8000 : item.severity === 'warn' ? 6000 : 4000,
   });
 
   emitHostEvent('notification:emitted', { notification_id: item.id, category: item.category });

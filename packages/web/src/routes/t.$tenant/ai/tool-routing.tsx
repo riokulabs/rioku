@@ -11,15 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import {
-  Stack,
-  Title,
-  Group,
-  Button,
-  Drawer,
-  SegmentedControl,
-  Tooltip,
-} from '@mantine/core';
+import { Stack, Title, Group, Button, Drawer, SegmentedControl, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -69,9 +61,7 @@ function AiToolRoutingPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('ai-tool:write');
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -95,7 +85,14 @@ function AiToolRoutingPage() {
           ? { has_condition: false }
           : {}),
     };
-  }, [search.agent_ids, search.tool_ids, search.agent, search.tool, search.enabled, search.has_condition]);
+  }, [
+    search.agent_ids,
+    search.tool_ids,
+    search.agent,
+    search.tool,
+    search.enabled,
+    search.has_condition,
+  ]);
 
   function setFilter(next: BindingFilter) {
     void navigate({
@@ -105,18 +102,9 @@ function AiToolRoutingPage() {
         ...prev,
         agent_ids: next.agent_ids.join(','),
         tool_ids: next.tool_ids.join(','),
-        enabled:
-          next.enabled === true
-            ? 'true'
-            : next.enabled === false
-              ? 'false'
-              : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
         has_condition:
-          next.has_condition === true
-            ? 'true'
-            : next.has_condition === false
-              ? 'false'
-              : '',
+          next.has_condition === true ? 'true' : next.has_condition === false ? 'false' : '',
         // Drop deep-link singles once user refines via filter bar.
         agent: '',
         tool: '',
@@ -134,12 +122,9 @@ function AiToolRoutingPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
-  const [selectedBinding, setSelectedBinding] = useState<AiToolBinding | null>(
-    null,
-  );
+  const [selectedBinding, setSelectedBinding] = useState<AiToolBinding | null>(null);
   const [createDefaults, setCreateDefaults] = useState<{
     agentId?: string;
     toolId?: string;
@@ -218,10 +203,7 @@ function AiToolRoutingPage() {
             }}
             aria-label="View mode"
           />
-          <Tooltip
-            disabled={canWrite}
-            label="You need ai-tool:write to create bindings"
-          >
+          <Tooltip disabled={canWrite} label="You need ai-tool:write to create bindings">
             <Button
               leftSection={<IconPlus size={16} />}
               onClick={handleCreate}
@@ -233,11 +215,7 @@ function AiToolRoutingPage() {
         </Group>
       </Group>
 
-      <BindingFilterBar
-        tenantId={tenantId}
-        filter={filter}
-        onChange={setFilter}
-      />
+      <BindingFilterBar tenantId={tenantId} filter={filter} onChange={setFilter} />
 
       {search.view === 'list' ? (
         <BindingList
@@ -248,11 +226,7 @@ function AiToolRoutingPage() {
           onDelete={handleDeleteFromList}
         />
       ) : (
-        <MatrixView
-          tenantId={tenantId}
-          filter={filter}
-          onCellClick={handleMatrixCell}
-        />
+        <MatrixView tenantId={tenantId} filter={filter} onCellClick={handleMatrixCell} />
       )}
 
       <Drawer

@@ -7,9 +7,7 @@ import { z } from 'zod';
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({
-  email: z
-    .email('Enter a valid email address')
-    .min(1, 'Email is required'),
+  email: z.email('Enter a valid email address').min(1, 'Email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -48,9 +46,7 @@ export type BackupCodeFormValues = z.infer<typeof backupCodeSchema>;
 // ─── Forgot password ─────────────────────────────────────────────────────────
 
 export const forgotPasswordSchema = z.object({
-  email: z
-    .email('Enter a valid email address')
-    .min(1, 'Email is required'),
+  email: z.email('Enter a valid email address').min(1, 'Email is required'),
 });
 
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
@@ -88,9 +84,7 @@ export type AcceptInviteFormValues = z.infer<typeof acceptInviteSchema>;
 export const bootstrapSchema = z
   .object({
     name: z.string().min(1, 'Name is required'),
-    email: z
-      .email('Enter a valid email address')
-      .min(1, 'Email is required'),
+    email: z.email('Enter a valid email address').min(1, 'Email is required'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirm: z.string().min(1, 'Please confirm your password'),
     tenant_name: z.string().min(1, 'Organization name is required'),
@@ -98,10 +92,7 @@ export const bootstrapSchema = z
       .string()
       .min(1, 'Slug is required')
       .max(63)
-      .regex(
-        /^[a-z0-9][a-z0-9-]*$/,
-        'Slug must be lowercase alphanumeric with hyphens',
-      ),
+      .regex(/^[a-z0-9][a-z0-9-]*$/, 'Slug must be lowercase alphanumeric with hyphens'),
   })
   .refine((v) => v.password === v.confirm, {
     message: 'Passwords do not match',

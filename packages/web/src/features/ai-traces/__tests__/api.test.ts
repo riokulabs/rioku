@@ -6,11 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { invokeAgentMock } from '@/features/ai-agents/api';
-import {
-  exportTracesCsv,
-  subscribeTraceStream,
-  useTraceList,
-} from '../api';
+import { exportTracesCsv, subscribeTraceStream, useTraceList } from '../api';
 import { renderHook } from '@testing-library/react';
 import type { AiTrace, TraceFilter } from '../types';
 

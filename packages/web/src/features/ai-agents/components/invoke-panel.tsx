@@ -50,10 +50,7 @@ export function InvokePanel({ agentId }: InvokePanelProps) {
           )} tokens`,
         );
       } else {
-        notify.error(
-          'Agent failed',
-          result.error_message ?? 'Unknown error',
-        );
+        notify.error('Agent failed', result.error_message ?? 'Unknown error');
       }
     } catch {
       notify.error('Failed to invoke agent', 'Please try again.');
@@ -156,12 +153,7 @@ export function InvokePanel({ agentId }: InvokePanelProps) {
       </div>
 
       {trace && trace.status !== 'success' && (
-        <Alert
-          role="alert"
-          icon={<IconAlertCircle size={16} />}
-          color="red"
-          variant="light"
-        >
+        <Alert role="alert" icon={<IconAlertCircle size={16} />} color="red" variant="light">
           <Text size="sm" fw={600}>
             Invocation {trace.status}
           </Text>

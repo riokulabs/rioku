@@ -5,10 +5,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useMockStore } from '@/api/mock-store';
-import type {
-  ID,
-  NotificationDeliveryLogEntry,
-} from '@/api/resources/types';
+import type { ID, NotificationDeliveryLogEntry } from '@/api/resources/types';
 
 import type { DeliveryLogFilter } from './types';
 
@@ -57,9 +54,7 @@ export function useDeliveryLogList(
   }, [log, tenantId, filter]);
 }
 
-export function useDeliveryLogDetail(
-  id: ID,
-): NotificationDeliveryLogEntry | undefined {
+export function useDeliveryLogDetail(id: ID): NotificationDeliveryLogEntry | undefined {
   return useMockStore((s) => s.notificationDeliveryLog[id]);
 }
 
@@ -83,10 +78,7 @@ export function useDeliveryLogListInfinite(
 ): DeliveryLogInfiniteResult {
   const full = useDeliveryLogList(tenantId, filter);
   const [pages, setPages] = useState(1);
-  const currentSlice = useMemo(
-    () => full.slice(0, pages * pageSize),
-    [full, pages, pageSize],
-  );
+  const currentSlice = useMemo(() => full.slice(0, pages * pageSize), [full, pages, pageSize]);
   const hasNextPage = currentSlice.length < full.length;
   const fetchNextPage = useCallback(() => {
     setPages((p) => p + 1);

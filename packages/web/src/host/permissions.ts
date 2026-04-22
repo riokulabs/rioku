@@ -337,7 +337,8 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   },
   {
     key: 'audit:read-sensitive',
-    description: 'View sensitive audit fields (IP, user-agent, payload bodies) and free-text search payloads',
+    description:
+      'View sensitive audit fields (IP, user-agent, payload bodies) and free-text search payloads',
     source: 'built-in',
     default_roles: ['admin'],
   },
@@ -605,7 +606,8 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   // notification:admin (Plan 8 — tenant-scoped notification config)
   {
     key: 'notification:admin',
-    description: 'Manage tenant-wide notification configuration (master toggle, opt-in mode, retry policy)',
+    description:
+      'Manage tenant-wide notification configuration (master toggle, opt-in mode, retry policy)',
     source: 'built-in',
     default_roles: ['admin'],
   },
@@ -756,9 +758,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
  * Seeded with BUILT_IN_PERMISSIONS at module load time.
  * Plugin calls to registerPermission / unregisterPermission update this map.
  */
-const _registry = new Map<string, Permission>(
-  BUILT_IN_PERMISSIONS.map((p) => [p.key, p]),
-);
+const _registry = new Map<string, Permission>(BUILT_IN_PERMISSIONS.map((p) => [p.key, p]));
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
 

@@ -20,10 +20,7 @@ export interface DataTablePaginationProps<TData> {
   totalRows: number;
 }
 
-export function DataTablePagination<TData>({
-  table,
-  totalRows,
-}: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({ table, totalRows }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
 
@@ -57,7 +54,9 @@ export function DataTablePagination<TData>({
         <Pagination
           total={pageCount}
           value={pageIndex + 1}
-          onChange={(page) => { table.setPageIndex(page - 1); }}
+          onChange={(page) => {
+            table.setPageIndex(page - 1);
+          }}
           size="sm"
           siblings={1}
           boundaries={1}

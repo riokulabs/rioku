@@ -80,10 +80,7 @@ const MOCK_MEMBERSHIPS = {
 
 vi.mock('../../api/mock-store', () => ({
   useMockStore: (
-    selector: (s: {
-      memberships: typeof MOCK_MEMBERSHIPS;
-      roles: typeof MOCK_ROLES;
-    }) => unknown,
+    selector: (s: { memberships: typeof MOCK_MEMBERSHIPS; roles: typeof MOCK_ROLES }) => unknown,
   ) => selector({ memberships: MOCK_MEMBERSHIPS, roles: MOCK_ROLES }),
 }));
 
@@ -101,11 +98,7 @@ function wrap(ui: React.ReactElement) {
 describe('<PermissionPathTrace>', () => {
   it('renders "granted" outcome when user has the permission', () => {
     wrap(
-      <PermissionPathTrace
-        userId="user-granted"
-        tenantId="tenant-1"
-        permission="service:read"
-      />,
+      <PermissionPathTrace userId="user-granted" tenantId="tenant-1" permission="service:read" />,
     );
 
     expect(screen.getByText('Permission granted')).toBeInTheDocument();
@@ -115,11 +108,7 @@ describe('<PermissionPathTrace>', () => {
   it('renders inherited path for permission granted via parent role', () => {
     // admin inherits from viewer which has service:read
     wrap(
-      <PermissionPathTrace
-        userId="user-granted"
-        tenantId="tenant-1"
-        permission="service:read"
-      />,
+      <PermissionPathTrace userId="user-granted" tenantId="tenant-1" permission="service:read" />,
     );
 
     // The viewer role should appear in the path (inherited)
@@ -129,11 +118,7 @@ describe('<PermissionPathTrace>', () => {
   it('renders conditional badge when grant has a CEL condition', () => {
     // admin has service:write with when condition
     wrap(
-      <PermissionPathTrace
-        userId="user-granted"
-        tenantId="tenant-1"
-        permission="service:write"
-      />,
+      <PermissionPathTrace userId="user-granted" tenantId="tenant-1" permission="service:write" />,
     );
 
     expect(screen.getByText('Permission granted')).toBeInTheDocument();
@@ -143,11 +128,7 @@ describe('<PermissionPathTrace>', () => {
 
   it('renders "denied" outcome when role has explicit deny', () => {
     wrap(
-      <PermissionPathTrace
-        userId="user-denied"
-        tenantId="tenant-1"
-        permission="service:read"
-      />,
+      <PermissionPathTrace userId="user-denied" tenantId="tenant-1" permission="service:read" />,
     );
 
     expect(screen.getByText('Permission denied')).toBeInTheDocument();
@@ -163,11 +144,7 @@ describe('<PermissionPathTrace>', () => {
 
   it('renders "no-source" when user has no role granting the permission', () => {
     wrap(
-      <PermissionPathTrace
-        userId="user-noperm"
-        tenantId="tenant-1"
-        permission="service:write"
-      />,
+      <PermissionPathTrace userId="user-noperm" tenantId="tenant-1" permission="service:write" />,
     );
 
     expect(screen.getByText('Permission not found')).toBeInTheDocument();
@@ -189,11 +166,7 @@ describe('<PermissionPathTrace>', () => {
 
   it('shows permission key as badge', () => {
     wrap(
-      <PermissionPathTrace
-        userId="user-granted"
-        tenantId="tenant-1"
-        permission="service:read"
-      />,
+      <PermissionPathTrace userId="user-granted" tenantId="tenant-1" permission="service:read" />,
     );
 
     expect(screen.getByText('service:read')).toBeInTheDocument();

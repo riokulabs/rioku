@@ -22,10 +22,7 @@ export interface UrlTableState {
 }
 
 /** Encode page state into search param key names. */
-export function encodeUrlState(
-  key: string,
-  state: UrlTableState,
-): Record<string, string> {
+export function encodeUrlState(key: string, state: UrlTableState): Record<string, string> {
   const params: Record<string, string> = {
     [`${key}_p`]: String(state.page),
     [`${key}_s`]: String(state.pageSize),

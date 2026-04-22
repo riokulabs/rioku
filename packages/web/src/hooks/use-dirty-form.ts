@@ -41,9 +41,8 @@ export function useDirtyForm<T>(form: UseFormReturnType<T>): UseDirtyFormReturn 
   });
 
   // Capture proceed/reset so the modal callbacks close over stable references.
-  const { proceed, reset } = blocker.status === 'blocked'
-    ? blocker
-    : { proceed: undefined, reset: undefined };
+  const { proceed, reset } =
+    blocker.status === 'blocked' ? blocker : { proceed: undefined, reset: undefined };
 
   // Open the confirm modal whenever the blocker transitions to "blocked".
   useEffect(() => {

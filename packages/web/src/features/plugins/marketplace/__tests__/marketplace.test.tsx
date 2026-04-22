@@ -68,9 +68,7 @@ describe('MarketplaceGrid', () => {
 describe('useMarketplaceListings selector', () => {
   it('filters by tag intersection — all provided tags must match', () => {
     // Search for 'security' — should yield multiple
-    const { result } = renderHook(() =>
-      useMarketplaceListings({ search: '', tags: ['security'] }),
-    );
+    const { result } = renderHook(() => useMarketplaceListings({ search: '', tags: ['security'] }));
     expect(result.current.length).toBeGreaterThan(0);
     for (const l of result.current) {
       expect(l.tags).toContain('security');
@@ -92,9 +90,7 @@ describe('useMarketplaceListings selector', () => {
   });
 
   it('filters by name/author/slug search (case insensitive)', () => {
-    const { result } = renderHook(() =>
-      useMarketplaceListings({ search: 'rioku', tags: [] }),
-    );
+    const { result } = renderHook(() => useMarketplaceListings({ search: 'rioku', tags: [] }));
     expect(result.current.length).toBeGreaterThan(0);
     for (const l of result.current) {
       const composite = [l.display_name, l.author, l.slug].join(' ').toLowerCase();

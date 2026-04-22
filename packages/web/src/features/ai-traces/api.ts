@@ -10,10 +10,7 @@
  * it (download link, FileSystemAccessAPI, test assertion, etc.).
  */
 import { useMockStore } from '@/api/mock-store';
-import {
-  TRACE_STREAM_TOPIC,
-  traceStreamBus,
-} from '@/api/trace-stream-bus';
+import { TRACE_STREAM_TOPIC, traceStreamBus } from '@/api/trace-stream-bus';
 import type { AiTrace } from '@/api/resources/types';
 import type { TraceFilter, TraceStreamListener } from './types';
 
@@ -21,10 +18,8 @@ import type { TraceFilter, TraceStreamListener } from './types';
 
 function matchesFilter(trace: AiTrace, tenantId: string, filter: TraceFilter): boolean {
   if (trace.tenant_id !== tenantId) return false;
-  if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(trace.agent_id))
-    return false;
-  if (filter.statuses.length > 0 && !filter.statuses.includes(trace.status))
-    return false;
+  if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(trace.agent_id)) return false;
+  if (filter.statuses.length > 0 && !filter.statuses.includes(trace.status)) return false;
   if (filter.since && trace.at < filter.since) return false;
   if (filter.until && trace.at >= filter.until) return false;
   const search = filter.search.trim().toLowerCase();
@@ -54,10 +49,7 @@ function csvEscape(value: string | number): string {
  * outside the selector so the hook identity is stable across renders that
  * don't actually touch the filtered output.
  */
-export function useTraceList(
-  tenantId: string,
-  filter: TraceFilter,
-): AiTrace[] {
+export function useTraceList(tenantId: string, filter: TraceFilter): AiTrace[] {
   const traces = useMockStore((s) => s.aiTraces);
   const out: AiTrace[] = [];
   for (const t of Object.values(traces)) {
@@ -78,10 +70,7 @@ export function useTraceDetail(id: string): AiTrace | undefined {
  * every `publishTrace` call where `trace.tenant_id === tenantId`. Returns an
  * unsubscribe function.
  */
-export function subscribeTraceStream(
-  tenantId: string,
-  onTrace: TraceStreamListener,
-): () => void {
+export function subscribeTraceStream(tenantId: string, onTrace: TraceStreamListener): () => void {
   const handler = (e: Event): void => {
     const detail = (e as CustomEvent<AiTrace>).detail;
     if (detail.tenant_id !== tenantId) return;
@@ -107,10 +96,7 @@ const CSV_HEADER =
  * Rows are sorted desc by `at` to mirror the list view. The caller is
  * responsible for triggering the download (e.g. via a synthetic `<a download>`).
  */
-export function exportTracesCsv(
-  tenantId: string,
-  filter: TraceFilter,
-): Blob {
+export function exportTracesCsv(tenantId: string, filter: TraceFilter): Blob {
   const state = useMockStore.getState();
   const rows: string[] = [CSV_HEADER];
   const matched: AiTrace[] = [];

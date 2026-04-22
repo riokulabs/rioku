@@ -26,12 +26,7 @@ export type {
   InvokeAgentFormValues,
 } from './schemas';
 
-export type {
-  AgentFilter,
-  CreateAgentInput,
-  UpdateAgentInput,
-  InvokeAgentInput,
-} from './types';
+export type { AgentFilter, CreateAgentInput, UpdateAgentInput, InvokeAgentInput } from './types';
 
 export { AgentList } from './components/list';
 export { AgentFilterBar } from './components/filter-bar';

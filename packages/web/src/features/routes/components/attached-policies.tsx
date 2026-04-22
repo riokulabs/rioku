@@ -4,16 +4,7 @@
  * a "Detach" button.
  */
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Stack,
-  Table,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, Stack, Table, Text } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconShield } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { notify } from '@/hooks/use-notify';
@@ -28,8 +19,7 @@ export function AttachedPolicies({ routeId }: AttachedPoliciesProps) {
   const attached = usePoliciesAttachedToRoute(routeId);
   const allPolicies = usePolicyList();
 
-  const [pickerOpened, { open: openPicker, close: closePicker }] =
-    useDisclosure(false);
+  const [pickerOpened, { open: openPicker, close: closePicker }] = useDisclosure(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const attachedIds = useMemo(() => new Set(attached.map((p) => p.id)), [attached]);
@@ -80,12 +70,7 @@ export function AttachedPolicies({ routeId }: AttachedPoliciesProps) {
       </Group>
 
       {attached.length === 0 ? (
-        <Alert
-          icon={<IconAlertCircle size={14} />}
-          variant="light"
-          color="gray"
-          p="xs"
-        >
+        <Alert icon={<IconAlertCircle size={14} />} variant="light" color="gray" p="xs">
           <Text size="xs">No policies attached to this route.</Text>
         </Alert>
       ) : (
@@ -108,11 +93,7 @@ export function AttachedPolicies({ routeId }: AttachedPoliciesProps) {
                   </Group>
                 </Table.Td>
                 <Table.Td>
-                  <Badge
-                    size="xs"
-                    color={p.action === 'allow' ? 'green' : 'red'}
-                    variant="light"
-                  >
+                  <Badge size="xs" color={p.action === 'allow' ? 'green' : 'red'} variant="light">
                     {p.action}
                   </Badge>
                 </Table.Td>
@@ -138,12 +119,7 @@ export function AttachedPolicies({ routeId }: AttachedPoliciesProps) {
         </Table>
       )}
 
-      <Modal
-        opened={pickerOpened}
-        onClose={closePicker}
-        title="Attach policy"
-        size="md"
-      >
+      <Modal opened={pickerOpened} onClose={closePicker} title="Attach policy" size="md">
         <Stack gap="sm">
           {candidates.length === 0 ? (
             <Text size="sm" c="var(--mantine-color-gray-7)">

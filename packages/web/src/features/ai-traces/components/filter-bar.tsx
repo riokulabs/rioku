@@ -11,14 +11,7 @@
  * on ISO strings at the api layer.
  */
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Group,
-  TextInput,
-  MultiSelect,
-  SegmentedControl,
-  Tooltip,
-  Stack,
-} from '@mantine/core';
+import { Group, TextInput, MultiSelect, SegmentedControl, Tooltip, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
@@ -35,23 +28,13 @@ const STATUS_OPTIONS: { value: AiTrace['status']; label: string }[] = [
   { value: 'timeout', label: 'Timeout' },
 ];
 
-const STATUS_SET: ReadonlySet<AiTrace['status']> = new Set([
-  'success',
-  'error',
-  'timeout',
-]);
+const STATUS_SET: ReadonlySet<AiTrace['status']> = new Set(['success', 'error', 'timeout']);
 
 function isStatus(v: string): v is AiTrace['status'] {
   return STATUS_SET.has(v as AiTrace['status']);
 }
 
-const PRESET_SET: ReadonlySet<RangePreset> = new Set([
-  '1h',
-  '24h',
-  '7d',
-  'all',
-  'custom',
-]);
+const PRESET_SET: ReadonlySet<RangePreset> = new Set(['1h', '24h', '7d', 'all', 'custom']);
 
 function isRangePreset(v: string): v is RangePreset {
   return PRESET_SET.has(v as RangePreset);
@@ -78,12 +61,7 @@ function presetToSince(preset: RangePreset): string | undefined {
   }
 }
 
-export function TraceFilterBar({
-  tenantId,
-  filter,
-  rangePreset,
-  onChange,
-}: TraceFilterBarProps) {
+export function TraceFilterBar({ tenantId, filter, rangePreset, onChange }: TraceFilterBarProps) {
   const canReadSensitive = usePermission('ai-trace:read-sensitive');
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
@@ -142,11 +120,7 @@ export function TraceFilterBar({
 
   const searchField = (
     <TextInput
-      placeholder={
-        canReadSensitive
-          ? 'Search prompt or completion…'
-          : 'Sensitive search disabled'
-      }
+      placeholder={canReadSensitive ? 'Search prompt or completion…' : 'Sensitive search disabled'}
       leftSection={<IconSearch size={14} />}
       value={canReadSensitive ? searchInput : ''}
       onChange={(e) => {

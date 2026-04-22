@@ -9,17 +9,11 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded API keys render on /t/acme/security/api-keys', async ({
-  authedPage: page,
-}) => {
+test('seeded API keys render on /t/acme/security/api-keys', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/api-keys');
 
-  await expect(
-    page.getByRole('heading', { name: /^api keys$/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: /create key/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^api keys$/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /create key/i })).toBeVisible();
 
   const rows = page.locator('tbody tr[role="row"]');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
@@ -27,9 +21,7 @@ test('seeded API keys render on /t/acme/security/api-keys', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('create key button opens create drawer', async ({
-  authedPage: page,
-}) => {
+test('create key button opens create drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/api-keys');
 
   await page.getByRole('button', { name: /create key/i }).click();
@@ -40,9 +32,7 @@ test('create key button opens create drawer', async ({
   await expect(drawer.getByRole('textbox', { name: /^name$/i })).toBeVisible();
 });
 
-test('row click opens API key detail drawer', async ({
-  authedPage: page,
-}) => {
+test('row click opens API key detail drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/api-keys');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();

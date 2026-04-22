@@ -83,9 +83,7 @@ describe('<NotificationList>', () => {
     const btn = screen.getByTestId('notification-row-archive-n-1');
     fireEvent.click(btn);
     await waitFor(() => {
-      expect(
-        useMockStore.getState().notifications['n-1']?.archived_at,
-      ).not.toBeNull();
+      expect(useMockStore.getState().notifications['n-1']?.archived_at).not.toBeNull();
     });
   });
 });

@@ -234,11 +234,19 @@ function makeFreshStore() {
       set((state) => {
         const current = state.observabilityConfigs[tenantId];
         if (!current) return state;
-        const nextMetrics = patch.metrics != null ? { ...current.metrics, ...patch.metrics } : current.metrics;
-        const nextLogs = patch.logs != null
-          ? { ...current.logs, ...patch.logs, levels: { ...current.logs.levels, ...patch.logs.levels }, rotation: { ...current.logs.rotation, ...patch.logs.rotation } }
-          : current.logs;
-        const nextTraces = patch.traces != null ? { ...current.traces, ...patch.traces } : current.traces;
+        const nextMetrics =
+          patch.metrics != null ? { ...current.metrics, ...patch.metrics } : current.metrics;
+        const nextLogs =
+          patch.logs != null
+            ? {
+                ...current.logs,
+                ...patch.logs,
+                levels: { ...current.logs.levels, ...patch.logs.levels },
+                rotation: { ...current.logs.rotation, ...patch.logs.rotation },
+              }
+            : current.logs;
+        const nextTraces =
+          patch.traces != null ? { ...current.traces, ...patch.traces } : current.traces;
         return {
           observabilityConfigs: {
             ...state.observabilityConfigs,
@@ -415,8 +423,8 @@ describe('mock-store seed integrity', () => {
 
   it('seeds certAuthorities (3 internal + 1 external)', () => {
     const cas = Object.values(store.getState().certAuthorities);
-    const internal = cas.filter(c => c.kind === 'internal');
-    const external = cas.filter(c => c.kind === 'external');
+    const internal = cas.filter((c) => c.kind === 'internal');
+    const external = cas.filter((c) => c.kind === 'external');
     expect(cas.length).toBe(4);
     expect(internal.length).toBe(3);
     expect(external.length).toBe(1);
@@ -426,9 +434,9 @@ describe('mock-store seed integrity', () => {
     const enrollments = Object.values(store.getState().certEnrollments);
     expect(enrollments.length).toBe(13);
     // verify a spread of states exists
-    expect(enrollments.some(e => e.state === 'pending')).toBe(true);
-    expect(enrollments.some(e => e.state === 'issued')).toBe(true);
-    expect(enrollments.some(e => e.state === 'revoked')).toBe(true);
+    expect(enrollments.some((e) => e.state === 'pending')).toBe(true);
+    expect(enrollments.some((e) => e.state === 'issued')).toBe(true);
+    expect(enrollments.some((e) => e.state === 'revoked')).toBe(true);
   });
 
   it('every cert enrollment references a valid ca_id (FK integrity)', () => {
@@ -454,7 +462,9 @@ describe('mock-store seed integrity', () => {
     const { tlsCertificates, tenants } = store.getState();
     const tenantIds = new Set(Object.keys(tenants));
     for (const cert of Object.values(tlsCertificates)) {
-      expect(tenantIds.has(cert.tenant_id), `tlsCert ${cert.id} → tenant ${cert.tenant_id}`).toBe(true);
+      expect(tenantIds.has(cert.tenant_id), `tlsCert ${cert.id} → tenant ${cert.tenant_id}`).toBe(
+        true,
+      );
     }
   });
 
@@ -542,7 +552,9 @@ describe('mock-store seed integrity', () => {
     const { apiKeys, tenants } = store.getState();
     const tenantIds = new Set(Object.keys(tenants));
     for (const key of Object.values(apiKeys)) {
-      expect(tenantIds.has(key.tenant_id), `api_key ${key.id} → tenant ${key.tenant_id}`).toBe(true);
+      expect(tenantIds.has(key.tenant_id), `api_key ${key.id} → tenant ${key.tenant_id}`).toBe(
+        true,
+      );
     }
   });
 
@@ -664,9 +676,7 @@ describe('deleteTenant cascade removes all tenant-scoped records', () => {
   it('leaves other tenants and their records intact', async () => {
     const tenantId = getAcmeTenantId();
     const stateBefore = useMockStore.getState();
-    const otherTenants = Object.values(stateBefore.tenants).filter(
-      (t) => t.id !== tenantId,
-    );
+    const otherTenants = Object.values(stateBefore.tenants).filter((t) => t.id !== tenantId);
     expect(otherTenants.length).toBeGreaterThan(0);
 
     await deleteTenant(tenantId);
@@ -675,9 +685,7 @@ describe('deleteTenant cascade removes all tenant-scoped records', () => {
     for (const t of otherTenants) {
       expect(stateAfter.tenants[t.id]).toBeDefined();
       // Their services should still exist
-      const services = Object.values(stateAfter.services).filter(
-        (s) => s.tenant_id === t.id,
-      );
+      const services = Object.values(stateAfter.services).filter((s) => s.tenant_id === t.id);
       expect(services.length).toBeGreaterThan(0);
     }
   });

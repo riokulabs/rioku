@@ -69,10 +69,7 @@ function parseSort(v: unknown): SortMode {
 }
 
 /** Sort listings in-place friendly (non-mutating) per the chosen mode. */
-function sortListings(
-  listings: MarketplaceListing[],
-  mode: SortMode,
-): MarketplaceListing[] {
+function sortListings(listings: MarketplaceListing[], mode: SortMode): MarketplaceListing[] {
   const copy = [...listings];
   switch (mode) {
     case 'installs':
@@ -97,12 +94,13 @@ export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
   const search = useSearch({ strict: false });
 
   // URL-sync: read q + tags + verified + sort from search params.
-  const urlQuery = typeof (search as Record<string, unknown>).q === 'string'
-    ? ((search as Record<string, unknown>).q as string)
-    : '';
+  const urlQuery =
+    typeof (search as Record<string, unknown>).q === 'string'
+      ? ((search as Record<string, unknown>).q as string)
+      : '';
   const urlTagsRaw = (search as Record<string, unknown>).tags;
   const urlTags: string[] = Array.isArray(urlTagsRaw)
-    ? (urlTagsRaw.filter((t): t is string => typeof t === 'string'))
+    ? urlTagsRaw.filter((t): t is string => typeof t === 'string')
     : typeof urlTagsRaw === 'string' && urlTagsRaw.length > 0
       ? urlTagsRaw.split(',')
       : [];
@@ -349,11 +347,7 @@ export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
                   data-testid={`marketplace-listing-${listing.slug}`}
                 >
                   <Stack gap="xs" h="100%">
-                    <Group
-                      justify="space-between"
-                      align="flex-start"
-                      wrap="nowrap"
-                    >
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
                       <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
                         <Group gap="xs" wrap="nowrap">
                           <Title order={5} style={{ wordBreak: 'break-word' }}>
@@ -382,12 +376,7 @@ export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
 
                     <Group gap={4}>
                       {listing.tags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          size="xs"
-                          color="gray"
-                          variant="outline"
-                        >
+                        <Badge key={tag} size="xs" color="gray" variant="outline">
                           {tag}
                         </Badge>
                       ))}

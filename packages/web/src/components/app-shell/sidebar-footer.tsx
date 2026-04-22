@@ -91,11 +91,7 @@ export function SidebarFooter() {
   }
 
   return (
-    <Stack
-      gap="xs"
-      p="xs"
-      style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-    >
+    <Stack gap="xs" p="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
       {/* Tenant switcher */}
       <Menu>
         <Menu.Target>
@@ -115,11 +111,7 @@ export function SidebarFooter() {
           >
             <Group justify="space-between" gap="xs">
               <Group gap="xs">
-                <Avatar
-                  color={isImpersonating ? 'yellow' : 'green'}
-                  size="sm"
-                  radius="sm"
-                >
+                <Avatar color={isImpersonating ? 'yellow' : 'green'} size="sm" radius="sm">
                   {tenantInitial}
                 </Avatar>
                 <Text size="sm" fw={600}>
@@ -139,7 +131,9 @@ export function SidebarFooter() {
                 leftSection={
                   t.id === currentTenantId ? <IconCheck size={14} /> : <Box style={{ width: 14 }} />
                 }
-                onClick={() => { handleTenantSwitch(t); }}
+                onClick={() => {
+                  handleTenantSwitch(t);
+                }}
                 data-testid={`tenant-option-${t.slug}`}
               >
                 {t.slug}
@@ -160,10 +154,7 @@ export function SidebarFooter() {
       {/* User menu */}
       <Menu>
         <Menu.Target>
-          <Box
-            role="button"
-            style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}
-          >
+          <Box role="button" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}>
             <Group justify="space-between" gap="xs">
               <Group gap="xs">
                 <Avatar color="blue" size="sm" radius="xl">
@@ -173,9 +164,7 @@ export function SidebarFooter() {
                   <Text size="sm" fw={600}>
                     {userDisplayName}
                   </Text>
-                  <Text size="xs">
-                    {userEmail}
-                  </Text>
+                  <Text size="xs">{userEmail}</Text>
                 </Box>
               </Group>
               <IconChevronDown size={14} />
@@ -217,7 +206,9 @@ export function SidebarFooter() {
                       <Box style={{ width: 14 }} />
                     )
                   }
-                  onClick={() => { setActiveThemeName(t.name); }}
+                  onClick={() => {
+                    setActiveThemeName(t.name);
+                  }}
                 >
                   {t.displayName}
                   {t.source === 'plugin' && (
@@ -251,7 +242,9 @@ export function SidebarFooter() {
                       <Box style={{ width: 14 }} />
                     )
                   }
-                  onClick={() => { void i18n.changeLanguage(lang.code); }}
+                  onClick={() => {
+                    void i18n.changeLanguage(lang.code);
+                  }}
                 >
                   {lang.label}
                 </MenuSub.Item>

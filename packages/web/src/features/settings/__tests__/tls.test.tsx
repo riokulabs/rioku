@@ -43,7 +43,11 @@ function DropzoneStub({
   onDrop: _onDrop,
   ...rest
 }: React.PropsWithChildren<Record<string, unknown>>) {
-  return <div data-testid="tls-pem-dropzone" {...rest}>{children}</div>;
+  return (
+    <div data-testid="tls-pem-dropzone" {...rest}>
+      {children}
+    </div>
+  );
 }
 function Noop({ children }: React.PropsWithChildren) {
   return <>{children}</>;
@@ -131,9 +135,7 @@ describe('<TlsSection> render', () => {
     render(<TlsSection />, { wrapper: Wrapper });
     const tenantId = getAcmeTenantId();
     const state = useMockStore.getState();
-    const certs = Object.values(state.tlsCertificates).filter(
-      (c) => c.tenant_id === tenantId,
-    );
+    const certs = Object.values(state.tlsCertificates).filter((c) => c.tenant_id === tenantId);
     // Should have 4 certs for acme tenant
     expect(certs.length).toBe(4);
   });
@@ -253,10 +255,9 @@ describe('<TlsUploadModal> upload cert', () => {
 
   it('validates required domain', async () => {
     const tenantId = getAcmeTenantId();
-    render(
-      <TlsUploadModal opened onClose={() => undefined} tenantId={tenantId} canWrite />,
-      { wrapper: Wrapper },
-    );
+    render(<TlsUploadModal opened onClose={() => undefined} tenantId={tenantId} canWrite />, {
+      wrapper: Wrapper,
+    });
 
     // Fill cert and key but leave domain empty
     fireEvent.change(screen.getByTestId('cert-pem-textarea'), {
@@ -281,10 +282,9 @@ describe('<TlsUploadModal> upload cert', () => {
 
   it('validates required certificate_pem', async () => {
     const tenantId = getAcmeTenantId();
-    render(
-      <TlsUploadModal opened onClose={() => undefined} tenantId={tenantId} canWrite />,
-      { wrapper: Wrapper },
-    );
+    render(<TlsUploadModal opened onClose={() => undefined} tenantId={tenantId} canWrite />, {
+      wrapper: Wrapper,
+    });
 
     // Mantine TextInput renders data-testid on the <input> element directly
     const domainInput = screen.getByTestId('upload-domain-input');
@@ -304,13 +304,14 @@ describe('<TlsUploadModal> upload cert', () => {
   it('submits valid form → adds cert to store + audit + host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:certificate-added', listener);
 
-    render(
-      <TlsUploadModal opened onClose={() => undefined} tenantId={tenantId} canWrite />,
-      { wrapper: Wrapper },
-    );
+    render(<TlsUploadModal opened onClose={() => undefined} tenantId={tenantId} canWrite />, {
+      wrapper: Wrapper,
+    });
 
     // Mantine TextInput renders data-testid on the <input> element directly
     const domainInput = screen.getByTestId('upload-domain-input');
@@ -371,10 +372,7 @@ describe('<TlsAcmeConfig> form', () => {
 
   it('submits updated ACME config and persists to store', async () => {
     const tenantId = getAcmeTenantId();
-    render(
-      <TlsAcmeConfig tenantId={tenantId} canWrite />,
-      { wrapper: Wrapper },
-    );
+    render(<TlsAcmeConfig tenantId={tenantId} canWrite />, { wrapper: Wrapper });
 
     // Mantine TextInput renders data-testid on the <input> element directly
     const emailInput = screen.getByTestId('acme-email-input');
@@ -391,13 +389,12 @@ describe('<TlsAcmeConfig> form', () => {
   it('emits audit + host event on ACME config save', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:config-updated', listener);
 
-    render(
-      <TlsAcmeConfig tenantId={tenantId} canWrite />,
-      { wrapper: Wrapper },
-    );
+    render(<TlsAcmeConfig tenantId={tenantId} canWrite />, { wrapper: Wrapper });
 
     // Mantine TextInput renders data-testid on the <input> element directly
     const emailInput = screen.getByTestId('acme-email-input');
@@ -442,10 +439,7 @@ describe('<TlsCipherConfig> form', () => {
   it('saves cipher changes and persists to store', () => {
     const tenantId = getAcmeTenantId();
 
-    render(
-      <TlsCipherConfig tenantId={tenantId} canWrite />,
-      { wrapper: Wrapper },
-    );
+    render(<TlsCipherConfig tenantId={tenantId} canWrite />, { wrapper: Wrapper });
 
     // Manually trigger a store update to make the form dirty
     // (MultiSelect interaction with Mantine in JSDOM is complex; test via direct form manipulation)
@@ -463,9 +457,7 @@ describe('<TlsCertList> delete cert', () => {
     render(<TlsSection />, { wrapper: Wrapper });
     const tenantId = getAcmeTenantId();
     const state = useMockStore.getState();
-    const cert = Object.values(state.tlsCertificates).find(
-      (c) => c.tenant_id === tenantId,
-    );
+    const cert = Object.values(state.tlsCertificates).find((c) => c.tenant_id === tenantId);
     if (!cert) throw new Error('No cert in seed data');
 
     // Open actions menu — Menu uses a portal, wait for item to appear
@@ -479,13 +471,13 @@ describe('<TlsCertList> delete cert', () => {
     render(<TlsSection />, { wrapper: Wrapper });
     const tenantId = getAcmeTenantId();
     const state = useMockStore.getState();
-    const cert = Object.values(state.tlsCertificates).find(
-      (c) => c.tenant_id === tenantId,
-    );
+    const cert = Object.values(state.tlsCertificates).find((c) => c.tenant_id === tenantId);
     if (!cert) throw new Error('No cert in seed data');
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:certificate-deleted', listener);
 
     // Open actions menu — Menu uses a portal, wait for item to appear

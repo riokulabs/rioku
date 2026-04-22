@@ -27,20 +27,13 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconGauge,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconGauge } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import type { AiSemanticRateLimit } from '@/api/resources/types';
-import {
-  deleteRateLimit,
-  updateRateLimit,
-  useRateLimitDetail,
-} from '../api';
+import { deleteRateLimit, updateRateLimit, useRateLimitDetail } from '../api';
 import { MetricsSparkline } from './metrics-sparkline';
 import { Simulator } from './simulator';
 
@@ -64,11 +57,7 @@ function formatWindow(seconds: number): string {
   return `${String(seconds)}s`;
 }
 
-export function RateLimitDetail({
-  ruleId,
-  onEdit,
-  onClose,
-}: RateLimitDetailProps) {
+export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProps) {
   const rule = useRateLimitDetail(ruleId);
   const agents = useMockStore((s) => s.aiAgents);
   const tools = useMockStore((s) => s.aiTools);
@@ -77,16 +66,13 @@ export function RateLimitDetail({
   const auditTail = useMemo(() => {
     if (!rule) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'ai-rate-limit' && e.resource_id === rule.id,
-      )
+      .filter((e) => e.resource_type === 'ai-rate-limit' && e.resource_id === rule.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, rule]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -145,11 +131,7 @@ export function RateLimitDetail({
               <Badge size="sm" variant="outline" color="gray">
                 {rule.scope}
               </Badge>
-              <Badge
-                size="sm"
-                variant="light"
-                color={ACTION_COLORS[rule.action]}
-              >
+              <Badge size="sm" variant="light" color={ACTION_COLORS[rule.action]}>
                 {rule.action}
               </Badge>
               <Switch
@@ -214,12 +196,7 @@ export function RateLimitDetail({
           <Chip.Group multiple value={[]} onChange={() => undefined}>
             <Group gap={6}>
               {rule.exemplars.map((ex, idx) => (
-                <Chip
-                  key={`${ex}-${String(idx)}`}
-                  value={ex}
-                  size="xs"
-                  variant="outline"
-                >
+                <Chip key={`${ex}-${String(idx)}`} value={ex} size="xs" variant="outline">
                   {ex}
                 </Chip>
               ))}
@@ -250,12 +227,7 @@ export function RateLimitDetail({
         <Button size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -292,9 +264,7 @@ export function RateLimitDetail({
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -315,8 +285,7 @@ export function RateLimitDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the rule. Matches in-flight at delete time
-            will not be retried.
+            This permanently deletes the rule. Matches in-flight at delete time will not be retried.
           </Alert>
           <Text size="sm">
             Type{' '}

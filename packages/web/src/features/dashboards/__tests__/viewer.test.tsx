@@ -15,9 +15,7 @@ function wrap(ui: React.ReactNode) {
 }
 
 function acmeTenantId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
   return acme.id;
 }
@@ -44,9 +42,7 @@ describe('<DashboardViewer>', () => {
     wrap(<DashboardViewer dashboardId={id} />);
     expect(screen.getByText(dashboard.name)).toBeInTheDocument();
     // mode badge
-    expect(
-      screen.getByText(new RegExp(dashboard.mode, 'i')),
-    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(dashboard.mode, 'i'))).toBeInTheDocument();
   });
 
   it('renders an empty state when the dashboard has no widgets', () => {

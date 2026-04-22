@@ -39,8 +39,8 @@ interface TlsCertListProps {
 
 const ISSUER_BADGE_COLOR: Record<string, string> = {
   "Let's Encrypt": 'green',
-  'ZeroSSL': 'blue',
-  'Manual': 'gray',
+  ZeroSSL: 'blue',
+  Manual: 'gray',
   'Self-signed': 'yellow',
 };
 
@@ -106,15 +106,25 @@ function PemDrawer({ cert, onClose }: PemDrawerProps) {
     >
       <Stack gap="md">
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Domain</Text>
-          <Text size="sm" c="var(--mantine-color-gray-7)">{cert.domain}</Text>
+          <Text size="sm" fw={500}>
+            Domain
+          </Text>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            {cert.domain}
+          </Text>
         </Stack>
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Issuer</Text>
-          <Text size="sm" c="var(--mantine-color-gray-7)">{cert.issuer}</Text>
+          <Text size="sm" fw={500}>
+            Issuer
+          </Text>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            {cert.issuer}
+          </Text>
         </Stack>
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Expires</Text>
+          <Text size="sm" fw={500}>
+            Expires
+          </Text>
           <Text
             size="sm"
             c={
@@ -129,14 +139,23 @@ function PemDrawer({ cert, onClose }: PemDrawerProps) {
           </Text>
         </Stack>
         <Stack gap={4}>
-          <Text size="sm" fw={500}>SHA-256 fingerprint</Text>
-          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)" style={{ wordBreak: 'break-all' }}>
+          <Text size="sm" fw={500}>
+            SHA-256 fingerprint
+          </Text>
+          <Text
+            size="xs"
+            ff="monospace"
+            c="var(--mantine-color-gray-7)"
+            style={{ wordBreak: 'break-all' }}
+          >
             {cert.fingerprint_sha256}
           </Text>
         </Stack>
         {cert.certificate_pem.length > 0 ? (
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Certificate PEM</Text>
+            <Text size="sm" fw={500}>
+              Certificate PEM
+            </Text>
             <Code block style={{ maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
               {cert.certificate_pem}
             </Code>
@@ -191,8 +210,8 @@ function DeleteConfirmModal({ cert, onClose, onDeleted }: DeleteConfirmProps) {
     >
       <Stack gap="sm">
         <Text size="sm">
-          Are you sure you want to delete the certificate for{' '}
-          <strong>{cert.domain}</strong>? This cannot be undone.
+          Are you sure you want to delete the certificate for <strong>{cert.domain}</strong>? This
+          cannot be undone.
         </Text>
         <Group justify="flex-end" mt="sm">
           <Button variant="default" onClick={onClose}>
@@ -201,7 +220,9 @@ function DeleteConfirmModal({ cert, onClose, onDeleted }: DeleteConfirmProps) {
           <Button
             color="red"
             loading={deleting}
-            onClick={() => { void handleDelete(); }}
+            onClick={() => {
+              void handleDelete();
+            }}
             data-testid="confirm-delete-cert-button"
           >
             Delete
@@ -248,7 +269,9 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
                 size="sm"
                 leftSection={!canWrite ? <IconLock size={14} /> : <IconPlus size={14} />}
                 disabled={!canWrite}
-                onClick={() => { setUploadOpen(true); }}
+                onClick={() => {
+                  setUploadOpen(true);
+                }}
                 data-testid="upload-cert-button"
               >
                 Upload certificate
@@ -263,123 +286,147 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
           </Text>
         ) : (
           <Box style={{ overflowX: 'auto' }}>
-          <Table striped highlightOnHover data-testid="cert-table">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Domain</Table.Th>
-                <Table.Th>Issuer</Table.Th>
-                <Table.Th>Expires</Table.Th>
-                <Table.Th>Auto-renew</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {certs.map((cert) => (
-                <Table.Tr key={cert.id} data-testid={`cert-row-${cert.id}`}>
-                  <Table.Td>
-                    <Text size="sm" fw={500}>{cert.domain}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      color={getIssuerColor(cert.issuer)}
-                      variant="light"
-                      size="sm"
-                      data-testid={`cert-issuer-badge-${cert.id}`}
-                    >
-                      {cert.issuer}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    {isExpired(cert.expires_at) ? (
-                      <Text size="sm" c="red" data-testid={`cert-expiry-${cert.id}`}>
-                        {relativeExpiry(cert.expires_at)}
-                      </Text>
-                    ) : isExpiringSoon(cert.expires_at) ? (
-                      <Text size="sm" c="orange" data-testid={`cert-expiry-${cert.id}`}>
-                        {relativeExpiry(cert.expires_at)}
-                      </Text>
-                    ) : (
-                      <Text size="sm" data-testid={`cert-expiry-${cert.id}`}>
-                        {relativeExpiry(cert.expires_at)}
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Tooltip
-                      label={cert.source === 'manual' ? 'Auto-renew not available for manually uploaded certs' : (!canWrite ? 'Requires tls:write permission' : '')}
-                      disabled={cert.source === 'acme' && canWrite}
-                    >
-                      <span>
-                        <Switch
-                          size="sm"
-                          checked={cert.auto_renew}
-                          disabled={cert.source === 'manual' || !canWrite || togglingIds.has(cert.id)}
-                          onChange={(e) => { void handleToggleAutoRenew(cert, e.currentTarget.checked); }}
-                          aria-label={`Auto-renew for ${cert.domain}`}
-                          data-testid={`cert-auto-renew-${cert.id}`}
-                        />
-                      </span>
-                    </Tooltip>
-                  </Table.Td>
-                  <Table.Td>
-                    <Menu position="bottom-end" withinPortal>
-                      <Menu.Target>
-                        <ActionIcon
-                          variant="subtle"
-                          size="sm"
-                          aria-label={`Certificate actions for ${cert.domain}`}
-                          data-testid={`cert-actions-${cert.id}`}
-                        >
-                          <IconDots size={14} />
-                        </ActionIcon>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        <Menu.Item
-                          onClick={() => { setPemCert(cert); }}
-                          data-testid={`cert-view-pem-${cert.id}`}
-                        >
-                          View PEM
-                        </Menu.Item>
-                        <Tooltip label="Requires tls:write permission" disabled={canWrite}>
-                          <div>
-                            <Menu.Item
-                              color="red"
-                              leftSection={<IconTrash size={14} />}
-                              disabled={!canWrite}
-                              onClick={() => { if (canWrite) setDeletingCert(cert); }}
-                              data-testid={`cert-delete-${cert.id}`}
-                            >
-                              Delete
-                            </Menu.Item>
-                          </div>
-                        </Tooltip>
-                      </Menu.Dropdown>
-                    </Menu>
-                  </Table.Td>
+            <Table striped highlightOnHover data-testid="cert-table">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Domain</Table.Th>
+                  <Table.Th>Issuer</Table.Th>
+                  <Table.Th>Expires</Table.Th>
+                  <Table.Th>Auto-renew</Table.Th>
+                  <Table.Th />
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {certs.map((cert) => (
+                  <Table.Tr key={cert.id} data-testid={`cert-row-${cert.id}`}>
+                    <Table.Td>
+                      <Text size="sm" fw={500}>
+                        {cert.domain}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={getIssuerColor(cert.issuer)}
+                        variant="light"
+                        size="sm"
+                        data-testid={`cert-issuer-badge-${cert.id}`}
+                      >
+                        {cert.issuer}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      {isExpired(cert.expires_at) ? (
+                        <Text size="sm" c="red" data-testid={`cert-expiry-${cert.id}`}>
+                          {relativeExpiry(cert.expires_at)}
+                        </Text>
+                      ) : isExpiringSoon(cert.expires_at) ? (
+                        <Text size="sm" c="orange" data-testid={`cert-expiry-${cert.id}`}>
+                          {relativeExpiry(cert.expires_at)}
+                        </Text>
+                      ) : (
+                        <Text size="sm" data-testid={`cert-expiry-${cert.id}`}>
+                          {relativeExpiry(cert.expires_at)}
+                        </Text>
+                      )}
+                    </Table.Td>
+                    <Table.Td>
+                      <Tooltip
+                        label={
+                          cert.source === 'manual'
+                            ? 'Auto-renew not available for manually uploaded certs'
+                            : !canWrite
+                              ? 'Requires tls:write permission'
+                              : ''
+                        }
+                        disabled={cert.source === 'acme' && canWrite}
+                      >
+                        <span>
+                          <Switch
+                            size="sm"
+                            checked={cert.auto_renew}
+                            disabled={
+                              cert.source === 'manual' || !canWrite || togglingIds.has(cert.id)
+                            }
+                            onChange={(e) => {
+                              void handleToggleAutoRenew(cert, e.currentTarget.checked);
+                            }}
+                            aria-label={`Auto-renew for ${cert.domain}`}
+                            data-testid={`cert-auto-renew-${cert.id}`}
+                          />
+                        </span>
+                      </Tooltip>
+                    </Table.Td>
+                    <Table.Td>
+                      <Menu position="bottom-end" withinPortal>
+                        <Menu.Target>
+                          <ActionIcon
+                            variant="subtle"
+                            size="sm"
+                            aria-label={`Certificate actions for ${cert.domain}`}
+                            data-testid={`cert-actions-${cert.id}`}
+                          >
+                            <IconDots size={14} />
+                          </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          <Menu.Item
+                            onClick={() => {
+                              setPemCert(cert);
+                            }}
+                            data-testid={`cert-view-pem-${cert.id}`}
+                          >
+                            View PEM
+                          </Menu.Item>
+                          <Tooltip label="Requires tls:write permission" disabled={canWrite}>
+                            <div>
+                              <Menu.Item
+                                color="red"
+                                leftSection={<IconTrash size={14} />}
+                                disabled={!canWrite}
+                                onClick={() => {
+                                  if (canWrite) setDeletingCert(cert);
+                                }}
+                                data-testid={`cert-delete-${cert.id}`}
+                              >
+                                Delete
+                              </Menu.Item>
+                            </div>
+                          </Tooltip>
+                        </Menu.Dropdown>
+                      </Menu>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
           </Box>
         )}
       </Stack>
 
       <TlsUploadModal
         opened={uploadOpen}
-        onClose={() => { setUploadOpen(false); }}
+        onClose={() => {
+          setUploadOpen(false);
+        }}
         tenantId={tenantId}
         canWrite={canWrite}
       />
 
       <PemDrawer
         cert={pemCert}
-        onClose={() => { setPemCert(null); }}
+        onClose={() => {
+          setPemCert(null);
+        }}
       />
 
       <DeleteConfirmModal
         cert={deletingCert}
-        onClose={() => { setDeletingCert(null); }}
-        onDeleted={() => { setDeletingCert(null); }}
+        onClose={() => {
+          setDeletingCert(null);
+        }}
+        onDeleted={() => {
+          setDeletingCert(null);
+        }}
       />
     </>
   );

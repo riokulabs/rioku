@@ -8,16 +8,7 @@
  * Task 8b.8
  */
 import { useState } from 'react';
-import {
-  Button,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  Textarea,
-  TextInput,
-  Tooltip,
-} from '@mantine/core';
+import { Button, Group, Modal, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { Dropzone } from '@mantine/dropzone';
 import { IconLock, IconUpload, IconX, IconFile } from '@tabler/icons-react';
@@ -48,8 +39,12 @@ const DEFAULT_VALUES: TlsUploadValues = {
 async function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => { resolve(reader.result as string); };
-    reader.onerror = () => { reject(new Error('Failed to read file')); };
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
     reader.readAsText(file);
   });
 }
@@ -119,7 +114,11 @@ export function TlsUploadModal({ opened, onClose, tenantId, canWrite }: TlsUploa
       data-testid="tls-upload-modal"
       transitionProps={{ duration: 0 }}
     >
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <TextInput
             label="Domain"
@@ -131,12 +130,19 @@ export function TlsUploadModal({ opened, onClose, tenantId, canWrite }: TlsUploa
           />
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Certificate PEM <Text span c="red">*</Text></Text>
+            <Text size="sm" fw={500}>
+              Certificate PEM{' '}
+              <Text span c="red">
+                *
+              </Text>
+            </Text>
             <Text size="xs" c="var(--mantine-color-gray-7)">
               Drop a .pem or .crt file, or paste below
             </Text>
             <Dropzone
-              onDrop={(files) => { void handleCertDrop(files); }}
+              onDrop={(files) => {
+                void handleCertDrop(files);
+              }}
               accept={['application/x-pem-file', 'text/plain', '.pem', '.crt', '.cer']}
               maxFiles={1}
               data-testid="cert-pem-dropzone"
@@ -169,12 +175,19 @@ export function TlsUploadModal({ opened, onClose, tenantId, canWrite }: TlsUploa
           </Stack>
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Private Key PEM <Text span c="red">*</Text></Text>
+            <Text size="sm" fw={500}>
+              Private Key PEM{' '}
+              <Text span c="red">
+                *
+              </Text>
+            </Text>
             <Text size="xs" c="var(--mantine-color-gray-7)">
               Drop a .pem or .key file, or paste below. The key is validated but never stored.
             </Text>
             <Dropzone
-              onDrop={(files) => { void handleKeyDrop(files); }}
+              onDrop={(files) => {
+                void handleKeyDrop(files);
+              }}
               accept={['application/x-pem-file', 'text/plain', '.pem', '.key']}
               maxFiles={1}
               data-testid="key-pem-dropzone"

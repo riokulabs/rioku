@@ -67,9 +67,7 @@ export default defineConfig(({ mode }) => {
         name: 'rioku-sample-plugin-dev',
         configureServer(server) {
           if (!isDev) return;
-          const sampleRoot = resolve(
-            fileURLToPath(new URL('./sample-plugin', import.meta.url)),
-          );
+          const sampleRoot = resolve(fileURLToPath(new URL('./sample-plugin', import.meta.url)));
           server.middlewares.use('/sample-plugin', (req, res, next) => {
             const rawPath = (req.url ?? '/').split('?')[0] ?? '/';
             // Cheap early-exit: reject literal `..` segments before spending
@@ -94,10 +92,7 @@ export default defineConfig(({ mode }) => {
             // Final defence: ensure the resolved path is still rooted inside
             // sampleRoot. Use a path-separator-anchored prefix check to avoid
             // sibling-directory collisions (e.g. `/foosample-plugin-evil`).
-            if (
-              filePath !== sampleRoot &&
-              !filePath.startsWith(sampleRoot + sep)
-            ) {
+            if (filePath !== sampleRoot && !filePath.startsWith(sampleRoot + sep)) {
               next();
               return;
             }
@@ -135,15 +130,12 @@ export default defineConfig(({ mode }) => {
                   );
                 },
               );
-              body = body.replace(
-                /from\s+['"]([^'"]+)['"]/g,
-                (match: string, spec: string) => {
-                  if (spec.startsWith('.') || spec.startsWith('/') || spec.includes('://')) {
-                    return match;
-                  }
-                  return `from '/@id/${spec}'`;
-                },
-              );
+              body = body.replace(/from\s+['"]([^'"]+)['"]/g, (match: string, spec: string) => {
+                if (spec.startsWith('.') || spec.startsWith('/') || spec.includes('://')) {
+                  return match;
+                }
+                return `from '/@id/${spec}'`;
+              });
             }
             res.end(body);
           });

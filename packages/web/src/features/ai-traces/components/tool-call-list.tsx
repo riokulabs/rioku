@@ -9,15 +9,7 @@
  * Empty state renders a short note instead of the timeline for clarity.
  */
 import { useState } from 'react';
-import {
-  Badge,
-  Button,
-  Collapse,
-  Group,
-  Stack,
-  Text,
-  Timeline,
-} from '@mantine/core';
+import { Badge, Button, Collapse, Group, Stack, Text, Timeline } from '@mantine/core';
 import {
   IconChevronDown,
   IconChevronRight,
@@ -75,13 +67,7 @@ function ToolCallItem({ call }: ToolCallItemProps) {
         <Button
           size="compact-xs"
           variant="subtle"
-          leftSection={
-            opened ? (
-              <IconChevronDown size={12} />
-            ) : (
-              <IconChevronRight size={12} />
-            )
-          }
+          leftSection={opened ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
           onClick={() => {
             setOpened((v) => !v);
           }}

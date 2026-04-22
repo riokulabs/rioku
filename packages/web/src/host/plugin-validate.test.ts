@@ -27,8 +27,7 @@ describe('scanPluginBundle', () => {
 
   it('detects bundled React (internal marker)', () => {
     const bundledReact =
-      VALID_BUNDLE +
-      '\nvar _react = __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;';
+      VALID_BUNDLE + '\nvar _react = __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;';
     const result = scanPluginBundle(bundledReact);
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.includes('react'))).toBe(true);
@@ -87,6 +86,8 @@ describe('scanPluginBundle', () => {
     // A large bundle with no import statements at all
     const noImports = 'var x = 1;\n'.repeat(60) + 'export default function() {}';
     const result = scanPluginBundle(noImports);
-    expect(result.warnings.some((w) => w.includes('no imports from the required externals'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('no imports from the required externals'))).toBe(
+      true,
+    );
   });
 });

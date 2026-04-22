@@ -27,7 +27,9 @@ beforeEach(() => {
     const id = registeredCommandIds.pop();
     if (id !== undefined) unregisterSpotlightCommand(id);
   }
-  listSpotlightResources().forEach((r) => { unregisterSpotlightResource(r.type); });
+  listSpotlightResources().forEach((r) => {
+    unregisterSpotlightResource(r.type);
+  });
 });
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
@@ -79,7 +81,9 @@ describe('unregisterSpotlightCommand', () => {
   });
 
   it('no-ops for unknown id', () => {
-    expect(() => { unregisterSpotlightCommand('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterSpotlightCommand('ghost');
+    }).not.toThrow();
   });
 });
 
@@ -87,7 +91,12 @@ describe('unregisterSpotlightCommand', () => {
 
 describe('registerSpotlightResource', () => {
   it('adds a resource by type', () => {
-    registerSpotlightResource({ type: 'service', search: vi.fn(), source: 'plugin', pluginName: 'test' });
+    registerSpotlightResource({
+      type: 'service',
+      search: vi.fn(),
+      source: 'plugin',
+      pluginName: 'test',
+    });
     expect(listSpotlightResources().find((r) => r.type === 'service')).toBeDefined();
   });
 
@@ -110,6 +119,8 @@ describe('unregisterSpotlightResource', () => {
   });
 
   it('no-ops for unknown type', () => {
-    expect(() => { unregisterSpotlightResource('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterSpotlightResource('ghost');
+    }).not.toThrow();
   });
 });

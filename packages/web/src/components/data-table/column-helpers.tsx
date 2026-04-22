@@ -109,7 +109,13 @@ export function ActionsCell({ actions, label = 'Row actions' }: ActionsCellProps
   const actionLabels = actions.map((a) => a.label).join(', ');
 
   return (
-    <Group gap={4} wrap="nowrap" onClick={(e) => { e.stopPropagation(); }}>
+    <Group
+      gap={4}
+      wrap="nowrap"
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
+    >
       <Tooltip label={actionLabels || 'No actions'} withArrow>
         <ActionIcon
           size="sm"
@@ -120,7 +126,9 @@ export function ActionsCell({ actions, label = 'Row actions' }: ActionsCellProps
           onClick={() => {
             // Stage 1: invoke first non-disabled action on click.
             const first = actions.find((a) => !a.disabled);
-            if (first) { first.onClick(); }
+            if (first) {
+              first.onClick();
+            }
           }}
         >
           <IconDots size={16} />

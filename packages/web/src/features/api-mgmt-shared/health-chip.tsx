@@ -14,27 +14,22 @@ interface HealthChipProps {
 }
 
 const HEALTH_COLORS: Record<Service['health'], string> = {
-  healthy:   'green',
-  degraded:  'yellow',
+  healthy: 'green',
+  degraded: 'yellow',
   unhealthy: 'red',
-  disabled:  'gray',
+  disabled: 'gray',
 };
 
 const HEALTH_VARIANTS: Record<Service['health'], BadgeVariant> = {
-  healthy:   'light',
-  degraded:  'filled',
+  healthy: 'light',
+  degraded: 'filled',
   unhealthy: 'filled',
-  disabled:  'outline',
+  disabled: 'outline',
 };
 
 export function HealthChip({ status }: HealthChipProps) {
   return (
-    <Badge
-      color={HEALTH_COLORS[status]}
-      variant={HEALTH_VARIANTS[status]}
-      autoContrast
-      size="sm"
-    >
+    <Badge color={HEALTH_COLORS[status]} variant={HEALTH_VARIANTS[status]} autoContrast size="sm">
       {status}
     </Badge>
   );

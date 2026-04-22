@@ -26,9 +26,7 @@ export class MiddlewareInUseError extends Error {
   readonly code = 'MIDDLEWARE_IN_USE';
   readonly routeIds: string[];
   constructor(routeIds: string[]) {
-    super(
-      `Middleware cannot be deleted — ${String(routeIds.length)} route(s) still reference it.`,
-    );
+    super(`Middleware cannot be deleted — ${String(routeIds.length)} route(s) still reference it.`);
     this.name = 'MiddlewareInUseError';
     this.routeIds = routeIds;
   }

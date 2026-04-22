@@ -2,12 +2,7 @@
  * <RateLimitFilterBar> — search + scope + action + enabled filters.
  */
 import { useEffect, useState } from 'react';
-import {
-  Group,
-  TextInput,
-  MultiSelect,
-  SegmentedControl,
-} from '@mantine/core';
+import { Group, TextInput, MultiSelect, SegmentedControl } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import type { AiSemanticRateLimit } from '@/api/resources/types';
@@ -36,10 +31,7 @@ interface RateLimitFilterBarProps {
   onChange: (next: RateLimitFilter) => void;
 }
 
-export function RateLimitFilterBar({
-  filter,
-  onChange,
-}: RateLimitFilterBarProps) {
+export function RateLimitFilterBar({ filter, onChange }: RateLimitFilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
@@ -49,8 +41,7 @@ export function RateLimitFilterBar({
     }
   }, [debouncedSearch, filter, onChange]);
 
-  const enabledValue =
-    filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
+  const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
 
   return (
     <Group gap="sm" align="flex-end">
@@ -70,9 +61,7 @@ export function RateLimitFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            scopes: value.filter((v): v is Scope =>
-              (SCOPE_SET as Set<string>).has(v),
-            ),
+            scopes: value.filter((v): v is Scope => (SCOPE_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.scopes.length === 0 ? 'All scopes' : undefined}
@@ -86,9 +75,7 @@ export function RateLimitFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            actions: value.filter((v): v is Action =>
-              (ACTION_SET as Set<string>).has(v),
-            ),
+            actions: value.filter((v): v is Action => (ACTION_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.actions.length === 0 ? 'All actions' : undefined}

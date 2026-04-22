@@ -63,10 +63,7 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
         values.force_totp_on_first_login,
       );
       setInviteToken(result.inviteToken);
-      notify.success(
-        'Invitation sent',
-        `An invite has been created for ${values.email}.`,
-      );
+      notify.success('Invitation sent', `An invite has been created for ${values.email}.`);
     } catch {
       setError('Failed to send invitation. Please try again.');
     } finally {
@@ -77,7 +74,12 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
   if (inviteToken) {
     return (
       <Stack gap="md">
-        <Alert icon={<IconMail size={16} />} color="green" variant="light" title="Invitation created">
+        <Alert
+          icon={<IconMail size={16} />}
+          color="green"
+          variant="light"
+          title="Invitation created"
+        >
           The user has been invited and their membership is now pending.
         </Alert>
         <Stack gap="xs">
@@ -93,8 +95,7 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
             </Group>
           </Paper>
           <Text size="xs" c="dimmed">
-            In Phase 1e, this link will be emailed to the user. For now, copy it
-            manually.
+            In Phase 1e, this link will be emailed to the user. For now, copy it manually.
           </Text>
         </Stack>
         <Button onClick={onSuccess}>Done</Button>
@@ -103,7 +104,11 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
   }
 
   return (
-    <form onSubmit={form.onSubmit((v) => { void handleSubmit(v); })}>
+    <form
+      onSubmit={form.onSubmit((v) => {
+        void handleSubmit(v);
+      })}
+    >
       <Stack gap="md">
         {error && (
           <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">

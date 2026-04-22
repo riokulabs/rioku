@@ -5,11 +5,7 @@
 
 export type ImpersonationProfile = 'minimal' | 'full';
 
-export type ImpersonationTier =
-  | 'read'
-  | 'read-sensitive'
-  | 'write'
-  | 'destructive';
+export type ImpersonationTier = 'read' | 'read-sensitive' | 'write' | 'destructive';
 
 export interface ImpersonationFormValues {
   tenant_id: string;

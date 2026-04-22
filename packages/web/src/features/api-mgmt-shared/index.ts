@@ -8,8 +8,4 @@ export { ProtocolBadge } from './protocol-badge';
 export { HealthChip } from './health-chip';
 export { TagsInput } from './tags-input';
 export type { TagsInputProps } from './tags-input';
-export {
-  formatUpstreamUrl,
-  buildMatchPreview,
-  isDestructiveMiddleware,
-} from './helpers';
+export { formatUpstreamUrl, buildMatchPreview, isDestructiveMiddleware } from './helpers';

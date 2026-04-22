@@ -132,9 +132,7 @@ export function RouteForm({
         method: values.method,
         match_kind: values.match_kind,
         strip_prefix: values.strip_prefix,
-        ...(values.rewrite_path.trim() !== ''
-          ? { rewrite_path: values.rewrite_path.trim() }
-          : {}),
+        ...(values.rewrite_path.trim() !== '' ? { rewrite_path: values.rewrite_path.trim() } : {}),
         headers_add,
         headers_remove: values.headers_remove,
         enabled: values.enabled,
@@ -165,9 +163,7 @@ export function RouteForm({
   }
 
   function updateHeaderRow(index: number, patch: Partial<HeaderPair>) {
-    setHeaderPairs((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, ...patch } : p)),
-    );
+    setHeaderPairs((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   }
 
   function removeHeaderRow(index: number) {
@@ -197,12 +193,7 @@ export function RouteForm({
           {...form.getInputProps('service_id')}
         />
 
-        <TextInput
-          label="Name"
-          placeholder="user-get"
-          required
-          {...form.getInputProps('name')}
-        />
+        <TextInput label="Name" placeholder="user-get" required {...form.getInputProps('name')} />
 
         <Group grow>
           <Select
@@ -226,22 +217,14 @@ export function RouteForm({
           />
         </Group>
 
-        <TextInput
-          label="Path"
-          placeholder="/api/users"
-          required
-          {...form.getInputProps('path')}
-        />
+        <TextInput label="Path" placeholder="/api/users" required {...form.getInputProps('path')} />
 
         <Group grow align="flex-end">
           <Switch
             label="Strip prefix"
             {...form.getInputProps('strip_prefix', { type: 'checkbox' })}
           />
-          <Switch
-            label="Enabled"
-            {...form.getInputProps('enabled', { type: 'checkbox' })}
-          />
+          <Switch label="Enabled" {...form.getInputProps('enabled', { type: 'checkbox' })} />
         </Group>
 
         <TextInput

@@ -14,10 +14,7 @@ import {
   removeModel,
   testProvider,
 } from '../api';
-import {
-  ProviderInUseError,
-  ProviderModelInUseError,
-} from '../types';
+import { ProviderInUseError, ProviderModelInUseError } from '../types';
 
 beforeEach(() => {
   useMockStore.getState().reset();
@@ -80,17 +77,12 @@ describe('updateProvider', () => {
 
 describe('deleteProvider', () => {
   it('throws ProviderInUseError when agents reference the provider', async () => {
-    const usedProvider = Object.values(useMockStore.getState().aiProviders).find(
-      (p) =>
-        Object.values(useMockStore.getState().aiAgents).some(
-          (a) => a.provider_id === p.id,
-        ),
+    const usedProvider = Object.values(useMockStore.getState().aiProviders).find((p) =>
+      Object.values(useMockStore.getState().aiAgents).some((a) => a.provider_id === p.id),
     );
     if (!usedProvider) throw new Error('no provider referenced by agents');
 
-    await expect(deleteProvider(usedProvider.id)).rejects.toThrow(
-      ProviderInUseError,
-    );
+    await expect(deleteProvider(usedProvider.id)).rejects.toThrow(ProviderInUseError);
   });
 
   it('deletes when no agents reference it', async () => {
@@ -201,9 +193,9 @@ describe('addModel / updateModel / removeModel', () => {
     const usedModel = provider.models.find((m) => m.alias === agent.model);
     if (!usedModel) throw new Error('seed expectation broken');
 
-    await expect(
-      removeModel(provider.id, usedModel.upstream_id),
-    ).rejects.toThrow(ProviderModelInUseError);
+    await expect(removeModel(provider.id, usedModel.upstream_id)).rejects.toThrow(
+      ProviderModelInUseError,
+    );
   });
 });
 

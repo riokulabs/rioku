@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  registerSidebarEntry,
-  unregisterSidebarEntry,
-  listSidebarEntries,
-} from './sidebar';
+import { registerSidebarEntry, unregisterSidebarEntry, listSidebarEntries } from './sidebar';
 import type { SidebarGroup } from './sidebar';
 
 const registeredIds: string[] = [];
@@ -64,9 +60,9 @@ describe('listSidebarEntries', () => {
     reg('plugins', '/plugins/m', 'Mango', 1);
     const entries = listSidebarEntries('plugins');
     // order=1 entries come first, then sorted by label within same order
-    expect(entries[0]?.label).toBe('Mango');  // order=1, label M
-    expect(entries[1]?.label).toBe('Zebra');  // order=1, label Z
-    expect(entries[2]?.label).toBe('Alpha');  // order=2
+    expect(entries[0]?.label).toBe('Mango'); // order=1, label M
+    expect(entries[1]?.label).toBe('Zebra'); // order=1, label Z
+    expect(entries[2]?.label).toBe('Alpha'); // order=2
   });
 
   it('returns all entries when no group given', () => {
@@ -87,6 +83,8 @@ describe('unregisterSidebarEntry', () => {
   });
 
   it('no-ops for unknown id', () => {
-    expect(() => { unregisterSidebarEntry('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterSidebarEntry('ghost');
+    }).not.toThrow();
   });
 });

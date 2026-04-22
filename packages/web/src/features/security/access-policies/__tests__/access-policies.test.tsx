@@ -112,13 +112,7 @@ describe('AccessPolicyEditor', () => {
   it('does not call onSave when name is empty', async () => {
     const onSave = vi.fn();
     const onCancel = vi.fn();
-    wrap(
-      <AccessPolicyEditor
-        tenantId="tenant-1"
-        onSave={onSave}
-        onCancel={onCancel}
-      />,
-    );
+    wrap(<AccessPolicyEditor tenantId="tenant-1" onSave={onSave} onCancel={onCancel} />);
     const saveBtn = screen.getByRole('button', { name: /create policy/i });
     // Name input is empty by default — form validation should block submission
     fireEvent.click(saveBtn);
@@ -130,13 +124,7 @@ describe('AccessPolicyEditor', () => {
   it('calls onSave with valid form values', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onCancel = vi.fn();
-    wrap(
-      <AccessPolicyEditor
-        tenantId="tenant-1"
-        onSave={onSave}
-        onCancel={onCancel}
-      />,
-    );
+    wrap(<AccessPolicyEditor tenantId="tenant-1" onSave={onSave} onCancel={onCancel} />);
     const nameInput = screen.getByRole('textbox', { name: /name/i });
     fireEvent.change(nameInput, { target: { value: 'test-policy' } });
 

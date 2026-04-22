@@ -25,10 +25,7 @@ export {
   parseChannelConfig,
 } from './schemas';
 
-export type {
-  CreateChannelFormValues,
-  UpdateChannelFormValues,
-} from './schemas';
+export type { CreateChannelFormValues, UpdateChannelFormValues } from './schemas';
 
 export type {
   ChannelFilter,

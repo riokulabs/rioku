@@ -161,9 +161,7 @@ describe('Delete with affected users', () => {
     const onConfirm = vi.fn().mockResolvedValue(undefined);
     const onCancel = vi.fn();
 
-    wrap(
-      <RoleDeleteConfirm role={firstRole} onConfirm={onConfirm} onCancel={onCancel} />,
-    );
+    wrap(<RoleDeleteConfirm role={firstRole} onConfirm={onConfirm} onCancel={onCancel} />);
 
     // Should show the role name and a delete button
     expect(screen.getByText(firstRole.name)).toBeDefined();

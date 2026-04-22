@@ -10,14 +10,9 @@ export {
   deleteService,
   forceReloadService,
 } from './api';
-export {
-  createServiceSchema,
-  updateServiceSchema,
-} from './schemas';
+export { createServiceSchema, updateServiceSchema } from './schemas';
 export type { CreateServiceFormValues, UpdateServiceFormValues } from './schemas';
-export {
-  ServiceInUseError,
-} from './types';
+export { ServiceInUseError } from './types';
 export type { ServiceFilter, ServiceInput, ServiceUpdateInput } from './types';
 export { ServiceList } from './components/list';
 export { ServiceFilterBar } from './components/filter-bar';

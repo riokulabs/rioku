@@ -57,12 +57,7 @@ import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { useSignerDetail } from '@/features/plugin-signers';
 import type { PluginSigner } from '@/features/plugin-signers';
 import { PART_COLORS } from '../../shared/constants';
-import {
-  useInstalledPlugin,
-  usePluginAuditTail,
-  enablePlugin,
-  disablePlugin,
-} from '../api';
+import { useInstalledPlugin, usePluginAuditTail, enablePlugin, disablePlugin } from '../api';
 
 interface InstalledPluginDetailProps {
   pluginId: string;
@@ -105,10 +100,7 @@ function SignerChip({ signerId }: SignerChipProps) {
   if (!signerId) {
     // Unsigned = orange warning chip.
     return (
-      <Tooltip
-        label="This plugin has no signer attached. Install with caution."
-        withArrow
-      >
+      <Tooltip label="This plugin has no signer attached. Install with caution." withArrow>
         <Badge
           color="orange"
           variant="light"
@@ -169,11 +161,7 @@ function SignerChip({ signerId }: SignerChipProps) {
             <Text size="xs" c="var(--mantine-color-gray-7)" fw={500}>
               Fingerprint:
             </Text>
-            <Text
-              size="xs"
-              ff="monospace"
-              style={{ wordBreak: 'break-all' }}
-            >
+            <Text size="xs" ff="monospace" style={{ wordBreak: 'break-all' }}>
               {signer.fingerprint}
             </Text>
             <CopyButton value={signer.fingerprint} timeout={2000}>
@@ -193,15 +181,12 @@ function SignerChip({ signerId }: SignerChipProps) {
           <Text size="xs" c="var(--mantine-color-gray-7)">
             Scope: {signer.tenant_scope ?? 'Global'}
           </Text>
-          {signer.description && (
-            <Text size="xs">{signer.description}</Text>
-          )}
+          {signer.description && <Text size="xs">{signer.description}</Text>}
         </Stack>
       </HoverCard.Dropdown>
     </HoverCard>
   );
 }
-
 
 export function InstalledPluginDetail({
   pluginId,
@@ -268,12 +253,7 @@ export function InstalledPluginDetail({
             </Text>
             <Group gap={4} mt={4}>
               {plugin.parts.map((part) => (
-                <Badge
-                  key={part}
-                  size="xs"
-                  color={PART_COLORS[part]}
-                  variant="light"
-                >
+                <Badge key={part} size="xs" color={PART_COLORS[part]} variant="light">
                   {part}
                 </Badge>
               ))}
@@ -319,12 +299,7 @@ export function InstalledPluginDetail({
         >
           Settings
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={onUninstall}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={onUninstall}>
           Uninstall…
         </Button>
       </Group>
@@ -351,9 +326,7 @@ export function InstalledPluginDetail({
                   ) : (
                     <IconAlertCircle size={14} color="var(--mantine-color-red-6)" />
                   )}
-                  <Code
-                    c={known ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-7)'}
-                  >
+                  <Code c={known ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-7)'}>
                     {perm}
                   </Code>
                   {!known && (
@@ -398,9 +371,7 @@ export function InstalledPluginDetail({
                         <Button
                           size="xs"
                           variant="subtle"
-                          leftSection={
-                            copied ? <IconCheck size={14} /> : <IconCopy size={14} />
-                          }
+                          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                           onClick={copy}
                         >
                           {copied ? 'Copied' : 'Copy log'}

@@ -3,15 +3,7 @@
  * Task 1e.85
  */
 import { useState, useRef } from 'react';
-import {
-  Stack,
-  Text,
-  Alert,
-  Anchor,
-  PinInput,
-  Group,
-  Button,
-} from '@mantine/core';
+import { Stack, Text, Alert, Anchor, PinInput, Group, Button } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { verifyTotp } from '../api';
@@ -88,8 +80,7 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
     return (
       <Stack gap="md">
         <Alert color="orange" variant="light">
-          No pending authentication session. Please{' '}
-          <Anchor href="/login">sign in again</Anchor>.
+          No pending authentication session. Please <Anchor href="/login">sign in again</Anchor>.
         </Alert>
       </Stack>
     );
@@ -126,11 +117,7 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
         aria-label="6-digit TOTP code"
       />
 
-      {submitting && (
-        <Text size="xs">
-          Verifying…
-        </Text>
-      )}
+      {submitting && <Text size="xs">Verifying…</Text>}
 
       <Group justify="center" gap="xs">
         <Anchor href="/totp-recovery" size="sm" data-testid="use-backup-link">

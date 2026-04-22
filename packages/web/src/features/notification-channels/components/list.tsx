@@ -7,13 +7,7 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Menu,
-  Switch,
-  Text,
-} from '@mantine/core';
+import { ActionIcon, Badge, Menu, Switch, Text } from '@mantine/core';
 import type { Icon } from '@tabler/icons-react';
 import {
   IconBell,
@@ -79,9 +73,7 @@ export function ChannelList({
   // store selector stays referentially stable. The 24h cutoff is captured once
   // at first render (pure from React's POV) — stage 1 mock data doesn't shift
   // under our feet.
-  const [cutoffAt] = useState(() =>
-    new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  );
+  const [cutoffAt] = useState(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
   const last24hCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const entry of Object.values(deliveryLog)) {

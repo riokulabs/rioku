@@ -30,10 +30,7 @@ function fromTriState(v: string): boolean | undefined {
   return undefined;
 }
 
-export function RoutingRuleFilterBar({
-  filter,
-  onChange,
-}: RoutingRuleFilterBarProps) {
+export function RoutingRuleFilterBar({ filter, onChange }: RoutingRuleFilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 

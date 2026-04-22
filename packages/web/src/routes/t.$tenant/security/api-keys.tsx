@@ -9,11 +9,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconKey } from '@tabler/icons-react';
-import {
-  ApiKeyList,
-  ApiKeyCreateDrawer,
-  ApiKeyDetailDrawer,
-} from '@/features/security/api-keys';
+import { ApiKeyList, ApiKeyCreateDrawer, ApiKeyDetailDrawer } from '@/features/security/api-keys';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import type { ApiKeyWithMeta } from '@/features/security/api-keys';
@@ -23,13 +19,10 @@ type DrawerMode = 'create' | 'detail';
 function ApiKeysPage() {
   const { tenant } = Route.useParams();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('create');
   const [selectedKey, setSelectedKey] = useState<ApiKeyWithMeta | null>(null);
   const [rotatedKeyValue, setRotatedKeyValue] = useState<string | null>(null);
@@ -52,11 +45,7 @@ function ApiKeysPage() {
   }
 
   const drawerTitle =
-    drawerMode === 'create'
-      ? 'Create API key'
-      : selectedKey
-        ? selectedKey.name
-        : 'API key';
+    drawerMode === 'create' ? 'Create API key' : selectedKey ? selectedKey.name : 'API key';
 
   return (
     <Stack gap="md" p="md">
@@ -76,10 +65,7 @@ function ApiKeysPage() {
         </Text>
       )}
 
-      <ApiKeyList
-        tenantId={tenantId}
-        onSelect={handleRowClick}
-      />
+      <ApiKeyList tenantId={tenantId} onSelect={handleRowClick} />
 
       <Drawer
         opened={drawerOpened}
@@ -90,11 +76,7 @@ function ApiKeysPage() {
         padding="md"
       >
         {drawerMode === 'create' && (
-          <ApiKeyCreateDrawer
-            tenantId={tenantId}
-            onSuccess={closeDrawer}
-            onCancel={closeDrawer}
-          />
+          <ApiKeyCreateDrawer tenantId={tenantId} onSuccess={closeDrawer} onCancel={closeDrawer} />
         )}
         {drawerMode === 'detail' && selectedKey && (
           <ApiKeyDetailDrawer

@@ -5,16 +5,7 @@
  */
 import { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Stack,
-  Title,
-  Group,
-  Button,
-  Drawer,
-  TextInput,
-  Text,
-  Alert,
-} from '@mantine/core';
+import { Stack, Title, Group, Button, Drawer, TextInput, Text, Alert } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
 import { IconBuilding, IconPlus, IconTrash, IconAlertTriangle } from '@tabler/icons-react';
@@ -34,7 +25,13 @@ interface CreateTenantFormValues {
   plan: 'community' | 'pro' | 'enterprise';
 }
 
-function CreateTenantForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+function CreateTenantForm({
+  onSuccess,
+  onCancel,
+}: {
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
   const [saving, setSaving] = useState(false);
 
   const form = useForm<CreateTenantFormValues>({
@@ -80,8 +77,12 @@ function CreateTenantForm({ onSuccess, onCancel }: { onSuccess: () => void; onCa
           {...form.getInputProps('name')}
         />
         <Group justify="flex-end" gap="xs" mt="xs">
-          <Button variant="default" onClick={onCancel} disabled={saving}>Cancel</Button>
-          <Button type="submit" loading={saving}>Create tenant</Button>
+          <Button variant="default" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={saving}>
+            Create tenant
+          </Button>
         </Group>
       </Stack>
     </form>
@@ -90,7 +91,11 @@ function CreateTenantForm({ onSuccess, onCancel }: { onSuccess: () => void; onCa
 
 // ─── Delete confirm ───────────────────────────────────────────────────────────
 
-function DeleteTenantConfirm({ tenant, onSuccess, onCancel }: {
+function DeleteTenantConfirm({
+  tenant,
+  onSuccess,
+  onCancel,
+}: {
   tenant: Tenant;
   onSuccess: () => void;
   onCancel: () => void;
@@ -116,11 +121,15 @@ function DeleteTenantConfirm({ tenant, onSuccess, onCancel }: {
       <TextInput
         placeholder={tenant.slug}
         value={typed}
-        onChange={(e) => { setTyped(e.currentTarget.value); }}
+        onChange={(e) => {
+          setTyped(e.currentTarget.value);
+        }}
         data-testid="delete-confirm-input"
       />
       <Group justify="flex-end" gap="xs">
-        <Button variant="default" onClick={onCancel}>Cancel</Button>
+        <Button variant="default" onClick={onCancel}>
+          Cancel
+        </Button>
         <Button color="red" disabled={!match} onClick={handleDelete}>
           Delete tenant
         </Button>
@@ -156,7 +165,9 @@ export function TenantInventory() {
       accessorKey: 'slug',
       header: 'Slug',
       cell: (info) => (
-        <Text size="sm" ff="monospace">{info.getValue<string>()}</Text>
+        <Text size="sm" ff="monospace">
+          {info.getValue<string>()}
+        </Text>
       ),
     },
     {
@@ -233,7 +244,9 @@ export function TenantInventory() {
       {/* Delete drawer */}
       <Drawer
         opened={deleteTarget !== null}
-        onClose={() => { setDeleteTarget(null); }}
+        onClose={() => {
+          setDeleteTarget(null);
+        }}
         title="Delete tenant"
         position="right"
         size="md"
@@ -242,8 +255,12 @@ export function TenantInventory() {
         {deleteTarget && (
           <DeleteTenantConfirm
             tenant={deleteTarget}
-            onSuccess={() => { setDeleteTarget(null); }}
-            onCancel={() => { setDeleteTarget(null); }}
+            onSuccess={() => {
+              setDeleteTarget(null);
+            }}
+            onCancel={() => {
+              setDeleteTarget(null);
+            }}
           />
         )}
       </Drawer>

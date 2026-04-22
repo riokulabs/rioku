@@ -53,14 +53,11 @@ beforeEach(() => {
 
 describe('<NotificationDetail>', () => {
   it('renders title, body, and category/severity badges', () => {
-    render(
-      <NotificationDetail item={makeItem()} onClose={() => undefined} />,
-      { wrapper: Wrapper },
-    );
+    render(<NotificationDetail item={makeItem()} onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     expect(screen.getByText('Detail under test')).toBeInTheDocument();
-    expect(
-      screen.getByTestId('notification-detail-body'),
-    ).toHaveTextContent('Full body text');
+    expect(screen.getByTestId('notification-detail-body')).toHaveTextContent('Full body text');
     expect(screen.getByText('warn')).toBeInTheDocument();
     expect(screen.getByText('Security')).toBeInTheDocument();
   });
@@ -81,10 +78,9 @@ describe('<NotificationDetail>', () => {
   });
 
   it('toggle-read switches the notification read state', async () => {
-    render(
-      <NotificationDetail item={makeItem()} onClose={() => undefined} />,
-      { wrapper: Wrapper },
-    );
+    render(<NotificationDetail item={makeItem()} onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     const btn = screen.getByTestId('notification-detail-toggle-read');
     expect(btn).toHaveTextContent('Mark as read');
     fireEvent.click(btn);
@@ -102,10 +98,7 @@ describe('<NotificationDetail>', () => {
     expect(btn).toHaveTextContent('Archive');
     fireEvent.click(btn);
     await waitFor(() => {
-      expect(
-        useMockStore.getState().notifications['n-1']?.archived_at,
-      ).not.toBeNull();
+      expect(useMockStore.getState().notifications['n-1']?.archived_at).not.toBeNull();
     });
   });
-
 });

@@ -31,9 +31,7 @@ test('no critical/serious axe violations on settings?section=profile', async ({
 }) => {
   await page.goto('/t/acme/settings/?section=profile');
 
-  await expect(
-    page.getByTestId('profile-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('profile-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -53,9 +51,7 @@ test('no critical/serious axe violations on settings?section=tenant', async ({
 }) => {
   await page.goto('/t/acme/settings/?section=tenant');
 
-  await expect(
-    page.getByTestId('tenant-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('tenant-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -75,9 +71,7 @@ test('no critical/serious axe violations on settings?section=authentication', as
 }) => {
   await page.goto('/t/acme/settings/?section=authentication');
 
-  await expect(
-    page.getByTestId('auth-policy-form'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('auth-policy-form')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -100,9 +94,7 @@ test('no critical/serious axe violations on settings?section=network', async ({
   // Wait for the listen addresses fieldset — first stable element of the
   // network form. Monaco editor loads lazily; networkidle + timeout below
   // let the lazy chunk settle before axe walks the tree.
-  await expect(
-    page.getByTestId('fieldset-listen-addresses'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('fieldset-listen-addresses')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -117,14 +109,10 @@ test('no critical/serious axe violations on settings?section=network', async ({
   expect(blocking, JSON.stringify(blocking, null, 2)).toEqual([]);
 });
 
-test('no critical/serious axe violations on settings?section=pki', async ({
-  authedPage: page,
-}) => {
+test('no critical/serious axe violations on settings?section=pki', async ({ authedPage: page }) => {
   await page.goto('/t/acme/settings/?section=pki');
 
-  await expect(
-    page.getByTestId('pki-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('pki-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -139,14 +127,10 @@ test('no critical/serious axe violations on settings?section=pki', async ({
   expect(blocking, JSON.stringify(blocking, null, 2)).toEqual([]);
 });
 
-test('no critical/serious axe violations on settings?section=tls', async ({
-  authedPage: page,
-}) => {
+test('no critical/serious axe violations on settings?section=tls', async ({ authedPage: page }) => {
   await page.goto('/t/acme/settings/?section=tls');
 
-  await expect(
-    page.getByTestId('tls-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('tls-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -166,9 +150,7 @@ test('no critical/serious axe violations on settings?section=observability', asy
 }) => {
   await page.goto('/t/acme/settings/?section=observability');
 
-  await expect(
-    page.getByTestId('observability-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('observability-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -188,9 +170,7 @@ test('no critical/serious axe violations on settings?section=integrations', asyn
 }) => {
   await page.goto('/t/acme/settings/?section=integrations');
 
-  await expect(
-    page.getByTestId('integrations-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('integrations-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -210,9 +190,7 @@ test('no critical/serious axe violations on settings?section=plugins', async ({
 }) => {
   await page.goto('/t/acme/settings/?section=plugins');
 
-  await expect(
-    page.getByTestId('plugin-settings-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('plugin-settings-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -232,9 +210,7 @@ test('no critical/serious axe violations on settings?section=danger-zone', async
 }) => {
   await page.goto('/t/acme/settings/?section=danger-zone');
 
-  await expect(
-    page.getByTestId('danger-zone-section'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('danger-zone-section')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);

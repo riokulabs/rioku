@@ -3,15 +3,7 @@
  * Task 1e.84
  */
 import { useState } from 'react';
-import {
-  Stack,
-  TextInput,
-  PasswordInput,
-  Button,
-  Alert,
-  Anchor,
-  Text,
-} from '@mantine/core';
+import { Stack, TextInput, PasswordInput, Button, Alert, Anchor, Text } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 import { IconAlertCircle } from '@tabler/icons-react';

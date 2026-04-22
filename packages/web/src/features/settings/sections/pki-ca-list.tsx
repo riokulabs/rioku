@@ -64,42 +64,69 @@ function CaDetailDrawer({ ca, onClose }: CaDetailDrawerProps) {
     >
       <Stack gap="md">
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Kind</Text>
+          <Text size="sm" fw={500}>
+            Kind
+          </Text>
           <Badge color={ca.kind === 'internal' ? 'green' : 'blue'} variant="light">
             {ca.kind}
           </Badge>
         </Stack>
 
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Subject</Text>
-          <Text size="sm" c="var(--mantine-color-gray-7)">{ca.subject}</Text>
+          <Text size="sm" fw={500}>
+            Subject
+          </Text>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            {ca.subject}
+          </Text>
         </Stack>
 
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Issuer</Text>
-          <Text size="sm" c="var(--mantine-color-gray-7)">{ca.issuer}</Text>
+          <Text size="sm" fw={500}>
+            Issuer
+          </Text>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            {ca.issuer}
+          </Text>
         </Stack>
 
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Valid from</Text>
-          <Text size="sm" c="var(--mantine-color-gray-7)">{formatDate(ca.not_before)}</Text>
+          <Text size="sm" fw={500}>
+            Valid from
+          </Text>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            {formatDate(ca.not_before)}
+          </Text>
         </Stack>
 
         <Stack gap={4}>
-          <Text size="sm" fw={500}>Valid until</Text>
-          <Text size="sm" c="var(--mantine-color-gray-7)">{formatDate(ca.not_after)}</Text>
+          <Text size="sm" fw={500}>
+            Valid until
+          </Text>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            {formatDate(ca.not_after)}
+          </Text>
         </Stack>
 
         <Stack gap={4}>
-          <Text size="sm" fw={500}>SHA-256 fingerprint</Text>
-          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)" style={{ wordBreak: 'break-all' }}>
+          <Text size="sm" fw={500}>
+            SHA-256 fingerprint
+          </Text>
+          <Text
+            size="xs"
+            ff="monospace"
+            c="var(--mantine-color-gray-7)"
+            style={{ wordBreak: 'break-all' }}
+          >
             {ca.fingerprint_sha256}
           </Text>
         </Stack>
 
         {ca.certificate_pem.length > 0 && (
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Certificate PEM</Text>
+            <Text size="sm" fw={500}>
+              Certificate PEM
+            </Text>
             <Code block style={{ maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
               {ca.certificate_pem}
             </Code>
@@ -108,13 +135,7 @@ function CaDetailDrawer({ ca, onClose }: CaDetailDrawerProps) {
 
         <Tooltip label="Revocation available in stage 2" position="bottom">
           <span>
-            <Button
-              variant="light"
-              color="red"
-              size="sm"
-              disabled
-              data-testid="ca-revoke-button"
-            >
+            <Button variant="light" color="red" size="sm" disabled data-testid="ca-revoke-button">
               Revoke / Delete (stage 2)
             </Button>
           </span>
@@ -142,7 +163,9 @@ export function PkiCaList({ tenantId, canWrite }: PkiCaListProps) {
                 size="sm"
                 leftSection={!canWrite ? <IconLock size={14} /> : <IconPlus size={14} />}
                 disabled={!canWrite}
-                onClick={() => { setCreateOpen(true); }}
+                onClick={() => {
+                  setCreateOpen(true);
+                }}
                 data-testid="create-ca-button"
               >
                 Create new CA
@@ -170,7 +193,9 @@ export function PkiCaList({ tenantId, canWrite }: PkiCaListProps) {
                 <Table.Tr
                   key={ca.id}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => { setSelectedCa(ca); }}
+                  onClick={() => {
+                    setSelectedCa(ca);
+                  }}
                   data-testid={`ca-row-${ca.id}`}
                 >
                   <Table.Td>{ca.name}</Table.Td>
@@ -185,7 +210,9 @@ export function PkiCaList({ tenantId, canWrite }: PkiCaListProps) {
                     </Badge>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm" lineClamp={1}>{ca.subject}</Text>
+                    <Text size="sm" lineClamp={1}>
+                      {ca.subject}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm">{formatDate(ca.not_after)}</Text>
@@ -199,14 +226,18 @@ export function PkiCaList({ tenantId, canWrite }: PkiCaListProps) {
 
       <CreateCaModal
         opened={createOpen}
-        onClose={() => { setCreateOpen(false); }}
+        onClose={() => {
+          setCreateOpen(false);
+        }}
         tenantId={tenantId}
         canWrite={canWrite}
       />
 
       <CaDetailDrawer
         ca={selectedCa}
-        onClose={() => { setSelectedCa(null); }}
+        onClose={() => {
+          setSelectedCa(null);
+        }}
       />
     </>
   );

@@ -32,8 +32,7 @@ function PluginRouteNotFound({ path }: { path: string }) {
       >
         No plugin has registered the route <strong>/plugins/{path}</strong>.
         <Text size="sm" mt={4}>
-          If you expected a plugin to be available here, make sure it is
-          installed and enabled.
+          If you expected a plugin to be available here, make sure it is installed and enabled.
         </Text>
       </Alert>
     </Stack>

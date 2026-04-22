@@ -25,9 +25,7 @@ function firstDashboardWidgets(): Widget[] {
   const dashboards = Object.values(useMockStore.getState().dashboards);
   const d = dashboards[0]!;
   const widgets = useMockStore.getState().widgets;
-  return d.widget_ids
-    .map((id) => widgets[id])
-    .filter((w): w is Widget => Boolean(w));
+  return d.widget_ids.map((id) => widgets[id]).filter((w): w is Widget => Boolean(w));
 }
 
 beforeEach(() => {

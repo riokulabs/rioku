@@ -37,7 +37,8 @@ export function SingleStatWidget({ widget, data, loading, error }: WidgetRenderP
     );
 
   const deltaColor = data.delta === undefined ? 'gray' : data.delta >= 0 ? 'green' : 'red';
-  const deltaLabel = data.delta === undefined ? null : `${data.delta >= 0 ? '+' : ''}${String(data.delta)}`;
+  const deltaLabel =
+    data.delta === undefined ? null : `${data.delta >= 0 ? '+' : ''}${String(data.delta)}`;
 
   return (
     <Stack gap={4} aria-label={`${widget.title}: ${String(data.value)}`}>

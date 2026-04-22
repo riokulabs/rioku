@@ -185,10 +185,7 @@ describe('ImpersonationEntryForm', () => {
     // Fill reason
     const [reasonInput] = screen.getAllByLabelText(/reason/i);
     if (!reasonInput) throw new Error('reason input not found');
-    await user.type(
-      reasonInput,
-      'Investigating support ticket about role assignments',
-    );
+    await user.type(reasonInput, 'Investigating support ticket about role assignments');
 
     // Fill TOTP
     const [totpInput] = screen.getAllByLabelText(/totp code/i);

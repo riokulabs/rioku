@@ -40,8 +40,7 @@ vi.mock('@/hooks/use-active-theme', () => ({
 
 let grantUpdate = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'user:update-own' ? grantUpdate : true,
+  usePermission: (key: string) => (key === 'user:update-own' ? grantUpdate : true),
 }));
 
 // ─── Dropzone stub ───────────────────────────────────────────────────────────
@@ -52,7 +51,11 @@ function DropzoneStub({
   onDrop: _onDrop,
   ...rest
 }: React.PropsWithChildren<Record<string, unknown>>) {
-  return <div data-testid="profile-avatar-dropzone" {...rest}>{children}</div>;
+  return (
+    <div data-testid="profile-avatar-dropzone" {...rest}>
+      {children}
+    </div>
+  );
 }
 function Noop({ children }: React.PropsWithChildren) {
   return <>{children}</>;
@@ -261,10 +264,9 @@ describe('<ProfileSection>', () => {
 describe('<ProfilePasswordModal>', () => {
   it('renders password form fields', () => {
     const derrickId = getDerrickId();
-    render(
-      <ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />,
-      { wrapper: Wrapper },
-    );
+    render(<ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
 
     expect(screen.getByTestId('password-current')).toBeDefined();
     expect(screen.getByTestId('password-new')).toBeDefined();
@@ -274,10 +276,9 @@ describe('<ProfilePasswordModal>', () => {
 
   it('validates that passwords match', async () => {
     const derrickId = getDerrickId();
-    render(
-      <ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />,
-      { wrapper: Wrapper },
-    );
+    render(<ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
 
     // Fill mismatched passwords.
     fireEvent.change(screen.getByTestId('password-current'), {
@@ -299,10 +300,9 @@ describe('<ProfilePasswordModal>', () => {
 
   it('validates minimum password length', async () => {
     const derrickId = getDerrickId();
-    render(
-      <ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />,
-      { wrapper: Wrapper },
-    );
+    render(<ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
 
     fireEvent.change(screen.getByTestId('password-current'), {
       target: { value: 'OldPass1' },
@@ -324,10 +324,9 @@ describe('<ProfilePasswordModal>', () => {
   it('successful submit emits audit entry', async () => {
     const derrickId = getDerrickId();
     const onClose = vi.fn();
-    render(
-      <ProfilePasswordModal userId={derrickId} opened onClose={onClose} />,
-      { wrapper: Wrapper },
-    );
+    render(<ProfilePasswordModal userId={derrickId} opened onClose={onClose} />, {
+      wrapper: Wrapper,
+    });
 
     fireEvent.change(screen.getByTestId('password-current'), {
       target: { value: 'OldPass1' },
@@ -351,10 +350,9 @@ describe('<ProfilePasswordModal>', () => {
   it('submit button is disabled without user:update-own', () => {
     grantUpdate = false;
     const derrickId = getDerrickId();
-    render(
-      <ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />,
-      { wrapper: Wrapper },
-    );
+    render(<ProfilePasswordModal userId={derrickId} opened onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     const btn = screen.getByTestId<HTMLButtonElement>('password-submit');
     expect(btn.disabled).toBe(true);
   });
@@ -430,9 +428,7 @@ describe('<ProfileSection> — preferences', () => {
     render(<ProfileSection />, { wrapper: Wrapper });
 
     // Click the "security" category checkbox to mute it.
-    const securityCheckbox = screen.getByTestId<HTMLInputElement>(
-      'profile-mute-category-security',
-    );
+    const securityCheckbox = screen.getByTestId<HTMLInputElement>('profile-mute-category-security');
     fireEvent.click(securityCheckbox);
 
     fireEvent.click(screen.getByTestId('profile-preferences-save'));
@@ -459,9 +455,7 @@ describe('<ProfileSection> — preferences', () => {
     render(<ProfileSection />, { wrapper: Wrapper });
 
     const systemCb = screen.getByTestId<HTMLInputElement>('profile-mute-category-system');
-    const securityCb = screen.getByTestId<HTMLInputElement>(
-      'profile-mute-category-security',
-    );
+    const securityCb = screen.getByTestId<HTMLInputElement>('profile-mute-category-security');
     const auditCb = screen.getByTestId<HTMLInputElement>('profile-mute-category-audit');
 
     expect(systemCb.disabled).toBe(true);

@@ -85,7 +85,6 @@ vi.mock('@monaco-editor/react', async () => {
 
 const mockParseCel = vi.fn<(...args: unknown[]) => unknown>();
 vi.mock('../../lib/cel-parser', () => ({
-   
   parseCel: (...args: unknown[]) => mockParseCel(...args),
 }));
 
@@ -112,20 +111,13 @@ describe('<ConditionEditor>', () => {
   });
 
   it('renders with initial value', () => {
-    wrap(
-      <ConditionEditor
-        value="request.method == 'GET'"
-        onChange={vi.fn()}
-      />,
-    );
+    wrap(<ConditionEditor value="request.method == 'GET'" onChange={vi.fn()} />);
     const textarea = screen.getByTestId('monaco-stub');
     expect(textarea).toHaveValue("request.method == 'GET'");
   });
 
   it('renders label when provided', () => {
-    wrap(
-      <ConditionEditor value="" onChange={vi.fn()} label="Access condition" />,
-    );
+    wrap(<ConditionEditor value="" onChange={vi.fn()} label="Access condition" />);
     expect(screen.getByText('Access condition')).toBeInTheDocument();
   });
 
@@ -195,11 +187,7 @@ describe('<ConditionEditor>', () => {
     const handleValidityChange = vi.fn();
 
     wrap(
-      <ConditionEditor
-        value="true"
-        onChange={vi.fn()}
-        onValidityChange={handleValidityChange}
-      />,
+      <ConditionEditor value="true" onChange={vi.fn()} onValidityChange={handleValidityChange} />,
     );
 
     // flush all micro-tasks from the async onMount → validate chain
@@ -238,11 +226,7 @@ describe('<ConditionEditor>', () => {
   it('is accessible (axe clean)', async () => {
     vi.useRealTimers();
     const { container } = wrap(
-      <ConditionEditor
-        value="true"
-        onChange={vi.fn()}
-        label="Condition"
-      />,
+      <ConditionEditor value="true" onChange={vi.fn()} label="Condition" />,
     );
 
     const results = await axe(container);

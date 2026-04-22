@@ -1,13 +1,7 @@
 /**
  * Feature-local types for AI agents.
  */
-export type {
-  AiAgent,
-  AiProvider,
-  AiTool,
-  AiTrace,
-  ID,
-} from '@/api/resources/types';
+export type { AiAgent, AiProvider, AiTool, AiTrace, ID } from '@/api/resources/types';
 
 export interface AgentFilter {
   search: string;

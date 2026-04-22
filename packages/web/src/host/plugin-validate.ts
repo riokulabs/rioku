@@ -190,7 +190,10 @@ export function scanPluginBundle(bundleText: string): BundleScanResult {
     let searchStart = 0;
     let found = false;
     while ((searchStart = bundleText.indexOf(pattern, searchStart)) !== -1) {
-      const after = bundleText.slice(searchStart + pattern.length, searchStart + pattern.length + 50);
+      const after = bundleText.slice(
+        searchStart + pattern.length,
+        searchStart + pattern.length + 50,
+      );
       if (/\s*=\s*(?!=)/.test(after)) {
         // Looks like an assignment
         found = true;

@@ -45,8 +45,7 @@ export function ProfileSection() {
     return tenant?.slug ?? '';
   });
 
-  const [passwordOpened, { open: openPassword, close: closePassword }] =
-    useDisclosure(false);
+  const [passwordOpened, { open: openPassword, close: closePassword }] = useDisclosure(false);
 
   // ── Backup codes reset ────────────────────────────────────────────────────
   const [codesLoading, setCodesLoading] = useState(false);
@@ -122,11 +121,7 @@ export function ProfileSection() {
             </Button>
           </span>
         </Tooltip>
-        <ProfilePasswordModal
-          userId={user.id}
-          opened={passwordOpened}
-          onClose={closePassword}
-        />
+        <ProfilePasswordModal userId={user.id} opened={passwordOpened} onClose={closePassword} />
       </Stack>
 
       <Divider />
@@ -190,7 +185,9 @@ export function ProfileSection() {
                     size="sm"
                     loading={codesLoading}
                     disabled={!canUpdate}
-                    onClick={() => { void handleResetBackupCodes(); }}
+                    onClick={() => {
+                      void handleResetBackupCodes();
+                    }}
                     data-testid="profile-backup-codes-reset"
                   >
                     Reset backup codes
@@ -208,18 +205,13 @@ export function ProfileSection() {
       <Stack gap="sm" data-testid="profile-passkeys-section">
         <Group gap="sm">
           <Title order={5}>Passkeys</Title>
-          <Badge
-            color="gray"
-            variant="light"
-            leftSection={<IconKey size={12} />}
-          >
+          <Badge color="gray" variant="light" leftSection={<IconKey size={12} />}>
             Coming soon
           </Badge>
         </Group>
         <Text size="sm" c="var(--mantine-color-gray-7)">
-          Passkey support (WebAuthn) is planned for a future release. Once
-          available, you will be able to add hardware keys or biometric
-          authenticators as login credentials.
+          Passkey support (WebAuthn) is planned for a future release. Once available, you will be
+          able to add hardware keys or biometric authenticators as login credentials.
         </Text>
       </Stack>
 

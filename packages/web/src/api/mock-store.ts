@@ -182,7 +182,10 @@ interface MockStoreActions {
    * Atomically apply a partial patch to a TenantAuthPolicy.
    * No-ops silently if no policy exists for the tenant yet.
    */
-  updateTenantAuthPolicy(tenantId: T.ID, patch: Partial<Omit<T.TenantAuthPolicy, 'tenant_id'>>): void;
+  updateTenantAuthPolicy(
+    tenantId: T.ID,
+    patch: Partial<Omit<T.TenantAuthPolicy, 'tenant_id'>>,
+  ): void;
 
   /**
    * Atomically apply a partial patch to a NetworkConfig.
@@ -204,7 +207,10 @@ interface MockStoreActions {
    * Atomically apply a partial patch to a CertEnrollment.
    * No-ops silently if the enrollment is not found.
    */
-  updateCertEnrollment(enrollmentId: T.ID, patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>): void;
+  updateCertEnrollment(
+    enrollmentId: T.ID,
+    patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>,
+  ): void;
 
   /**
    * Add a new TlsCertificate to the store.
@@ -215,7 +221,10 @@ interface MockStoreActions {
    * Atomically apply a partial patch to a TlsCertificate.
    * No-ops silently if the cert is not found.
    */
-  updateTlsCertificate(certId: T.ID, patch: Partial<Omit<T.TlsCertificate, 'id' | 'tenant_id'>>): void;
+  updateTlsCertificate(
+    certId: T.ID,
+    patch: Partial<Omit<T.TlsCertificate, 'id' | 'tenant_id'>>,
+  ): void;
 
   /**
    * Remove a TlsCertificate by ID.
@@ -233,7 +242,10 @@ interface MockStoreActions {
    * Sub-objects (metrics, logs, traces) are shallow-merged individually.
    * No-ops silently if no config exists for the tenant.
    */
-  updateObservabilityConfig(tenantId: T.ID, patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>): void;
+  updateObservabilityConfig(
+    tenantId: T.ID,
+    patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>,
+  ): void;
 
   /**
    * Add a new WebhookEndpoint to the store.
@@ -244,7 +256,10 @@ interface MockStoreActions {
    * Apply a partial patch to a WebhookEndpoint.
    * No-ops silently if the endpoint is not found.
    */
-  updateWebhookEndpoint(id: T.ID, patch: Partial<Omit<T.WebhookEndpoint, 'id' | 'tenant_id' | 'created_at'>>): void;
+  updateWebhookEndpoint(
+    id: T.ID,
+    patch: Partial<Omit<T.WebhookEndpoint, 'id' | 'tenant_id' | 'created_at'>>,
+  ): void;
 
   /**
    * Remove a WebhookEndpoint by ID.
@@ -255,7 +270,10 @@ interface MockStoreActions {
    * Atomically apply a partial patch to a TenantNotificationConfig.
    * No-ops silently if no config exists for the tenant yet.
    */
-  updateNotificationConfig(tenantId: T.ID, patch: Partial<Omit<T.TenantNotificationConfig, 'tenant_id' | 'updated_at'>>): void;
+  updateNotificationConfig(
+    tenantId: T.ID,
+    patch: Partial<Omit<T.TenantNotificationConfig, 'tenant_id' | 'updated_at'>>,
+  ): void;
 
   /**
    * Reset the entire store to empty state (useful for re-seeding).
@@ -429,7 +447,10 @@ const storeInitializer = (
     }));
   },
 
-  updateCertEnrollment(enrollmentId: T.ID, patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>) {
+  updateCertEnrollment(
+    enrollmentId: T.ID,
+    patch: Partial<Omit<T.CertEnrollment, 'id' | 'tenant_id' | 'ca_id'>>,
+  ) {
     set((state) => {
       const current = state.certEnrollments[enrollmentId];
       if (!current) return state;
@@ -483,15 +504,26 @@ const storeInitializer = (
     });
   },
 
-  updateObservabilityConfig(tenantId: T.ID, patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>) {
+  updateObservabilityConfig(
+    tenantId: T.ID,
+    patch: Partial<Omit<T.ObservabilityConfig, 'tenant_id' | 'updated_at'>>,
+  ) {
     set((state) => {
       const current = state.observabilityConfigs[tenantId];
       if (!current) return state;
-      const nextMetrics = patch.metrics != null ? { ...current.metrics, ...patch.metrics } : current.metrics;
-      const nextLogs = patch.logs != null
-        ? { ...current.logs, ...patch.logs, levels: { ...current.logs.levels, ...patch.logs.levels }, rotation: { ...current.logs.rotation, ...patch.logs.rotation } }
-        : current.logs;
-      const nextTraces = patch.traces != null ? { ...current.traces, ...patch.traces } : current.traces;
+      const nextMetrics =
+        patch.metrics != null ? { ...current.metrics, ...patch.metrics } : current.metrics;
+      const nextLogs =
+        patch.logs != null
+          ? {
+              ...current.logs,
+              ...patch.logs,
+              levels: { ...current.logs.levels, ...patch.logs.levels },
+              rotation: { ...current.logs.rotation, ...patch.logs.rotation },
+            }
+          : current.logs;
+      const nextTraces =
+        patch.traces != null ? { ...current.traces, ...patch.traces } : current.traces;
       return {
         observabilityConfigs: {
           ...state.observabilityConfigs,
@@ -513,7 +545,10 @@ const storeInitializer = (
     }));
   },
 
-  updateWebhookEndpoint(id: T.ID, patch: Partial<Omit<T.WebhookEndpoint, 'id' | 'tenant_id' | 'created_at'>>) {
+  updateWebhookEndpoint(
+    id: T.ID,
+    patch: Partial<Omit<T.WebhookEndpoint, 'id' | 'tenant_id' | 'created_at'>>,
+  ) {
     set((state) => {
       const current = state.webhookEndpoints[id];
       if (!current) return state;
@@ -535,7 +570,10 @@ const storeInitializer = (
     });
   },
 
-  updateNotificationConfig(tenantId: T.ID, patch: Partial<Omit<T.TenantNotificationConfig, 'tenant_id' | 'updated_at'>>) {
+  updateNotificationConfig(
+    tenantId: T.ID,
+    patch: Partial<Omit<T.TenantNotificationConfig, 'tenant_id' | 'updated_at'>>,
+  ) {
     set((state) => {
       const current = state.notificationConfigs[tenantId];
       if (!current) return state;

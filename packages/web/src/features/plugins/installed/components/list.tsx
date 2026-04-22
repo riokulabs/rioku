@@ -48,11 +48,7 @@ interface InstalledPluginListProps {
   onUninstall: (plugin: Plugin) => void;
 }
 
-export function InstalledPluginList({
-  tenantId,
-  onSelect,
-  onUninstall,
-}: InstalledPluginListProps) {
+export function InstalledPluginList({ tenantId, onSelect, onUninstall }: InstalledPluginListProps) {
   const { filter, setFilter } = useOpaqueFilter<InstalledPluginFilter>(DEFAULT_FILTER);
 
   const [searchInput, setSearchInput] = useState(filter.search);
@@ -148,12 +144,7 @@ export function InstalledPluginList({
         cell: ({ row }) => (
           <Group gap={4}>
             {row.original.parts.map((part) => (
-              <Badge
-                key={part}
-                size="xs"
-                color={PART_COLORS[part]}
-                variant="light"
-              >
+              <Badge key={part} size="xs" color={PART_COLORS[part]} variant="light">
                 {part}
               </Badge>
             ))}
@@ -232,15 +223,10 @@ export function InstalledPluginList({
 
   return (
     <Stack gap="sm">
-      <Alert
-        icon={<IconInfoCircle size={14} />}
-        color="blue"
-        variant="light"
-        p="xs"
-      >
+      <Alert icon={<IconInfoCircle size={14} />} color="blue" variant="light" p="xs">
         <Text size="xs" c="var(--mantine-color-gray-7)">
-          Stage 1 shows all installed plugins regardless of tenant scope.
-          Tenant-scoped plugins will be filtered in stage 2.
+          Stage 1 shows all installed plugins regardless of tenant scope. Tenant-scoped plugins will
+          be filtered in stage 2.
         </Text>
       </Alert>
 

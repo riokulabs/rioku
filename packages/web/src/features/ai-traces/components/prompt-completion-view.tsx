@@ -27,10 +27,7 @@ interface PromptCompletionViewProps {
 const PROMPT_LANG = 'text' as const;
 const COMPLETION_LANG = 'text' as const;
 
-export function PromptCompletionView({
-  prompt,
-  completion,
-}: PromptCompletionViewProps) {
+export function PromptCompletionView({ prompt, completion }: PromptCompletionViewProps) {
   const canRead = usePermission('ai-trace:read-sensitive');
 
   if (!canRead) {
@@ -64,8 +61,8 @@ export function PromptCompletionView({
             permission to view the full prompt and completion.
           </Text>
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            [redacted — {String(prompt.length)} prompt chars,{' '}
-            {String(completion.length)} completion chars]
+            [redacted — {String(prompt.length)} prompt chars, {String(completion.length)} completion
+            chars]
           </Text>
         </Stack>
       </Alert>

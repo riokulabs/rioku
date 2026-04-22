@@ -47,10 +47,18 @@ async function runToTerminal(
       progressCount++;
     });
     emitter.addEventListener('complete', (e) => {
-      resolve({ kind: 'complete', detail: (e as CustomEvent<InstallCompleteEvent>).detail, progressCount });
+      resolve({
+        kind: 'complete',
+        detail: (e as CustomEvent<InstallCompleteEvent>).detail,
+        progressCount,
+      });
     });
     emitter.addEventListener('failed', (e) => {
-      resolve({ kind: 'failed', detail: (e as CustomEvent<InstallFailedEvent>).detail, progressCount });
+      resolve({
+        kind: 'failed',
+        detail: (e as CustomEvent<InstallFailedEvent>).detail,
+        progressCount,
+      });
     });
     // Advance fake timers enough to exhaust all stages (12 ticks × ~460ms each).
     void vi.advanceTimersByTimeAsync(10_000);

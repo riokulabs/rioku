@@ -128,12 +128,7 @@ export {
 
 // ─── TanStack Query ───────────────────────────────────────────────────────────
 
-export {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  useInfiniteQuery,
-} from '@tanstack/react-query';
+export { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 export type { UseQueryResult, UseMutationResult } from '@tanstack/react-query';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────

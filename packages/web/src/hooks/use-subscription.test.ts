@@ -6,7 +6,9 @@ import { mockBus, publishMock } from '@/api/mock-sse';
 describe('useSubscription', () => {
   it('receives a published event', () => {
     const handler = vi.fn();
-    renderHook(() => { useSubscription<{ value: number }>('test.topic', handler); });
+    renderHook(() => {
+      useSubscription<{ value: number }>('test.topic', handler);
+    });
 
     act(() => {
       publishMock('test.topic', { value: 42 });
@@ -18,7 +20,9 @@ describe('useSubscription', () => {
 
   it('does not receive events for a different topic', () => {
     const handler = vi.fn();
-    renderHook(() => { useSubscription('test.other', handler); });
+    renderHook(() => {
+      useSubscription('test.other', handler);
+    });
 
     act(() => {
       publishMock('test.unrelated', { value: 1 });
@@ -30,7 +34,9 @@ describe('useSubscription', () => {
   it('receives multiple events in order', () => {
     const received: number[] = [];
     renderHook(() => {
-      useSubscription<number>('test.multi', (v) => { received.push(v); });
+      useSubscription<number>('test.multi', (v) => {
+        received.push(v);
+      });
     });
 
     act(() => {
@@ -48,7 +54,9 @@ describe('useSubscription', () => {
 
     const { rerender } = renderHook(() => {
       // New function identity on every render — counter tracks invocations
-      useSubscription('test.rerender', (_v: unknown) => { /* intentionally empty */ });
+      useSubscription('test.rerender', (_v: unknown) => {
+        /* intentionally empty */
+      });
     });
 
     const initialAddCount = addSpy.mock.calls.length;
@@ -86,7 +94,9 @@ describe('useSubscription', () => {
     const initialCount = addSpy.mock.calls.length;
 
     const { rerender } = renderHook(
-      ({ topic }: { topic: string }) => { useSubscription(topic, handler); },
+      ({ topic }: { topic: string }) => {
+        useSubscription(topic, handler);
+      },
       { initialProps: { topic: 'topic.a' } },
     );
 

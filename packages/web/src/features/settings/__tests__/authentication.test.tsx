@@ -35,8 +35,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 let grantWrite = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'tenant-auth:write' ? grantWrite : true,
+  usePermission: (key: string) => (key === 'tenant-auth:write' ? grantWrite : true),
 }));
 
 // ─── Imports ─────────────────────────────────────────────────────────────────
@@ -101,8 +100,9 @@ describe('<AuthenticationSection>', () => {
 
     // The SegmentedControl keeps state in radio inputs; verify the 'admins' radio is checked.
     const control = screen.getByTestId('auth-totp-policy');
-    const adminRadio = Array.from(control.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
-      .find((r) => r.value === 'admins');
+    const adminRadio = Array.from(
+      control.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
+    ).find((r) => r.value === 'admins');
     expect(adminRadio?.checked).toBe(true);
   });
 
@@ -149,7 +149,9 @@ describe('<AuthenticationSection>', () => {
     render(<AuthenticationSection />, { wrapper: Wrapper });
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:auth-policy-updated', listener);
 
     clickRadio('auth-totp-policy', 'optional');
@@ -162,7 +164,9 @@ describe('<AuthenticationSection>', () => {
     fireEvent.click(screen.getByTestId('auth-policy-save'));
 
     await waitFor(() => {
-      expect(hostEvents.filter((t) => t === 'tenant:auth-policy-updated').length).toBeGreaterThan(0);
+      expect(hostEvents.filter((t) => t === 'tenant:auth-policy-updated').length).toBeGreaterThan(
+        0,
+      );
     });
 
     mockBus.removeEventListener('tenant:auth-policy-updated', listener);

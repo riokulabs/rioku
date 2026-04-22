@@ -6,21 +6,8 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Group,
-  Menu,
-  ActionIcon,
-  Switch,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTool,
-  IconTrash,
-} from '@tabler/icons-react';
+import { Badge, Text, Stack, Group, Menu, ActionIcon, Switch } from '@mantine/core';
+import { IconDots, IconPencil, IconTool, IconTrash } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
@@ -36,13 +23,7 @@ interface ToolListProps {
   onDelete: (tool: AiTool) => void;
 }
 
-export function ToolList({
-  tenantId,
-  filter,
-  onSelect,
-  onEdit,
-  onDelete,
-}: ToolListProps) {
+export function ToolList({ tenantId, filter, onSelect, onEdit, onDelete }: ToolListProps) {
   const tools = useToolList(tenantId, filter);
   const agents = useMockStore((s) => s.aiAgents);
   const bindings = useMockStore((s) => s.aiToolBindings);
@@ -81,12 +62,7 @@ export function ToolList({
                 {t.dangerous && <DangerousToolBadge />}
               </Group>
               {t.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={t.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={t.description}>
                   {t.description}
                 </Text>
               )}
@@ -117,12 +93,7 @@ export function ToolList({
           }
           if (t.kind === 'http' && t.http_endpoint) {
             return (
-              <Text
-                size="xs"
-                ff="monospace"
-                c="var(--mantine-color-gray-7)"
-                truncate
-              >
+              <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)" truncate>
                 {t.http_endpoint.method} {t.http_endpoint.url}
               </Text>
             );

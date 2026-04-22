@@ -19,8 +19,12 @@ import type { AuditEntry } from './resources/types';
 const nextId = makeIdFactory('audit-live');
 
 const LIVE_ACTIONS = [
-  'user.login', 'api_key.create', 'session.revoke',
-  'role.update', 'plugin.enable', 'service.update',
+  'user.login',
+  'api_key.create',
+  'session.revoke',
+  'role.update',
+  'plugin.enable',
+  'service.update',
 ];
 
 const LIVE_TIERS: AuditEntry['tier'][] = ['read', 'write', 'destructive'];

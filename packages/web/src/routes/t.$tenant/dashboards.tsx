@@ -52,15 +52,11 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseModes(v: unknown): Mode[] {
-  return parseCsv(v).filter((s): s is Mode =>
-    (MODE_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Mode => (MODE_VALUES as readonly string[]).includes(s));
 }
 
 function parseScopes(v: unknown): Scope[] {
-  return parseCsv(v).filter((s): s is Scope =>
-    (SCOPE_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Scope => (SCOPE_VALUES as readonly string[]).includes(s));
 }
 
 function DashboardsListPage() {
@@ -68,9 +64,7 @@ function DashboardsListPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -160,10 +154,8 @@ function DashboardsListPage() {
   );
 
   const [deleteTarget, setDeleteTarget] = useState<Dashboard | null>(null);
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
-  const [importOpened, { open: openImport, close: closeImport }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const [importOpened, { open: openImport, close: closeImport }] = useDisclosure(false);
 
   function handleRowClick(d: Dashboard) {
     void navigate({
@@ -280,9 +272,13 @@ function DashboardsListPage() {
         extraFilter={extraFilter}
         onSelect={handleRowClick}
         onEdit={handleEdit}
-        onClone={(d) => { void handleClone(d); }}
+        onClone={(d) => {
+          void handleClone(d);
+        }}
         onDelete={handleDelete}
-        onSetDefault={(d) => { void handleSetDefault(d); }}
+        onSetDefault={(d) => {
+          void handleSetDefault(d);
+        }}
         canWrite={canWrite}
         canDelete={canDelete}
         canSetDefault={canSetDefault}
@@ -311,8 +307,8 @@ function DashboardsListPage() {
       >
         <Stack gap="md">
           <Text size="sm">
-            This will permanently delete <strong>{deleteTarget?.name}</strong>, its
-            widgets, and its version history. This action cannot be undone.
+            This will permanently delete <strong>{deleteTarget?.name}</strong>, its widgets, and its
+            version history. This action cannot be undone.
           </Text>
           <Group justify="flex-end">
             <Button

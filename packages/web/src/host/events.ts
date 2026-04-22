@@ -33,10 +33,7 @@ import { mockBus, publishMock } from '@/api/mock-sse';
 // The generic overloads below are intentional: the type parameter ties the
 // `data` / `handler` argument types together at the call site.
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-export function subscribeHostEvent<T>(
-  topic: string,
-  handler: (data: T) => void,
-): () => void {
+export function subscribeHostEvent<T>(topic: string, handler: (data: T) => void): () => void {
   const listener = (e: Event) => {
     handler((e as CustomEvent<T>).detail);
   };
@@ -68,10 +65,7 @@ export function emitHostEvent<T>(topic: string, data: T): void {
  * @param handler - Stable callback reference (use `useCallback` if needed).
  */
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-export function useHostEventSubscription<T>(
-  topic: string,
-  handler: (data: T) => void,
-): void {
+export function useHostEventSubscription<T>(topic: string, handler: (data: T) => void): void {
   useEffect(() => {
     const unsub = subscribeHostEvent<T>(topic, handler);
     return unsub;

@@ -55,9 +55,7 @@ async function sha256hex(input: string): Promise<string> {
 /**
  * Compute the hash of an AdminAuditEntry *excluding* its `hash` field.
  */
-async function hashEntry(
-  entry: Omit<AdminAuditEntry, 'hash'>,
-): Promise<string> {
+async function hashEntry(entry: Omit<AdminAuditEntry, 'hash'>): Promise<string> {
   const serialised = JSON.stringify(entry);
   return sha256hex(serialised);
 }
@@ -114,9 +112,7 @@ export interface LogAdminAuditEntryInput extends LogAuditEntryInput {
  *
  * Returns a Promise because SHA-256 hashing is async.
  */
-export async function logAdminAuditEntry(
-  input: LogAdminAuditEntryInput,
-): Promise<void> {
+export async function logAdminAuditEntry(input: LogAdminAuditEntryInput): Promise<void> {
   const state = useMockStore.getState();
   const lastEntry = state.adminAudit[state.adminAudit.length - 1];
   const prevHash = lastEntry?.hash ?? '';
@@ -169,7 +165,7 @@ export async function verifyAdminAuditChain(
     const entry = entries[i]!;
 
     // Verify prev_hash linkage
-    const expectedPrevHash = i === 0 ? '' : entries[i - 1]?.hash ?? '';
+    const expectedPrevHash = i === 0 ? '' : (entries[i - 1]?.hash ?? '');
     if (entry.prev_hash !== expectedPrevHash) {
       return { ok: false, brokenAt: i };
     }

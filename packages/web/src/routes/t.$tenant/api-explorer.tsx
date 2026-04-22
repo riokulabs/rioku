@@ -15,8 +15,5 @@ import { requirePermissions } from '@/hooks/use-before-load';
 
 export const Route = createFileRoute('/t/$tenant/api-explorer')({
   beforeLoad: requirePermissions({ required: ['service:read'] }),
-  component: lazyRouteComponent(
-    () => import('@/features/api-explorer'),
-    'ApiExplorer',
-  ),
+  component: lazyRouteComponent(() => import('@/features/api-explorer'), 'ApiExplorer'),
 });

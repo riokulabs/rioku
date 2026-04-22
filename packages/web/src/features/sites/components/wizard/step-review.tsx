@@ -17,17 +17,15 @@ function formatUpstream(v: WizardFormValues): string {
     return v.upstream_service_id ? `service:${v.upstream_service_id}` : '(none)';
   }
   const base = `${v.upstream_protocol}://${v.upstream_host}`;
-  return typeof v.upstream_port === 'number'
-    ? `${base}:${String(v.upstream_port)}`
-    : base;
+  return typeof v.upstream_port === 'number' ? `${base}:${String(v.upstream_port)}` : base;
 }
 
 export function StepReview({ form, serviceOptions }: StepReviewProps) {
   const v = form.values;
   const serviceLabel =
     v.upstream_mode === 'existing_service'
-      ? serviceOptions.find((o) => o.value === v.upstream_service_id)?.label ??
-        v.upstream_service_id
+      ? (serviceOptions.find((o) => o.value === v.upstream_service_id)?.label ??
+        v.upstream_service_id)
       : formatUpstream(v);
 
   return (
@@ -67,13 +65,7 @@ export function StepReview({ form, serviceOptions }: StepReviewProps) {
         </Text>
         <Badge
           size="sm"
-          color={
-            v.tls_mode === 'auto'
-              ? 'green'
-              : v.tls_mode === 'manual'
-                ? 'teal'
-                : 'gray'
-          }
+          color={v.tls_mode === 'auto' ? 'green' : v.tls_mode === 'manual' ? 'teal' : 'gray'}
           variant="light"
         >
           TLS {v.tls_mode}
@@ -92,11 +84,7 @@ export function StepReview({ form, serviceOptions }: StepReviewProps) {
           Policies
         </Text>
         <Group gap="xs">
-          <Badge
-            size="sm"
-            variant="light"
-            color={v.basic_auth_enabled ? 'indigo' : 'gray'}
-          >
+          <Badge size="sm" variant="light" color={v.basic_auth_enabled ? 'indigo' : 'gray'}>
             Basic auth: {v.basic_auth_enabled ? 'on' : 'off'}
           </Badge>
           <Badge size="sm" variant="light" color="orange">

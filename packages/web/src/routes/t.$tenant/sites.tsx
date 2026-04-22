@@ -57,9 +57,7 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseTlsCsv(v: unknown): TlsMode[] {
-  return parseCsv(v).filter((s): s is TlsMode =>
-    (TLS_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is TlsMode => (TLS_VALUES as readonly string[]).includes(s));
 }
 function parseEnabledCsv(v: unknown): SiteEnabledFilter[] {
   return parseCsv(v).filter((s): s is SiteEnabledFilter =>
@@ -72,9 +70,7 @@ function SitesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -111,8 +107,7 @@ function SitesPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Site | null>(null);
@@ -144,7 +139,7 @@ function SitesPage() {
       ? 'Create site'
       : drawerMode === 'edit'
         ? `Edit — ${selectedSite?.domain ?? ''}`
-        : selectedSite?.domain ?? 'Site detail';
+        : (selectedSite?.domain ?? 'Site detail');
 
   return (
     <Stack gap="md" p="md">
@@ -155,11 +150,7 @@ function SitesPage() {
         </Button>
       </Group>
 
-      <SiteFilterBar
-        filter={filter}
-        onChange={setFilter}
-        serviceOptions={serviceOptions}
-      />
+      <SiteFilterBar filter={filter} onChange={setFilter} serviceOptions={serviceOptions} />
 
       <SiteList
         tenantId={tenantId}

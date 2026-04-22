@@ -46,7 +46,13 @@ export function PieWidget({ widget, data, loading, error }: WidgetRenderProps) {
     <Box
       role="img"
       aria-label={`Pie chart for ${widget.title}`}
-      style={{ width: '100%', minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      style={{
+        width: '100%',
+        minHeight: 200,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
     >
       {/*
        * PieChart size prop sets --chart-size CSS var internally.

@@ -11,9 +11,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('sidebar has separate Users and Roles entries', async ({
-  authedPage: page,
-}) => {
+test('sidebar has separate Users and Roles entries', async ({ authedPage: page }) => {
   // Start from any authenticated page — use the users page so the sidebar is visible.
   await page.goto('/t/acme/security/users');
 
@@ -24,14 +22,10 @@ test('sidebar has separate Users and Roles entries', async ({
   await expect(rolesLink).toBeVisible();
 
   // "Users & roles" combined label must no longer exist.
-  await expect(
-    page.getByRole('link', { name: /users & roles/i }),
-  ).not.toBeVisible();
+  await expect(page.getByRole('link', { name: /users & roles/i })).not.toBeVisible();
 });
 
-test('sidebar Roles link navigates to /t/acme/security/roles', async ({
-  authedPage: page,
-}) => {
+test('sidebar Roles link navigates to /t/acme/security/roles', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/users');
 
   await page.getByRole('link', { name: /^roles$/i }).click();
@@ -40,9 +34,7 @@ test('sidebar Roles link navigates to /t/acme/security/roles', async ({
   await expect(page.getByRole('heading', { name: /^roles$/i })).toBeVisible();
 });
 
-test('seeded roles render on /t/acme/security/roles', async ({
-  authedPage: page,
-}) => {
+test('seeded roles render on /t/acme/security/roles', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/roles');
 
   await expect(page.getByRole('heading', { name: /^roles$/i })).toBeVisible();
@@ -54,9 +46,7 @@ test('seeded roles render on /t/acme/security/roles', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('create role drawer opens and role appears in list', async ({
-  authedPage: page,
-}) => {
+test('create role drawer opens and role appears in list', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/roles');
 
   const roleName = `e2e-role-${String(Date.now())}`;
@@ -70,9 +60,7 @@ test('create role drawer opens and role appears in list', async ({
   await drawer.getByRole('button', { name: /^create role$/i }).click();
 
   // After save the drawer closes and the new role row is in the list.
-  await expect(
-    page.getByText(roleName, { exact: false }).first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(roleName, { exact: false }).first()).toBeVisible({ timeout: 10_000 });
 });
 
 test('row click opens role detail drawer', async ({ authedPage: page }) => {

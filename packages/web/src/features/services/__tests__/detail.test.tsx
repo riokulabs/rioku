@@ -41,9 +41,7 @@ function acmeId(): string {
 describe('ServiceDetail', () => {
   it('renders the service header + upstream + routes sections', () => {
     const state = useMockStore.getState();
-    const svc = Object.values(state.services).find(
-      (s) => s.tenant_id === acmeId(),
-    );
+    const svc = Object.values(state.services).find((s) => s.tenant_id === acmeId());
     if (!svc) throw new Error('no service');
 
     wrap(

@@ -6,21 +6,8 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Menu,
-  ActionIcon,
-  Switch,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconPlugConnected,
-  IconRobot,
-} from '@tabler/icons-react';
+import { Badge, Text, Stack, Menu, ActionIcon, Switch } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconPlugConnected, IconRobot } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { ProviderKindBadge } from '@/features/ai-shared';
@@ -60,12 +47,7 @@ export function ProviderList({
                 {p.name}
               </Text>
               {p.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={p.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={p.description}>
                   {p.description}
                 </Text>
               )}
@@ -106,9 +88,7 @@ export function ProviderList({
         header: 'Models',
         size: 90,
         accessorFn: (row) => row.models.length,
-        cell: ({ getValue }) => (
-          <Text size="sm">{String(getValue<number>())}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{String(getValue<number>())}</Text>,
       },
       {
         id: 'enabled',

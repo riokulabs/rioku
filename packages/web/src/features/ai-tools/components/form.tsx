@@ -69,13 +69,7 @@ function initialFromTool(t?: AiTool): ToolFormValues {
   };
 }
 
-export function ToolForm({
-  mode,
-  tenantId,
-  initialValues,
-  onSuccess,
-  onCancel,
-}: ToolFormProps) {
+export function ToolForm({ mode, tenantId, initialValues, onSuccess, onCancel }: ToolFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [schemaValid, setSchemaValid] = useState(true);
@@ -91,10 +85,9 @@ export function ToolForm({
 
   const form = useForm<ToolFormValues>({
     initialValues: initialFromTool(initialValues),
-    validate: schemaResolver(
-      mode === 'create' ? createToolSchema : updateToolSchema,
-      { sync: true },
-    ),
+    validate: schemaResolver(mode === 'create' ? createToolSchema : updateToolSchema, {
+      sync: true,
+    }),
   });
 
   async function handleSubmit(values: ToolFormValues) {

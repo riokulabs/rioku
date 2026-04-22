@@ -78,9 +78,9 @@ describe('<SignerList>', () => {
     const revoked = Object.values(useMockStore.getState().pluginSigners).filter(
       (s) => s.tenant_scope === null && s.status === 'revoked',
     );
-    const verifiedGlobals = Object.values(
-      useMockStore.getState().pluginSigners,
-    ).filter((s) => s.tenant_scope === null && s.status === 'verified');
+    const verifiedGlobals = Object.values(useMockStore.getState().pluginSigners).filter(
+      (s) => s.tenant_scope === null && s.status === 'verified',
+    );
 
     for (const r of revoked) {
       expect(screen.getByText(r.name)).toBeTruthy();
@@ -112,9 +112,7 @@ describe('<SignerDetail>', () => {
     );
     if (!verified || !revoked) throw new Error('need both verified + revoked in seed');
 
-    const { unmount } = wrap(
-      <SignerDetail signerId={verified.id} onClose={vi.fn()} />,
-    );
+    const { unmount } = wrap(<SignerDetail signerId={verified.id} onClose={vi.fn()} />);
     const verifyBtn = screen.getByRole('button', { name: /Verify/i });
     expect((verifyBtn as HTMLButtonElement).disabled).toBe(true);
     unmount();

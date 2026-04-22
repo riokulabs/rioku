@@ -26,14 +26,12 @@ test('no critical/serious axe violations on /t/acme/notifications', async ({
 }) => {
   await page.goto('/t/acme/notifications');
 
-  await expect(
-    page.getByRole('heading', { name: /^notifications$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^notifications$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Wait for the list to hydrate so axe walks the seeded row tree.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -53,9 +51,7 @@ test('no critical/serious axe violations on /t/acme/settings/notifications', asy
 }) => {
   await page.goto('/t/acme/settings/notifications');
 
-  await expect(
-    page.getByTestId('notifications-settings-index'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('notifications-settings-index')).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -75,14 +71,10 @@ test('no critical/serious axe violations on /t/acme/settings/notification-channe
 }) => {
   await page.goto('/t/acme/settings/notification-channels');
 
-  await expect(
-    page.getByTestId('notification-channels-page'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('notification-channels-page')).toBeVisible({ timeout: 10_000 });
 
   // Wait for the channels table to hydrate.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -102,14 +94,12 @@ test('no critical/serious axe violations on /t/acme/settings/notification-routin
 }) => {
   await page.goto('/t/acme/settings/notification-routing');
 
-  await expect(
-    page.getByRole('heading', { name: /routing rules/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /routing rules/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Wait for the routing rules table to hydrate.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -129,14 +119,12 @@ test('no critical/serious axe violations on /t/acme/settings/notification-delive
 }) => {
   await page.goto('/t/acme/settings/notification-delivery');
 
-  await expect(
-    page.getByRole('heading', { name: /delivery log/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /delivery log/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Wait for the delivery log table to hydrate.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);

@@ -85,9 +85,7 @@ describe('UserDetail', () => {
     if (!acmeTenant) throw new Error('No acme tenant');
 
     // Find Derrick (currentUser)
-    const derrick = Object.values(state.users).find(
-      (u) => u.email === 'derrick@rioku.dev',
-    );
+    const derrick = Object.values(state.users).find((u) => u.email === 'derrick@rioku.dev');
     if (!derrick) throw new Error('No derrick user');
 
     const onClose = vi.fn();
@@ -110,9 +108,7 @@ describe('UserDetail', () => {
     const acmeTenant = Object.values(state.tenants).find((t) => t.slug === 'acme');
     if (!acmeTenant) throw new Error('No acme tenant');
 
-    const derrick = Object.values(state.users).find(
-      (u) => u.email === 'derrick@rioku.dev',
-    );
+    const derrick = Object.values(state.users).find((u) => u.email === 'derrick@rioku.dev');
     if (!derrick) throw new Error('No derrick user');
 
     const onClose = vi.fn();
@@ -138,9 +134,7 @@ describe('UserDetail', () => {
     const acmeTenant = Object.values(state.tenants).find((t) => t.slug === 'acme');
     if (!acmeTenant) throw new Error('No acme tenant');
 
-    const derrick = Object.values(state.users).find(
-      (u) => u.email === 'derrick@rioku.dev',
-    );
+    const derrick = Object.values(state.users).find((u) => u.email === 'derrick@rioku.dev');
     if (!derrick) throw new Error('No derrick user');
 
     const onClose = vi.fn();

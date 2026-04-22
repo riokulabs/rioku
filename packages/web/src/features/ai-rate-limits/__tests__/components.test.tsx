@@ -56,9 +56,7 @@ function firstRuleId(): string | undefined {
   const state = useMockStore.getState();
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) return undefined;
-  const rule = Object.values(state.aiSemanticRateLimits).find(
-    (r) => r.tenant_id === acme.id,
-  );
+  const rule = Object.values(state.aiSemanticRateLimits).find((r) => r.tenant_id === acme.id);
   return rule?.id;
 }
 
@@ -80,12 +78,7 @@ describe('RateLimitList', () => {
 describe('RateLimitForm', () => {
   it('renders create-mode fields with scope, exemplars, threshold, action', () => {
     wrap(
-      <RateLimitForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
+      <RateLimitForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />,
     );
     expect(screen.getAllByLabelText(/Name/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Scope/i).length).toBeGreaterThan(0);
@@ -98,12 +91,7 @@ describe('RateLimitForm', () => {
   it('calls onCancel when Cancel clicked', () => {
     const onCancel = vi.fn();
     wrap(
-      <RateLimitForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={onCancel}
-      />,
+      <RateLimitForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={onCancel} />,
     );
     fireEvent.click(screen.getByText(/^Cancel$/));
     expect(onCancel).toHaveBeenCalledOnce();

@@ -3,12 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
 import { useRiokuMutation } from './use-rioku-mutation';
-import {
-  ValidationError,
-  NetworkError,
-  PermissionError,
-  ServerError,
-} from '@/api/errors';
+import { ValidationError, NetworkError, PermissionError, ServerError } from '@/api/errors';
 
 // ─── Mock Mantine notifications ──────────────────────────────────────────────
 
@@ -57,12 +52,7 @@ describe('useRiokuMutation', () => {
     });
 
     // TanStack Query 5.x passes a 4th MutationContext arg; match the first 3.
-    expect(onSuccess).toHaveBeenCalledWith(
-      { ok: true },
-      undefined,
-      undefined,
-      expect.anything(),
-    );
+    expect(onSuccess).toHaveBeenCalledWith({ ok: true }, undefined, undefined, expect.anything());
   });
 
   it('re-throws ValidationError without showing a toast', async () => {
@@ -179,12 +169,7 @@ describe('useRiokuMutation', () => {
 
     await waitFor(() => {
       // TanStack Query 5.x passes a 4th MutationContext arg; match the first 3.
-      expect(onError).toHaveBeenCalledWith(
-        err,
-        undefined,
-        undefined,
-        expect.anything(),
-      );
+      expect(onError).toHaveBeenCalledWith(err, undefined, undefined, expect.anything());
     });
   });
 });

@@ -14,22 +14,8 @@
  * `dashboard:write`. The modal itself does not re-check.
  */
 import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Button,
-  FileInput,
-  Group,
-  Modal,
-  Stack,
-  Tabs,
-  Text,
-  Textarea,
-} from '@mantine/core';
-import {
-  IconAlertCircle,
-  IconClipboard,
-  IconUpload,
-} from '@tabler/icons-react';
+import { Alert, Button, FileInput, Group, Modal, Stack, Tabs, Text, Textarea } from '@mantine/core';
+import { IconAlertCircle, IconClipboard, IconUpload } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import type { Dashboard } from '@/api/resources/types';
 import { importDashboardJson } from '../api';
@@ -165,7 +151,9 @@ export function ImportDashboardModal({
               }}
               data-testid="import-json-textarea"
               spellCheck={false}
-              styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 12 } }}
+              styles={{
+                input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 12 },
+              }}
             />
           </Tabs.Panel>
 

@@ -80,42 +80,21 @@ describe('BindingList', () => {
 
 describe('MatrixView', () => {
   it('renders a grid of agents × tools', () => {
-    wrap(
-      <MatrixView
-        tenantId={acmeId()}
-        filter={DEFAULT_FILTER}
-        onCellClick={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getAllByLabelText(/Agent × tool binding matrix/i).length,
-    ).toBeGreaterThan(0);
+    wrap(<MatrixView tenantId={acmeId()} filter={DEFAULT_FILTER} onCellClick={vi.fn()} />);
+    expect(screen.getAllByLabelText(/Agent × tool binding matrix/i).length).toBeGreaterThan(0);
   });
 
   it('shows "need at least one agent and one tool" when tenant is empty', () => {
     wrap(
-      <MatrixView
-        tenantId="nonexistent-tenant-id"
-        filter={DEFAULT_FILTER}
-        onCellClick={vi.fn()}
-      />,
+      <MatrixView tenantId="nonexistent-tenant-id" filter={DEFAULT_FILTER} onCellClick={vi.fn()} />,
     );
-    expect(
-      screen.getAllByText(/at least one agent and one tool/i).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/at least one agent and one tool/i).length).toBeGreaterThan(0);
   });
 });
 
 describe('BindingForm', () => {
   it('renders create-mode fields', () => {
-    wrap(
-      <BindingForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<BindingForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getAllByLabelText(/Agent/i).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/Tool/i).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/CEL condition/i).length).toBeGreaterThan(0);

@@ -17,7 +17,7 @@ describe('CelDiff', () => {
   it('renders a side-by-side diff for valid CEL on both sides', async () => {
     wrap(
       <CelDiff
-        before='resource.owner == user.id'
+        before="resource.owner == user.id"
         after='resource.owner == user.id && user.role == "admin"'
       />,
     );
@@ -28,9 +28,7 @@ describe('CelDiff', () => {
     // The "admin" literal appears only on the after side and must be
     // classified as added.
     const added = Array.from(
-      screen
-        .getByTestId('cel-diff-after')
-        .querySelectorAll('[data-token-kind="added"]'),
+      screen.getByTestId('cel-diff-after').querySelectorAll('[data-token-kind="added"]'),
     );
     expect(added.length).toBeGreaterThan(0);
   });
@@ -52,16 +50,14 @@ describe('CelDiff', () => {
     wrap(
       <CelDiff
         before='resource.owner == user.id && user.role == "admin"'
-        after='resource.owner == user.id'
+        after="resource.owner == user.id"
       />,
     );
     await waitFor(() => {
       expect(screen.getByTestId('cel-diff-before')).toBeInTheDocument();
     });
     const removed = Array.from(
-      screen
-        .getByTestId('cel-diff-before')
-        .querySelectorAll('[data-token-kind="removed"]'),
+      screen.getByTestId('cel-diff-before').querySelectorAll('[data-token-kind="removed"]'),
     );
     expect(removed.length).toBeGreaterThan(0);
   });

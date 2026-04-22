@@ -40,14 +40,7 @@ function acmeId(): string {
 
 describe('AgentForm', () => {
   it('renders all create-mode fields', () => {
-    wrap(
-      <AgentForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<AgentForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText(/Name/i)).toBeInTheDocument();
     expect(screen.getAllByLabelText(/Provider/i).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/System prompt/i).length).toBeGreaterThan(0);
@@ -55,14 +48,7 @@ describe('AgentForm', () => {
 
   it('calls onCancel when Cancel clicked', () => {
     const onCancel = vi.fn();
-    wrap(
-      <AgentForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={onCancel}
-      />,
-    );
+    wrap(<AgentForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={onCancel} />);
     fireEvent.click(screen.getByText(/Cancel/));
     expect(onCancel).toHaveBeenCalledOnce();
   });

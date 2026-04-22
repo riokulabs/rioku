@@ -15,17 +15,7 @@
  * dialog stays re-usable (builder shell, AdvancedEditor, viewer future use).
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  List,
-  Modal,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Checkbox, Group, List, Modal, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import type { Widget } from '@/api/resources/types';
@@ -57,12 +47,7 @@ export interface ModeFlipConfirmDialogProps {
 export function ModeFlipConfirmDialog(props: ModeFlipConfirmDialogProps) {
   // Keying on `opened` resets internal state (ack checkbox) whenever the
   // modal (re)opens — no effect-driven setState.
-  return (
-    <ModeFlipConfirmDialogInner
-      key={props.opened ? 'opened' : 'closed'}
-      {...props}
-    />
-  );
+  return <ModeFlipConfirmDialogInner key={props.opened ? 'opened' : 'closed'} {...props} />;
 }
 
 function ModeFlipConfirmDialogInner(props: ModeFlipConfirmDialogProps) {
@@ -92,15 +77,10 @@ function ModeFlipConfirmDialogInner(props: ModeFlipConfirmDialogProps) {
         centered
       >
         <Stack gap="md">
-          <Alert
-            color="orange"
-            variant="light"
-            icon={<IconAlertTriangle size={16} />}
-          >
+          <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
             <Text size="sm">
-              This widget type is a one-way flip. After flipping you can no
-              longer use the wizard for this widget — only the raw query
-              editor.
+              This widget type is a one-way flip. After flipping you can no longer use the wizard
+              for this widget — only the raw query editor.
             </Text>
           </Alert>
           <Group justify="flex-end">
@@ -138,11 +118,7 @@ function ModeFlipConfirmDialogInner(props: ModeFlipConfirmDialogProps) {
       size="min(600px, 95vw)"
     >
       <Stack gap="md">
-        <Alert
-          color="orange"
-          variant="light"
-          icon={<IconAlertTriangle size={16} />}
-        >
+        <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
           <Text size="sm">
             Grafana mode enables the raw query editor for every widget.{' '}
             {affected.length > 0

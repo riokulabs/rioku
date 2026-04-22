@@ -1,4 +1,3 @@
- 
 /**
  * <SchemaForm> tests — covers each supported Zod primitive + the optional
  * unwrap path + the unsupported-type fallback.
@@ -61,11 +60,7 @@ describe('<SchemaForm>', () => {
     const schema = z.object({ optional_field: z.string().optional() });
     const onChange = vi.fn();
     const { container } = wrap(
-      <SchemaForm
-        schema={schema}
-        value={{ optional_field: 'x' }}
-        onChange={onChange}
-      />,
+      <SchemaForm schema={schema} value={{ optional_field: 'x' }} onChange={onChange} />,
     );
     // The label should appear without a trailing asterisk — no required mark.
     const label = container.querySelector('label');

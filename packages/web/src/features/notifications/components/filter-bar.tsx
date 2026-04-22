@@ -13,14 +13,7 @@
  * is responsible for URL-syncing the filter state.
  */
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Group,
-  MultiSelect,
-  SegmentedControl,
-  Stack,
-  Switch,
-  TextInput,
-} from '@mantine/core';
+import { Group, MultiSelect, SegmentedControl, Stack, Switch, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import type { InboxFilter, NotificationItem } from '../types';
@@ -89,8 +82,7 @@ export function NotificationFilterBar({
   }, [allNotifications]);
 
   function handleReadChange(next: string) {
-    const narrow: ReadFilter =
-      next === 'unread' || next === 'read' ? next : 'all';
+    const narrow: ReadFilter = next === 'unread' || next === 'read' ? next : 'all';
     onChange({ ...filter, unreadOnly: narrow === 'unread' }, narrow);
   }
 
@@ -126,10 +118,7 @@ export function NotificationFilterBar({
           data={SEVERITY_OPTIONS}
           value={filter.severities}
           onChange={(values) => {
-            onChange(
-              { ...filter, severities: narrowSeverities(values) },
-              readFilter,
-            );
+            onChange({ ...filter, severities: narrowSeverities(values) }, readFilter);
           }}
           placeholder={filter.severities.length === 0 ? 'All severities' : undefined}
           clearable
@@ -152,10 +141,7 @@ export function NotificationFilterBar({
         <Switch
           checked={filter.includeArchived}
           onChange={(e) => {
-            onChange(
-              { ...filter, includeArchived: e.currentTarget.checked },
-              readFilter,
-            );
+            onChange({ ...filter, includeArchived: e.currentTarget.checked }, readFilter);
           }}
           label="Include archived"
           size="sm"

@@ -7,23 +7,11 @@
  *   any       → remove (typed confirmation of tenant slug)
  */
 import { useState } from 'react';
-import {
-  Button,
-  Group,
-  Modal,
-  Text,
-  TextInput,
-  Stack,
-  Alert,
-} from '@mantine/core';
+import { Button, Group, Modal, Text, TextInput, Stack, Alert } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import {
-  activateMembership,
-  deactivateMembership,
-  removeMembership,
-} from '../api';
+import { activateMembership, deactivateMembership, removeMembership } from '../api';
 import type { Membership } from '../types';
 
 interface MembershipActionsProps {
@@ -33,20 +21,14 @@ interface MembershipActionsProps {
   onChanged?: () => void;
 }
 
-export function MembershipActions({
-  membership,
-  tenantSlug,
-  onChanged,
-}: MembershipActionsProps) {
+export function MembershipActions({ membership, tenantSlug, onChanged }: MembershipActionsProps) {
   const [loading, setLoading] = useState(false);
 
   // Deactivate confirm modal
-  const [deactivateOpened, { open: openDeactivate, close: closeDeactivate }] =
-    useDisclosure(false);
+  const [deactivateOpened, { open: openDeactivate, close: closeDeactivate }] = useDisclosure(false);
 
   // Remove confirm modal
-  const [removeOpened, { open: openRemove, close: closeRemove }] =
-    useDisclosure(false);
+  const [removeOpened, { open: openRemove, close: closeRemove }] = useDisclosure(false);
   const [removeSlugInput, setRemoveSlugInput] = useState('');
 
   async function handleActivate() {
@@ -108,12 +90,7 @@ export function MembershipActions({
         )}
 
         {membership.state === 'active' && (
-          <Button
-            size="xs"
-            variant="light"
-            color="orange"
-            onClick={openDeactivate}
-          >
+          <Button size="xs" variant="light" color="orange" onClick={openDeactivate}>
             Deactivate
           </Button>
         )}
@@ -131,12 +108,7 @@ export function MembershipActions({
         )}
 
         {membership.state !== 'removed' && (
-          <Button
-            size="xs"
-            variant="subtle"
-            color="red"
-            onClick={openRemove}
-          >
+          <Button size="xs" variant="subtle" color="red" onClick={openRemove}>
             Remove
           </Button>
         )}
@@ -151,8 +123,8 @@ export function MembershipActions({
       >
         <Stack gap="md">
           <Text size="sm">
-            This will suspend the user&apos;s access to this tenant. They can be
-            re-activated at any time.
+            This will suspend the user&apos;s access to this tenant. They can be re-activated at any
+            time.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="default" size="sm" onClick={closeDeactivate}>
@@ -182,8 +154,8 @@ export function MembershipActions({
       >
         <Stack gap="md">
           <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-            This permanently removes the user from the tenant. All their roles and
-            access will be revoked. This cannot be undone without a new invitation.
+            This permanently removes the user from the tenant. All their roles and access will be
+            revoked. This cannot be undone without a new invitation.
           </Alert>
           <Text size="sm">
             Type{' '}
@@ -194,7 +166,9 @@ export function MembershipActions({
           </Text>
           <TextInput
             value={removeSlugInput}
-            onChange={(e) => { setRemoveSlugInput(e.currentTarget.value); }}
+            onChange={(e) => {
+              setRemoveSlugInput(e.currentTarget.value);
+            }}
             placeholder={tenantSlug}
             data-autofocus
           />

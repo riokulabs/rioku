@@ -3,12 +3,7 @@
  */
 import { z } from 'zod';
 
-export const deliveryStatusSchema = z.enum([
-  'delivered',
-  'retrying',
-  'failed',
-  'pending',
-]);
+export const deliveryStatusSchema = z.enum(['delivered', 'retrying', 'failed', 'pending']);
 
 export const deliveryLogFilterSchema = z.object({
   statuses: z.array(deliveryStatusSchema).default([]),

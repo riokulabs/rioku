@@ -7,17 +7,9 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AuditEntry,
-  ID,
-  NotificationRoutingRule,
-} from '@/api/resources/types';
+import type { AuditEntry, ID, NotificationRoutingRule } from '@/api/resources/types';
 
-import type {
-  CreateRoutingRuleInput,
-  RoutingRuleFilter,
-  UpdateRoutingRuleInput,
-} from './types';
+import type { CreateRoutingRuleInput, RoutingRuleFilter, UpdateRoutingRuleInput } from './types';
 import { createRoutingRuleSchema, updateRoutingRuleSchema } from './schemas';
 
 const nextRuleId = makeIdFactory('rule-new');
@@ -119,9 +111,7 @@ export async function createRoutingRule(
 
   const state = useMockStore.getState();
   state.addEntity('notificationRoutingRules', rule);
-  state.appendAudit(
-    makeAudit('notification_routing_rule.create', rule.tenant_id, rule.id),
-  );
+  state.appendAudit(makeAudit('notification_routing_rule.create', rule.tenant_id, rule.id));
   emitHostEvent('notification-routing:created', {
     rule_id: rule.id,
     tenant_id: rule.tenant_id,
@@ -147,9 +137,7 @@ export async function updateRoutingRule(
   if (parsed.order_hint !== undefined) patch.order_hint = parsed.order_hint;
 
   state.updateEntity('notificationRoutingRules', id, patch);
-  state.appendAudit(
-    makeAudit('notification_routing_rule.update', current.tenant_id, id),
-  );
+  state.appendAudit(makeAudit('notification_routing_rule.update', current.tenant_id, id));
   emitHostEvent('notification-routing:updated', {
     rule_id: id,
     tenant_id: current.tenant_id,

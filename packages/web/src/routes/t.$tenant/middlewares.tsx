@@ -49,9 +49,7 @@ function MiddlewaresPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -75,8 +73,7 @@ function MiddlewaresPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selected, setSelected] = useState<Middleware | null>(null);
 
@@ -119,7 +116,7 @@ function MiddlewaresPage() {
       ? 'Create middleware'
       : drawerMode === 'edit'
         ? `Edit — ${selected?.name ?? ''}`
-        : selected?.name ?? 'Middleware detail';
+        : (selected?.name ?? 'Middleware detail');
 
   return (
     <Stack gap="md" p="md">

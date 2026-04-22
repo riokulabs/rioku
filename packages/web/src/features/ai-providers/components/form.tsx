@@ -18,10 +18,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { createProvider, updateProvider } from '../api';
-import {
-  createProviderSchema,
-  updateProviderSchema,
-} from '../schemas';
+import { createProviderSchema, updateProviderSchema } from '../schemas';
 import type { AiProvider } from '../types';
 
 interface ProviderFormValues {
@@ -62,10 +59,7 @@ export function ProviderForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const schema =
-    mode === 'create'
-      ? createProviderSchema
-      : updateProviderSchema;
+  const schema = mode === 'create' ? createProviderSchema : updateProviderSchema;
 
   const form = useForm<ProviderFormValues>({
     initialValues: initialFromProvider(initialValues),
@@ -162,18 +156,10 @@ export function ProviderForm({
         />
 
         <PasswordInput
-          label={
-            mode === 'create' ? 'Credential' : 'Rotate credential (optional)'
-          }
-          placeholder={
-            mode === 'create'
-              ? 'sk-…'
-              : 'Leave blank to keep existing credential'
-          }
+          label={mode === 'create' ? 'Credential' : 'Rotate credential (optional)'}
+          placeholder={mode === 'create' ? 'sk-…' : 'Leave blank to keep existing credential'}
           description={
-            mode === 'create'
-              ? 'Shown once. Only the prefix is stored for display.'
-              : undefined
+            mode === 'create' ? 'Shown once. Only the prefix is stored for display.' : undefined
           }
           required={mode === 'create'}
           {...form.getInputProps('credential')}

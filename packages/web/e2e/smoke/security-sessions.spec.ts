@@ -9,23 +9,15 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('sessions page renders on /t/acme/security/sessions', async ({
-  authedPage: page,
-}) => {
+test('sessions page renders on /t/acme/security/sessions', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/sessions');
 
-  await expect(
-    page.getByRole('heading', { name: /^sessions$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^sessions$/i })).toBeVisible();
   // Settings anchor should be present.
-  await expect(
-    page.getByRole('link', { name: /session timeouts/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('link', { name: /session timeouts/i })).toBeVisible();
 });
 
-test('seeded sessions render in the list', async ({
-  authedPage: page,
-}) => {
+test('seeded sessions render in the list', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/sessions');
 
   const rows = page.locator('tbody tr[role="row"]');

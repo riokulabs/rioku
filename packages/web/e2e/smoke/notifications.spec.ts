@@ -27,9 +27,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('top-bar bell renders and opens the inbox dropdown', async ({
-  authedPage: page,
-}) => {
+test('top-bar bell renders and opens the inbox dropdown', async ({ authedPage: page }) => {
   // Landing on /tenants resolves to /t/acme for Derrick. The top bar is
   // always mounted once we're inside a tenant workspace.
   await page.goto('/t/acme');
@@ -77,9 +75,7 @@ test('inbox dropdown shows categorized entries and mark-all-read clears unread',
     await page
       .waitForFunction(
         () => {
-          const btn = document.querySelector(
-            '[data-testid="topbar-bell"]',
-          );
+          const btn = document.querySelector('[data-testid="topbar-bell"]');
           if (!btn) return false;
           const label = btn.getAttribute('aria-label') ?? '';
           return label.includes('no unread');
@@ -108,9 +104,9 @@ test('inbox dropdown "Open inbox" link navigates to the full inbox page', async 
   await dropdown.getByTestId('inbox-dropdown-open-inbox').click();
 
   await expect(page).toHaveURL(/\/t\/acme\/notifications(\?|$)/);
-  await expect(
-    page.getByRole('heading', { name: /^notifications$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^notifications$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test('full inbox renders rows and clicking one opens the detail drawer', async ({
@@ -118,9 +114,9 @@ test('full inbox renders rows and clicking one opens the detail drawer', async (
 }) => {
   await page.goto('/t/acme/notifications');
 
-  await expect(
-    page.getByRole('heading', { name: /^notifications$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^notifications$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // At least one notification row should render for Derrick against acme.
   const rows = page.locator('tbody tr[role="row"]');
@@ -136,41 +132,25 @@ test('full inbox renders rows and clicking one opens the detail drawer', async (
   await expect(drawer.getByTestId('notification-detail-body')).toBeVisible();
 });
 
-test('settings notifications index renders three summary cards', async ({
-  authedPage: page,
-}) => {
+test('settings notifications index renders three summary cards', async ({ authedPage: page }) => {
   await page.goto('/t/acme/settings/notifications');
 
-  await expect(
-    page.getByTestId('notifications-settings-index'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('notifications-settings-index')).toBeVisible({ timeout: 10_000 });
 
   // Three card titles: Channels / Routing rules / Delivery log.
-  await expect(
-    page.getByRole('heading', { name: /^channels$/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: /^routing rules$/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: /^delivery log$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^channels$/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^routing rules$/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^delivery log$/i })).toBeVisible();
 
   // Each card has a "Manage …" or "View …" link/button — click Channels.
-  await page
-    .getByRole('link', { name: /^manage channels$/i })
-    .click();
+  await page.getByRole('link', { name: /^manage channels$/i }).click();
   await expect(page).toHaveURL(/\/t\/acme\/settings\/notification-channels/);
 });
 
-test('new slack channel appears in the list after create', async ({
-  authedPage: page,
-}) => {
+test('new slack channel appears in the list after create', async ({ authedPage: page }) => {
   await page.goto('/t/acme/settings/notification-channels');
 
-  await expect(
-    page.getByTestId('notification-channels-page'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('notification-channels-page')).toBeVisible({ timeout: 10_000 });
 
   // Click "New channel" — opens a drawer with the form.
   await page.getByRole('button', { name: /^new channel$/i }).click();
@@ -195,9 +175,7 @@ test('new slack channel appears in the list after create', async ({
   // config panel mounts with the "Webhook URL" TextInput.
   const webhookField = drawer.getByRole('textbox', { name: /webhook url/i });
   await expect(webhookField).toBeVisible({ timeout: 5_000 });
-  await webhookField.fill(
-    'https://hooks.slack.com/services/TAAA/BAAA/SMOKETESTXXXXXX',
-  );
+  await webhookField.fill('https://hooks.slack.com/services/TAAA/BAAA/SMOKETESTXXXXXX');
 
   // Submit the form.
   await drawer.getByRole('button', { name: /^create channel$/i }).click();
@@ -218,14 +196,10 @@ test('new slack channel appears in the list after create', async ({
   });
 });
 
-test('channel detail "Send test" surfaces a result badge', async ({
-  authedPage: page,
-}) => {
+test('channel detail "Send test" surfaces a result badge', async ({ authedPage: page }) => {
   await page.goto('/t/acme/settings/notification-channels');
 
-  await expect(
-    page.getByTestId('notification-channels-page'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('notification-channels-page')).toBeVisible({ timeout: 10_000 });
 
   // Open the first row. Click on the Name column cell text rather than
   // the whole row to avoid the action-menu ActionIcon swallowing clicks.

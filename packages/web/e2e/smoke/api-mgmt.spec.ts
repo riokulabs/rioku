@@ -14,9 +14,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('services list renders seeded rows on /t/acme/services', async ({
-  authedPage: page,
-}) => {
+test('services list renders seeded rows on /t/acme/services', async ({ authedPage: page }) => {
   await page.goto('/t/acme/services');
 
   await expect(page.getByRole('heading', { name: /^services$/i })).toBeVisible();
@@ -28,9 +26,7 @@ test('services list renders seeded rows on /t/acme/services', async ({
   expect(count).toBeGreaterThanOrEqual(5);
 });
 
-test('service detail drawer shows nested routes', async ({
-  authedPage: page,
-}) => {
+test('service detail drawer shows nested routes', async ({ authedPage: page }) => {
   await page.goto('/t/acme/services');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -44,9 +40,7 @@ test('service detail drawer shows nested routes', async ({
   await expect(drawer.getByText(/routes\s*\(/i)).toBeVisible();
 });
 
-test('routes list renders seeded rows on /t/acme/routes', async ({
-  authedPage: page,
-}) => {
+test('routes list renders seeded rows on /t/acme/routes', async ({ authedPage: page }) => {
   await page.goto('/t/acme/routes');
 
   await expect(page.getByRole('heading', { name: /^routes$/i })).toBeVisible();

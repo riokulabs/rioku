@@ -9,14 +9,10 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded AI rate limits render on /t/acme/ai/rate-limits', async ({
-  authedPage: page,
-}) => {
+test('seeded AI rate limits render on /t/acme/ai/rate-limits', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/rate-limits');
 
-  await expect(
-    page.getByRole('heading', { name: /^ai rate limits$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^ai rate limits$/i })).toBeVisible();
 
   const rows = page.locator('tbody tr[role="row"]');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
@@ -24,9 +20,7 @@ test('seeded AI rate limits render on /t/acme/ai/rate-limits', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('row click opens AI rate limit detail drawer', async ({
-  authedPage: page,
-}) => {
+test('row click opens AI rate limit detail drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/rate-limits');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -37,9 +31,7 @@ test('row click opens AI rate limit detail drawer', async ({
   await expect(drawer).toBeVisible();
 });
 
-test('new rate limit button opens create drawer', async ({
-  authedPage: page,
-}) => {
+test('new rate limit button opens create drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/rate-limits');
 
   await page.getByRole('button', { name: /new rate limit/i }).click();

@@ -27,8 +27,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 let grantSensitive = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'audit:read-sensitive' ? grantSensitive : true,
+  usePermission: (key: string) => (key === 'audit:read-sensitive' ? grantSensitive : true),
 }));
 
 import { useMockStore } from '@/api/mock-store';
@@ -89,25 +88,17 @@ describe('<AuditDetail>', () => {
   });
 
   it('shows IP when permission is granted', () => {
-    render(
-      <AuditDetail
-        entry={makeEntry({ ip: '10.0.0.1' })}
-        onClose={() => undefined}
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<AuditDetail entry={makeEntry({ ip: '10.0.0.1' })} onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     expect(screen.getByTestId('audit-ip')).toHaveTextContent('10.0.0.1');
   });
 
   it('redacts IP when permission is missing', () => {
     grantSensitive = false;
-    render(
-      <AuditDetail
-        entry={makeEntry({ ip: '10.0.0.1' })}
-        onClose={() => undefined}
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<AuditDetail entry={makeEntry({ ip: '10.0.0.1' })} onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     expect(screen.getByTestId('audit-ip')).toHaveTextContent('[redacted]');
   });
 
@@ -166,13 +157,9 @@ describe('<AuditDetail>', () => {
   });
 
   it('renders super-admin banner when acted_as_admin is true', () => {
-    render(
-      <AuditDetail
-        entry={makeEntry({ acted_as_admin: true })}
-        onClose={() => undefined}
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<AuditDetail entry={makeEntry({ acted_as_admin: true })} onClose={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     expect(screen.getByTestId('audit-admin-banner')).toBeInTheDocument();
   });
 

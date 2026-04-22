@@ -25,11 +25,7 @@ import type {
   getZoneContributions,
   listAllZones,
 } from '@/host/zones';
-import type {
-  registerRoute,
-  unregisterRoute,
-  listPluginRoutes,
-} from '@/host/routes';
+import type { registerRoute, unregisterRoute, listPluginRoutes } from '@/host/routes';
 import type {
   registerSidebarEntry,
   unregisterSidebarEntry,
@@ -40,11 +36,7 @@ import type {
   unregisterSettingsPanel,
   listSettingsPanels,
 } from '@/host/settings';
-import type {
-  registerPluginTheme,
-  unregisterPluginTheme,
-  listPluginThemes,
-} from '@/host/themes';
+import type { registerPluginTheme, unregisterPluginTheme, listPluginThemes } from '@/host/themes';
 import type {
   registerSpotlightCommand,
   unregisterSpotlightCommand,
@@ -52,24 +44,14 @@ import type {
   unregisterSpotlightResource,
 } from '@/host/spotlight';
 import type { setNotifyBackend, emitPluginNotification } from '@/host/notify';
-import type {
-  registerWidget,
-  unregisterWidget,
-  listWidgets,
-} from '@/host/widgets';
-import type {
-  subscribeHostEvent,
-  useHostEventSubscription,
-} from '@/host/events';
+import type { registerWidget, unregisterWidget, listWidgets } from '@/host/widgets';
+import type { subscribeHostEvent, useHostEventSubscription } from '@/host/events';
 import type {
   registerPluginEndpoint,
   unregisterPluginEndpoint,
   listPluginEndpoints,
 } from '@/host/api-endpoints';
-import type {
-  registerPluginOpenApi,
-  unregisterPluginOpenApi,
-} from '@/host/openapi';
+import type { registerPluginOpenApi, unregisterPluginOpenApi } from '@/host/openapi';
 import type {
   registerPermission,
   unregisterPermission,
@@ -186,6 +168,5 @@ export interface RiokuHost {
  * the top level (or receive the host object from the plugin-loader).
  */
 export function useHost(): Readonly<RiokuHost> {
-   
   return useMemo<Readonly<RiokuHost>>(() => buildHost(), []);
 }

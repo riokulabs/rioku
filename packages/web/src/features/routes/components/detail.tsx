@@ -69,16 +69,13 @@ export function RouteDetail({
   const auditTail = useMemo(() => {
     if (!route) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'route' && e.resource_id === route.id,
-      )
+      .filter((e) => e.resource_type === 'route' && e.resource_id === route.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, route]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -118,18 +115,10 @@ export function RouteDetail({
           <Stack gap={2}>
             <Group gap="xs">
               <Title order={4}>{route.name}</Title>
-              <Badge
-                size="sm"
-                variant="light"
-                color={METHOD_COLORS[route.method] ?? 'gray'}
-              >
+              <Badge size="sm" variant="light" color={METHOD_COLORS[route.method] ?? 'gray'}>
                 {route.method}
               </Badge>
-              <Badge
-                size="sm"
-                variant="light"
-                color={route.enabled ? 'green' : 'gray'}
-              >
+              <Badge size="sm" variant="light" color={route.enabled ? 'green' : 'gray'}>
                 {route.enabled ? 'enabled' : 'disabled'}
               </Badge>
             </Group>

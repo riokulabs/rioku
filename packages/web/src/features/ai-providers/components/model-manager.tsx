@@ -21,18 +21,9 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm, schemaResolver } from '@mantine/form';
-import {
-  IconAlertCircle,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import {
-  addModel,
-  removeModel,
-  updateModel,
-  useProviderDetail,
-} from '../api';
+import { addModel, removeModel, updateModel, useProviderDetail } from '../api';
 import { addModelSchema } from '../schemas';
 import { ProviderModelInUseError } from '../types';
 
@@ -58,8 +49,7 @@ const EMPTY_FORM: AddModelFormValues = {
 
 export function ModelManager({ providerId }: ModelManagerProps) {
   const provider = useProviderDetail(providerId);
-  const [formOpened, { toggle: toggleForm, close: closeForm }] =
-    useDisclosure(false);
+  const [formOpened, { toggle: toggleForm, close: closeForm }] = useDisclosure(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -129,12 +119,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
         <Text size="sm" fw={600}>
           Models ({String(provider.models.length)})
         </Text>
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconPlus size={14} />}
-          onClick={toggleForm}
-        >
+        <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={toggleForm}>
           Add model
         </Button>
       </Group>
@@ -175,9 +160,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs">
-                    {m.daily_quota_tokens === null
-                      ? '—'
-                      : String(m.daily_quota_tokens)}
+                    {m.daily_quota_tokens === null ? '—' : String(m.daily_quota_tokens)}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -215,11 +198,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
         >
           <Stack gap="sm" p="sm" bg="var(--mantine-color-gray-0)">
             {formError && (
-              <Alert
-                icon={<IconAlertCircle size={14} />}
-                color="red"
-                variant="light"
-              >
+              <Alert icon={<IconAlertCircle size={14} />} color="red" variant="light">
                 {formError}
               </Alert>
             )}
@@ -244,10 +223,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
                 min={1}
                 value={form.values.rate_limit_rpm ?? ''}
                 onChange={(v) => {
-                  form.setFieldValue(
-                    'rate_limit_rpm',
-                    typeof v === 'number' ? v : null,
-                  );
+                  form.setFieldValue('rate_limit_rpm', typeof v === 'number' ? v : null);
                 }}
               />
               <NumberInput
@@ -256,10 +232,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
                 min={1}
                 value={form.values.daily_quota_tokens ?? ''}
                 onChange={(v) => {
-                  form.setFieldValue(
-                    'daily_quota_tokens',
-                    typeof v === 'number' ? v : null,
-                  );
+                  form.setFieldValue('daily_quota_tokens', typeof v === 'number' ? v : null);
                 }}
               />
             </Group>

@@ -42,11 +42,7 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { useWidgetData } from '@/features/dashboard-builder';
 import type { Widget } from '@/api/resources/types';
-import {
-  useDashboardDetail,
-  useDashboardWidgets,
-  setAsMyHome,
-} from '../api';
+import { useDashboardDetail, useDashboardWidgets, setAsMyHome } from '../api';
 import { downloadDashboardExport } from '../export-download';
 
 dayjs.extend(relativeTime);
@@ -117,9 +113,7 @@ export function DashboardViewer({
     );
   }
 
-  const absoluteUpdated = dayjs(dashboard.updated_at).format(
-    'YYYY-MM-DD HH:mm:ss',
-  );
+  const absoluteUpdated = dayjs(dashboard.updated_at).format('YYYY-MM-DD HH:mm:ss');
 
   return (
     <Stack gap="md" p="md">
@@ -137,12 +131,7 @@ export function DashboardViewer({
                 {dashboard.mode}
               </Badge>
               {dashboard.default && (
-                <Badge
-                  size="sm"
-                  variant="light"
-                  color="green"
-                  leftSection={<IconStar size={10} />}
-                >
+                <Badge size="sm" variant="light" color="green" leftSection={<IconStar size={10} />}>
                   Default
                 </Badge>
               )}
@@ -161,14 +150,17 @@ export function DashboardViewer({
 
           {/* Action buttons — full labels on ≥sm, icon-only on mobile */}
           <Group gap="xs" wrap="wrap" style={{ flexShrink: 0 }}>
-            {canWrite && onEdit && (
-              isMobile ? (
+            {canWrite &&
+              onEdit &&
+              (isMobile ? (
                 <Tooltip label="Edit" withArrow>
                   <ActionIcon
                     variant="default"
                     size="lg"
                     aria-label="Edit dashboard"
-                    onClick={() => { onEdit(dashboard.id); }}
+                    onClick={() => {
+                      onEdit(dashboard.id);
+                    }}
                   >
                     <IconPencil size={16} />
                   </ActionIcon>
@@ -177,20 +169,24 @@ export function DashboardViewer({
                 <Button
                   variant="default"
                   leftSection={<IconPencil size={14} />}
-                  onClick={() => { onEdit(dashboard.id); }}
+                  onClick={() => {
+                    onEdit(dashboard.id);
+                  }}
                 >
                   Edit
                 </Button>
-              )
-            )}
-            {canWrite && onClone && (
-              isMobile ? (
+              ))}
+            {canWrite &&
+              onClone &&
+              (isMobile ? (
                 <Tooltip label="Clone" withArrow>
                   <ActionIcon
                     variant="default"
                     size="lg"
                     aria-label="Clone dashboard"
-                    onClick={() => { onClone(dashboard.id); }}
+                    onClick={() => {
+                      onClone(dashboard.id);
+                    }}
                   >
                     <IconCopy size={16} />
                   </ActionIcon>
@@ -198,12 +194,13 @@ export function DashboardViewer({
               ) : (
                 <Button
                   variant="default"
-                  onClick={() => { onClone(dashboard.id); }}
+                  onClick={() => {
+                    onClone(dashboard.id);
+                  }}
                 >
                   Clone
                 </Button>
-              )
-            )}
+              ))}
             {isMobile ? (
               <Tooltip label="Export JSON" withArrow>
                 <ActionIcon
@@ -231,7 +228,9 @@ export function DashboardViewer({
                   size="lg"
                   aria-label="Set as home dashboard"
                   disabled={currentUserId === null}
-                  onClick={() => { void handleMakeMyHome(); }}
+                  onClick={() => {
+                    void handleMakeMyHome();
+                  }}
                 >
                   <IconHome size={16} />
                 </ActionIcon>
@@ -241,19 +240,23 @@ export function DashboardViewer({
                 variant="default"
                 leftSection={<IconHome size={14} />}
                 disabled={currentUserId === null}
-                onClick={() => { void handleMakeMyHome(); }}
+                onClick={() => {
+                  void handleMakeMyHome();
+                }}
               >
                 Make this my home
               </Button>
             )}
-            {onVersionHistory && (
-              isMobile ? (
+            {onVersionHistory &&
+              (isMobile ? (
                 <Tooltip label="Version history" withArrow>
                   <ActionIcon
                     variant="default"
                     size="lg"
                     aria-label="Version history"
-                    onClick={() => { onVersionHistory(dashboard.id); }}
+                    onClick={() => {
+                      onVersionHistory(dashboard.id);
+                    }}
                   >
                     <IconHistory size={16} />
                   </ActionIcon>
@@ -262,12 +265,13 @@ export function DashboardViewer({
                 <Button
                   variant="default"
                   leftSection={<IconHistory size={14} />}
-                  onClick={() => { onVersionHistory(dashboard.id); }}
+                  onClick={() => {
+                    onVersionHistory(dashboard.id);
+                  }}
                 >
                   Version history
                 </Button>
-              )
-            )}
+              ))}
           </Group>
         </Group>
       </Stack>
@@ -282,7 +286,9 @@ export function DashboardViewer({
             ? {
                 action: {
                   label: 'Open builder',
-                  onClick: () => { onEdit(dashboard.id); },
+                  onClick: () => {
+                    onEdit(dashboard.id);
+                  },
                 },
               }
             : {})}

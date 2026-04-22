@@ -9,14 +9,7 @@
  * tooltip-style description when the caller lacks the permission.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Group, Stack, Text } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconSend } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';

@@ -24,14 +24,10 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded audit entries render on /t/acme/security/audit', async ({
-  authedPage: page,
-}) => {
+test('seeded audit entries render on /t/acme/security/audit', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
-  await expect(
-    page.getByRole('heading', { name: /^audit log$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^audit log$/i })).toBeVisible();
 
   const rows = page.locator('tbody tr[role="row"]');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
@@ -39,9 +35,7 @@ test('seeded audit entries render on /t/acme/security/audit', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('bounded action filter narrows the row count', async ({
-  authedPage: page,
-}) => {
+test('bounded action filter narrows the row count', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
   const rows = page.locator('tbody tr[role="row"]');
@@ -66,9 +60,7 @@ test('bounded action filter narrows the row count', async ({
   expect(after).toBeLessThanOrEqual(before);
 });
 
-test('row click opens detail drawer with context block', async ({
-  authedPage: page,
-}) => {
+test('row click opens detail drawer with context block', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -92,9 +84,7 @@ test('Export CSV triggers a download', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
   // Wait for rows to hydrate so the export has data.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   // Open the Export menu, then click CSV. Use waitForEvent before the click
   // that triggers the download so the download promise is primed.
@@ -104,19 +94,13 @@ test('Export CSV triggers a download', async ({ authedPage: page }) => {
 
   const download = await downloadPromise;
   // Filename pattern: `audit-<tenant-slug>-<YYYY-MM-DD>.csv`.
-  expect(download.suggestedFilename()).toMatch(
-    /^audit-acme-\d{4}-\d{2}-\d{2}\.csv$/,
-  );
+  expect(download.suggestedFilename()).toMatch(/^audit-acme-\d{4}-\d{2}-\d{2}\.csv$/);
 });
 
-test('Live tail switch mounts/unmounts the LIVE badge', async ({
-  authedPage: page,
-}) => {
+test('Live tail switch mounts/unmounts the LIVE badge', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   // Initially the badge is not in the tree — the audit route only renders
   // <LiveTailBadge> while tailEnabled is true.
@@ -147,9 +131,7 @@ test('retention settings form updates and surfaces a success toast', async ({
   // focusable control as a role="textbox" with the accessible name matching
   // the NumberInput label ("Read"). Target it by role to avoid Mantine's
   // internal DOM restructuring that hides the raw <input>.
-  const readField = page
-    .getByRole('textbox', { name: /^read$/i })
-    .first();
+  const readField = page.getByRole('textbox', { name: /^read$/i }).first();
   await expect(readField).toBeVisible();
   // Read the current value to pick a provably-different next value.
   const currentValue = (await readField.inputValue()) || '0';
@@ -160,7 +142,5 @@ test('retention settings form updates and surfaces a success toast', async ({
   await page.getByTestId('retention-save').click();
 
   // Mantine Notifications render the toast title into the DOM — assert on it.
-  await expect(
-    page.getByText(/^retention saved$/i),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/^retention saved$/i)).toBeVisible({ timeout: 10_000 });
 });

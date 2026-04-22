@@ -18,10 +18,7 @@ import { mockBus } from './mock-sse';
  * Stage 2+: backed by a real EventSource.
  */
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-export function subscribeSSE<T = unknown>(
-  topic: string,
-  handler: (detail: T) => void,
-): () => void {
+export function subscribeSSE<T = unknown>(topic: string, handler: (detail: T) => void): () => void {
   const listener = (event: Event) => {
     handler((event as CustomEvent<T>).detail);
   };

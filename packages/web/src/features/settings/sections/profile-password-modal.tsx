@@ -5,15 +5,7 @@
  * Task 8a.2
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  PasswordInput,
-  Stack,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, PasswordInput, Stack, Tooltip } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
@@ -33,11 +25,7 @@ const INITIAL_VALUES: ChangePasswordValues = {
   confirm_password: '',
 };
 
-export function ProfilePasswordModal({
-  userId,
-  opened,
-  onClose,
-}: ProfilePasswordModalProps) {
+export function ProfilePasswordModal({ userId, opened, onClose }: ProfilePasswordModalProps) {
   const canUpdate = usePermission('user:update-own');
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);

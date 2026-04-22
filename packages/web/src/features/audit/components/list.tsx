@@ -17,19 +17,8 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Group,
-  Text,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconEye,
-  IconFileText,
-  IconShieldCheck,
-} from '@tabler/icons-react';
+import { ActionIcon, Badge, Box, Group, Text, Tooltip } from '@mantine/core';
+import { IconEye, IconFileText, IconShieldCheck } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
@@ -45,8 +34,8 @@ dayjs.extend(relativeTime);
 // Outcome kinds for StatusBadge — denied/error draw attention (filled).
 const OUTCOME_KIND = {
   success: 'success',
-  denied:  'warn',
-  error:   'error',
+  denied: 'warn',
+  error: 'error',
 } as const satisfies Record<AuditEntry['outcome'], 'success' | 'warn' | 'error'>;
 
 const TIER_COLOR: Record<AuditEntry['tier'], string> = {
@@ -136,8 +125,7 @@ export function AuditList({ rows, onSelect }: AuditListProps) {
         id: 'resource',
         header: 'Resource',
         size: 220,
-        accessorFn: (row) =>
-          `${row.resource_type}${row.resource_id ? `:${row.resource_id}` : ''}`,
+        accessorFn: (row) => `${row.resource_type}${row.resource_id ? `:${row.resource_id}` : ''}`,
         cell: ({ row }) => {
           const e = row.original;
           return (
@@ -146,7 +134,11 @@ export function AuditList({ rows, onSelect }: AuditListProps) {
                 {e.resource_type}
               </Badge>
               {e.resource_id && (
-                <Box onClick={(ev) => { ev.stopPropagation(); }}>
+                <Box
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                  }}
+                >
                   <IdBadge id={e.resource_id} />
                 </Box>
               )}

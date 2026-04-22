@@ -42,11 +42,7 @@ import { useMockStore } from '@/api/mock-store';
 dayjs.extend(relativeTime);
 import { notify } from '@/hooks/use-notify';
 import { IdBadge } from '@/components/id-badge';
-import {
-  ProviderKindBadge,
-  formatCost,
-  formatTokens,
-} from '@/features/ai-shared';
+import { ProviderKindBadge, formatCost, formatTokens } from '@/features/ai-shared';
 import { useTraceDetail } from '../api';
 import type { AiTrace } from '@/api/resources/types';
 import { PromptCompletionView } from './prompt-completion-view';
@@ -126,11 +122,7 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
             <Title order={4} ff="monospace">
               {agent?.name ?? trace.agent_id}
             </Title>
-            <Badge
-              size="sm"
-              variant="light"
-              color={STATUS_COLOR[trace.status]}
-            >
+            <Badge size="sm" variant="light" color={STATUS_COLOR[trace.status]}>
               {trace.status}
             </Badge>
           </Group>
@@ -147,8 +139,8 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
           </Group>
           <Group gap="md" mt={4}>
             <Text size="xs" ff="monospace">
-              {formatTokens(trace.input_tokens)} →{' '}
-              {formatTokens(trace.output_tokens)} (={formatTokens(totalTokens)})
+              {formatTokens(trace.input_tokens)} → {formatTokens(trace.output_tokens)} (=
+              {formatTokens(totalTokens)})
             </Text>
             <Text size="xs" ff="monospace">
               {String(trace.latency_ms)}ms
@@ -188,10 +180,7 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
       <Divider />
 
       {/* Prompt + completion */}
-      <PromptCompletionView
-        prompt={trace.prompt_text}
-        completion={trace.completion_text}
-      />
+      <PromptCompletionView prompt={trace.prompt_text} completion={trace.completion_text} />
 
       <Divider />
 
@@ -212,9 +201,7 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
             <Button
               size="xs"
               variant="default"
-              leftSection={
-                copied ? <IconCheck size={12} /> : <IconCopy size={12} />
-              }
+              leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
               onClick={copy}
               {...(copied ? { color: 'teal' as const } : {})}
             >
@@ -227,13 +214,7 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
             <Button
               size="xs"
               variant="default"
-              leftSection={
-                copied ? (
-                  <IconCheck size={12} />
-                ) : (
-                  <IconTerminal2 size={12} />
-                )
-              }
+              leftSection={copied ? <IconCheck size={12} /> : <IconTerminal2 size={12} />}
               onClick={copy}
               {...(copied ? { color: 'teal' as const } : {})}
             >
@@ -245,7 +226,9 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
           size="xs"
           variant="default"
           leftSection={<IconDownload size={12} />}
-          onClick={() => { handleExportJson(trace); }}
+          onClick={() => {
+            handleExportJson(trace);
+          }}
         >
           Export JSON
         </Button>

@@ -11,14 +11,8 @@ export {
   testMcpServer,
 } from './api';
 
-export {
-  createMcpServerSchema,
-  updateMcpServerSchema,
-} from './schemas';
-export type {
-  CreateMcpServerFormValues,
-  UpdateMcpServerFormValues,
-} from './schemas';
+export { createMcpServerSchema, updateMcpServerSchema } from './schemas';
+export type { CreateMcpServerFormValues, UpdateMcpServerFormValues } from './schemas';
 
 export type {
   McpServerFilter,

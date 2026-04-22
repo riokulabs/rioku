@@ -45,9 +45,7 @@ const useSidebarStore = create<SidebarStore>()(() => ({ entries: [] }));
  * Register a sidebar entry. Returns the id for later unregistration.
  * Rejects duplicate (group + path) combinations — warns in dev.
  */
-export function registerSidebarEntry(
-  entry: Omit<SidebarEntry, 'id'>,
-): string {
+export function registerSidebarEntry(entry: Omit<SidebarEntry, 'id'>): string {
   const existing = useSidebarStore
     .getState()
     .entries.find((e) => e.group === entry.group && e.path === entry.path);

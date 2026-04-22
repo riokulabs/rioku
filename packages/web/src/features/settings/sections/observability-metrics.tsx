@@ -61,7 +61,11 @@ export function ObservabilityMetrics({ tenantId, canWrite }: ObservabilityMetric
     });
     form.resetDirty(form.values);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.metrics.scrape_endpoint, config?.metrics.scrape_auth, config?.metrics.retention_days]);
+  }, [
+    config?.metrics.scrape_endpoint,
+    config?.metrics.scrape_auth,
+    config?.metrics.retention_days,
+  ]);
 
   async function handleSubmit(values: MetricsConfigValues) {
     if (!canWrite) return;
@@ -80,7 +84,11 @@ export function ObservabilityMetrics({ tenantId, canWrite }: ObservabilityMetric
   return (
     <Stack gap="sm" data-testid="observability-metrics">
       <Title order={5}>Metrics</Title>
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <TextInput
             label="Scrape endpoint"

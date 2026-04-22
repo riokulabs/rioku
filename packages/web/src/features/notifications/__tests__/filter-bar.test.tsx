@@ -84,10 +84,7 @@ describe('<NotificationFilterBar>', () => {
     );
     const unreadRadio = screen.getByRole('radio', { name: 'Unread' });
     fireEvent.click(unreadRadio);
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ unreadOnly: true }),
-      'unread',
-    );
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ unreadOnly: true }), 'unread');
   });
 
   it('dispatches an includeArchived change when the switch toggles', () => {

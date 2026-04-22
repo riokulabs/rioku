@@ -11,16 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import {
-  Badge,
-  Button,
-  Drawer,
-  Group,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Button, Drawer, Group, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconShieldCheck, IconWorld, IconBuilding } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -65,9 +56,7 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseStatuses(v: unknown): Status[] {
-  return parseCsv(v).filter((s): s is Status =>
-    (STATUS_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Status => (STATUS_VALUES as readonly string[]).includes(s));
 }
 
 function AdminPluginSignersPage() {
@@ -121,8 +110,7 @@ function AdminPluginSignersPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selected, setSelected] = useState<PluginSigner | null>(null);
 
@@ -169,7 +157,7 @@ function AdminPluginSignersPage() {
       ? 'Add signer'
       : drawerMode === 'edit'
         ? `Edit — ${selected?.name ?? ''}`
-        : selected?.name ?? 'Signer detail';
+        : (selected?.name ?? 'Signer detail');
 
   return (
     <Stack gap="md" p="md">
@@ -182,20 +170,15 @@ function AdminPluginSignersPage() {
           </Badge>
         </Group>
         {activeScope === 'global' && (
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={handleCreate}
-            disabled={!canWrite}
-          >
+          <Button leftSection={<IconPlus size={16} />} onClick={handleCreate} disabled={!canWrite}>
             Add global signer
           </Button>
         )}
       </Group>
 
       <Text size="sm" c="var(--mantine-color-gray-7)">
-        Global signers are trusted by every tenant. Per-tenant tabs give
-        visibility into signers managed by individual tenants — manage those
-        from within the tenant workspace.
+        Global signers are trusted by every tenant. Per-tenant tabs give visibility into signers
+        managed by individual tenants — manage those from within the tenant workspace.
       </Text>
 
       <Tabs value={activeScope} onChange={handleTabChange} keepMounted={false}>
@@ -206,11 +189,7 @@ function AdminPluginSignersPage() {
           {tenantScopeIds.map((tid) => {
             const t = tenants[tid];
             return (
-              <Tabs.Tab
-                key={tid}
-                value={tid}
-                leftSection={<IconBuilding size={14} />}
-              >
+              <Tabs.Tab key={tid} value={tid} leftSection={<IconBuilding size={14} />}>
                 {t?.name ?? tid}
               </Tabs.Tab>
             );

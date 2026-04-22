@@ -54,15 +54,12 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
         <Group align="flex-end" gap="xs">
           <PermissionSelector
             value={row.permission ? [row.permission] : []}
-            onChange={(v) => { onChange({ ...row, permission: v[0] ?? '' }); }}
+            onChange={(v) => {
+              onChange({ ...row, permission: v[0] ?? '' });
+            }}
             label="Permission"
           />
-          <ActionIcon
-            color="red"
-            variant="subtle"
-            onClick={onRemove}
-            aria-label="Remove grant"
-          >
+          <ActionIcon color="red" variant="subtle" onClick={onRemove} aria-label="Remove grant">
             <IconTrash size={14} />
           </ActionIcon>
         </Group>
@@ -70,7 +67,9 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
           <Button
             size="xs"
             variant="subtle"
-            onClick={() => { setShowCondition(true); }}
+            onClick={() => {
+              setShowCondition(true);
+            }}
           >
             + Add condition
           </Button>
@@ -79,7 +78,9 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
           <ConditionEditor
             label="Condition (optional)"
             value={row.when}
-            onChange={(v) => { onChange({ ...row, when: v }); }}
+            onChange={(v) => {
+              onChange({ ...row, when: v });
+            }}
             height={80}
           />
         )}
@@ -90,11 +91,7 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-const SAMPLE_PERMISSIONS = [
-  'rioku.viewer.read',
-  'rioku.ops.read',
-  'rioku.admin.read',
-];
+const SAMPLE_PERMISSIONS = ['rioku.viewer.read', 'rioku.ops.read', 'rioku.admin.read'];
 
 export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProps) {
   const allRoles = useRolesMap();
@@ -108,7 +105,11 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
 
   // Grants editor state
   const [grantRows, setGrantRows] = useState<GrantRow[]>(
-    role.grants.map((g, i) => ({ _key: `g-${String(i)}`, permission: g.permission, when: g.when ?? '' })),
+    role.grants.map((g, i) => ({
+      _key: `g-${String(i)}`,
+      permission: g.permission,
+      when: g.when ?? '',
+    })),
   );
 
   // Denies editor state
@@ -194,7 +195,11 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
         <Stack gap={4}>
           <Title order={4}>{role.name}</Title>
           <Group gap="xs">
-            {role.system && <Badge color="gray" variant="outline" size="sm">system</Badge>}
+            {role.system && (
+              <Badge color="gray" variant="outline" size="sm">
+                system
+              </Badge>
+            )}
             <Badge color="blue" variant="light" size="sm">
               {userCount} user{userCount !== 1 ? 's' : ''}
             </Badge>
@@ -253,7 +258,9 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
                 key={row._key}
                 row={row}
                 onChange={updateGrantRow}
-                onRemove={() => { removeGrantRow(row._key); }}
+                onRemove={() => {
+                  removeGrantRow(row._key);
+                }}
               />
             ))}
             <Button
@@ -273,11 +280,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
             <Text size="sm" c="dimmed">
               Permissions explicitly denied by this role. Denies override inherited grants.
             </Text>
-            <PermissionSelector
-              label="Denied permissions"
-              value={denies}
-              onChange={setDenies}
-            />
+            <PermissionSelector label="Denied permissions" value={denies} onChange={setDenies} />
           </Stack>
         </Tabs.Panel>
 
@@ -293,7 +296,8 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
             <Tabs.Panel value="overview" pt="md">
               <Stack gap="xs">
                 <Text size="sm" c="dimmed">
-                  Full set of permissions this role effectively grants (own grants + inherited from parents).
+                  Full set of permissions this role effectively grants (own grants + inherited from
+                  parents).
                 </Text>
                 <EffectivePermissionsPanel scope="role" id={role.id} />
               </Stack>
@@ -317,7 +321,9 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
                       label="Permission to trace"
                       data={SAMPLE_PERMISSIONS}
                       value={previewPermission}
-                      onChange={(v) => { if (v) setPreviewPermission(v); }}
+                      onChange={(v) => {
+                        if (v) setPreviewPermission(v);
+                      }}
                     />
                     <PermissionPathTrace
                       userId={previewUserId}

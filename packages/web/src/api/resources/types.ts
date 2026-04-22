@@ -43,7 +43,7 @@ export interface User {
 
 export interface Tenant {
   readonly id: ID;
-  slug: string;                        // displayed read-only in UI
+  slug: string; // displayed read-only in UI
   name: string;
   /** Hex accent color, e.g. '#22c55e' */
   accent: string;
@@ -271,16 +271,16 @@ export interface TenantAuthPolicy {
   /** TOTP enforcement. `all`=every user, `admins`=admin-role users only, `optional`=per-user choice. */
   totp_policy: 'all' | 'admins' | 'optional';
   password_policy: {
-    min_length: number;              // 6..128
+    min_length: number; // 6..128
     require_uppercase: boolean;
     require_digit: boolean;
     require_symbol: boolean;
-    max_age_days: number;             // 0 = never expires
-    history_depth: number;            // 0..24
+    max_age_days: number; // 0 = never expires
+    history_depth: number; // 0..24
   };
   session_timeouts: {
-    idle_hours: number;               // 0..168 (7 days)
-    absolute_hours: number;           // 1..720 (30 days)
+    idle_hours: number; // 0..168 (7 days)
+    absolute_hours: number; // 1..720 (30 days)
   };
   readonly updated_at: string;
 }
@@ -298,10 +298,10 @@ export interface NetworkConfig {
   http3_enabled: boolean;
   /** Default upstream timeouts in seconds. */
   upstream_timeouts: {
-    connect: number;   // 1..300
-    read: number;      // 1..3600
-    write: number;     // 1..3600
-    idle: number;      // 1..3600
+    connect: number; // 1..300
+    read: number; // 1..3600
+    write: number; // 1..3600
+    idle: number; // 1..3600
   };
   readonly updated_at: string;
 }
@@ -316,8 +316,8 @@ export interface CertAuthority {
   readonly tenant_id: ID;
   name: string;
   kind: 'internal' | 'external';
-  subject: string;            // e.g. "CN=Rioku Internal Root CA"
-  issuer: string;             // same as subject for self-signed
+  subject: string; // e.g. "CN=Rioku Internal Root CA"
+  issuer: string; // same as subject for self-signed
   /** Not-before / not-after in ISO-8601 */
   not_before: string;
   not_after: string;
@@ -335,8 +335,8 @@ export interface CertAuthority {
 export interface CertEnrollment {
   readonly id: ID;
   readonly tenant_id: ID;
-  readonly ca_id: ID;              // FK to CertAuthority
-  subject: string;                 // CN/SAN summary
+  readonly ca_id: ID; // FK to CertAuthority
+  subject: string; // CN/SAN summary
   dns_sans: string[];
   state: 'pending' | 'issued' | 'revoked';
   /** ISO-8601 timestamps; null when state hasn't reached that point */
@@ -818,7 +818,7 @@ export interface AiToolBinding {
 export interface TlsCertificate {
   readonly id: ID;
   readonly tenant_id: ID;
-  domain: string;                    // e.g. "api.example.com"
+  domain: string; // e.g. "api.example.com"
   /** e.g. "Let's Encrypt", "ZeroSSL", "Self-signed", or "Manual" */
   issuer: string;
   source: 'acme' | 'manual';
@@ -858,14 +858,14 @@ export interface ObservabilityConfig {
     /** 'json' = structured, 'text' = plain. */
     format: 'json' | 'text';
     rotation: {
-      max_size_mb: number;      // 1..1024
-      max_backups: number;      // 0..100
-      max_age_days: number;     // 0..365 (0 = disabled)
+      max_size_mb: number; // 1..1024
+      max_backups: number; // 0..100
+      max_age_days: number; // 0..365 (0 = disabled)
       compress: boolean;
     };
   };
   traces: {
-    retention_days: number;    // 0..365 (0 = disabled)
+    retention_days: number; // 0..365 (0 = disabled)
     /** Sample rate 0.0 - 1.0; 1.0 = every trace. */
     sample_rate: number;
   };
@@ -884,10 +884,10 @@ export interface WebhookEndpoint {
   readonly id: ID;
   readonly tenant_id: ID;
   name: string;
-  path: string;                      // e.g. "/webhooks/github-events"
+  path: string; // e.g. "/webhooks/github-events"
   /** Stage-1 placeholder — static list in UI; not consulted at runtime. */
   expected_event_types: string[];
-  secret: string;                    // fake random 32-char hex
+  secret: string; // fake random 32-char hex
   enabled: boolean;
   readonly created_at: string;
 }
@@ -919,16 +919,16 @@ export interface TlsConfig {
  */
 export interface ClusterNode {
   readonly id: ID;
-  name: string;                           // e.g. "rioku-east-1"
+  name: string; // e.g. "rioku-east-1"
   role: 'primary' | 'replica' | 'witness';
   status: 'healthy' | 'degraded' | 'unreachable' | 'joining' | 'leaving';
-  address: string;                        // e.g. "10.0.1.23:7777"
-  version: string;                        // e.g. "0.1.0"
+  address: string; // e.g. "10.0.1.23:7777"
+  version: string; // e.g. "0.1.0"
   joined_at: string;
   last_heartbeat_at: string;
   metrics: {
-    cpu_percent: number;                  // 0-100
-    memory_percent: number;               // 0-100
+    cpu_percent: number; // 0-100
+    memory_percent: number; // 0-100
     requests_per_second: number;
     latency_p95_ms: number;
   };
@@ -940,9 +940,9 @@ export interface ClusterNode {
  */
 export interface ClusterEnrollmentToken {
   readonly id: ID;
-  token: string;                          // fake bearer token
-  created_by: ID;                         // user_id
+  token: string; // fake bearer token
+  created_by: ID; // user_id
   expires_at: string;
-  consumed_by_node_id?: ID;              // set once a node consumes the token
+  consumed_by_node_id?: ID; // set once a node consumes the token
   readonly created_at: string;
 }

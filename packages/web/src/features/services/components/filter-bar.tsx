@@ -24,12 +24,7 @@ const HEALTH_OPTIONS: { value: HealthStatus; label: string }[] = [
   { value: 'disabled', label: 'Disabled' },
 ];
 
-const HEALTH_VALUES = new Set<HealthStatus>([
-  'healthy',
-  'degraded',
-  'unhealthy',
-  'disabled',
-]);
+const HEALTH_VALUES = new Set<HealthStatus>(['healthy', 'degraded', 'unhealthy', 'disabled']);
 
 interface ServiceFilterBarProps {
   filter: ServiceFilter;
@@ -85,9 +80,7 @@ export function ServiceFilterBar({
         onChange={(value) => {
           onChange({
             ...filter,
-            health: value.filter((v): v is HealthStatus =>
-              (HEALTH_VALUES as Set<string>).has(v),
-            ),
+            health: value.filter((v): v is HealthStatus => (HEALTH_VALUES as Set<string>).has(v)),
           });
         }}
         placeholder={filter.health.length === 0 ? 'All health' : undefined}

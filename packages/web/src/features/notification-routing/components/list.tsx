@@ -8,14 +8,7 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Group,
-  Menu,
-  Switch,
-  Text,
-} from '@mantine/core';
+import { ActionIcon, Badge, Group, Menu, Switch, Text } from '@mantine/core';
 import {
   IconArrowDown,
   IconArrowUp,
@@ -29,11 +22,7 @@ import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
-import {
-  reorderRoutingRules,
-  updateRoutingRule,
-  useRoutingRuleList,
-} from '../api';
+import { reorderRoutingRules, updateRoutingRule, useRoutingRuleList } from '../api';
 import type { NotificationRoutingRule, RoutingRuleFilter } from '../types';
 
 interface RoutingRuleListProps {

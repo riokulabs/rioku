@@ -62,18 +62,13 @@ function hashCode(s: string): number {
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useBindingList(
-  tenantId: string,
-  filter: BindingFilter,
-): AiToolBinding[] {
+export function useBindingList(tenantId: string, filter: BindingFilter): AiToolBinding[] {
   const bindings = useMockStore((s) => s.aiToolBindings);
   const results: AiToolBinding[] = [];
   for (const b of Object.values(bindings)) {
     if (b.tenant_id !== tenantId) continue;
-    if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(b.agent_id))
-      continue;
-    if (filter.tool_ids.length > 0 && !filter.tool_ids.includes(b.tool_id))
-      continue;
+    if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(b.agent_id)) continue;
+    if (filter.tool_ids.length > 0 && !filter.tool_ids.includes(b.tool_id)) continue;
     if (filter.enabled !== undefined && b.enabled !== filter.enabled) continue;
     if (filter.has_condition !== undefined) {
       const has = b.condition.trim().length > 0;
@@ -99,15 +94,10 @@ export async function createBinding(
 
   // Enforce uniqueness: (agent_id, tool_id) may have at most one binding.
   const existing = Object.values(state.aiToolBindings).find(
-    (b) =>
-      b.tenant_id === tenantId &&
-      b.agent_id === input.agent_id &&
-      b.tool_id === input.tool_id,
+    (b) => b.tenant_id === tenantId && b.agent_id === input.agent_id && b.tool_id === input.tool_id,
   );
   if (existing) {
-    throw new Error(
-      `Binding already exists for agent ${input.agent_id} + tool ${input.tool_id}`,
-    );
+    throw new Error(`Binding already exists for agent ${input.agent_id} + tool ${input.tool_id}`);
   }
 
   const id = nextBindingId();
@@ -121,14 +111,7 @@ export async function createBinding(
     created_at: now(),
   };
   state.addEntity('aiToolBindings', binding);
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      tenantId,
-      'ai-tool-binding.create',
-      id,
-    ),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-tool-binding.create', id));
   emitHostEvent('ai-tool-binding.created', {
     binding_id: id,
     tenant_id: tenantId,
@@ -138,10 +121,7 @@ export async function createBinding(
   return binding;
 }
 
-export async function updateBinding(
-  id: string,
-  input: UpdateBindingInput,
-): Promise<AiToolBinding> {
+export async function updateBinding(id: string, input: UpdateBindingInput): Promise<AiToolBinding> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const current = state.aiToolBindings[id];
@@ -159,12 +139,7 @@ export async function updateBinding(
   if (!updated) throw new Error(`Binding ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-tool-binding.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-tool-binding.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('ai-tool-binding.updated', {
@@ -238,12 +213,7 @@ export async function bulkAttachToolsToAgent(
       return { aiToolBindings: next };
     });
     state.appendAudit(
-      makeAuditEntry(
-        getCurrentActorId(),
-        tenantId,
-        'ai-tool-binding.bulk-attach',
-        agentId,
-      ),
+      makeAuditEntry(getCurrentActorId(), tenantId, 'ai-tool-binding.bulk-attach', agentId),
     );
     emitHostEvent('ai-tool-binding.bulk-attached', {
       tenant_id: tenantId,

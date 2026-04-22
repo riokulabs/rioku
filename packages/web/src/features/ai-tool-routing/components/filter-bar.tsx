@@ -12,11 +12,7 @@ interface BindingFilterBarProps {
   onChange: (next: BindingFilter) => void;
 }
 
-export function BindingFilterBar({
-  tenantId,
-  filter,
-  onChange,
-}: BindingFilterBarProps) {
+export function BindingFilterBar({ tenantId, filter, onChange }: BindingFilterBarProps) {
   const agents = useMockStore((s) => s.aiAgents);
   const tools = useMockStore((s) => s.aiTools);
 
@@ -28,15 +24,10 @@ export function BindingFilterBar({
     .filter((t) => t.tenant_id === tenantId)
     .map((t) => ({ value: t.id, label: t.name }));
 
-  const enabledValue =
-    filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
+  const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
 
   const conditionValue =
-    filter.has_condition === undefined
-      ? 'all'
-      : filter.has_condition
-        ? 'conditional'
-        : 'uncond';
+    filter.has_condition === undefined ? 'all' : filter.has_condition ? 'conditional' : 'uncond';
 
   return (
     <Group gap="sm" align="flex-end">

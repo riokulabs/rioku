@@ -4,13 +4,13 @@ Side-by-side JSON diff component. Uses a built-in recursive differ (no external 
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `before` | `unknown` | required | Value before the change |
-| `after` | `unknown` | required | Value after the change |
-| `label` | `string` | `'Changes'` | Header label |
-| `format` | `'json' \| 'auto'` | `'auto'` | Parsing hint |
-| `compact` | `boolean` | `false` | Hide unchanged keys |
+| Prop      | Type               | Default     | Description             |
+| --------- | ------------------ | ----------- | ----------------------- |
+| `before`  | `unknown`          | required    | Value before the change |
+| `after`   | `unknown`          | required    | Value after the change  |
+| `label`   | `string`           | `'Changes'` | Header label            |
+| `format`  | `'json' \| 'auto'` | `'auto'`    | Parsing hint            |
+| `compact` | `boolean`          | `false`     | Hide unchanged keys     |
 
 ## Diff rules
 
@@ -30,5 +30,5 @@ import { DiffView } from '@/components/diff-view';
   after={entry.diff.after}
   label="Membership role update"
   compact
-/>
+/>;
 ```

@@ -1,11 +1,7 @@
 /**
  * Dashboards feature-local types.
  */
-import type {
-  Dashboard,
-  DashboardVariable,
-  Widget,
-} from '@/api/resources/types';
+import type { Dashboard, DashboardVariable, Widget } from '@/api/resources/types';
 
 export type {
   Dashboard,

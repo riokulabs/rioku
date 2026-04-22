@@ -16,9 +16,7 @@ import { seedStore } from '@/api/mock-seed';
 import { GridCanvas } from '../components/grid-canvas';
 
 function firstAcmeDashboard() {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
   const dashboard = Object.values(useMockStore.getState().dashboards).find(
     (d) => d.tenant_id === acme.id,
@@ -99,9 +97,7 @@ describe('<GridCanvas>', () => {
       />,
     );
     const first = widgets[0]!;
-    await user.click(
-      screen.getByRole('button', { name: `Configure ${first.title}` }),
-    );
+    await user.click(screen.getByRole('button', { name: `Configure ${first.title}` }));
     expect(onSelect).toHaveBeenCalledWith(first.id);
   });
 
@@ -122,9 +118,7 @@ describe('<GridCanvas>', () => {
       />,
     );
     const first = widgets[0]!;
-    await user.click(
-      screen.getByRole('button', { name: `Remove ${first.title}` }),
-    );
+    await user.click(screen.getByRole('button', { name: `Remove ${first.title}` }));
     expect(onRemoveWidget).toHaveBeenCalledWith(first.id);
   });
 });

@@ -35,8 +35,7 @@ export function ProviderFilterBar({ filter, onChange }: ProviderFilterBarProps) 
     }
   }, [debouncedSearch, filter, onChange]);
 
-  const enabledValue =
-    filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
+  const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
 
   return (
     <Group gap="sm" align="flex-end">

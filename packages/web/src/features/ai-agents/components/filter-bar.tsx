@@ -14,11 +14,7 @@ interface AgentFilterBarProps {
   onChange: (next: AgentFilter) => void;
 }
 
-export function AgentFilterBar({
-  tenantId,
-  filter,
-  onChange,
-}: AgentFilterBarProps) {
+export function AgentFilterBar({ tenantId, filter, onChange }: AgentFilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
@@ -42,8 +38,7 @@ export function AgentFilterBar({
     }
   }, [debouncedSearch, filter, onChange]);
 
-  const enabledValue =
-    filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
+  const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
 
   return (
     <Group gap="sm" align="flex-end">

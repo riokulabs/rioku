@@ -69,8 +69,8 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
     return () => {
       cancelled = true;
     };
-  // Run once on mount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleConfirm(code: string) {
@@ -132,8 +132,8 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
     return (
       <Stack gap="md">
         <Text size="sm">
-          Open your authenticator app (Google Authenticator, Authy, 1Password, etc.)
-          and add a new account using the setup key or URL below.
+          Open your authenticator app (Google Authenticator, Authy, 1Password, etc.) and add a new
+          account using the setup key or URL below.
         </Text>
 
         <Stack gap="xs">
@@ -147,11 +147,7 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
             <CopyButton value={enrollment.secret} timeout={2000}>
               {({ copied, copy }) => (
                 <Tooltip label={copied ? 'Copied!' : 'Copy key'} withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    onClick={copy}
-                    aria-label="Copy secret key"
-                  >
+                  <ActionIcon variant="subtle" onClick={copy} aria-label="Copy secret key">
                     {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                   </ActionIcon>
                 </Tooltip>
@@ -181,7 +177,13 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
           </CopyButton>
         </Stack>
 
-        <Button onClick={() => { setStep('backup-codes'); }} fullWidth data-testid="enroll-block-next-to-codes">
+        <Button
+          onClick={() => {
+            setStep('backup-codes');
+          }}
+          fullWidth
+          data-testid="enroll-block-next-to-codes"
+        >
           I&apos;ve added the account — next
         </Button>
       </Stack>
@@ -198,16 +200,13 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
             Save your backup codes
           </Text>
           <Text size="sm" mt={4}>
-            If you lose access to your authenticator, these codes are the only way
-            to recover your account. Each code can only be used once.
+            If you lose access to your authenticator, these codes are the only way to recover your
+            account. Each code can only be used once.
           </Text>
         </Alert>
 
         <Paper withBorder p="md" bg="dark.8" data-testid="enroll-block-backup-codes">
-          <List
-            spacing="xs"
-            styles={{ itemWrapper: { fontFamily: 'monospace', fontSize: 14 } }}
-          >
+          <List spacing="xs" styles={{ itemWrapper: { fontFamily: 'monospace', fontSize: 14 } }}>
             {enrollment.backup_codes.map((code) => (
               <List.Item key={code}>{code}</List.Item>
             ))}
@@ -218,7 +217,13 @@ export function TotpEnrollmentBlock({ userId, onComplete }: TotpEnrollmentBlockP
           Download backup codes
         </Button>
 
-        <Button onClick={() => { setStep('confirm'); }} fullWidth data-testid="enroll-block-next-to-confirm">
+        <Button
+          onClick={() => {
+            setStep('confirm');
+          }}
+          fullWidth
+          data-testid="enroll-block-next-to-confirm"
+        >
           I&apos;ve saved my codes — next
         </Button>
       </Stack>

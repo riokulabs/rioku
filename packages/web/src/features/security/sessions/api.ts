@@ -57,10 +57,7 @@ function relativeTime(isoStr: string): string {
   return `${String(days)}d ago`;
 }
 
-function enrichSession(
-  session: Session,
-  currentSessionId: string | null,
-): SessionWithMeta {
+function enrichSession(session: Session, currentSessionId: string | null): SessionWithMeta {
   return {
     ...session,
     device: parseDevice(session.user_agent),

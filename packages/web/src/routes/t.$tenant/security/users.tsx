@@ -9,11 +9,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUserPlus } from '@tabler/icons-react';
-import {
-  UserList,
-  UserDetail,
-  UserInviteForm,
-} from '@/features/security/users';
+import { UserList, UserDetail, UserInviteForm } from '@/features/security/users';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import type { UserWithMembership } from '@/features/security/users';
@@ -23,15 +19,12 @@ type DrawerMode = 'detail' | 'invite';
 function UsersPage() {
   const { tenant } = Route.useParams();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
   const navigate = useNavigate();
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedItem, setSelectedItem] = useState<UserWithMembership | null>(null);
 
@@ -48,29 +41,18 @@ function UsersPage() {
   }
 
   const drawerTitle =
-    drawerMode === 'invite'
-      ? 'Invite user'
-      : selectedItem
-        ? selectedItem.user.name
-        : 'User detail';
+    drawerMode === 'invite' ? 'Invite user' : selectedItem ? selectedItem.user.name : 'User detail';
 
   return (
     <Stack gap="md" p="md">
       <Group justify="space-between" align="center">
         <Title order={2}>Users</Title>
-        <Button
-          leftSection={<IconUserPlus size={16} />}
-          onClick={handleInvite}
-        >
+        <Button leftSection={<IconUserPlus size={16} />} onClick={handleInvite}>
           Invite user
         </Button>
       </Group>
 
-      <UserList
-        tenantId={tenantId}
-        tenantSlug={tenantSlug}
-        onSelect={handleRowClick}
-      />
+      <UserList tenantId={tenantId} tenantSlug={tenantSlug} onSelect={handleRowClick} />
 
       <Drawer
         opened={drawerOpened}
@@ -96,11 +78,7 @@ function UsersPage() {
           />
         )}
         {drawerMode === 'invite' && (
-          <UserInviteForm
-            tenantId={tenantId}
-            onSuccess={closeDrawer}
-            onCancel={closeDrawer}
-          />
+          <UserInviteForm tenantId={tenantId} onSuccess={closeDrawer} onCancel={closeDrawer} />
         )}
       </Drawer>
     </Stack>

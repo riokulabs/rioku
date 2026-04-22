@@ -25,7 +25,9 @@ export const categorySchema = z
   .min(1)
   .max(128)
   .refine(
-    (v) => BUILT_IN_CATEGORIES.includes(v as (typeof BUILT_IN_CATEGORIES)[number]) || PLUGIN_CATEGORY_REGEX.test(v),
+    (v) =>
+      BUILT_IN_CATEGORIES.includes(v as (typeof BUILT_IN_CATEGORIES)[number]) ||
+      PLUGIN_CATEGORY_REGEX.test(v),
     {
       message:
         'Category must be one of "system" | "security" | "audit", or match `plugin:<slug>` where <slug> is dot-separated lowercase reverse-DNS.',

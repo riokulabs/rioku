@@ -62,10 +62,7 @@ export function useServiceList(tenantId: string, filter: ServiceFilter): Service
     if (service.tenant_id !== tenantId) continue;
     if (filter.health.length > 0 && !filter.health.includes(service.health)) continue;
     if (filter.env.length > 0 && !filter.env.includes(service.env)) continue;
-    if (
-      filter.tags.length > 0 &&
-      !filter.tags.some((t) => service.tags.includes(t))
-    ) {
+    if (filter.tags.length > 0 && !filter.tags.some((t) => service.tags.includes(t))) {
       continue;
     }
     if (search) {
@@ -92,10 +89,7 @@ export function useServiceRoutes(serviceId: string): Route[] {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export async function createService(
-  tenantId: string,
-  input: ServiceInput,
-): Promise<Service> {
+export async function createService(tenantId: string, input: ServiceInput): Promise<Service> {
   await simulateLatency('mutation');
 
   const id = nextServiceId();
@@ -115,17 +109,12 @@ export async function createService(
 
   const state = useMockStore.getState();
   state.addEntity('services', service);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'service.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'service.create', id));
   emitHostEvent('service.created', { service_id: id, tenant_id: tenantId });
   return service;
 }
 
-export async function updateService(
-  id: string,
-  input: ServiceUpdateInput,
-): Promise<Service> {
+export async function updateService(id: string, input: ServiceUpdateInput): Promise<Service> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -190,9 +179,7 @@ export async function forceReloadService(id: string): Promise<void> {
   }
 
   state.updateEntity('services', id, { last_reloaded_at: now() });
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), service.tenant_id, 'service.reload', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), service.tenant_id, 'service.reload', id));
   emitHostEvent('service.reloaded', {
     service_id: id,
     tenant_id: service.tenant_id,

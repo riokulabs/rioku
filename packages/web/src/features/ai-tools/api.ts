@@ -5,18 +5,9 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AiAgent,
-  AiTool,
-  AuditEntry,
-} from '@/api/resources/types';
+import type { AiAgent, AiTool, AuditEntry } from '@/api/resources/types';
 import { ToolInUseError } from './types';
-import type {
-  CreateToolInput,
-  TestToolResult,
-  ToolFilter,
-  UpdateToolInput,
-} from './types';
+import type { CreateToolInput, TestToolResult, ToolFilter, UpdateToolInput } from './types';
 
 const nextToolId = makeIdFactory('aitool-new');
 const nextAuditId = makeIdFactory('audit-aitool');
@@ -61,8 +52,7 @@ export function useToolList(tenantId: string, filter: ToolFilter): AiTool[] {
     if (tool.tenant_id !== tenantId) continue;
     if (filter.kinds.length > 0 && !filter.kinds.includes(tool.kind)) continue;
     if (filter.enabled !== undefined && tool.enabled !== filter.enabled) continue;
-    if (filter.dangerous !== undefined && tool.dangerous !== filter.dangerous)
-      continue;
+    if (filter.dangerous !== undefined && tool.dangerous !== filter.dangerous) continue;
     if (filter.mcp_server_id !== undefined) {
       if (tool.mcp_server_id !== filter.mcp_server_id) continue;
     }
@@ -106,10 +96,7 @@ export function useToolAgents(id: string): AiAgent[] {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export async function createTool(
-  tenantId: string,
-  input: CreateToolInput,
-): Promise<AiTool> {
+export async function createTool(tenantId: string, input: CreateToolInput): Promise<AiTool> {
   await simulateLatency('mutation');
 
   const id = nextToolId();
@@ -129,17 +116,12 @@ export async function createTool(
 
   const state = useMockStore.getState();
   state.addEntity('aiTools', tool);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'ai-tool.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-tool.create', id));
   emitHostEvent('ai-tool.created', { tool_id: id, tenant_id: tenantId });
   return tool;
 }
 
-export async function updateTool(
-  id: string,
-  input: UpdateToolInput,
-): Promise<AiTool> {
+export async function updateTool(id: string, input: UpdateToolInput): Promise<AiTool> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -162,12 +144,7 @@ export async function updateTool(
   if (!updated) throw new Error(`Tool ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-tool.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-tool.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('ai-tool.updated', {
@@ -196,13 +173,7 @@ export async function deleteTool(id: string): Promise<void> {
 
   state.deleteEntity('aiTools', id);
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      tool.tenant_id,
-      'ai-tool.delete',
-      id,
-      'destructive',
-    ),
+    makeAuditEntry(getCurrentActorId(), tool.tenant_id, 'ai-tool.delete', id, 'destructive'),
   );
   emitHostEvent('ai-tool.deleted', {
     tool_id: id,
@@ -265,15 +236,9 @@ export async function testTool(
     }
   }
 
-  useMockStore.getState().appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      tool.tenant_id,
-      'ai-tool.test',
-      id,
-      'read',
-    ),
-  );
+  useMockStore
+    .getState()
+    .appendAudit(makeAuditEntry(getCurrentActorId(), tool.tenant_id, 'ai-tool.test', id, 'read'));
   return {
     ok: true,
     result: { echo: sampleInput, tool_name: tool.name },

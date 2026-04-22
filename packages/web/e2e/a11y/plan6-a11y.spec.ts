@@ -21,15 +21,13 @@ test('no critical/serious axe violations on /t/acme/plugins (marketplace tab)', 
   // view. Navigate directly to the marketplace tab so axe inspects it.
   await page.goto('/t/acme/plugins?tab=marketplace');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugins$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugins$/i })).toBeVisible({ timeout: 10_000 });
 
   // Ensure at least one marketplace card is in the DOM — axe walks the
   // rendered tree, so we wait for hydration.
-  await expect(
-    page.getByTestId('marketplace-listing-com.rioku.jwt-auth'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('marketplace-listing-com.rioku.jwt-auth')).toBeVisible({
+    timeout: 10_000,
+  });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -49,15 +47,11 @@ test('no critical/serious axe violations on /t/acme/plugins?tab=installed', asyn
 }) => {
   await page.goto('/t/acme/plugins?tab=installed');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugins$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugins$/i })).toBeVisible({ timeout: 10_000 });
 
   // Installed tab: wait for the DataTable body to render at least one row OR
   // the empty state — tenant acme seeds plugins so rows should be present.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -77,14 +71,12 @@ test('no critical/serious axe violations on /t/acme/plugins/signers', async ({
 }) => {
   await page.goto('/t/acme/plugins/signers');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugin signers$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugin signers$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Wait for the signer list to render — at least one seeded row for acme.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -104,13 +96,11 @@ test('no critical/serious axe violations on /admin/plugin-signers', async ({
 }) => {
   await page.goto('/admin/plugin-signers');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugin signers$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugin signers$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);

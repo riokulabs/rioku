@@ -16,7 +16,9 @@ import { initAuthBootstrap } from './api/auth-bootstrap';
 
 // Wire auth-failure interceptors before any network calls happen.
 setAuthFailureRouter(router);
-setAuthFailureHandler((url) => { handleAuthFailure(url); });
+setAuthFailureHandler((url) => {
+  handleAuthFailure(url);
+});
 initAuthBootstrap();
 
 async function bootstrapStore(): Promise<void> {

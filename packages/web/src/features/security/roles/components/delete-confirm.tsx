@@ -33,8 +33,8 @@ export function RoleDeleteConfirm({ role, onConfirm, onCancel }: RoleDeleteConfi
           variant="light"
           title="Users affected"
         >
-          {affectedCount} user{affectedCount !== 1 ? 's have' : ' has'} this role assigned.
-          Deleting will remove the role from their memberships.
+          {affectedCount} user{affectedCount !== 1 ? 's have' : ' has'} this role assigned. Deleting
+          will remove the role from their memberships.
         </Alert>
       )}
 

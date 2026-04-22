@@ -61,9 +61,7 @@ function DevReseedHelper() {
         <Text size="xs" fw={600}>
           Dev mode — currently no users in store
         </Text>
-        <Text size="xs">
-          To return to the seeded demo data, click below.
-        </Text>
+        <Text size="xs">To return to the seeded demo data, click below.</Text>
         <Button
           size="xs"
           variant="outline"

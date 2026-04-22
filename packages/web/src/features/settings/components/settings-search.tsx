@@ -40,20 +40,17 @@ export function SettingsSearch({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // `/` key focuses the search input (document-level listener)
-  const handleDocumentKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (
-        e.key === '/' &&
-        document.activeElement !== inputRef.current &&
-        !(document.activeElement instanceof HTMLInputElement) &&
-        !(document.activeElement instanceof HTMLTextAreaElement)
-      ) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    },
-    [],
-  );
+  const handleDocumentKeyDown = useCallback((e: KeyboardEvent) => {
+    if (
+      e.key === '/' &&
+      document.activeElement !== inputRef.current &&
+      !(document.activeElement instanceof HTMLInputElement) &&
+      !(document.activeElement instanceof HTMLTextAreaElement)
+    ) {
+      e.preventDefault();
+      inputRef.current?.focus();
+    }
+  }, []);
 
   useEffect(() => {
     document.addEventListener('keydown', handleDocumentKeyDown);
@@ -71,17 +68,13 @@ export function SettingsSearch({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (sections.length === 0) return;
-      onFocusedIndexChange(
-        focusedIndex < sections.length - 1 ? focusedIndex + 1 : 0,
-      );
+      onFocusedIndexChange(focusedIndex < sections.length - 1 ? focusedIndex + 1 : 0);
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (sections.length === 0) return;
-      onFocusedIndexChange(
-        focusedIndex > 0 ? focusedIndex - 1 : sections.length - 1,
-      );
+      onFocusedIndexChange(focusedIndex > 0 ? focusedIndex - 1 : sections.length - 1);
       return;
     }
     if (e.key === 'Enter') {
@@ -113,12 +106,7 @@ export function SettingsSearch({
       />
 
       {sections.length === 0 ? (
-        <Text
-          size="xs"
-          c="var(--mantine-color-gray-7)"
-          px="xs"
-          data-testid="settings-search-empty"
-        >
+        <Text size="xs" c="var(--mantine-color-gray-7)" px="xs" data-testid="settings-search-empty">
           No settings match &ldquo;{query}&rdquo;
         </Text>
       ) : (
@@ -135,7 +123,9 @@ export function SettingsSearch({
                   ? { outline: '2px solid var(--mantine-color-blue-5)', borderRadius: 4 }
                   : undefined
               }
-              onClick={() => { onSectionClick(section.slug); }}
+              onClick={() => {
+                onSectionClick(section.slug);
+              }}
               data-testid={`settings-nav-${section.slug}`}
             />
           ))}

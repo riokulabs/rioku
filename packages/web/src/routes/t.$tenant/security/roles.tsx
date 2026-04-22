@@ -26,8 +26,8 @@ type DrawerMode = 'detail' | 'create' | 'delete';
 
 function RolesPage() {
   const { tenant } = Route.useParams();
-  const tenantId = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
+  const tenantId = useMockStore(
+    (s) => Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
   );
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
@@ -74,7 +74,7 @@ function RolesPage() {
       ? 'Create role'
       : drawerMode === 'delete'
         ? `Delete — ${selectedRole?.name ?? ''}`
-        : selectedRole?.name ?? 'Role detail';
+        : (selectedRole?.name ?? 'Role detail');
 
   return (
     <Stack gap="md" p="md">
@@ -96,24 +96,18 @@ function RolesPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selectedRole && (
-          <RoleDetail
-            role={selectedRole}
-            onDelete={handleDeleteRequest}
-            onClose={closeDrawer}
-          />
+          <RoleDetail role={selectedRole} onDelete={handleDeleteRequest} onClose={closeDrawer} />
         )}
         {drawerMode === 'create' && (
-          <RoleCreate
-            tenantId={tenantId}
-            onSave={handleCreateSave}
-            onCancel={closeDrawer}
-          />
+          <RoleCreate tenantId={tenantId} onSave={handleCreateSave} onCancel={closeDrawer} />
         )}
         {drawerMode === 'delete' && selectedRole && (
           <RoleDeleteConfirm
             role={selectedRole}
             onConfirm={handleDeleteConfirm}
-            onCancel={() => { setDrawerMode('detail'); }}
+            onCancel={() => {
+              setDrawerMode('detail');
+            }}
           />
         )}
       </Drawer>

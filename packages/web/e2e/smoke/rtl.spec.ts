@@ -39,7 +39,9 @@ test('switching to Arabic sets dir="rtl" on html element', async ({ page }) => {
 
   // Fallback: set language via localStorage and reload.
   // i18next-browser-languagedetector reads 'i18nextLng' from localStorage on init.
-  await page.evaluate(() => { localStorage.setItem('i18nextLng', 'ar'); });
+  await page.evaluate(() => {
+    localStorage.setItem('i18nextLng', 'ar');
+  });
   await page.reload();
   await page.waitForLoadState('networkidle');
 

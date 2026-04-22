@@ -42,7 +42,12 @@ const DEFAULT_VALUES: CreateEnrollmentValues = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreateEnrollmentModal({ opened, onClose, tenantId, canWrite }: CreateEnrollmentModalProps) {
+export function CreateEnrollmentModal({
+  opened,
+  onClose,
+  tenantId,
+  canWrite,
+}: CreateEnrollmentModalProps) {
   const [saving, setSaving] = useState(false);
   const cas = useCertAuthorities();
 
@@ -62,7 +67,10 @@ export function CreateEnrollmentModal({ opened, onClose, tenantId, canWrite }: C
     setSaving(true);
     try {
       await addCertEnrollment(tenantId, values);
-      notify.success('Enrollment requested', `Certificate request for "${values.subject}" submitted.`);
+      notify.success(
+        'Enrollment requested',
+        `Certificate request for "${values.subject}" submitted.`,
+      );
       form.reset();
       onClose();
     } catch (e) {
@@ -87,7 +95,11 @@ export function CreateEnrollmentModal({ opened, onClose, tenantId, canWrite }: C
       data-testid="create-enrollment-modal"
       transitionProps={{ duration: 0 }}
     >
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <Select
             label="Certificate Authority"

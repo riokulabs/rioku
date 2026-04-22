@@ -24,8 +24,33 @@ import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { seedStore } from '@/api/mock-seed';
 import { logAdminAuditEntry } from '@/api/resources/audit';
-import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TenantNotificationConfig, TlsCertificate, TlsConfig, User, WebhookEndpoint } from '@/api/resources/types';
-import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues, TenantNotificationConfigValues, WebhookEndpointValues } from './schemas';
+import type {
+  AuditEntry,
+  CertAuthority,
+  CertEnrollment,
+  ID,
+  NetworkConfig,
+  ObservabilityConfig,
+  Tenant,
+  TenantAuthPolicy,
+  TenantNotificationConfig,
+  TlsCertificate,
+  TlsConfig,
+  User,
+  WebhookEndpoint,
+} from '@/api/resources/types';
+import type {
+  CreateCaValues,
+  CreateEnrollmentValues,
+  MetricsConfigValues,
+  LogsConfigValues,
+  TracesConfigValues,
+  TlsAcmeConfigValues,
+  TlsCiphersValues,
+  TlsUploadValues,
+  TenantNotificationConfigValues,
+  WebhookEndpointValues,
+} from './schemas';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
@@ -54,11 +79,7 @@ function currentActor(): string {
   return useMockStore.getState().currentUserId ?? 'unknown';
 }
 
-function makeAudit(
-  action: string,
-  userId: ID,
-  tier: AuditEntry['tier'] = 'write',
-): AuditEntry {
+function makeAudit(action: string, userId: ID, tier: AuditEntry['tier'] = 'write'): AuditEntry {
   // Profile mutations are not tenant-scoped; use a synthetic tenant_id derived
   // from the user's first active membership (or 'unknown' if none).
   const state = useMockStore.getState();
@@ -84,9 +105,7 @@ function makeAudit(
 
 /** Returns the current logged-in user from the store, or undefined. */
 export function useCurrentUser(): User | undefined {
-  return useMockStore((s) =>
-    s.currentUserId ? s.users[s.currentUserId] : undefined,
-  );
+  return useMockStore((s) => (s.currentUserId ? s.users[s.currentUserId] : undefined));
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -101,10 +120,7 @@ export async function updateProfileName(userId: ID, name: string): Promise<void>
 }
 
 /** Update the current user's avatar URL. Pass `null` to clear. */
-export async function updateProfileAvatar(
-  userId: ID,
-  avatar_url: string | null,
-): Promise<void> {
+export async function updateProfileAvatar(userId: ID, avatar_url: string | null): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   // Always write avatar_url: use empty string as the cleared-state sentinel
@@ -204,9 +220,7 @@ export async function updatePreferences(
 
 /** Returns the current tenant from the store, or undefined. */
 export function useCurrentTenant(): Tenant | undefined {
-  return useMockStore((s) =>
-    s.currentTenantId ? s.tenants[s.currentTenantId] : undefined,
-  );
+  return useMockStore((s) => (s.currentTenantId ? s.tenants[s.currentTenantId] : undefined));
 }
 
 // ─── Tenant audit helper ──────────────────────────────────────────────────────
@@ -242,10 +256,7 @@ export async function updateTenantName(tenantId: ID, name: string): Promise<void
 }
 
 /** Update the tenant's URL mode. */
-export async function updateTenantUrlMode(
-  tenantId: ID,
-  mode: 'path' | 'subdomain',
-): Promise<void> {
+export async function updateTenantUrlMode(tenantId: ID, mode: 'path' | 'subdomain'): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   state.updateEntity('tenants', tenantId, { url_mode: mode, updated_at: now() });
@@ -278,10 +289,7 @@ export async function updateTenantDefaultTheme(
 }
 
 /** Update the tenant's logo URL. Pass `null` to clear (stored as ''). */
-export async function updateTenantLogo(
-  tenantId: ID,
-  url: string | null,
-): Promise<void> {
+export async function updateTenantLogo(tenantId: ID, url: string | null): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const patch: Partial<Tenant> = {
@@ -289,8 +297,7 @@ export async function updateTenantLogo(
     updated_at: now(),
   };
   state.updateEntity('tenants', tenantId, patch);
-  const auditAction =
-    url === null ? 'tenant.logo_removed' : 'tenant.update_logo';
+  const auditAction = url === null ? 'tenant.logo_removed' : 'tenant.update_logo';
   state.appendAudit(makeTenantAudit(auditAction, tenantId));
   emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['logo_url'] });
 }
@@ -355,9 +362,7 @@ export async function updateTenantAuthPolicy(
 
 /** Returns the network config for the current tenant, or undefined if not found. */
 export function useCurrentNetworkConfig(): NetworkConfig | undefined {
-  return useMockStore((s) =>
-    s.currentTenantId ? s.networkConfigs[s.currentTenantId] : undefined,
-  );
+  return useMockStore((s) => (s.currentTenantId ? s.networkConfigs[s.currentTenantId] : undefined));
 }
 
 // ─── Network config audit helper ─────────────────────────────────────────────
@@ -484,7 +489,7 @@ export async function addCertAuthority(
     not_before: now(),
     not_after: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
     fingerprint_sha256: Array.from({ length: 64 }, (_, i) =>
-      (((id.charCodeAt(i % id.length) + i * 7) % 16)).toString(16),
+      ((id.charCodeAt(i % id.length) + i * 7) % 16).toString(16),
     ).join(''),
     certificate_pem: values.certificate_pem,
     created_at: now(),
@@ -520,10 +525,7 @@ export async function addCertEnrollment(
 }
 
 /** Revoke a certificate enrollment and emit audit + host event. */
-export async function revokeCertEnrollment(
-  enrollmentId: ID,
-  reason: string,
-): Promise<void> {
+export async function revokeCertEnrollment(enrollmentId: ID, reason: string): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const enrollment = state.certEnrollments[enrollmentId];
@@ -535,7 +537,9 @@ export async function revokeCertEnrollment(
     ...(reason.length > 0 ? { revocation_reason: reason } : {}),
   });
   const updatedState = useMockStore.getState();
-  updatedState.appendAudit(makePkiAudit('pki.enrollment.revoke', enrollment.tenant_id, enrollmentId));
+  updatedState.appendAudit(
+    makePkiAudit('pki.enrollment.revoke', enrollment.tenant_id, enrollmentId),
+  );
   emitHostEvent('pki:enrollment-revoked', { enrollment_id: enrollmentId, reason });
 }
 
@@ -561,9 +565,7 @@ export function useTlsCertificates(): TlsCertificate[] {
  * Returns the TLS config for the current tenant, or undefined if not found.
  */
 export function useCurrentTlsConfig(): TlsConfig | undefined {
-  return useMockStore((s) =>
-    s.currentTenantId ? s.tlsConfigs[s.currentTenantId] : undefined,
-  );
+  return useMockStore((s) => (s.currentTenantId ? s.tlsConfigs[s.currentTenantId] : undefined));
 }
 
 // ─── TLS audit helper ─────────────────────────────────────────────────────────
@@ -618,7 +620,7 @@ export async function addTlsCertificate(
     certificate_pem,
     // key_pem is never stored — private keys must not reach the store.
     fingerprint_sha256: Array.from({ length: 64 }, (_, i) =>
-      (((id.charCodeAt(i % id.length) + i * 11) % 16)).toString(16),
+      ((id.charCodeAt(i % id.length) + i * 11) % 16).toString(16),
     ).join(''),
     created_at: now(),
   };
@@ -638,7 +640,9 @@ export async function toggleCertAutoRenew(certId: ID, enabled: boolean): Promise
 
   state.updateTlsCertificate(certId, { auto_renew: enabled });
   const updatedState = useMockStore.getState();
-  updatedState.appendAudit(makeTlsAudit('tls.certificate.toggle_auto_renew', cert.tenant_id, certId));
+  updatedState.appendAudit(
+    makeTlsAudit('tls.certificate.toggle_auto_renew', cert.tenant_id, certId),
+  );
   emitHostEvent('tls:certificate-updated', { cert_id: certId, auto_renew: enabled });
 }
 
@@ -808,7 +812,9 @@ function makeIntegrationsAudit(
 function generateWebhookSecret(): string {
   const arr = new Uint8Array(16);
   crypto.getRandomValues(arr);
-  return Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(arr)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /** Create a new webhook endpoint and emit audit + host event. */
@@ -957,7 +963,9 @@ export async function updateTenantNotificationConfig(
     retry_backoff_seconds: values.retry_backoff_seconds,
   });
   const updatedState = useMockStore.getState();
-  updatedState.appendAudit(makeNotificationConfigAudit('tenant.notification_config.update', tenantId));
+  updatedState.appendAudit(
+    makeNotificationConfigAudit('tenant.notification_config.update', tenantId),
+  );
   emitHostEvent('tenant:notification-config-updated', { tenant_id: tenantId });
 }
 
@@ -1108,9 +1116,7 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
   // Atomic cascade delete.
   useMockStore.setState((s) => {
     // Helper to filter a Record<ID, T> by tenant_id field.
-    function filterOut<T extends { readonly tenant_id: ID }>(
-      map: Record<ID, T>,
-    ): Record<ID, T> {
+    function filterOut<T extends { readonly tenant_id: ID }>(map: Record<ID, T>): Record<ID, T> {
       const next: Record<ID, T> = {};
       for (const [k, v] of Object.entries(map)) {
         if (v.tenant_id !== tenantId) next[k] = v;
@@ -1119,9 +1125,7 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
     }
 
     // Memberships for this tenant — collect user IDs to check orphan cleanup.
-    const membershipEntries = Object.values(s.memberships).filter(
-      (m) => m.tenant_id === tenantId,
-    );
+    const membershipEntries = Object.values(s.memberships).filter((m) => m.tenant_id === tenantId);
     const membershipIds = new Set(membershipEntries.map((m) => m.id));
 
     const nextMemberships: Record<ID, (typeof s.memberships)[string]> = {};
@@ -1191,8 +1195,7 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
     delete nextTenants[tenantId];
 
     // If the deleted tenant is the current tenant, clear the context.
-    const nextCurrentTenantId =
-      s.currentTenantId === tenantId ? null : s.currentTenantId;
+    const nextCurrentTenantId = s.currentTenantId === tenantId ? null : s.currentTenantId;
 
     return {
       tenants: nextTenants,

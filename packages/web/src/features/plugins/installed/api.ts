@@ -63,10 +63,7 @@ function makeAuditEntry(
  * (global). The tenant filter is NOT applied in stage 1 — we render all
  * null-scoped globals for the "Installed" tab. A note in the UI explains this.
  */
-export function useInstalledPluginList(
-  _tenantId: string,
-  filter: InstalledPluginFilter,
-): Plugin[] {
+export function useInstalledPluginList(_tenantId: string, filter: InstalledPluginFilter): Plugin[] {
   const plugins = useMockStore((s) => s.plugins);
 
   const search = filter.search.toLowerCase().trim();
@@ -265,9 +262,7 @@ function stageLog(stage: InstallProgressStage, slug: string): string {
  * Cancellation: `emitter.cancel()` clears the interval and emits a single
  * audit 'plugin:install-cancelled' entry. No further events are emitted.
  */
-export function installPluginWithProgress(
-  candidate: ApprovalCandidate,
-): InstallProgressEmitter {
+export function installPluginWithProgress(candidate: ApprovalCandidate): InstallProgressEmitter {
   const target = new EventTarget() as InstallProgressEmitter;
 
   // Plan to drive ~12 ticks across 4 stages = 400ms * 12 = ~4.8s total,
@@ -297,11 +292,7 @@ export function installPluginWithProgress(
     failureStage = stages[(refHash >> 8) % stages.length] ?? 'building';
   }
 
-  function emitProgress(
-    stage: InstallProgressStage,
-    progress: number,
-    message: string,
-  ): void {
+  function emitProgress(stage: InstallProgressStage, progress: number, message: string): void {
     logLines.push(message);
     target.dispatchEvent(
       new CustomEvent<InstallProgressEvent>('progress', {
@@ -332,8 +323,7 @@ export function installPluginWithProgress(
       enabled: true,
       parts: candidate.parts,
       declared_permissions: candidate.declared_permissions,
-      manifest:
-        candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
+      manifest: candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
       has_errors: false,
       build_state: 'stable',
       cosign_verified: true,
@@ -419,10 +409,7 @@ export function installPluginWithProgress(
     const stageIdx = Math.floor(tickIdx / ticksPerStage);
     const stage = stages[stageIdx] ?? 'building';
     const withinStage = tickIdx % ticksPerStage;
-    const progress = Math.min(
-      99,
-      Math.floor(((tickIdx + 1) / totalTicks) * 100),
-    );
+    const progress = Math.min(99, Math.floor(((tickIdx + 1) / totalTicks) * 100));
 
     // If this ref is destined to fail, trip on the first tick of the failure stage.
     if (failureStage !== null && stage === failureStage && withinStage === 0) {

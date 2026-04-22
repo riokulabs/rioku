@@ -4,13 +4,13 @@ Shiki-backed syntax highlighter. Lazy-loads shiki on first mount (lands in the d
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `code` | `string` | required | Source string to highlight |
-| `language` | `SupportedLanguage` | `'text'` | Grammar to use |
-| `title` | `string` | — | Optional header label |
-| `copyable` | `boolean` | `true` | Show copy-to-clipboard button |
-| `maxHeight` | `number` | — | Max height in px before scrolling |
+| Prop        | Type                | Default  | Description                       |
+| ----------- | ------------------- | -------- | --------------------------------- |
+| `code`      | `string`            | required | Source string to highlight        |
+| `language`  | `SupportedLanguage` | `'text'` | Grammar to use                    |
+| `title`     | `string`            | —        | Optional header label             |
+| `copyable`  | `boolean`           | `true`   | Show copy-to-clipboard button     |
+| `maxHeight` | `number`            | —        | Max height in px before scrolling |
 
 ## Supported languages
 
@@ -33,5 +33,5 @@ import { CodeBlock } from '@/components/code-block';
   language="json"
   title="payload.json"
   maxHeight={400}
-/>
+/>;
 ```

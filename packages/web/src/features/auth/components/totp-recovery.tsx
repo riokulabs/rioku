@@ -3,15 +3,7 @@
  * Task 1e.87
  */
 import { useState } from 'react';
-import {
-  Stack,
-  TextInput,
-  Button,
-  Alert,
-  Anchor,
-  Text,
-  Notification,
-} from '@mantine/core';
+import { Stack, TextInput, Button, Alert, Anchor, Text, Notification } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
@@ -83,8 +75,8 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
             data-testid="recovery-success"
           >
             1 backup code used — {successInfo.remaining} code
-            {successInfo.remaining === 1 ? '' : 's'} remaining. Consider
-            regenerating your backup codes in Security settings.
+            {successInfo.remaining === 1 ? '' : 's'} remaining. Consider regenerating your backup
+            codes in Security settings.
           </Notification>
         )}
 

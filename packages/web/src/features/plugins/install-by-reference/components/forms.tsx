@@ -34,11 +34,7 @@ import {
   manifestUrlFormSchema,
   validateManifestUrl,
 } from '../schemas';
-import type {
-  OciFormValues,
-  TarballFormValues,
-  ManifestUrlFormValues,
-} from '../schemas';
+import type { OciFormValues, TarballFormValues, ManifestUrlFormValues } from '../schemas';
 import type { InstallCandidate } from '../types';
 
 interface InstallByReferenceFormsProps {
@@ -65,9 +61,7 @@ function slugFromRepo(repo: string): string {
   return parts[parts.length - 1] ?? repo;
 }
 
-export function InstallByReferenceForms({
-  onRequestApproval,
-}: InstallByReferenceFormsProps) {
+export function InstallByReferenceForms({ onRequestApproval }: InstallByReferenceFormsProps) {
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   // ─── OCI form ───────────────────────────────────────────────────────────────
@@ -257,8 +251,7 @@ export function InstallByReferenceForms({
             <Title order={5}>Install from manifest URL</Title>
           </Group>
           <Text size="sm" c="var(--mantine-color-gray-7)">
-            Fetch a plugin manifest JSON over HTTPS. Lookalike hostnames are
-            blocked client-side.
+            Fetch a plugin manifest JSON over HTTPS. Lookalike hostnames are blocked client-side.
           </Text>
           <form
             onSubmit={urlForm.onSubmit((v) => {

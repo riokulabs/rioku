@@ -28,12 +28,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import {
-  IconAlertCircle,
-  IconPlus,
-  IconTrash,
-  IconVariable,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconPlus, IconTrash, IconVariable } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { Dashboard, DashboardVariable } from '@/api/resources/types';
@@ -65,24 +60,16 @@ export function VariablesPanel({ dashboard, onSaved }: VariablesPanelProps) {
   const dirty = JSON.stringify(draft) !== JSON.stringify(dashboard.variables);
 
   const handleAdd = useCallback(() => {
-    setDraft((prev) => [
-      ...prev,
-      { name: '', kind: 'text', default: '' },
-    ]);
+    setDraft((prev) => [...prev, { name: '', kind: 'text', default: '' }]);
   }, []);
 
   const handleRemove = useCallback((idx: number) => {
     setDraft((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
-  const handleUpdate = useCallback(
-    (idx: number, patch: Partial<DashboardVariable>) => {
-      setDraft((prev) =>
-        prev.map((v, i) => (i === idx ? { ...v, ...patch } : v)),
-      );
-    },
-    [],
-  );
+  const handleUpdate = useCallback((idx: number, patch: Partial<DashboardVariable>) => {
+    setDraft((prev) => prev.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
+  }, []);
 
   const handleSave = useCallback(async () => {
     // Validate: non-empty unique names.
@@ -98,10 +85,7 @@ export function VariablesPanel({ dashboard, onSaved }: VariablesPanelProps) {
         return;
       }
       if (v.kind === 'enum' && (!v.options || v.options.length === 0)) {
-        notify.error(
-          'Invalid enum',
-          `"${v.name}" is an enum but has no options.`,
-        );
+        notify.error('Invalid enum', `"${v.name}" is an enum but has no options.`);
         return;
       }
     }
@@ -130,8 +114,10 @@ export function VariablesPanel({ dashboard, onSaved }: VariablesPanelProps) {
         </Group>
         <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
           <Text size="sm">
-            Variables are only used in Grafana mode. Switch this dashboard to
-            Grafana mode to define <Text component="span" ff="monospace">$name</Text>{' '}
+            Variables are only used in Grafana mode. Switch this dashboard to Grafana mode to define{' '}
+            <Text component="span" ff="monospace">
+              $name
+            </Text>{' '}
             substitutions inside raw queries.
           </Text>
         </Alert>
@@ -178,8 +164,10 @@ export function VariablesPanel({ dashboard, onSaved }: VariablesPanelProps) {
         <Alert color="gray" variant="light" icon={<IconAlertCircle size={16} />}>
           <Text size="sm">
             No variables yet. Add one to reference as{' '}
-            <Text component="span" ff="monospace">$name</Text> inside raw
-            queries.
+            <Text component="span" ff="monospace">
+              $name
+            </Text>{' '}
+            inside raw queries.
           </Text>
         </Alert>
       ) : (

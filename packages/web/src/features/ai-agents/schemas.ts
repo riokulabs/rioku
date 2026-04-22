@@ -43,7 +43,5 @@ export const invokeAgentSchema = z.object({
 
 export type CreateAgentFormValues = z.infer<typeof createAgentSchema>;
 export type UpdateAgentFormValues = z.infer<typeof updateAgentSchema>;
-export type RotateScopedCredentialFormValues = z.infer<
-  typeof rotateScopedCredentialSchema
->;
+export type RotateScopedCredentialFormValues = z.infer<typeof rotateScopedCredentialSchema>;
 export type InvokeAgentFormValues = z.infer<typeof invokeAgentSchema>;

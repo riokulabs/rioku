@@ -21,6 +21,4 @@ export interface CreateRoutingRuleInput {
   order_hint?: number;
 }
 
-export type UpdateRoutingRuleInput = Partial<
-  Omit<CreateRoutingRuleInput, 'tenant_id'>
->;
+export type UpdateRoutingRuleInput = Partial<Omit<CreateRoutingRuleInput, 'tenant_id'>>;

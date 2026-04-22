@@ -37,25 +37,14 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import {
-  IconAlertCircle,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { WidgetRenderer } from '@/components/widget-renderer';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { DATA_SOURCE_ADAPTERS } from '@/features/widgets/data-sources';
-import type {
-  Widget,
-  WidgetWizardState,
-} from '@/api/resources/types';
+import type { Widget, WidgetWizardState } from '@/api/resources/types';
 import type { WidgetTypeDefinition } from '@/features/widgets/types';
 import { addWidget, updateWidget, useWidgetData } from '../api';
-import type {
-  AskQuestionWizardProps,
-  DataSourceDescriptor,
-  WizardDraft,
-} from '../types';
+import type { AskQuestionWizardProps, DataSourceDescriptor, WizardDraft } from '../types';
 
 // ─── Data source catalog ──────────────────────────────────────────────────────
 
@@ -70,15 +59,7 @@ const SOURCE_HELP: Record<string, string> = {
 
 /** Fields available per data source — hardcoded catalog for wizard UX. */
 const SOURCE_FIELDS: Record<string, string[]> = {
-  audit: [
-    'actor_id',
-    'action',
-    'resource_type',
-    'resource_id',
-    'outcome',
-    'tier',
-    'at',
-  ],
+  audit: ['actor_id', 'action', 'resource_type', 'resource_id', 'outcome', 'tier', 'at'],
   services: ['id', 'name', 'status', 'upstream_host', 'tenant_id'],
   routes: ['id', 'path', 'method', 'service_id', 'priority'],
   traces: ['id', 'agent_id', 'provider', 'model', 'tokens_total', 'at'],
@@ -157,9 +138,7 @@ export function AskQuestionWizard({
   const [active, setActive] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<WizardDraft>(() =>
-    draftFromWidget(widget ?? null),
-  );
+  const [draft, setDraft] = useState<WizardDraft>(() => draftFromWidget(widget ?? null));
 
   // Plugin-registered widgets don't currently declare their data-source
   // compatibility (plan-1 contract), so the wizard only surfaces the 6
@@ -167,10 +146,7 @@ export function AskQuestionWizard({
   // Plan 5.
   const pluginSources = useMemo<DataSourceDescriptor[]>(() => [], []);
 
-  const sourceOptions = useMemo(
-    () => dataSourceOptions(pluginSources),
-    [pluginSources],
-  );
+  const sourceOptions = useMemo(() => dataSourceOptions(pluginSources), [pluginSources]);
 
   const availableFields = useMemo(() => {
     if (draft.data_source === '') return [];
@@ -364,10 +340,7 @@ function StepDataSource({ sourceOptions, value, onChange }: StepDataSourceProps)
             data-testid={`source-${opt.value}`}
             style={{
               cursor: 'pointer',
-              outline:
-                value === opt.value
-                  ? '2px solid var(--mantine-color-blue-5)'
-                  : 'none',
+              outline: value === opt.value ? '2px solid var(--mantine-color-blue-5)' : 'none',
               outlineOffset: '-2px',
             }}
           >
@@ -418,10 +391,7 @@ function StepVisualization({ options, value, onChange }: StepVisualizationProps)
               data-testid={`viz-${def.type}`}
               style={{
                 cursor: 'pointer',
-                outline:
-                  value === def.type
-                    ? '2px solid var(--mantine-color-blue-5)'
-                    : 'none',
+                outline: value === def.type ? '2px solid var(--mantine-color-blue-5)' : 'none',
                 outlineOffset: '-2px',
               }}
             >
@@ -543,9 +513,7 @@ function StepQuery({ draft, availableFields, onChange }: StepQueryProps) {
                 const { alias: _unused, ...rest } = m;
                 void _unused;
                 next[i] =
-                  e.currentTarget.value === ''
-                    ? rest
-                    : { ...rest, alias: e.currentTarget.value };
+                  e.currentTarget.value === '' ? rest : { ...rest, alias: e.currentTarget.value };
                 setWs({ ...ws, measures: next });
               }}
             />
@@ -712,8 +680,7 @@ function StepQuery({ draft, availableFields, onChange }: StepQueryProps) {
               ...ws,
               order_by: {
                 ...ws.order_by,
-                direction:
-                  v === 'desc' ? 'desc' : 'asc',
+                direction: v === 'desc' ? 'desc' : 'asc',
               },
             });
           }}
@@ -792,8 +759,7 @@ function StepPreview({ draft, dashboardId }: StepPreviewProps) {
               <IconAlertCircle size={12} />
             </ThemeIcon>
             <Text size="xs" c="var(--mantine-color-gray-7)">
-              Preview uses the current wizard state — it does not persist until
-              you click Save.
+              Preview uses the current wizard state — it does not persist until you click Save.
             </Text>
           </Group>
           <div style={{ flex: 1, minHeight: 200 }}>

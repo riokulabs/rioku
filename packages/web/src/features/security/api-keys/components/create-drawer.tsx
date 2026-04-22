@@ -33,11 +33,7 @@ interface ApiKeyCreateDrawerProps {
   onCancel: () => void;
 }
 
-export function ApiKeyCreateDrawer({
-  tenantId,
-  onSuccess,
-  onCancel,
-}: ApiKeyCreateDrawerProps) {
+export function ApiKeyCreateDrawer({ tenantId, onSuccess, onCancel }: ApiKeyCreateDrawerProps) {
   const [step, setStep] = useState<'form' | 'created'>('form');
   const [fullKeyValue, setFullKeyValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +68,12 @@ export function ApiKeyCreateDrawer({
   if (step === 'created') {
     return (
       <Stack gap="md">
-        <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light" title="Save this now">
+        <Alert
+          icon={<IconAlertCircle size={16} />}
+          color="yellow"
+          variant="light"
+          title="Save this now"
+        >
           This is the only time you will see the full key value. Copy it before closing.
         </Alert>
 
@@ -107,9 +108,7 @@ export function ApiKeyCreateDrawer({
 
         <Divider />
 
-        <Button onClick={onSuccess}>
-          Done
-        </Button>
+        <Button onClick={onSuccess}>Done</Button>
       </Stack>
     );
   }
@@ -128,7 +127,9 @@ export function ApiKeyCreateDrawer({
           <PermissionSelector
             label="Scope (permissions)"
             value={form.values.scope}
-            onChange={(v) => { form.setFieldValue('scope', v); }}
+            onChange={(v) => {
+              form.setFieldValue('scope', v);
+            }}
           />
           {form.errors.scope && (
             <Text size="xs" c="red">

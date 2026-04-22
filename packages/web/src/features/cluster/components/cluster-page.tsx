@@ -26,13 +26,7 @@ import {
   Loader,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconPlus,
-  IconTrash,
-  IconEye,
-  IconAlertCircle,
-  IconRefresh,
-} from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconEye, IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { StatusBadge } from '@/components/status-badge';
@@ -54,21 +48,31 @@ dayjs.extend(relativeTime);
 
 function nodeStatusKind(status: ClusterNode['status']): StatusKind {
   switch (status) {
-    case 'healthy': return 'success';
-    case 'degraded': return 'warn';
-    case 'unreachable': return 'error';
-    case 'joining': return 'info';
-    case 'leaving': return 'neutral';
-    default: return 'neutral';
+    case 'healthy':
+      return 'success';
+    case 'degraded':
+      return 'warn';
+    case 'unreachable':
+      return 'error';
+    case 'joining':
+      return 'info';
+    case 'leaving':
+      return 'neutral';
+    default:
+      return 'neutral';
   }
 }
 
 function roleColor(role: ClusterNode['role']): string {
   switch (role) {
-    case 'primary': return 'blue';
-    case 'replica': return 'teal';
-    case 'witness': return 'violet';
-    default: return 'gray';
+    case 'primary':
+      return 'blue';
+    case 'replica':
+      return 'teal';
+    case 'witness':
+      return 'violet';
+    default:
+      return 'gray';
   }
 }
 
@@ -82,7 +86,8 @@ export function ClusterPage() {
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [removingNodeId, setRemovingNodeId] = useState<string | null>(null);
-  const [removeModalOpened, { open: openRemoveModal, close: closeRemoveModal }] = useDisclosure(false);
+  const [removeModalOpened, { open: openRemoveModal, close: closeRemoveModal }] =
+    useDisclosure(false);
   const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
 
   // ── Summary stats ────────────────────────────────────────────────────────
@@ -93,9 +98,7 @@ export function ClusterPage() {
     const healthyPct = total > 0 ? Math.round((healthyCount / total) * 100) : 0;
     const avgLatency =
       total > 0
-        ? Math.round(
-            nodes.reduce((sum, n) => sum + n.metrics.latency_p95_ms, 0) / total,
-          )
+        ? Math.round(nodes.reduce((sum, n) => sum + n.metrics.latency_p95_ms, 0) / total)
         : 0;
     const primaryVersion = nodes.find((n) => n.role === 'primary')?.version ?? '—';
     return { total, healthyCount, healthyPct, avgLatency, primaryVersion };
@@ -138,9 +141,7 @@ export function ClusterPage() {
     }
   }
 
-  const removingNode = removingNodeId
-    ? nodes.find((n) => n.id === removingNodeId)
-    : null;
+  const removingNode = removingNodeId ? nodes.find((n) => n.id === removingNodeId) : null;
 
   return (
     <Stack gap="lg" p="md">
@@ -148,10 +149,7 @@ export function ClusterPage() {
       <Group justify="space-between" align="center">
         <Title order={2}>Cluster</Title>
         {canEnroll && (
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={openEnroll}
-          >
+          <Button leftSection={<IconPlus size={16} />} onClick={openEnroll}>
             Enroll node
           </Button>
         )}
@@ -171,7 +169,12 @@ export function ClusterPage() {
           <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
             Healthy
           </Text>
-          <Text size="xl" fw={700} mt={4} c={stats.healthyPct === 100 ? 'teal' : stats.healthyPct >= 75 ? 'yellow' : 'red'}>
+          <Text
+            size="xl"
+            fw={700}
+            mt={4}
+            c={stats.healthyPct === 100 ? 'teal' : stats.healthyPct >= 75 ? 'yellow' : 'red'}
+          >
             {stats.healthyPct}%
           </Text>
           <Text size="xs" c="dimmed">
@@ -193,7 +196,8 @@ export function ClusterPage() {
           <Text size="xl" fw={700} mt={4}>
             {stats.avgLatency}
             <Text component="span" size="sm" fw={400} c="dimmed">
-              {' '}ms
+              {' '}
+              ms
             </Text>
           </Text>
         </Card>
@@ -227,7 +231,9 @@ export function ClusterPage() {
                   <Table.Tr
                     key={node.id}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => { handleViewNode(node); }}
+                    onClick={() => {
+                      handleViewNode(node);
+                    }}
                   >
                     <Table.Td>
                       <Text size="sm" fw={500} ff="monospace">
@@ -276,17 +282,22 @@ export function ClusterPage() {
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">
-                        {dayjs(node.last_heartbeat_at).fromNow()}
-                      </Text>
+                      <Text size="sm">{dayjs(node.last_heartbeat_at).fromNow()}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <Group gap={4} onClick={(e) => { e.stopPropagation(); }}>
+                      <Group
+                        gap={4}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                      >
                         <Tooltip label="View details">
                           <ActionIcon
                             variant="subtle"
                             size="sm"
-                            onClick={() => { handleViewNode(node); }}
+                            onClick={() => {
+                              handleViewNode(node);
+                            }}
                             aria-label="View node details"
                           >
                             <IconEye size={14} />
@@ -298,7 +309,9 @@ export function ClusterPage() {
                               variant="subtle"
                               color="red"
                               size="sm"
-                              onClick={() => { handleRemoveClick(node); }}
+                              onClick={() => {
+                                handleRemoveClick(node);
+                              }}
                               aria-label="Remove node"
                             >
                               <IconTrash size={14} />
@@ -354,7 +367,9 @@ export function ClusterPage() {
                           color="red"
                           size="sm"
                           loading={revokingTokenId === tok.id}
-                          onClick={() => { void handleRevokeToken(tok.id); }}
+                          onClick={() => {
+                            void handleRevokeToken(tok.id);
+                          }}
                           aria-label="Revoke enrollment token"
                         >
                           {revokingTokenId === tok.id ? (
@@ -388,9 +403,7 @@ export function ClusterPage() {
         size="min(480px, 95vw)"
         padding="md"
       >
-        {selectedNodeId && (
-          <NodeDetailDrawer nodeId={selectedNodeId} />
-        )}
+        {selectedNodeId && <NodeDetailDrawer nodeId={selectedNodeId} />}
       </Drawer>
 
       {/* Remove confirm modal */}
@@ -406,8 +419,7 @@ export function ClusterPage() {
             <Text component="span" fw={600} ff="monospace">
               {removingNode?.name ?? ''}
             </Text>
-            ? This will evict the node from the cluster. It can re-join with a
-            new enrollment token.
+            ? This will evict the node from the cluster. It can re-join with a new enrollment token.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="default" onClick={closeRemoveModal}>
@@ -415,7 +427,9 @@ export function ClusterPage() {
             </Button>
             <Button
               color="red"
-              onClick={() => { void handleConfirmRemove(); }}
+              onClick={() => {
+                void handleConfirmRemove();
+              }}
             >
               Remove
             </Button>

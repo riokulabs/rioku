@@ -21,15 +21,8 @@ import {
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useForm, schemaResolver } from '@mantine/form';
 import { notify } from '@/hooks/use-notify';
-import {
-  createMiddleware,
-  updateMiddleware,
-} from '../api';
-import {
-  MIDDLEWARE_KINDS,
-  createMiddlewareSchema,
-  middlewareConfigSchemas,
-} from '../schemas';
+import { createMiddleware, updateMiddleware } from '../api';
+import { MIDDLEWARE_KINDS, createMiddlewareSchema, middlewareConfigSchemas } from '../schemas';
 import type { Middleware } from '../types';
 import { KindConfigPanel } from './kind-config-panel';
 
@@ -122,9 +115,7 @@ export function MiddlewareForm({
       const payload = {
         name: values.name.trim(),
         kind: values.kind,
-        ...(values.description.trim() !== ''
-          ? { description: values.description.trim() }
-          : {}),
+        ...(values.description.trim() !== '' ? { description: values.description.trim() } : {}),
         config: result.data as Record<string, unknown>,
         enabled: values.enabled,
         order_hint: values.order_hint,
@@ -175,11 +166,7 @@ export function MiddlewareForm({
           {...form.getInputProps('kind')}
         />
 
-        <Textarea
-          label="Description"
-          minRows={2}
-          {...form.getInputProps('description')}
-        />
+        <Textarea label="Description" minRows={2} {...form.getInputProps('description')} />
 
         <Group grow>
           <NumberInput
@@ -198,11 +185,7 @@ export function MiddlewareForm({
 
         <Divider label="Kind-specific config" labelPosition="left" />
 
-        <KindConfigPanel
-          kind={form.values.kind}
-          value={config}
-          onChange={setConfig}
-        />
+        <KindConfigPanel kind={form.values.kind} value={config} onChange={setConfig} />
 
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onCancel} type="button">

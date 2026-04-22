@@ -10,9 +10,7 @@ export const auditFilterSchema = z.object({
   actions: z.array(z.string()).default([]),
   outcomes: z.array(z.enum(['success', 'denied', 'error'])).default([]),
   resource_types: z.array(z.string()).default([]),
-  tiers: z
-    .array(z.enum(['read', 'read-sensitive', 'write', 'destructive']))
-    .default([]),
+  tiers: z.array(z.enum(['read', 'read-sensitive', 'write', 'destructive'])).default([]),
   date_from: z.string().nullable().default(null),
   date_to: z.string().nullable().default(null),
   actor_handles: z.array(z.string()).default([]),

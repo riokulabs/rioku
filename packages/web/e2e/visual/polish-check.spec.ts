@@ -23,8 +23,7 @@ import { test, expect, type Page } from '@playwright/test';
 // Paths — use import.meta.url + URL to avoid node: imports in browser tsconfig
 // ---------------------------------------------------------------------------
 
-const POLISH_DIR = new URL('../screenshots/polish', import.meta.url)
-  .pathname;
+const POLISH_DIR = new URL('../screenshots/polish', import.meta.url).pathname;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -61,9 +60,9 @@ const PAGES: PageConfig[] = [
     path: '/t/acme/dashboard',
     waitSignal: async (page) => {
       // DashboardViewer renders role="list" aria-label="... dashboard widgets"
-      await expect(
-        page.getByRole('list', { name: /dashboard widgets/i }),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('list', { name: /dashboard widgets/i })).toBeVisible({
+        timeout: 15_000,
+      });
     },
   },
   {
@@ -115,10 +114,7 @@ async function waitForSeed(page: Page): Promise<void> {
 }
 
 /** Wait for page-specific ready signal. */
-async function waitForReady(
-  page: Page,
-  config: PageConfig,
-): Promise<void> {
+async function waitForReady(page: Page, config: PageConfig): Promise<void> {
   if (config.waitSignal) {
     await config.waitSignal(page);
   } else if (config.waitTestId) {
@@ -126,9 +122,9 @@ async function waitForReady(
       timeout: 15_000,
     });
   } else if (config.waitHeading) {
-    await expect(
-      page.getByRole('heading', { name: config.waitHeading }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: config.waitHeading }).first()).toBeVisible({
+      timeout: 15_000,
+    });
   }
 }
 
@@ -174,22 +170,15 @@ for (const colorScheme of COLOR_SCHEMES) {
         await waitForReady(page, pageConfig);
 
         // 1. Body is not empty
-        const scrollHeight = await page.evaluate(
-          () => document.body.scrollHeight,
-        );
-        expect(
-          scrollHeight,
-          'body.scrollHeight should be > 0',
-        ).toBeGreaterThan(0);
+        const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
+        expect(scrollHeight, 'body.scrollHeight should be > 0').toBeGreaterThan(0);
 
         // 2. No horizontal overflow at narrow viewports
         if (
           !pageConfig.skipOverflowCheck &&
           (viewport.name === 'tablet' || viewport.name === 'mobile')
         ) {
-          const scrollWidth = await page.evaluate(
-            () => document.body.scrollWidth,
-          );
+          const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
           expect(
             scrollWidth,
             `Horizontal overflow: body.scrollWidth (${String(scrollWidth)}) > viewport width (${String(viewport.width)})`,
@@ -235,16 +224,14 @@ test('[rtl] dashboard @ desktop — dir="rtl" applied', async ({ page }) => {
   await waitForSeed(page);
 
   // Wait for providers.tsx to apply dir="rtl" via useEffect
-  await page.waitForFunction(
-    () => document.documentElement.getAttribute('dir') === 'rtl',
-    null,
-    { timeout: 10_000 },
-  );
+  await page.waitForFunction(() => document.documentElement.getAttribute('dir') === 'rtl', null, {
+    timeout: 10_000,
+  });
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 
-  await expect(
-    page.getByRole('list', { name: /dashboard widgets/i }),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('list', { name: /dashboard widgets/i })).toBeVisible({
+    timeout: 15_000,
+  });
 
   await page.screenshot({
     path: `${POLISH_DIR}/rtl__dashboard__desktop.png`,
@@ -280,16 +267,14 @@ test('[rtl] services @ tablet — sidebar + RTL layout', async ({ page }) => {
   await page.goto('/t/acme/services');
   await waitForSeed(page);
 
-  await page.waitForFunction(
-    () => document.documentElement.getAttribute('dir') === 'rtl',
-    null,
-    { timeout: 10_000 },
-  );
+  await page.waitForFunction(() => document.documentElement.getAttribute('dir') === 'rtl', null, {
+    timeout: 10_000,
+  });
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 
-  await expect(
-    page.getByRole('heading', { name: /^services$/i }).first(),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: /^services$/i }).first()).toBeVisible({
+    timeout: 15_000,
+  });
 
   const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
   expect(scrollHeight).toBeGreaterThan(0);

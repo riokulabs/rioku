@@ -12,13 +12,7 @@
  *   5. Review    — summary + Create button
  */
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Stack,
-  Stepper,
-} from '@mantine/core';
+import { Alert, Button, Group, Stack, Stepper } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -95,11 +89,7 @@ interface SiteCreateWizardProps {
   onCancel: () => void;
 }
 
-export function SiteCreateWizard({
-  tenantId,
-  onSuccess,
-  onCancel,
-}: SiteCreateWizardProps) {
+export function SiteCreateWizard({ tenantId, onSuccess, onCancel }: SiteCreateWizardProps) {
   const [active, setActive] = useState<WizardStep>(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,8 +131,7 @@ export function SiteCreateWizard({
       if (form.values.name.trim() === '') {
         errors.name = 'Name is required';
       }
-      const domainRegex =
-        /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+      const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
       if (!domainRegex.test(form.values.domain.trim())) {
         errors.domain = 'Invalid domain';
       }

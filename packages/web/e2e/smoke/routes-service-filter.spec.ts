@@ -10,9 +10,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('service filter dropdown is visible on /t/acme/routes', async ({
-  authedPage: page,
-}) => {
+test('service filter dropdown is visible on /t/acme/routes', async ({ authedPage: page }) => {
   await page.goto('/t/acme/routes');
 
   await expect(page.getByRole('heading', { name: /^routes$/i })).toBeVisible();
@@ -22,9 +20,7 @@ test('service filter dropdown is visible on /t/acme/routes', async ({
   await expect(serviceFilter).toBeVisible({ timeout: 5_000 });
 });
 
-test('selecting a service filters route rows', async ({
-  authedPage: page,
-}) => {
+test('selecting a service filters route rows', async ({ authedPage: page }) => {
   await page.goto('/t/acme/routes');
 
   // Wait for rows to load
@@ -59,9 +55,7 @@ test('selecting a service filters route rows', async ({
   expect(filteredCount).toBeLessThanOrEqual(totalCount);
 });
 
-test('clearing service filter restores all route rows', async ({
-  authedPage: page,
-}) => {
+test('clearing service filter restores all route rows', async ({ authedPage: page }) => {
   await page.goto('/t/acme/routes');
 
   const rows = page.locator('tbody tr[role="row"]');

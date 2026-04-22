@@ -76,14 +76,8 @@ describe('ToolFilterBar', () => {
   it('renders search, kind, dangerous, and enabled controls', () => {
     wrap(<ToolFilterBar filter={DEFAULT_FILTER} onChange={vi.fn()} />);
     expect(screen.getAllByLabelText('Search tools').length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by tool kind').length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by dangerous').length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by enabled').length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by tool kind').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by dangerous').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by enabled').length).toBeGreaterThan(0);
   });
 });

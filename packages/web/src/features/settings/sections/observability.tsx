@@ -11,12 +11,7 @@
  *
  * Task 8b.9
  */
-import {
-  Alert,
-  Divider,
-  Stack,
-  Title,
-} from '@mantine/core';
+import { Alert, Divider, Stack, Title } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { usePermission } from '@/hooks/use-permission';
 import { RetentionConfigForm } from '@/features/audit';

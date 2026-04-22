@@ -11,21 +11,9 @@
  */
 import { useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import {
-  Button,
-  Group,
-  Stack,
-  Tabs,
-  Title,
-  Drawer,
-} from '@mantine/core';
+import { Button, Group, Stack, Tabs, Title, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconLink,
-  IconPlug,
-  IconShieldCheck,
-  IconShoppingBag,
-} from '@tabler/icons-react';
+import { IconLink, IconPlug, IconShieldCheck, IconShoppingBag } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
@@ -37,10 +25,7 @@ import {
 } from '@/features/plugins/installed';
 import { MarketplaceGrid } from '@/features/plugins/marketplace';
 import { InstallByReferenceForms } from '@/features/plugins/install-by-reference';
-import {
-  InstallApprovalModal,
-  InstallProgressModal,
-} from '@/features/plugins/install-approval';
+import { InstallApprovalModal, InstallProgressModal } from '@/features/plugins/install-approval';
 import type {
   Plugin,
   MarketplaceListing,
@@ -93,9 +78,7 @@ function PluginsPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -116,8 +99,7 @@ function PluginsPage() {
   }
 
   // Installed detail drawer
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null);
 
   function handleRowClick(plugin: Plugin) {
@@ -126,10 +108,7 @@ function PluginsPage() {
   }
 
   // Uninstall modal
-  const [
-    uninstallOpened,
-    { open: openUninstall, close: closeUninstall },
-  ] = useDisclosure(false);
+  const [uninstallOpened, { open: openUninstall, close: closeUninstall }] = useDisclosure(false);
   const [uninstallTarget, setUninstallTarget] = useState<Plugin | null>(null);
 
   function handleUninstallRequest(plugin: Plugin) {
@@ -148,20 +127,12 @@ function PluginsPage() {
   }
 
   // Approval modal
-  const [
-    approvalOpened,
-    { open: openApproval, close: closeApproval },
-  ] = useDisclosure(false);
-  const [approvalCandidate, setApprovalCandidate] =
-    useState<ApprovalCandidate | null>(null);
+  const [approvalOpened, { open: openApproval, close: closeApproval }] = useDisclosure(false);
+  const [approvalCandidate, setApprovalCandidate] = useState<ApprovalCandidate | null>(null);
 
   // Install-progress modal (streaming) — opened after approval is granted.
-  const [
-    progressOpened,
-    { open: openProgress, close: closeProgress },
-  ] = useDisclosure(false);
-  const [progressCandidate, setProgressCandidate] =
-    useState<ApprovalCandidate | null>(null);
+  const [progressOpened, { open: openProgress, close: closeProgress }] = useDisclosure(false);
+  const [progressCandidate, setProgressCandidate] = useState<ApprovalCandidate | null>(null);
 
   function handleMarketplaceInstall(listing: MarketplaceListing) {
     setApprovalCandidate(listingToApproval(listing));
@@ -326,13 +297,7 @@ export const Route = createFileRoute('/t/$tenant/plugins')({
           : undefined,
     f: typeof search.f === 'string' ? search.f : undefined,
     // Marketplace polish (Plan 6): category sidebar + sort + verified toggle.
-    verified:
-      search.verified === 'true' || search.verified === true
-        ? 'true'
-        : undefined,
-    sort:
-      typeof search.sort === 'string'
-        ? search.sort
-        : undefined,
+    verified: search.verified === 'true' || search.verified === true ? 'true' : undefined,
+    sort: typeof search.sort === 'string' ? search.sort : undefined,
   }),
 });

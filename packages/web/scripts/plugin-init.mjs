@@ -68,7 +68,7 @@ if (!name) {
 if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(name)) {
   console.error(
     `Error: plugin name "${name}" is invalid.\n` +
-    'Name must be lowercase alphanumeric with hyphens, starting and ending with alphanumeric.',
+      'Name must be lowercase alphanumeric with hyphens, starting and ending with alphanumeric.',
   );
   process.exit(1);
 }

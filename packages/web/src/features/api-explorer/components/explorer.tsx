@@ -66,10 +66,7 @@ export function ApiExplorer() {
           --scalar-scrollbar-color-active: var(--mantine-color-dimmed);
         }
       `}</style>
-      <div
-        data-testid="api-explorer"
-        style={{ height: '100%', minHeight: '100vh' }}
-      >
+      <div data-testid="api-explorer" style={{ height: '100%', minHeight: '100vh' }}>
         <ApiReferenceReact
           configuration={{
             content: openapiSpec,

@@ -257,9 +257,7 @@ describe('LoginForm', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.objectContaining({ to: '/totp' }),
-      );
+      expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ to: '/totp' }));
     });
   });
 });

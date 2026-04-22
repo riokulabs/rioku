@@ -135,7 +135,9 @@ describe('revokeAllOtherSessions', () => {
 
 describe('parseDevice', () => {
   it('parses Chrome correctly', () => {
-    expect(parseDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120')).toBe('Chrome');
+    expect(parseDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120')).toBe(
+      'Chrome',
+    );
   });
 
   it('parses Firefox correctly', () => {

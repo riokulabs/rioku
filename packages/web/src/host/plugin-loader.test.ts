@@ -60,9 +60,7 @@ function makeManifest(overrides: Record<string, unknown> = {}): string {
 }
 
 /** Inject a mock ESM default export as the plugin module. */
-function setMockPlugin(
-  defaultExport: (host: RiokuHost) => void | Promise<void>,
-) {
+function setMockPlugin(defaultExport: (host: RiokuHost) => void | Promise<void>) {
   _setPluginImporterForTest((_url: string) => Promise.resolve({ default: defaultExport }));
 }
 
@@ -150,7 +148,9 @@ describe('plugin-loader', () => {
     await unloadPlugin('unload-test');
 
     expect(getZoneContributions('unload.zone')).toHaveLength(0);
-    expect(listSidebarEntries('plugins').some((e) => e.path === '/plugins/unload-test')).toBe(false);
+    expect(listSidebarEntries('plugins').some((e) => e.path === '/plugins/unload-test')).toBe(
+      false,
+    );
     expect(usePluginRegistry.getState().getPlugin('unload-test')).toBeUndefined();
   });
 
@@ -259,15 +259,11 @@ describe('plugin-loader', () => {
     await loadSandboxedPlugin('http://localhost/sandbox-unload/manifest.json');
 
     const container = document.getElementById('rioku-plugin-sandbox-container');
-    expect(
-      container?.querySelector('[data-plugin-name="sandbox-unload"]'),
-    ).not.toBeNull();
+    expect(container?.querySelector('[data-plugin-name="sandbox-unload"]')).not.toBeNull();
 
     await unloadPlugin('sandbox-unload');
 
-    expect(
-      container?.querySelector('[data-plugin-name="sandbox-unload"]'),
-    ).toBeNull();
+    expect(container?.querySelector('[data-plugin-name="sandbox-unload"]')).toBeNull();
     expect(usePluginRegistry.getState().getPlugin('sandbox-unload')).toBeUndefined();
   });
 
@@ -277,9 +273,7 @@ describe('plugin-loader', () => {
     // Current host ABI is 1; cap at 0 → incompatible.
     stubFetch(makeManifest({ abi: { minVersion: 0, maxVersion: 0 } }));
 
-    const result = await loadPluginFromUrl(
-      'http://localhost/old-plugin/manifest.json',
-    );
+    const result = await loadPluginFromUrl('http://localhost/old-plugin/manifest.json');
 
     expect(result.ok).toBe(false);
     expect(result.errors?.some((e) => e.includes('ABI incompatible'))).toBe(true);
@@ -289,13 +283,9 @@ describe('plugin-loader', () => {
 
   it('surfaces a clean error when the admin bundle import throws', async () => {
     stubFetch(makeManifest({ name: 'bundle-fail' }));
-    _setPluginImporterForTest((_url: string) =>
-      Promise.reject(new Error('network collapsed')),
-    );
+    _setPluginImporterForTest((_url: string) => Promise.reject(new Error('network collapsed')));
 
-    const result = await loadPluginFromUrl(
-      'http://localhost/bundle-fail/manifest.json',
-    );
+    const result = await loadPluginFromUrl('http://localhost/bundle-fail/manifest.json');
 
     expect(result.ok).toBe(false);
     expect(result.errors?.some((e) => e.includes('failed to load admin bundle'))).toBe(true);
@@ -312,14 +302,10 @@ describe('plugin-loader', () => {
       Promise.resolve({ default: { notAFunction: true } }),
     );
 
-    const result = await loadPluginFromUrl(
-      'http://localhost/not-callable/manifest.json',
-    );
+    const result = await loadPluginFromUrl('http://localhost/not-callable/manifest.json');
 
     expect(result.ok).toBe(false);
-    expect(
-      result.errors?.some((e) => e.includes('no default export')),
-    ).toBe(true);
+    expect(result.errors?.some((e) => e.includes('no default export'))).toBe(true);
   });
 
   // ── Test 12: failing plugin is isolated from coexisting plugins ─────────────
@@ -336,9 +322,7 @@ describe('plugin-loader', () => {
       });
     });
     stubFetch(makeManifest({ name: 'good-plugin' }));
-    const goodResult = await loadPluginFromUrl(
-      'http://localhost/good/manifest.json',
-    );
+    const goodResult = await loadPluginFromUrl('http://localhost/good/manifest.json');
     expect(goodResult.ok).toBe(true);
 
     // …then a second plugin throws during register.
@@ -346,9 +330,7 @@ describe('plugin-loader', () => {
       throw new Error('second plugin broken');
     });
     stubFetch(makeManifest({ name: 'bad-plugin' }));
-    const badResult = await loadPluginFromUrl(
-      'http://localhost/bad/manifest.json',
-    );
+    const badResult = await loadPluginFromUrl('http://localhost/bad/manifest.json');
 
     expect(badResult.ok).toBe(false);
     // Good plugin still present; bad plugin not leaked.

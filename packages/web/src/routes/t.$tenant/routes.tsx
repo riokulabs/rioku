@@ -6,26 +6,13 @@
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import {
-  Stack,
-  Title,
-  Group,
-  Button,
-  Drawer,
-  TextInput,
-  Select,
-} from '@mantine/core';
+import { Stack, Title, Group, Button, Drawer, TextInput, Select } from '@mantine/core';
 import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
-import {
-  RouteList,
-  RouteForm,
-  RouteDetail,
-  deleteRoute,
-} from '@/features/routes';
+import { RouteList, RouteForm, RouteDetail, deleteRoute } from '@/features/routes';
 import type { RouteFilter } from '@/features/routes';
 import type { Route as RouteRecord } from '@/api/resources/types';
 import { useServiceList } from '@/features/services';
@@ -58,9 +45,7 @@ function RoutesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -108,8 +93,7 @@ function RoutesPage() {
     commit({ ...filter, search: debouncedSearch });
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selected, setSelected] = useState<RouteRecord | null>(null);
 
@@ -145,7 +129,7 @@ function RoutesPage() {
       ? 'Create route'
       : drawerMode === 'edit'
         ? `Edit — ${selected?.name ?? ''}`
-        : selected?.name ?? 'Route detail';
+        : (selected?.name ?? 'Route detail');
 
   return (
     <Stack gap="md" p="md">
@@ -170,7 +154,9 @@ function RoutesPage() {
         <Select
           data={serviceOptions}
           value={serviceFilter ?? ''}
-          onChange={(v) => { setServiceFilter(v !== '' ? v : null); }}
+          onChange={(v) => {
+            setServiceFilter(v !== '' ? v : null);
+          }}
           w={200}
           aria-label="Filter by service"
           data-testid="routes-service-filter"

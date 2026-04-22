@@ -2,15 +2,7 @@
  * <ApiKeyDetailDrawer> — read-only API key details + revoke/rotate actions.
  */
 import { useState } from 'react';
-import {
-  Stack,
-  Group,
-  Text,
-  Badge,
-  Button,
-  Divider,
-  Alert,
-} from '@mantine/core';
+import { Stack, Group, Text, Badge, Button, Divider, Alert } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { useApiKey, revokeApiKey, rotateApiKey } from '../api';
@@ -78,11 +70,7 @@ export function ApiKeyDetailDrawer({
             {key.prefix}…
           </Text>
         </Stack>
-        <Badge
-          size="sm"
-          color={STATUS_COLORS[key.display_status] ?? 'gray'}
-          variant="light"
-        >
+        <Badge size="sm" color={STATUS_COLORS[key.display_status] ?? 'gray'} variant="light">
           {key.display_status}
         </Badge>
       </Group>
@@ -91,19 +79,31 @@ export function ApiKeyDetailDrawer({
 
       <Stack gap="xs">
         <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>Scope:</Text>
-          <Text size="sm" c="dimmed">{key.scope.join(', ') || '—'}</Text>
+          <Text size="sm" fw={500} w={100}>
+            Scope:
+          </Text>
+          <Text size="sm" c="dimmed">
+            {key.scope.join(', ') || '—'}
+          </Text>
         </Group>
         <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>Created:</Text>
+          <Text size="sm" fw={500} w={100}>
+            Created:
+          </Text>
           <Text size="sm">{new Date(key.created_at).toLocaleDateString()}</Text>
         </Group>
         <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>Last used:</Text>
-          <Text size="sm" c="dimmed">{key.last_used_summary ?? '—'}</Text>
+          <Text size="sm" fw={500} w={100}>
+            Last used:
+          </Text>
+          <Text size="sm" c="dimmed">
+            {key.last_used_summary ?? '—'}
+          </Text>
         </Group>
         <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>Expires:</Text>
+          <Text size="sm" fw={500} w={100}>
+            Expires:
+          </Text>
           <Text size="sm">
             {key.expires_at
               ? `${String(key.expires_in_days ?? 0)}d (${new Date(key.expires_at).toLocaleDateString()})`
@@ -116,12 +116,7 @@ export function ApiKeyDetailDrawer({
 
       <Group gap="sm">
         {key.display_status === 'active' && (
-          <Button
-            size="sm"
-            variant="light"
-            loading={loading}
-            onClick={() => void handleRotate()}
-          >
+          <Button size="sm" variant="light" loading={loading} onClick={() => void handleRotate()}>
             Rotate
           </Button>
         )}

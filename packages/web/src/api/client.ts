@@ -47,25 +47,20 @@ function getCorrelationId(res: Response): string | undefined {
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
-  return typeof v === 'object' && v !== null
-    ? (v as Record<string, unknown>)
-    : null;
+  return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : null;
 }
 
 async function parseError(res: Response): Promise<ApiError> {
   const cid = getCorrelationId(res);
   let body: unknown;
   try {
-    body = await res.json() as unknown;
+    body = (await res.json()) as unknown;
   } catch {
     body = null;
   }
 
   const rec = asRecord(body);
-  const message =
-    rec !== null && typeof rec.message === 'string'
-      ? rec.message
-      : res.statusText;
+  const message = rec !== null && typeof rec.message === 'string' ? rec.message : res.statusText;
 
   if (res.status === 401) {
     return cid !== undefined
@@ -73,16 +68,12 @@ async function parseError(res: Response): Promise<ApiError> {
       : new AuthFailureError();
   }
   if (res.status === 403) {
-    return cid !== undefined
-      ? new PermissionError({ correlationId: cid })
-      : new PermissionError();
+    return cid !== undefined ? new PermissionError({ correlationId: cid }) : new PermissionError();
   }
   if (res.status === 422 || res.status === 400) {
     const rawFields = rec?.fields;
     const fields =
-      rawFields !== null &&
-      typeof rawFields === 'object' &&
-      !Array.isArray(rawFields)
+      rawFields !== null && typeof rawFields === 'object' && !Array.isArray(rawFields)
         ? (rawFields as Record<string, string[]>)
         : undefined;
     return fields !== undefined && cid !== undefined
@@ -136,9 +127,7 @@ async function request<T>(
   if (!res.ok) {
     const err = await parseError(res);
     if (err instanceof AuthFailureError) {
-      _authFailureHandler?.(
-        window.location.pathname + window.location.search,
-      );
+      _authFailureHandler?.(window.location.pathname + window.location.search);
     }
     throw err;
   }
@@ -160,27 +149,15 @@ export const apiClient = {
     return request<T>('GET', path, undefined, options?.signal);
   },
 
-  post<T>(
-    path: string,
-    body?: unknown,
-    options?: { signal?: AbortSignal },
-  ): Promise<T> {
+  post<T>(path: string, body?: unknown, options?: { signal?: AbortSignal }): Promise<T> {
     return request<T>('POST', path, body, options?.signal);
   },
 
-  put<T>(
-    path: string,
-    body?: unknown,
-    options?: { signal?: AbortSignal },
-  ): Promise<T> {
+  put<T>(path: string, body?: unknown, options?: { signal?: AbortSignal }): Promise<T> {
     return request<T>('PUT', path, body, options?.signal);
   },
 
-  patch<T>(
-    path: string,
-    body?: unknown,
-    options?: { signal?: AbortSignal },
-  ): Promise<T> {
+  patch<T>(path: string, body?: unknown, options?: { signal?: AbortSignal }): Promise<T> {
     return request<T>('PATCH', path, body, options?.signal);
   },
 

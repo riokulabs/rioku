@@ -40,9 +40,9 @@ function makeFingerprint(seed: string): string {
 test('tenant signer list renders seeded rows', async ({ authedPage: page }) => {
   await page.goto('/t/acme/plugins/signers');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugin signers$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugin signers$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Acme is seeded with one tenant-scoped signer ("Acme Internal"). We assert
   // the expected name rather than a row count to avoid a coupling to the
@@ -52,19 +52,15 @@ test('tenant signer list renders seeded rows', async ({ authedPage: page }) => {
   });
 });
 
-test('admin signer page lists global signers on the Global tab', async ({
-  authedPage: page,
-}) => {
+test('admin signer page lists global signers on the Global tab', async ({ authedPage: page }) => {
   await page.goto('/admin/plugin-signers');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugin signers$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugin signers$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // The Global tab is selected by default (no `scope` search param).
-  await expect(
-    page.getByRole('tab', { name: /^global$/i, selected: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('tab', { name: /^global$/i, selected: true })).toBeVisible();
 
   // Rioku Labs + Caddy Labs are verified global signers. Revoked legacy
   // CaddyGateway Team is also in the seed but we only need ≥2 here.
@@ -74,9 +70,7 @@ test('admin signer page lists global signers on the Global tab', async ({
   await expect(page.getByText('Caddy Labs').first()).toBeVisible();
 });
 
-test('signer detail drawer surfaces Verify + Revoke buttons', async ({
-  authedPage: page,
-}) => {
+test('signer detail drawer surfaces Verify + Revoke buttons', async ({ authedPage: page }) => {
   await page.goto('/admin/plugin-signers');
 
   // Open the row for the "Caddy Labs" verified global signer. Row click
@@ -98,9 +92,7 @@ test('signer detail drawer surfaces Verify + Revoke buttons', async ({
   await expect(drawer.getByRole('button', { name: /^revoke$/i })).toBeVisible();
 });
 
-test('revoke flow flips the status badge to revoked', async ({
-  authedPage: page,
-}) => {
+test('revoke flow flips the status badge to revoked', async ({ authedPage: page }) => {
   await page.goto('/admin/plugin-signers');
 
   // Target "Caddy Labs" (seeded verified global signer). Use the row's
@@ -121,14 +113,12 @@ test('revoke flow flips the status badge to revoked', async ({
   await expect(row.getByText('revoked')).toBeVisible({ timeout: 10_000 });
 });
 
-test('adding a new signer creates a row in the list', async ({
-  authedPage: page,
-}) => {
+test('adding a new signer creates a row in the list', async ({ authedPage: page }) => {
   await page.goto('/admin/plugin-signers');
 
-  await expect(
-    page.getByRole('heading', { name: /^plugin signers$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^plugin signers$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Open the add-signer form (Global scope — button wording matches the
   // admin page copy).
@@ -143,12 +133,8 @@ test('adding a new signer creates a row in the list', async ({
   const fingerprint = makeFingerprint(name);
 
   await drawer.getByRole('textbox', { name: /^name$/i }).fill(name);
-  await drawer
-    .getByRole('textbox', { name: /fingerprint \(sha-256\)/i })
-    .fill(fingerprint);
-  await drawer
-    .getByRole('textbox', { name: /^description$/i })
-    .fill('Added from smoke test.');
+  await drawer.getByRole('textbox', { name: /fingerprint \(sha-256\)/i }).fill(fingerprint);
+  await drawer.getByRole('textbox', { name: /^description$/i }).fill('Added from smoke test.');
 
   // Submit.
   await drawer.getByRole('button', { name: /^add signer$/i }).click();

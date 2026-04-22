@@ -11,8 +11,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 
-const SCREENSHOTS_DIR = new URL('../screenshots/api-explorer', import.meta.url)
-  .pathname;
+const SCREENSHOTS_DIR = new URL('../screenshots/api-explorer', import.meta.url).pathname;
 
 /** Set theme via localStorage before the page hydrates. */
 async function setTheme(page: Page, theme: 'dark' | 'light'): Promise<void> {
@@ -50,16 +49,12 @@ async function getScrollbarColor(page: Page): Promise<string> {
 
 /** Read the inline style scrollbarColor set directly on <html>. */
 async function getInlineScrollbarColor(page: Page): Promise<string> {
-  return page.evaluate(
-    () => document.documentElement.style.scrollbarColor,
-  );
+  return page.evaluate(() => document.documentElement.style.scrollbarColor);
 }
 
 /** Read the inline style scrollbarWidth set directly on <html>. */
 async function getInlineScrollbarWidth(page: Page): Promise<string> {
-  return page.evaluate(
-    () => document.documentElement.style.scrollbarWidth,
-  );
+  return page.evaluate(() => document.documentElement.style.scrollbarWidth);
 }
 
 // ---------------------------------------------------------------------------
@@ -81,10 +76,7 @@ test('API Explorer uses dark background in dark mode', async ({ page }) => {
   await expect(container).toBeVisible({ timeout: 20_000 });
 
   // Verify the Mantine dark-scheme attribute is applied to <html>.
-  await expect(page.locator('html')).toHaveAttribute(
-    'data-mantine-color-scheme',
-    'dark',
-  );
+  await expect(page.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'dark');
 
   // Capture dark-mode screenshot for human review.
   await page.screenshot({
@@ -101,10 +93,7 @@ test('API Explorer uses dark background in dark mode', async ({ page }) => {
       !e.includes('i18next') &&
       !e.includes('favicon'),
   );
-  expect(
-    actionable,
-    `Console errors in dark mode:\n${actionable.join('\n')}`,
-  ).toHaveLength(0);
+  expect(actionable, `Console errors in dark mode:\n${actionable.join('\n')}`).toHaveLength(0);
 });
 
 // ---------------------------------------------------------------------------
@@ -125,10 +114,7 @@ test('API Explorer uses light background in light mode', async ({ page }) => {
   await expect(container).toBeVisible({ timeout: 20_000 });
 
   // Verify the Mantine light-scheme attribute is applied to <html>.
-  await expect(page.locator('html')).toHaveAttribute(
-    'data-mantine-color-scheme',
-    'light',
-  );
+  await expect(page.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'light');
 
   // The CSS body background in light mode should NOT be a near-black colour.
   // We check the computed background of the explorer's outer wrapper.
@@ -159,10 +145,7 @@ test('API Explorer uses light background in light mode', async ({ page }) => {
       !e.includes('i18next') &&
       !e.includes('favicon'),
   );
-  expect(
-    actionable,
-    `Console errors in light mode:\n${actionable.join('\n')}`,
-  ).toHaveLength(0);
+  expect(actionable, `Console errors in light mode:\n${actionable.join('\n')}`).toHaveLength(0);
 });
 
 // ---------------------------------------------------------------------------
@@ -181,9 +164,9 @@ test('Scrollbar styles reset after navigating away from API Explorer', async ({ 
   await page.goto('/t/acme/services');
 
   // Wait for the services page to be visible (explorer has unmounted).
-  await expect(
-    page.getByRole('heading', { name: /^services$/i }).first(),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: /^services$/i }).first()).toBeVisible({
+    timeout: 15_000,
+  });
 
   // Capture after-navigation screenshot.
   await page.screenshot({

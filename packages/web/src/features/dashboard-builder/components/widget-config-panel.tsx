@@ -12,15 +12,7 @@
  *  - Close button collapses the panel.
  */
 import { useState } from 'react';
-import {
-  Button,
-  Divider,
-  Group,
-  Stack,
-  TextInput,
-  ActionIcon,
-  Tooltip,
-} from '@mantine/core';
+import { Button, Divider, Group, Stack, TextInput, ActionIcon, Tooltip } from '@mantine/core';
 import { IconCode, IconX } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
@@ -37,12 +29,7 @@ export function WidgetConfigPanel(props: WidgetConfigPanelProps) {
   return <WidgetConfigPanelInner key={props.widget.id} {...props} />;
 }
 
-function WidgetConfigPanelInner({
-  dashboardId,
-  widget,
-  onSave,
-  onClose,
-}: WidgetConfigPanelProps) {
+function WidgetConfigPanelInner({ dashboardId, widget, onSave, onClose }: WidgetConfigPanelProps) {
   const canWrite = usePermission('dashboard:write');
   const [title, setTitle] = useState(widget.title);
   const [flipOpen, setFlipOpen] = useState(false);
@@ -110,11 +97,7 @@ function WidgetConfigPanelInner({
             },
           }}
         />
-        <ActionIcon
-          variant="subtle"
-          aria-label="Close widget config"
-          onClick={onClose}
-        >
+        <ActionIcon variant="subtle" aria-label="Close widget config" onClick={onClose}>
           <IconX size={16} />
         </ActionIcon>
       </Group>

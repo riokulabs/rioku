@@ -46,11 +46,7 @@ describe('InstalledPluginList', () => {
     const onSelect = vi.fn();
     const onUninstall = vi.fn();
     wrap(
-      <InstalledPluginList
-        tenantId="any-tenant"
-        onSelect={onSelect}
-        onUninstall={onUninstall}
-      />,
+      <InstalledPluginList tenantId="any-tenant" onSelect={onSelect} onUninstall={onUninstall} />,
     );
 
     // 4 seeded plugins — names should all be present
@@ -61,26 +57,12 @@ describe('InstalledPluginList', () => {
   });
 
   it('shows the stage-1 tenant-scope note', () => {
-    wrap(
-      <InstalledPluginList
-        tenantId="any-tenant"
-        onSelect={vi.fn()}
-        onUninstall={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByText(/Stage 1 shows all installed plugins/i),
-    ).toBeTruthy();
+    wrap(<InstalledPluginList tenantId="any-tenant" onSelect={vi.fn()} onUninstall={vi.fn()} />);
+    expect(screen.getByText(/Stage 1 shows all installed plugins/i)).toBeTruthy();
   });
 
   it('enable/disable switch toggles the plugin in the store', async () => {
-    wrap(
-      <InstalledPluginList
-        tenantId="any-tenant"
-        onSelect={vi.fn()}
-        onUninstall={vi.fn()}
-      />,
-    );
+    wrap(<InstalledPluginList tenantId="any-tenant" onSelect={vi.fn()} onUninstall={vi.fn()} />);
 
     // Acme Billing starts enabled — find the switch by aria-label
     const initialState = useMockStore.getState();
@@ -95,9 +77,7 @@ describe('InstalledPluginList', () => {
     await waitFor(
       () => {
         const state = useMockStore.getState();
-        const acmeAfter = Object.values(state.plugins).find(
-          (p) => p.slug === 'com.acme.billing',
-        );
+        const acmeAfter = Object.values(state.plugins).find((p) => p.slug === 'com.acme.billing');
         expect(acmeAfter?.enabled).toBe(false);
       },
       { timeout: 2000 },
@@ -113,11 +93,7 @@ describe('InstalledPluginList', () => {
     const user = userEvent.setup();
     const onUninstall = vi.fn();
     wrap(
-      <InstalledPluginList
-        tenantId="any-tenant"
-        onSelect={vi.fn()}
-        onUninstall={onUninstall}
-      />,
+      <InstalledPluginList tenantId="any-tenant" onSelect={vi.fn()} onUninstall={onUninstall} />,
     );
 
     // Open the actions menu for the first plugin

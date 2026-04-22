@@ -150,9 +150,9 @@ describe('validateManifest — invalid permission key format', () => {
 describe('validateManifest — multiple errors', () => {
   it('surfaces all errors in a single result for multiple bad permissions', () => {
     const result = validateManifest({
-      name: 'bad-name-',    // bad name (ends with hyphen)
+      name: 'bad-name-', // bad name (ends with hyphen)
       version: 'not-semver',
-      displayName: '',      // empty
+      displayName: '', // empty
       author: { name: 'A' },
       abi: { minVersion: -1 }, // negative
     });

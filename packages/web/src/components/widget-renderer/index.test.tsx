@@ -6,10 +6,7 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { WidgetRenderer } from './index';
-import {
-  registerWidget,
-  unregisterWidget,
-} from '@/host/widgets';
+import { registerWidget, unregisterWidget } from '@/host/widgets';
 import type { Widget } from '@/api/resources/types';
 
 function wrap(ui: React.ReactNode) {
@@ -40,13 +37,7 @@ describe('<WidgetRenderer>', () => {
 
   it('renders a built-in widget when kind matches', () => {
     const widget = makeWidget('single-stat');
-    wrap(
-      <WidgetRenderer
-        widget={widget}
-        data={{ value: 42 }}
-        loading={false}
-      />,
-    );
+    wrap(<WidgetRenderer widget={widget} data={{ value: 42 }} loading={false} />);
     expect(screen.getByText('42')).toBeInTheDocument();
   });
 
@@ -65,13 +56,7 @@ describe('<WidgetRenderer>', () => {
       pluginName: 'test-plugin',
     });
     const widget = makeWidget('test.plugin.widget');
-    wrap(
-      <WidgetRenderer
-        widget={widget}
-        data={{ v: 7 }}
-        loading={false}
-      />,
-    );
+    wrap(<WidgetRenderer widget={widget} data={{ v: 7 }} loading={false} />);
     const node = screen.getByTestId('plugin-widget');
     expect(node).toHaveTextContent('data=7');
     expect(node).toHaveTextContent('config=bar');
@@ -79,13 +64,7 @@ describe('<WidgetRenderer>', () => {
 
   it('renders an error Alert for an unknown widget kind', () => {
     const widget = makeWidget('mystery-kind');
-    wrap(
-      <WidgetRenderer
-        widget={widget}
-        data={null}
-        loading={false}
-      />,
-    );
+    wrap(<WidgetRenderer widget={widget} data={null} loading={false} />);
     expect(screen.getByText('Unknown widget type')).toBeInTheDocument();
     expect(screen.getByText('mystery-kind')).toBeInTheDocument();
   });

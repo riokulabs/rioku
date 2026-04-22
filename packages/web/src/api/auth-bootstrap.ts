@@ -27,9 +27,7 @@ export function initAuthBootstrap(): () => void {
     if (previousUserId !== null && nextUserId === null) {
       // Session expired — trigger auth-failure flow.
       const currentUrl =
-        typeof window !== 'undefined'
-          ? window.location.pathname + window.location.search
-          : '/';
+        typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
       handleAuthFailure(currentUrl);
     }
     previousUserId = nextUserId;

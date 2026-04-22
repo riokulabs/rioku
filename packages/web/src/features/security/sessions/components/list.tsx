@@ -5,13 +5,7 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Group,
-  Button,
-} from '@mantine/core';
+import { Badge, Text, Stack, Group, Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconDeviceDesktop, IconShield } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
@@ -33,8 +27,7 @@ interface SessionListProps {
 
 export function SessionList({ userId, tenantId }: SessionListProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [revokeAllOpened, { open: openRevokeAll, close: closeRevokeAll }] =
-    useDisclosure(false);
+  const [revokeAllOpened, { open: openRevokeAll, close: closeRevokeAll }] = useDisclosure(false);
 
   const sessions = useSessionList(userId, tenantId);
 
@@ -93,11 +86,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
         id: 'last_seen',
         header: 'Last seen',
         accessorFn: (row) => row.last_seen_relative,
-        cell: ({ getValue }) => (
-          <Text size="sm">
-            {getValue<string>()}
-          </Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{getValue<string>()}</Text>,
       },
       {
         id: 'expires_at',
@@ -122,9 +111,13 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
         accessorFn: (row) => row.revoked,
         cell: ({ getValue }) =>
           getValue<boolean>() ? (
-            <StatusBadge kind="error" size="sm">revoked</StatusBadge>
+            <StatusBadge kind="error" size="sm">
+              revoked
+            </StatusBadge>
           ) : (
-            <StatusBadge kind="active" size="sm">active</StatusBadge>
+            <StatusBadge kind="active" size="sm">
+              active
+            </StatusBadge>
           ),
       },
       {
@@ -158,12 +151,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
     <Stack gap="sm">
       {hasOtherSessions && (
         <Group justify="flex-end">
-          <Button
-            size="sm"
-            variant="light"
-            color="red"
-            onClick={openRevokeAll}
-          >
+          <Button size="sm" variant="light" color="red" onClick={openRevokeAll}>
             Revoke all other sessions
           </Button>
         </Group>

@@ -35,11 +35,7 @@ const nextImpId = makeIdFactory('imp');
 
 export type ImpersonationState = 'idle' | 'entering' | 'active' | 'exiting';
 
-export type TierName =
-  | 'read'
-  | 'read-sensitive'
-  | 'write'
-  | 'destructive';
+export type TierName = 'read' | 'read-sensitive' | 'write' | 'destructive';
 
 export interface ImpersonationEntryOpts {
   tenant_id: string;
@@ -63,9 +59,9 @@ export interface UseImpersonationReturn {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const IDLE_TIMEOUT_MS = 60 * 60 * 1000;       // 60 minutes
-const WALL_CLOCK_MS = 4 * 60 * 60 * 1000;     // 4 hours
-const WALL_CLOCK_CHECK_INTERVAL_MS = 60_000;   // check every minute
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const WALL_CLOCK_MS = 4 * 60 * 60 * 1000; // 4 hours
+const WALL_CLOCK_CHECK_INTERVAL_MS = 60_000; // check every minute
 
 // ─── Scope builders ───────────────────────────────────────────────────────────
 
@@ -107,7 +103,14 @@ function buildFullScope(additionalScope: TierName[] = []): string[] {
     read: [],
     'read-sensitive': ['user:read', 'audit:read'],
     write: ['service:write', 'route:write', 'policy:write', 'role:write', 'user:invite'],
-    destructive: ['service:delete', 'route:delete', 'policy:delete', 'role:delete', 'api-key:delete', 'session:revoke'],
+    destructive: [
+      'service:delete',
+      'route:delete',
+      'policy:delete',
+      'role:delete',
+      'api-key:delete',
+      'session:revoke',
+    ],
   };
   const extra = new Set<string>();
   for (const tier of additionalScope) {
@@ -124,7 +127,9 @@ export function useImpersonation(): UseImpersonationReturn {
   // Session lives in mock-store (activeImpersonationId + impersonationSessions map)
   // so all components (entry form, banner, etc.) see the same state.
   const activeId = useMockStore((s) => s.activeImpersonationId);
-  const session = useMockStore((s) => (activeId ? (s.impersonationSessions[activeId] ?? null) : null));
+  const session = useMockStore((s) =>
+    activeId ? (s.impersonationSessions[activeId] ?? null) : null,
+  );
   // Transient 'entering' flag is set for a single tick during entry() before
   // the store commit. Derive the stable states from session presence.
   const [transient, setTransient] = useState<'entering' | null>(null);

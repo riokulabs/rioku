@@ -6,19 +6,30 @@ import {
 } from './api-endpoints';
 
 beforeEach(() => {
-  listPluginEndpoints().forEach((e) => { unregisterPluginEndpoint(e.method, e.path); });
+  listPluginEndpoints().forEach((e) => {
+    unregisterPluginEndpoint(e.method, e.path);
+  });
 });
 
 describe('registerPluginEndpoint', () => {
   it('adds an endpoint', () => {
-    registerPluginEndpoint({ path: '/api/v1/foo', method: 'GET', source: 'plugin', pluginName: 'test' });
-    expect(listPluginEndpoints().find((e) => e.path === '/api/v1/foo' && e.method === 'GET')).toBeDefined();
+    registerPluginEndpoint({
+      path: '/api/v1/foo',
+      method: 'GET',
+      source: 'plugin',
+      pluginName: 'test',
+    });
+    expect(
+      listPluginEndpoints().find((e) => e.path === '/api/v1/foo' && e.method === 'GET'),
+    ).toBeDefined();
   });
 
   it('rejects duplicate method+path combination', () => {
     registerPluginEndpoint({ path: '/api/v1/dup', method: 'POST', source: 'plugin' });
     registerPluginEndpoint({ path: '/api/v1/dup', method: 'POST', source: 'plugin' });
-    expect(listPluginEndpoints().filter((e) => e.path === '/api/v1/dup' && e.method === 'POST')).toHaveLength(1);
+    expect(
+      listPluginEndpoints().filter((e) => e.path === '/api/v1/dup' && e.method === 'POST'),
+    ).toHaveLength(1);
   });
 
   it('allows different methods on the same path', () => {
@@ -36,8 +47,18 @@ describe('listPluginEndpoints', () => {
   });
 
   it('filters by pluginName', () => {
-    registerPluginEndpoint({ path: '/p1/ep', method: 'GET', source: 'plugin', pluginName: 'plugin-a' });
-    registerPluginEndpoint({ path: '/p2/ep', method: 'GET', source: 'plugin', pluginName: 'plugin-b' });
+    registerPluginEndpoint({
+      path: '/p1/ep',
+      method: 'GET',
+      source: 'plugin',
+      pluginName: 'plugin-a',
+    });
+    registerPluginEndpoint({
+      path: '/p2/ep',
+      method: 'GET',
+      source: 'plugin',
+      pluginName: 'plugin-b',
+    });
     const forA = listPluginEndpoints('plugin-a');
     expect(forA.every((e) => e.pluginName === 'plugin-a')).toBe(true);
   });
@@ -51,6 +72,8 @@ describe('unregisterPluginEndpoint', () => {
   });
 
   it('no-ops for unknown endpoint', () => {
-    expect(() => { unregisterPluginEndpoint('GET', '/ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterPluginEndpoint('GET', '/ghost');
+    }).not.toThrow();
   });
 });

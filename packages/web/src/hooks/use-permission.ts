@@ -35,10 +35,7 @@ export function usePermission(key: string): boolean {
     if (!currentUserId) return false;
 
     const userMemberships = Object.values(memberships).filter(
-      (m) =>
-        m.user_id === currentUserId &&
-        m.tenant_id === currentTenantId &&
-        m.state === 'active',
+      (m) => m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active',
     );
 
     const roleIds = userMemberships.flatMap((m) => m.role_ids);

@@ -31,18 +31,10 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import {
-  HealthChip,
-  ProtocolBadge,
-} from '@/features/api-mgmt-shared';
+import { HealthChip, ProtocolBadge } from '@/features/api-mgmt-shared';
 import { RouteList } from '@/features/routes/components/list';
 import type { RouteFilter, Route } from '@/features/routes/types';
-import {
-  useServiceDetail,
-  useServiceRoutes,
-  deleteService,
-  forceReloadService,
-} from '../api';
+import { useServiceDetail, useServiceRoutes, deleteService, forceReloadService } from '../api';
 import { ServiceInUseError } from '../types';
 
 dayjs.extend(relativeTime);
@@ -114,16 +106,13 @@ export function ServiceDetail({
   const auditTail = useMemo(() => {
     if (!service) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'service' && e.resource_id === service.id,
-      )
+      .filter((e) => e.resource_type === 'service' && e.resource_id === service.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, service]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [reloading, setReloading] = useState(false);
@@ -248,9 +237,7 @@ export function ServiceDetail({
         )}
         <Text size="xs" c="var(--mantine-color-gray-7)">
           Last reloaded:{' '}
-          {service.last_reloaded_at
-            ? dayjs(service.last_reloaded_at).fromNow()
-            : 'never'}
+          {service.last_reloaded_at ? dayjs(service.last_reloaded_at).fromNow() : 'never'}
         </Text>
       </Stack>
 
@@ -399,8 +386,7 @@ export function ServiceDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the service. Routes still referencing it
-            must be removed first.
+            This permanently deletes the service. Routes still referencing it must be removed first.
           </Alert>
           <Text size="sm">
             Type{' '}

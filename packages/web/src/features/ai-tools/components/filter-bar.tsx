@@ -33,10 +33,8 @@ export function ToolFilterBar({ filter, onChange }: ToolFilterBarProps) {
     }
   }, [debouncedSearch, filter, onChange]);
 
-  const enabledValue =
-    filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
-  const dangerousValue =
-    filter.dangerous === undefined ? 'all' : filter.dangerous ? 'yes' : 'no';
+  const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
+  const dangerousValue = filter.dangerous === undefined ? 'all' : filter.dangerous ? 'yes' : 'no';
 
   return (
     <Group gap="sm" align="flex-end">

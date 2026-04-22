@@ -544,7 +544,8 @@ describe('force_password_change flow', () => {
 describe('useForcePasswordChangeGuard', () => {
   it('navigates to reset-password when force_password_change is true', async () => {
     const { renderHook } = await import('@testing-library/react');
-    const { useForcePasswordChangeGuard } = await import('../hooks/use-force-password-change-guard');
+    const { useForcePasswordChangeGuard } =
+      await import('../hooks/use-force-password-change-guard');
 
     // Set up a user with force_password_change
     const users = Object.values(useMockStore.getState().users);
@@ -552,11 +553,16 @@ describe('useForcePasswordChangeGuard', () => {
     useMockStore.getState().updateEntity('users', user.id, { force_password_change: true });
     useMockStore.setState({ currentUserId: user.id });
 
-    renderHook(() => { useForcePasswordChangeGuard(); }, {
-      wrapper: ({ children }: { children: React.ReactNode }) => (
-        <MantineProvider>{children}</MantineProvider>
-      ),
-    });
+    renderHook(
+      () => {
+        useForcePasswordChangeGuard();
+      },
+      {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <MantineProvider>{children}</MantineProvider>
+        ),
+      },
+    );
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(
@@ -567,7 +573,8 @@ describe('useForcePasswordChangeGuard', () => {
 
   it('does not navigate when force_password_change is false', async () => {
     const { renderHook } = await import('@testing-library/react');
-    const { useForcePasswordChangeGuard } = await import('../hooks/use-force-password-change-guard');
+    const { useForcePasswordChangeGuard } =
+      await import('../hooks/use-force-password-change-guard');
 
     const users = Object.values(useMockStore.getState().users);
     const user = users[0]!;
@@ -576,11 +583,16 @@ describe('useForcePasswordChangeGuard', () => {
 
     mockNavigate.mockClear();
 
-    renderHook(() => { useForcePasswordChangeGuard(); }, {
-      wrapper: ({ children }: { children: React.ReactNode }) => (
-        <MantineProvider>{children}</MantineProvider>
-      ),
-    });
+    renderHook(
+      () => {
+        useForcePasswordChangeGuard();
+      },
+      {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <MantineProvider>{children}</MantineProvider>
+        ),
+      },
+    );
 
     await new Promise((r) => setTimeout(r, 100));
     expect(mockNavigate).not.toHaveBeenCalled();

@@ -210,9 +210,7 @@ describe('IntegrationsSection — Edit webhook', () => {
 
     // Click the actions menu for the first webhook row
     const state = useMockStore.getState();
-    const ep = Object.values(state.webhookEndpoints).find(
-      (e) => e.tenant_id === getAcmeTenantId(),
-    );
+    const ep = Object.values(state.webhookEndpoints).find((e) => e.tenant_id === getAcmeTenantId());
     if (!ep) throw new Error('Webhook endpoint not found');
 
     const actionsBtn = screen.getByTestId(`webhook-actions-${ep.id}`);
@@ -242,9 +240,7 @@ describe('IntegrationsSection — Edit webhook', () => {
     render(<IntegrationsSection />, { wrapper: Wrapper });
 
     const state = useMockStore.getState();
-    const ep = Object.values(state.webhookEndpoints).find(
-      (e) => e.tenant_id === getAcmeTenantId(),
-    );
+    const ep = Object.values(state.webhookEndpoints).find((e) => e.tenant_id === getAcmeTenantId());
     if (!ep) throw new Error('Webhook endpoint not found');
 
     fireEvent.click(screen.getByTestId(`webhook-actions-${ep.id}`));
@@ -267,7 +263,9 @@ describe('IntegrationsSection — Edit webhook', () => {
       expect(updated?.name).toBe('Updated name');
     });
 
-    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.update')).toBe(true);
+    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.update')).toBe(
+      true,
+    );
     expect(hostEvents.some((e) => e.type === 'integrations:webhook-updated')).toBe(true);
 
     mockBus.removeEventListener('integrations:webhook-updated', listener);
@@ -285,9 +283,7 @@ describe('IntegrationsSection — Delete webhook', () => {
     render(<IntegrationsSection />, { wrapper: Wrapper });
 
     const state = useMockStore.getState();
-    const ep = Object.values(state.webhookEndpoints).find(
-      (e) => e.tenant_id === getAcmeTenantId(),
-    );
+    const ep = Object.values(state.webhookEndpoints).find((e) => e.tenant_id === getAcmeTenantId());
     if (!ep) throw new Error('Webhook endpoint not found');
 
     fireEvent.click(screen.getByTestId(`webhook-actions-${ep.id}`));
@@ -306,7 +302,9 @@ describe('IntegrationsSection — Delete webhook', () => {
       expect(useMockStore.getState().webhookEndpoints[ep.id]).toBeUndefined();
     });
 
-    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.delete')).toBe(true);
+    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.delete')).toBe(
+      true,
+    );
     expect(hostEvents.some((e) => e.type === 'integrations:webhook-deleted')).toBe(true);
 
     mockBus.removeEventListener('integrations:webhook-deleted', listener);
@@ -327,9 +325,7 @@ describe('IntegrationsSection — Permission guards', () => {
     render(<IntegrationsSection />, { wrapper: Wrapper });
 
     const state = useMockStore.getState();
-    const ep = Object.values(state.webhookEndpoints).find(
-      (e) => e.tenant_id === getAcmeTenantId(),
-    );
+    const ep = Object.values(state.webhookEndpoints).find((e) => e.tenant_id === getAcmeTenantId());
     if (!ep) throw new Error('Webhook endpoint not found');
 
     const actionsBtn = screen.getByTestId(`webhook-actions-${ep.id}`);

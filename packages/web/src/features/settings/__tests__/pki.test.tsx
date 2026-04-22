@@ -102,7 +102,7 @@ describe('<PkiSection> render', () => {
     expect(table.textContent).toContain('Acme Corp Internal Root');
   });
 
-  it('renders seeded external CA (Let\'s Encrypt) in the CA table', () => {
+  it("renders seeded external CA (Let's Encrypt) in the CA table", () => {
     render(<PkiSection />, { wrapper: Wrapper });
     const table = screen.getByTestId('ca-table');
     expect(table.textContent).toContain("Let's Encrypt Authority X3");
@@ -231,19 +231,15 @@ describe('<PkiSection> Create CA modal', () => {
   it('submitting a valid external CA triggers store mutation + audit + host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('pki:ca-created', listener);
 
     // Render modal directly with opened=true (avoids portal/animation issues)
-    render(
-      <CreateCaModal
-        opened
-        onClose={() => undefined}
-        tenantId={tenantId}
-        canWrite
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<CreateCaModal opened onClose={() => undefined} tenantId={tenantId} canWrite />, {
+      wrapper: Wrapper,
+    });
 
     // Fill in the form — kind defaults to 'external'
     fireEvent.change(screen.getByTestId('ca-name-input'), {
@@ -281,15 +277,9 @@ describe('<PkiSection> Create CA modal', () => {
   it('submitting an external CA without PEM does not mutate the store', async () => {
     const tenantId = getAcmeTenantId();
 
-    render(
-      <CreateCaModal
-        opened
-        onClose={() => undefined}
-        tenantId={tenantId}
-        canWrite
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<CreateCaModal opened onClose={() => undefined} tenantId={tenantId} canWrite />, {
+      wrapper: Wrapper,
+    });
 
     // Fill name + subject only (no PEM, kind is external by default)
     fireEvent.change(screen.getByTestId('ca-name-input'), {
@@ -340,12 +330,7 @@ describe('<PkiSection> Create enrollment modal', () => {
     const tenantId = getAcmeTenantId();
 
     render(
-      <CreateEnrollmentModal
-        opened
-        onClose={() => undefined}
-        tenantId={tenantId}
-        canWrite
-      />,
+      <CreateEnrollmentModal opened onClose={() => undefined} tenantId={tenantId} canWrite />,
       { wrapper: Wrapper },
     );
 
@@ -360,12 +345,7 @@ describe('<PkiSection> Create enrollment modal', () => {
     const tenantId = getAcmeTenantId();
 
     render(
-      <CreateEnrollmentModal
-        opened
-        onClose={() => undefined}
-        tenantId={tenantId}
-        canWrite
-      />,
+      <CreateEnrollmentModal opened onClose={() => undefined} tenantId={tenantId} canWrite />,
       { wrapper: Wrapper },
     );
 
@@ -415,7 +395,9 @@ describe('<PkiSection> revoke flow', () => {
     const { revokeCertEnrollment } = await import('../api');
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('pki:enrollment-revoked', listener);
 
     const tenantId = getAcmeTenantId();

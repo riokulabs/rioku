@@ -80,11 +80,7 @@ function OutcomeLabel({ outcome }: { outcome: 'granted' | 'denied' | 'no-source'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function PermissionPathTrace({
-  userId,
-  tenantId,
-  permission,
-}: PermissionPathTraceProps) {
+export function PermissionPathTrace({ userId, tenantId, permission }: PermissionPathTraceProps) {
   const trace = usePermissionTrace(userId, tenantId, permission);
 
   return (
@@ -164,9 +160,7 @@ export function PermissionPathTrace({
                   <Text size="xs" c="dimmed">
                     Inherited via:{' '}
                     <strong>
-                      {trace.resolved.path
-                        .map((id) => trace.roleNames[id] ?? id)
-                        .join(' → ')}
+                      {trace.resolved.path.map((id) => trace.roleNames[id] ?? id).join(' → ')}
                     </strong>
                   </Text>
                 </List.Item>
@@ -189,9 +183,7 @@ export function PermissionPathTrace({
                   >
                     <Text size="xs" c="yellow.7" style={{ cursor: 'help' }}>
                       Conditional:{' '}
-                      <code style={{ fontFamily: 'monospace' }}>
-                        {trace.resolved.condition}
-                      </code>
+                      <code style={{ fontFamily: 'monospace' }}>{trace.resolved.condition}</code>
                     </Text>
                   </Tooltip>
                 </List.Item>
@@ -222,8 +214,8 @@ export function PermissionPathTrace({
             >
               <Text size="xs" c="red">
                 Denied in role{' '}
-                <strong>{trace.roleNames[trace.denyRoleId] ?? trace.denyRoleId}</strong>{' '}
-                via deny entry
+                <strong>{trace.roleNames[trace.denyRoleId] ?? trace.denyRoleId}</strong> via deny
+                entry
               </Text>
             </List.Item>
           )}

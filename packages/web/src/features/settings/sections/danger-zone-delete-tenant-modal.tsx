@@ -12,15 +12,7 @@
  * Task 8c.13
  */
 import { useState } from 'react';
-import {
-  Button,
-  Checkbox,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Button, Checkbox, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notify } from '@/hooks/use-notify';
 import { deleteTenant } from '../api';
 
@@ -36,16 +28,19 @@ interface DeleteTenantModalProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function DeleteTenantModal({ opened, onClose, tenantId, tenantSlug, onDeleted }: DeleteTenantModalProps) {
+export function DeleteTenantModal({
+  opened,
+  onClose,
+  tenantId,
+  tenantSlug,
+  onDeleted,
+}: DeleteTenantModalProps) {
   const [slugValue, setSlugValue] = useState('');
   const [deleteValue, setDeleteValue] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const allConfirmed =
-    slugValue === tenantSlug &&
-    deleteValue === 'DELETE' &&
-    confirmed;
+  const allConfirmed = slugValue === tenantSlug && deleteValue === 'DELETE' && confirmed;
 
   function handleClose() {
     setSlugValue('');
@@ -81,15 +76,17 @@ export function DeleteTenantModal({ opened, onClose, tenantId, tenantSlug, onDel
     >
       <Stack gap="sm">
         <Text size="sm">
-          This will permanently delete <strong>{tenantSlug}</strong> and all
-          associated resources. This action cannot be undone.
+          This will permanently delete <strong>{tenantSlug}</strong> and all associated resources.
+          This action cannot be undone.
         </Text>
 
         <TextInput
           label={`Type the tenant slug to confirm: "${tenantSlug}"`}
           placeholder={tenantSlug}
           value={slugValue}
-          onChange={(e) => { setSlugValue(e.currentTarget.value); }}
+          onChange={(e) => {
+            setSlugValue(e.currentTarget.value);
+          }}
           data-testid="delete-tenant-slug-input"
         />
 
@@ -97,14 +94,18 @@ export function DeleteTenantModal({ opened, onClose, tenantId, tenantSlug, onDel
           label='Type "DELETE" to confirm'
           placeholder="DELETE"
           value={deleteValue}
-          onChange={(e) => { setDeleteValue(e.currentTarget.value); }}
+          onChange={(e) => {
+            setDeleteValue(e.currentTarget.value);
+          }}
           data-testid="delete-tenant-word-input"
         />
 
         <Checkbox
           label="I understand this is irreversible"
           checked={confirmed}
-          onChange={(e) => { setConfirmed(e.currentTarget.checked); }}
+          onChange={(e) => {
+            setConfirmed(e.currentTarget.checked);
+          }}
           data-testid="delete-tenant-confirm-checkbox"
         />
 
@@ -116,7 +117,9 @@ export function DeleteTenantModal({ opened, onClose, tenantId, tenantSlug, onDel
             color="red"
             disabled={!allConfirmed}
             loading={loading}
-            onClick={() => { void handleSubmit(); }}
+            onClick={() => {
+              void handleSubmit();
+            }}
             data-testid="delete-tenant-submit-button"
           >
             Delete tenant

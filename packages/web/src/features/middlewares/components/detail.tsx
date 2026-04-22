@@ -26,10 +26,7 @@ import { IconAlertCircle, IconStack } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { isDestructiveMiddleware } from '@/features/api-mgmt-shared';
-import {
-  useMiddlewareDetail,
-  deleteMiddleware,
-} from '../api';
+import { useMiddlewareDetail, deleteMiddleware } from '../api';
 import { MiddlewareInUseError } from '../types';
 import { KindConfigPanel } from './kind-config-panel';
 
@@ -49,24 +46,17 @@ const KIND_COLORS: Record<string, string> = {
   custom: 'grape',
 };
 
-export function MiddlewareDetail({
-  middlewareId,
-  onEdit,
-  onClose,
-}: MiddlewareDetailProps) {
+export function MiddlewareDetail({ middlewareId, onEdit, onClose }: MiddlewareDetailProps) {
   const middleware = useMiddlewareDetail(middlewareId);
   const routes = useMockStore((s) => s.routes);
   const services = useMockStore((s) => s.services);
 
   const referencingRoutes = useMemo(() => {
     if (!middleware) return [];
-    return Object.values(routes).filter((r) =>
-      r.middleware_ids.includes(middleware.id),
-    );
+    return Object.values(routes).filter((r) => r.middleware_ids.includes(middleware.id));
   }, [routes, middleware]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -113,18 +103,10 @@ export function MiddlewareDetail({
           <Stack gap={2}>
             <Group gap="xs">
               <Title order={4}>{middleware.name}</Title>
-              <Badge
-                size="sm"
-                variant="light"
-                color={KIND_COLORS[middleware.kind] ?? 'gray'}
-              >
+              <Badge size="sm" variant="light" color={KIND_COLORS[middleware.kind] ?? 'gray'}>
                 {middleware.kind}
               </Badge>
-              <Badge
-                size="sm"
-                variant="light"
-                color={middleware.enabled ? 'green' : 'gray'}
-              >
+              <Badge size="sm" variant="light" color={middleware.enabled ? 'green' : 'gray'}>
                 {middleware.enabled ? 'enabled' : 'disabled'}
               </Badge>
             </Group>

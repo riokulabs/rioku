@@ -1,12 +1,7 @@
 /**
  * Feature-local types for AI tool routing (bindings).
  */
-export type {
-  AiToolBinding,
-  AiAgent,
-  AiTool,
-  ID,
-} from '@/api/resources/types';
+export type { AiToolBinding, AiAgent, AiTool, ID } from '@/api/resources/types';
 
 export interface BindingFilter {
   /** Restrict to these agents. Empty = no filter. */

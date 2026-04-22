@@ -9,15 +9,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Menu,
-  ActionIcon,
-  Group,
-  Tooltip,
-} from '@mantine/core';
+import { Badge, Text, Stack, Menu, ActionIcon, Group, Tooltip } from '@mantine/core';
 import {
   IconDots,
   IconPencil,
@@ -79,9 +71,7 @@ export function DashboardList({
   canSetDefault,
 }: DashboardListProps) {
   const baseDashboards = useDashboardList(tenantId, filter);
-  const dashboards = extraFilter
-    ? baseDashboards.filter(extraFilter)
-    : baseDashboards;
+  const dashboards = extraFilter ? baseDashboards.filter(extraFilter) : baseDashboards;
   const users = useMockStore((s) => s.users);
 
   const columns = useMemo<ColumnDef<Dashboard>[]>(
@@ -98,12 +88,7 @@ export function DashboardList({
                 {d.name}
               </Text>
               {d.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={d.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={d.description}>
                   {d.description}
                 </Text>
               )}
@@ -118,7 +103,7 @@ export function DashboardList({
         accessorFn: (row) =>
           row.owner_user_id === null
             ? 'Tenant-shared'
-            : users[row.owner_user_id]?.name ?? row.owner_user_id,
+            : (users[row.owner_user_id]?.name ?? row.owner_user_id),
         cell: ({ row }) => {
           const d = row.original;
           if (d.owner_user_id === null) {

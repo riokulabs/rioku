@@ -19,17 +19,7 @@
  *   - Monospace log viewer, last 20 lines, aria-live="polite".
  */
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Group,
-  Modal,
-  Progress,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Code, Group, Modal, Progress, Stack, Text } from '@mantine/core';
 import {
   IconAlertTriangle,
   IconCheck,
@@ -58,10 +48,7 @@ const STRIP_STAGES: Exclude<InstallProgressStage, 'complete' | 'failed'>[] = [
   'swapping',
 ];
 
-const STAGE_LABEL: Record<
-  Exclude<InstallProgressStage, 'complete' | 'failed'>,
-  string
-> = {
+const STAGE_LABEL: Record<Exclude<InstallProgressStage, 'complete' | 'failed'>, string> = {
   fetching: 'Fetching',
   verifying: 'Verifying',
   building: 'Building',
@@ -287,11 +274,7 @@ export function InstallProgressModal({
                   color={color}
                   variant={isActive ? 'filled' : 'light'}
                   leftSection={
-                    isPast && !isFailedHere ? (
-                      <IconCheck size={12} />
-                    ) : (
-                      <Icon size={12} />
-                    )
+                    isPast && !isFailedHere ? <IconCheck size={12} /> : <Icon size={12} />
                   }
                   style={{ flex: 1, textAlign: 'center' }}
                   data-testid={`install-progress-stage-${s}`}
@@ -332,8 +315,7 @@ export function InstallProgressModal({
                 padding: '8px 10px',
                 maxHeight: 220,
                 overflowY: 'auto',
-                fontFamily:
-                  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 fontSize: 12,
                 lineHeight: 1.5,
                 whiteSpace: 'pre-wrap',
@@ -353,12 +335,7 @@ export function InstallProgressModal({
 
           {/* Terminal states */}
           {succeeded && (
-            <Alert
-              color="green"
-              variant="light"
-              icon={<IconCheck size={16} />}
-              role="status"
-            >
+            <Alert color="green" variant="light" icon={<IconCheck size={16} />} role="status">
               <Text size="sm" fw={600}>
                 Installed successfully
               </Text>
@@ -403,11 +380,7 @@ export function InstallProgressModal({
           {/* Actions */}
           <Group justify="flex-end" gap="sm">
             {canCancel && (
-              <Button
-                variant="default"
-                leftSection={<IconX size={14} />}
-                onClick={handleCancel}
-              >
+              <Button variant="default" leftSection={<IconX size={14} />} onClick={handleCancel}>
                 Cancel install
               </Button>
             )}

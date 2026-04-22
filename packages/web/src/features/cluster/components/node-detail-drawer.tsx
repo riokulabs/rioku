@@ -1,16 +1,7 @@
 /**
  * <NodeDetailDrawer> — full metrics + metadata for a single cluster node.
  */
-import {
-  Stack,
-  Title,
-  Text,
-  Group,
-  Badge,
-  Table,
-  Progress,
-  Divider,
-} from '@mantine/core';
+import { Stack, Title, Text, Group, Badge, Table, Progress, Divider } from '@mantine/core';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { StatusBadge } from '@/components/status-badge';
@@ -22,21 +13,31 @@ dayjs.extend(relativeTime);
 
 function nodeStatusKind(status: string): StatusKind {
   switch (status) {
-    case 'healthy': return 'success';
-    case 'degraded': return 'warn';
-    case 'unreachable': return 'error';
-    case 'joining': return 'info';
-    case 'leaving': return 'neutral';
-    default: return 'neutral';
+    case 'healthy':
+      return 'success';
+    case 'degraded':
+      return 'warn';
+    case 'unreachable':
+      return 'error';
+    case 'joining':
+      return 'info';
+    case 'leaving':
+      return 'neutral';
+    default:
+      return 'neutral';
   }
 }
 
 function roleColor(role: string): string {
   switch (role) {
-    case 'primary': return 'blue';
-    case 'replica': return 'teal';
-    case 'witness': return 'violet';
-    default: return 'gray';
+    case 'primary':
+      return 'blue';
+    case 'replica':
+      return 'teal';
+    case 'witness':
+      return 'violet';
+    default:
+      return 'gray';
   }
 }
 
@@ -51,8 +52,10 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
     return <Text c="dimmed">Node not found.</Text>;
   }
 
-  const cpuColor = node.metrics.cpu_percent > 80 ? 'red' : node.metrics.cpu_percent > 60 ? 'yellow' : 'teal';
-  const memColor = node.metrics.memory_percent > 80 ? 'red' : node.metrics.memory_percent > 60 ? 'yellow' : 'teal';
+  const cpuColor =
+    node.metrics.cpu_percent > 80 ? 'red' : node.metrics.cpu_percent > 60 ? 'yellow' : 'teal';
+  const memColor =
+    node.metrics.memory_percent > 80 ? 'red' : node.metrics.memory_percent > 60 ? 'yellow' : 'teal';
 
   return (
     <Stack gap="md">
@@ -67,11 +70,7 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
           </Text>
         </Stack>
         <Group gap="xs">
-          <Badge
-            variant="light"
-            color={roleColor(node.role)}
-            tt="capitalize"
-          >
+          <Badge variant="light" color={roleColor(node.role)} tt="capitalize">
             {node.role}
           </Badge>
           <StatusBadge kind={nodeStatusKind(node.status)} tt="capitalize">
@@ -90,7 +89,9 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
         <Table withRowBorders={false} fz="sm">
           <Table.Tbody>
             <Table.Tr>
-              <Table.Td c="dimmed" w={130}>Region</Table.Td>
+              <Table.Td c="dimmed" w={130}>
+                Region
+              </Table.Td>
               <Table.Td ff="monospace">{deriveRegion(node)}</Table.Td>
             </Table.Tr>
             <Table.Tr>
@@ -124,12 +125,7 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
               {node.metrics.cpu_percent}%
             </Text>
           </Group>
-          <Progress
-            value={node.metrics.cpu_percent}
-            color={cpuColor}
-            size="sm"
-            radius="xl"
-          />
+          <Progress value={node.metrics.cpu_percent} color={cpuColor} size="sm" radius="xl" />
         </Stack>
 
         <Stack gap="xs">
@@ -139,19 +135,16 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
               {node.metrics.memory_percent}%
             </Text>
           </Group>
-          <Progress
-            value={node.metrics.memory_percent}
-            color={memColor}
-            size="sm"
-            radius="xl"
-          />
+          <Progress value={node.metrics.memory_percent} color={memColor} size="sm" radius="xl" />
         </Stack>
 
         <Table withRowBorders={false} fz="sm" mt="xs">
           <Table.Tbody>
             <Table.Tr>
               <Table.Td c="dimmed">Requests/sec</Table.Td>
-              <Table.Td ff="monospace">{node.metrics.requests_per_second.toLocaleString()}</Table.Td>
+              <Table.Td ff="monospace">
+                {node.metrics.requests_per_second.toLocaleString()}
+              </Table.Td>
             </Table.Tr>
             <Table.Tr>
               <Table.Td c="dimmed">p95 latency</Table.Td>

@@ -51,9 +51,7 @@ function AiAgentsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -77,19 +75,13 @@ function AiAgentsPage() {
         search: next.search,
         provider_ids: next.provider_ids.join(','),
         role_ids: next.role_ids.join(','),
-        enabled:
-          next.enabled === true
-            ? 'true'
-            : next.enabled === false
-              ? 'false'
-              : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedAgent, setSelectedAgent] = useState<AiAgent | null>(null);
 
@@ -136,7 +128,7 @@ function AiAgentsPage() {
       ? 'Create agent'
       : drawerMode === 'edit'
         ? `Edit — ${selectedAgent?.name ?? ''}`
-        : selectedAgent?.name ?? 'Agent detail';
+        : (selectedAgent?.name ?? 'Agent detail');
 
   return (
     <Stack gap="md" p="md">
@@ -147,11 +139,7 @@ function AiAgentsPage() {
         </Button>
       </Group>
 
-      <AgentFilterBar
-        tenantId={tenantId}
-        filter={filter}
-        onChange={setFilter}
-      />
+      <AgentFilterBar tenantId={tenantId} filter={filter} onChange={setFilter} />
 
       <AgentList
         tenantId={tenantId}

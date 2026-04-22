@@ -15,9 +15,7 @@
 import { expect } from '@playwright/test';
 import { test, getStoreState } from '../fixtures/auth';
 
-test('seeded dashboards render on /t/acme/dashboards', async ({
-  authedPage: page,
-}) => {
+test('seeded dashboards render on /t/acme/dashboards', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboards');
 
   await expect(page.getByRole('heading', { name: /^dashboards$/i })).toBeVisible();
@@ -67,9 +65,7 @@ test('Export JSON triggers a download', async ({ authedPage: page }) => {
   expect(download.suggestedFilename()).toMatch(/^dashboard-.*\.json$/);
 });
 
-test('Version history drawer opens and lists versions', async ({
-  authedPage: page,
-}) => {
+test('Version history drawer opens and lists versions', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboards');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -90,9 +86,7 @@ test('Version history drawer opens and lists versions', async ({
   expect(versionCount).toBeGreaterThanOrEqual(1);
 });
 
-test('Import dashboard from exported JSON creates a new entry', async ({
-  authedPage: page,
-}) => {
+test('Import dashboard from exported JSON creates a new entry', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboards');
 
   // Wait for the list to hydrate — guarantees the store has been seeded
@@ -107,56 +101,64 @@ test('Import dashboard from exported JSON creates a new entry', async ({
   // Also confirm the store has populated with a seeded acme tenant. The
   // mock-store seed is deterministic but can lag the UI render by a tick
   // on slow CI workers.
-  await page.waitForFunction(() => {
-    const store = (window as unknown as {
-      __RIOKU_STORE?: {
-        getState: () => { tenants: Record<string, { slug: string }> };
-      };
-    }).__RIOKU_STORE;
-    if (!store) return false;
-    const { tenants } = store.getState();
-    return Object.values(tenants).some((t) => t.slug === 'acme');
-  }, null, { timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: {
+            getState: () => { tenants: Record<string, { slug: string }> };
+          };
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      const { tenants } = store.getState();
+      return Object.values(tenants).some((t) => t.slug === 'acme');
+    },
+    null,
+    { timeout: 10_000 },
+  );
 
   // Read the first acme dashboard id and its widgets from the store, then
   // build a valid plan4-v1 export payload directly — avoids headless quirks
   // around intercepting a live download and re-reading its Blob contents.
   const state = (await getStoreState(page)) as {
     tenants: Record<string, { id: string; slug: string }>;
-    dashboards: Record<string, {
-      id: string;
-      tenant_id: string;
-      name: string;
-      default: boolean;
-      widget_ids: string[];
-      description?: string;
-      owner_user_id: string | null;
-      mode: 'metabase' | 'grafana';
-      scope: 'personal' | 'tenant' | 'shared';
-      shared_role_ids: string[];
-      layout: Record<string, { x: number; y: number; w: number; h: number }>;
-      variables: unknown[];
-      created_at: string;
-      updated_at: string;
-    }>;
-    widgets: Record<string, {
-      id: string;
-      dashboard_id: string;
-    }>;
+    dashboards: Record<
+      string,
+      {
+        id: string;
+        tenant_id: string;
+        name: string;
+        default: boolean;
+        widget_ids: string[];
+        description?: string;
+        owner_user_id: string | null;
+        mode: 'metabase' | 'grafana';
+        scope: 'personal' | 'tenant' | 'shared';
+        shared_role_ids: string[];
+        layout: Record<string, { x: number; y: number; w: number; h: number }>;
+        variables: unknown[];
+        created_at: string;
+        updated_at: string;
+      }
+    >;
+    widgets: Record<
+      string,
+      {
+        id: string;
+        dashboard_id: string;
+      }
+    >;
   };
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('acme tenant not seeded');
-  const acmeDashboards = Object.values(state.dashboards).filter(
-    (d) => d.tenant_id === acme.id,
-  );
+  const acmeDashboards = Object.values(state.dashboards).filter((d) => d.tenant_id === acme.id);
   expect(acmeDashboards.length).toBeGreaterThanOrEqual(1);
   const source = acmeDashboards[0];
   if (source === undefined) {
     throw new Error('no acme dashboard found after length assertion');
   }
-  const sourceWidgets = Object.values(state.widgets).filter(
-    (w) => w.dashboard_id === source.id,
-  );
+  const sourceWidgets = Object.values(state.widgets).filter((w) => w.dashboard_id === source.id);
 
   const exportPayload = JSON.stringify({
     version: 'plan4-v1',

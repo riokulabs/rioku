@@ -25,8 +25,8 @@ function ImpersonatePage() {
       <div>
         <Title order={3}>Start impersonation session</Title>
         <Text c="dimmed" size="sm" mt={4}>
-          Enter a tenant to act as super-admin. The session is time-limited and
-          logged to both the super-admin audit log and the target tenant&apos;s audit log.
+          Enter a tenant to act as super-admin. The session is time-limited and logged to both the
+          super-admin audit log and the target tenant&apos;s audit log.
         </Text>
       </div>
       <ImpersonationEntryForm />

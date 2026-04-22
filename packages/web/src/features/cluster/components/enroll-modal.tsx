@@ -55,16 +55,11 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
   }
 
   return (
-    <Modal
-      opened={opened}
-      onClose={handleClose}
-      title="Enroll new cluster node"
-      size="lg"
-    >
+    <Modal opened={opened} onClose={handleClose} title="Enroll new cluster node" size="lg">
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Generate a single-use enrollment token. Run the displayed command on
-          the new node to join it to the cluster. The token expires in 7 days.
+          Generate a single-use enrollment token. Run the displayed command on the new node to join
+          it to the cluster. The token expires in 7 days.
         </Text>
 
         {error && (
@@ -75,7 +70,9 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
 
         {!token ? (
           <Button
-            onClick={() => { void handleGenerate(); }}
+            onClick={() => {
+              void handleGenerate();
+            }}
             loading={loading}
             leftSection={loading ? <Loader size={14} /> : undefined}
           >
@@ -84,8 +81,7 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
         ) : (
           <Stack gap="sm">
             <Text size="sm" fw={500}>
-              Token generated — expires{' '}
-              {new Date(token.expires_at).toLocaleDateString()}
+              Token generated — expires {new Date(token.expires_at).toLocaleDateString()}
             </Text>
 
             <Stack gap={4}>
@@ -93,10 +89,7 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
                 Join command
               </Text>
               <Group align="flex-start" gap="xs" wrap="nowrap">
-                <Code
-                  block
-                  style={{ flex: 1, fontSize: 12, wordBreak: 'break-all' }}
-                >
+                <Code block style={{ flex: 1, fontSize: 12, wordBreak: 'break-all' }}>
                   {joinCmd}
                 </Code>
                 <CopyButton value={joinCmd} timeout={2000}>
@@ -118,8 +111,8 @@ export function EnrollModal({ opened, onClose }: EnrollModalProps) {
             </Stack>
 
             <Text size="xs" c="dimmed">
-              Replace <Code>&lt;NODE_ADDRESS&gt;</Code> with the IP or hostname
-              of the new node (e.g. <Code>10.0.4.5:7777</Code>).
+              Replace <Code>&lt;NODE_ADDRESS&gt;</Code> with the IP or hostname of the new node
+              (e.g. <Code>10.0.4.5:7777</Code>).
             </Text>
           </Stack>
         )}

@@ -51,14 +51,7 @@ export const channelConfigSchemas = {
   sms: smsChannelConfigSchema,
 } as const;
 
-export const CHANNEL_KINDS = [
-  'email',
-  'slack',
-  'webhook',
-  'pagerduty',
-  'teams',
-  'sms',
-] as const;
+export const CHANNEL_KINDS = ['email', 'slack', 'webhook', 'pagerduty', 'teams', 'sms'] as const;
 
 export const channelKindSchema = z.enum(CHANNEL_KINDS);
 

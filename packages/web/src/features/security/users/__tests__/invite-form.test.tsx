@@ -40,13 +40,7 @@ describe('UserInviteForm', () => {
     const onSuccess = vi.fn();
     const onCancel = vi.fn();
 
-    wrap(
-      <UserInviteForm
-        tenantId={acmeTenant.id}
-        onSuccess={onSuccess}
-        onCancel={onCancel}
-      />,
-    );
+    wrap(<UserInviteForm tenantId={acmeTenant.id} onSuccess={onSuccess} onCancel={onCancel} />);
 
     // Submit without filling email
     fireEvent.click(screen.getByRole('button', { name: /send invite/i }));
@@ -68,13 +62,7 @@ describe('UserInviteForm', () => {
     const onSuccess = vi.fn();
     const onCancel = vi.fn();
 
-    wrap(
-      <UserInviteForm
-        tenantId={acmeTenant.id}
-        onSuccess={onSuccess}
-        onCancel={onCancel}
-      />,
-    );
+    wrap(<UserInviteForm tenantId={acmeTenant.id} onSuccess={onSuccess} onCancel={onCancel} />);
 
     // Fill in email but no roles
     const emailInput = screen.getByPlaceholderText(/user@example.com/i);
@@ -99,13 +87,7 @@ describe('UserInviteForm', () => {
     const onSuccess = vi.fn();
     const onCancel = vi.fn();
 
-    wrap(
-      <UserInviteForm
-        tenantId={acmeTenant.id}
-        onSuccess={onSuccess}
-        onCancel={onCancel}
-      />,
-    );
+    wrap(<UserInviteForm tenantId={acmeTenant.id} onSuccess={onSuccess} onCancel={onCancel} />);
 
     const emailInput = screen.getByPlaceholderText(/user@example.com/i);
     fireEvent.change(emailInput, { target: { value: 'newuser@example.com' } });
@@ -115,13 +97,7 @@ describe('UserInviteForm', () => {
     const { inviteUser } = await import('../api');
     const auditCountBefore = useMockStore.getState().audit.length;
 
-    await inviteUser(
-      'newuser@example.com',
-      'New User',
-      acmeTenant.id,
-      [acmeRole.id],
-      false,
-    );
+    await inviteUser('newuser@example.com', 'New User', acmeTenant.id, [acmeRole.id], false);
 
     const newState = useMockStore.getState();
     const pendingMembership = Object.values(newState.memberships).find(

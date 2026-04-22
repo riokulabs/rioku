@@ -28,7 +28,9 @@ function getWindowStore(w: Window): RiokuWindowStore {
 /** Helper: read a snapshot of the mock store state. */
 export async function getStoreState(page: Page): Promise<Record<string, unknown>> {
   return page.evaluate(() => {
-    const store = (window as unknown as { __RIOKU_STORE?: { getState: () => Record<string, unknown> } }).__RIOKU_STORE;
+    const store = (
+      window as unknown as { __RIOKU_STORE?: { getState: () => Record<string, unknown> } }
+    ).__RIOKU_STORE;
     if (!store) throw new Error('__RIOKU_STORE not found');
     return store.getState();
   });
@@ -56,11 +58,19 @@ export const test = base.extend<AuthFixtures>({
     });
     await page.goto('/');
     // Wait for the store to be seeded (currentUserId becomes non-null).
-    await page.waitForFunction(() => {
-      const store = (window as unknown as { __RIOKU_STORE?: { getState: () => { currentUserId: string | null } } }).__RIOKU_STORE;
-      if (!store) return false;
-      return store.getState().currentUserId !== null;
-    }, null, { timeout: 10000 });
+    await page.waitForFunction(
+      () => {
+        const store = (
+          window as unknown as {
+            __RIOKU_STORE?: { getState: () => { currentUserId: string | null } };
+          }
+        ).__RIOKU_STORE;
+        if (!store) return false;
+        return store.getState().currentUserId !== null;
+      },
+      null,
+      { timeout: 10000 },
+    );
     await applyFixture(page);
   },
 
@@ -112,16 +122,28 @@ export const test = base.extend<AuthFixtures>({
     await page.goto('/');
 
     // Wait for seed to complete (users populated).
-    await page.waitForFunction(() => {
-      const store = (window as unknown as { __RIOKU_STORE?: { getState: () => { users: Record<string, unknown> } } }).__RIOKU_STORE;
-      if (!store) return false;
-      return Object.keys(store.getState().users).length > 0;
-    }, null, { timeout: 10000 });
+    await page.waitForFunction(
+      () => {
+        const store = (
+          window as unknown as {
+            __RIOKU_STORE?: { getState: () => { users: Record<string, unknown> } };
+          }
+        ).__RIOKU_STORE;
+        if (!store) return false;
+        return Object.keys(store.getState().users).length > 0;
+      },
+      null,
+      { timeout: 10000 },
+    );
 
     // Clear session in memory AND patch localStorage so subsequent navigations
     // (which re-run addInitScript) also start unauthenticated.
     await page.evaluate(() => {
-      const store = (window as unknown as { __RIOKU_STORE?: { setState: (patch: Record<string, unknown>) => void } }).__RIOKU_STORE;
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: { setState: (patch: Record<string, unknown>) => void };
+        }
+      ).__RIOKU_STORE;
       if (!store) throw new Error('__RIOKU_STORE not found');
       // Only clear the "logged in" session state — not pendingAuthUserId, which
       // is set mid-flow during tests (e.g. backup-code flow) and must survive

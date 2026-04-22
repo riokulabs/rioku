@@ -46,7 +46,13 @@ import {
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { WebhookEndpoint } from '@/api/resources/types';
-import { useWebhookEndpoints, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint, useCurrentTenant } from '../api';
+import {
+  useWebhookEndpoints,
+  addWebhookEndpoint,
+  updateWebhookEndpoint,
+  deleteWebhookEndpoint,
+  useCurrentTenant,
+} from '../api';
 import { webhookEndpointSchema } from '../schemas';
 import type { WebhookEndpointValues } from '../schemas';
 
@@ -73,8 +79,12 @@ function OAuthCard({ provider }: { provider: OAuthProvider }) {
     <Card withBorder radius="md" p="md" data-testid={testId}>
       <Stack gap="sm" align="center">
         <Icon size={32} />
-        <Text size="sm" fw={500}>{name}</Text>
-        <Text size="xs" c="var(--mantine-color-gray-7)">Not configured</Text>
+        <Text size="sm" fw={500}>
+          {name}
+        </Text>
+        <Text size="xs" c="var(--mantine-color-gray-7)">
+          Not configured
+        </Text>
         <Tooltip label="Coming at stage 2">
           <span>
             <Button
@@ -149,7 +159,11 @@ function WebhookModal({ opened, onClose, tenantId, existing }: WebhookModalProps
       data-testid={isEdit ? 'edit-webhook-modal' : 'create-webhook-modal'}
       transitionProps={{ duration: 0 }}
     >
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <TextInput
             label="Name"
@@ -175,10 +189,15 @@ function WebhookModal({ opened, onClose, tenantId, existing }: WebhookModalProps
           />
           {existing != null && (
             <Box>
-              <Text size="sm" fw={500} mb={4}>Secret</Text>
-              <Code block data-testid="webhook-secret-display">{existing.secret}</Code>
+              <Text size="sm" fw={500} mb={4}>
+                Secret
+              </Text>
+              <Code block data-testid="webhook-secret-display">
+                {existing.secret}
+              </Code>
               <Text size="xs" c="var(--mantine-color-gray-7)" mt={4}>
-                Secret is set at creation and cannot be changed. Rotate by deleting and recreating the endpoint.
+                Secret is set at creation and cannot be changed. Rotate by deleting and recreating
+                the endpoint.
               </Text>
             </Box>
           )}
@@ -188,7 +207,9 @@ function WebhookModal({ opened, onClose, tenantId, existing }: WebhookModalProps
             {...form.getInputProps('enabled', { type: 'checkbox' })}
           />
           <Group justify="flex-end" mt="sm">
-            <Button variant="default" onClick={onClose}>Cancel</Button>
+            <Button variant="default" onClick={onClose}>
+              Cancel
+            </Button>
             <Button
               type="submit"
               loading={saving}
@@ -241,15 +262,18 @@ function DeleteWebhookModal({ endpoint, onClose }: DeleteWebhookModalProps) {
     >
       <Stack gap="sm">
         <Text size="sm">
-          Are you sure you want to delete{' '}
-          <strong>{endpoint.name}</strong>? This cannot be undone.
+          Are you sure you want to delete <strong>{endpoint.name}</strong>? This cannot be undone.
         </Text>
         <Group justify="flex-end" mt="sm">
-          <Button variant="default" onClick={onClose}>Cancel</Button>
+          <Button variant="default" onClick={onClose}>
+            Cancel
+          </Button>
           <Button
             color="red"
             loading={deleting}
-            onClick={() => { void handleDelete(); }}
+            onClick={() => {
+              void handleDelete();
+            }}
             data-testid="confirm-delete-webhook-button"
           >
             Delete
@@ -284,7 +308,9 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
                 size="sm"
                 leftSection={!canWrite ? <IconLock size={14} /> : <IconPlus size={14} />}
                 disabled={!canWrite}
-                onClick={() => { setCreateOpen(true); }}
+                onClick={() => {
+                  setCreateOpen(true);
+                }}
                 data-testid="add-webhook-button"
               >
                 Add webhook
@@ -312,7 +338,9 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
               {endpoints.map((ep) => (
                 <Table.Tr key={ep.id} data-testid={`webhook-row-${ep.id}`}>
                   <Table.Td>
-                    <Text size="sm" fw={500}>{ep.name}</Text>
+                    <Text size="sm" fw={500}>
+                      {ep.name}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
                     <Code data-testid={`webhook-path-${ep.id}`}>{ep.path}</Code>
@@ -355,7 +383,9 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
                       <Menu.Dropdown>
                         <Menu.Item
                           leftSection={<IconPencil size={14} />}
-                          onClick={() => { setEditEndpoint(ep); }}
+                          onClick={() => {
+                            setEditEndpoint(ep);
+                          }}
                           data-testid={`webhook-edit-${ep.id}`}
                         >
                           Edit
@@ -363,7 +393,9 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
                         <Menu.Item
                           leftSection={<IconTrash size={14} />}
                           color="red"
-                          onClick={() => { setDeleteEndpoint(ep); }}
+                          onClick={() => {
+                            setDeleteEndpoint(ep);
+                          }}
                           data-testid={`webhook-delete-${ep.id}`}
                         >
                           Delete
@@ -380,14 +412,18 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
 
       <WebhookModal
         opened={createOpen}
-        onClose={() => { setCreateOpen(false); }}
+        onClose={() => {
+          setCreateOpen(false);
+        }}
         tenantId={tenantId}
       />
 
       {editEndpoint != null && (
         <WebhookModal
           opened
-          onClose={() => { setEditEndpoint(null); }}
+          onClose={() => {
+            setEditEndpoint(null);
+          }}
           tenantId={tenantId}
           existing={editEndpoint}
         />
@@ -395,7 +431,9 @@ function WebhookTable({ tenantId, canWrite }: WebhookTableProps) {
 
       <DeleteWebhookModal
         endpoint={deleteEndpoint}
-        onClose={() => { setDeleteEndpoint(null); }}
+        onClose={() => {
+          setDeleteEndpoint(null);
+        }}
       />
     </>
   );
@@ -434,17 +472,17 @@ export function IntegrationsSection() {
         title="Stage-1 placeholder"
         data-testid="integrations-stage1-banner"
       >
-        Integrations surface is a placeholder for stage 2+. OAuth connectors are not yet
-        functional. Webhook endpoint records are stored in the mock store but are not
-        evaluated at runtime until stage 2.
+        Integrations surface is a placeholder for stage 2+. OAuth connectors are not yet functional.
+        Webhook endpoint records are stored in the mock store but are not evaluated at runtime until
+        stage 2.
       </Alert>
 
       {/* OAuth connectors */}
       <Stack gap="sm" data-testid="oauth-section">
         <Title order={5}>OAuth connectors</Title>
         <Text size="sm" c="var(--mantine-color-gray-7)">
-          Connect external OAuth applications to enable SSO and delegated API access.
-          Configuration is available at stage 2+.
+          Connect external OAuth applications to enable SSO and delegated API access. Configuration
+          is available at stage 2+.
         </Text>
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" data-testid="oauth-cards">
           {OAUTH_PROVIDERS.map((provider) => (

@@ -21,9 +21,9 @@ user click to copy the ID for support tickets.
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `title` | `string` | `'Something went wrong'` | Error headline |
-| `description` | `string` | — | Human-readable detail |
-| `correlationId` | `string` | — | Server correlation ID (click-to-copy) |
-| `retry` | `() => void` | — | Renders "Try again" button when provided |
+| Prop            | Type         | Default                  | Description                              |
+| --------------- | ------------ | ------------------------ | ---------------------------------------- |
+| `title`         | `string`     | `'Something went wrong'` | Error headline                           |
+| `description`   | `string`     | —                        | Human-readable detail                    |
+| `correlationId` | `string`     | —                        | Server correlation ID (click-to-copy)    |
+| `retry`         | `() => void` | —                        | Renders "Try again" button when provided |

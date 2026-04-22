@@ -11,14 +11,8 @@ export {
   previewCondition,
 } from './api';
 
-export {
-  createBindingSchema,
-  updateBindingSchema,
-} from './schemas';
-export type {
-  CreateBindingFormValues,
-  UpdateBindingFormValues,
-} from './schemas';
+export { createBindingSchema, updateBindingSchema } from './schemas';
+export type { CreateBindingFormValues, UpdateBindingFormValues } from './schemas';
 
 export type {
   BindingFilter,

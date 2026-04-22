@@ -97,9 +97,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
   const auditTail = useMemo(() => {
     if (!channel) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'notification-channel' && e.resource_id === channel.id,
-      )
+      .filter((e) => e.resource_type === 'notification-channel' && e.resource_id === channel.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -224,11 +222,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
                     <Text size="xs">{dayjs(d.last_attempted_at).fromNow()}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Badge
-                      size="xs"
-                      variant="light"
-                      color={STATUS_COLOR[d.status] ?? 'gray'}
-                    >
+                    <Badge size="xs" variant="light" color={STATUS_COLOR[d.status] ?? 'gray'}>
                       {d.status}
                     </Badge>
                   </Table.Td>
@@ -321,8 +315,8 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the channel. Routing rules that reference it
-            will stop delivering until they are updated.
+            This permanently deletes the channel. Routing rules that reference it will stop
+            delivering until they are updated.
           </Alert>
           <Text size="sm">
             Type{' '}

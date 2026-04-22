@@ -34,8 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 let grantAdmin = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'notification:admin' ? grantAdmin : true,
+  usePermission: (key: string) => (key === 'notification:admin' ? grantAdmin : true),
 }));
 
 // ─── Imports ─────────────────────────────────────────────────────────────────
@@ -159,7 +158,9 @@ describe('NotificationsSection permission guard', () => {
 describe('NotificationsSection save', () => {
   it('Save triggers store mutation + audit entry + host event', async () => {
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:notification-config-updated', listener);
 
     render(<NotificationsSection />, { wrapper: Wrapper });
@@ -213,7 +214,9 @@ describe('updateTenantNotificationConfig', () => {
     const tenantId = getAcmeTenantId();
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:notification-config-updated', listener);
 
     await act(async () => {

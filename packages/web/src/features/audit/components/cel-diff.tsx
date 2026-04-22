@@ -198,12 +198,8 @@ export function CelDiff({
     const beforeEmpty = before.trim().length === 0;
     const afterEmpty = after.trim().length === 0;
 
-    const runBefore = beforeEmpty
-      ? Promise.resolve({ ok: true as const })
-      : parseCel(before);
-    const runAfter = afterEmpty
-      ? Promise.resolve({ ok: true as const })
-      : parseCel(after);
+    const runBefore = beforeEmpty ? Promise.resolve({ ok: true as const }) : parseCel(before);
+    const runAfter = afterEmpty ? Promise.resolve({ ok: true as const }) : parseCel(after);
 
     void runBefore.then((r) => {
       if (!cancelled) setParseBefore(r.ok);
@@ -270,20 +266,13 @@ export function CelDiff({
   );
 }
 
-function CelTokenLine({
-  tokens,
-  testid,
-}: {
-  tokens: DiffToken[];
-  testid: string;
-}) {
+function CelTokenLine({ tokens, testid }: { tokens: DiffToken[]; testid: string }) {
   return (
     <Box
       component="code"
       data-testid={testid}
       style={{
-        fontFamily:
-          'var(--mantine-font-family-monospace, ui-monospace, SFMono-Regular, monospace)',
+        fontFamily: 'var(--mantine-font-family-monospace, ui-monospace, SFMono-Regular, monospace)',
         fontSize: 13,
         lineHeight: 1.6,
         whiteSpace: 'pre-wrap',

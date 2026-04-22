@@ -103,7 +103,9 @@ if (UPDATE_MODE) {
       'Commit this file alongside any ABI surface change + CURRENT_ABI_VERSION bump.',
   };
   writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2) + '\n');
-  console.info(`ABI surface snapshot updated (ABI v${String(currentAbiVersion)}, hash ${currentHash.slice(0, 12)}…)`);
+  console.info(
+    `ABI surface snapshot updated (ABI v${String(currentAbiVersion)}, hash ${currentHash.slice(0, 12)}…)`,
+  );
   console.info(`Written to: ${SNAPSHOT_PATH}`);
   process.exit(0);
 }
@@ -146,13 +148,13 @@ if (!versionBumped) {
   console.error('');
   console.error('ABI SURFACE DRIFT DETECTED — CI FAILURE');
   console.error('');
-  console.error(
-    `The content between /* ABI-SURFACE-START */ and /* ABI-SURFACE-END */ in`,
-  );
+  console.error(`The content between /* ABI-SURFACE-START */ and /* ABI-SURFACE-END */ in`);
   console.error(`  ${USE_HOST_PATH}`);
   console.error('has changed, but CURRENT_ABI_VERSION has NOT been bumped.');
   console.error('');
-  console.error(`  Snapshot: ABI v${String(snapshot.abiVersion)}, hash ${snapshot.surfaceHash.slice(0, 12)}…`);
+  console.error(
+    `  Snapshot: ABI v${String(snapshot.abiVersion)}, hash ${snapshot.surfaceHash.slice(0, 12)}…`,
+  );
   console.error(`  Current:  ABI v${String(currentAbiVersion)}, hash ${currentHash.slice(0, 12)}…`);
   console.error('');
   console.error('To fix:');
@@ -172,8 +174,6 @@ console.warn(
 );
 console.error('');
 console.error('Snapshot hash does not match current surface hash.');
-console.error(
-  'Even though the ABI version was bumped, the snapshot file must be regenerated.',
-);
+console.error('Even though the ABI version was bumped, the snapshot file must be regenerated.');
 console.error('Run: pnpm run abi:update   then commit abi-surface.v1.json');
 process.exit(1);

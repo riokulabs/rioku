@@ -65,12 +65,7 @@ const AUTH_COLORS: Record<McpServer['auth_kind'], string> = {
   'api-key': 'violet',
 };
 
-export function McpServerDetail({
-  serverId,
-  tenantSlug,
-  onEdit,
-  onClose,
-}: McpServerDetailProps) {
+export function McpServerDetail({ serverId, tenantSlug, onEdit, onClose }: McpServerDetailProps) {
   const server = useMcpServerDetail(serverId);
   const exposedTools = useMcpServerTools(serverId);
   const auditEntries = useMockStore((s) => s.audit);
@@ -79,9 +74,7 @@ export function McpServerDetail({
   const auditTail = useMemo(() => {
     if (!server) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'mcp-server' && e.resource_id === server.id,
-      )
+      .filter((e) => e.resource_type === 'mcp-server' && e.resource_id === server.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -94,10 +87,8 @@ export function McpServerDetail({
       .map((a) => ({ value: a.id, label: a.name }));
   }, [agents, server]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
-  const [rotateOpened, { open: openRotate, close: closeRotate }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const [rotateOpened, { open: openRotate, close: closeRotate }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -136,10 +127,7 @@ export function McpServerDetail({
           `${server.name} returned ${String(result.tool_count)} tools in ${String(result.latency_ms)}ms.`,
         );
       } else {
-        notify.error(
-          'Connection failed',
-          result.error_message ?? 'Upstream error',
-        );
+        notify.error('Connection failed', result.error_message ?? 'Upstream error');
       }
     } catch {
       notify.error('Failed to test server', 'Please try again.');
@@ -154,10 +142,7 @@ export function McpServerDetail({
     setRotating(true);
     try {
       await updateMcpServer(server.id, { auth_credential: rotateValue });
-      notify.success(
-        'Credential rotated',
-        `${server.name} credential updated.`,
-      );
+      notify.success('Credential rotated', `${server.name} credential updated.`);
       closeRotate();
       setRotateValue('');
     } catch {
@@ -209,11 +194,7 @@ export function McpServerDetail({
                 {server.name}
               </Title>
               <McpHealthChip health={server.health} />
-              <Badge
-                size="sm"
-                variant="light"
-                color={AUTH_COLORS[server.auth_kind]}
-              >
+              <Badge size="sm" variant="light" color={AUTH_COLORS[server.auth_kind]}>
                 {server.auth_kind}
               </Badge>
               <Switch
@@ -283,9 +264,7 @@ export function McpServerDetail({
         </Text>
         <MultiSelect
           description="Agents that may route tool calls through this server. Empty = all."
-          placeholder={
-            server.authorized_agent_ids.length === 0 ? 'All agents' : undefined
-          }
+          placeholder={server.authorized_agent_ids.length === 0 ? 'All agents' : undefined}
           data={agentOptions}
           value={server.authorized_agent_ids}
           onChange={(next) => {
@@ -313,20 +292,11 @@ export function McpServerDetail({
         >
           Test connection
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
           Delete…
         </Button>
         {testResult && (
-          <Badge
-            size="sm"
-            color={testResult.ok ? 'green' : 'red'}
-            variant="light"
-          >
+          <Badge size="sm" color={testResult.ok ? 'green' : 'red'} variant="light">
             {testResult.ok ? 'OK' : 'FAIL'} · {String(testResult.latency_ms)}ms ·{' '}
             {String(testResult.tool_count)} tools
           </Badge>
@@ -401,9 +371,7 @@ export function McpServerDetail({
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -423,9 +391,7 @@ export function McpServerDetail({
         size="sm"
       >
         <Stack gap="md">
-          <Text size="sm">
-            Paste the new credential. Only the prefix will be stored.
-          </Text>
+          <Text size="sm">Paste the new credential. Only the prefix will be stored.</Text>
           <PasswordInput
             value={rotateValue}
             onChange={(e) => {
@@ -468,8 +434,7 @@ export function McpServerDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently removes the server. Tools referencing it must be
-            unbound first.
+            This permanently removes the server. Tools referencing it must be unbound first.
           </Alert>
           <Text size="sm">
             Type{' '}

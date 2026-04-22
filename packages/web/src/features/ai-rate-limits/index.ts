@@ -11,14 +11,8 @@ export {
   useRateLimitMetrics,
 } from './api';
 
-export {
-  createRateLimitSchema,
-  updateRateLimitSchema,
-} from './schemas';
-export type {
-  CreateRateLimitFormValues,
-  UpdateRateLimitFormValues,
-} from './schemas';
+export { createRateLimitSchema, updateRateLimitSchema } from './schemas';
+export type { CreateRateLimitFormValues, UpdateRateLimitFormValues } from './schemas';
 
 export type {
   RateLimitFilter,

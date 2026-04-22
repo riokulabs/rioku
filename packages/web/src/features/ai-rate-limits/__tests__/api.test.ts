@@ -44,9 +44,7 @@ describe('createRateLimit + updateRateLimit + deleteRateLimit', () => {
   });
 
   it('updates action and records diff', async () => {
-    const existing = Object.values(
-      useMockStore.getState().aiSemanticRateLimits,
-    )[0]!;
+    const existing = Object.values(useMockStore.getState().aiSemanticRateLimits)[0]!;
     const after = await updateRateLimit(existing.id, { action: 'degrade' });
     expect(after.action).toBe('degrade');
     const audit = useMockStore.getState().audit.at(-1);
@@ -55,13 +53,9 @@ describe('createRateLimit + updateRateLimit + deleteRateLimit', () => {
   });
 
   it('deletes a rule with a destructive audit', async () => {
-    const existing = Object.values(
-      useMockStore.getState().aiSemanticRateLimits,
-    )[0]!;
+    const existing = Object.values(useMockStore.getState().aiSemanticRateLimits)[0]!;
     await deleteRateLimit(existing.id);
-    expect(
-      useMockStore.getState().aiSemanticRateLimits[existing.id],
-    ).toBeUndefined();
+    expect(useMockStore.getState().aiSemanticRateLimits[existing.id]).toBeUndefined();
     const audit = useMockStore.getState().audit.at(-1);
     expect(audit?.action).toBe('ai-rate-limit.delete');
     expect(audit?.tier).toBe('destructive');
@@ -105,38 +99,24 @@ describe('simulateMatch', () => {
 
 describe('useRateLimitMetrics', () => {
   it('returns bucket series with correct lengths per window', () => {
-    const rule = Object.values(
-      useMockStore.getState().aiSemanticRateLimits,
-    )[0]!;
-    const { result: hourly } = renderHook(() =>
-      useRateLimitMetrics(rule.id, '1h'),
-    );
-    const { result: daily } = renderHook(() =>
-      useRateLimitMetrics(rule.id, '24h'),
-    );
-    const { result: weekly } = renderHook(() =>
-      useRateLimitMetrics(rule.id, '7d'),
-    );
+    const rule = Object.values(useMockStore.getState().aiSemanticRateLimits)[0]!;
+    const { result: hourly } = renderHook(() => useRateLimitMetrics(rule.id, '1h'));
+    const { result: daily } = renderHook(() => useRateLimitMetrics(rule.id, '24h'));
+    const { result: weekly } = renderHook(() => useRateLimitMetrics(rule.id, '7d'));
     expect(hourly.current.length).toBe(60);
     expect(daily.current.length).toBe(24);
     expect(weekly.current.length).toBe(7);
   });
 
   it('is deterministic — same ruleId returns the same shape across calls', () => {
-    const rule = Object.values(
-      useMockStore.getState().aiSemanticRateLimits,
-    )[0]!;
+    const rule = Object.values(useMockStore.getState().aiSemanticRateLimits)[0]!;
     const { result: a } = renderHook(() => useRateLimitMetrics(rule.id, '24h'));
     const { result: b } = renderHook(() => useRateLimitMetrics(rule.id, '24h'));
-    expect(a.current.map((p) => p.matches)).toEqual(
-      b.current.map((p) => p.matches),
-    );
+    expect(a.current.map((p) => p.matches)).toEqual(b.current.map((p) => p.matches));
   });
 
   it('produces non-negative match counts', () => {
-    const rule = Object.values(
-      useMockStore.getState().aiSemanticRateLimits,
-    )[0]!;
+    const rule = Object.values(useMockStore.getState().aiSemanticRateLimits)[0]!;
     const { result } = renderHook(() => useRateLimitMetrics(rule.id, '24h'));
     for (const p of result.current) {
       expect(p.matches).toBeGreaterThanOrEqual(0);

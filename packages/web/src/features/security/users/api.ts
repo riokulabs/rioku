@@ -173,9 +173,7 @@ export async function inviteUser(
   state.addEntity('memberships', membership);
 
   // Audit entry
-  state.appendAudit(
-    makeAuditEntry(actorId, tenantId, 'user:invite', 'user', userId),
-  );
+  state.appendAudit(makeAuditEntry(actorId, tenantId, 'user:invite', 'user', userId));
 
   // Fake invite token
   const inviteToken = `inv-${userId.slice(-6)}-${membershipId.slice(-6)}`;
@@ -263,7 +261,11 @@ export async function enableUser(userId: string): Promise<void> {
   state.appendAudit(
     makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'user:enable', 'user', userId),
   );
-  emitHostEvent('user:updated', { user_id: userId, tenant_id: state.currentTenantId, change: 'enabled' });
+  emitHostEvent('user:updated', {
+    user_id: userId,
+    tenant_id: state.currentTenantId,
+    change: 'enabled',
+  });
 }
 
 export async function deleteUser(userId: string): Promise<void> {
@@ -281,13 +283,17 @@ export async function revokeSession(sessionId: string): Promise<void> {
   // Mark revoked = true, do NOT delete (audit trail needs it)
   state.updateEntity('sessions', sessionId, { revoked: true });
   state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'session:revoke', 'session', sessionId),
+    makeAuditEntry(
+      getCurrentActorId(),
+      state.currentTenantId,
+      'session:revoke',
+      'session',
+      sessionId,
+    ),
   );
 }
 
-export async function resendInvite(
-  membershipId: string,
-): Promise<{ inviteToken: string }> {
+export async function resendInvite(membershipId: string): Promise<{ inviteToken: string }> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const membership = state.memberships[membershipId];

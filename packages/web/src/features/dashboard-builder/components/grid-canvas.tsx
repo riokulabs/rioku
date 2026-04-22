@@ -40,11 +40,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { ActionIcon, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
-import {
-  IconGripVertical,
-  IconSettings,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconGripVertical, IconSettings, IconTrash } from '@tabler/icons-react';
 import { WidgetRenderer } from '@/components/widget-renderer';
 import { useWidgetData } from '../api';
 import type { Dashboard, Widget } from '@/api/resources/types';
@@ -98,10 +94,7 @@ function pixelToGrid(
   const relX = clientX - rect.left;
   const relY = clientY - rect.top;
   const colWidth = rect.width / GRID_COLUMNS;
-  const col = Math.max(
-    0,
-    Math.min(GRID_COLUMNS - 1, Math.floor(relX / colWidth)),
-  );
+  const col = Math.max(0, Math.min(GRID_COLUMNS - 1, Math.floor(relX / colWidth)));
   const row = Math.max(0, Math.floor(relY / ROW_HEIGHT_PX));
   return { col, row };
 }
@@ -121,9 +114,7 @@ export function GridCanvas({
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [dragKind, setDragKind] = useState<'widget' | 'palette' | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const id = String(event.active.id);
@@ -144,12 +135,7 @@ export function GridCanvas({
         const evt = activatorEvent as PointerEvent | undefined;
         const px = (evt?.clientX ?? rect.left) + delta.x;
         const py = (evt?.clientY ?? rect.top) + delta.y;
-        if (
-          px < rect.left ||
-          px > rect.right ||
-          py < rect.top ||
-          py > rect.bottom
-        ) {
+        if (px < rect.left || px > rect.right || py < rect.top || py > rect.bottom) {
           return;
         }
         const { col, row } = pixelToGrid(px, py, rect);
@@ -167,12 +153,7 @@ export function GridCanvas({
 
       const layout = dashboard.layout[id];
       if (!layout) return;
-      const clamped = clampPosition(
-        layout.x + colDelta,
-        layout.y + rowDelta,
-        layout.w,
-        layout.h,
-      );
+      const clamped = clampPosition(layout.x + colDelta, layout.y + rowDelta, layout.w, layout.h);
       if (clamped.x !== layout.x || clamped.y !== layout.y) {
         onMoveWidget(id, clamped.x, clamped.y);
       }
@@ -183,10 +164,7 @@ export function GridCanvas({
   // Compute lowest free row for an empty-state visual hint.
   const emptyRow = useMemo(() => {
     if (widgets.length === 0) return 0;
-    return Object.values(dashboard.layout).reduce(
-      (m, p) => (p.y + p.h > m ? p.y + p.h : m),
-      0,
-    );
+    return Object.values(dashboard.layout).reduce((m, p) => (p.y + p.h > m ? p.y + p.h : m), 0);
   }, [widgets.length, dashboard.layout]);
 
   return (
@@ -327,8 +305,9 @@ function GridCell({
   gridRef,
 }: GridCellProps) {
   const { data, loading, error } = useWidgetData(widget);
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: widget.id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: widget.id,
+  });
 
   const col = Math.max(0, Math.min(GRID_COLUMNS - 1, position.x));
   const row = Math.max(0, position.y);
@@ -348,9 +327,7 @@ function GridCell({
       : {}),
     opacity: isDragging ? 0.6 : 1,
     zIndex: isDragging ? 10 : 1,
-    outline: selected
-      ? '2px solid var(--mantine-color-blue-5)'
-      : '1px solid transparent',
+    outline: selected ? '2px solid var(--mantine-color-blue-5)' : '1px solid transparent',
     outlineOffset: '-2px',
     borderRadius: 'var(--mantine-radius-md)',
   };
@@ -380,14 +357,8 @@ function GridCell({
     const onMove = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
-      const nextW = Math.max(
-        MIN_W,
-        Math.min(MAX_W, startW + Math.round(dx / colWidth)),
-      );
-      const nextH = Math.max(
-        MIN_H,
-        Math.min(MAX_H, startH + Math.round(dy / ROW_HEIGHT_PX)),
-      );
+      const nextW = Math.max(MIN_W, Math.min(MAX_W, startW + Math.round(dx / colWidth)));
+      const nextH = Math.max(MIN_H, Math.min(MAX_H, startH + Math.round(dy / ROW_HEIGHT_PX)));
       if (nextW !== lastW || nextH !== lastH) {
         lastW = nextW;
         lastH = nextH;
@@ -484,8 +455,7 @@ function GridCell({
           width: 14,
           height: 14,
           cursor: 'nwse-resize',
-          background:
-            'linear-gradient(135deg, transparent 50%, var(--mantine-color-gray-5) 50%)',
+          background: 'linear-gradient(135deg, transparent 50%, var(--mantine-color-gray-5) 50%)',
           borderBottomRightRadius: 4,
         }}
       />

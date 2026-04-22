@@ -7,11 +7,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Text, Tooltip } from '@mantine/core';
 import { IconEye, IconInbox } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -25,10 +21,13 @@ dayjs.extend(relativeTime);
 
 const STATUS_KIND = {
   delivered: 'success',
-  retrying:  'warn',
-  failed:    'error',
-  pending:   'neutral',
-} as const satisfies Record<NotificationDeliveryLogEntry['status'], 'success' | 'warn' | 'error' | 'neutral'>;
+  retrying: 'warn',
+  failed: 'error',
+  pending: 'neutral',
+} as const satisfies Record<
+  NotificationDeliveryLogEntry['status'],
+  'success' | 'warn' | 'error' | 'neutral'
+>;
 
 interface DeliveryLogListProps {
   rows: NotificationDeliveryLogEntry[];

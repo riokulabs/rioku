@@ -22,12 +22,7 @@ describe('SystemBanner', () => {
     const user = userEvent.setup();
     const onDismiss = vi.fn();
     render(
-      <SystemBanner
-        tone="warning"
-        description="Dismiss me."
-        dismissible
-        onDismiss={onDismiss}
-      />,
+      <SystemBanner tone="warning" description="Dismiss me." dismissible onDismiss={onDismiss} />,
       { wrapper: Wrapper },
     );
     const closeBtn = screen.getByRole('button', { name: /dismiss/i });
@@ -51,35 +46,31 @@ describe('SystemBanner', () => {
   });
 
   it('sets data-tone="info" on the alert root', () => {
-    const { container } = render(
-      <SystemBanner tone="info" description="Info message." />,
-      { wrapper: Wrapper },
-    );
+    const { container } = render(<SystemBanner tone="info" description="Info message." />, {
+      wrapper: Wrapper,
+    });
     const alert = container.querySelector('[data-tone="info"]');
     expect(alert).toBeInTheDocument();
   });
 
   it('sets data-tone="warning" on the alert root', () => {
-    const { container } = render(
-      <SystemBanner tone="warning" description="Warning." />,
-      { wrapper: Wrapper },
-    );
+    const { container } = render(<SystemBanner tone="warning" description="Warning." />, {
+      wrapper: Wrapper,
+    });
     expect(container.querySelector('[data-tone="warning"]')).toBeInTheDocument();
   });
 
   it('sets data-tone="critical" on the alert root', () => {
-    const { container } = render(
-      <SystemBanner tone="critical" description="Critical." />,
-      { wrapper: Wrapper },
-    );
+    const { container } = render(<SystemBanner tone="critical" description="Critical." />, {
+      wrapper: Wrapper,
+    });
     expect(container.querySelector('[data-tone="critical"]')).toBeInTheDocument();
   });
 
   it('sets data-tone="success" on the alert root', () => {
-    const { container } = render(
-      <SystemBanner tone="success" description="Success." />,
-      { wrapper: Wrapper },
-    );
+    const { container } = render(<SystemBanner tone="success" description="Success." />, {
+      wrapper: Wrapper,
+    });
     expect(container.querySelector('[data-tone="success"]')).toBeInTheDocument();
   });
 });

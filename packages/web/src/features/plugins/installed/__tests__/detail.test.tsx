@@ -39,8 +39,7 @@ describe('<InstalledPluginDetail> — signer chip', () => {
       (p) => p.signer_id !== undefined,
     );
     if (!plugin) throw new Error('seed fixture missing signed plugin');
-    const signer =
-      useMockStore.getState().pluginSigners[plugin.signer_id ?? ''];
+    const signer = useMockStore.getState().pluginSigners[plugin.signer_id ?? ''];
     if (!signer) throw new Error('seed fixture missing signer for plugin');
 
     wrap(

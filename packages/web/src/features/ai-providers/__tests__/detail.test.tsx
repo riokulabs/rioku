@@ -35,9 +35,7 @@ function firstProviderId(): string {
   const state = useMockStore.getState();
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
-  const p = Object.values(state.aiProviders).find(
-    (pr) => pr.tenant_id === acme.id,
-  );
+  const p = Object.values(state.aiProviders).find((pr) => pr.tenant_id === acme.id);
   if (!p) throw new Error('No provider seeded');
   return p.id;
 }
@@ -45,26 +43,14 @@ function firstProviderId(): string {
 describe('ProviderDetail', () => {
   it('renders provider header + credential + models section', () => {
     const id = firstProviderId();
-    wrap(
-      <ProviderDetail
-        providerId={id}
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<ProviderDetail providerId={id} onEdit={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getAllByText(/Base URL/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Credential/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Models/i).length).toBeGreaterThan(0);
   });
 
   it('shows error alert when provider not found', () => {
-    wrap(
-      <ProviderDetail
-        providerId="does-not-exist"
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<ProviderDetail providerId="does-not-exist" onEdit={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText(/Provider not found/i)).toBeInTheDocument();
   });
 });

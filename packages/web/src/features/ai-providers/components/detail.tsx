@@ -26,12 +26,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconPlugConnected,
-  IconRobot,
-  IconRotate,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconPlugConnected, IconRobot, IconRotate } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
@@ -56,11 +51,7 @@ interface ProviderDetailProps {
   onClose: () => void;
 }
 
-export function ProviderDetail({
-  providerId,
-  onEdit,
-  onClose,
-}: ProviderDetailProps) {
+export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailProps) {
   const provider = useProviderDetail(providerId);
   const agentsUsing = useProviderAgents(providerId);
   const auditEntries = useMockStore((s) => s.audit);
@@ -68,19 +59,14 @@ export function ProviderDetail({
   const auditTail = useMemo(() => {
     if (!provider) return [];
     return auditEntries
-      .filter(
-        (e) =>
-          e.resource_type === 'ai-provider' && e.resource_id === provider.id,
-      )
+      .filter((e) => e.resource_type === 'ai-provider' && e.resource_id === provider.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, provider]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
-  const [rotateOpened, { open: openRotate, close: closeRotate }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+  const [rotateOpened, { open: openRotate, close: closeRotate }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -109,10 +95,7 @@ export function ProviderDetail({
           `${provider.name} responded in ${String(result.latency_ms)}ms.`,
         );
       } else {
-        notify.error(
-          'Connection failed',
-          result.error_message ?? 'Upstream error',
-        );
+        notify.error('Connection failed', result.error_message ?? 'Upstream error');
       }
     } catch {
       notify.error('Failed to test provider', 'Please try again.');
@@ -257,20 +240,12 @@ export function ProviderDetail({
           color="red"
           disabled={deleteBlocked}
           onClick={openDelete}
-          title={
-            deleteBlocked
-              ? 'Remove dependent agents before deleting'
-              : undefined
-          }
+          title={deleteBlocked ? 'Remove dependent agents before deleting' : undefined}
         >
           Delete…
         </Button>
         {testResult && (
-          <Badge
-            size="sm"
-            color={testResult.ok ? 'green' : 'red'}
-            variant="light"
-          >
+          <Badge size="sm" color={testResult.ok ? 'green' : 'red'} variant="light">
             {testResult.ok ? 'OK' : 'FAIL'} · {String(testResult.latency_ms)}ms
           </Badge>
         )}
@@ -335,9 +310,7 @@ export function ProviderDetail({
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -403,8 +376,8 @@ export function ProviderDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the provider. Agents still referencing it
-            must be reassigned first.
+            This permanently deletes the provider. Agents still referencing it must be reassigned
+            first.
           </Alert>
           <Text size="sm">
             Type{' '}

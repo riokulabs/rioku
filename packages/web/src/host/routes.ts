@@ -38,12 +38,8 @@ const useRouteStore = create<RouteStore>()(() => ({ contributions: [] }));
  * Register a plugin route. Returns the id for later unregistration.
  * Rejects duplicate paths — warns in dev, no-ops in production.
  */
-export function registerRoute(
-  contrib: Omit<RouteContribution, 'id'>,
-): string {
-  const existing = useRouteStore
-    .getState()
-    .contributions.find((c) => c.path === contrib.path);
+export function registerRoute(contrib: Omit<RouteContribution, 'id'>): string {
+  const existing = useRouteStore.getState().contributions.find((c) => c.path === contrib.path);
   if (existing) {
     if (import.meta.env.DEV) {
       console.warn(

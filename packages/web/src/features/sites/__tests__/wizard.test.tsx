@@ -47,13 +47,7 @@ beforeEach(() => {
 
 describe('SiteCreateWizard — step 1 validation', () => {
   it('blocks advance to step 2 when domain is invalid', () => {
-    wrap(
-      <SiteCreateWizard
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<SiteCreateWizard tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(/Site name/i), {
       target: { value: 'my-site' },
@@ -73,13 +67,7 @@ describe('SiteCreateWizard — step 1 validation', () => {
 describe('SiteCreateWizard — schema at submit', () => {
   it('runs the full schema on Create and navigates back to the first invalid step', async () => {
     const onSuccess = vi.fn();
-    wrap(
-      <SiteCreateWizard
-        tenantId={acmeId()}
-        onSuccess={onSuccess}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<SiteCreateWizard tenantId={acmeId()} onSuccess={onSuccess} onCancel={vi.fn()} />);
 
     // Step 1 — fill hostname, advance.
     fireEvent.change(screen.getByLabelText(/Site name/i), {
@@ -99,17 +87,13 @@ describe('SiteCreateWizard — schema at submit', () => {
 
     // Step 3 — TLS (auto default), advance.
     await waitFor(() => {
-      expect(
-        screen.getAllByText(/plaintext only/i).length,
-      ).toBeGreaterThan(0);
+      expect(screen.getAllByText(/plaintext only/i).length).toBeGreaterThan(0);
     });
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
 
     // Step 4 — policies (defaults), advance.
     await waitFor(() => {
-      expect(
-        screen.getByLabelText(/Enable HTTP basic authentication/i),
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/Enable HTTP basic authentication/i)).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
 
@@ -147,13 +131,7 @@ describe('SiteCreateWizard — schema at submit', () => {
 describe('SiteCreateWizard — happy path', () => {
   it('creates a site end-to-end using new_upstream + auto TLS', async () => {
     const onSuccess = vi.fn();
-    wrap(
-      <SiteCreateWizard
-        tenantId={acmeId()}
-        onSuccess={onSuccess}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<SiteCreateWizard tenantId={acmeId()} onSuccess={onSuccess} onCancel={vi.fn()} />);
 
     // Step 1 — hostname
     fireEvent.change(screen.getByLabelText(/Site name/i), {
@@ -174,17 +152,13 @@ describe('SiteCreateWizard — happy path', () => {
     // Step 3 — TLS auto is the default; just advance
     // (wait for the TLS radio group to be visible via one of its descriptions)
     await waitFor(() => {
-      expect(
-        screen.getAllByText(/plaintext only/i).length,
-      ).toBeGreaterThan(0);
+      expect(screen.getAllByText(/plaintext only/i).length).toBeGreaterThan(0);
     });
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
 
     // Step 4 — policies (defaults); advance
     await waitFor(() => {
-      expect(
-        screen.getByLabelText(/Enable HTTP basic authentication/i),
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/Enable HTTP basic authentication/i)).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
 

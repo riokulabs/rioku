@@ -11,11 +11,7 @@ export {
   detachPolicy,
   reorderMiddlewares,
 } from './api';
-export {
-  createRouteSchema,
-  updateRouteSchema,
-  isValidRegex,
-} from './schemas';
+export { createRouteSchema, updateRouteSchema, isValidRegex } from './schemas';
 export type { CreateRouteFormValues, UpdateRouteFormValues } from './schemas';
 export type { RouteFilter, RouteInput, RouteUpdateInput } from './types';
 export { RouteList } from './components/list';

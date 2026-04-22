@@ -123,10 +123,7 @@ export function BootstrapForm() {
         <Alert color="green" variant="light" data-testid="bootstrap-setup-complete">
           Account created! Now set up your authenticator app to secure your account.
         </Alert>
-        <TotpEnrollmentBlock
-          userId={newUserId}
-          onComplete={() => void handleTotpComplete()}
-        />
+        <TotpEnrollmentBlock userId={newUserId} onComplete={() => void handleTotpComplete()} />
       </Stack>
     );
   }
@@ -205,9 +202,7 @@ export function BootstrapForm() {
               data-testid="bootstrap-strength-bar"
             />
             <Group justify="space-between">
-              <Text size="xs">
-                Strength
-              </Text>
+              <Text size="xs">Strength</Text>
               <Text size="xs" c={strengthColor(strength)} fw={500}>
                 {strengthLabel(strength)}
               </Text>
@@ -224,12 +219,7 @@ export function BootstrapForm() {
           {...form.getInputProps('confirm')}
         />
 
-        <Button
-          type="submit"
-          loading={submitting}
-          fullWidth
-          data-testid="bootstrap-submit"
-        >
+        <Button type="submit" loading={submitting} fullWidth data-testid="bootstrap-submit">
           Create organization
         </Button>
       </Stack>

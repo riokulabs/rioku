@@ -5,8 +5,7 @@
  * Default is `true` (Stage 1 mock mode).
  */
 
-export const USE_MOCKS =
-  (import.meta.env.VITE_USE_MOCKS ?? 'true') === 'true';
+export const USE_MOCKS = (import.meta.env.VITE_USE_MOCKS ?? 'true') === 'true';
 
 /**
  * Guard that throws if a Stage-1-only feature is invoked outside mock mode.
@@ -14,8 +13,6 @@ export const USE_MOCKS =
  */
 export function assertMocksOnly(feature: string): void {
   if (!USE_MOCKS) {
-    throw new Error(
-      `${feature} is stage-1-only and requires VITE_USE_MOCKS=true`,
-    );
+    throw new Error(`${feature} is stage-1-only and requires VITE_USE_MOCKS=true`);
   }
 }

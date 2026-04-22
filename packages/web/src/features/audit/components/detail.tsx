@@ -53,8 +53,8 @@ dayjs.extend(relativeTime);
 
 const OUTCOME_KIND = {
   success: 'success',
-  denied:  'warn',
-  error:   'error',
+  denied: 'warn',
+  error: 'error',
 } as const satisfies Record<AuditEntry['outcome'], 'success' | 'warn' | 'error'>;
 
 const TIER_COLOR: Record<AuditEntry['tier'], string> = {
@@ -83,9 +83,7 @@ function extractCondition(side: unknown): string | null {
 }
 
 function buildCurl(entry: AuditEntry): string {
-  const reqHeader = entry.request_id
-    ? `  -H 'X-Rioku-Request-Id: ${entry.request_id}' \\`
-    : '';
+  const reqHeader = entry.request_id ? `  -H 'X-Rioku-Request-Id: ${entry.request_id}' \\` : '';
   return [
     `curl -X POST 'https://api.example.com/v1/audit/replay' \\`,
     `  -H 'Authorization: Bearer $RIOKU_API_KEY' \\`,
@@ -116,16 +114,8 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
   const absoluteTs = dayjs(entry.at).format('YYYY-MM-DD HH:mm:ss');
   const relativeTs = dayjs(entry.at).fromNow();
 
-  const ipDisplay = !entry.ip
-    ? null
-    : canReadSensitive
-      ? entry.ip
-      : REDACTED;
-  const uaDisplay = !entry.user_agent
-    ? null
-    : canReadSensitive
-      ? entry.user_agent
-      : REDACTED;
+  const ipDisplay = !entry.ip ? null : canReadSensitive ? entry.ip : REDACTED;
+  const uaDisplay = !entry.user_agent ? null : canReadSensitive ? entry.user_agent : REDACTED;
 
   // Diff handling — prefer CelDiff on policy writes when both sides carry a
   // `condition` string; otherwise JSON diff; otherwise hide the section.
@@ -142,10 +132,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
             <Text size="sm" fw={600}>
               Policy condition
             </Text>
-            <CelDiff
-              before={beforeCondition ?? ''}
-              after={afterCondition ?? ''}
-            />
+            <CelDiff before={beforeCondition ?? ''} after={afterCondition ?? ''} />
           </Stack>
         );
       }
@@ -307,11 +294,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
           <Stack gap={4}>
             {entry.policies_evaluated.map((p) => (
               <Group key={p.policy_id} gap="xs" align="center" wrap="wrap">
-                <Badge
-                  size="xs"
-                  color={p.decision === 'allow' ? 'green' : 'red'}
-                  variant="light"
-                >
+                <Badge size="xs" color={p.decision === 'allow' ? 'green' : 'red'} variant="light">
                   {p.decision}
                 </Badge>
                 <IdBadge id={p.policy_id} />
@@ -332,9 +315,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
               <Button
                 size="xs"
                 variant="default"
-                leftSection={
-                  copied ? <IconCheck size={12} /> : <IconCopy size={12} />
-                }
+                leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
                 onClick={copy}
                 {...(copied ? { color: 'teal' as const } : {})}
               >
@@ -348,9 +329,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
             <Button
               size="xs"
               variant="default"
-              leftSection={
-                copied ? <IconCheck size={12} /> : <IconTerminal2 size={12} />
-              }
+              leftSection={copied ? <IconCheck size={12} /> : <IconTerminal2 size={12} />}
               onClick={copy}
               {...(copied ? { color: 'teal' as const } : {})}
             >

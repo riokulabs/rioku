@@ -29,10 +29,7 @@ import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import type { AiSemanticRateLimit } from '@/api/resources/types';
 import { createRateLimit, updateRateLimit } from '../api';
-import {
-  createRateLimitSchema,
-  updateRateLimitSchema,
-} from '../schemas';
+import { createRateLimitSchema, updateRateLimitSchema } from '../schemas';
 
 type Scope = AiSemanticRateLimit['scope'];
 type Action = AiSemanticRateLimit['action'];
@@ -95,8 +92,7 @@ export function RateLimitForm({
     .filter((t) => t.tenant_id === tenantId)
     .map((t) => ({ value: t.id, label: t.name }));
 
-  const schema =
-    mode === 'create' ? createRateLimitSchema : updateRateLimitSchema;
+  const schema = mode === 'create' ? createRateLimitSchema : updateRateLimitSchema;
 
   const form = useForm<RateLimitFormValues>({
     initialValues: initialFromRule(initialValues),
@@ -115,9 +111,7 @@ export function RateLimitForm({
         ...(values.scope === 'agent' && values.agent_id !== ''
           ? { agent_id: values.agent_id }
           : {}),
-        ...(values.scope === 'tool' && values.tool_id !== ''
-          ? { tool_id: values.tool_id }
-          : {}),
+        ...(values.scope === 'tool' && values.tool_id !== '' ? { tool_id: values.tool_id } : {}),
         exemplars: values.exemplars,
         similarity_threshold: values.similarity_threshold,
         window_seconds: values.window_seconds,

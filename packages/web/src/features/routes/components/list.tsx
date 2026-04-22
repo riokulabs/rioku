@@ -6,20 +6,8 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Menu,
-  Stack,
-  Switch,
-  Text,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconRoute,
-} from '@tabler/icons-react';
+import { ActionIcon, Badge, Menu, Stack, Switch, Text } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconRoute } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
@@ -116,11 +104,7 @@ export function RouteList({
         size: 110,
         accessorFn: (row) => row.match_kind,
         cell: ({ row }) => (
-          <Badge
-            size="xs"
-            variant="outline"
-            color={MATCH_KIND_COLORS[row.original.match_kind]}
-          >
+          <Badge size="xs" variant="outline" color={MATCH_KIND_COLORS[row.original.match_kind]}>
             {row.original.match_kind}
           </Badge>
         ),
@@ -153,18 +137,14 @@ export function RouteList({
         header: 'Policies',
         size: 90,
         accessorFn: (row) => row.policies.length,
-        cell: ({ getValue }) => (
-          <Text size="sm">{String(getValue<number>())}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{String(getValue<number>())}</Text>,
       },
       {
         id: 'middlewares',
         header: 'Middlewares',
         size: 110,
         accessorFn: (row) => row.middleware_ids.length,
-        cell: ({ getValue }) => (
-          <Text size="sm">{String(getValue<number>())}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{String(getValue<number>())}</Text>,
       },
       {
         id: 'actions',

@@ -54,9 +54,7 @@ export function SignerFilterBar({ filter, onChange }: SignerFilterBarProps) {
         onChange={(value) => {
           onChange({
             ...filter,
-            statuses: value.filter((v): v is Status =>
-              (STATUS_SET as Set<string>).has(v),
-            ),
+            statuses: value.filter((v): v is Status => (STATUS_SET as Set<string>).has(v)),
           });
         }}
         placeholder={filter.statuses.length === 0 ? 'All statuses' : undefined}

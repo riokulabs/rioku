@@ -111,14 +111,8 @@ export function RbacPolicyEditor({
 
         {needsWindow && (
           <TextInput
-            label={
-              policyType === 'login-window'
-                ? 'Login window'
-                : 'Step-up timeout (seconds)'
-            }
-            placeholder={
-              policyType === 'login-window' ? '07:00–19:00 UTC' : '60'
-            }
+            label={policyType === 'login-window' ? 'Login window' : 'Step-up timeout (seconds)'}
+            placeholder={policyType === 'login-window' ? '07:00–19:00 UTC' : '60'}
             {...form.getInputProps('window')}
           />
         )}
@@ -128,7 +122,9 @@ export function RbacPolicyEditor({
             <ConditionEditor
               label="CEL Condition"
               value={form.values.condition ?? ''}
-              onChange={(v) => { form.setFieldValue('condition', v); }}
+              onChange={(v) => {
+                form.setFieldValue('condition', v);
+              }}
               onValidityChange={setConditionValid}
               placeholder="request.method == 'GET'"
               height={120}
@@ -150,11 +146,7 @@ export function RbacPolicyEditor({
           <Button variant="default" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            loading={saving}
-            disabled={needsCondition && !conditionValid}
-          >
+          <Button type="submit" loading={saving} disabled={needsCondition && !conditionValid}>
             {initial ? 'Save changes' : 'Create policy'}
           </Button>
         </Group>

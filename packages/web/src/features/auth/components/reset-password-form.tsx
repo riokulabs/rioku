@@ -93,8 +93,8 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     return () => {
       cancelled = true;
     };
-  // Run once on mount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSubmit(values: ResetPasswordFormValues) {
@@ -188,9 +188,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               data-testid="password-strength-bar"
             />
             <Group justify="space-between">
-              <Text size="xs">
-                Strength
-              </Text>
+              <Text size="xs">Strength</Text>
               <Text size="xs" c={strengthColor(strength)} fw={500}>
                 {strengthLabel(strength)}
               </Text>
@@ -210,7 +208,9 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         <Checkbox
           label="Re-enroll TOTP authenticator after reset"
           checked={reEnrollTotp}
-          onChange={(e) => { setReEnrollTotp(e.currentTarget.checked); }}
+          onChange={(e) => {
+            setReEnrollTotp(e.currentTarget.checked);
+          }}
           data-testid="reenroll-totp-checkbox"
         />
 

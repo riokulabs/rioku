@@ -52,9 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     heading: 'Analytics',
-    items: [
-      { label: 'Insights', to: '/t/acme/dashboards', icon: IconLayoutDashboard },
-    ],
+    items: [{ label: 'Insights', to: '/t/acme/dashboards', icon: IconLayoutDashboard }],
   },
   {
     heading: 'AI',

@@ -1,19 +1,11 @@
 /**
  * Widgets feature — barrel exports.
  */
-export {
-  BUILT_IN_WIDGETS,
-  BUILT_IN_WIDGET_IDS,
-  getBuiltInWidget,
-} from './registry';
+export { BUILT_IN_WIDGETS, BUILT_IN_WIDGET_IDS, getBuiltInWidget } from './registry';
 export type { WidgetRenderProps, WidgetTypeDefinition } from './types';
 export { WidgetRenderError } from './types';
 
-export {
-  DATA_SOURCE_ADAPTERS,
-  WidgetQueryError,
-  runWidgetQuery,
-} from './data-sources';
+export { DATA_SOURCE_ADAPTERS, WidgetQueryError, runWidgetQuery } from './data-sources';
 export type { AdvancedQuery } from './data-sources';
 
 export { SingleStatWidget } from './components/single-stat';

@@ -87,58 +87,44 @@ describe('<EffectivePermissionsPanel> — user scope', () => {
   });
 
   it('renders the panel container', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     expect(screen.getByTestId('effective-permissions-panel')).toBeInTheDocument();
   });
 
   it('shows the total permission count in the summary bar', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     // 3 effective permissions: service:read, service:write, route:read
     expect(screen.getByText(/3 effective permissions/)).toBeInTheDocument();
   });
 
   it('renders a row for each effective permission', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     expect(screen.getByTestId('perm-row-service:read')).toBeInTheDocument();
     expect(screen.getByTestId('perm-row-service:write')).toBeInTheDocument();
     expect(screen.getByTestId('perm-row-route:read')).toBeInTheDocument();
   });
 
   it('shows "direct" source badge for directly assigned permissions', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     // service:write is a direct grant on role-admin
     const badges = screen.getAllByText(/direct · Admin/);
     expect(badges.length).toBeGreaterThan(0);
   });
 
   it('shows "inherited" source badge for parent-role grants', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     // service:read is inherited from Viewer via Admin's parent chain
     const badges = screen.getAllByText(/inherited · Viewer/);
     expect(badges.length).toBeGreaterThan(0);
   });
 
   it('shows "conditional" badge for permissions with a CEL condition', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     expect(screen.getByText('conditional')).toBeInTheDocument();
   });
 
   it('filter input narrows the displayed permissions', () => {
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     const input = screen.getByTestId('perms-filter-input');
     fireEvent.change(input, { target: { value: 'service' } });
     // route:read should be gone
@@ -150,12 +136,8 @@ describe('<EffectivePermissionsPanel> — user scope', () => {
 
   it('shows empty state for user with no memberships', () => {
     mockState = { roles: ROLES, memberships: {}, rbacPolicies: RBAC_POLICIES };
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-99" tenantId="tenant-1" />,
-    );
-    expect(
-      screen.getByText(/No effective permissions found/),
-    ).toBeInTheDocument();
+    wrap(<EffectivePermissionsPanel scope="user" id="user-99" tenantId="tenant-1" />);
+    expect(screen.getByText(/No effective permissions found/)).toBeInTheDocument();
   });
 
   it('shows rbac-policy source badge when policy adds a role', () => {
@@ -182,9 +164,7 @@ describe('<EffectivePermissionsPanel> — user scope', () => {
       memberships: MEMBERSHIPS,
       rbacPolicies: { 'pol-1': policy },
     };
-    wrap(
-      <EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />,
-    );
+    wrap(<EffectivePermissionsPanel scope="user" id="user-1" tenantId="tenant-1" />);
     expect(screen.getByTestId('perm-row-audit:read')).toBeInTheDocument();
     const policyBadge = screen.getByText(/policy · audit-policy/);
     expect(policyBadge).toBeInTheDocument();

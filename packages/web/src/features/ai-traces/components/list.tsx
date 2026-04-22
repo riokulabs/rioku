@@ -12,12 +12,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Group,
-  Text,
-  Tooltip,
-  Box,
-} from '@mantine/core';
+import { Group, Text, Tooltip, Box } from '@mantine/core';
 import { IconHistory } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -33,7 +28,7 @@ dayjs.extend(relativeTime);
 
 const STATUS_KIND = {
   success: 'success',
-  error:   'error',
+  error: 'error',
   timeout: 'warn',
 } as const satisfies Record<AiTrace['status'], 'success' | 'error' | 'warn'>;
 
@@ -93,7 +88,11 @@ export function TraceList({ rows, onSelect }: TraceListProps) {
         size: 160,
         accessorFn: (row) => row.request_id,
         cell: ({ row }) => (
-          <Box onClick={(e) => { e.stopPropagation(); }}>
+          <Box
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
             <IdBadge id={row.original.request_id} />
           </Box>
         ),

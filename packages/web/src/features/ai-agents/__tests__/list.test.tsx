@@ -77,22 +77,10 @@ describe('AgentList', () => {
 
 describe('AgentFilterBar', () => {
   it('renders search, provider, role, and enabled controls', () => {
-    wrap(
-      <AgentFilterBar
-        tenantId={acmeId()}
-        filter={DEFAULT_FILTER}
-        onChange={vi.fn()}
-      />,
-    );
+    wrap(<AgentFilterBar tenantId={acmeId()} filter={DEFAULT_FILTER} onChange={vi.fn()} />);
     expect(screen.getAllByLabelText('Search agents').length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by provider').length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by role').length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByLabelText('Filter by enabled').length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by provider').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by role').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Filter by enabled').length).toBeGreaterThan(0);
   });
 });

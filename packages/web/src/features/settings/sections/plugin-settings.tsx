@@ -32,22 +32,8 @@
  */
 
 import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Drawer,
-  Group,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconLock,
-  IconPlug,
-  IconSettings,
-} from '@tabler/icons-react';
+import { Alert, Badge, Button, Drawer, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { IconLock, IconPlug, IconSettings } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
 import { Zone } from '@/components/zone';
 import { usePermission } from '@/hooks/use-permission';
@@ -89,11 +75,7 @@ function PluginRow({ plugin, onConfigure }: PluginRowProps) {
           <Text size="sm" fw={500} style={{ flexShrink: 0 }}>
             {plugin.display_name}
           </Text>
-          <Badge
-            size="xs"
-            color={plugin.enabled ? 'green' : 'gray'}
-            variant="light"
-          >
+          <Badge size="xs" color={plugin.enabled ? 'green' : 'gray'} variant="light">
             {plugin.enabled ? 'enabled' : 'disabled'}
           </Badge>
           {plugin.has_errors && (
@@ -117,7 +99,9 @@ function PluginRow({ plugin, onConfigure }: PluginRowProps) {
           size="xs"
           variant="light"
           leftSection={<IconSettings size={14} />}
-          onClick={() => { onConfigure(plugin); }}
+          onClick={() => {
+            onConfigure(plugin);
+          }}
           data-testid={`plugin-settings-configure-${plugin.slug}`}
         >
           Configure
@@ -192,8 +176,7 @@ export function PluginSettingsSection() {
         title="Access denied"
         data-testid="plugin-settings-access-denied"
       >
-        You need the <strong>plugin:read</strong> permission to view plugin
-        settings.
+        You need the <strong>plugin:read</strong> permission to view plugin settings.
       </Alert>
     );
   }
@@ -212,17 +195,15 @@ export function PluginSettingsSection() {
     <>
       <Stack gap="sm" data-testid="plugin-settings-section">
         {plugins.map((plugin) => (
-          <PluginRow
-            key={plugin.id}
-            plugin={plugin}
-            onConfigure={setSelected}
-          />
+          <PluginRow key={plugin.id} plugin={plugin} onConfigure={setSelected} />
         ))}
       </Stack>
 
       <PluginSettingsDrawer
         plugin={selected}
-        onClose={() => { setSelected(null); }}
+        onClose={() => {
+          setSelected(null);
+        }}
       />
     </>
   );

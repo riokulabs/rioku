@@ -13,9 +13,7 @@ import { requirePermissions } from '@/hooks/use-before-load';
 
 function SessionsPage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
 
   return (
@@ -25,10 +23,7 @@ function SessionsPage() {
           <IconShieldLock size={20} />
           <Title order={2}>Sessions</Title>
         </Group>
-        <Anchor
-          href={`/t/${tenant}/settings`}
-          size="sm"
-        >
+        <Anchor href={`/t/${tenant}/settings`} size="sm">
           Settings → Authentication → Session timeouts
         </Anchor>
       </Group>

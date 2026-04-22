@@ -5,15 +5,7 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Stack,
-  Title,
-  Group,
-  Select,
-  TextInput,
-  Badge,
-  Text,
-} from '@mantine/core';
+import { Stack, Title, Group, Select, TextInput, Badge, Text } from '@mantine/core';
 import { IconSearch, IconUsers } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable } from '@/components/data-table';
@@ -69,10 +61,7 @@ export function CrossTenantUsers() {
       .filter((r) => {
         if (!debouncedSearch) return true;
         const q = debouncedSearch.toLowerCase();
-        return (
-          r.user.name.toLowerCase().includes(q) ||
-          r.user.email.toLowerCase().includes(q)
-        );
+        return r.user.name.toLowerCase().includes(q) || r.user.email.toLowerCase().includes(q);
       });
   }, [memberships, users, tenants, tenantFilter, stateFilter, debouncedSearch]);
 
@@ -80,18 +69,28 @@ export function CrossTenantUsers() {
     {
       id: 'name',
       header: 'Name',
-      cell: (info) => <Text size="sm" fw={500}>{info.row.original.user.name}</Text>,
+      cell: (info) => (
+        <Text size="sm" fw={500}>
+          {info.row.original.user.name}
+        </Text>
+      ),
     },
     {
       id: 'email',
       header: 'Email',
-      cell: (info) => <Text size="sm" c="dimmed">{info.row.original.user.email}</Text>,
+      cell: (info) => (
+        <Text size="sm" c="dimmed">
+          {info.row.original.user.email}
+        </Text>
+      ),
     },
     {
       id: 'tenant',
       header: 'Tenant',
       cell: (info) => (
-        <Text size="sm" ff="monospace">{info.row.original.tenant.slug}</Text>
+        <Text size="sm" ff="monospace">
+          {info.row.original.tenant.slug}
+        </Text>
       ),
     },
     {
@@ -118,7 +117,9 @@ export function CrossTenantUsers() {
           placeholder="Search by name or email…"
           leftSection={<IconSearch size={14} />}
           value={searchInput}
-          onChange={(e) => { setSearchInput(e.currentTarget.value); }}
+          onChange={(e) => {
+            setSearchInput(e.currentTarget.value);
+          }}
           style={{ flex: 1 }}
         />
         <Select
@@ -139,7 +140,9 @@ export function CrossTenantUsers() {
             { value: 'removed', label: 'Removed' },
           ]}
           value={stateFilter}
-          onChange={(v) => { setStateFilter(v ?? 'all'); }}
+          onChange={(v) => {
+            setStateFilter(v ?? 'all');
+          }}
           style={{ minWidth: 140 }}
         />
       </Group>

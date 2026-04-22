@@ -15,7 +15,33 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { mockBus } from '@/api/mock-sse';
 import { seedStore } from '@/api/mock-seed';
-import { updateProfileAvatar, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo, updateTenantAuthPolicy, updateNetworkConfig, addCertAuthority, addCertEnrollment, revokeCertEnrollment, addTlsCertificate, toggleCertAutoRenew, deleteTlsCertificate, updateTlsAcmeConfig, updateTlsCiphers, updateObservabilityMetrics, updateObservabilityLogs, updateObservabilityTraces, addWebhookEndpoint, updateWebhookEndpoint, deleteWebhookEndpoint, hardResetTenant, exportTenantJson, deleteTenant, _internals } from '../api';
+import {
+  updateProfileAvatar,
+  updateTenantName,
+  updateTenantUrlMode,
+  updateTenantDefaultTheme,
+  updateTenantLogo,
+  updateTenantAuthPolicy,
+  updateNetworkConfig,
+  addCertAuthority,
+  addCertEnrollment,
+  revokeCertEnrollment,
+  addTlsCertificate,
+  toggleCertAutoRenew,
+  deleteTlsCertificate,
+  updateTlsAcmeConfig,
+  updateTlsCiphers,
+  updateObservabilityMetrics,
+  updateObservabilityLogs,
+  updateObservabilityTraces,
+  addWebhookEndpoint,
+  updateWebhookEndpoint,
+  deleteWebhookEndpoint,
+  hardResetTenant,
+  exportTenantJson,
+  deleteTenant,
+  _internals,
+} from '../api';
 
 function getDerrickId(): string {
   const state = useMockStore.getState();
@@ -121,7 +147,9 @@ describe('updateTenantName', () => {
   it('emits tenant:updated host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     await updateTenantName(tenantId, 'Acme Event Check');
@@ -150,7 +178,9 @@ describe('updateTenantUrlMode', () => {
   it('emits tenant:updated host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     await updateTenantUrlMode(tenantId, 'path');
@@ -187,7 +217,9 @@ describe('updateTenantDefaultTheme', () => {
   it('emits tenant:updated host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     await updateTenantDefaultTheme(tenantId, 'dark');
@@ -232,7 +264,9 @@ describe('updateTenantLogo', () => {
   it('emits tenant:updated host event for both set and clear', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     await updateTenantLogo(tenantId, 'https://example.com/logo.png');
@@ -267,7 +301,9 @@ describe('updateTenantAuthPolicy', () => {
   it('happy path: emits tenant:auth-policy-updated host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:auth-policy-updated', listener);
 
     await updateTenantAuthPolicy(tenantId, { totp_policy: 'all' });
@@ -389,7 +425,9 @@ describe('updateNetworkConfig', () => {
     useMockStore.setState({ currentTenantId: tenantId });
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:network-config-updated', listener);
 
     await updateNetworkConfig(tenantId, { http3_enabled: false });
@@ -467,7 +505,9 @@ describe('addCertAuthority', () => {
     useMockStore.setState({ currentTenantId: tenantId });
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('pki:ca-created', listener);
 
     await addCertAuthority(tenantId, {
@@ -536,7 +576,9 @@ describe('addCertEnrollment', () => {
     const caId = getSeedCaId(tenantId);
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('pki:enrollment-requested', listener);
 
     await addCertEnrollment(tenantId, {
@@ -604,7 +646,9 @@ describe('revokeCertEnrollment', () => {
     const enrollmentId = getIssuedEnrollmentId(tenantId);
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('pki:enrollment-revoked', listener);
 
     await revokeCertEnrollment(enrollmentId, 'Test reason');
@@ -626,8 +670,9 @@ describe('addTlsCertificate', () => {
   it('adds a new cert to the store with source=manual', async () => {
     const tenantId = getAcmeTenantId();
     useMockStore.setState({ currentTenantId: tenantId });
-    const countBefore = Object.values(useMockStore.getState().tlsCertificates)
-      .filter((c) => c.tenant_id === tenantId).length;
+    const countBefore = Object.values(useMockStore.getState().tlsCertificates).filter(
+      (c) => c.tenant_id === tenantId,
+    ).length;
 
     await addTlsCertificate(tenantId, {
       domain: 'new.example.com',
@@ -635,14 +680,17 @@ describe('addTlsCertificate', () => {
       key_pem: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
     });
 
-    const certs = Object.values(useMockStore.getState().tlsCertificates)
-      .filter((c) => c.tenant_id === tenantId);
+    const certs = Object.values(useMockStore.getState().tlsCertificates).filter(
+      (c) => c.tenant_id === tenantId,
+    );
     expect(certs.length).toBe(countBefore + 1);
     const newCert = certs.find((c) => c.domain === 'new.example.com');
     expect(newCert).toBeDefined();
     expect(newCert?.source).toBe('manual');
     // key_pem must never be stored
-    expect(JSON.stringify(useMockStore.getState().tlsCertificates)).not.toContain('BEGIN PRIVATE KEY');
+    expect(JSON.stringify(useMockStore.getState().tlsCertificates)).not.toContain(
+      'BEGIN PRIVATE KEY',
+    );
   });
 
   it('emits tls.certificate.upload audit entry', async () => {
@@ -665,7 +713,9 @@ describe('addTlsCertificate', () => {
     const tenantId = getAcmeTenantId();
     useMockStore.setState({ currentTenantId: tenantId });
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:certificate-added', listener);
 
     await addTlsCertificate(tenantId, {
@@ -682,8 +732,9 @@ describe('addTlsCertificate', () => {
 describe('toggleCertAutoRenew', () => {
   it('updates auto_renew on an existing ACME cert', async () => {
     const tenantId = getAcmeTenantId();
-    const cert = Object.values(useMockStore.getState().tlsCertificates)
-      .find((c) => c.tenant_id === tenantId && c.source === 'acme');
+    const cert = Object.values(useMockStore.getState().tlsCertificates).find(
+      (c) => c.tenant_id === tenantId && c.source === 'acme',
+    );
     if (!cert) throw new Error('No ACME cert in seed data');
 
     // Toggle to false first if auto_renew is true, or to true if false
@@ -696,8 +747,9 @@ describe('toggleCertAutoRenew', () => {
 
   it('emits tls.certificate.toggle_auto_renew audit entry', async () => {
     const tenantId = getAcmeTenantId();
-    const cert = Object.values(useMockStore.getState().tlsCertificates)
-      .find((c) => c.tenant_id === tenantId && c.source === 'acme');
+    const cert = Object.values(useMockStore.getState().tlsCertificates).find(
+      (c) => c.tenant_id === tenantId && c.source === 'acme',
+    );
     if (!cert) throw new Error('No ACME cert in seed data');
 
     await toggleCertAutoRenew(cert.id, true);
@@ -709,12 +761,15 @@ describe('toggleCertAutoRenew', () => {
 
   it('emits tls:certificate-updated host event', async () => {
     const tenantId = getAcmeTenantId();
-    const cert = Object.values(useMockStore.getState().tlsCertificates)
-      .find((c) => c.tenant_id === tenantId && c.source === 'acme');
+    const cert = Object.values(useMockStore.getState().tlsCertificates).find(
+      (c) => c.tenant_id === tenantId && c.source === 'acme',
+    );
     if (!cert) throw new Error('No ACME cert in seed data');
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:certificate-updated', listener);
 
     await toggleCertAutoRenew(cert.id, false);
@@ -731,8 +786,9 @@ describe('toggleCertAutoRenew', () => {
 describe('deleteTlsCertificate', () => {
   it('removes the cert from the store', async () => {
     const tenantId = getAcmeTenantId();
-    const cert = Object.values(useMockStore.getState().tlsCertificates)
-      .find((c) => c.tenant_id === tenantId);
+    const cert = Object.values(useMockStore.getState().tlsCertificates).find(
+      (c) => c.tenant_id === tenantId,
+    );
     if (!cert) throw new Error('No cert in seed data');
 
     await deleteTlsCertificate(cert.id);
@@ -742,8 +798,9 @@ describe('deleteTlsCertificate', () => {
 
   it('emits tls.certificate.delete audit entry', async () => {
     const tenantId = getAcmeTenantId();
-    const cert = Object.values(useMockStore.getState().tlsCertificates)
-      .find((c) => c.tenant_id === tenantId);
+    const cert = Object.values(useMockStore.getState().tlsCertificates).find(
+      (c) => c.tenant_id === tenantId,
+    );
     if (!cert) throw new Error('No cert in seed data');
 
     await deleteTlsCertificate(cert.id);
@@ -756,12 +813,15 @@ describe('deleteTlsCertificate', () => {
 
   it('emits tls:certificate-deleted host event', async () => {
     const tenantId = getAcmeTenantId();
-    const cert = Object.values(useMockStore.getState().tlsCertificates)
-      .find((c) => c.tenant_id === tenantId);
+    const cert = Object.values(useMockStore.getState().tlsCertificates).find(
+      (c) => c.tenant_id === tenantId,
+    );
     if (!cert) throw new Error('No cert in seed data');
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:certificate-deleted', listener);
 
     await deleteTlsCertificate(cert.id);
@@ -824,7 +884,9 @@ describe('updateTlsAcmeConfig', () => {
   it('emits tls:config-updated host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:config-updated', listener);
 
     await updateTlsAcmeConfig(tenantId, {
@@ -873,7 +935,9 @@ describe('updateTlsCiphers', () => {
   it('emits tls:config-updated host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tls:config-updated', listener);
 
     await updateTlsCiphers(tenantId, ['TLS_AES_256_GCM_SHA384']);
@@ -926,7 +990,9 @@ describe('updateObservabilityMetrics', () => {
   it('emits tenant:observability-updated host event', async () => {
     const tenantId = getAcmeTenantIdObs();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:observability-updated', listener);
 
     await updateObservabilityMetrics(tenantId, {
@@ -935,7 +1001,9 @@ describe('updateObservabilityMetrics', () => {
       retention_days: 30,
     });
 
-    expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'metrics').length).toBe(1);
+    expect(
+      hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'metrics').length,
+    ).toBe(1);
     mockBus.removeEventListener('tenant:observability-updated', listener);
   });
 });
@@ -975,7 +1043,9 @@ describe('updateObservabilityLogs', () => {
   it('emits tenant:observability-updated host event with subsystem=logs', async () => {
     const tenantId = getAcmeTenantIdObs();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:observability-updated', listener);
 
     await updateObservabilityLogs(tenantId, {
@@ -984,7 +1054,9 @@ describe('updateObservabilityLogs', () => {
       rotation: { max_size_mb: 100, max_backups: 5, max_age_days: 30, compress: true },
     });
 
-    expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'logs').length).toBe(1);
+    expect(
+      hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'logs').length,
+    ).toBe(1);
     mockBus.removeEventListener('tenant:observability-updated', listener);
   });
 });
@@ -1020,7 +1092,9 @@ describe('updateObservabilityTraces', () => {
   it('emits tenant:observability-updated host event with subsystem=traces', async () => {
     const tenantId = getAcmeTenantIdObs();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:observability-updated', listener);
 
     await updateObservabilityTraces(tenantId, {
@@ -1028,7 +1102,9 @@ describe('updateObservabilityTraces', () => {
       sample_rate: 1.0,
     });
 
-    expect(hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'traces').length).toBe(1);
+    expect(
+      hostEvents.filter((e) => (e.detail as { subsystem?: string }).subsystem === 'traces').length,
+    ).toBe(1);
     mockBus.removeEventListener('tenant:observability-updated', listener);
   });
 });
@@ -1057,9 +1133,7 @@ describe('addWebhookEndpoint', () => {
     const state = useMockStore.getState();
     expect(Object.keys(state.webhookEndpoints).length).toBe(beforeCount + 1);
 
-    const created = Object.values(state.webhookEndpoints).find(
-      (e) => e.name === 'Test webhook',
-    );
+    const created = Object.values(state.webhookEndpoints).find((e) => e.name === 'Test webhook');
     expect(created).toBeDefined();
     expect(created?.path).toBe('/webhooks/test');
     expect(created?.tenant_id).toBe(tenantId);
@@ -1069,7 +1143,9 @@ describe('addWebhookEndpoint', () => {
   it('emits tenant.webhook.create audit entry and integrations:webhook-added host event', async () => {
     const tenantId = getAcmeTenantIdWebhook();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('integrations:webhook-added', listener);
 
     await addWebhookEndpoint(tenantId, {
@@ -1110,12 +1186,16 @@ describe('updateWebhookEndpoint', () => {
     if (!ep) throw new Error('No webhook endpoint found for acme');
 
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('integrations:webhook-updated', listener);
 
     await updateWebhookEndpoint(ep.id, { name: 'Updated for audit' });
 
-    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.update')).toBe(true);
+    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.update')).toBe(
+      true,
+    );
     expect(hostEvents.length).toBeGreaterThan(0);
 
     mockBus.removeEventListener('integrations:webhook-updated', listener);
@@ -1143,12 +1223,16 @@ describe('deleteWebhookEndpoint', () => {
     if (!ep) throw new Error('No webhook endpoint found for acme');
 
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('integrations:webhook-deleted', listener);
 
     await deleteWebhookEndpoint(ep.id);
 
-    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.delete')).toBe(true);
+    expect(useMockStore.getState().audit.some((a) => a.action === 'tenant.webhook.delete')).toBe(
+      true,
+    );
     expect(hostEvents.length).toBeGreaterThan(0);
 
     mockBus.removeEventListener('integrations:webhook-deleted', listener);
@@ -1177,7 +1261,9 @@ describe('hardResetTenant', () => {
   it('emits tenant:hard-reset-all-store host event', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:hard-reset-all-store', listener);
 
     await hardResetTenant(tenantId);
@@ -1243,7 +1329,9 @@ describe('exportTenantJson', () => {
   it('emits tenant:exported host event', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:exported', listener);
 
     await exportTenantJson(tenantId);
@@ -1278,9 +1366,7 @@ describe('deleteTenant', () => {
     await deleteTenant(tenantId);
     // The tenant.delete entry is written to the cross-tenant adminAudit log
     // (not the per-tenant audit array) so it survives the cascade filter.
-    const entry = useMockStore.getState().adminAudit.find(
-      (a) => a.action === 'tenant.delete',
-    );
+    const entry = useMockStore.getState().adminAudit.find((a) => a.action === 'tenant.delete');
     expect(entry).toBeDefined();
     expect(entry?.tenant_id).toBe(tenantId);
   });
@@ -1288,7 +1374,9 @@ describe('deleteTenant', () => {
   it('emits tenant:deleted host event', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:deleted', listener);
 
     await deleteTenant(tenantId);
@@ -1318,9 +1406,7 @@ describe('deleteTenant', () => {
   it('leaves other tenants intact', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     const stateBefore = useMockStore.getState();
-    const otherTenants = Object.values(stateBefore.tenants).filter(
-      (t) => t.id !== tenantId,
-    );
+    const otherTenants = Object.values(stateBefore.tenants).filter((t) => t.id !== tenantId);
     expect(otherTenants.length).toBeGreaterThan(0);
 
     await deleteTenant(tenantId);
@@ -1334,9 +1420,7 @@ describe('deleteTenant', () => {
   it('filters tenant audit log entries for the deleted tenant', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     await deleteTenant(tenantId);
-    const remaining = useMockStore.getState().audit.filter(
-      (a) => a.tenant_id === tenantId,
-    );
+    const remaining = useMockStore.getState().audit.filter((a) => a.tenant_id === tenantId);
     expect(remaining).toHaveLength(0);
   });
 
@@ -1423,8 +1507,8 @@ describe('deleteTenant', () => {
 
     await deleteTenant(tenantId);
 
-    const orphanedWidgets = Object.values(useMockStore.getState().widgets).filter(
-      (w) => deletedDashboardIds.has(w.dashboard_id),
+    const orphanedWidgets = Object.values(useMockStore.getState().widgets).filter((w) =>
+      deletedDashboardIds.has(w.dashboard_id),
     );
     expect(orphanedWidgets).toHaveLength(0);
   });
@@ -1440,8 +1524,8 @@ describe('deleteTenant', () => {
 
     await deleteTenant(tenantId);
 
-    const orphanedVersions = Object.values(useMockStore.getState().dashboardVersions).filter(
-      (v) => deletedDashboardIds.has(v.dashboard_id),
+    const orphanedVersions = Object.values(useMockStore.getState().dashboardVersions).filter((v) =>
+      deletedDashboardIds.has(v.dashboard_id),
     );
     expect(orphanedVersions).toHaveLength(0);
   });

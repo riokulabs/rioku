@@ -7,17 +7,7 @@
  * Task 1e.88
  */
 import { useState } from 'react';
-import {
-  Stack,
-  TextInput,
-  Button,
-  Alert,
-  Text,
-  Paper,
-  Group,
-  Anchor,
-  Badge,
-} from '@mantine/core';
+import { Stack, TextInput, Button, Alert, Text, Paper, Group, Anchor, Badge } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
@@ -64,8 +54,14 @@ export function ForgotPasswordForm() {
 
     return (
       <Stack gap="md">
-        <Alert icon={<IconInfoCircle size={16} />} color="green" variant="light" data-testid="reset-success-message">
-          If an account exists for <strong>{submittedEmail}</strong>, a reset link has been sent. (If this is your email, check your inbox.)
+        <Alert
+          icon={<IconInfoCircle size={16} />}
+          color="green"
+          variant="light"
+          data-testid="reset-success-message"
+        >
+          If an account exists for <strong>{submittedEmail}</strong>, a reset link has been sent.
+          (If this is your email, check your inbox.)
         </Alert>
 
         {/* Stage-1 dev helper — no-op in production */}

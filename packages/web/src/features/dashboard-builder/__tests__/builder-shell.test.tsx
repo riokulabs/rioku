@@ -34,9 +34,7 @@ vi.mock('@monaco-editor/react', () => {
 });
 
 function firstAcmeDashboardId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
   const dashboards = Object.values(useMockStore.getState().dashboards).filter(
     (d) => d.tenant_id === acme.id,
@@ -93,9 +91,9 @@ describe('<DashboardBuilderShell>', () => {
     const user = userEvent.setup();
     const dashId = firstAcmeDashboardId();
     const onDone = vi.fn();
-    const versionsBefore = Object.values(
-      useMockStore.getState().dashboardVersions,
-    ).filter((v) => v.dashboard_id === dashId).length;
+    const versionsBefore = Object.values(useMockStore.getState().dashboardVersions).filter(
+      (v) => v.dashboard_id === dashId,
+    ).length;
 
     wrap(<DashboardBuilderShell dashboardId={dashId} onDone={onDone} />);
     await user.click(await screen.findByTestId('builder-save'));
@@ -106,9 +104,9 @@ describe('<DashboardBuilderShell>', () => {
       },
       { timeout: 3000 },
     );
-    const versionsAfter = Object.values(
-      useMockStore.getState().dashboardVersions,
-    ).filter((v) => v.dashboard_id === dashId).length;
+    const versionsAfter = Object.values(useMockStore.getState().dashboardVersions).filter(
+      (v) => v.dashboard_id === dashId,
+    ).length;
     expect(versionsAfter).toBe(versionsBefore + 1);
   });
 
@@ -143,11 +141,7 @@ describe('<DashboardBuilderShell>', () => {
 
     await user.click(screen.getByRole('button', { name: /Cancel/ }));
     // Confirm modal appears (portal-rendered — wait for it).
-    const discardBtn = await screen.findByRole(
-      'button',
-      { name: /^Discard$/ },
-      { timeout: 3000 },
-    );
+    const discardBtn = await screen.findByRole('button', { name: /^Discard$/ }, { timeout: 3000 });
     expect(onDone).not.toHaveBeenCalled();
 
     // Clicking Discard triggers onDone('cancelled').

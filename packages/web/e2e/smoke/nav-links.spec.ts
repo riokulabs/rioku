@@ -71,9 +71,7 @@ for (const { label, to } of NAV_LINKS) {
   });
 }
 
-test('sidebar Insights link navigates to /t/acme/dashboards', async ({
-  authedPage: page,
-}) => {
+test('sidebar Insights link navigates to /t/acme/dashboards', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboard');
 
   // The "Insights" link in the Analytics group should point to /dashboards.

@@ -123,10 +123,7 @@ export async function createRoute(input: RouteInput): Promise<Route> {
   return route;
 }
 
-export async function updateRoute(
-  id: string,
-  input: RouteUpdateInput,
-): Promise<Route> {
+export async function updateRoute(id: string, input: RouteUpdateInput): Promise<Route> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -176,10 +173,7 @@ export async function deleteRoute(id: string): Promise<void> {
   emitHostEvent('route.deleted', { route_id: id, service_id: route.service_id });
 }
 
-export async function attachPolicy(
-  routeId: string,
-  policyId: string,
-): Promise<void> {
+export async function attachPolicy(routeId: string, policyId: string): Promise<void> {
   await simulateLatency('mutation');
 
   useMockStore.setState((state) => {
@@ -198,21 +192,13 @@ export async function attachPolicy(
   const route = state.routes[routeId];
   const tenantId = route ? resolveTenantIdForServiceId(route.service_id) : null;
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      tenantId,
-      'route.policy.attach',
-      routeId,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), tenantId, 'route.policy.attach', routeId),
     payload: { policy_id: policyId },
   });
   emitHostEvent('route.policy.attached', { route_id: routeId, policy_id: policyId });
 }
 
-export async function detachPolicy(
-  routeId: string,
-  policyId: string,
-): Promise<void> {
+export async function detachPolicy(routeId: string, policyId: string): Promise<void> {
   await simulateLatency('mutation');
 
   useMockStore.setState((state) => {
@@ -235,22 +221,14 @@ export async function detachPolicy(
   const route = state.routes[routeId];
   const tenantId = route ? resolveTenantIdForServiceId(route.service_id) : null;
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      tenantId,
-      'route.policy.detach',
-      routeId,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), tenantId, 'route.policy.detach', routeId),
     payload: { policy_id: policyId },
   });
   emitHostEvent('route.policy.detached', { route_id: routeId, policy_id: policyId });
 }
 
 /** Full-replace semantics for the middleware stack. */
-export async function reorderMiddlewares(
-  routeId: string,
-  middlewareIds: string[],
-): Promise<void> {
+export async function reorderMiddlewares(routeId: string, middlewareIds: string[]): Promise<void> {
   await simulateLatency('mutation');
 
   let before: string[] = [];
@@ -270,12 +248,7 @@ export async function reorderMiddlewares(
   const route = state.routes[routeId];
   const tenantId = route ? resolveTenantIdForServiceId(route.service_id) : null;
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      tenantId,
-      'route.middlewares.reorder',
-      routeId,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), tenantId, 'route.middlewares.reorder', routeId),
     diff: { before: { middleware_ids: before }, after: { middleware_ids: middlewareIds } },
   });
   emitHostEvent('route.middlewares.reordered', {

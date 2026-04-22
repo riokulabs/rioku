@@ -5,13 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import {
-  createSite,
-  updateSite,
-  deleteSite,
-  toggleSite,
-  useSiteList,
-} from '../api';
+import { createSite, updateSite, deleteSite, toggleSite, useSiteList } from '../api';
 import { createSiteWizardSchema } from '../schemas';
 
 beforeEach(() => {
@@ -53,9 +47,7 @@ describe('createSiteWizardSchema', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.error.issues.some((i) => i.path[0] === 'upstream_service_id'),
-      ).toBe(true);
+      expect(result.error.issues.some((i) => i.path[0] === 'upstream_service_id')).toBe(true);
     }
   });
 
@@ -67,9 +59,7 @@ describe('createSiteWizardSchema', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.error.issues.some((i) => i.path[0] === 'upstream_host'),
-      ).toBe(true);
+      expect(result.error.issues.some((i) => i.path[0] === 'upstream_host')).toBe(true);
     }
   });
 
@@ -82,9 +72,7 @@ describe('createSiteWizardSchema', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.error.issues.some((i) => i.path[0] === 'tls_manual_cert_pem'),
-      ).toBe(true);
+      expect(result.error.issues.some((i) => i.path[0] === 'tls_manual_cert_pem')).toBe(true);
     }
   });
 
@@ -141,9 +129,7 @@ describe('createSite', () => {
 
     if (!service) throw new Error('expected a created service');
     expect(site.upstream_service_id).toBe(service.id);
-    expect(Object.keys(useMockStore.getState().services).length).toBe(
-      servicesBefore + 1,
-    );
+    expect(Object.keys(useMockStore.getState().services).length).toBe(servicesBefore + 1);
     expect(service.upstream).toBe('http://raw.internal:9000');
 
     // Both site.create and service.create audit entries should exist.
@@ -200,9 +186,7 @@ describe('deleteSite', () => {
   it('rejects when typed domain does not match', async () => {
     const site = Object.values(useMockStore.getState().sites)[0];
     if (!site) throw new Error('no site');
-    await expect(deleteSite(site.id, 'wrong-domain.com')).rejects.toThrow(
-      /does not match/,
-    );
+    await expect(deleteSite(site.id, 'wrong-domain.com')).rejects.toThrow(/does not match/);
     expect(useMockStore.getState().sites[site.id]).toBeDefined();
   });
 

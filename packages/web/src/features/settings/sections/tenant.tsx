@@ -34,7 +34,13 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { BUILTIN_THEMES } from '@/theme';
 import { usePluginThemes } from '@/hooks/use-plugin-themes';
-import { useCurrentTenant, updateTenantName, updateTenantUrlMode, updateTenantDefaultTheme, updateTenantLogo } from '../api';
+import {
+  useCurrentTenant,
+  updateTenantName,
+  updateTenantUrlMode,
+  updateTenantDefaultTheme,
+  updateTenantLogo,
+} from '../api';
 import { tenantNameSchema } from '../schemas';
 
 // ─── URL mode labels ──────────────────────────────────────────────────────────
@@ -143,9 +149,7 @@ export function TenantSection() {
   );
 
   // ── Logo uploader ─────────────────────────────────────────────────────────
-  const [logoPreview, setLogoPreview] = useState<string | null>(
-    tenant?.logo_url ?? null,
-  );
+  const [logoPreview, setLogoPreview] = useState<string | null>(tenant?.logo_url ?? null);
   const [logoLoading, setLogoLoading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
 
@@ -292,7 +296,9 @@ export function TenantSection() {
             <SegmentedControl
               data={URL_MODE_DATA}
               value={tenant.url_mode}
-              onChange={(v) => { void handleUrlModeChange(v); }}
+              onChange={(v) => {
+                void handleUrlModeChange(v);
+              }}
               disabled={!canWrite || urlModeLoading}
               data-testid="tenant-url-mode-control"
             />
@@ -306,7 +312,8 @@ export function TenantSection() {
       <Stack gap="sm">
         <Title order={5}>Theme override</Title>
         <Text size="sm" c="var(--mantine-color-gray-7)">
-          Set a default theme for this tenant. Members can still override it in their own preferences.
+          Set a default theme for this tenant. Members can still override it in their own
+          preferences.
         </Text>
         {themeError && (
           <Alert icon={<IconAlertCircle size={14} />} color="red" variant="light" py="xs">
@@ -317,7 +324,9 @@ export function TenantSection() {
           label="Default theme"
           data={themeSelectData}
           value={currentThemeValue}
-          onChange={(v) => { void handleThemeChange(v); }}
+          onChange={(v) => {
+            void handleThemeChange(v);
+          }}
           disabled={!canWrite || themeLoading}
           style={{ maxWidth: 300 }}
           data-testid="tenant-theme-select"
@@ -354,7 +363,9 @@ export function TenantSection() {
             >
               <div>
                 <Dropzone
-                  onDrop={(files) => { void handleLogoDrop(files); }}
+                  onDrop={(files) => {
+                    void handleLogoDrop(files);
+                  }}
                   onReject={(files) => {
                     const reason = files[0]?.errors[0]?.code;
                     const msg =
@@ -380,9 +391,7 @@ export function TenantSection() {
                     <Dropzone.Idle>
                       <IconPhoto size={16} />
                     </Dropzone.Idle>
-                    <Text size="sm">
-                      Drop a logo image here or click to upload (max 3 MB)
-                    </Text>
+                    <Text size="sm">Drop a logo image here or click to upload (max 3 MB)</Text>
                   </Group>
                 </Dropzone>
               </div>
@@ -392,7 +401,9 @@ export function TenantSection() {
                 variant="subtle"
                 color="red"
                 size="xs"
-                onClick={() => { void handleRemoveLogo(); }}
+                onClick={() => {
+                  void handleRemoveLogo();
+                }}
                 loading={logoLoading}
                 disabled={!canWrite}
                 data-testid="tenant-logo-remove"

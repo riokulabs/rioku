@@ -11,16 +11,9 @@ export {
   flipWidgetToWizard,
 } from './api';
 
-export {
-  addWidgetSchema,
-  updateWidgetSchema,
-  layoutSchema,
-} from './schemas';
+export { addWidgetSchema, updateWidgetSchema, layoutSchema } from './schemas';
 
-export {
-  LayoutValidationError,
-  WidgetFlipError,
-} from './types';
+export { LayoutValidationError, WidgetFlipError } from './types';
 export type {
   AddWidgetInput,
   UpdateWidgetInput,

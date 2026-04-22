@@ -23,16 +23,15 @@ export const createMcpServerSchema = z
     }
   });
 
-export const updateMcpServerSchema = z
-  .object({
-    name: z.string().min(1).max(80).optional(),
-    url: z.url().optional(),
-    auth_kind: z.enum(['none', 'bearer', 'api-key']).optional(),
-    description: z.string().max(500).optional(),
-    auth_credential: z.string().min(1).optional(),
-    authorized_agent_ids: z.array(z.string()).optional(),
-    enabled: z.boolean().optional(),
-  });
+export const updateMcpServerSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  url: z.url().optional(),
+  auth_kind: z.enum(['none', 'bearer', 'api-key']).optional(),
+  description: z.string().max(500).optional(),
+  auth_credential: z.string().min(1).optional(),
+  authorized_agent_ids: z.array(z.string()).optional(),
+  enabled: z.boolean().optional(),
+});
 
 export type CreateMcpServerFormValues = z.infer<typeof createMcpServerSchema>;
 export type UpdateMcpServerFormValues = z.infer<typeof updateMcpServerSchema>;

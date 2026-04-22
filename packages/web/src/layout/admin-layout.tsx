@@ -13,11 +13,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           banner is present in AdminLayout too for edge cases where they
           navigate back to /admin while a session is active. */}
       <ImpersonationBanner />
-      <AppShell
-        header={{ height: 56 }}
-        navbar={{ width: 240, breakpoint: 'sm' }}
-        padding="md"
-      >
+      <AppShell header={{ height: 56 }} navbar={{ width: 240, breakpoint: 'sm' }} padding="md">
         <AppShell.Header>
           <TopBar />
         </AppShell.Header>

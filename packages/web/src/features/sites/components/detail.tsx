@@ -24,12 +24,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconArrowRight,
-  IconExternalLink,
-  IconWorld,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowRight, IconExternalLink, IconWorld } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { Link } from '@tanstack/react-router';
@@ -69,33 +64,23 @@ function tlsBadge(mode: 'auto' | 'manual' | 'off') {
   );
 }
 
-export function SiteDetail({
-  siteId,
-  tenantSlug,
-  onEdit,
-  onClose,
-}: SiteDetailProps) {
+export function SiteDetail({ siteId, tenantSlug, onEdit, onClose }: SiteDetailProps) {
   const site = useSiteDetail(siteId);
   const services = useMockStore((s) => s.services);
   const auditEntries = useMockStore((s) => s.audit);
 
-  const linkedService = site?.upstream_service_id
-    ? services[site.upstream_service_id]
-    : undefined;
+  const linkedService = site?.upstream_service_id ? services[site.upstream_service_id] : undefined;
 
   const auditTail = useMemo(() => {
     if (!site) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'site' && e.resource_id === site.id,
-      )
+      .filter((e) => e.resource_type === 'site' && e.resource_id === site.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, site]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [toggling, setToggling] = useState(false);
 
   if (!site) {
@@ -205,11 +190,7 @@ export function SiteDetail({
           Policies
         </Text>
         <Group gap="xs">
-          <Badge
-            size="sm"
-            variant="light"
-            color={site.basic_auth_enabled ? 'indigo' : 'gray'}
-          >
+          <Badge size="sm" variant="light" color={site.basic_auth_enabled ? 'indigo' : 'gray'}>
             Basic auth: {site.basic_auth_enabled ? 'on' : 'off'}
           </Badge>
           <Badge size="sm" variant="light" color="orange">
@@ -305,12 +286,7 @@ export function SiteDetail({
             </Button>
           </Tooltip>
         )}
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
           Delete…
         </Button>
       </Group>

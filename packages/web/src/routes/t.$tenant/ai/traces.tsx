@@ -11,15 +11,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import {
-  Stack,
-  Title,
-  Group,
-  Drawer,
-  Badge,
-  Switch,
-  Button,
-} from '@mantine/core';
+import { Stack, Title, Group, Drawer, Badge, Switch, Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAccessPoint, IconDownload } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -38,18 +30,8 @@ import type { RangePreset, TraceFilter } from '@/features/ai-traces';
 import type { AiTrace } from '@/api/resources/types';
 
 const MAX_ROWS = 500;
-const STATUS_VALUES: readonly AiTrace['status'][] = [
-  'success',
-  'error',
-  'timeout',
-];
-const PRESET_VALUES: readonly RangePreset[] = [
-  '1h',
-  '24h',
-  '7d',
-  'all',
-  'custom',
-];
+const STATUS_VALUES: readonly AiTrace['status'][] = ['success', 'error', 'timeout'];
+const PRESET_VALUES: readonly RangePreset[] = ['1h', '24h', '7d', 'all', 'custom'];
 
 interface SearchParams {
   search: string;
@@ -92,9 +74,7 @@ function AiTracesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -163,8 +143,7 @@ function AiTracesPage() {
   }, []);
 
   // Drawer state for detail viewer.
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [selected, setSelected] = useState<AiTrace | null>(null);
 
   function handleRowClick(t: AiTrace) {
@@ -183,10 +162,7 @@ function AiTracesPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      notify.success(
-        'Export complete',
-        `Downloaded ${String(totalCount)} traces.`,
-      );
+      notify.success('Export complete', `Downloaded ${String(totalCount)} traces.`);
     } catch {
       notify.error('Export failed', 'Please try again.');
     }
@@ -243,11 +219,7 @@ function AiTracesPage() {
         padding="md"
       >
         {selected && (
-          <TraceDetail
-            traceId={selected.id}
-            tenantSlug={tenantSlug}
-            onClose={closeDrawer}
-          />
+          <TraceDetail traceId={selected.id} tenantSlug={tenantSlug} onClose={closeDrawer} />
         )}
       </Drawer>
     </Stack>
@@ -262,15 +234,9 @@ export const Route = createFileRoute('/t/$tenant/ai/traces')({
     agent_ids: parseCsv(s.agent_ids),
     statuses: parseStatuses(s.statuses),
     range: parseRange(s.range),
-    ...(typeof s.since === 'string' && s.since.length > 0
-      ? { since: s.since }
-      : {}),
-    ...(typeof s.until === 'string' && s.until.length > 0
-      ? { until: s.until }
-      : {}),
-    ...(typeof s.agent === 'string' && s.agent.length > 0
-      ? { agent: s.agent }
-      : {}),
+    ...(typeof s.since === 'string' && s.since.length > 0 ? { since: s.since } : {}),
+    ...(typeof s.until === 'string' && s.until.length > 0 ? { until: s.until } : {}),
+    ...(typeof s.agent === 'string' && s.agent.length > 0 ? { agent: s.agent } : {}),
     ...(typeof s.selected === 'string' ? { selected: s.selected } : {}),
   }),
 });

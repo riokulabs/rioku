@@ -32,23 +32,32 @@ async function firstAcmeDashboardWithWidgets(
   await page.goto('/t/acme/dashboards');
   // Wait for the seed to populate on this navigation — addInitScript
   // clears localStorage on every goto, so the mock store reseeds each time.
-  await page.waitForFunction(() => {
-    const store = (window as unknown as {
-      __RIOKU_STORE?: {
-        getState: () => { tenants: Record<string, { slug: string }> };
-      };
-    }).__RIOKU_STORE;
-    if (!store) return false;
-    const { tenants } = store.getState();
-    return Object.values(tenants).some((t) => t.slug === 'acme');
-  }, null, { timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: {
+            getState: () => { tenants: Record<string, { slug: string }> };
+          };
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      const { tenants } = store.getState();
+      return Object.values(tenants).some((t) => t.slug === 'acme');
+    },
+    null,
+    { timeout: 10_000 },
+  );
   const state = (await getStoreState(page)) as {
     tenants: Record<string, { id: string; slug: string }>;
-    dashboards: Record<string, {
-      id: string;
-      tenant_id: string;
-      widget_ids: string[];
-    }>;
+    dashboards: Record<
+      string,
+      {
+        id: string;
+        tenant_id: string;
+        widget_ids: string[];
+      }
+    >;
   };
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('acme tenant not seeded');
@@ -80,9 +89,7 @@ test('Edit from viewer opens the builder', async ({ authedPage: page }) => {
   await expect(page.getByRole('button', { name: /^cancel$/i })).toBeVisible();
 });
 
-test('Widget palette is visible in the builder', async ({
-  authedPage: page,
-}) => {
+test('Widget palette is visible in the builder', async ({ authedPage: page }) => {
   const { id } = await firstAcmeDashboardWithWidgets(page);
   await page.goto(`/t/acme/dashboards/${id}/edit`);
 
@@ -100,9 +107,7 @@ test('Widget palette is visible in the builder', async ({
   await expect(page.getByTestId('palette-single-stat')).toBeVisible();
 });
 
-test('Selecting a widget opens the config side panel', async ({
-  authedPage: page,
-}) => {
+test('Selecting a widget opens the config side panel', async ({ authedPage: page }) => {
   const { id } = await firstAcmeDashboardWithWidgets(page);
   await page.goto(`/t/acme/dashboards/${id}/edit`);
 
@@ -121,9 +126,7 @@ test('Selecting a widget opens the config side panel', async ({
   // button is rendered alongside the drag-handle and trash icons, so the
   // pointer-events region is narrow. `force: true` skips the actionability
   // pointer check but still dispatches the click event.
-  await firstCell
-    .getByRole('button', { name: /configure/i })
-    .click({ force: true });
+  await firstCell.getByRole('button', { name: /configure/i }).click({ force: true });
 
   // Config panel is labelled "Widget configuration panel"; title input is
   // always rendered for non-locked widgets.

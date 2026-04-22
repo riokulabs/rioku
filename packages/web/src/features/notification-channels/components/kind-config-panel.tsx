@@ -338,12 +338,7 @@ function WebhookHeaderEditor({
         </Table>
       )}
       {!readOnly && (
-        <ActionIcon
-          variant="subtle"
-          size="sm"
-          aria-label="Add header"
-          onClick={addRow}
-        >
+        <ActionIcon variant="subtle" size="sm" aria-label="Add header" onClick={addRow}>
           <IconPlus size={14} />
         </ActionIcon>
       )}

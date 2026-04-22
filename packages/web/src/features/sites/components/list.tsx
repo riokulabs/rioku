@@ -7,21 +7,8 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Group,
-  Menu,
-  Stack,
-  Switch,
-  Text,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconWorld,
-} from '@tabler/icons-react';
+import { ActionIcon, Badge, Group, Menu, Stack, Switch, Text } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconWorld } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
@@ -119,12 +106,7 @@ export function SiteList({
                 {tlsBadge(site.tls_mode)}
               </Group>
               {site.name !== site.domain && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={site.name}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={site.name}>
                   {site.name}
                 </Text>
               )}
@@ -181,11 +163,7 @@ export function SiteList({
         cell: ({ row }) => {
           const preset = row.original.rate_limit_preset;
           return (
-            <Badge
-              size="sm"
-              variant="light"
-              color={rateLimitColor(preset)}
-            >
+            <Badge size="sm" variant="light" color={rateLimitColor(preset)}>
               {preset}
             </Badge>
           );

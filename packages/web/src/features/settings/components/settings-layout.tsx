@@ -8,15 +8,7 @@
  * spec / Task 1d.79
  */
 import { useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Group,
-  Stack,
-  Text,
-  Title,
-  useMatches,
-} from '@mantine/core';
+import { Box, Button, Group, Stack, Text, Title, useMatches } from '@mantine/core';
 import {
   IconAlertTriangle,
   IconArrowRight,
@@ -104,7 +96,10 @@ export function SettingsLayout() {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  const activeSlug = (typeof search.section === 'string' ? search.section as string : null) ?? DEFAULT_SECTION?.slug ?? 'profile';
+  const activeSlug =
+    (typeof search.section === 'string' ? (search.section as string) : null) ??
+    DEFAULT_SECTION?.slug ??
+    'profile';
 
   const activeSection = useMemo(
     () => SECTIONS.find((s) => s.slug === activeSlug) ?? DEFAULT_SECTION ?? SECTIONS[0],
@@ -146,13 +141,24 @@ export function SettingsLayout() {
         }}
         p="sm"
       >
-        <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600} px="xs" pt="xs" pb="xs">
+        <Text
+          size="xs"
+          c="var(--mantine-color-gray-7)"
+          tt="uppercase"
+          fw={600}
+          px="xs"
+          pt="xs"
+          pb="xs"
+        >
           Settings
         </Text>
         <SettingsSearch
           sections={visibleSections}
           query={searchQuery}
-          onChange={(q) => { setSearchQuery(q); setFocusedIndex(0); }}
+          onChange={(q) => {
+            setSearchQuery(q);
+            setFocusedIndex(0);
+          }}
           activeSlug={activeSlug}
           focusedIndex={focusedIndex}
           onFocusedIndexChange={setFocusedIndex}
@@ -191,8 +197,8 @@ export function SettingsLayout() {
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">
-                    {activeSection.label} settings live on a dedicated page — it
-                    manages channels, routing rules, and the delivery log.
+                    {activeSection.label} settings live on a dedicated page — it manages channels,
+                    routing rules, and the delivery log.
                   </Text>
                   <Button
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast

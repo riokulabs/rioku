@@ -6,20 +6,8 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  ActionIcon,
-  Badge,
-  Menu,
-  Stack,
-  Switch,
-  Text,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconStack,
-} from '@tabler/icons-react';
+import { ActionIcon, Badge, Menu, Stack, Switch, Text } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconStack } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
@@ -108,12 +96,7 @@ export function MiddlewareList({
                 {m.name}
               </Text>
               {m.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={m.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={m.description}>
                   {m.description}
                 </Text>
               )}

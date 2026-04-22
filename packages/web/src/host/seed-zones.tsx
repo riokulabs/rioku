@@ -28,8 +28,8 @@ function AcmeBillingSettingsPanel() {
         title="Acme Billing settings"
       >
         <Text size="xs">
-          Demo placeholder — the Acme Billing plugin settings panel would render here.
-          (Stage-1 seed contribution for zone <code>plugin-settings.com.acme.billing</code>.)
+          Demo placeholder — the Acme Billing plugin settings panel would render here. (Stage-1 seed
+          contribution for zone <code>plugin-settings.com.acme.billing</code>.)
         </Text>
       </Alert>
     </Stack>

@@ -6,11 +6,7 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import type { AuditEntry, Middleware } from '@/api/resources/types';
-import type {
-  MiddlewareFilter,
-  MiddlewareInput,
-  MiddlewareUpdateInput,
-} from './types';
+import type { MiddlewareFilter, MiddlewareInput, MiddlewareUpdateInput } from './types';
 import { MiddlewareInUseError } from './types';
 
 const nextMiddlewareId = makeIdFactory('middleware-new');
@@ -47,10 +43,7 @@ function makeAuditEntry(
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useMiddlewareList(
-  tenantId: string,
-  filter: MiddlewareFilter,
-): Middleware[] {
+export function useMiddlewareList(tenantId: string, filter: MiddlewareFilter): Middleware[] {
   const middlewares = useMockStore((s) => s.middlewares);
   const search = filter.search.toLowerCase().trim();
 
@@ -102,9 +95,7 @@ export async function createMiddleware(
 
   const state = useMockStore.getState();
   state.addEntity('middlewares', middleware);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'middleware.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'middleware.create', id));
   emitHostEvent('middleware.created', {
     middleware_id: id,
     tenant_id: tenantId,
@@ -137,12 +128,7 @@ export async function updateMiddleware(
   if (!updated) throw new Error(`Middleware ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'middleware.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'middleware.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('middleware.updated', {
@@ -168,12 +154,7 @@ export async function deleteMiddleware(id: string): Promise<void> {
 
   state.deleteEntity('middlewares', id);
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      middleware.tenant_id,
-      'middleware.delete',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), middleware.tenant_id, 'middleware.delete', id),
     tier: 'destructive',
   });
   emitHostEvent('middleware.deleted', {

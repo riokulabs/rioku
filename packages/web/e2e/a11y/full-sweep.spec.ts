@@ -28,29 +28,31 @@ import { test, getStoreState } from '../fixtures/auth';
 // ---------------------------------------------------------------------------
 // Helper: get a seeded acme dashboard id (reused from plan4-a11y.spec.ts)
 // ---------------------------------------------------------------------------
-async function firstAcmeDashboardId(
-  page: Parameters<typeof getStoreState>[0],
-): Promise<string> {
+async function firstAcmeDashboardId(page: Parameters<typeof getStoreState>[0]): Promise<string> {
   await page.goto('/t/acme/dashboards');
-  await page.waitForFunction(() => {
-    const store = (window as unknown as {
-      __RIOKU_STORE?: {
-        getState: () => { tenants: Record<string, { slug: string }> };
-      };
-    }).__RIOKU_STORE;
-    if (!store) return false;
-    const { tenants } = store.getState();
-    return Object.values(tenants).some((t) => t.slug === 'acme');
-  }, null, { timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: {
+            getState: () => { tenants: Record<string, { slug: string }> };
+          };
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      const { tenants } = store.getState();
+      return Object.values(tenants).some((t) => t.slug === 'acme');
+    },
+    null,
+    { timeout: 10_000 },
+  );
   const state = (await getStoreState(page)) as {
     tenants: Record<string, { id: string; slug: string }>;
     dashboards: Record<string, { id: string; tenant_id: string }>;
   };
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('acme tenant not seeded');
-  const dash = Object.values(state.dashboards).find(
-    (d) => d.tenant_id === acme.id,
-  );
+  const dash = Object.values(state.dashboards).find((d) => d.tenant_id === acme.id);
   if (!dash) throw new Error('no acme dashboard seeded');
   return dash.id;
 }
@@ -115,14 +117,12 @@ const tenantHeadingRoutes = [
 ] as const;
 
 for (const route of tenantHeadingRoutes) {
-  test(`no critical/serious axe violations on ${route.path}`, async ({
-    authedPage: page,
-  }) => {
+  test(`no critical/serious axe violations on ${route.path}`, async ({ authedPage: page }) => {
     await page.goto(route.path);
 
-    await expect(
-      page.getByRole('heading', { name: route.heading }).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: route.heading }).first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     await assertNoBlockingViolations(page);
   });
@@ -142,9 +142,9 @@ test('no critical/serious axe violations on /t/acme/dashboard (home)', async ({
 
   // DashboardViewer mounts a role="list" aria-label="<name> dashboard widgets"
   // once hydrated — the same signal used by plan4-a11y.spec.ts.
-  await expect(
-    page.getByRole('list', { name: /dashboard widgets/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('list', { name: /dashboard widgets/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   await assertNoBlockingViolations(page);
 });
@@ -152,22 +152,18 @@ test('no critical/serious axe violations on /t/acme/dashboard (home)', async ({
 // ===========================================================================
 // 3. Dashboard viewer and builder (need dynamic id)
 // ===========================================================================
-test('no critical/serious axe violations on dashboard viewer', async ({
-  authedPage: page,
-}) => {
+test('no critical/serious axe violations on dashboard viewer', async ({ authedPage: page }) => {
   const dashId = await firstAcmeDashboardId(page);
   await page.goto(`/t/acme/dashboards/${dashId}`);
 
-  await expect(
-    page.getByRole('list', { name: /dashboard widgets/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('list', { name: /dashboard widgets/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   await assertNoBlockingViolations(page);
 });
 
-test('no critical/serious axe violations on dashboard builder', async ({
-  authedPage: page,
-}) => {
+test('no critical/serious axe violations on dashboard builder', async ({ authedPage: page }) => {
   const dashId = await firstAcmeDashboardId(page);
   await page.goto(`/t/acme/dashboards/${dashId}/edit`);
 
@@ -266,14 +262,12 @@ const adminHeadingRoutes = [
 ] as const;
 
 for (const route of adminHeadingRoutes) {
-  test(`no critical/serious axe violations on ${route.path}`, async ({
-    authedPage: page,
-  }) => {
+  test(`no critical/serious axe violations on ${route.path}`, async ({ authedPage: page }) => {
     await page.goto(route.path);
 
-    await expect(
-      page.getByRole('heading', { name: route.heading }).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: route.heading }).first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     await assertNoBlockingViolations(page);
   });

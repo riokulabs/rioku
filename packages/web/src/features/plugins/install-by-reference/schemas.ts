@@ -59,9 +59,9 @@ export const LOOKALIKE_BLOCKLIST: readonly string[] = [
   'ri0ku',
 ] as const;
 
-export function validateManifestUrl(raw: string):
-  | { ok: true; url: URL }
-  | { ok: false; reason: string } {
+export function validateManifestUrl(
+  raw: string,
+): { ok: true; url: URL } | { ok: false; reason: string } {
   let parsed: URL;
   try {
     parsed = new URL(raw);

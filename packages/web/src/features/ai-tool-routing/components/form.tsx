@@ -5,25 +5,12 @@
  * button, enabled Switch.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Select,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-} from '@mantine/core';
+import { Alert, Button, Group, Select, Stack, Switch, Text, Textarea } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconEye } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import {
-  createBinding,
-  previewCondition,
-  updateBinding,
-} from '../api';
+import { createBinding, previewCondition, updateBinding } from '../api';
 import { createBindingSchema, updateBindingSchema } from '../schemas';
 import type { AiToolBinding, PreviewConditionResult } from '../types';
 
@@ -203,11 +190,7 @@ export function BindingForm({
             {preview && (
               <Text
                 size="xs"
-                c={
-                  preview.parses
-                    ? 'var(--mantine-color-green-7)'
-                    : 'var(--mantine-color-red-7)'
-                }
+                c={preview.parses ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-7)'}
               >
                 {preview.parses
                   ? `Parses · sample evaluates ${preview.sample_result === true ? 'true' : 'false'}`

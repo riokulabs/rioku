@@ -9,11 +9,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AuditEntry,
-  Service,
-  Site,
-} from '@/api/resources/types';
+import type { AuditEntry, Service, Site } from '@/api/resources/types';
 import type { SiteFilter, SiteUpdateInput, SiteWizardInput } from './types';
 
 const nextSiteId = makeIdFactory('site-new');
@@ -67,10 +63,7 @@ export function useSiteList(tenantId: string, filter: SiteFilter): Site[] {
       if (!enabledSet.has(key)) continue;
     }
     if (linkedSet.size > 0) {
-      if (
-        site.upstream_service_id === undefined ||
-        !linkedSet.has(site.upstream_service_id)
-      ) {
+      if (site.upstream_service_id === undefined || !linkedSet.has(site.upstream_service_id)) {
         continue;
       }
     }
@@ -115,9 +108,7 @@ export async function createSite(
     const protocol = input.upstream_protocol;
     const host = input.upstream_host;
     if (protocol === undefined || host === undefined) {
-      throw new Error(
-        'createSite: new_upstream mode requires upstream_protocol and upstream_host',
-      );
+      throw new Error('createSite: new_upstream mode requires upstream_protocol and upstream_host');
     }
     const serviceId = nextServiceId();
     const upstream =
@@ -147,9 +138,7 @@ export async function createSite(
     domain: input.domain,
     tls_mode: input.tls_mode,
     enabled: true,
-    ...(upstreamServiceId !== undefined
-      ? { upstream_service_id: upstreamServiceId }
-      : {}),
+    ...(upstreamServiceId !== undefined ? { upstream_service_id: upstreamServiceId } : {}),
     ...(input.tls_mode === 'manual' &&
     input.tls_manual_cert_pem !== undefined &&
     input.tls_manual_key_pem !== undefined
@@ -179,17 +168,10 @@ export async function createSite(
   });
 
   const state = useMockStore.getState();
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'site.create', siteId),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'site.create', siteId));
   if (createdService) {
     state.appendAudit({
-      ...makeAuditEntry(
-        getCurrentActorId(),
-        tenantId,
-        'service.create',
-        createdService.id,
-      ),
+      ...makeAuditEntry(getCurrentActorId(), tenantId, 'service.create', createdService.id),
       resource_type: 'service',
       payload: { reason: 'auto-created for site', site_id: siteId },
     });
@@ -203,10 +185,7 @@ export async function createSite(
   return createdService ? { site, service: createdService } : { site };
 }
 
-export async function updateSite(
-  id: string,
-  input: SiteUpdateInput,
-): Promise<Site> {
+export async function updateSite(id: string, input: SiteUpdateInput): Promise<Site> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -220,12 +199,9 @@ export async function updateSite(
   if (input.upstream_service_id !== undefined) {
     patch.upstream_service_id = input.upstream_service_id;
   }
-  if (input.basic_auth_enabled !== undefined)
-    patch.basic_auth_enabled = input.basic_auth_enabled;
-  if (input.rate_limit_preset !== undefined)
-    patch.rate_limit_preset = input.rate_limit_preset;
-  if (input.redirect_rules !== undefined)
-    patch.redirect_rules = input.redirect_rules;
+  if (input.basic_auth_enabled !== undefined) patch.basic_auth_enabled = input.basic_auth_enabled;
+  if (input.rate_limit_preset !== undefined) patch.rate_limit_preset = input.rate_limit_preset;
+  if (input.redirect_rules !== undefined) patch.redirect_rules = input.redirect_rules;
 
   const before = { ...current };
   state.updateEntity('sites', id, patch);
@@ -240,10 +216,7 @@ export async function updateSite(
   return updated;
 }
 
-export async function deleteSite(
-  id: string,
-  typedDomainConfirm: string,
-): Promise<void> {
+export async function deleteSite(id: string, typedDomainConfirm: string): Promise<void> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();

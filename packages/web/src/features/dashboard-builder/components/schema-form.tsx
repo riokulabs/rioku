@@ -193,7 +193,13 @@ function renderField(
           label={`${label}${requiredAsterisk}`}
           value={typeof value === 'number' ? value : ''}
           onChange={(v) => {
-            onChange(typeof v === 'number' ? v : typeof v === 'string' && v.length > 0 ? Number(v) : undefined);
+            onChange(
+              typeof v === 'number'
+                ? v
+                : typeof v === 'string' && v.length > 0
+                  ? Number(v)
+                  : undefined,
+            );
           }}
           {...(info.int ? { allowDecimal: false } : {})}
           {...(info.min !== undefined ? { min: info.min } : {})}

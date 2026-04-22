@@ -14,10 +14,7 @@ import { useEffect, useRef } from 'react';
 import { mockBus } from '@/api/mock-sse';
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-export function useSubscription<T = unknown>(
-  topic: string,
-  handler: (detail: T) => void,
-): void {
+export function useSubscription<T = unknown>(topic: string, handler: (detail: T) => void): void {
   // Always keep a ref to the latest handler — the effect below never needs
   // to re-run just because handler changed (avoids subscribe/unsubscribe churn).
   const handlerRef = useRef(handler);

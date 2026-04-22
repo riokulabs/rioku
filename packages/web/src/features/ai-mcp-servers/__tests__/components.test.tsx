@@ -10,9 +10,7 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({ children }: { children: React.ReactNode }) => (
-    <span data-link="true">{children}</span>
-  ),
+  Link: ({ children }: { children: React.ReactNode }) => <span data-link="true">{children}</span>,
 }));
 
 import { render, screen } from '@testing-library/react';
@@ -57,9 +55,7 @@ function firstServerId(): string | undefined {
   const state = useMockStore.getState();
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) return undefined;
-  const srv = Object.values(state.mcpServers).find(
-    (s) => s.tenant_id === acme.id,
-  );
+  const srv = Object.values(state.mcpServers).find((s) => s.tenant_id === acme.id);
   return srv?.id;
 }
 
@@ -98,17 +94,8 @@ describe('McpServerDetail', () => {
   it('renders server identity + authorized agents picker', () => {
     const id = firstServerId();
     if (!id) return;
-    wrap(
-      <McpServerDetail
-        serverId={id}
-        tenantSlug="acme"
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getAllByText(/Authorized agents/i).length,
-    ).toBeGreaterThan(0);
+    wrap(<McpServerDetail serverId={id} tenantSlug="acme" onEdit={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getAllByText(/Authorized agents/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Exposed tools/i).length).toBeGreaterThan(0);
   });
 
@@ -128,12 +115,7 @@ describe('McpServerDetail', () => {
 describe('McpServerForm', () => {
   it('renders create-mode URL + name fields', () => {
     wrap(
-      <McpServerForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
+      <McpServerForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />,
     );
     expect(screen.getAllByLabelText(/Name/i).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/URL/i).length).toBeGreaterThan(0);

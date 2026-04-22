@@ -68,17 +68,17 @@ interface McpHealthChipProps {
 }
 
 const MCP_HEALTH_COLORS: Record<McpServer['health'], string> = {
-  healthy:     'green',
-  degraded:    'yellow',
+  healthy: 'green',
+  degraded: 'yellow',
   unreachable: 'red',
-  disabled:    'gray',
+  disabled: 'gray',
 };
 
 const MCP_HEALTH_VARIANTS: Record<McpServer['health'], BadgeVariant> = {
-  healthy:     'light',
-  degraded:    'filled',
+  healthy: 'light',
+  degraded: 'filled',
   unreachable: 'filled',
-  disabled:    'outline',
+  disabled: 'outline',
 };
 
 export function McpHealthChip({ health }: McpHealthChipProps) {

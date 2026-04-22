@@ -70,18 +70,14 @@ function hashCode(s: string): number {
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useMcpServerList(
-  tenantId: string,
-  filter: McpServerFilter,
-): McpServer[] {
+export function useMcpServerList(tenantId: string, filter: McpServerFilter): McpServer[] {
   const servers = useMockStore((s) => s.mcpServers);
   const search = filter.search.toLowerCase().trim();
   const results: McpServer[] = [];
   for (const srv of Object.values(servers)) {
     if (srv.tenant_id !== tenantId) continue;
     if (filter.healths.length > 0 && !filter.healths.includes(srv.health)) continue;
-    if (filter.auth_kinds.length > 0 && !filter.auth_kinds.includes(srv.auth_kind))
-      continue;
+    if (filter.auth_kinds.length > 0 && !filter.auth_kinds.includes(srv.auth_kind)) continue;
     if (filter.enabled !== undefined && srv.enabled !== filter.enabled) continue;
     if (search) {
       const nameMatch = srv.name.toLowerCase().includes(search);
@@ -140,9 +136,7 @@ export async function createMcpServer(
 
   const state = useMockStore.getState();
   state.addEntity('mcpServers', server);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'mcp-server.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'mcp-server.create', id));
   emitHostEvent('mcp-server.created', {
     mcp_server_id: id,
     tenant_id: tenantId,
@@ -151,10 +145,7 @@ export async function createMcpServer(
   return server;
 }
 
-export async function updateMcpServer(
-  id: string,
-  input: UpdateMcpServerInput,
-): Promise<McpServer> {
+export async function updateMcpServer(id: string, input: UpdateMcpServerInput): Promise<McpServer> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const current = state.mcpServers[id];
@@ -186,12 +177,7 @@ export async function updateMcpServer(
   if (!updated) throw new Error(`MCP server ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'mcp-server.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'mcp-server.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('mcp-server.updated', {
@@ -213,12 +199,14 @@ export async function deleteMcpServer(id: string): Promise<void> {
   const server = state.mcpServers[id];
   if (!server) throw new Error(`MCP server ${id} not found`);
 
-  const referencingTools = Object.values(state.aiTools).filter(
-    (t) => t.mcp_server_id === id,
-  );
+  const referencingTools = Object.values(state.aiTools).filter((t) => t.mcp_server_id === id);
   if (referencingTools.length > 0) {
-    const names = referencingTools.map((t) => t.name).slice(0, 5).join(', ');
-    const more = referencingTools.length > 5 ? ` and ${String(referencingTools.length - 5)} more` : '';
+    const names = referencingTools
+      .map((t) => t.name)
+      .slice(0, 5)
+      .join(', ');
+    const more =
+      referencingTools.length > 5 ? ` and ${String(referencingTools.length - 5)} more` : '';
     throw new Error(
       `Cannot delete MCP server ${id}: ${String(referencingTools.length)} tool(s) reference it (${names}${more}).`,
     );
@@ -226,13 +214,7 @@ export async function deleteMcpServer(id: string): Promise<void> {
 
   state.deleteEntity('mcpServers', id);
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      server.tenant_id,
-      'mcp-server.delete',
-      id,
-      'destructive',
-    ),
+    makeAuditEntry(getCurrentActorId(), server.tenant_id, 'mcp-server.delete', id, 'destructive'),
   );
   emitHostEvent('mcp-server.deleted', {
     mcp_server_id: id,
@@ -263,9 +245,7 @@ export async function testMcpServer(id: string): Promise<TestMcpServerResult> {
   const roll = (seed + (Date.now() % 20)) % 20;
   const ok = roll >= 3; // ~15% failure rate
 
-  const toolCount = Object.values(state.aiTools).filter(
-    (t) => t.mcp_server_id === id,
-  ).length;
+  const toolCount = Object.values(state.aiTools).filter((t) => t.mcp_server_id === id).length;
   const testedAt = now();
 
   if (ok) {

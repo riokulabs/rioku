@@ -54,9 +54,10 @@ export interface UseOpaqueFilterReturn<F> {
 export function useOpaqueFilter<F>(filterState: F): UseOpaqueFilterReturn<F> {
   // Read the raw `f` param without schema coupling.
   const search = useSearch({ strict: false });
-  const urlHandle = typeof (search as Record<string, unknown>).f === 'string'
-    ? ((search as Record<string, unknown>).f as string)
-    : '';
+  const urlHandle =
+    typeof (search as Record<string, unknown>).f === 'string'
+      ? ((search as Record<string, unknown>).f as string)
+      : '';
 
   // useRouter gives us the router instance for imperative navigation.
   // We use it directly (rather than useNavigate) because this generic hook

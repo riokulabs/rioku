@@ -8,9 +8,7 @@ import { z } from 'zod';
 export const traceFilterSchema = z.object({
   search: z.string().max(500).default(''),
   agent_ids: z.array(z.string()).default([]),
-  statuses: z
-    .array(z.enum(['success', 'error', 'timeout']))
-    .default([]),
+  statuses: z.array(z.enum(['success', 'error', 'timeout'])).default([]),
   since: z.iso.datetime().optional(),
   until: z.iso.datetime().optional(),
 });

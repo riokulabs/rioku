@@ -53,15 +53,11 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseScopesCsv(v: unknown): Scope[] {
-  return parseCsv(v).filter((s): s is Scope =>
-    (SCOPE_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Scope => (SCOPE_VALUES as readonly string[]).includes(s));
 }
 
 function parseActionsCsv(v: unknown): Action[] {
-  return parseCsv(v).filter((s): s is Action =>
-    (ACTION_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Action => (ACTION_VALUES as readonly string[]).includes(s));
 }
 
 function AiRateLimitsPage() {
@@ -70,9 +66,7 @@ function AiRateLimitsPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('ai-rate-limit:write');
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -96,23 +90,15 @@ function AiRateLimitsPage() {
         search: next.search,
         scopes: next.scopes.join(','),
         actions: next.actions.join(','),
-        enabled:
-          next.enabled === true
-            ? 'true'
-            : next.enabled === false
-              ? 'false'
-              : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
-  const [selectedRule, setSelectedRule] = useState<AiSemanticRateLimit | null>(
-    null,
-  );
+  const [selectedRule, setSelectedRule] = useState<AiSemanticRateLimit | null>(null);
 
   function handleRowClick(r: AiSemanticRateLimit) {
     setSelectedRule(r);
@@ -153,15 +139,8 @@ function AiRateLimitsPage() {
     <Stack gap="md" p="md">
       <Group justify="space-between" align="center">
         <Title order={2}>AI Rate Limits</Title>
-        <Tooltip
-          disabled={canWrite}
-          label="You need ai-rate-limit:write to create rules"
-        >
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={handleCreate}
-            disabled={!canWrite}
-          >
+        <Tooltip disabled={canWrite} label="You need ai-rate-limit:write to create rules">
+          <Button leftSection={<IconPlus size={16} />} onClick={handleCreate} disabled={!canWrite}>
             New rate limit
           </Button>
         </Tooltip>

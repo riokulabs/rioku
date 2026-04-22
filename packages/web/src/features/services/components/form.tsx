@@ -114,9 +114,7 @@ export function ServiceForm({
 
       const payload = {
         name: values.name.trim(),
-        ...(values.description.trim() !== ''
-          ? { description: values.description.trim() }
-          : {}),
+        ...(values.description.trim() !== '' ? { description: values.description.trim() } : {}),
         upstream: values.upstream.trim(),
         upstream_protocol: values.upstream_protocol,
         env: values.env.trim(),
@@ -154,12 +152,7 @@ export function ServiceForm({
           </Alert>
         )}
 
-        <TextInput
-          label="Name"
-          placeholder="auth-api"
-          required
-          {...form.getInputProps('name')}
-        />
+        <TextInput label="Name" placeholder="auth-api" required {...form.getInputProps('name')} />
 
         <Textarea
           label="Description"
@@ -214,11 +207,7 @@ export function ServiceForm({
             variant="subtle"
             size="xs"
             leftSection={
-              healthOpened ? (
-                <IconChevronDown size={14} />
-              ) : (
-                <IconChevronRight size={14} />
-              )
+              healthOpened ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />
             }
             onClick={toggleHealth}
             style={{ alignSelf: 'flex-start' }}

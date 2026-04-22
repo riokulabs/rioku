@@ -12,9 +12,7 @@ import { seedStore } from '@/api/mock-seed';
 import { AskQuestionWizard } from '../components/ask-question-wizard';
 
 function firstAcmeDashboardId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
   const dashboards = Object.values(useMockStore.getState().dashboards).filter(
     (d) => d.tenant_id === acme.id,
@@ -49,12 +47,7 @@ describe('<AskQuestionWizard>', () => {
     const onCancel = vi.fn();
 
     wrap(
-      <AskQuestionWizard
-        dashboardId={dashId}
-        mode="create"
-        onSave={onSave}
-        onCancel={onCancel}
-      />,
+      <AskQuestionWizard dashboardId={dashId} mode="create" onSave={onSave} onCancel={onCancel} />,
     );
 
     // Step 1: pick data source
@@ -76,7 +69,11 @@ describe('<AskQuestionWizard>', () => {
     await vi.waitFor(() => {
       expect(onSave).toHaveBeenCalled();
     });
-    const savedWidget = onSave.mock.calls[0]![0] as { title: string; kind: string; data_source: string };
+    const savedWidget = onSave.mock.calls[0]![0] as {
+      title: string;
+      kind: string;
+      data_source: string;
+    };
     expect(savedWidget.title).toBe('Traffic today');
     expect(savedWidget.kind).toBe('single-stat');
     expect(savedWidget.data_source).toBe('mock');
@@ -86,12 +83,7 @@ describe('<AskQuestionWizard>', () => {
     const user = userEvent.setup();
     const dashId = firstAcmeDashboardId();
     wrap(
-      <AskQuestionWizard
-        dashboardId={dashId}
-        mode="create"
-        onSave={vi.fn()}
-        onCancel={vi.fn()}
-      />,
+      <AskQuestionWizard dashboardId={dashId} mode="create" onSave={vi.fn()} onCancel={vi.fn()} />,
     );
     // No source selected → Next surfaces an error alert.
     await user.click(await screen.findByRole('button', { name: /Next/ }));

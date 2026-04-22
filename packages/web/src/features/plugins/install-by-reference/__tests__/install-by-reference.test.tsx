@@ -14,11 +14,7 @@ import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { InstallByReferenceForms } from '../components/forms';
-import {
-  validateManifestUrl,
-  LOOKALIKE_BLOCKLIST,
-  ociFormSchema,
-} from '../schemas';
+import { validateManifestUrl, LOOKALIKE_BLOCKLIST, ociFormSchema } from '../schemas';
 
 function wrap(ui: React.ReactNode) {
   return render(

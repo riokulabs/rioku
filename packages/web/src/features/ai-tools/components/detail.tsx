@@ -28,25 +28,13 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Link } from '@tanstack/react-router';
-import {
-  IconAlertCircle,
-  IconExternalLink,
-  IconTool,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconExternalLink, IconTool } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import {
-  DangerousToolBadge,
-  ToolKindBadge,
-} from '@/features/ai-shared';
-import {
-  deleteTool,
-  updateTool,
-  useToolAgents,
-  useToolDetail,
-} from '../api';
+import { DangerousToolBadge, ToolKindBadge } from '@/features/ai-shared';
+import { deleteTool, updateTool, useToolAgents, useToolDetail } from '../api';
 import { ToolInUseError } from '../types';
 import { TestPanel } from './test-panel';
 
@@ -59,12 +47,7 @@ interface ToolDetailProps {
   onClose: () => void;
 }
 
-export function ToolDetail({
-  toolId,
-  tenantSlug,
-  onEdit,
-  onClose,
-}: ToolDetailProps) {
+export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailProps) {
   const tool = useToolDetail(toolId);
   const agentsUsing = useToolAgents(toolId);
   const auditEntries = useMockStore((s) => s.audit);
@@ -73,16 +56,13 @@ export function ToolDetail({
   const auditTail = useMemo(() => {
     if (!tool) return [];
     return auditEntries
-      .filter(
-        (e) => e.resource_type === 'ai-tool' && e.resource_id === tool.id,
-      )
+      .filter((e) => e.resource_type === 'ai-tool' && e.resource_id === tool.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
   }, [auditEntries, tool]);
 
-  const [deleteOpened, { open: openDelete, close: closeDelete }] =
-    useDisclosure(false);
+  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -167,8 +147,7 @@ export function ToolDetail({
         </Text>
         {tool.kind === 'mcp' && (
           <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
-            MCP server:{' '}
-            {mcpServer ? `${mcpServer.name} (${mcpServer.url})` : tool.mcp_server_id}
+            MCP server: {mcpServer ? `${mcpServer.name} (${mcpServer.url})` : tool.mcp_server_id}
           </Text>
         )}
         {tool.kind === 'http' && tool.http_endpoint && (
@@ -243,12 +222,7 @@ export function ToolDetail({
         <Button size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -290,9 +264,7 @@ export function ToolDetail({
                     <Text size="xs">{e.actor_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {dayjs(e.at).format('MMM D, HH:mm:ss')}
-                    </Text>
+                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -313,8 +285,8 @@ export function ToolDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the tool. Agents and bindings referencing
-            it must be removed first.
+            This permanently deletes the tool. Agents and bindings referencing it must be removed
+            first.
           </Alert>
           <Text size="sm">
             Type{' '}

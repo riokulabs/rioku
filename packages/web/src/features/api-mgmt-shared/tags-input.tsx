@@ -14,8 +14,7 @@ import {
   type TagsInputProps as MantineTagsInputProps,
 } from '@mantine/core';
 
-export interface TagsInputProps
-  extends Omit<MantineTagsInputProps, 'value' | 'onChange'> {
+export interface TagsInputProps extends Omit<MantineTagsInputProps, 'value' | 'onChange'> {
   values: string[];
   onChange: (next: string[]) => void;
 }

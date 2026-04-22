@@ -139,7 +139,9 @@ export function AuthenticationSection() {
 
   return (
     <form
-      onSubmit={form.onSubmit((v) => { void handleSubmit(v); })}
+      onSubmit={form.onSubmit((v) => {
+        void handleSubmit(v);
+      })}
       data-testid="auth-policy-form"
     >
       <Stack gap="md">
@@ -153,13 +155,15 @@ export function AuthenticationSection() {
         <Fieldset legend="TOTP policy" data-testid="auth-totp-fieldset">
           <Stack gap="xs">
             <Text size="sm">
-              Controls which users are required to enroll a TOTP authenticator app before
-              they can log in.
+              Controls which users are required to enroll a TOTP authenticator app before they can
+              log in.
             </Text>
             <SegmentedControl
               data={TOTP_POLICY_DATA as unknown as { value: string; label: string }[]}
               value={form.values.totp_policy}
-              onChange={(value) => { form.setFieldValue('totp_policy', value as TenantAuthPolicyValues['totp_policy']); }}
+              onChange={(value) => {
+                form.setFieldValue('totp_policy', value as TenantAuthPolicyValues['totp_policy']);
+              }}
               disabled={!canWrite}
               data-testid="auth-totp-policy"
             />
@@ -208,21 +212,27 @@ export function AuthenticationSection() {
                 disabled={!canWrite}
                 data-testid="auth-password-require-uppercase"
                 checked={form.values.password_policy.require_uppercase}
-                onChange={(e) => { form.setFieldValue('password_policy.require_uppercase', e.currentTarget.checked); }}
+                onChange={(e) => {
+                  form.setFieldValue('password_policy.require_uppercase', e.currentTarget.checked);
+                }}
               />
               <Switch
                 label="Require digit"
                 disabled={!canWrite}
                 data-testid="auth-password-require-digit"
                 checked={form.values.password_policy.require_digit}
-                onChange={(e) => { form.setFieldValue('password_policy.require_digit', e.currentTarget.checked); }}
+                onChange={(e) => {
+                  form.setFieldValue('password_policy.require_digit', e.currentTarget.checked);
+                }}
               />
               <Switch
                 label="Require symbol"
                 disabled={!canWrite}
                 data-testid="auth-password-require-symbol"
                 checked={form.values.password_policy.require_symbol}
-                onChange={(e) => { form.setFieldValue('password_policy.require_symbol', e.currentTarget.checked); }}
+                onChange={(e) => {
+                  form.setFieldValue('password_policy.require_symbol', e.currentTarget.checked);
+                }}
               />
             </Stack>
           </Stack>
@@ -278,7 +288,9 @@ export function AuthenticationSection() {
               <Group justify="space-between">
                 <Group gap="xs">
                   <IconLock size={16} color="var(--mantine-color-dimmed)" />
-                  <Text size="sm" fw={500} c="dimmed">OAuth</Text>
+                  <Text size="sm" fw={500} c="dimmed">
+                    OAuth
+                  </Text>
                 </Group>
                 <Badge variant="outline" size="sm" color="gray" data-testid="auth-sso-oauth-badge">
                   Coming soon
@@ -297,7 +309,9 @@ export function AuthenticationSection() {
               <Group justify="space-between">
                 <Group gap="xs">
                   <IconLock size={16} color="var(--mantine-color-dimmed)" />
-                  <Text size="sm" fw={500} c="dimmed">SAML</Text>
+                  <Text size="sm" fw={500} c="dimmed">
+                    SAML
+                  </Text>
                 </Group>
                 <Badge variant="outline" size="sm" color="gray" data-testid="auth-sso-saml-badge">
                   Coming soon

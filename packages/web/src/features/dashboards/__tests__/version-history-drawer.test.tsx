@@ -36,37 +36,23 @@ beforeEach(() => {
 describe('<VersionHistoryDrawer>', () => {
   it('renders the list of versions', async () => {
     const dashboard = firstDashboard();
-    wrap(
-      <VersionHistoryDrawer
-        opened
-        dashboard={dashboard}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<VersionHistoryDrawer opened dashboard={dashboard} onClose={vi.fn()} />);
     expect(await screen.findByTestId('version-history-drawer')).toBeTruthy();
     // Seeded dashboard has at least one version.
-    const versions = Object.values(
-      useMockStore.getState().dashboardVersions,
-    ).filter((v) => v.dashboard_id === dashboard.id);
+    const versions = Object.values(useMockStore.getState().dashboardVersions).filter(
+      (v) => v.dashboard_id === dashboard.id,
+    );
     expect(versions.length).toBeGreaterThan(0);
   });
 
   it('selecting a single version shows a Restore button', async () => {
     const user = userEvent.setup();
     const dashboard = firstDashboard();
-    wrap(
-      <VersionHistoryDrawer
-        opened
-        dashboard={dashboard}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<VersionHistoryDrawer opened dashboard={dashboard} onClose={vi.fn()} />);
 
     // Click the first version row — version numbers are desc-sorted so pick
     // the first dom match.
-    const firstRow = (
-      await screen.findAllByTestId(/^version-history-row-/)
-    )[0]!;
+    const firstRow = (await screen.findAllByTestId(/^version-history-row-/))[0]!;
     await user.click(firstRow);
     expect(await screen.findByTestId('version-history-restore')).toBeTruthy();
     expect(screen.getByTestId('version-history-snapshot')).toBeTruthy();
@@ -77,13 +63,7 @@ describe('<VersionHistoryDrawer>', () => {
     const dashboard = firstDashboard();
     // Ensure at least 2 versions exist.
     await snapshotDashboard(dashboard.id, 'extra snap for diff');
-    wrap(
-      <VersionHistoryDrawer
-        opened
-        dashboard={dashboard}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<VersionHistoryDrawer opened dashboard={dashboard} onClose={vi.fn()} />);
 
     const rows = await screen.findAllByTestId(/^version-history-row-/);
     expect(rows.length).toBeGreaterThanOrEqual(2);
@@ -109,12 +89,8 @@ describe('<VersionHistoryDrawer>', () => {
     await user.click(row);
     await user.click(await screen.findByTestId('version-history-restore'));
 
-    const confirmInput = await screen.findByTestId(
-      'version-history-restore-confirm',
-    );
-    const restoreBtn = screen.getByTestId<HTMLButtonElement>(
-      'version-history-restore-confirm-btn',
-    );
+    const confirmInput = await screen.findByTestId('version-history-restore-confirm');
+    const restoreBtn = screen.getByTestId<HTMLButtonElement>('version-history-restore-confirm-btn');
     expect(restoreBtn.disabled).toBe(true);
     await user.type(confirmInput, 'restore');
     expect(restoreBtn.disabled).toBe(false);

@@ -7,14 +7,14 @@ CI builds this bundle and the Playwright spec loads it via
 
 ## Registered surfaces
 
-| Surface     | Identifier                        | Notes                               |
-| ----------- | --------------------------------- | ----------------------------------- |
-| Route       | `/plugins/hello`                  | Rendered via the `/plugins/$` catch-all. |
-| Sidebar     | group `plugins`, label "Hello Plugin" | Linked to `/plugins/hello`.     |
-| Widget type | `com.example.hello:greeter`       | Marker widget (no data binding).    |
-| Theme       | `sample-hello-theme`              | Teal-accented dark override.        |
-| Permission  | `com.example.hello:greet`         | `default_roles: []` — no grants.    |
-| Spotlight   | `sample-hello-open`               | Opens the hello route.              |
+| Surface     | Identifier                            | Notes                                    |
+| ----------- | ------------------------------------- | ---------------------------------------- |
+| Route       | `/plugins/hello`                      | Rendered via the `/plugins/$` catch-all. |
+| Sidebar     | group `plugins`, label "Hello Plugin" | Linked to `/plugins/hello`.              |
+| Widget type | `com.example.hello:greeter`           | Marker widget (no data binding).         |
+| Theme       | `sample-hello-theme`                  | Teal-accented dark override.             |
+| Permission  | `com.example.hello:greet`             | `default_roles: []` — no grants.         |
+| Spotlight   | `sample-hello-open`                   | Opens the hello route.                   |
 
 ## Build
 

@@ -116,10 +116,7 @@ function collectGrantsFromRole(
  * Collect the full set of denied permission keys reachable from any of the
  * provided role IDs (including their ancestor chains).
  */
-function collectDeniedPerms(
-  roleIds: string[],
-  allRoles: Record<string, Role>,
-): Set<string> {
+function collectDeniedPerms(roleIds: string[], allRoles: Record<string, Role>): Set<string> {
   const denied = new Set<string>();
 
   function walk(roleId: string, visited: Set<string>): void {
@@ -161,14 +158,7 @@ export function resolveEffectiveRolePerms(
     roleNames[id] = role.name;
   }
 
-  const rawGrants = collectGrantsFromRole(
-    roleId,
-    allRoles,
-    roleNames,
-    new Set(),
-    true,
-    undefined,
-  );
+  const rawGrants = collectGrantsFromRole(roleId, allRoles, roleNames, new Set(), true, undefined);
 
   const denied = collectDeniedPerms([roleId], allRoles);
 
@@ -221,36 +211,22 @@ export function resolveEffectiveUserPerms(
   }
 
   // All role ids in scope for deny collection.
-  const allReachableRoleIds = [
-    ...directRoleIds,
-    ...policyRoles.map((p) => p.roleId),
-  ];
+  const allReachableRoleIds = [...directRoleIds, ...policyRoles.map((p) => p.roleId)];
 
   const rawGrants: CollectedGrant[] = [];
 
   // Step 3: grants from direct membership roles.
   for (const roleId of directRoleIds) {
-    const grants = collectGrantsFromRole(
-      roleId,
-      allRoles,
-      roleNames,
-      new Set(),
-      true,
-      undefined,
-    );
+    const grants = collectGrantsFromRole(roleId, allRoles, roleNames, new Set(), true, undefined);
     rawGrants.push(...grants);
   }
 
   // Step 4: grants from rbac-policy-added roles.
   for (const { roleId, policyId, policyName } of policyRoles) {
-    const grants = collectGrantsFromRole(
-      roleId,
-      allRoles,
-      roleNames,
-      new Set(),
-      false,
-      { policyId, policyName },
-    );
+    const grants = collectGrantsFromRole(roleId, allRoles, roleNames, new Set(), false, {
+      policyId,
+      policyName,
+    });
     rawGrants.push(...grants);
   }
 

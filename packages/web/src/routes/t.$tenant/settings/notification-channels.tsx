@@ -8,14 +8,7 @@
  */
 import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import {
-  Anchor,
-  Button,
-  Drawer,
-  Group,
-  Stack,
-  Title,
-} from '@mantine/core';
+import { Anchor, Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -31,10 +24,7 @@ import {
   deleteChannel,
   testChannel,
 } from '@/features/notification-channels';
-import type {
-  ChannelFilter,
-  NotificationChannel,
-} from '@/features/notification-channels';
+import type { ChannelFilter, NotificationChannel } from '@/features/notification-channels';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 
@@ -69,9 +59,7 @@ function NotificationChannelsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -80,12 +68,7 @@ function NotificationChannelsPage() {
   const filter: ChannelFilter = {
     search: search.search,
     kinds: search.kinds,
-    enabled:
-      search.enabled === 'true'
-        ? true
-        : search.enabled === 'false'
-          ? false
-          : undefined,
+    enabled: search.enabled === 'true' ? true : search.enabled === 'false' ? false : undefined,
   };
 
   function setFilter(next: ChannelFilter) {
@@ -96,15 +79,13 @@ function NotificationChannelsPage() {
         ...prev,
         search: next.search,
         kinds: next.kinds.join(','),
-        enabled:
-          next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selected, setSelected] = useState<NotificationChannel | null>(null);
 
@@ -130,10 +111,7 @@ function NotificationChannelsPage() {
     try {
       const result = await testChannel(c.id);
       if (result.ok) {
-        notify.success(
-          'Test sent',
-          `${c.name} responded in ${String(result.latency_ms)}ms.`,
-        );
+        notify.success('Test sent', `${c.name} responded in ${String(result.latency_ms)}ms.`);
       } else {
         notify.error('Test failed', result.error ?? 'Unknown error');
       }
@@ -177,11 +155,7 @@ function NotificationChannelsPage() {
 
       <Group justify="space-between" align="center">
         <Title order={2}>Notification channels</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={handleCreate}
-          disabled={!canWrite}
-        >
+        <Button leftSection={<IconPlus size={16} />} onClick={handleCreate} disabled={!canWrite}>
           New channel
         </Button>
       </Group>

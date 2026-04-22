@@ -45,12 +45,7 @@ function asBool(v: unknown, fallback = false): boolean {
   return typeof v === 'boolean' ? v : fallback;
 }
 
-export function KindConfigPanel({
-  kind,
-  value,
-  onChange,
-  readOnly = false,
-}: KindConfigPanelProps) {
+export function KindConfigPanel({ kind, value, onChange, readOnly = false }: KindConfigPanelProps) {
   if (kind === 'rate-limit') {
     return (
       <Stack gap="sm">

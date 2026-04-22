@@ -115,9 +115,7 @@ describe('ImpersonationBanner', () => {
     };
     renderWithProviders(<ImpersonationBanner />);
     const link = screen.getByRole('link');
-    expect(link.getAttribute('href')).toBe(
-      'https://jira.example.com/browse/OPS-123',
-    );
+    expect(link.getAttribute('href')).toBe('https://jira.example.com/browse/OPS-123');
   });
 
   it('shows "End session" button', () => {

@@ -5,16 +5,7 @@
  * inline.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Group,
-  JsonInput,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Button, Code, Group, JsonInput, Stack, Text } from '@mantine/core';
 import { IconAlertCircle, IconPlayerPlay } from '@tabler/icons-react';
 import { testTool } from '../api';
 import type { TestToolResult } from '../types';

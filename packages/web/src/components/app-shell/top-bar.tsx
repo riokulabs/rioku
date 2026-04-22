@@ -40,7 +40,12 @@ interface TopBarProps {
   onNavDesktopToggle?: () => void;
 }
 
-export function TopBar({ navOpened, onNavToggle, navDesktopOpened, onNavDesktopToggle }: TopBarProps) {
+export function TopBar({
+  navOpened,
+  onNavToggle,
+  navDesktopOpened,
+  onNavDesktopToggle,
+}: TopBarProps) {
   const currentUserId = useMockStore((s) => s.currentUserId);
   const unread = useUnreadCount(currentUserId ?? '');
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -54,9 +59,7 @@ export function TopBar({ navOpened, onNavToggle, navDesktopOpened, onNavDesktopT
   // violation when the hidden container holds a focusable ActionIcon.
   const displayCount = unread > 99 ? '99+' : String(unread);
   const ariaLabel =
-    unread === 0
-      ? 'Notifications, no unread'
-      : `Notifications, ${String(unread)} unread`;
+    unread === 0 ? 'Notifications, no unread' : `Notifications, ${String(unread)} unread`;
 
   return (
     <Flex h={56} px="md" align="center" gap="md">
@@ -157,12 +160,7 @@ export function TopBar({ navOpened, onNavToggle, navDesktopOpened, onNavDesktopT
           </Popover.Target>
         </Indicator>
         <Popover.Dropdown p={0} data-testid="topbar-bell-dropdown">
-          {currentUserId !== null && (
-            <InboxDropdown
-              userId={currentUserId}
-              onClose={close}
-            />
-          )}
+          {currentUserId !== null && <InboxDropdown userId={currentUserId} onClose={close} />}
         </Popover.Dropdown>
       </Popover>
     </Flex>

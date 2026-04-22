@@ -4,15 +4,15 @@ Monaco-backed CEL (Common Expression Language) expression editor for Rioku Admin
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `value` | `string` | required | Current CEL expression |
-| `onChange` | `(v: string) => void` | required | Called on every keystroke |
-| `onValidityChange` | `(ok: boolean) => void` | — | Called after 250ms debounce with parse result |
-| `label` | `string` | — | Optional label rendered above chrome text |
-| `placeholder` | `string` | — | Monaco placeholder text |
-| `readOnly` | `boolean` | `false` | Disables editing |
-| `height` | `number` | `160` | Editor height in pixels |
+| Prop               | Type                    | Default  | Description                                   |
+| ------------------ | ----------------------- | -------- | --------------------------------------------- |
+| `value`            | `string`                | required | Current CEL expression                        |
+| `onChange`         | `(v: string) => void`   | required | Called on every keystroke                     |
+| `onValidityChange` | `(ok: boolean) => void` | —        | Called after 250ms debounce with parse result |
+| `label`            | `string`                | —        | Optional label rendered above chrome text     |
+| `placeholder`      | `string`                | —        | Monaco placeholder text                       |
+| `readOnly`         | `boolean`               | `false`  | Disables editing                              |
+| `height`           | `number`                | `160`    | Editor height in pixels                       |
 
 ## Behaviour
 

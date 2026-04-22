@@ -4,14 +4,7 @@
  * Task 8b.8
  */
 import { useState, useEffect } from 'react';
-import {
-  Button,
-  Group,
-  MultiSelect,
-  Stack,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Button, Group, MultiSelect, Stack, Title, Tooltip } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconLock } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
@@ -66,7 +59,11 @@ export function TlsCipherConfig({ tenantId, canWrite }: TlsCipherConfigProps) {
   return (
     <Stack gap="sm" data-testid="tls-cipher-config">
       <Title order={5}>Cipher Suites</Title>
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <MultiSelect
             label="Allowed cipher suites"

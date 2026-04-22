@@ -58,14 +58,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
-import type {
-  Dashboard,
-  DashboardVersion,
-} from '@/api/resources/types';
-import {
-  restoreDashboardVersion,
-  useDashboardVersions,
-} from '../api';
+import type { Dashboard, DashboardVersion } from '@/api/resources/types';
+import { restoreDashboardVersion, useDashboardVersions } from '../api';
 
 dayjs.extend(relativeTime);
 
@@ -149,10 +143,7 @@ export function VersionHistoryDrawer({
     setRestoring(true);
     try {
       const restored = await restoreDashboardVersion(v.id);
-      notify.success(
-        'Dashboard restored',
-        `Restored to version ${String(v.version)}.`,
-      );
+      notify.success('Dashboard restored', `Restored to version ${String(v.version)}.`);
       setConfirmOpen(false);
       setTyped('');
       setSelected([]);
@@ -208,9 +199,7 @@ export function VersionHistoryDrawer({
                 versions.map((v) => {
                   const isSelected = selected.includes(v.id);
                   const createdByUser = users[v.created_by];
-                  const absolute = dayjs(v.created_at).format(
-                    'YYYY-MM-DD HH:mm:ss',
-                  );
+                  const absolute = dayjs(v.created_at).format('YYYY-MM-DD HH:mm:ss');
                   return (
                     <Box
                       key={v.id}
@@ -237,11 +226,7 @@ export function VersionHistoryDrawer({
                     >
                       <Stack gap={4}>
                         <Group gap="xs" justify="space-between">
-                          <Badge
-                            size="sm"
-                            variant="light"
-                            color={isSelected ? 'violet' : 'gray'}
-                          >
+                          <Badge size="sm" variant="light" color={isSelected ? 'violet' : 'gray'}>
                             v{String(v.version)}
                           </Badge>
                           {v.description !== undefined && (
@@ -271,8 +256,8 @@ export function VersionHistoryDrawer({
             {selectedVersions.length === 0 && (
               <Alert color="blue" variant="light">
                 <Text size="sm">
-                  Select a version on the left to view its snapshot, or select
-                  two to compare side-by-side.
+                  Select a version on the left to view its snapshot, or select two to compare
+                  side-by-side.
                 </Text>
               </Alert>
             )}
@@ -341,47 +326,47 @@ export function VersionHistoryDrawer({
             {selectedVersions.length === 2 &&
               selectedVersions[0] !== undefined &&
               selectedVersions[1] !== undefined && (
-              <Stack gap="sm" style={{ minHeight: 0 }}>
-                <Group gap="xs">
-                  <Badge size="sm" variant="light" color="red">
-                    v{String(selectedVersions[0].version)}
-                  </Badge>
-                  <Text size="xs" c="var(--mantine-color-gray-7)">
-                    versus
-                  </Text>
-                  <Badge size="sm" variant="light" color="green">
-                    v{String(selectedVersions[1].version)}
-                  </Badge>
-                  <Tooltip label="Clear selection" withArrow>
-                    <ActionIcon
-                      variant="subtle"
-                      aria-label="Clear version selection"
-                      onClick={() => {
-                        setSelected([]);
+                <Stack gap="sm" style={{ minHeight: 0 }}>
+                  <Group gap="xs">
+                    <Badge size="sm" variant="light" color="red">
+                      v{String(selectedVersions[0].version)}
+                    </Badge>
+                    <Text size="xs" c="var(--mantine-color-gray-7)">
+                      versus
+                    </Text>
+                    <Badge size="sm" variant="light" color="green">
+                      v{String(selectedVersions[1].version)}
+                    </Badge>
+                    <Tooltip label="Clear selection" withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        aria-label="Clear version selection"
+                        onClick={() => {
+                          setSelected([]);
+                        }}
+                      >
+                        <IconRefresh size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                  <ScrollArea type="auto" style={{ flex: 1, minHeight: 0 }}>
+                    <Box
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 2,
+                        fontFamily: 'var(--mantine-font-family-monospace)',
+                        fontSize: 12,
                       }}
+                      data-testid="version-history-diff"
                     >
-                      <IconRefresh size={14} />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
-                <ScrollArea type="auto" style={{ flex: 1, minHeight: 0 }}>
-                  <Box
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: 2,
-                      fontFamily: 'var(--mantine-font-family-monospace)',
-                      fontSize: 12,
-                    }}
-                    data-testid="version-history-diff"
-                  >
-                    {diffLines.map((ln, i) => (
-                      <DiffRow key={i} line={ln} />
-                    ))}
-                  </Box>
-                </ScrollArea>
-              </Stack>
-            )}
+                      {diffLines.map((ln, i) => (
+                        <DiffRow key={i} line={ln} />
+                      ))}
+                    </Box>
+                  </ScrollArea>
+                </Stack>
+              )}
           </Stack>
         </Box>
       </Drawer>
@@ -397,15 +382,10 @@ export function VersionHistoryDrawer({
         centered
       >
         <Stack gap="md">
-          <Alert
-            color="orange"
-            variant="light"
-            icon={<IconAlertTriangle size={16} />}
-          >
+          <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
             <Text size="sm">
-              Restoring replaces the current dashboard + widgets with the
-              snapshot. A new version marker will be written to history so
-              this action is itself reversible.
+              Restoring replaces the current dashboard + widgets with the snapshot. A new version
+              marker will be written to history so this action is itself reversible.
             </Text>
           </Alert>
           <Text size="sm">
@@ -455,12 +435,8 @@ export function VersionHistoryDrawer({
 // ─── Row for the diff pane ────────────────────────────────────────────────────
 
 function DiffRow({ line }: { line: DiffLine }) {
-  const bgLeft = line.changed
-    ? 'var(--mantine-color-red-1)'
-    : 'var(--mantine-color-body)';
-  const bgRight = line.changed
-    ? 'var(--mantine-color-green-1)'
-    : 'var(--mantine-color-body)';
+  const bgLeft = line.changed ? 'var(--mantine-color-red-1)' : 'var(--mantine-color-body)';
+  const bgRight = line.changed ? 'var(--mantine-color-green-1)' : 'var(--mantine-color-body)';
   return (
     <>
       <Box

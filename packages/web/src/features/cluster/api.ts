@@ -30,11 +30,7 @@ function getCurrentActorId(): string {
   return useMockStore.getState().currentUserId ?? 'unknown';
 }
 
-function makeAuditEntry(
-  actorId: string,
-  action: string,
-  resourceId?: string,
-): AuditEntry {
+function makeAuditEntry(actorId: string, action: string, resourceId?: string): AuditEntry {
   return {
     id: nextNodeAuditId(),
     tenant_id: useMockStore.getState().currentTenantId,
@@ -116,9 +112,7 @@ export async function generateEnrollmentToken(): Promise<ClusterEnrollmentToken>
 
   const state = useMockStore.getState();
   state.addEntity('clusterEnrollmentTokens', token);
-  state.appendAudit(
-    makeAuditEntry(actorId, 'cluster.enrollment_token.generate', id),
-  );
+  state.appendAudit(makeAuditEntry(actorId, 'cluster.enrollment_token.generate', id));
   emitHostEvent('cluster.enrollment_token.generated', { token_id: id });
   return token;
 }

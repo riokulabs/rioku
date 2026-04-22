@@ -16,10 +16,10 @@ Renders a centered, icon-based placeholder when a list or data surface has no co
 
 ## Props
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `icon` | `Icon` (Tabler) | yes | Decorative icon displayed in a `ThemeIcon` |
-| `title` | `string` | yes | Short headline |
-| `description` | `string` | no | Supporting text |
-| `action.label` | `string` | no | CTA button label |
-| `action.onClick` | `() => void` | no | CTA handler |
+| Prop             | Type            | Required | Description                                |
+| ---------------- | --------------- | -------- | ------------------------------------------ |
+| `icon`           | `Icon` (Tabler) | yes      | Decorative icon displayed in a `ThemeIcon` |
+| `title`          | `string`        | yes      | Short headline                             |
+| `description`    | `string`        | no       | Supporting text                            |
+| `action.label`   | `string`        | no       | CTA button label                           |
+| `action.onClick` | `() => void`    | no       | CTA handler                                |

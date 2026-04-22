@@ -5,11 +5,19 @@ test('app shell renders', async ({ page }) => {
   await page.goto('/t/acme/dashboard');
   // Wait for the mock store to finish seeding (dynamic import + seedStore may
   // complete after the 'load' event when mock-seed pulls in additional modules).
-  await page.waitForFunction(() => {
-    const store = (window as unknown as { __RIOKU_STORE?: { getState: () => { currentUserId: string | null } } }).__RIOKU_STORE;
-    if (!store) return false;
-    return store.getState().currentUserId !== null;
-  }, null, { timeout: 10000 });
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: { getState: () => { currentUserId: string | null } };
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      return store.getState().currentUserId !== null;
+    },
+    null,
+    { timeout: 10000 },
+  );
 
   // Plan 4b changed /t/$tenant/dashboard to render the tenant default dashboard
   // inline — acme's default is named "Overview", so the main heading is no
@@ -30,11 +38,19 @@ test('app shell renders', async ({ page }) => {
 test('spotlight opens via mod+K', async ({ page }) => {
   await page.goto('/t/acme/dashboard');
   // Wait for mock store seeding to complete before triggering keyboard shortcut.
-  await page.waitForFunction(() => {
-    const store = (window as unknown as { __RIOKU_STORE?: { getState: () => { currentUserId: string | null } } }).__RIOKU_STORE;
-    if (!store) return false;
-    return store.getState().currentUserId !== null;
-  }, null, { timeout: 10000 });
+  await page.waitForFunction(
+    () => {
+      const store = (
+        window as unknown as {
+          __RIOKU_STORE?: { getState: () => { currentUserId: string | null } };
+        }
+      ).__RIOKU_STORE;
+      if (!store) return false;
+      return store.getState().currentUserId !== null;
+    },
+    null,
+    { timeout: 10000 },
+  );
 
   // Press Ctrl+K (mod+K maps to Ctrl+K on Linux in Playwright)
   await page.keyboard.press('Control+K');

@@ -125,9 +125,7 @@ describe('useAuditList', () => {
 
   it('filters by action (bounded)', () => {
     const tenantId = tenantIdBySlug('acme');
-    const action = useMockStore
-      .getState()
-      .audit.find((e) => e.tenant_id === tenantId)!.action;
+    const action = useMockStore.getState().audit.find((e) => e.tenant_id === tenantId)!.action;
     const { result } = renderHook(() =>
       useAuditList(tenantId, { ...emptyFilter(), actions: [action] }),
     );
@@ -152,9 +150,7 @@ describe('useAuditList', () => {
 
   it('filters by date range', () => {
     const tenantId = tenantIdBySlug('acme');
-    const all = useMockStore
-      .getState()
-      .audit.filter((e) => e.tenant_id === tenantId);
+    const all = useMockStore.getState().audit.filter((e) => e.tenant_id === tenantId);
     expect(all.length).toBeGreaterThan(0);
     const mid = all[Math.floor(all.length / 2)]!;
     const { result } = renderHook(() =>
@@ -165,9 +161,7 @@ describe('useAuditList', () => {
 
   it('filters by actor_handles (opaque user handles)', () => {
     const tenantId = tenantIdBySlug('acme');
-    const entry = useMockStore
-      .getState()
-      .audit.find((e) => e.tenant_id === tenantId)!;
+    const entry = useMockStore.getState().audit.find((e) => e.tenant_id === tenantId)!;
     const { result } = renderHook(() =>
       useAuditList(tenantId, {
         ...emptyFilter(),
@@ -181,15 +175,11 @@ describe('useAuditList', () => {
     const tenantId = tenantIdBySlug('acme');
     const entry = useMockStore
       .getState()
-      .audit.find(
-        (e) => e.tenant_id === tenantId && e.resource_id !== undefined,
-      )!;
+      .audit.find((e) => e.tenant_id === tenantId && e.resource_id !== undefined)!;
     const { result } = renderHook(() =>
       useAuditList(tenantId, {
         ...emptyFilter(),
-        resource_id_handles: [
-          encodeResourceHandle(entry.resource_type, entry.resource_id!),
-        ],
+        resource_id_handles: [encodeResourceHandle(entry.resource_type, entry.resource_id!)],
       }),
     );
     for (const e of result.current) {
@@ -213,9 +203,7 @@ describe('useAuditList', () => {
 describe('useAuditDetail', () => {
   it('returns the entry with the given id', () => {
     const tenantId = tenantIdBySlug('acme');
-    const entry = useMockStore
-      .getState()
-      .audit.find((e) => e.tenant_id === tenantId)!;
+    const entry = useMockStore.getState().audit.find((e) => e.tenant_id === tenantId)!;
     const { result } = renderHook(() => useAuditDetail(entry.id));
     expect(result.current?.id).toBe(entry.id);
   });
@@ -229,9 +217,7 @@ describe('useAuditDetail', () => {
 describe('useAuditListInfinite', () => {
   it('paginates and exposes fetchNextPage', () => {
     const tenantId = tenantIdBySlug('acme');
-    const { result } = renderHook(() =>
-      useAuditListInfinite(tenantId, emptyFilter(), 10),
-    );
+    const { result } = renderHook(() => useAuditListInfinite(tenantId, emptyFilter(), 10));
     expect(result.current.data.length).toBeLessThanOrEqual(10);
     expect(result.current.hasNextPage).toBe(true);
     act(() => {
@@ -333,9 +319,7 @@ describe('exportAuditCsv', () => {
   it('one row per matching entry', async () => {
     const tenantId = tenantIdBySlug('acme');
     signInAdmin(tenantId);
-    const matched = useMockStore
-      .getState()
-      .audit.filter((e) => e.tenant_id === tenantId);
+    const matched = useMockStore.getState().audit.filter((e) => e.tenant_id === tenantId);
     const blob = exportAuditCsv(tenantId, emptyFilter());
     const text = await blob.text();
     expect(text.split('\n').length).toBe(matched.length + 1);
@@ -442,9 +426,7 @@ describe('searchResourceIds', () => {
     const tenantId = tenantIdBySlug('acme');
     const entry = useMockStore
       .getState()
-      .audit.find(
-        (e) => e.tenant_id === tenantId && e.resource_id !== undefined,
-      )!;
+      .audit.find((e) => e.tenant_id === tenantId && e.resource_id !== undefined)!;
     const page = await searchResourceIds(tenantId, entry.resource_type, '');
     const handles = page.items.map((i) => i.handle);
     const unique = new Set(handles);
@@ -480,9 +462,7 @@ describe('useRetentionConfig + updateRetentionConfig', () => {
     expect(next.retention_days.read).toBe(7);
     expect(next.auto_export).toBe('daily');
     expect(useMockStore.getState().audit.length).toBe(auditBefore + 1);
-    const last = useMockStore.getState().audit[
-      useMockStore.getState().audit.length - 1
-    ]!;
+    const last = useMockStore.getState().audit[useMockStore.getState().audit.length - 1]!;
     expect(last.action).toBe('audit.retention.update');
     expect(last.resource_type).toBe('audit-retention');
   });

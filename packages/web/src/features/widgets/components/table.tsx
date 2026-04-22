@@ -13,9 +13,7 @@ interface TableData {
 
 function isTableData(data: unknown): data is TableData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    Array.isArray((data as { rows?: unknown }).rows)
+    typeof data === 'object' && data !== null && Array.isArray((data as { rows?: unknown }).rows)
   );
 }
 
@@ -37,7 +35,11 @@ export function TableWidget({ widget, data, loading, error }: WidgetRenderProps)
   const columns = data.columns ?? (data.rows.length > 0 ? Object.keys(data.rows[0] ?? {}) : []);
 
   return (
-    <ScrollArea.Autosize mah={240} aria-label={`Table for ${widget.title}`} style={{ maxWidth: '100%' }}>
+    <ScrollArea.Autosize
+      mah={240}
+      aria-label={`Table for ${widget.title}`}
+      style={{ maxWidth: '100%' }}
+    >
       <Table striped withTableBorder style={{ minWidth: 'max-content' }}>
         <Table.Thead>
           <Table.Tr>

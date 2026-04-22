@@ -43,9 +43,7 @@ export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailP
 
       <Divider />
 
-      {policy.description && (
-        <Text size="sm">{policy.description}</Text>
-      )}
+      {policy.description && <Text size="sm">{policy.description}</Text>}
 
       <Stack gap="xs">
         <Text size="sm" fw={600}>

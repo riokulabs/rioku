@@ -9,16 +9,7 @@
  * Task 8a.2
  */
 import { useState, useCallback, useEffect } from 'react';
-import {
-  Alert,
-  Avatar,
-  Button,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Avatar, Button, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { Dropzone, IMAGE_MIME_TYPE } from '@mantine/dropzone';
 import { IconAlertCircle, IconUpload, IconX, IconPhoto } from '@tabler/icons-react';
@@ -63,9 +54,7 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
   );
 
   // ── Avatar ────────────────────────────────────────────────────────────────
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user.avatar_url ?? null,
-  );
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url ?? null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
@@ -144,7 +133,9 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
           >
             <div>
               <Dropzone
-                onDrop={(files) => { void handleAvatarDrop(files); }}
+                onDrop={(files) => {
+                  void handleAvatarDrop(files);
+                }}
                 onReject={(files) => {
                   const reason = files[0]?.errors[0]?.code;
                   const msg =
@@ -170,9 +161,7 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
                   <Dropzone.Idle>
                     <IconPhoto size={16} />
                   </Dropzone.Idle>
-                  <Text size="sm">
-                    Drop an image here or click to upload (max 3 MB)
-                  </Text>
+                  <Text size="sm">Drop an image here or click to upload (max 3 MB)</Text>
                 </Group>
               </Dropzone>
             </div>
@@ -182,7 +171,9 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
               variant="subtle"
               color="red"
               size="xs"
-              onClick={() => { void handleRemoveAvatar(); }}
+              onClick={() => {
+                void handleRemoveAvatar();
+              }}
               loading={avatarLoading}
               disabled={!canUpdate}
               data-testid="profile-avatar-remove"

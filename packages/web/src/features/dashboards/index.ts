@@ -24,15 +24,9 @@ export {
   updateDashboardSchema,
   dashboardExportSchema,
 } from './schemas';
-export type {
-  CreateDashboardFormValues,
-  UpdateDashboardFormValues,
-} from './schemas';
+export type { CreateDashboardFormValues, UpdateDashboardFormValues } from './schemas';
 
-export {
-  DashboardImportError,
-  DASHBOARD_EXPORT_VERSION,
-} from './types';
+export { DashboardImportError, DASHBOARD_EXPORT_VERSION } from './types';
 export type {
   DashboardFilter,
   CreateDashboardInput,

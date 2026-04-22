@@ -28,13 +28,7 @@ type DrawerMode = 'detail' | 'create' | 'edit';
 
 type Kind = AiProvider['kind'];
 
-const KIND_VALUES: readonly Kind[] = [
-  'openai',
-  'anthropic',
-  'gemini',
-  'ollama',
-  'custom',
-];
+const KIND_VALUES: readonly Kind[] = ['openai', 'anthropic', 'gemini', 'ollama', 'custom'];
 
 interface SearchParams {
   search: string;
@@ -56,9 +50,7 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseKindsCsv(v: unknown): Kind[] {
-  return parseCsv(v).filter((s): s is Kind =>
-    (KIND_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Kind => (KIND_VALUES as readonly string[]).includes(s));
 }
 
 function AiProvidersPage() {
@@ -66,9 +58,7 @@ function AiProvidersPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -90,19 +80,13 @@ function AiProvidersPage() {
         ...prev,
         search: next.search,
         kinds: next.kinds.join(','),
-        enabled:
-          next.enabled === true
-            ? 'true'
-            : next.enabled === false
-              ? 'false'
-              : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedProvider, setSelectedProvider] = useState<AiProvider | null>(null);
 
@@ -132,15 +116,9 @@ function AiProvidersPage() {
     try {
       const result = await testProvider(p.id);
       if (result.ok) {
-        notify.success(
-          'Connection OK',
-          `${p.name} responded in ${String(result.latency_ms)}ms.`,
-        );
+        notify.success('Connection OK', `${p.name} responded in ${String(result.latency_ms)}ms.`);
       } else {
-        notify.error(
-          'Connection failed',
-          result.error_message ?? 'Upstream error',
-        );
+        notify.error('Connection failed', result.error_message ?? 'Upstream error');
       }
     } catch {
       notify.error('Failed to test provider', 'Please try again.');
@@ -159,7 +137,7 @@ function AiProvidersPage() {
       ? 'Create provider'
       : drawerMode === 'edit'
         ? `Edit — ${selectedProvider?.name ?? ''}`
-        : selectedProvider?.name ?? 'Provider detail';
+        : (selectedProvider?.name ?? 'Provider detail');
 
   return (
     <Stack gap="md" p="md">

@@ -205,7 +205,11 @@ export function InviteAcceptanceForm({ token }: InviteAcceptanceFormProps) {
       </Paper>
 
       {step === 'credentials' && (
-        <form onSubmit={form.onSubmit((v) => { handleCredentialsSubmit(v); })}>
+        <form
+          onSubmit={form.onSubmit((v) => {
+            handleCredentialsSubmit(v);
+          })}
+        >
           <Stack gap="md">
             {submitError && (
               <Alert

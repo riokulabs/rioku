@@ -3,15 +3,7 @@
  */
 import { useMemo, useState, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Select,
-  Stack,
-  Group,
-  ActionIcon,
-  Tooltip,
-} from '@mantine/core';
+import { Badge, Text, Select, Stack, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { IconKey, IconTrash, IconRefresh, IconBan } from '@tabler/icons-react';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
@@ -28,7 +20,7 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_KIND = {
-  active:  'active',
+  active: 'active',
   revoked: 'error',
   expired: 'warn',
 } as const satisfies Record<ApiKeyWithMeta['display_status'], 'active' | 'error' | 'warn'>;
@@ -101,10 +93,16 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
     }
     const succeeded = ids.length - failed;
     if (succeeded > 0) {
-      notify.success('Keys revoked', `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} revoked.`);
+      notify.success(
+        'Keys revoked',
+        `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} revoked.`,
+      );
     }
     if (failed > 0) {
-      notify.error('Some revocations failed', `${String(failed)} key${failed !== 1 ? 's' : ''} could not be revoked.`);
+      notify.error(
+        'Some revocations failed',
+        `${String(failed)} key${failed !== 1 ? 's' : ''} could not be revoked.`,
+      );
     }
   }, []);
 
@@ -119,25 +117,38 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
     }
     const succeeded = ids.length - failed;
     if (succeeded > 0) {
-      notify.success('Keys deleted', `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} deleted.`);
+      notify.success(
+        'Keys deleted',
+        `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} deleted.`,
+      );
     }
     if (failed > 0) {
-      notify.error('Some deletions failed', `${String(failed)} key${failed !== 1 ? 's' : ''} could not be deleted.`);
+      notify.error(
+        'Some deletions failed',
+        `${String(failed)} key${failed !== 1 ? 's' : ''} could not be deleted.`,
+      );
     }
   }, []);
 
-  const bulkActions = useMemo<BulkAction[]>(() => [
-    {
-      label: 'Revoke selected',
-      color: 'orange',
-      onClick: (ids) => { void handleBulkRevoke(ids); },
-    },
-    {
-      label: 'Delete selected',
-      color: 'red',
-      onClick: (ids) => { void handleBulkDelete(ids); },
-    },
-  ], [handleBulkRevoke, handleBulkDelete]);
+  const bulkActions = useMemo<BulkAction[]>(
+    () => [
+      {
+        label: 'Revoke selected',
+        color: 'orange',
+        onClick: (ids) => {
+          void handleBulkRevoke(ids);
+        },
+      },
+      {
+        label: 'Delete selected',
+        color: 'red',
+        onClick: (ids) => {
+          void handleBulkDelete(ids);
+        },
+      },
+    ],
+    [handleBulkRevoke, handleBulkDelete],
+  );
 
   const columns = useMemo<ColumnDef<ApiKeyWithMeta>[]>(
     () => [
@@ -189,8 +200,18 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         accessorFn: (row) => row.expires_in_days,
         cell: ({ row }) => {
           const days = row.original.expires_in_days;
-          if (days === undefined) return <Text size="sm" c="dimmed">Never</Text>;
-          if (days < 0) return <Text size="sm" c="red">Expired</Text>;
+          if (days === undefined)
+            return (
+              <Text size="sm" c="dimmed">
+                Never
+              </Text>
+            );
+          if (days < 0)
+            return (
+              <Text size="sm" c="red">
+                Expired
+              </Text>
+            );
           return (
             <Text size="sm" c={days < 7 ? 'orange' : 'inherit'}>
               {days}d

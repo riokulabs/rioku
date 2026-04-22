@@ -36,8 +36,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 let grantWrite = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'tenant:write' ? grantWrite : true,
+  usePermission: (key: string) => (key === 'tenant:write' ? grantWrite : true),
 }));
 
 // ─── Dropzone stub ───────────────────────────────────────────────────────────
@@ -47,7 +46,11 @@ function DropzoneStub({
   onDrop: _onDrop,
   ...rest
 }: React.PropsWithChildren<Record<string, unknown>>) {
-  return <div data-testid="tenant-logo-dropzone" {...rest}>{children}</div>;
+  return (
+    <div data-testid="tenant-logo-dropzone" {...rest}>
+      {children}
+    </div>
+  );
 }
 function Noop({ children }: React.PropsWithChildren) {
   return <>{children}</>;
@@ -168,7 +171,9 @@ describe('<TenantSection>', () => {
     render(<TenantSection />, { wrapper: Wrapper });
 
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     const nameInput = screen.getByTestId<HTMLInputElement>('tenant-name-input');
@@ -212,7 +217,9 @@ describe('<TenantSection>', () => {
   it('url mode change emits host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     const { updateTenantUrlMode } = await import('../api');
@@ -261,7 +268,9 @@ describe('<TenantSection>', () => {
   it('theme override emits host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:updated', listener);
 
     const { updateTenantDefaultTheme } = await import('../api');

@@ -61,8 +61,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 let grantWrite = true;
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: (key: string) =>
-    key === 'network:write' ? grantWrite : true,
+  usePermission: (key: string) => (key === 'network:write' ? grantWrite : true),
 }));
 
 // ─── Imports ─────────────────────────────────────────────────────────────────
@@ -162,7 +161,9 @@ describe('NetworkSection permission guard', () => {
 describe('NetworkSection save', () => {
   it('Save triggers store mutation + audit entry + tenant:network-config-updated host event', async () => {
     const hostEvents: string[] = [];
-    const listener = (e: Event) => { hostEvents.push((e as CustomEvent).type); };
+    const listener = (e: Event) => {
+      hostEvents.push((e as CustomEvent).type);
+    };
     mockBus.addEventListener('tenant:network-config-updated', listener);
 
     render(<NetworkSection />, { wrapper: Wrapper });

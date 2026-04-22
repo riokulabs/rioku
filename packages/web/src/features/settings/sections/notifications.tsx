@@ -141,7 +141,9 @@ export function NotificationsSection() {
     <Stack gap="xl" data-testid="notifications-section">
       {/* ── 1. Global toggles + retry policy ────────────────────────────── */}
       <form
-        onSubmit={form.onSubmit((v) => { void handleSubmit(v); })}
+        onSubmit={form.onSubmit((v) => {
+          void handleSubmit(v);
+        })}
         data-testid="notifications-config-form"
       >
         <Stack gap="lg">
@@ -156,11 +158,7 @@ export function NotificationsSection() {
             <Title order={5}>Global toggles</Title>
 
             <Group gap="sm" align="center">
-              {form.values.enabled ? (
-                <IconBell size={16} />
-              ) : (
-                <IconBellOff size={16} />
-              )}
+              {form.values.enabled ? <IconBell size={16} /> : <IconBellOff size={16} />}
               <Tooltip
                 label="You need notification:admin to change this"
                 disabled={canAdmin}
@@ -172,7 +170,9 @@ export function NotificationsSection() {
                     description="Master kill switch — when off, no notifications are dispatched tenant-wide."
                     disabled={!canAdmin}
                     checked={form.values.enabled}
-                    onChange={(e) => { form.setFieldValue('enabled', e.currentTarget.checked); }}
+                    onChange={(e) => {
+                      form.setFieldValue('enabled', e.currentTarget.checked);
+                    }}
                     data-testid="notifications-enabled-switch"
                   />
                 </span>
@@ -207,7 +207,9 @@ export function NotificationsSection() {
                   description="When enabled, installed plugins can register their own notification categories."
                   disabled={!canAdmin}
                   checked={form.values.plugins_can_register_categories}
-                  onChange={(e) => { form.setFieldValue('plugins_can_register_categories', e.currentTarget.checked); }}
+                  onChange={(e) => {
+                    form.setFieldValue('plugins_can_register_categories', e.currentTarget.checked);
+                  }}
                   data-testid="notifications-plugins-categories-switch"
                 />
               </span>
@@ -220,7 +222,8 @@ export function NotificationsSection() {
           <Stack gap="sm">
             <Title order={5}>Retry policy</Title>
             <Text size="sm" c="var(--mantine-color-gray-7)">
-              Controls how failed delivery attempts are retried before the log entry is marked failed.
+              Controls how failed delivery attempts are retried before the log entry is marked
+              failed.
             </Text>
 
             <Group gap="md" align="flex-end" wrap="wrap">
@@ -269,11 +272,7 @@ export function NotificationsSection() {
           {/* ── Save ─────────────────────────────────────────────────────── */}
           {form.isDirty() && (
             <Group>
-              <Tooltip
-                label="You need notification:admin to save"
-                disabled={canAdmin}
-                withArrow
-              >
+              <Tooltip label="You need notification:admin to save" disabled={canAdmin} withArrow>
                 <span>
                   <Button
                     type="submit"
@@ -299,7 +298,9 @@ export function NotificationsSection() {
         <Group gap="md" wrap="wrap" data-testid="notifications-delivery-summary">
           <Card withBorder radius="sm" p="sm" style={{ minWidth: 140 }}>
             <Stack gap={4}>
-              <Text size="xs" c="var(--mantine-color-gray-7)">Total deliveries</Text>
+              <Text size="xs" c="var(--mantine-color-gray-7)">
+                Total deliveries
+              </Text>
               <Text fw={600} size="lg" data-testid="notifications-summary-total">
                 {deliverySummary.total}
               </Text>
@@ -307,21 +308,37 @@ export function NotificationsSection() {
           </Card>
           <Card withBorder radius="sm" p="sm" style={{ minWidth: 140 }}>
             <Stack gap={4}>
-              <Text size="xs" c="var(--mantine-color-gray-7)">Success rate</Text>
+              <Text size="xs" c="var(--mantine-color-gray-7)">
+                Success rate
+              </Text>
               {deliverySummary.successRate !== null ? (
                 <Group gap="xs" align="center">
                   <Text fw={600} size="lg" data-testid="notifications-summary-success-rate">
                     {deliverySummary.successRate}%
                   </Text>
                   <StatusBadge
-                    kind={deliverySummary.successRate >= 90 ? 'active' : deliverySummary.successRate >= 70 ? 'warn' : 'error'}
+                    kind={
+                      deliverySummary.successRate >= 90
+                        ? 'active'
+                        : deliverySummary.successRate >= 70
+                          ? 'warn'
+                          : 'error'
+                    }
                     size="xs"
                   >
-                    {deliverySummary.successRate >= 90 ? 'healthy' : deliverySummary.successRate >= 70 ? 'degraded' : 'poor'}
+                    {deliverySummary.successRate >= 90
+                      ? 'healthy'
+                      : deliverySummary.successRate >= 70
+                        ? 'degraded'
+                        : 'poor'}
                   </StatusBadge>
                 </Group>
               ) : (
-                <Text size="sm" c="var(--mantine-color-gray-7)" data-testid="notifications-summary-success-rate">
+                <Text
+                  size="sm"
+                  c="var(--mantine-color-gray-7)"
+                  data-testid="notifications-summary-success-rate"
+                >
                   no data
                 </Text>
               )}
@@ -329,18 +346,24 @@ export function NotificationsSection() {
           </Card>
           <Card withBorder radius="sm" p="sm" style={{ minWidth: 140 }}>
             <Stack gap={4}>
-              <Text size="xs" c="var(--mantine-color-gray-7)">Active channels</Text>
+              <Text size="xs" c="var(--mantine-color-gray-7)">
+                Active channels
+              </Text>
               <Group gap="xs" align="center">
                 <Text fw={600} size="lg" data-testid="notifications-summary-channel-count">
                   {channelCount}
                 </Text>
-                <Badge size="xs" variant="light" color="blue">configured</Badge>
+                <Badge size="xs" variant="light" color="blue">
+                  configured
+                </Badge>
               </Group>
             </Stack>
           </Card>
           <Card withBorder radius="sm" p="sm" style={{ minWidth: 140 }}>
             <Stack gap={4}>
-              <Text size="xs" c="var(--mantine-color-gray-7)">Routing rules</Text>
+              <Text size="xs" c="var(--mantine-color-gray-7)">
+                Routing rules
+              </Text>
               <Text fw={600} size="lg" data-testid="notifications-summary-routing-count">
                 {routingRuleCount}
               </Text>
@@ -364,10 +387,13 @@ export function NotificationsSection() {
             <Stack gap="xs">
               <Group gap="xs">
                 <IconMail size={16} />
-                <Text fw={500} size="sm">Channels</Text>
+                <Text fw={500} size="sm">
+                  Channels
+                </Text>
               </Group>
               <Text size="xs" c="var(--mantine-color-gray-7)">
-                {channelCount} channel{channelCount !== 1 ? 's' : ''} configured (SMTP, Slack, webhook, …)
+                {channelCount} channel{channelCount !== 1 ? 's' : ''} configured (SMTP, Slack,
+                webhook, …)
               </Text>
               <Button
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
@@ -389,10 +415,13 @@ export function NotificationsSection() {
             <Stack gap="xs">
               <Group gap="xs">
                 <IconListCheck size={16} />
-                <Text fw={500} size="sm">Routing rules</Text>
+                <Text fw={500} size="sm">
+                  Routing rules
+                </Text>
               </Group>
               <Text size="xs" c="var(--mantine-color-gray-7)">
-                {routingRuleCount} rule{routingRuleCount !== 1 ? 's' : ''} — match events to channels
+                {routingRuleCount} rule{routingRuleCount !== 1 ? 's' : ''} — match events to
+                channels
               </Text>
               <Button
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
@@ -414,10 +443,13 @@ export function NotificationsSection() {
             <Stack gap="xs">
               <Group gap="xs">
                 <IconChartBar size={16} />
-                <Text fw={500} size="sm">Delivery log</Text>
+                <Text fw={500} size="sm">
+                  Delivery log
+                </Text>
               </Group>
               <Text size="xs" c="var(--mantine-color-gray-7)">
-                {deliverySummary.total} total entr{deliverySummary.total !== 1 ? 'ies' : 'y'} recorded
+                {deliverySummary.total} total entr{deliverySummary.total !== 1 ? 'ies' : 'y'}{' '}
+                recorded
               </Text>
               <Button
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment

@@ -25,7 +25,9 @@ describe('emitPluginNotification', () => {
       severity: 'info',
     });
     expect(writes).toHaveBeenCalledOnce();
-    const arg = writes.mock.calls[0]?.[0] as { id: string; createdAt: string; title: string } | undefined;
+    const arg = writes.mock.calls[0]?.[0] as
+      | { id: string; createdAt: string; title: string }
+      | undefined;
     expect(typeof arg?.id).toBe('string');
     expect(typeof arg?.createdAt).toBe('string');
     expect(arg?.title).toBe('Hello');

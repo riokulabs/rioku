@@ -9,16 +9,8 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AiAgent,
-  AiProvider,
-  AiProviderModel,
-  AuditEntry,
-} from '@/api/resources/types';
-import {
-  ProviderInUseError,
-  ProviderModelInUseError,
-} from './types';
+import type { AiAgent, AiProvider, AiProviderModel, AuditEntry } from '@/api/resources/types';
+import { ProviderInUseError, ProviderModelInUseError } from './types';
 import type {
   AddModelInput,
   CreateProviderInput,
@@ -85,10 +77,7 @@ function hashCode(s: string): number {
  * Selector returns raw record; filter/derivation happens in the hook body so
  * the returned array reference updates only when input changes.
  */
-export function useProviderList(
-  tenantId: string,
-  filter: ProviderFilter,
-): AiProvider[] {
+export function useProviderList(tenantId: string, filter: ProviderFilter): AiProvider[] {
   const providers = useMockStore((s) => s.aiProviders);
 
   const search = filter.search.toLowerCase().trim();
@@ -147,17 +136,12 @@ export async function createProvider(
 
   const state = useMockStore.getState();
   state.addEntity('aiProviders', provider);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'ai-provider.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-provider.create', id));
   emitHostEvent('ai-provider.created', { provider_id: id, tenant_id: tenantId });
   return provider;
 }
 
-export async function updateProvider(
-  id: string,
-  input: UpdateProviderInput,
-): Promise<AiProvider> {
+export async function updateProvider(id: string, input: UpdateProviderInput): Promise<AiProvider> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -185,12 +169,7 @@ export async function updateProvider(
   if (!updated) throw new Error(`Provider ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-provider.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-provider.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('ai-provider.updated', {
@@ -234,10 +213,7 @@ export async function deleteProvider(id: string): Promise<void> {
 
 // ─── Model management ────────────────────────────────────────────────────────
 
-export async function addModel(
-  providerId: string,
-  model: AddModelInput,
-): Promise<AiProvider> {
+export async function addModel(providerId: string, model: AddModelInput): Promise<AiProvider> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const current = state.aiProviders[providerId];
@@ -260,12 +236,7 @@ export async function addModel(
     updated_at: now(),
   });
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-provider.model.add',
-      providerId,
-    ),
+    makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-provider.model.add', providerId),
   );
   emitHostEvent('ai-provider.model-added', {
     provider_id: providerId,
@@ -294,9 +265,7 @@ export async function updateModel(
   const updatedModel: AiProviderModel = {
     ...existing,
     ...(patch.alias !== undefined ? { alias: patch.alias } : {}),
-    ...(patch.rate_limit_rpm !== undefined
-      ? { rate_limit_rpm: patch.rate_limit_rpm }
-      : {}),
+    ...(patch.rate_limit_rpm !== undefined ? { rate_limit_rpm: patch.rate_limit_rpm } : {}),
     ...(patch.daily_quota_tokens !== undefined
       ? { daily_quota_tokens: patch.daily_quota_tokens }
       : {}),
@@ -307,22 +276,14 @@ export async function updateModel(
 
   state.updateEntity('aiProviders', providerId, { models, updated_at: now() });
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-provider.model.update',
-      providerId,
-    ),
+    makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-provider.model.update', providerId),
   );
   const updated = useMockStore.getState().aiProviders[providerId];
   if (!updated) throw new Error('Provider vanished');
   return updated;
 }
 
-export async function removeModel(
-  providerId: string,
-  upstreamId: string,
-): Promise<AiProvider> {
+export async function removeModel(providerId: string, upstreamId: string): Promise<AiProvider> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const current = state.aiProviders[providerId];
@@ -357,9 +318,7 @@ export async function removeModel(
 
 // ─── Test connection (deterministic mock) ────────────────────────────────────
 
-export async function testProvider(
-  providerId: string,
-): Promise<TestProviderResult> {
+export async function testProvider(providerId: string): Promise<TestProviderResult> {
   const state = useMockStore.getState();
   const provider = state.aiProviders[providerId];
   if (!provider) throw new Error(`Provider ${providerId} not found`);
@@ -381,13 +340,7 @@ export async function testProvider(
   };
 
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      provider.tenant_id,
-      'ai-provider.test',
-      providerId,
-      'read',
-    ),
+    makeAuditEntry(getCurrentActorId(), provider.tenant_id, 'ai-provider.test', providerId, 'read'),
   );
   emitHostEvent('ai-provider.tested', {
     provider_id: providerId,

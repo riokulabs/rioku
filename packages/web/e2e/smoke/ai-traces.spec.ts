@@ -15,9 +15,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded traces render on /t/acme/ai/traces', async ({
-  authedPage: page,
-}) => {
+test('seeded traces render on /t/acme/ai/traces', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/traces');
 
   await expect(page.getByRole('heading', { name: /^ai traces$/i })).toBeVisible();
@@ -57,9 +55,7 @@ test('Export CSV triggers a download', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/traces');
 
   // Wait for rows to hydrate so the export has data.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
   await page.getByTestId('export-csv').click();
@@ -72,24 +68,24 @@ test('Export CSV triggers a download', async ({ authedPage: page }) => {
 // between Playwright browser contexts (each has its own localStorage + its
 // own mock-store instance + its own mock-SSE EventTarget bus). Enabling this
 // reliably requires a shared backend/bus, which the mock layer does not have.
-test.fixme(
-  'live-tail toggle surfaces new traces from an invocation on another page',
-  async ({ authedPage: page, context }) => {
-    await page.goto('/t/acme/ai/traces');
+test.fixme('live-tail toggle surfaces new traces from an invocation on another page', async ({
+  authedPage: page,
+  context,
+}) => {
+  await page.goto('/t/acme/ai/traces');
 
-    // Enable live-tail.
-    await page.getByTestId('live-tail-switch').click();
+  // Enable live-tail.
+  await page.getByTestId('live-tail-switch').click();
 
-    // Open a second page in the same context and invoke an agent.
-    const page2 = await context.newPage();
-    await page2.goto('/t/acme/ai/agents');
-    await page2.locator('tbody tr[role="row"]').first().click();
-    const drawer2 = page2.getByRole('dialog');
-    await drawer2.getByRole('textbox', { name: /^prompt$/i }).fill('cross-page tail probe');
-    await drawer2.getByRole('button', { name: /^invoke$/i }).click();
+  // Open a second page in the same context and invoke an agent.
+  const page2 = await context.newPage();
+  await page2.goto('/t/acme/ai/agents');
+  await page2.locator('tbody tr[role="row"]').first().click();
+  const drawer2 = page2.getByRole('dialog');
+  await drawer2.getByRole('textbox', { name: /^prompt$/i }).fill('cross-page tail probe');
+  await drawer2.getByRole('button', { name: /^invoke$/i }).click();
 
-    // The original page should surface an incremented live badge. Because
-    // contexts are isolated, this assertion is expected to fail today.
-    await expect(page.getByText(/LIVE \+\d+/)).toBeVisible({ timeout: 10_000 });
-  },
-);
+  // The original page should surface an incremented live badge. Because
+  // contexts are isolated, this assertion is expected to fail today.
+  await expect(page.getByText(/LIVE \+\d+/)).toBeVisible({ timeout: 10_000 });
+});

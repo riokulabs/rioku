@@ -8,14 +8,7 @@
  */
 import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import {
-  Anchor,
-  Button,
-  Drawer,
-  Group,
-  Stack,
-  Title,
-} from '@mantine/core';
+import { Anchor, Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -29,10 +22,7 @@ import {
   RoutingRuleForm,
   RoutingRuleList,
 } from '@/features/notification-routing';
-import type {
-  NotificationRoutingRule,
-  RoutingRuleFilter,
-} from '@/features/notification-routing';
+import type { NotificationRoutingRule, RoutingRuleFilter } from '@/features/notification-routing';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 
@@ -46,9 +36,7 @@ function NotificationRoutingPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -56,12 +44,7 @@ function NotificationRoutingPage() {
 
   const filter: RoutingRuleFilter = {
     search: search.search,
-    enabled:
-      search.enabled === 'true'
-        ? true
-        : search.enabled === 'false'
-          ? false
-          : undefined,
+    enabled: search.enabled === 'true' ? true : search.enabled === 'false' ? false : undefined,
   };
 
   function setFilter(next: RoutingRuleFilter) {
@@ -71,15 +54,13 @@ function NotificationRoutingPage() {
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         search: next.search,
-        enabled:
-          next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selected, setSelected] = useState<NotificationRoutingRule | null>(null);
 
@@ -136,11 +117,7 @@ function NotificationRoutingPage() {
 
       <Group justify="space-between" align="center">
         <Title order={2}>Routing rules</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={handleCreate}
-          disabled={!canWrite}
-        >
+        <Button leftSection={<IconPlus size={16} />} onClick={handleCreate} disabled={!canWrite}>
           New rule
         </Button>
       </Group>

@@ -51,14 +51,7 @@ beforeEach(() => {
 describe('DeleteSiteModal', () => {
   it('keeps the Delete permanently button disabled until the domain is typed', async () => {
     const site = firstSite();
-    wrap(
-      <DeleteSiteModal
-        opened
-        site={site}
-        onClose={vi.fn()}
-        onSuccess={vi.fn()}
-      />,
-    );
+    wrap(<DeleteSiteModal opened site={site} onClose={vi.fn()} onSuccess={vi.fn()} />);
 
     const input = await screen.findByLabelText(/Confirm site domain/i);
     const deleteBtn = screen.getByRole('button', {
@@ -75,14 +68,7 @@ describe('DeleteSiteModal', () => {
   it('calls onSuccess and removes the site from the store on confirm', async () => {
     const site = firstSite();
     const onSuccess = vi.fn();
-    wrap(
-      <DeleteSiteModal
-        opened
-        site={site}
-        onClose={vi.fn()}
-        onSuccess={onSuccess}
-      />,
-    );
+    wrap(<DeleteSiteModal opened site={site} onClose={vi.fn()} onSuccess={onSuccess} />);
 
     const input = await screen.findByLabelText(/Confirm site domain/i);
     fireEvent.change(input, { target: { value: site.domain } });
@@ -102,14 +88,7 @@ describe('DeleteSiteModal', () => {
   });
 
   it('does nothing when site is null', () => {
-    wrap(
-      <DeleteSiteModal
-        opened
-        site={null}
-        onClose={vi.fn()}
-        onSuccess={vi.fn()}
-      />,
-    );
+    wrap(<DeleteSiteModal opened site={null} onClose={vi.fn()} onSuccess={vi.fn()} />);
 
     const deleteBtn = screen.getByRole('button', {
       name: /Delete permanently/i,

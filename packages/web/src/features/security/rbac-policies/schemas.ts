@@ -5,15 +5,10 @@ import { z } from 'zod';
 
 export const rbacPolicySchema = z
   .object({
-    name: z
-      .string()
-      .min(1, 'Name is required')
-      .max(120, 'Name must be 120 characters or fewer'),
+    name: z.string().min(1, 'Name is required').max(120, 'Name must be 120 characters or fewer'),
     description: z.string().max(500, 'Description must be 500 characters or fewer'),
     policy_type: z.enum(['totp-required', 'step-up-required', 'login-window', 'custom']),
-    affected_role_ids: z
-      .array(z.string())
-      .min(1, 'At least one role must be selected'),
+    affected_role_ids: z.array(z.string()).min(1, 'At least one role must be selected'),
     condition: z.string().optional(),
     window: z.string().optional(),
   })

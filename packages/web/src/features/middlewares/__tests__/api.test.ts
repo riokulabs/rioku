@@ -5,18 +5,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import {
-  createMiddleware,
-  updateMiddleware,
-  deleteMiddleware,
-  useMiddlewareList,
-} from '../api';
+import { createMiddleware, updateMiddleware, deleteMiddleware, useMiddlewareList } from '../api';
 import { MiddlewareInUseError } from '../types';
-import {
-  middlewareConfigSchemas,
-  rateLimitConfigSchema,
-  authConfigSchema,
-} from '../schemas';
+import { middlewareConfigSchemas, rateLimitConfigSchema, authConfigSchema } from '../schemas';
 
 beforeEach(() => {
   useMockStore.getState().reset();
@@ -32,9 +23,15 @@ function tenantIdBySlug(slug: string): string {
 
 describe('middlewareConfigSchemas', () => {
   it('exposes a schema per kind', () => {
-    expect(Object.keys(middlewareConfigSchemas).sort()).toEqual(
-      ['auth', 'cache', 'cors', 'custom', 'logging', 'rate-limit', 'transform'],
-    );
+    expect(Object.keys(middlewareConfigSchemas).sort()).toEqual([
+      'auth',
+      'cache',
+      'cors',
+      'custom',
+      'logging',
+      'rate-limit',
+      'transform',
+    ]);
   });
 
   it('rate-limit config schema validates full payload', () => {
@@ -108,9 +105,7 @@ describe('deleteMiddleware', () => {
       middleware_ids: [...route.middleware_ids, middleware.id],
     });
 
-    await expect(deleteMiddleware(middleware.id)).rejects.toBeInstanceOf(
-      MiddlewareInUseError,
-    );
+    await expect(deleteMiddleware(middleware.id)).rejects.toBeInstanceOf(MiddlewareInUseError);
     expect(useMockStore.getState().middlewares[middleware.id]).toBeDefined();
   });
 

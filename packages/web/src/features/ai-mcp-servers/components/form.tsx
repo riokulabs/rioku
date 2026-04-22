@@ -21,10 +21,7 @@ import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import type { McpServer } from '@/api/resources/types';
 import { createMcpServer, updateMcpServer } from '../api';
-import {
-  createMcpServerSchema,
-  updateMcpServerSchema,
-} from '../schemas';
+import { createMcpServerSchema, updateMcpServerSchema } from '../schemas';
 
 type AuthKind = McpServer['auth_kind'];
 
@@ -73,8 +70,7 @@ export function McpServerForm({
     .filter((a) => a.tenant_id === tenantId)
     .map((a) => ({ value: a.id, label: a.name }));
 
-  const schema =
-    mode === 'create' ? createMcpServerSchema : updateMcpServerSchema;
+  const schema = mode === 'create' ? createMcpServerSchema : updateMcpServerSchema;
 
   const form = useForm<McpServerFormValues>({
     initialValues: initialFromServer(initialValues),
@@ -92,9 +88,7 @@ export function McpServerForm({
           url: values.url.trim(),
           auth_kind: values.auth_kind,
           ...(description !== '' ? { description } : {}),
-          ...(values.auth_credential !== ''
-            ? { auth_credential: values.auth_credential }
-            : {}),
+          ...(values.auth_credential !== '' ? { auth_credential: values.auth_credential } : {}),
           authorized_agent_ids: values.authorized_agent_ids,
           enabled: values.enabled,
         });
@@ -108,9 +102,7 @@ export function McpServerForm({
           description,
           authorized_agent_ids: values.authorized_agent_ids,
           enabled: values.enabled,
-          ...(values.auth_credential !== ''
-            ? { auth_credential: values.auth_credential }
-            : {}),
+          ...(values.auth_credential !== '' ? { auth_credential: values.auth_credential } : {}),
         });
         notify.success('MCP server updated', `${srv.name} saved.`);
         onSuccess(srv);
@@ -123,8 +115,7 @@ export function McpServerForm({
     }
   }
 
-  const credentialRequired =
-    mode === 'create' && form.values.auth_kind !== 'none';
+  const credentialRequired = mode === 'create' && form.values.auth_kind !== 'none';
 
   return (
     <form
@@ -179,18 +170,12 @@ export function McpServerForm({
 
         {form.values.auth_kind !== 'none' && (
           <PasswordInput
-            label={
-              mode === 'create' ? 'Credential' : 'Rotate credential (optional)'
-            }
+            label={mode === 'create' ? 'Credential' : 'Rotate credential (optional)'}
             placeholder={
-              mode === 'create'
-                ? 'Paste the credential'
-                : 'Leave blank to keep existing'
+              mode === 'create' ? 'Paste the credential' : 'Leave blank to keep existing'
             }
             description={
-              mode === 'create'
-                ? 'Shown once. Only the prefix is stored for display.'
-                : undefined
+              mode === 'create' ? 'Shown once. Only the prefix is stored for display.' : undefined
             }
             required={credentialRequired}
             {...form.getInputProps('auth_credential')}
@@ -200,11 +185,7 @@ export function McpServerForm({
         <MultiSelect
           label="Authorized agents"
           description="Agents that may route tool calls through this server. Empty = all agents."
-          placeholder={
-            form.values.authorized_agent_ids.length === 0
-              ? 'All agents'
-              : undefined
-          }
+          placeholder={form.values.authorized_agent_ids.length === 0 ? 'All agents' : undefined}
           data={agentOptions}
           value={form.values.authorized_agent_ids}
           onChange={(value) => {

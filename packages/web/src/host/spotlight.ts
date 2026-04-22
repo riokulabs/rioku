@@ -90,7 +90,9 @@ export function registerSpotlightResource(resource: SpotlightResource): void {
   useSpotlightStore.setState((state) => {
     const existing = state.resources.find((r) => r.type === resource.type);
     if (existing && import.meta.env.DEV) {
-      console.warn(`[host.spotlight] Resource type "${resource.type}" already registered — overwriting.`);
+      console.warn(
+        `[host.spotlight] Resource type "${resource.type}" already registered — overwriting.`,
+      );
     }
     const resources = existing
       ? state.resources.map((r) => (r.type === resource.type ? resource : r))

@@ -83,7 +83,11 @@ export function CreateCaModal({ opened, onClose, tenantId, canWrite }: CreateCaM
       data-testid="create-ca-modal"
       transitionProps={{ duration: 0 }}
     >
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <TextInput
             label="Name"
@@ -95,7 +99,9 @@ export function CreateCaModal({ opened, onClose, tenantId, canWrite }: CreateCaM
           />
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Kind</Text>
+            <Text size="sm" fw={500}>
+              Kind
+            </Text>
             <SegmentedControl
               data={[
                 { value: 'external', label: 'External' },

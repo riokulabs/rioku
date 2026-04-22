@@ -44,7 +44,10 @@ import {
   resolveEffectiveRolePerms,
   resolveEffectiveUserPerms,
 } from '../../features/security/shared/resolve-effective-perms';
-import type { ResolvedGrant, GrantSource } from '../../features/security/shared/resolve-effective-perms';
+import type {
+  ResolvedGrant,
+  GrantSource,
+} from '../../features/security/shared/resolve-effective-perms';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,12 +126,7 @@ function SourceBadge({ source }: { source: GrantSource }) {
 
 function ConditionBadge({ condition }: { condition: string }) {
   return (
-    <Tooltip
-      label={`Conditional grant — CEL: ${condition}`}
-      multiline
-      maw={280}
-      withArrow
-    >
+    <Tooltip label={`Conditional grant — CEL: ${condition}`} multiline maw={280} withArrow>
       <Badge size="xs" color="yellow" variant="outline" style={{ cursor: 'help' }}>
         conditional
       </Badge>
@@ -167,14 +165,15 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
               <Group gap={4} wrap="wrap">
                 {grant.sources.map((source, idx) => (
                   // eslint-disable-next-line react/no-array-index-key
-                  <SourceBadge key={`${source.roleId}-${source.type}-${String(idx)}`} source={source} />
+                  <SourceBadge
+                    key={`${source.roleId}-${source.type}-${String(idx)}`}
+                    source={source}
+                  />
                 ))}
                 {/* Show conditional badge if any source has a condition */}
                 {grant.sources.some((s) => s.condition) && (
                   <ConditionBadge
-                    condition={
-                      grant.sources.find((s) => s.condition)?.condition ?? ''
-                    }
+                    condition={grant.sources.find((s) => s.condition)?.condition ?? ''}
                   />
                 )}
               </Group>
@@ -207,9 +206,7 @@ function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
     groups.set(prefix, group);
   }
 
-  const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
+  const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <Accordion multiple variant="separated" chevronPosition="left">
@@ -236,11 +233,7 @@ function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function EffectivePermissionsPanel({
-  scope,
-  id,
-  tenantId,
-}: EffectivePermissionsPanelProps) {
+export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePermissionsPanelProps) {
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'flat' | 'grouped'>('flat');
 
@@ -289,7 +282,9 @@ export function EffectivePermissionsPanel({
         <SegmentedControl
           size="xs"
           value={viewMode}
-          onChange={(v) => { setViewMode(v === 'grouped' ? 'grouped' : 'flat'); }}
+          onChange={(v) => {
+            setViewMode(v === 'grouped' ? 'grouped' : 'flat');
+          }}
           data={[
             { label: 'Flat', value: 'flat' },
             { label: 'Grouped', value: 'grouped' },
@@ -303,7 +298,9 @@ export function EffectivePermissionsPanel({
         placeholder="Filter permissions…"
         leftSection={<IconSearch size={14} />}
         value={filter}
-        onChange={(e) => { setFilter(e.currentTarget.value); }}
+        onChange={(e) => {
+          setFilter(e.currentTarget.value);
+        }}
         data-testid="perms-filter-input"
       />
 
@@ -318,9 +315,7 @@ export function EffectivePermissionsPanel({
       )}
 
       {/* Permissions list */}
-      {allGrants.length > 0 && viewMode === 'flat' && (
-        <PermissionsTable grants={filteredGrants} />
-      )}
+      {allGrants.length > 0 && viewMode === 'flat' && <PermissionsTable grants={filteredGrants} />}
       {allGrants.length > 0 && viewMode === 'grouped' && (
         <PermissionsGrouped grants={filteredGrants} />
       )}

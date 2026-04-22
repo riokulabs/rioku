@@ -17,20 +17,14 @@ import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
-import {
-  ServiceDetail,
-  ServiceForm,
-  useServiceDetail,
-} from '@/features/services';
+import { ServiceDetail, ServiceForm, useServiceDetail } from '@/features/services';
 import type { Route as RouteRecord } from '@/features/routes/types';
 
 function ServiceDetailPage() {
   const { tenant, serviceId } = Route.useParams();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 

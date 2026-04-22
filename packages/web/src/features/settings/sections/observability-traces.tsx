@@ -4,14 +4,7 @@
  * Task 8b.9
  */
 import { useState, useEffect } from 'react';
-import {
-  Button,
-  Group,
-  NumberInput,
-  Stack,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Button, Group, NumberInput, Stack, Title, Tooltip } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconLock } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
@@ -68,7 +61,11 @@ export function ObservabilityTraces({ tenantId, canWrite }: ObservabilityTracesP
   return (
     <Stack gap="sm" data-testid="observability-traces">
       <Title order={5}>Traces</Title>
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <NumberInput
             label="Retention (days)"

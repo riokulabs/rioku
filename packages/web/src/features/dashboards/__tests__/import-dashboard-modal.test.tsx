@@ -24,21 +24,15 @@ function wrap(ui: React.ReactNode) {
 }
 
 function firstAcmeDashboardId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('no acme tenant');
-  const d = Object.values(useMockStore.getState().dashboards).find(
-    (x) => x.tenant_id === acme.id,
-  );
+  const d = Object.values(useMockStore.getState().dashboards).find((x) => x.tenant_id === acme.id);
   if (!d) throw new Error('no acme dashboard');
   return d.id;
 }
 
 function acmeTenantId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('no acme tenant');
   return acme.id;
 }

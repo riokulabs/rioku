@@ -43,9 +43,7 @@ export function registerWidget(widget: WidgetRegistration): void {
   useWidgetStore.setState((state) => {
     const existing = state.widgets.find((w) => w.type === widget.type);
     if (existing && import.meta.env.DEV) {
-      console.warn(
-        `[host.widgets] Widget type "${widget.type}" already registered — overwriting.`,
-      );
+      console.warn(`[host.widgets] Widget type "${widget.type}" already registered — overwriting.`);
     }
     const widgets = existing
       ? state.widgets.map((w) => (w.type === widget.type ? widget : w))

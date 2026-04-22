@@ -44,12 +44,7 @@ interface SearchParams {
   selected?: string;
 }
 
-const HEALTH_VALUES: readonly HealthStatus[] = [
-  'healthy',
-  'degraded',
-  'unhealthy',
-  'disabled',
-];
+const HEALTH_VALUES: readonly HealthStatus[] = ['healthy', 'degraded', 'unhealthy', 'disabled'];
 
 function parseCsv(v: unknown): string[] {
   if (Array.isArray(v)) {
@@ -74,9 +69,7 @@ function ServicesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -118,8 +111,7 @@ function ServicesPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedService, setSelectedService] = useState<Service | null>(null);
 
@@ -188,7 +180,7 @@ function ServicesPage() {
       ? 'Create service'
       : drawerMode === 'edit'
         ? `Edit — ${selectedService?.name ?? ''}`
-        : selectedService?.name ?? 'Service detail';
+        : (selectedService?.name ?? 'Service detail');
 
   return (
     <Stack gap="md" p="md">

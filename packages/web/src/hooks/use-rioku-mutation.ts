@@ -48,11 +48,7 @@ function intercept(err: unknown): never {
   }
 
   // Network / server / generic API errors: toast with correlation ID.
-  if (
-    err instanceof NetworkError ||
-    err instanceof ServerError ||
-    err instanceof ApiError
-  ) {
+  if (err instanceof NetworkError || err instanceof ServerError || err instanceof ApiError) {
     notify.error(
       'Request failed',
       err.message,
@@ -66,11 +62,9 @@ function intercept(err: unknown): never {
   throw new Error(String(err));
 }
 
-export function useRiokuMutation<
-  TData = unknown,
-  TVariables = void,
-  TError = ApiError,
->(config: RiokuMutationConfig<TData, TError, TVariables>) {
+export function useRiokuMutation<TData = unknown, TVariables = void, TError = ApiError>(
+  config: RiokuMutationConfig<TData, TError, TVariables>,
+) {
   const mutationOptions: UseMutationOptions<TData, TError, TVariables> = {
     ...config.options,
     mutationFn: async (variables) => {

@@ -8,15 +8,15 @@
 import { test } from '../fixtures/auth';
 
 const PAGES = [
-  { name: 'services-list',  url: '/t/acme-corp/services' },
-  { name: 'sites-list',     url: '/t/acme-corp/sites' },
-  { name: 'audit-list',     url: '/t/acme-corp/security/audit' },
-  { name: 'api-keys-list',  url: '/t/acme-corp/security/api-keys' },
-  { name: 'sessions-list',  url: '/t/acme-corp/security/sessions' },
-  { name: 'users-list',     url: '/t/acme-corp/security/users' },
+  { name: 'services-list', url: '/t/acme-corp/services' },
+  { name: 'sites-list', url: '/t/acme-corp/sites' },
+  { name: 'audit-list', url: '/t/acme-corp/security/audit' },
+  { name: 'api-keys-list', url: '/t/acme-corp/security/api-keys' },
+  { name: 'sessions-list', url: '/t/acme-corp/security/sessions' },
+  { name: 'users-list', url: '/t/acme-corp/security/users' },
   { name: 'ai-traces-list', url: '/t/acme-corp/ai/traces' },
-  { name: 'plugins-list',   url: '/t/acme-corp/plugins/installed' },
-  { name: 'notif-log',      url: '/t/acme-corp/notification-log' },
+  { name: 'plugins-list', url: '/t/acme-corp/plugins/installed' },
+  { name: 'notif-log', url: '/t/acme-corp/notification-log' },
 ];
 
 for (const scheme of ['light', 'dark'] as const) {

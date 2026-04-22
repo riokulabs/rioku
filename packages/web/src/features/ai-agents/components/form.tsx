@@ -69,13 +69,7 @@ function initialFromAgent(a?: AiAgent): AgentFormValues {
   };
 }
 
-export function AgentForm({
-  mode,
-  tenantId,
-  initialValues,
-  onSuccess,
-  onCancel,
-}: AgentFormProps) {
+export function AgentForm({ mode, tenantId, initialValues, onSuccess, onCancel }: AgentFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,10 +90,9 @@ export function AgentForm({
 
   const form = useForm<AgentFormValues>({
     initialValues: initialFromAgent(initialValues),
-    validate: schemaResolver(
-      mode === 'create' ? createAgentSchema : updateAgentSchema,
-      { sync: true },
-    ),
+    validate: schemaResolver(mode === 'create' ? createAgentSchema : updateAgentSchema, {
+      sync: true,
+    }),
   });
 
   const modelOptions = useMemo(() => {
@@ -212,9 +205,7 @@ export function AgentForm({
             form.setFieldValue('model', v ?? '');
           }}
           placeholder={
-            form.values.provider_id === ''
-              ? 'Select a provider first'
-              : 'Select a model'
+            form.values.provider_id === '' ? 'Select a provider first' : 'Select a model'
           }
         />
 

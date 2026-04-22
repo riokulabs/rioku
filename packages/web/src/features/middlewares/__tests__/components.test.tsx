@@ -86,12 +86,7 @@ describe('MiddlewareForm', () => {
   it('creates a middleware with valid rate-limit config', async () => {
     const onSuccess = vi.fn();
     wrap(
-      <MiddlewareForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={onSuccess}
-        onCancel={vi.fn()}
-      />,
+      <MiddlewareForm mode="create" tenantId={acmeId()} onSuccess={onSuccess} onCancel={vi.fn()} />,
     );
     fireEvent.change(screen.getByPlaceholderText(/global-rate-limit/i), {
       target: { value: 'test-rl' },
@@ -109,18 +104,10 @@ describe('MiddlewareForm', () => {
 describe('MiddlewareDetail', () => {
   it('renders middleware header + referencing routes section', () => {
     const state = useMockStore.getState();
-    const mw = Object.values(state.middlewares).find(
-      (m) => m.tenant_id === acmeId(),
-    );
+    const mw = Object.values(state.middlewares).find((m) => m.tenant_id === acmeId());
     if (!mw) throw new Error('no middleware');
 
-    wrap(
-      <MiddlewareDetail
-        middlewareId={mw.id}
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<MiddlewareDetail middlewareId={mw.id} onEdit={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getAllByText(mw.name).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/referenced by/i).length).toBeGreaterThan(0);
   });

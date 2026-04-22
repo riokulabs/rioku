@@ -12,24 +12,13 @@
  * dashboard changes under them.
  */
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  Title,
-  SimpleGrid,
-  Card,
-  Text,
-  Stack,
-  Group,
-  Badge,
-} from '@mantine/core';
+import { Title, SimpleGrid, Card, Text, Stack, Group, Badge } from '@mantine/core';
 import dayjs from 'dayjs';
 import { useMockStore } from '@/api/mock-store';
 import { EmptyState } from '@/components/empty-state';
 import { Zone } from '@/components/zone';
 import { IconActivity } from '@tabler/icons-react';
-import {
-  DashboardViewer,
-  useUserHomeDashboard,
-} from '@/features/dashboards';
+import { DashboardViewer, useUserHomeDashboard } from '@/features/dashboards';
 import type { Dashboard } from '@/api/resources/types';
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -61,9 +50,7 @@ function StockDashboard() {
   const audit = useMockStore((s) => s.audit);
 
   const todayStart = dayjs().startOf('day');
-  const todayAuditCount = audit.filter((e) =>
-    dayjs(e.at).isAfter(todayStart),
-  ).length;
+  const todayAuditCount = audit.filter((e) => dayjs(e.at).isAfter(todayStart)).length;
   const recentAudit = [...audit].reverse().slice(0, 10);
 
   const servicesCount = Object.keys(services).length;

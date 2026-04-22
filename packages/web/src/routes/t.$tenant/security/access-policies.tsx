@@ -31,8 +31,8 @@ type DrawerMode = 'detail' | 'create' | 'edit';
 
 function AccessPoliciesPage() {
   const { tenant } = Route.useParams();
-  const tenantId = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
+  const tenantId = useMockStore(
+    (s) => Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
   );
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
@@ -78,7 +78,7 @@ function AccessPoliciesPage() {
       ? 'Create access policy'
       : drawerMode === 'edit'
         ? `Edit — ${selectedPolicy?.name ?? ''}`
-        : selectedPolicy?.name ?? 'Policy detail';
+        : (selectedPolicy?.name ?? 'Policy detail');
 
   return (
     <Stack gap="md" p="md">

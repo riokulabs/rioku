@@ -7,9 +7,7 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({ children }: { children: React.ReactNode }) => (
-    <span data-link="true">{children}</span>
-  ),
+  Link: ({ children }: { children: React.ReactNode }) => <span data-link="true">{children}</span>,
 }));
 
 import { render, screen } from '@testing-library/react';
@@ -38,9 +36,7 @@ function firstAgentId(): string {
   const state = useMockStore.getState();
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
-  const a = Object.values(state.aiAgents).find(
-    (ag) => ag.tenant_id === acme.id,
-  );
+  const a = Object.values(state.aiAgents).find((ag) => ag.tenant_id === acme.id);
   if (!a) throw new Error('No agent seeded');
   return a.id;
 }
@@ -48,12 +44,7 @@ function firstAgentId(): string {
 describe('AgentDetail', () => {
   it('renders agent header, tools, guardrails, and invoke panel sections', () => {
     wrap(
-      <AgentDetail
-        agentId={firstAgentId()}
-        tenantSlug="acme"
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <AgentDetail agentId={firstAgentId()} tenantSlug="acme" onEdit={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getAllByText(/Tools/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Guardrails/i).length).toBeGreaterThan(0);
@@ -62,12 +53,7 @@ describe('AgentDetail', () => {
 
   it('shows error alert when agent not found', () => {
     wrap(
-      <AgentDetail
-        agentId="does-not-exist"
-        tenantSlug="acme"
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <AgentDetail agentId="does-not-exist" tenantSlug="acme" onEdit={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getByText(/Agent not found/i)).toBeInTheDocument();
   });

@@ -59,9 +59,7 @@ export function registerPluginEndpoint(endpoint: PluginEndpoint): void {
 /** Unregister all endpoints for a given (method + path) pair. No-op if none found. */
 export function unregisterPluginEndpoint(method: HttpMethod, path: string): void {
   useApiEndpointStore.setState((state) => ({
-    endpoints: state.endpoints.filter(
-      (e) => !(e.method === method && e.path === path),
-    ),
+    endpoints: state.endpoints.filter((e) => !(e.method === method && e.path === path)),
   }));
 }
 

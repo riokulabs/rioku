@@ -40,14 +40,7 @@ function acmeId(): string {
 
 describe('ProviderForm', () => {
   it('renders all create-mode fields', () => {
-    wrap(
-      <ProviderForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    wrap(<ProviderForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText(/Name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Base URL/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Credential/i)).toBeInTheDocument();
@@ -56,12 +49,7 @@ describe('ProviderForm', () => {
   it('calls onCancel when Cancel clicked', () => {
     const onCancel = vi.fn();
     wrap(
-      <ProviderForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={vi.fn()}
-        onCancel={onCancel}
-      />,
+      <ProviderForm mode="create" tenantId={acmeId()} onSuccess={vi.fn()} onCancel={onCancel} />,
     );
     fireEvent.click(screen.getByText(/Cancel/));
     expect(onCancel).toHaveBeenCalledOnce();
@@ -70,12 +58,7 @@ describe('ProviderForm', () => {
   it('submits a valid create form and invokes onSuccess', async () => {
     const onSuccess = vi.fn();
     wrap(
-      <ProviderForm
-        mode="create"
-        tenantId={acmeId()}
-        onSuccess={onSuccess}
-        onCancel={vi.fn()}
-      />,
+      <ProviderForm mode="create" tenantId={acmeId()} onSuccess={onSuccess} onCancel={vi.fn()} />,
     );
     fireEvent.change(screen.getByLabelText(/Name/i), {
       target: { value: 'openai-test' },

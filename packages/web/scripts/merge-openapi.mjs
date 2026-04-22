@@ -27,21 +27,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_WEB = resolve(__dirname, '..');
-const SWAGGER_DIR = resolve(
-  REPO_WEB,
-  '..',
-  'proto',
-  'gen',
-  'openapi',
-  'rioku',
-  'v1',
-);
-const OUT_PATH = resolve(
-  REPO_WEB,
-  'src',
-  'api-explorer',
-  'openapi-merged.json',
-);
+const SWAGGER_DIR = resolve(REPO_WEB, '..', 'proto', 'gen', 'openapi', 'rioku', 'v1');
+const OUT_PATH = resolve(REPO_WEB, 'src', 'api-explorer', 'openapi-merged.json');
 
 /**
  * Rewrite `#/definitions/X` refs to `#/components/schemas/X` by round-tripping
@@ -78,7 +65,16 @@ function migrateResponses(responses) {
  * (Spectral, redocly) reject the swagger-2 shape; Scalar happens to tolerate
  * it but we emit valid OAS 3 for portability.
  */
-const SCHEMA_FIELDS = ['type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'pattern'];
+const SCHEMA_FIELDS = [
+  'type',
+  'format',
+  'items',
+  'enum',
+  'default',
+  'minimum',
+  'maximum',
+  'pattern',
+];
 
 function migrateNonBodyParam(param) {
   if (!param || typeof param !== 'object') return param;
@@ -95,7 +91,10 @@ function migrateNonBodyParam(param) {
   if (moved) {
     // Merge with an existing `schema` (rare in swagger 2.0 non-body params,
     // but preserve caller-provided fields as highest precedence).
-    cloned.schema = { ...schema, ...(cloned.schema && typeof cloned.schema === 'object' ? cloned.schema : {}) };
+    cloned.schema = {
+      ...schema,
+      ...(cloned.schema && typeof cloned.schema === 'object' ? cloned.schema : {}),
+    };
   }
   return cloned;
 }
@@ -173,10 +172,7 @@ function convertFile(swagger) {
   }
 
   const securitySchemes = {};
-  if (
-    converted.securityDefinitions &&
-    typeof converted.securityDefinitions === 'object'
-  ) {
+  if (converted.securityDefinitions && typeof converted.securityDefinitions === 'object') {
     for (const [name, def] of Object.entries(converted.securityDefinitions)) {
       securitySchemes[name] = def;
     }
@@ -192,9 +188,8 @@ function convertFile(swagger) {
 
 function deriveServers(swagger) {
   const servers = [];
-  const schemes = Array.isArray(swagger.schemes) && swagger.schemes.length > 0
-    ? swagger.schemes
-    : ['https'];
+  const schemes =
+    Array.isArray(swagger.schemes) && swagger.schemes.length > 0 ? swagger.schemes : ['https'];
   const host = typeof swagger.host === 'string' && swagger.host.length > 0 ? swagger.host : '';
   const basePath = typeof swagger.basePath === 'string' ? swagger.basePath : '';
   if (host.length > 0) {
@@ -263,9 +258,10 @@ function main() {
     }
   }
 
-  const servers = discoveredServers.length > 0
-    ? discoveredServers
-    : [{ url: '/api/v1', description: 'Rioku daemon REST surface (stage-1 stub)' }];
+  const servers =
+    discoveredServers.length > 0
+      ? discoveredServers
+      : [{ url: '/api/v1', description: 'Rioku daemon REST surface (stage-1 stub)' }];
 
   const merged = {
     openapi: '3.0.3',
@@ -299,7 +295,9 @@ function main() {
   console.log(`  paths:             ${String(Object.keys(mergedPaths).length)}`);
   console.log(`  endpoints (ops):   ${String(endpointCount)}`);
   console.log(`  schemas:           ${String(Object.keys(mergedSchemas).length)}`);
-  console.log(`  schema collisions: ${String(collisions.schemas)} (expected for shared protobuf types)`);
+  console.log(
+    `  schema collisions: ${String(collisions.schemas)} (expected for shared protobuf types)`,
+  );
   console.log(`  path collisions:   ${String(collisions.paths)}`);
 }
 

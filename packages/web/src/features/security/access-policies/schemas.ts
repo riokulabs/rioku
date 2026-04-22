@@ -4,13 +4,8 @@
 import { z } from 'zod';
 
 export const accessPolicySchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Name is required')
-    .max(120, 'Name must be 120 characters or fewer'),
-  condition: z
-    .string()
-    .min(1, 'CEL condition is required'),
+  name: z.string().min(1, 'Name is required').max(120, 'Name must be 120 characters or fewer'),
+  condition: z.string().min(1, 'CEL condition is required'),
   action: z.enum(['allow', 'deny']),
   priority: z
     .number({ message: 'Priority must be a number' })

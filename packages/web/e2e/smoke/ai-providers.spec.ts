@@ -21,9 +21,7 @@ function uniqueModelAlias(): string {
   return `e2e-model-${String(Date.now())}-${String(n)}`;
 }
 
-test('seeded providers render on /t/acme/ai/providers', async ({
-  authedPage: page,
-}) => {
+test('seeded providers render on /t/acme/ai/providers', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/providers');
 
   await expect(page.getByRole('heading', { name: /^ai providers$/i })).toBeVisible();
@@ -34,9 +32,7 @@ test('seeded providers render on /t/acme/ai/providers', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('rotate credential updates the prefix chip', async ({
-  authedPage: page,
-}) => {
+test('rotate credential updates the prefix chip', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/providers');
 
   // Open the first provider detail drawer.
@@ -77,9 +73,7 @@ test('rotate credential updates the prefix chip', async ({
   await expect(chip).toContainText('e2e-rot-');
 });
 
-test('add a model via ModelManager appends a row', async ({
-  authedPage: page,
-}) => {
+test('add a model via ModelManager appends a row', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/providers');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -98,7 +92,10 @@ test('add a model via ModelManager appends a row', async ({
 
   // Submit form (button labelled "Add model" inside the form — scope to the
   // submit button by type).
-  await drawer.locator('button[type="submit"]').filter({ hasText: /add model/i }).click();
+  await drawer
+    .locator('button[type="submit"]')
+    .filter({ hasText: /add model/i })
+    .click();
 
   // New row should appear in the models table.
   await expect(drawer.getByText(alias, { exact: false }).first()).toBeVisible({
@@ -106,9 +103,7 @@ test('add a model via ModelManager appends a row', async ({
   });
 });
 
-test('test connection shows a result badge', async ({
-  authedPage: page,
-}) => {
+test('test connection shows a result badge', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/providers');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();

@@ -32,11 +32,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import {
-  deleteRoutingRule,
-  updateRoutingRule,
-  useRoutingRuleDetail,
-} from '../api';
+import { deleteRoutingRule, updateRoutingRule, useRoutingRuleDetail } from '../api';
 
 dayjs.extend(relativeTime);
 
@@ -53,11 +49,7 @@ interface RoutingRuleDetailProps {
   onClose: () => void;
 }
 
-export function RoutingRuleDetail({
-  ruleId,
-  onEdit,
-  onClose,
-}: RoutingRuleDetailProps) {
+export function RoutingRuleDetail({ ruleId, onEdit, onClose }: RoutingRuleDetailProps) {
   const rule = useRoutingRuleDetail(ruleId);
   const channels = useMockStore((s) => s.notificationChannels);
   const deliveryLog = useMockStore((s) => s.notificationDeliveryLog);
@@ -85,11 +77,7 @@ export function RoutingRuleDetail({
   const auditTail = useMemo(() => {
     if (!rule) return [];
     return auditEntries
-      .filter(
-        (e) =>
-          e.resource_type === 'notification-routing-rule' &&
-          e.resource_id === rule.id,
-      )
+      .filter((e) => e.resource_type === 'notification-routing-rule' && e.resource_id === rule.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -157,8 +145,7 @@ export function RoutingRuleDetail({
               />
             </Group>
             <Text size="xs" c="var(--mantine-color-gray-7)">
-              Order hint: {String(rule.order_hint)} · created{' '}
-              {dayjs(rule.created_at).fromNow()}
+              Order hint: {String(rule.order_hint)} · created {dayjs(rule.created_at).fromNow()}
             </Text>
           </Stack>
         </Group>
@@ -214,16 +201,10 @@ export function RoutingRuleDetail({
                     <Text size="xs">{dayjs(d.last_attempted_at).fromNow()}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">
-                      {channels[d.channel_id]?.name ?? d.channel_id}
-                    </Text>
+                    <Text size="xs">{channels[d.channel_id]?.name ?? d.channel_id}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Badge
-                      size="xs"
-                      variant="light"
-                      color={STATUS_COLOR[d.status] ?? 'gray'}
-                    >
+                    <Badge size="xs" variant="light" color={STATUS_COLOR[d.status] ?? 'gray'}>
                       {d.status}
                     </Badge>
                   </Table.Td>
@@ -287,13 +268,7 @@ export function RoutingRuleDetail({
         <Button size="sm" disabled={!canWrite} onClick={onEdit}>
           Edit
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red"
-          disabled={!canWrite}
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red" disabled={!canWrite} onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -310,8 +285,8 @@ export function RoutingRuleDetail({
       >
         <Stack gap="md">
           <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-            This permanently deletes the rule. Notifications that matched its
-            event filter will no longer be routed to its channels.
+            This permanently deletes the rule. Notifications that matched its event filter will no
+            longer be routed to its channels.
           </Alert>
           <Text size="sm">
             Type{' '}

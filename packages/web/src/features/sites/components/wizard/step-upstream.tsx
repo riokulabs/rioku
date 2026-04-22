@@ -46,8 +46,8 @@ export function StepUpstream({ form, serviceOptions }: StepUpstreamProps) {
       {form.values.upstream_mode === 'existing_service' ? (
         serviceOptions.length === 0 ? (
           <Alert color="yellow" variant="light" icon={<IconInfoCircle size={16} />}>
-            No services exist in this tenant yet. Switch to &ldquo;Point at new
-            upstream&rdquo; to create one.
+            No services exist in this tenant yet. Switch to &ldquo;Point at new upstream&rdquo; to
+            create one.
           </Alert>
         ) : (
           <Select
@@ -98,10 +98,7 @@ export function StepUpstream({ form, serviceOptions }: StepUpstreamProps) {
                 form.setFieldValue('upstream_port', '');
               } else {
                 const n = Number(v);
-                form.setFieldValue(
-                  'upstream_port',
-                  Number.isNaN(n) ? '' : n,
-                );
+                form.setFieldValue('upstream_port', Number.isNaN(n) ? '' : n);
               }
             }}
             error={form.errors.upstream_port as string | undefined}

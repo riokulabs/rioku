@@ -62,7 +62,11 @@ export function RbacPolicyList({ onSelect }: RbacPolicyListProps) {
         size: 120,
         cell: ({ getValue }) => {
           const ids = getValue<string[]>();
-          return <Text size="sm">{ids.length} role{ids.length !== 1 ? 's' : ''}</Text>;
+          return (
+            <Text size="sm">
+              {ids.length} role{ids.length !== 1 ? 's' : ''}
+            </Text>
+          );
         },
       },
       {

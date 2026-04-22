@@ -15,9 +15,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded agents render on /t/acme/ai/agents', async ({
-  authedPage: page,
-}) => {
+test('seeded agents render on /t/acme/ai/agents', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/agents');
 
   await expect(page.getByRole('heading', { name: /^ai agents$/i })).toBeVisible();
@@ -28,9 +26,7 @@ test('seeded agents render on /t/acme/ai/agents', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('invoke panel writes a trace into the agent detail', async ({
-  authedPage: page,
-}) => {
+test('invoke panel writes a trace into the agent detail', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/agents');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -60,9 +56,7 @@ test('invoke panel writes a trace into the agent detail', async ({
   );
 });
 
-test('View all traces cross-link carries the agent param', async ({
-  authedPage: page,
-}) => {
+test('View all traces cross-link carries the agent param', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/agents');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();

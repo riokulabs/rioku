@@ -9,25 +9,12 @@
  * middleware form, Plan 2b).
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Divider,
-  Group,
-  Select,
-  Stack,
-  Switch,
-  TextInput,
-} from '@mantine/core';
+import { Alert, Button, Divider, Group, Select, Stack, Switch, TextInput } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { createChannel, updateChannel } from '../api';
-import {
-  CHANNEL_KINDS,
-  channelConfigSchemas,
-  createChannelSchema,
-} from '../schemas';
+import { CHANNEL_KINDS, channelConfigSchemas, createChannelSchema } from '../schemas';
 import type { NotificationChannel } from '../types';
 import { ChannelKindConfigPanel } from './kind-config-panel';
 
@@ -161,12 +148,7 @@ export function ChannelForm({
           </Alert>
         )}
 
-        <TextInput
-          label="Name"
-          placeholder="ops-alerts"
-          required
-          {...form.getInputProps('name')}
-        />
+        <TextInput label="Name" placeholder="ops-alerts" required {...form.getInputProps('name')} />
 
         <Select
           label="Kind"
@@ -186,11 +168,7 @@ export function ChannelForm({
 
         <Divider label="Kind-specific config" labelPosition="left" />
 
-        <ChannelKindConfigPanel
-          kind={form.values.kind}
-          value={config}
-          onChange={setConfig}
-        />
+        <ChannelKindConfigPanel kind={form.values.kind} value={config} onChange={setConfig} />
 
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onCancel} type="button">

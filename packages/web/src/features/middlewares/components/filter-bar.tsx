@@ -19,10 +19,7 @@ interface MiddlewareFilterBarProps {
   onChange: (next: MiddlewareFilter) => void;
 }
 
-export function MiddlewareFilterBar({
-  filter,
-  onChange,
-}: MiddlewareFilterBarProps) {
+export function MiddlewareFilterBar({ filter, onChange }: MiddlewareFilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 

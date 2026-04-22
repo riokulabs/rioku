@@ -46,9 +46,7 @@ export class ServiceInUseError extends Error {
   readonly code = 'SERVICE_IN_USE';
   readonly routeIds: string[];
   constructor(routeIds: string[]) {
-    super(
-      `Service cannot be deleted — ${String(routeIds.length)} route(s) still reference it.`,
-    );
+    super(`Service cannot be deleted — ${String(routeIds.length)} route(s) still reference it.`);
     this.name = 'ServiceInUseError';
     this.routeIds = routeIds;
   }

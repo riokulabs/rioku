@@ -77,9 +77,7 @@ describe('<AdvancedEditor>', () => {
     const widget = firstCleanWidget();
     wrap(<AdvancedEditor widget={widget} onSave={vi.fn()} />);
 
-    const save = await screen.findByTestId<HTMLButtonElement>(
-      'advanced-editor-save',
-    );
+    const save = await screen.findByTestId<HTMLButtonElement>('advanced-editor-save');
     expect(save.disabled).toBe(true);
 
     const editor = await screen.findByTestId('monaco-stub');
@@ -110,9 +108,7 @@ describe('<AdvancedEditor>', () => {
     const oneWay = firstOneWayWidget();
 
     const { rerender } = wrap(<AdvancedEditor widget={clean} onSave={vi.fn()} />);
-    expect(
-      await screen.findByTestId('advanced-editor-flip-to-wizard'),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('advanced-editor-flip-to-wizard')).toBeTruthy();
 
     rerender(
       <MantineProvider>
@@ -125,12 +121,7 @@ describe('<AdvancedEditor>', () => {
 
   it('flip-to-wizard button hidden when widget is locked_advanced', () => {
     const widget = firstCleanWidget();
-    wrap(
-      <AdvancedEditor
-        widget={{ ...widget, locked_advanced: true }}
-        onSave={vi.fn()}
-      />,
-    );
+    wrap(<AdvancedEditor widget={{ ...widget, locked_advanced: true }} onSave={vi.fn()} />);
     expect(screen.queryByTestId('advanced-editor-flip-to-wizard')).toBeNull();
   });
 
@@ -139,8 +130,6 @@ describe('<AdvancedEditor>', () => {
     const widget = firstCleanWidget();
     wrap(<AdvancedEditor widget={widget} onSave={vi.fn()} />);
     await user.click(await screen.findByTestId('advanced-editor-preview'));
-    expect(
-      await screen.findByTestId('advanced-editor-preview-pane'),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('advanced-editor-preview-pane')).toBeTruthy();
   });
 });

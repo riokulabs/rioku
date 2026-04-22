@@ -6,20 +6,8 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Menu,
-  ActionIcon,
-  Switch,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconGauge,
-} from '@tabler/icons-react';
+import { Badge, Text, Stack, Menu, ActionIcon, Switch } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconGauge } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
@@ -73,12 +61,7 @@ export function RateLimitList({
                 {r.name}
               </Text>
               {r.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={r.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={r.description}>
                   {r.description}
                 </Text>
               )}
@@ -119,11 +102,7 @@ export function RateLimitList({
         size: 100,
         accessorFn: (row) => row.action,
         cell: ({ row }) => (
-          <Badge
-            size="sm"
-            variant="light"
-            color={ACTION_COLORS[row.original.action]}
-          >
+          <Badge size="sm" variant="light" color={ACTION_COLORS[row.original.action]}>
             {row.original.action}
           </Badge>
         ),
@@ -166,9 +145,7 @@ export function RateLimitList({
         header: 'Last 24h',
         size: 120,
         enableSorting: false,
-        cell: ({ row }) => (
-          <MetricsSparkline ruleId={row.original.id} size="sm" window="24h" />
-        ),
+        cell: ({ row }) => <MetricsSparkline ruleId={row.original.id} size="sm" window="24h" />,
       },
       {
         id: 'enabled',

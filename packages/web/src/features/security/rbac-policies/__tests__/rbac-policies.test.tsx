@@ -103,9 +103,7 @@ describe('RbacPolicyEditor', () => {
   it('does not call onSave when name is empty', async () => {
     const onSave = vi.fn();
     const onCancel = vi.fn();
-    wrap(
-      <RbacPolicyEditor tenantId="t-1" onSave={onSave} onCancel={onCancel} />,
-    );
+    wrap(<RbacPolicyEditor tenantId="t-1" onSave={onSave} onCancel={onCancel} />);
     fireEvent.click(screen.getByRole('button', { name: /create policy/i }));
     await new Promise((r) => setTimeout(r, 50));
     expect(onSave).not.toHaveBeenCalled();
@@ -114,9 +112,7 @@ describe('RbacPolicyEditor', () => {
   it('does not call onSave when no roles are selected', async () => {
     const onSave = vi.fn();
     const onCancel = vi.fn();
-    wrap(
-      <RbacPolicyEditor tenantId="t-1" onSave={onSave} onCancel={onCancel} />,
-    );
+    wrap(<RbacPolicyEditor tenantId="t-1" onSave={onSave} onCancel={onCancel} />);
     // Fill in a valid name
     const nameInputs = screen.getAllByRole('textbox');
     const nameInput = nameInputs[0];

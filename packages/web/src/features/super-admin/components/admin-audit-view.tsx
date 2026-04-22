@@ -5,15 +5,7 @@
  */
 import { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Stack,
-  Title,
-  Group,
-  Button,
-  Badge,
-  Text,
-  Alert,
-} from '@mantine/core';
+import { Stack, Title, Group, Button, Badge, Text, Alert } from '@mantine/core';
 import { IconShieldCheck, IconShieldOff, IconFileText } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
@@ -73,7 +65,9 @@ export function AdminAuditView() {
       accessorKey: 'action',
       header: 'Action',
       cell: (info) => (
-        <Badge variant="light" size="sm">{info.getValue<string>()}</Badge>
+        <Badge variant="light" size="sm">
+          {info.getValue<string>()}
+        </Badge>
       ),
     },
     {
@@ -89,15 +83,15 @@ export function AdminAuditView() {
       id: 'resource',
       header: 'Resource',
       cell: (info) => (
-        <Text size="sm" c="dimmed">{info.row.original.resource_type}</Text>
+        <Text size="sm" c="dimmed">
+          {info.row.original.resource_type}
+        </Text>
       ),
     },
     {
       id: 'hash',
       header: 'Hash',
-      cell: (info) => (
-        <IdBadge id={info.row.original.hash} />
-      ),
+      cell: (info) => <IdBadge id={info.row.original.hash} />,
     },
   ];
 
@@ -131,7 +125,9 @@ export function AdminAuditView() {
           <Button
             variant="light"
             leftSection={<IconShieldCheck size={16} />}
-            onClick={() => { void handleVerify(); }}
+            onClick={() => {
+              void handleVerify();
+            }}
             loading={verifyResult.status === 'verifying'}
           >
             Verify chain

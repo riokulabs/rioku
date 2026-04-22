@@ -71,15 +71,15 @@ describe('updateAgent', () => {
 describe('deleteAgent', () => {
   it('deletes the agent and cascades bindings', async () => {
     const agent = Object.values(useMockStore.getState().aiAgents)[0]!;
-    const beforeBindings = Object.values(
-      useMockStore.getState().aiToolBindings,
-    ).filter((b) => b.agent_id === agent.id).length;
+    const beforeBindings = Object.values(useMockStore.getState().aiToolBindings).filter(
+      (b) => b.agent_id === agent.id,
+    ).length;
     await deleteAgent(agent.id);
     expect(useMockStore.getState().aiAgents[agent.id]).toBeUndefined();
     // All bindings that pointed at the agent should be gone too.
-    const remaining = Object.values(
-      useMockStore.getState().aiToolBindings,
-    ).filter((b) => b.agent_id === agent.id);
+    const remaining = Object.values(useMockStore.getState().aiToolBindings).filter(
+      (b) => b.agent_id === agent.id,
+    );
     expect(remaining.length).toBe(0);
     // Sanity: there had been at least one binding so the cascade actually ran.
     expect(beforeBindings).toBeGreaterThanOrEqual(0);
@@ -99,10 +99,7 @@ describe('rotateScopedCredential', () => {
     const beforeAt = agent.scoped_credential_ref!.created_at;
     // Allow the new timestamp to tick at least 1ms past the seeded one.
     await new Promise((r) => setTimeout(r, 5));
-    const updated = await rotateScopedCredential(
-      agent.id,
-      'sk-rotated-new-abc-xyz',
-    );
+    const updated = await rotateScopedCredential(agent.id, 'sk-rotated-new-abc-xyz');
     expect(updated.scoped_credential_ref?.prefix).not.toBe(before);
     expect(updated.scoped_credential_ref?.prefix).toBe('sk-rotated-n');
     expect(updated.scoped_credential_ref?.created_at).not.toBe(beforeAt);
@@ -135,9 +132,7 @@ describe('invokeAgentMock', () => {
       expect(trace.cost_usd).toBeGreaterThanOrEqual(0);
 
       // Store updated
-      expect(Object.values(useMockStore.getState().aiTraces).length).toBe(
-        tracesBefore + 1,
-      );
+      expect(Object.values(useMockStore.getState().aiTraces).length).toBe(tracesBefore + 1);
       // Audit appended
       const audit = useMockStore.getState().audit.at(-1);
       expect(audit?.action).toBe('ai-agent.invoke');
@@ -168,11 +163,8 @@ describe('invokeAgentMock', () => {
 
 describe('useAgentTools (selector semantics)', () => {
   it('returns bound tools when bindings exist, otherwise falls back to agent.tool_ids', () => {
-    const agentWithBindings = Object.values(useMockStore.getState().aiAgents).find(
-      (a) =>
-        Object.values(useMockStore.getState().aiToolBindings).some(
-          (b) => b.agent_id === a.id,
-        ),
+    const agentWithBindings = Object.values(useMockStore.getState().aiAgents).find((a) =>
+      Object.values(useMockStore.getState().aiToolBindings).some((b) => b.agent_id === a.id),
     );
     if (!agentWithBindings) throw new Error('no agent with bindings in seed');
     const { result } = renderHook(() => useAgentTools(agentWithBindings.id));
@@ -200,9 +192,7 @@ describe('useAgentTools (selector semantics)', () => {
       updated_at: new Date().toISOString(),
     };
     useMockStore.getState().addEntity('aiAgents', newAgent);
-    const { result: fallbackResult } = renderHook(() =>
-      useAgentTools(newAgent.id),
-    );
+    const { result: fallbackResult } = renderHook(() => useAgentTools(newAgent.id));
     expect(fallbackResult.current.length).toBe(tools.length);
   });
 });

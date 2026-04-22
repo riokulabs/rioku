@@ -3,12 +3,7 @@
  * the notification delivery log.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Group,
-  MultiSelect,
-  Stack,
-  TextInput,
-} from '@mantine/core';
+import { Group, MultiSelect, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
@@ -42,11 +37,7 @@ interface DeliveryLogFilterBarProps {
   onChange: (next: DeliveryLogFilter) => void;
 }
 
-export function DeliveryLogFilterBar({
-  tenantId,
-  filter,
-  onChange,
-}: DeliveryLogFilterBarProps) {
+export function DeliveryLogFilterBar({ tenantId, filter, onChange }: DeliveryLogFilterBarProps) {
   const channels = useMockStore((s) => s.notificationChannels);
 
   const channelOptions = useMemo(() => {

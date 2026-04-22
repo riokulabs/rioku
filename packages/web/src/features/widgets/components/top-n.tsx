@@ -12,9 +12,7 @@ interface TopNData {
 
 function isTopNData(data: unknown): data is TopNData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    Array.isArray((data as { items?: unknown }).items)
+    typeof data === 'object' && data !== null && Array.isArray((data as { items?: unknown }).items)
   );
 }
 
@@ -40,7 +38,12 @@ export function TopNWidget({ widget, data, loading, error }: WidgetRenderProps) 
       {data.items.map((it, i) => {
         const pct = max === 0 ? 0 : Math.round((it.value / max) * 100);
         return (
-          <Group key={`${it.name}-${String(i)}`} gap="xs" wrap="nowrap" style={{ position: 'relative' }}>
+          <Group
+            key={`${it.name}-${String(i)}`}
+            gap="xs"
+            wrap="nowrap"
+            style={{ position: 'relative' }}
+          >
             <Text size="xs" fw={600} w={20} c="var(--mantine-color-gray-7)">
               #{i + 1}
             </Text>
@@ -56,10 +59,7 @@ export function TopNWidget({ widget, data, loading, error }: WidgetRenderProps) 
                   borderRadius: 2,
                 }}
               />
-              <Text
-                size="xs"
-                style={{ position: 'relative', paddingLeft: 6, lineHeight: '20px' }}
-              >
+              <Text size="xs" style={{ position: 'relative', paddingLeft: 6, lineHeight: '20px' }}>
                 {it.name}
               </Text>
             </Box>

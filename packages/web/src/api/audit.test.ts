@@ -4,11 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from './mock-store';
-import {
-  logAuditEntry,
-  logAdminAuditEntry,
-  verifyAdminAuditChain,
-} from './resources/audit';
+import { logAuditEntry, logAdminAuditEntry, verifyAdminAuditChain } from './resources/audit';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -104,9 +100,7 @@ describe('verifyAdminAuditChain', () => {
 
     const { adminAudit } = useMockStore.getState();
     // Tamper with the first entry's action
-    const tampered = adminAudit.map((e, i) =>
-      i === 0 ? { ...e, action: 'TAMPERED' } : e,
-    );
+    const tampered = adminAudit.map((e, i) => (i === 0 ? { ...e, action: 'TAMPERED' } : e));
     const result = await verifyAdminAuditChain(tampered);
     expect(result.ok).toBe(false);
     expect(result.brokenAt).toBe(0);
@@ -119,9 +113,7 @@ describe('verifyAdminAuditChain', () => {
     const { adminAudit } = useMockStore.getState();
     // Tamper with prev_hash of second entry (but keep its hash — so hash check
     // will also fail, but brokenAt should be 1 regardless)
-    const tampered = adminAudit.map((e, i) =>
-      i === 1 ? { ...e, prev_hash: 'deadbeef' } : e,
-    );
+    const tampered = adminAudit.map((e, i) => (i === 1 ? { ...e, prev_hash: 'deadbeef' } : e));
     const result = await verifyAdminAuditChain(tampered);
     expect(result.ok).toBe(false);
     expect(result.brokenAt).toBe(1);

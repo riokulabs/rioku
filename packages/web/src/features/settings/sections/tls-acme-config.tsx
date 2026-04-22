@@ -65,7 +65,12 @@ export function TlsAcmeConfig({ tenantId, canWrite }: TlsAcmeConfigProps) {
     });
     form.resetDirty(form.values);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.acme.provider, config?.acme.email, config?.acme.directory_url, config?.acme.dns_challenge]);
+  }, [
+    config?.acme.provider,
+    config?.acme.email,
+    config?.acme.directory_url,
+    config?.acme.dns_challenge,
+  ]);
 
   async function handleSubmit(values: TlsAcmeConfigValues) {
     if (!canWrite) return;
@@ -86,7 +91,11 @@ export function TlsAcmeConfig({ tenantId, canWrite }: TlsAcmeConfigProps) {
   return (
     <Stack gap="sm" data-testid="tls-acme-config">
       <Title order={5}>ACME Configuration</Title>
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
           <Select
             label="ACME Provider"
@@ -118,7 +127,9 @@ export function TlsAcmeConfig({ tenantId, canWrite }: TlsAcmeConfigProps) {
           )}
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Challenge type</Text>
+            <Text size="sm" fw={500}>
+              Challenge type
+            </Text>
             <Checkbox
               label="Use DNS-01 challenge"
               description="When enabled, uses DNS-01 (DNS record) instead of HTTP-01 challenge"

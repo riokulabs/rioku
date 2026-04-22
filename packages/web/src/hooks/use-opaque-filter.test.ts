@@ -43,7 +43,9 @@ describe('useOpaqueFilter', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalled();
     });
-    const navCall = mockNavigate.mock.calls[0] as [{ search: (prev: Record<string, unknown>) => Record<string, unknown>; replace: boolean }];
+    const navCall = mockNavigate.mock.calls[0] as [
+      { search: (prev: Record<string, unknown>) => Record<string, unknown>; replace: boolean },
+    ];
     const searchResult = navCall[0].search({});
     expect(typeof searchResult.f).toBe('string');
     expect((searchResult.f as string).length).toBeGreaterThan(0);

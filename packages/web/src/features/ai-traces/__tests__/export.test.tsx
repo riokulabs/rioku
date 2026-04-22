@@ -13,10 +13,7 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({
-    children,
-    ...rest
-  }: React.PropsWithChildren<Record<string, unknown>>) => (
+  Link: ({ children, ...rest }: React.PropsWithChildren<Record<string, unknown>>) => (
     <a {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>{children}</a>
   ),
 }));
@@ -32,9 +29,7 @@ beforeEach(() => {
 });
 
 function acmeId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant');
   return acme.id;
 }

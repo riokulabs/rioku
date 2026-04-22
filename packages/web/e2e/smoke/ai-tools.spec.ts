@@ -9,14 +9,10 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded AI tools render on /t/acme/ai/tools', async ({
-  authedPage: page,
-}) => {
+test('seeded AI tools render on /t/acme/ai/tools', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/tools');
 
-  await expect(
-    page.getByRole('heading', { name: /^ai tools$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^ai tools$/i })).toBeVisible();
 
   const rows = page.locator('tbody tr[role="row"]');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
@@ -24,9 +20,7 @@ test('seeded AI tools render on /t/acme/ai/tools', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('row click opens AI tool detail drawer', async ({
-  authedPage: page,
-}) => {
+test('row click opens AI tool detail drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/tools');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -37,9 +31,7 @@ test('row click opens AI tool detail drawer', async ({
   await expect(drawer).toBeVisible();
 });
 
-test('new tool button opens create drawer', async ({
-  authedPage: page,
-}) => {
+test('new tool button opens create drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/tools');
 
   await page.getByRole('button', { name: /new tool/i }).click();

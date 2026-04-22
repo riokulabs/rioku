@@ -23,13 +23,9 @@ function wrap(ui: React.ReactNode) {
 }
 
 function firstAcmeDashboard(): Dashboard {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('no acme tenant');
-  const d = Object.values(useMockStore.getState().dashboards).find(
-    (x) => x.tenant_id === acme.id,
-  );
+  const d = Object.values(useMockStore.getState().dashboards).find((x) => x.tenant_id === acme.id);
   if (!d) throw new Error('no acme dashboard');
   return d;
 }
@@ -44,9 +40,7 @@ describe('<VariablesPanel>', () => {
     const dashboard = { ...firstAcmeDashboard(), mode: 'metabase' as const };
     wrap(<VariablesPanel dashboard={dashboard} />);
     expect(screen.getByTestId('variables-panel')).toBeTruthy();
-    expect(
-      screen.getByText(/Variables are only used in Grafana mode/),
-    ).toBeTruthy();
+    expect(screen.getByText(/Variables are only used in Grafana mode/)).toBeTruthy();
     expect(screen.queryByTestId('variables-panel-add')).toBeNull();
   });
 
@@ -102,9 +96,7 @@ describe('<VariablesPanel>', () => {
 
     await user.click(screen.getByTestId('variables-panel-save'));
     await waitFor(() => {
-      expect(
-        screen.getAllByText(/defined more than once/).length,
-      ).toBeGreaterThan(0);
+      expect(screen.getAllByText(/defined more than once/).length).toBeGreaterThan(0);
     });
     expect(onSaved).not.toHaveBeenCalled();
   });
@@ -119,9 +111,7 @@ describe('<VariablesPanel>', () => {
     wrap(<VariablesPanel dashboard={dashboard} />);
 
     expect(screen.getByTestId('variables-panel-row-0')).toBeTruthy();
-    await user.click(
-      screen.getByRole('button', { name: 'Remove variable 1' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Remove variable 1' }));
     expect(screen.queryByTestId('variables-panel-row-0')).toBeNull();
   });
 });

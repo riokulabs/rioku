@@ -9,14 +9,10 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('seeded MCP servers render on /t/acme/ai/mcp-servers', async ({
-  authedPage: page,
-}) => {
+test('seeded MCP servers render on /t/acme/ai/mcp-servers', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/mcp-servers');
 
-  await expect(
-    page.getByRole('heading', { name: /^mcp servers$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^mcp servers$/i })).toBeVisible();
 
   const rows = page.locator('tbody tr[role="row"]');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
@@ -24,9 +20,7 @@ test('seeded MCP servers render on /t/acme/ai/mcp-servers', async ({
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test('row click opens MCP server detail drawer', async ({
-  authedPage: page,
-}) => {
+test('row click opens MCP server detail drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/mcp-servers');
 
   const firstRow = page.locator('tbody tr[role="row"]').first();
@@ -37,9 +31,7 @@ test('row click opens MCP server detail drawer', async ({
   await expect(drawer).toBeVisible();
 });
 
-test('new MCP server button opens create drawer', async ({
-  authedPage: page,
-}) => {
+test('new MCP server button opens create drawer', async ({ authedPage: page }) => {
   await page.goto('/t/acme/ai/mcp-servers');
 
   await page.getByRole('button', { name: /new mcp server/i }).click();

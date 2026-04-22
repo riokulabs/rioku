@@ -14,19 +14,8 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { publishTrace } from '@/api/trace-stream-bus';
-import type {
-  AiAgent,
-  AiTool,
-  AiTrace,
-  AiTraceToolCall,
-  AuditEntry,
-} from '@/api/resources/types';
-import type {
-  AgentFilter,
-  CreateAgentInput,
-  InvokeAgentInput,
-  UpdateAgentInput,
-} from './types';
+import type { AiAgent, AiTool, AiTrace, AiTraceToolCall, AuditEntry } from '@/api/resources/types';
+import type { AgentFilter, CreateAgentInput, InvokeAgentInput, UpdateAgentInput } from './types';
 
 const nextAgentId = makeIdFactory('aiagent-new');
 const nextTraceId = makeIdFactory('aitrace-invoke');
@@ -77,16 +66,14 @@ function hashCode(s: string): number {
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useAgentList(
-  tenantId: string,
-  filter: AgentFilter,
-): AiAgent[] {
+export function useAgentList(tenantId: string, filter: AgentFilter): AiAgent[] {
   const agents = useMockStore((s) => s.aiAgents);
   const search = filter.search.toLowerCase().trim();
   const results: AiAgent[] = [];
   for (const agent of Object.values(agents)) {
     if (agent.tenant_id !== tenantId) continue;
-    if (filter.provider_ids.length > 0 && !filter.provider_ids.includes(agent.provider_id)) continue;
+    if (filter.provider_ids.length > 0 && !filter.provider_ids.includes(agent.provider_id))
+      continue;
     if (filter.enabled !== undefined && agent.enabled !== filter.enabled) continue;
     if (filter.role_ids.length > 0) {
       if (!filter.role_ids.some((rid) => agent.role_ids.includes(rid))) continue;
@@ -119,9 +106,7 @@ export function useAgentTools(id: string): AiTool[] {
   const agent = agents[id];
   if (!agent) return [];
 
-  const bindingsForAgent = Object.values(bindings).filter(
-    (b) => b.agent_id === id,
-  );
+  const bindingsForAgent = Object.values(bindings).filter((b) => b.agent_id === id);
   if (bindingsForAgent.length > 0) {
     const out: AiTool[] = [];
     for (const b of bindingsForAgent) {
@@ -152,10 +137,7 @@ export function useAgentTraces(id: string, limit = 20): AiTrace[] {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export async function createAgent(
-  tenantId: string,
-  input: CreateAgentInput,
-): Promise<AiAgent> {
+export async function createAgent(tenantId: string, input: CreateAgentInput): Promise<AiAgent> {
   await simulateLatency('mutation');
 
   const id = nextAgentId();
@@ -187,17 +169,12 @@ export async function createAgent(
 
   const state = useMockStore.getState();
   state.addEntity('aiAgents', agent);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), tenantId, 'ai-agent.create', id),
-  );
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-agent.create', id));
   emitHostEvent('ai-agent.created', { agent_id: id, tenant_id: tenantId });
   return agent;
 }
 
-export async function updateAgent(
-  id: string,
-  input: UpdateAgentInput,
-): Promise<AiAgent> {
+export async function updateAgent(id: string, input: UpdateAgentInput): Promise<AiAgent> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -216,8 +193,7 @@ export async function updateAgent(
   if (input.max_tokens_per_request !== undefined)
     patch.max_tokens_per_request = input.max_tokens_per_request;
   if (input.temperature !== undefined) patch.temperature = input.temperature;
-  if (input.stop_sequences !== undefined)
-    patch.stop_sequences = [...input.stop_sequences];
+  if (input.stop_sequences !== undefined) patch.stop_sequences = [...input.stop_sequences];
 
   const before = { ...current };
   state.updateEntity('aiAgents', id, patch);
@@ -225,12 +201,7 @@ export async function updateAgent(
   if (!updated) throw new Error(`Agent ${id} vanished mid-update`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-agent.update',
-      id,
-    ),
+    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-agent.update', id),
     diff: { before, after: updated },
   });
   emitHostEvent('ai-agent.updated', {
@@ -265,13 +236,7 @@ export async function deleteAgent(id: string): Promise<void> {
   });
 
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      agent.tenant_id,
-      'ai-agent.delete',
-      id,
-      'destructive',
-    ),
+    makeAuditEntry(getCurrentActorId(), agent.tenant_id, 'ai-agent.delete', id, 'destructive'),
   );
   emitHostEvent('ai-agent.deleted', {
     agent_id: id,
@@ -302,12 +267,7 @@ export async function rotateScopedCredential(
   if (!updated) throw new Error(`Agent ${agentId} vanished`);
 
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      current.tenant_id,
-      'ai-agent.rotate-credential',
-      agentId,
-    ),
+    makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-agent.rotate-credential', agentId),
   );
   emitHostEvent('ai-agent.credential-rotated', {
     agent_id: agentId,
@@ -370,10 +330,7 @@ function pickTemplate(h: number): string {
  * Synthesise a realistic trace for `agentId` + `prompt`, write it to the store,
  * emit audit + host event, and publish on the trace-stream bus.
  */
-export async function invokeAgentMock(
-  agentId: string,
-  input: InvokeAgentInput,
-): Promise<AiTrace> {
+export async function invokeAgentMock(agentId: string, input: InvokeAgentInput): Promise<AiTrace> {
   const state = useMockStore.getState();
   const agent = state.aiAgents[agentId];
   if (!agent) throw new Error(`Agent ${agentId} not found`);
@@ -387,11 +344,7 @@ export async function invokeAgentMock(
 
   const inputTokens = 60 + (h % 480);
   const outputTokens = 40 + (h % 240);
-  const status: AiTrace['status'] = (h % 25 === 0)
-    ? 'error'
-    : (h % 37 === 0)
-      ? 'timeout'
-      : 'success';
+  const status: AiTrace['status'] = h % 25 === 0 ? 'error' : h % 37 === 0 ? 'timeout' : 'success';
 
   // Build tool-call list — ~30% of invocations include 1-2 tool calls when
   // the agent has any tools bound.
@@ -430,10 +383,7 @@ export async function invokeAgentMock(
     status,
     at: now(),
     prompt_text: input.prompt,
-    completion_text:
-      status === 'error'
-        ? ''
-        : pickTemplate(h),
+    completion_text: status === 'error' ? '' : pickTemplate(h),
     tool_calls: toolCalls,
     cost_usd: costFor(agent.model, inputTokens, outputTokens),
     ...(status === 'error'
@@ -446,12 +396,7 @@ export async function invokeAgentMock(
 
   state.addEntity('aiTraces', trace);
   state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      agent.tenant_id,
-      'ai-agent.invoke',
-      agentId,
-    ),
+    makeAuditEntry(getCurrentActorId(), agent.tenant_id, 'ai-agent.invoke', agentId),
   );
   emitHostEvent('ai-agent.invoked', {
     agent_id: agentId,

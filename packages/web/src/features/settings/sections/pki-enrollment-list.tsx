@@ -65,7 +65,13 @@ interface EnrollmentDetailDrawerProps {
   onRevoked: () => void;
 }
 
-function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevoked }: EnrollmentDetailDrawerProps) {
+function EnrollmentDetailDrawer({
+  enrollment,
+  caName,
+  canWrite,
+  onClose,
+  onRevoked,
+}: EnrollmentDetailDrawerProps) {
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
   const [revoking, setRevoking] = useState(false);
@@ -101,54 +107,85 @@ function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevok
       >
         <Stack gap="md">
           <Stack gap={4}>
-            <Text size="sm" fw={500}>State</Text>
+            <Text size="sm" fw={500}>
+              State
+            </Text>
             <Badge color={STATE_BADGE_COLOR[enrollment.state]} variant="light">
               {enrollment.state}
             </Badge>
           </Stack>
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Certificate Authority</Text>
-            <Text size="sm" c="var(--mantine-color-gray-7)">{caName}</Text>
+            <Text size="sm" fw={500}>
+              Certificate Authority
+            </Text>
+            <Text size="sm" c="var(--mantine-color-gray-7)">
+              {caName}
+            </Text>
           </Stack>
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>DNS SANs</Text>
+            <Text size="sm" fw={500}>
+              DNS SANs
+            </Text>
             <Text size="sm" c="var(--mantine-color-gray-7)">
               {enrollment.dns_sans.length > 0 ? enrollment.dns_sans.join(', ') : '—'}
             </Text>
           </Stack>
 
           <Stack gap={4}>
-            <Text size="sm" fw={500}>Requested</Text>
-            <Text size="sm" c="var(--mantine-color-gray-7)">{formatDate(enrollment.requested_at)}</Text>
+            <Text size="sm" fw={500}>
+              Requested
+            </Text>
+            <Text size="sm" c="var(--mantine-color-gray-7)">
+              {formatDate(enrollment.requested_at)}
+            </Text>
           </Stack>
 
           {enrollment.issued_at !== undefined && (
             <Stack gap={4}>
-              <Text size="sm" fw={500}>Issued</Text>
-              <Text size="sm" c="var(--mantine-color-gray-7)">{formatDate(enrollment.issued_at)}</Text>
+              <Text size="sm" fw={500}>
+                Issued
+              </Text>
+              <Text size="sm" c="var(--mantine-color-gray-7)">
+                {formatDate(enrollment.issued_at)}
+              </Text>
             </Stack>
           )}
 
           {enrollment.revoked_at !== undefined && (
             <Stack gap={4}>
-              <Text size="sm" fw={500}>Revoked</Text>
-              <Text size="sm" c="var(--mantine-color-gray-7)">{formatDate(enrollment.revoked_at)}</Text>
+              <Text size="sm" fw={500}>
+                Revoked
+              </Text>
+              <Text size="sm" c="var(--mantine-color-gray-7)">
+                {formatDate(enrollment.revoked_at)}
+              </Text>
             </Stack>
           )}
 
           {enrollment.revocation_reason !== undefined && (
             <Stack gap={4}>
-              <Text size="sm" fw={500}>Revocation reason</Text>
-              <Text size="sm" c="var(--mantine-color-gray-7)">{enrollment.revocation_reason}</Text>
+              <Text size="sm" fw={500}>
+                Revocation reason
+              </Text>
+              <Text size="sm" c="var(--mantine-color-gray-7)">
+                {enrollment.revocation_reason}
+              </Text>
             </Stack>
           )}
 
           {enrollment.fingerprint_sha256 !== undefined && (
             <Stack gap={4}>
-              <Text size="sm" fw={500}>SHA-256 fingerprint</Text>
-              <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)" style={{ wordBreak: 'break-all' }}>
+              <Text size="sm" fw={500}>
+                SHA-256 fingerprint
+              </Text>
+              <Text
+                size="xs"
+                ff="monospace"
+                c="var(--mantine-color-gray-7)"
+                style={{ wordBreak: 'break-all' }}
+              >
                 {enrollment.fingerprint_sha256}
               </Text>
             </Stack>
@@ -163,7 +200,9 @@ function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevok
                   size="sm"
                   disabled={!canWrite}
                   leftSection={!canWrite ? <IconLock size={14} /> : undefined}
-                  onClick={() => { setRevokeOpen(true); }}
+                  onClick={() => {
+                    setRevokeOpen(true);
+                  }}
                   data-testid="enrollment-revoke-button"
                 >
                   Revoke certificate
@@ -178,7 +217,9 @@ function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevok
       {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Modal
         opened={revokeOpen}
-        onClose={() => { setRevokeOpen(false); }}
+        onClose={() => {
+          setRevokeOpen(false);
+        }}
         title="Revoke certificate"
         size="sm"
         data-testid="revoke-confirm-modal"
@@ -193,16 +234,25 @@ function EnrollmentDetailDrawer({ enrollment, caName, canWrite, onClose, onRevok
             placeholder="e.g. Key compromised"
             data-testid="revoke-reason-input"
             value={revokeReason}
-            onChange={(e) => { setRevokeReason(e.currentTarget.value); }}
+            onChange={(e) => {
+              setRevokeReason(e.currentTarget.value);
+            }}
           />
           <Group justify="flex-end">
-            <Button variant="default" onClick={() => { setRevokeOpen(false); }}>
+            <Button
+              variant="default"
+              onClick={() => {
+                setRevokeOpen(false);
+              }}
+            >
               Cancel
             </Button>
             <Button
               color="red"
               loading={revoking}
-              onClick={() => { void handleRevoke(); }}
+              onClick={() => {
+                void handleRevoke();
+              }}
               data-testid="revoke-confirm-button"
             >
               Revoke
@@ -223,14 +273,9 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
   const [filter, setFilter] = useState<StateFilter>('all');
   const [selectedEnrollment, setSelectedEnrollment] = useState<CertEnrollment | null>(null);
 
-  const caMap = useMemo(
-    () => Object.fromEntries(cas.map((ca) => [ca.id, ca.name])),
-    [cas],
-  );
+  const caMap = useMemo(() => Object.fromEntries(cas.map((ca) => [ca.id, ca.name])), [cas]);
 
-  const filtered = filter === 'all'
-    ? enrollments
-    : enrollments.filter((e) => e.state === filter);
+  const filtered = filter === 'all' ? enrollments : enrollments.filter((e) => e.state === filter);
 
   return (
     <>
@@ -243,7 +288,9 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
                 size="sm"
                 leftSection={!canWrite ? <IconLock size={14} /> : <IconPlus size={14} />}
                 disabled={!canWrite}
-                onClick={() => { setCreateOpen(true); }}
+                onClick={() => {
+                  setCreateOpen(true);
+                }}
                 data-testid="request-enrollment-button"
               >
                 Request new certificate
@@ -260,7 +307,9 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
             { value: 'revoked', label: 'Revoked' },
           ]}
           value={filter}
-          onChange={(v) => { setFilter(v); }}
+          onChange={(v) => {
+            setFilter(v);
+          }}
           data-testid="enrollment-state-filter"
           size="xs"
         />
@@ -285,7 +334,9 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
                 <Table.Tr
                   key={enrollment.id}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => { setSelectedEnrollment(enrollment); }}
+                  onClick={() => {
+                    setSelectedEnrollment(enrollment);
+                  }}
                   data-testid={`enrollment-row-${enrollment.id}`}
                 >
                   <Table.Td>
@@ -327,7 +378,9 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
 
       <CreateEnrollmentModal
         opened={createOpen}
-        onClose={() => { setCreateOpen(false); }}
+        onClose={() => {
+          setCreateOpen(false);
+        }}
         tenantId={tenantId}
         canWrite={canWrite}
       />
@@ -336,8 +389,12 @@ export function PkiEnrollmentList({ tenantId, canWrite }: PkiEnrollmentListProps
         enrollment={selectedEnrollment}
         caName={selectedEnrollment ? (caMap[selectedEnrollment.ca_id] ?? 'Unknown CA') : ''}
         canWrite={canWrite}
-        onClose={() => { setSelectedEnrollment(null); }}
-        onRevoked={() => { setSelectedEnrollment(null); }}
+        onClose={() => {
+          setSelectedEnrollment(null);
+        }}
+        onRevoked={() => {
+          setSelectedEnrollment(null);
+        }}
       />
     </>
   );

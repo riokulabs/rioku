@@ -38,9 +38,7 @@ beforeEach(() => {
 });
 
 function acmeTenantId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
   return acme.id;
 }

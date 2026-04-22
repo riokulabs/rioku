@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { registerWidget, unregisterWidget, listWidgets } from './widgets';
 
 beforeEach(() => {
-  listWidgets().forEach((w) => { unregisterWidget(w.type); });
+  listWidgets().forEach((w) => {
+    unregisterWidget(w.type);
+  });
 });
 
 function regWidget(type: string, source: 'first-party' | 'plugin' = 'plugin'): void {
@@ -58,6 +60,8 @@ describe('unregisterWidget', () => {
   });
 
   it('no-ops for unknown type', () => {
-    expect(() => { unregisterWidget('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterWidget('ghost');
+    }).not.toThrow();
   });
 });

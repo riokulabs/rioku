@@ -20,12 +20,7 @@
  *    navigate back to viewer.
  *  - The Cancel flow — confirm modal when dirty.
  */
-import {
-  type ReactNode,
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -57,12 +52,7 @@ import {
   downloadDashboardExport,
 } from '@/features/dashboards';
 import type { Dashboard, Widget } from '@/api/resources/types';
-import {
-  addWidget,
-  flipWidgetToAdvanced,
-  removeWidget,
-  updateLayout,
-} from '../api';
+import { addWidget, flipWidgetToAdvanced, removeWidget, updateLayout } from '../api';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { GridCanvas } from './grid-canvas';
 import { WidgetPalette } from './widget-palette';
@@ -88,10 +78,7 @@ interface DashboardSnapshot {
   widgetSigs: string;
 }
 
-function snapshotOf(
-  dashboard: Dashboard | undefined,
-  widgets: Widget[],
-): DashboardSnapshot {
+function snapshotOf(dashboard: Dashboard | undefined, widgets: Widget[]): DashboardSnapshot {
   if (!dashboard) {
     return {
       name: '',
@@ -183,17 +170,10 @@ interface ShellInnerProps {
   onVersionHistory?: (dashboardId: string) => void;
 }
 
-function ShellInner({
-  dashboard,
-  widgets,
-  onDone,
-  onVersionHistory,
-}: ShellInnerProps) {
+function ShellInner({ dashboard, widgets, onDone, onVersionHistory }: ShellInnerProps) {
   // Baseline captured via lazy initializer — runs exactly once when this
   // component mounts (after the gate confirmed `dashboard` exists).
-  const [baseline, setBaseline] = useState<DashboardSnapshot>(() =>
-    snapshotOf(dashboard, widgets),
-  );
+  const [baseline, setBaseline] = useState<DashboardSnapshot>(() => snapshotOf(dashboard, widgets));
   const [name, setName] = useState(dashboard.name);
   const [description, setDescription] = useState(dashboard.description ?? '');
   const [mode, setMode] = useState<Dashboard['mode']>(dashboard.mode);
@@ -345,10 +325,7 @@ function ShellInner({
         try {
           await flipWidgetToAdvanced(w.id);
         } catch (e) {
-          notify.error(
-            `Failed to lock ${w.title}`,
-            (e as Error).message,
-          );
+          notify.error(`Failed to lock ${w.title}`, (e as Error).message);
         }
       }
       setMode('grafana');
@@ -456,10 +433,7 @@ function ShellInner({
             onClick={() => {
               try {
                 downloadDashboardExport(dashboard);
-                notify.success(
-                  'Dashboard exported',
-                  `${dashboard.name}.json downloaded.`,
-                );
+                notify.success('Dashboard exported', `${dashboard.name}.json downloaded.`);
               } catch (e) {
                 notify.error('Export failed', (e as Error).message);
               }
@@ -507,9 +481,7 @@ function ShellInner({
       <Box
         style={{
           display: 'grid',
-          gridTemplateColumns: showConfigPanel
-            ? '240px 1fr 340px'
-            : '240px 1fr',
+          gridTemplateColumns: showConfigPanel ? '240px 1fr 340px' : '240px 1fr',
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
@@ -613,8 +585,7 @@ function ShellInner({
       >
         <Stack gap="md">
           <Text size="sm">
-            You have unsaved changes to this dashboard. Leaving now will lose
-            them.
+            You have unsaved changes to this dashboard. Leaving now will lose them.
           </Text>
           <Group justify="flex-end">
             <Button

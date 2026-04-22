@@ -31,9 +31,7 @@ export function registerPluginTheme(theme: RegisteredTheme): string {
   useThemeStore.setState((state) => {
     const existing = state.themes.find((t) => t.name === theme.name);
     if (existing && import.meta.env.DEV) {
-      console.warn(
-        `[host.themes] Theme "${theme.name}" already registered — overwriting.`,
-      );
+      console.warn(`[host.themes] Theme "${theme.name}" already registered — overwriting.`);
     }
     const themes = existing
       ? state.themes.map((t) => (t.name === theme.name ? theme : t))

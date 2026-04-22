@@ -113,9 +113,7 @@ describe('<WidgetConfigPanel>', () => {
     expect(screen.getAllByText(/Advanced mode/).length).toBeGreaterThan(0);
     expect(screen.getByTestId('advanced-editor')).toBeTruthy();
     // Save button lands disabled (no dirty change yet).
-    expect(
-      screen.getByTestId<HTMLButtonElement>('advanced-editor-save').disabled,
-    ).toBe(true);
+    expect(screen.getByTestId<HTMLButtonElement>('advanced-editor-save').disabled).toBe(true);
   });
 
   it('close button calls onClose', async () => {
@@ -130,9 +128,7 @@ describe('<WidgetConfigPanel>', () => {
         onClose={onClose}
       />,
     );
-    await user.click(
-      screen.getByRole('button', { name: 'Close widget config' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Close widget config' }));
     expect(onClose).toHaveBeenCalled();
   });
 });

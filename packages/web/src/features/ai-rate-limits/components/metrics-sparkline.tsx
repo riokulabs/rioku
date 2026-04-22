@@ -24,11 +24,7 @@ const SM_WIDTH = 100;
 const SM_HEIGHT = 28;
 const LG_HEIGHT = 120;
 
-export function MetricsSparkline({
-  ruleId,
-  size,
-  window = '24h',
-}: MetricsSparklineProps) {
+export function MetricsSparkline({ ruleId, size, window = '24h' }: MetricsSparklineProps) {
   const points = useRateLimitMetrics(ruleId, window);
 
   const isEmpty = points.length === 0;

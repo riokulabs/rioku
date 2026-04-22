@@ -1,12 +1,7 @@
 /**
  * Feature-local types for AI providers.
  */
-export type {
-  AiProvider,
-  AiAgent,
-  AiProviderModel,
-  ID,
-} from '@/api/resources/types';
+export type { AiProvider, AiAgent, AiProviderModel, ID } from '@/api/resources/types';
 
 import type { AiProvider } from '@/api/resources/types';
 
@@ -64,9 +59,7 @@ export class ProviderInUseError extends Error {
   readonly code = 'PROVIDER_IN_USE';
   readonly agentIds: string[];
   constructor(agentIds: string[]) {
-    super(
-      `Provider cannot be deleted — ${String(agentIds.length)} agent(s) reference it.`,
-    );
+    super(`Provider cannot be deleted — ${String(agentIds.length)} agent(s) reference it.`);
     this.name = 'ProviderInUseError';
     this.agentIds = agentIds;
   }
@@ -76,9 +69,7 @@ export class ProviderModelInUseError extends Error {
   readonly code = 'PROVIDER_MODEL_IN_USE';
   readonly agentIds: string[];
   constructor(agentIds: string[]) {
-    super(
-      `Model cannot be removed — ${String(agentIds.length)} agent(s) use this alias.`,
-    );
+    super(`Model cannot be removed — ${String(agentIds.length)} agent(s) use this alias.`);
     this.name = 'ProviderModelInUseError';
     this.agentIds = agentIds;
   }

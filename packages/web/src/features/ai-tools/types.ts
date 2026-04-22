@@ -1,12 +1,7 @@
 /**
  * Feature-local types for AI tools.
  */
-export type {
-  AiAgent,
-  AiTool,
-  AiToolBinding,
-  ID,
-} from '@/api/resources/types';
+export type { AiAgent, AiTool, AiToolBinding, ID } from '@/api/resources/types';
 
 import type { AiTool } from '@/api/resources/types';
 

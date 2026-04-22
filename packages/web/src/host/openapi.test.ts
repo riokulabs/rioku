@@ -6,7 +6,9 @@ import {
 } from './openapi';
 
 beforeEach(() => {
-  listPluginOpenApiContribs().forEach((c) => { unregisterPluginOpenApi(c.pluginName); });
+  listPluginOpenApiContribs().forEach((c) => {
+    unregisterPluginOpenApi(c.pluginName);
+  });
 });
 
 describe('registerPluginOpenApi', () => {
@@ -45,6 +47,8 @@ describe('unregisterPluginOpenApi', () => {
   });
 
   it('no-ops for unknown plugin', () => {
-    expect(() => { unregisterPluginOpenApi('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterPluginOpenApi('ghost');
+    }).not.toThrow();
   });
 });

@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  registerZone,
-  unregisterZone,
-  getZoneContributions,
-  listAllZones,
-} from './zones';
+import { registerZone, unregisterZone, getZoneContributions, listAllZones } from './zones';
 
 // Helper: register and track ids for cleanup.
 const registeredIds: string[] = [];
@@ -43,7 +38,9 @@ describe('getZoneContributions', () => {
     reg('dashboard.toolbar');
     const contribs = getZoneContributions('service.detail.header');
     expect(contribs).toHaveLength(2);
-    contribs.forEach((c) => { expect(c.zone).toBe('service.detail.header'); });
+    contribs.forEach((c) => {
+      expect(c.zone).toBe('service.detail.header');
+    });
   });
 
   it('returns empty array for unknown zone', () => {
@@ -74,6 +71,8 @@ describe('unregisterZone', () => {
   });
 
   it('no-ops for unknown id', () => {
-    expect(() => { unregisterZone('nonexistent-id'); }).not.toThrow();
+    expect(() => {
+      unregisterZone('nonexistent-id');
+    }).not.toThrow();
   });
 });

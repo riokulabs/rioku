@@ -25,7 +25,5 @@ export type AuditStreamEvent = CustomEvent<AuditEntry>;
  * whose `detail` is the entry.
  */
 export function publishAudit(entry: AuditEntry): void {
-  auditStreamBus.dispatchEvent(
-    new CustomEvent(AUDIT_STREAM_TOPIC, { detail: entry }),
-  );
+  auditStreamBus.dispatchEvent(new CustomEvent(AUDIT_STREAM_TOPIC, { detail: entry }));
 }

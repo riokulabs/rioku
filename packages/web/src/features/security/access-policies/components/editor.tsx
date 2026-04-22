@@ -5,16 +5,7 @@
  * ConditionEditor provides CEL editing + syntax validation.
  */
 import { useState } from 'react';
-import {
-  Stack,
-  TextInput,
-  Select,
-  NumberInput,
-  Switch,
-  Button,
-  Group,
-  Text,
-} from '@mantine/core';
+import { Stack, TextInput, Select, NumberInput, Switch, Button, Group, Text } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
 import { ConditionEditor } from '@/components/condition-editor';
@@ -92,16 +83,15 @@ export function AccessPolicyEditor({
           {...form.getInputProps('priority')}
         />
 
-        <Switch
-          label="Enabled"
-          {...form.getInputProps('enabled', { type: 'checkbox' })}
-        />
+        <Switch label="Enabled" {...form.getInputProps('enabled', { type: 'checkbox' })} />
 
         <Stack gap="xs">
           <ConditionEditor
             label="CEL Condition"
             value={form.values.condition}
-            onChange={(v) => { form.setFieldValue('condition', v); }}
+            onChange={(v) => {
+              form.setFieldValue('condition', v);
+            }}
             onValidityChange={setConditionValid}
             placeholder={`request.method == "GET"`}
             height={140}
@@ -122,11 +112,7 @@ export function AccessPolicyEditor({
           <Button variant="default" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            loading={saving}
-            disabled={!conditionValid}
-          >
+          <Button type="submit" loading={saving} disabled={!conditionValid}>
             {initial ? 'Save changes' : 'Create policy'}
           </Button>
         </Group>

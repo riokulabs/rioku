@@ -18,9 +18,7 @@ function AccessDeniedPage() {
   const search = useSearch({ strict: false }) as unknown as AccessDeniedSearch;
 
   const required: string[] | undefined =
-    Array.isArray(search.required) && search.required.length > 0
-      ? search.required
-      : undefined;
+    Array.isArray(search.required) && search.required.length > 0 ? search.required : undefined;
 
   const requireAny: boolean = search.requireAny === true;
 
@@ -33,9 +31,7 @@ function AccessDeniedPage() {
 
       {required && (
         <Text mt="md" size="sm">
-          <strong>
-            Required{requireAny ? ' (any one of)' : ' (all required)'}:
-          </strong>{' '}
+          <strong>Required{requireAny ? ' (any one of)' : ' (all required)'}:</strong>{' '}
           <Group gap="xs" display="inline-flex">
             {required.map((key) => (
               <Code key={key}>{key}</Code>

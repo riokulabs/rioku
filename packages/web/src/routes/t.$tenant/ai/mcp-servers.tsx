@@ -30,12 +30,7 @@ type DrawerMode = 'detail' | 'create' | 'edit';
 type Health = McpServer['health'];
 type AuthKind = McpServer['auth_kind'];
 
-const HEALTH_VALUES: readonly Health[] = [
-  'healthy',
-  'degraded',
-  'unreachable',
-  'disabled',
-];
+const HEALTH_VALUES: readonly Health[] = ['healthy', 'degraded', 'unreachable', 'disabled'];
 const AUTH_VALUES: readonly AuthKind[] = ['none', 'bearer', 'api-key'];
 
 interface SearchParams {
@@ -59,15 +54,11 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseHealthsCsv(v: unknown): Health[] {
-  return parseCsv(v).filter((s): s is Health =>
-    (HEALTH_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Health => (HEALTH_VALUES as readonly string[]).includes(s));
 }
 
 function parseAuthKindsCsv(v: unknown): AuthKind[] {
-  return parseCsv(v).filter((s): s is AuthKind =>
-    (AUTH_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is AuthKind => (AUTH_VALUES as readonly string[]).includes(s));
 }
 
 function AiMcpServersPage() {
@@ -76,9 +67,7 @@ function AiMcpServersPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('mcp-server:write');
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -102,19 +91,13 @@ function AiMcpServersPage() {
         search: next.search,
         healths: next.healths.join(','),
         auth_kinds: next.auth_kinds.join(','),
-        enabled:
-          next.enabled === true
-            ? 'true'
-            : next.enabled === false
-              ? 'false'
-              : '',
+        enabled: next.enabled === true ? 'true' : next.enabled === false ? 'false' : '',
       }),
       replace: true,
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedServer, setSelectedServer] = useState<McpServer | null>(null);
 
@@ -149,10 +132,7 @@ function AiMcpServersPage() {
           `${s.name} returned ${String(result.tool_count)} tools in ${String(result.latency_ms)}ms.`,
         );
       } else {
-        notify.error(
-          'Connection failed',
-          result.error_message ?? 'Upstream error',
-        );
+        notify.error('Connection failed', result.error_message ?? 'Upstream error');
       }
     } catch {
       notify.error('Failed to test server', 'Please try again.');
@@ -176,15 +156,8 @@ function AiMcpServersPage() {
     <Stack gap="md" p="md">
       <Group justify="space-between" align="center">
         <Title order={2}>MCP Servers</Title>
-        <Tooltip
-          disabled={canWrite}
-          label="You need mcp-server:write to create servers"
-        >
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={handleCreate}
-            disabled={!canWrite}
-          >
+        <Tooltip disabled={canWrite} label="You need mcp-server:write to create servers">
+          <Button leftSection={<IconPlus size={16} />} onClick={handleCreate} disabled={!canWrite}>
             New MCP server
           </Button>
         </Tooltip>

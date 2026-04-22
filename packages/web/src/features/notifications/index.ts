@@ -30,10 +30,7 @@ export {
   PLUGIN_SLUG_REGEX,
 } from './schemas';
 
-export type {
-  InboxFilterFormValues,
-  EmitNotificationFormValues,
-} from './schemas';
+export type { InboxFilterFormValues, EmitNotificationFormValues } from './schemas';
 
 export type {
   EmitNotificationInput,
@@ -45,8 +42,5 @@ export type {
 
 export { InboxDropdown } from './components/inbox-dropdown';
 export { NotificationDetail } from './components/detail';
-export {
-  NotificationFilterBar,
-  type ReadFilter,
-} from './components/filter-bar';
+export { NotificationFilterBar, type ReadFilter } from './components/filter-bar';
 export { NotificationList } from './components/list';

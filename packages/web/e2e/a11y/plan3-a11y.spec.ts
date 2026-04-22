@@ -25,17 +25,15 @@ const plan3Routes = [
 ] as const;
 
 for (const route of plan3Routes) {
-  test(`no critical/serious axe violations on ${route.path}`, async ({
-    authedPage: page,
-  }) => {
+  test(`no critical/serious axe violations on ${route.path}`, async ({ authedPage: page }) => {
     await page.goto(route.path);
 
     // Wait for the page heading to confirm the route hydrated before running
     // axe — otherwise axe may evaluate the TanStack Router fallback skeleton
     // and miss real content.
-    await expect(
-      page.getByRole('heading', { name: route.heading }).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: route.heading }).first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Let the DOM settle before running axe. Some feature pages (traces,
     // rate-limits) trigger an initial URL rewrite via debounced search effects

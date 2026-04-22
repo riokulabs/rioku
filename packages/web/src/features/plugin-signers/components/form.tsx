@@ -25,10 +25,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { createSigner, updateSigner } from '../api';
-import {
-  createSignerSchema,
-  updateSignerSchema,
-} from '../schemas';
+import { createSignerSchema, updateSignerSchema } from '../schemas';
 import type { PluginSigner } from '../types';
 
 type ScopeValue = 'tenant' | 'global';
@@ -78,9 +75,7 @@ export function SignerForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultScope: ScopeValue = allowGlobalScope && tenantId === null
-    ? 'global'
-    : 'tenant';
+  const defaultScope: ScopeValue = allowGlobalScope && tenantId === null ? 'global' : 'tenant';
 
   const schema = mode === 'create' ? createSignerSchema : updateSignerSchema;
 
@@ -143,12 +138,7 @@ export function SignerForm({
           </Alert>
         )}
 
-        <TextInput
-          label="Name"
-          placeholder="Rioku Labs"
-          required
-          {...form.getInputProps('name')}
-        />
+        <TextInput label="Name" placeholder="Rioku Labs" required {...form.getInputProps('name')} />
 
         <TextInput
           label="Fingerprint (SHA-256)"

@@ -8,11 +8,7 @@ import { renderHook } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 
-import {
-  useDeliveryLogDetail,
-  useDeliveryLogList,
-  useDeliveryLogListInfinite,
-} from '../api';
+import { useDeliveryLogDetail, useDeliveryLogList, useDeliveryLogListInfinite } from '../api';
 import type { DeliveryLogFilter } from '../types';
 
 beforeEach(() => {
@@ -40,9 +36,9 @@ describe('useDeliveryLogList', () => {
     const { result } = renderHook(() => useDeliveryLogList(tenantId, emptyFilter()));
     for (const e of result.current) expect(e.tenant_id).toBe(tenantId);
     for (let i = 1; i < result.current.length; i++) {
-      expect(
-        result.current[i - 1]!.last_attempted_at >= result.current[i]!.last_attempted_at,
-      ).toBe(true);
+      expect(result.current[i - 1]!.last_attempted_at >= result.current[i]!.last_attempted_at).toBe(
+        true,
+      );
     }
   });
 

@@ -9,7 +9,10 @@ import { renderHook } from '@testing-library/react';
 
 // ─── Mock state helpers ───────────────────────────────────────────────────────
 
-interface SelectorState { currentUserId: string | null; currentTenantId: string | null }
+interface SelectorState {
+  currentUserId: string | null;
+  currentTenantId: string | null;
+}
 
 let mockState: SelectorState = { currentUserId: null, currentTenantId: null };
 

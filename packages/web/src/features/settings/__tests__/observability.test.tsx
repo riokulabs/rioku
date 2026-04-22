@@ -280,7 +280,9 @@ describe('<ObservabilityLogs> form', () => {
     render(<ObservabilityLogs tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
 
     const events: CustomEvent[] = [];
-    const listener = (e: Event) => { events.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      events.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:observability-updated', listener);
 
     const maxSizeInput = screen.getByTestId('logs-max-size-input');
@@ -291,7 +293,9 @@ describe('<ObservabilityLogs> form', () => {
     });
 
     await waitFor(() => {
-      expect(events.some((e) => (e.detail as { subsystem?: string }).subsystem === 'logs')).toBe(true);
+      expect(events.some((e) => (e.detail as { subsystem?: string }).subsystem === 'logs')).toBe(
+        true,
+      );
     });
 
     mockBus.removeEventListener('tenant:observability-updated', listener);
@@ -419,7 +423,9 @@ describe('<ObservabilityTraces> form', () => {
     render(<ObservabilityTraces tenantId={tenantId} canWrite={true} />, { wrapper: Wrapper });
 
     const events: CustomEvent[] = [];
-    const listener = (e: Event) => { events.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      events.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:observability-updated', listener);
 
     const sampleInput = screen.getByTestId('traces-sample-rate-input');
@@ -430,7 +436,9 @@ describe('<ObservabilityTraces> form', () => {
     });
 
     await waitFor(() => {
-      expect(events.some((e) => (e.detail as { subsystem?: string }).subsystem === 'traces')).toBe(true);
+      expect(events.some((e) => (e.detail as { subsystem?: string }).subsystem === 'traces')).toBe(
+        true,
+      );
     });
 
     mockBus.removeEventListener('tenant:observability-updated', listener);

@@ -51,13 +51,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import {
-  archive,
-  markAllRead,
-  markRead,
-  subscribeInboxStream,
-  useNotificationList,
-} from '../api';
+import { archive, markAllRead, markRead, subscribeInboxStream, useNotificationList } from '../api';
 import type { ID, InboxFilter, NotificationItem } from '../types';
 
 dayjs.extend(relativeTime);
@@ -76,10 +70,7 @@ const FILTER_BUCKETS: { value: string; label: string }[] = [
 ];
 
 /** Expand selected bucket values to concrete categories matching the store. */
-function bucketsToCategories(
-  buckets: string[],
-  all: NotificationItem[],
-): string[] {
+function bucketsToCategories(buckets: string[], all: NotificationItem[]): string[] {
   const out = new Set<string>();
   const hasPlugins = buckets.includes('plugins');
   for (const b of buckets) {
@@ -384,9 +375,7 @@ function NotificationRow({
       px="sm"
       py="xs"
       style={{
-        backgroundColor: unread
-          ? 'var(--mantine-color-blue-0)'
-          : 'transparent',
+        backgroundColor: unread ? 'var(--mantine-color-blue-0)' : 'transparent',
       }}
       data-testid={`inbox-row-${item.id}`}
     >
@@ -408,11 +397,7 @@ function NotificationRow({
               {item.title}
             </Text>
             <Tooltip label={absolute} withArrow>
-              <Text
-                size="xs"
-                c="var(--mantine-color-gray-7)"
-                style={{ flexShrink: 0 }}
-              >
+              <Text size="xs" c="var(--mantine-color-gray-7)" style={{ flexShrink: 0 }}>
                 {dayjs(item.at).fromNow()}
               </Text>
             </Tooltip>

@@ -29,8 +29,6 @@ export default function globalSetup(): void {
   });
 
   if (!existsSync(distBundle)) {
-    throw new Error(
-      `[e2e/global-setup] expected ${distBundle} after build, but it is missing.`,
-    );
+    throw new Error(`[e2e/global-setup] expected ${distBundle} after build, but it is missing.`);
   }
 }

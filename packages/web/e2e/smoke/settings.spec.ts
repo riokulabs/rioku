@@ -28,10 +28,7 @@ import { test } from '../fixtures/auth';
  * localStorage on every goto, so the store re-seeds on each navigation — we
  * must wait for currentUserId to become non-null before asserting page content.
  */
-async function gotoSettings(
-  page: Page,
-  url: string,
-): Promise<void> {
+async function gotoSettings(page: Page, url: string): Promise<void> {
   await page.goto(url);
   await page.waitForFunction(
     () => {
@@ -113,8 +110,7 @@ test('navigates through all 11 settings sections via sidebar NavLinks', async ({
     // The distinctive anchor element for this section must be visible.
     // Network and PKI sections contain Monaco or lazy chunks — give them
     // a slightly longer timeout.
-    const timeout =
-      slug === 'network' || slug === 'pki' || slug === 'tls' ? 15_000 : 8_000;
+    const timeout = slug === 'network' || slug === 'pki' || slug === 'tls' ? 15_000 : 8_000;
     const anchor = SECTION_ANCHOR[slug];
     if (anchor) {
       await expect(page.getByTestId(anchor)).toBeVisible({ timeout });
@@ -154,9 +150,9 @@ test('profile section — saves a new display name and shows a success toast', a
 
   // Mantine notifications render toasts with role="alert".
   // Wait for the "Name updated" success toast.
-  await expect(
-    page.getByRole('alert').filter({ hasText: /name updated/i }),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('alert').filter({ hasText: /name updated/i })).toBeVisible({
+    timeout: 5_000,
+  });
 
   // Confirm the input now shows the new name (store was updated).
   await expect(nameInput).toHaveValue(newName, { timeout: 5_000 });
@@ -164,9 +160,7 @@ test('profile section — saves a new display name and shows a success toast', a
 
 // ─── Test 3: TLS upload modal ─────────────────────────────────────────────────
 
-test('tls section — uploads a certificate via the upload modal', async ({
-  authedPage: page,
-}) => {
+test('tls section — uploads a certificate via the upload modal', async ({ authedPage: page }) => {
   await gotoSettings(page, '/t/acme/settings/?section=tls');
 
   // Wait for the TLS section and cert list to render.
@@ -202,9 +196,9 @@ test('tls section — uploads a certificate via the upload modal', async ({
   await modal.getByTestId('upload-submit-button').click();
 
   // Success toast must appear.
-  await expect(
-    page.getByRole('alert').filter({ hasText: /certificate uploaded/i }),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('alert').filter({ hasText: /certificate uploaded/i })).toBeVisible({
+    timeout: 5_000,
+  });
 
   // Modal should close automatically after a successful upload.
   await expect(modal).not.toBeVisible({ timeout: 5_000 });
@@ -246,7 +240,7 @@ test('danger-zone — "Export tenant JSON" triggers a file download', async ({
   expect(filename).toMatch(/^acme-export-.+\.json$/);
 
   // Success toast should also appear.
-  await expect(
-    page.getByRole('alert').filter({ hasText: /export started/i }),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('alert').filter({ hasText: /export started/i })).toBeVisible({
+    timeout: 5_000,
+  });
 });

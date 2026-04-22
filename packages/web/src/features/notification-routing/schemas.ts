@@ -20,14 +20,10 @@ import { z } from 'zod';
  */
 export const EVENT_FILTER_REGEX = /^(\*|[a-z][a-z0-9:.-]*)\.(\*|[a-z][a-z0-9-]*)$/;
 
-export const eventFilterSchema = z
-  .string()
-  .min(1)
-  .max(256)
-  .regex(EVENT_FILTER_REGEX, {
-    message:
-      'event_filter must be `<category>.<subtype>` where each side is a lowercase slug (digits/hyphens/dots/colons for category) or `*`.',
-  });
+export const eventFilterSchema = z.string().min(1).max(256).regex(EVENT_FILTER_REGEX, {
+  message:
+    'event_filter must be `<category>.<subtype>` where each side is a lowercase slug (digits/hyphens/dots/colons for category) or `*`.',
+});
 
 export const createRoutingRuleSchema = z.object({
   tenant_id: z.string().min(1),

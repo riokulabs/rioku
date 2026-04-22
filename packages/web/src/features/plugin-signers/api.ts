@@ -15,10 +15,7 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import type { PluginSigner, Plugin, AuditEntry } from '@/api/resources/types';
-import type {
-  CreateSignerInput,
-  UpdateSignerInput,
-} from './types';
+import type { CreateSignerInput, UpdateSignerInput } from './types';
 import { SignerInUseError } from './types';
 
 const nextSignerId = makeIdFactory('signer-new');
@@ -116,9 +113,7 @@ export async function createSigner(input: CreateSignerInput): Promise<PluginSign
 
   const state = useMockStore.getState();
   state.addEntity('pluginSigners', signer);
-  state.appendAudit(
-    makeAuditEntry(input.tenant_scope, 'plugin-signer.create', id),
-  );
+  state.appendAudit(makeAuditEntry(input.tenant_scope, 'plugin-signer.create', id));
   emitHostEvent('plugin-signer.created', {
     signer_id: id,
     tenant_id: input.tenant_scope,
@@ -126,10 +121,7 @@ export async function createSigner(input: CreateSignerInput): Promise<PluginSign
   return signer;
 }
 
-export async function updateSigner(
-  id: string,
-  input: UpdateSignerInput,
-): Promise<PluginSigner> {
+export async function updateSigner(id: string, input: UpdateSignerInput): Promise<PluginSigner> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();
@@ -170,14 +162,7 @@ export async function deleteSigner(id: string): Promise<void> {
   }
 
   state.deleteEntity('pluginSigners', id);
-  state.appendAudit(
-    makeAuditEntry(
-      signer.tenant_scope,
-      'plugin-signer.delete',
-      id,
-      'destructive',
-    ),
-  );
+  state.appendAudit(makeAuditEntry(signer.tenant_scope, 'plugin-signer.delete', id, 'destructive'));
   emitHostEvent('plugin-signer.deleted', {
     signer_id: id,
     tenant_id: signer.tenant_scope,
@@ -233,12 +218,7 @@ export async function revokeSigner(id: string): Promise<PluginSigner> {
   if (!updated) throw new Error(`Signer ${id} vanished mid-revoke`);
 
   state.appendAudit({
-    ...makeAuditEntry(
-      current.tenant_scope,
-      'plugin-signer.revoke',
-      id,
-      'destructive',
-    ),
+    ...makeAuditEntry(current.tenant_scope, 'plugin-signer.revoke', id, 'destructive'),
     diff: { before, after: { status: 'revoked' } },
   });
   emitHostEvent('plugin-signer.revoked', {

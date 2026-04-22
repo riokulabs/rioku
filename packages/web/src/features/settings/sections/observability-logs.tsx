@@ -114,9 +114,15 @@ export function ObservabilityLogs({ tenantId, canWrite }: ObservabilityLogsProps
   return (
     <Stack gap="sm" data-testid="observability-logs">
       <Title order={5}>Logs</Title>
-      <form onSubmit={form.onSubmit((values) => { void handleSubmit(values); })}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          void handleSubmit(values);
+        })}
+      >
         <Stack gap="sm">
-          <Text size="sm" fw={500}>Log levels per component</Text>
+          <Text size="sm" fw={500}>
+            Log levels per component
+          </Text>
 
           <Group grow>
             <Select
@@ -154,7 +160,9 @@ export function ObservabilityLogs({ tenantId, canWrite }: ObservabilityLogsProps
             {...form.getInputProps('format')}
           />
 
-          <Text size="sm" fw={500}>Log rotation</Text>
+          <Text size="sm" fw={500}>
+            Log rotation
+          </Text>
 
           <Group grow>
             <NumberInput

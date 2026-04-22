@@ -6,20 +6,8 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Menu,
-  ActionIcon,
-  Switch,
-} from '@mantine/core';
-import {
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconRouter,
-} from '@tabler/icons-react';
+import { Badge, Text, Stack, Menu, ActionIcon, Switch } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash, IconRouter } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
@@ -34,13 +22,7 @@ interface BindingListProps {
   onDelete: (b: AiToolBinding) => void;
 }
 
-export function BindingList({
-  tenantId,
-  filter,
-  onSelect,
-  onEdit,
-  onDelete,
-}: BindingListProps) {
+export function BindingList({ tenantId, filter, onSelect, onEdit, onDelete }: BindingListProps) {
   const bindings = useBindingList(tenantId, filter);
   const agents = useMockStore((s) => s.aiAgents);
   const tools = useMockStore((s) => s.aiTools);

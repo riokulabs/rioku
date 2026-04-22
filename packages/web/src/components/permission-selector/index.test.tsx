@@ -100,11 +100,7 @@ describe('<PermissionSelector>', () => {
   it('excludes permissions listed in excludePermissions', async () => {
     const user = userEvent.setup();
     wrap(
-      <PermissionSelector
-        value={[]}
-        onChange={vi.fn()}
-        excludePermissions={['service:read']}
-      />,
+      <PermissionSelector value={[]} onChange={vi.fn()} excludePermissions={['service:read']} />,
     );
 
     const input = screen.getByRole('combobox');
@@ -133,9 +129,7 @@ describe('<PermissionSelector>', () => {
   });
 
   it('renders label when provided', () => {
-    wrap(
-      <PermissionSelector value={[]} onChange={vi.fn()} label="Permissions" />,
-    );
+    wrap(<PermissionSelector value={[]} onChange={vi.fn()} label="Permissions" />);
     expect(screen.getByText('Permissions')).toBeInTheDocument();
   });
 

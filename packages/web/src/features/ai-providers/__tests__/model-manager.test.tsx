@@ -35,9 +35,7 @@ function firstProviderId(): string {
   const state = useMockStore.getState();
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
-  const p = Object.values(state.aiProviders).find(
-    (pr) => pr.tenant_id === acme.id,
-  );
+  const p = Object.values(state.aiProviders).find((pr) => pr.tenant_id === acme.id);
   if (!p) throw new Error('No provider seeded');
   return p.id;
 }

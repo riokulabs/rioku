@@ -35,9 +35,7 @@ function firstAgentId(): string {
   const state = useMockStore.getState();
   const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
-  const a = Object.values(state.aiAgents).find(
-    (ag) => ag.tenant_id === acme.id,
-  );
+  const a = Object.values(state.aiAgents).find((ag) => ag.tenant_id === acme.id);
   if (!a) throw new Error('No agent seeded');
   return a.id;
 }

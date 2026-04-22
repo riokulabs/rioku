@@ -19,14 +19,7 @@
  * for stage 1 — filter state stays in React state unless the caller manages it).
  */
 
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -41,13 +34,7 @@ import {
   type ColumnSizingState,
   type VisibilityState,
 } from '@tanstack/react-table';
-import {
-  Table,
-  ScrollArea,
-  Box,
-  Stack,
-  Checkbox,
-} from '@mantine/core';
+import { Table, ScrollArea, Box, Stack, Checkbox } from '@mantine/core';
 import { useSearch, useNavigate } from '@tanstack/react-router';
 import { IconArrowUp, IconArrowDown, IconArrowsSort, IconSelector } from '@tabler/icons-react';
 
@@ -60,8 +47,18 @@ import { decodeUrlState, encodeUrlState } from './url-sync';
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
 export { StatusCell, TimestampCell, ActionsCell } from './column-helpers';
-export type { StatusCellProps, TimestampCellProps, ActionsCellProps, ActionItem } from './column-helpers';
-export { DataTableToolbar, GlobalSearchInput, ColumnVisibilityMenu, BulkActionsBar } from './toolbar';
+export type {
+  StatusCellProps,
+  TimestampCellProps,
+  ActionsCellProps,
+  ActionItem,
+} from './column-helpers';
+export {
+  DataTableToolbar,
+  GlobalSearchInput,
+  ColumnVisibilityMenu,
+  BulkActionsBar,
+} from './toolbar';
 export type { BulkAction, DataTableToolbarProps, BulkActionsBarProps } from './toolbar';
 export { DataTablePagination } from './pagination';
 export type { DataTablePaginationProps } from './pagination';
@@ -153,10 +150,7 @@ export function DataTable<TData, TValue = unknown>({
     pagination && typeof pagination === 'object' ? pagination.pageSize : DEFAULT_PAGE_SIZE;
 
   const initialUrlState = useMemo(
-    () =>
-      urlSyncKey
-        ? decodeUrlState(urlSyncKey, search, { pageSize: defaultPageSize })
-        : null,
+    () => (urlSyncKey ? decodeUrlState(urlSyncKey, search, { pageSize: defaultPageSize }) : null),
     // Only run once on mount — intentional.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -218,7 +212,9 @@ export function DataTable<TData, TValue = unknown>({
           disabled={!row.getCanSelect()}
           onChange={row.getToggleSelectedHandler()}
           aria-label={`Select row ${String(row.index + 1)}`}
-          onClick={(e) => { e.stopPropagation(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         />
       ),
     } as ColumnDef<TData, TValue>;
@@ -397,7 +393,18 @@ export function DataTable<TData, TValue = unknown>({
               width: '100%',
             }}
           >
-            {caption && <caption style={{ captionSide: 'top', textAlign: 'left', padding: '0.5rem', fontSize: '0.875rem' }}>{caption}</caption>}
+            {caption && (
+              <caption
+                style={{
+                  captionSide: 'top',
+                  textAlign: 'left',
+                  padding: '0.5rem',
+                  fontSize: '0.875rem',
+                }}
+              >
+                {caption}
+              </caption>
+            )}
 
             {/* colgroup for resize widths */}
             <colgroup>
@@ -406,7 +413,10 @@ export function DataTable<TData, TValue = unknown>({
                 return (
                   <col
                     key={col.id}
-                    style={{ width: size ? `${String(size)}px` : undefined, minWidth: size ? `${String(size)}px` : undefined }}
+                    style={{
+                      width: size ? `${String(size)}px` : undefined,
+                      minWidth: size ? `${String(size)}px` : undefined,
+                    }}
                   />
                 );
               })}
@@ -518,13 +528,23 @@ export function DataTable<TData, TValue = unknown>({
                     style={{
                       cursor: isClickable ? 'pointer' : undefined,
                     }}
-                    onClick={isClickable ? () => { onRowClick(row.original); } : undefined}
-                    onKeyDown={
+                    onClick={
                       isClickable
-                        ? (e) => { handleRowKeyDown(e, rowIndex, row.original); }
+                        ? () => {
+                            onRowClick(row.original);
+                          }
                         : undefined
                     }
-                    onFocus={() => { setFocusedRowIndex(rowIndex); }}
+                    onKeyDown={
+                      isClickable
+                        ? (e) => {
+                            handleRowKeyDown(e, rowIndex, row.original);
+                          }
+                        : undefined
+                    }
+                    onFocus={() => {
+                      setFocusedRowIndex(rowIndex);
+                    }}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <Table.Td

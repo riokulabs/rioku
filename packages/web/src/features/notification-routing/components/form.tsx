@@ -5,16 +5,7 @@
  * synchronously via `schemaResolver(…, { sync: true })`.
  */
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  MultiSelect,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Alert, Button, Group, MultiSelect, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
@@ -63,9 +54,7 @@ export function RoutingRuleForm({
     initialValues: {
       name: initialValues?.name ?? '',
       event_filter: initialValues?.event_filter ?? '*.*',
-      channel_ids: initialValues?.channel_ids
-        ? [...initialValues.channel_ids]
-        : [],
+      channel_ids: initialValues?.channel_ids ? [...initialValues.channel_ids] : [],
       enabled: initialValues?.enabled ?? true,
     },
     validate: schemaResolver(
@@ -151,11 +140,27 @@ export function RoutingRuleForm({
             {...form.getInputProps('event_filter')}
           />
           <Text size="xs" c="var(--mantine-color-gray-7)">
-            Syntax: <Text component="span" ff="monospace">{'<category>.<subtype>'}</Text>
-            {' '}where each side is a lowercase slug or <Text component="span" ff="monospace">*</Text>.
-            Examples: <Text component="span" ff="monospace">security.*</Text>,{' '}
-            <Text component="span" ff="monospace">audit.destructive</Text>,{' '}
-            <Text component="span" ff="monospace">*.error</Text>.
+            Syntax:{' '}
+            <Text component="span" ff="monospace">
+              {'<category>.<subtype>'}
+            </Text>{' '}
+            where each side is a lowercase slug or{' '}
+            <Text component="span" ff="monospace">
+              *
+            </Text>
+            . Examples:{' '}
+            <Text component="span" ff="monospace">
+              security.*
+            </Text>
+            ,{' '}
+            <Text component="span" ff="monospace">
+              audit.destructive
+            </Text>
+            ,{' '}
+            <Text component="span" ff="monospace">
+              *.error
+            </Text>
+            .
           </Text>
         </Stack>
 
@@ -169,9 +174,7 @@ export function RoutingRuleForm({
             form.setFieldValue('channel_ids', values);
           }}
           placeholder={
-            channelOptions.length === 0
-              ? 'No channels — create one first'
-              : 'Select channels'
+            channelOptions.length === 0 ? 'No channels — create one first' : 'Select channels'
           }
           disabled={channelOptions.length === 0}
           aria-label="Target channels"

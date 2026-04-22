@@ -85,12 +85,7 @@ export function StepPolicies({ form }: StepPoliciesProps) {
         ) : (
           <Stack gap="xs">
             {form.values.redirect_rules.map((rule, i) => (
-              <Group
-                key={`wiz-redirect-${String(i)}`}
-                gap="xs"
-                align="flex-end"
-                wrap="nowrap"
-              >
+              <Group key={`wiz-redirect-${String(i)}`} gap="xs" align="flex-end" wrap="nowrap">
                 <TextInput
                   label={i === 0 ? 'From' : undefined}
                   value={rule.from}
@@ -127,7 +122,9 @@ export function StepPolicies({ form }: StepPoliciesProps) {
                     const row = next[i];
                     if (!row) return;
                     const numValue = typeof v === 'number' ? v : Number(v);
-                    const statusCandidate = (REDIRECT_STATUSES as readonly number[]).includes(numValue)
+                    const statusCandidate = (REDIRECT_STATUSES as readonly number[]).includes(
+                      numValue,
+                    )
                       ? (numValue as RedirectStatus)
                       : 301;
                     next[i] = { ...row, status: statusCandidate };

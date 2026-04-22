@@ -59,9 +59,7 @@ function currentTenant(): string | null {
  * is fine, but we honour the current tenant so that tenant-scoped installs
  * in stage 2 drop in naturally).
  */
-export async function installPlugin(
-  candidate: ApprovalCandidate,
-): Promise<Plugin> {
+export async function installPlugin(candidate: ApprovalCandidate): Promise<Plugin> {
   await simulateLatency('mutation');
 
   const state = useMockStore.getState();

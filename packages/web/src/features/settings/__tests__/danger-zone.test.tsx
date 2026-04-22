@@ -221,7 +221,9 @@ describe('DangerZoneSection — hard reset modal', () => {
 
   it('hard reset emits audit entry and host event', async () => {
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:hard-reset-all-store', listener);
 
     render(<DangerZoneSection />, { wrapper: Wrapper });
@@ -307,7 +309,9 @@ describe('DangerZoneSection — export', () => {
   it('export appends audit entry and emits host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:exported', listener);
 
     render(<DangerZoneSection />, { wrapper: Wrapper });
@@ -400,7 +404,9 @@ describe('DangerZoneSection — delete tenant modal', () => {
     fireEvent.click(screen.getByTestId('delete-tenant-confirm-checkbox'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('delete-tenant-submit-button').hasAttribute('disabled')).toBe(false);
+      expect(screen.getByTestId('delete-tenant-submit-button').hasAttribute('disabled')).toBe(
+        false,
+      );
     });
 
     fireEvent.click(screen.getByTestId('delete-tenant-submit-button'));
@@ -414,7 +420,9 @@ describe('DangerZoneSection — delete tenant modal', () => {
   it('delete emits audit entry and host event', async () => {
     const tenantId = getAcmeTenantId();
     const hostEvents: CustomEvent[] = [];
-    const listener = (e: Event) => { hostEvents.push(e as CustomEvent); };
+    const listener = (e: Event) => {
+      hostEvents.push(e as CustomEvent);
+    };
     mockBus.addEventListener('tenant:deleted', listener);
 
     render(<DangerZoneSection />, { wrapper: Wrapper });
@@ -433,7 +441,9 @@ describe('DangerZoneSection — delete tenant modal', () => {
     fireEvent.click(screen.getByTestId('delete-tenant-confirm-checkbox'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('delete-tenant-submit-button').hasAttribute('disabled')).toBe(false);
+      expect(screen.getByTestId('delete-tenant-submit-button').hasAttribute('disabled')).toBe(
+        false,
+      );
     });
 
     fireEvent.click(screen.getByTestId('delete-tenant-submit-button'));

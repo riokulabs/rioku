@@ -41,10 +41,7 @@ export function useRoleUserCounts(): Record<string, number> {
 
 // ─── Mutations ─────────────────────────────────────────────────────────────────
 
-export async function createRoleMutation(
-  tenantId: string,
-  payload: RolePayload,
-): Promise<Role> {
+export async function createRoleMutation(tenantId: string, payload: RolePayload): Promise<Role> {
   await simulateLatency('mutation');
   const role: Role = {
     id: nextId(),
@@ -59,10 +56,7 @@ export async function createRoleMutation(
   return role;
 }
 
-export async function updateRoleMutation(
-  id: string,
-  patch: Partial<RolePayload>,
-): Promise<void> {
+export async function updateRoleMutation(id: string, patch: Partial<RolePayload>): Promise<void> {
   await simulateLatency('mutation');
   useMockStore.getState().updateEntity('roles', id, patch);
 }

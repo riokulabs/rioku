@@ -15,49 +15,43 @@ import { Badge } from '@mantine/core';
 import type { BadgeProps, BadgeVariant } from '@mantine/core';
 
 export type StatusKind =
-  | 'success'   // filled teal  — operation succeeded, healthy
-  | 'warn'      // filled yellow — degraded, needs attention
-  | 'error'     // filled red    — failed, unhealthy, revoked
-  | 'info'      // light  blue   — informational label
-  | 'neutral'   // outline gray  — disabled/off/unknown
-  | 'active'    // light  green  — enabled, live, running
-  | 'paused';   // outline gray  — explicitly paused/disabled
+  | 'success' // filled teal  — operation succeeded, healthy
+  | 'warn' // filled yellow — degraded, needs attention
+  | 'error' // filled red    — failed, unhealthy, revoked
+  | 'info' // light  blue   — informational label
+  | 'neutral' // outline gray  — disabled/off/unknown
+  | 'active' // light  green  — enabled, live, running
+  | 'paused'; // outline gray  — explicitly paused/disabled
 
 const BADGE_VARIANT: Record<StatusKind, BadgeVariant> = {
   success: 'filled',
-  warn:    'filled',
-  error:   'filled',
-  info:    'light',
+  warn: 'filled',
+  error: 'filled',
+  info: 'light',
   neutral: 'outline',
-  active:  'light',
-  paused:  'outline',
+  active: 'light',
+  paused: 'outline',
 };
 
 // Yellow filled needs dark text for contrast — Mantine handles this
 // automatically via autoContrast. All other filled colors render white text.
 const BADGE_COLOR: Record<StatusKind, string> = {
   success: 'teal',
-  warn:    'yellow',
-  error:   'red',
-  info:    'blue',
+  warn: 'yellow',
+  error: 'red',
+  info: 'blue',
   neutral: 'gray',
-  active:  'green',
-  paused:  'gray',
+  active: 'green',
+  paused: 'gray',
 };
 
-export interface StatusBadgeProps
-  extends Omit<BadgeProps, 'variant' | 'color'> {
+export interface StatusBadgeProps extends Omit<BadgeProps, 'variant' | 'color'> {
   kind: StatusKind;
 }
 
 export function StatusBadge({ kind, children, ...rest }: StatusBadgeProps) {
   return (
-    <Badge
-      variant={BADGE_VARIANT[kind]}
-      color={BADGE_COLOR[kind]}
-      autoContrast
-      {...rest}
-    >
+    <Badge variant={BADGE_VARIANT[kind]} color={BADGE_COLOR[kind]} autoContrast {...rest}>
       {children}
     </Badge>
   );

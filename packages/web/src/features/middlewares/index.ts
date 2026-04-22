@@ -21,10 +21,7 @@ export {
   customConfigSchema,
   MIDDLEWARE_KINDS,
 } from './schemas';
-export type {
-  CreateMiddlewareFormValues,
-  UpdateMiddlewareFormValues,
-} from './schemas';
+export type { CreateMiddlewareFormValues, UpdateMiddlewareFormValues } from './schemas';
 export { MiddlewareInUseError } from './types';
 export type { MiddlewareFilter, MiddlewareInput, MiddlewareUpdateInput } from './types';
 export { MiddlewareList } from './components/list';

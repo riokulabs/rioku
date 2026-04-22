@@ -21,7 +21,10 @@ const PERMISSION_KEY_REGEX = /^([a-z0-9]+\.)+[a-z0-9-]+:[a-z0-9-]+(:[a-z0-9-]+)?
 const permissionSchema = z.object({
   key: z
     .string()
-    .regex(PERMISSION_KEY_REGEX, 'Permission key must be a reverse-DNS namespaced identifier (e.g. "com.acme.plugin:action")'),
+    .regex(
+      PERMISSION_KEY_REGEX,
+      'Permission key must be a reverse-DNS namespaced identifier (e.g. "com.acme.plugin:action")',
+    ),
   description: z.string().min(1, 'Permission description must not be empty'),
   default_roles: z.array(z.string()).optional(),
 });

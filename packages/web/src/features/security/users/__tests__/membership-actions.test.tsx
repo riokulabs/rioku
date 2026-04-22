@@ -16,11 +16,7 @@ import { Notifications } from '@mantine/notifications';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { MembershipActions } from '../components/membership-actions';
-import {
-  activateMembership,
-  deactivateMembership,
-  removeMembership,
-} from '../api';
+import { activateMembership, deactivateMembership, removeMembership } from '../api';
 
 function wrap(ui: React.ReactNode) {
   return render(
@@ -119,12 +115,7 @@ describe('MembershipActions — UI tests', () => {
       invited_at: new Date().toISOString(),
     };
 
-    wrap(
-      <MembershipActions
-        membership={mockMembership}
-        tenantSlug="acme"
-      />,
-    );
+    wrap(<MembershipActions membership={mockMembership} tenantSlug="acme" />);
 
     expect(screen.getByRole('button', { name: /activate/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /remove/i })).toBeDefined();
@@ -144,12 +135,7 @@ describe('MembershipActions — UI tests', () => {
       invited_at: new Date().toISOString(),
     };
 
-    wrap(
-      <MembershipActions
-        membership={mockMembership}
-        tenantSlug="acme"
-      />,
-    );
+    wrap(<MembershipActions membership={mockMembership} tenantSlug="acme" />);
 
     expect(screen.getByRole('button', { name: /deactivate/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /remove/i })).toBeDefined();
@@ -169,12 +155,7 @@ describe('MembershipActions — UI tests', () => {
       invited_at: new Date().toISOString(),
     };
 
-    wrap(
-      <MembershipActions
-        membership={mockMembership}
-        tenantSlug="acme"
-      />,
-    );
+    wrap(<MembershipActions membership={mockMembership} tenantSlug="acme" />);
 
     fireEvent.click(screen.getByRole('button', { name: /remove/i }));
 
@@ -194,7 +175,9 @@ describe('MembershipActions — UI tests', () => {
 
     // Now the button should be enabled
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /remove from tenant/i }).hasAttribute('disabled')).toBe(false);
+      expect(
+        screen.getByRole('button', { name: /remove from tenant/i }).hasAttribute('disabled'),
+      ).toBe(false);
     });
   });
 });

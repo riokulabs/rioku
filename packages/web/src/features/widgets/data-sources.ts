@@ -99,10 +99,7 @@ function parseAdvancedQuery(raw: string): NormalizedQuery {
  *  - Tokens inside string literals are substituted too (naive textual
  *    substitution — sufficient for the current mock JSON syntax).
  */
-export function substituteVariables(
-  raw: string,
-  variables: readonly DashboardVariable[],
-): string {
+export function substituteVariables(raw: string, variables: readonly DashboardVariable[]): string {
   if (raw.length === 0 || variables.length === 0) return raw;
   // Map for quick lookup. Variable names must match the `$name` regex below.
   const byName = new Map<string, string>();
@@ -144,7 +141,9 @@ function matchesFilter(
       return Array.isArray(f.value) && (f.value as unknown[]).includes(v);
     case 'contains':
       return (
-        typeof v === 'string' && typeof f.value === 'string' && v.toLowerCase().includes(f.value.toLowerCase())
+        typeof v === 'string' &&
+        typeof f.value === 'string' &&
+        v.toLowerCase().includes(f.value.toLowerCase())
       );
     default:
       return false;
@@ -159,10 +158,7 @@ function applyFilters<R extends Record<string, unknown>>(
   return rows.filter((row) => filters.every((f) => matchesFilter(row, f)));
 }
 
-function aggregate(
-  values: number[],
-  op: NonNullable<AdvancedQuery['aggregate']>['op'],
-): number {
+function aggregate(values: number[], op: NonNullable<AdvancedQuery['aggregate']>['op']): number {
   if (op === 'count') return values.length;
   if (values.length === 0) return 0;
   if (op === 'sum') return values.reduce((a, b) => a + b, 0);
@@ -224,7 +220,8 @@ function applyGroupAggregate<R extends Record<string, unknown>>(
   rows: R[],
   query: NormalizedQuery,
 ): { groups: { key: string; value: number }[]; raw: R[] } {
-  if (query.group_by === undefined || query.aggregate === undefined) return { groups: [], raw: rows };
+  if (query.group_by === undefined || query.aggregate === undefined)
+    return { groups: [], raw: rows };
 
   const bucket = new Map<string, number[]>();
   for (const row of rows) {
@@ -235,7 +232,8 @@ function applyGroupAggregate<R extends Record<string, unknown>>(
     bucket.set(key, arr);
   }
   let groups: { key: string; value: number }[] = [];
-  for (const [k, vs] of bucket.entries()) groups.push({ key: k, value: aggregate(vs, query.aggregate.op) });
+  for (const [k, vs] of bucket.entries())
+    groups.push({ key: k, value: aggregate(vs, query.aggregate.op) });
 
   if (query.order_by !== undefined) {
     const dir = query.order_by.direction === 'desc' ? -1 : 1;
@@ -252,7 +250,10 @@ function applyGroupAggregate<R extends Record<string, unknown>>(
 
 type AdapterFn = (widget: Widget, state: MockStore) => unknown;
 
-function tenantFilter<T extends { tenant_id?: string | null }>(rows: T[], tenantId: string | null): T[] {
+function tenantFilter<T extends { tenant_id?: string | null }>(
+  rows: T[],
+  tenantId: string | null,
+): T[] {
   if (tenantId === null) return rows;
   return rows.filter((r) => r.tenant_id === tenantId || r.tenant_id === null);
 }
@@ -450,7 +451,11 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
  * expects. Consumers that need raw rows can ignore this and operate on
  * the array directly — `rows` is always returned under `.rows`.
  */
-function finalShape(widget: Widget, rows: Record<string, unknown>[], query: NormalizedQuery): unknown {
+function finalShape(
+  widget: Widget,
+  rows: Record<string, unknown>[],
+  query: NormalizedQuery,
+): unknown {
   const { groups } = applyGroupAggregate(rows, query);
   const limitedRows = query.limit !== undefined ? rows.slice(0, query.limit) : rows;
 
@@ -459,7 +464,10 @@ function finalShape(widget: Widget, rows: Record<string, unknown>[], query: Norm
       const agg = query.aggregate;
       const value =
         agg !== undefined
-          ? aggregate(rows.map((r) => asNumber(rowGet(r, agg.field))), agg.op)
+          ? aggregate(
+              rows.map((r) => asNumber(rowGet(r, agg.field))),
+              agg.op,
+            )
           : rows.length;
       return { value };
     }
@@ -521,7 +529,10 @@ function finalShape(widget: Widget, rows: Record<string, unknown>[], query: Norm
       const allZero = rawItems.every((it) => it.value === 0);
       const zipfBase = [1247, 891, 612, 432, 287, 198, 143, 97, 64, 41];
       const items = allZero
-        ? rawItems.map((it, i) => ({ name: it.name, value: zipfBase[i] ?? Math.max(1, 30 - i * 3) }))
+        ? rawItems.map((it, i) => ({
+            name: it.name,
+            value: zipfBase[i] ?? Math.max(1, 30 - i * 3),
+          }))
         : rawItems;
       return { items };
     }

@@ -10,13 +10,7 @@
  * / tool lists above to narrow when tenant is large.
  */
 import { useMemo } from 'react';
-import {
-  ActionIcon,
-  Alert,
-  Table,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Alert, Table, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import type { AiAgent, AiTool, AiToolBinding } from '@/api/resources/types';
@@ -25,19 +19,13 @@ import type { BindingFilter } from '../types';
 interface MatrixViewProps {
   tenantId: string;
   filter: BindingFilter;
-  onCellClick: (args: {
-    agent: AiAgent;
-    tool: AiTool;
-    binding?: AiToolBinding;
-  }) => void;
+  onCellClick: (args: { agent: AiAgent; tool: AiTool; binding?: AiToolBinding }) => void;
 }
 
 const MAX_AGENTS = 50;
 const MAX_TOOLS = 50;
 
-function dotColor(
-  binding: AiToolBinding | undefined,
-): { bg: string; label: string } | null {
+function dotColor(binding: AiToolBinding | undefined): { bg: string; label: string } | null {
   if (!binding) return null;
   if (!binding.enabled) {
     return { bg: 'var(--mantine-color-gray-5)', label: 'Disabled' };
@@ -57,9 +45,7 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
   const bindingsRec = useMockStore((s) => s.aiToolBindings);
 
   const allAgents = useMemo(() => {
-    const out = Object.values(agentsRec).filter(
-      (a) => a.tenant_id === tenantId,
-    );
+    const out = Object.values(agentsRec).filter((a) => a.tenant_id === tenantId);
     if (filter.agent_ids.length > 0) {
       return out.filter((a) => filter.agent_ids.includes(a.id));
     }
@@ -67,9 +53,7 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
   }, [agentsRec, tenantId, filter.agent_ids]);
 
   const allTools = useMemo(() => {
-    const out = Object.values(toolsRec).filter(
-      (t) => t.tenant_id === tenantId,
-    );
+    const out = Object.values(toolsRec).filter((t) => t.tenant_id === tenantId);
     if (filter.tool_ids.length > 0) {
       return out.filter((t) => filter.tool_ids.includes(t.id));
     }
@@ -86,8 +70,7 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
       if (b.tenant_id !== tenantId) continue;
       // Apply the same condition/enabled filters used by the list view so the
       // visible dots match the list's filter output.
-      if (filter.enabled !== undefined && b.enabled !== filter.enabled)
-        continue;
+      if (filter.enabled !== undefined && b.enabled !== filter.enabled) continue;
       if (filter.has_condition !== undefined) {
         const has = b.condition.trim().length > 0;
         if (has !== filter.has_condition) continue;
@@ -97,16 +80,11 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
     return m;
   }, [bindingsRec, tenantId, filter.enabled, filter.has_condition]);
 
-  const capped =
-    allAgents.length > MAX_AGENTS || allTools.length > MAX_TOOLS;
+  const capped = allAgents.length > MAX_AGENTS || allTools.length > MAX_TOOLS;
 
   if (agents.length === 0 || tools.length === 0) {
     return (
-      <Alert
-        variant="light"
-        color="gray"
-        icon={<IconInfoCircle size={16} />}
-      >
+      <Alert variant="light" color="gray" icon={<IconInfoCircle size={16} />}>
         Matrix needs at least one agent and one tool for this tenant.
       </Alert>
     );
@@ -115,16 +93,9 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
   return (
     <div>
       {capped && (
-        <Alert
-          variant="light"
-          color="yellow"
-          icon={<IconInfoCircle size={16} />}
-          mb="sm"
-        >
-          Showing first {String(agents.length)} of{' '}
-          {String(allAgents.length)} agents and{' '}
-          {String(tools.length)} of {String(allTools.length)} tools. Filter
-          above to narrow.
+        <Alert variant="light" color="yellow" icon={<IconInfoCircle size={16} />} mb="sm">
+          Showing first {String(agents.length)} of {String(allAgents.length)} agents and{' '}
+          {String(tools.length)} of {String(allTools.length)} tools. Filter above to narrow.
         </Alert>
       )}
       <div
@@ -134,12 +105,7 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
           borderRadius: 4,
         }}
       >
-        <Table
-          withColumnBorders
-          withRowBorders
-          striped
-          aria-label="Agent × tool binding matrix"
-        >
+        <Table withColumnBorders withRowBorders striped aria-label="Agent × tool binding matrix">
           <Table.Thead>
             <Table.Tr>
               <Table.Th

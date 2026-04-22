@@ -70,9 +70,7 @@ test('dev-sideload plugin: /plugins/hello route renders', async ({ authedPage: p
   await expect(page.getByTestId('sample-plugin-hello')).toBeVisible();
 });
 
-test('dev-sideload plugin: theme picker exposes the plugin theme', async ({
-  authedPage: page,
-}) => {
+test('dev-sideload plugin: theme picker exposes the plugin theme', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboard?' + PLUGIN_QS.slice(1));
   await waitForSamplePluginRegistered(page);
 
@@ -95,9 +93,7 @@ test('dev-sideload plugin: theme picker exposes the plugin theme', async ({
   });
 });
 
-test('dev-sideload plugin: permission registered in catalog', async ({
-  authedPage: page,
-}) => {
+test('dev-sideload plugin: permission registered in catalog', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboard?' + PLUGIN_QS.slice(1));
   await waitForSamplePluginRegistered(page);
 

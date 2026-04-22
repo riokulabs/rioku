@@ -3,11 +3,7 @@
  * entry has a component, and the roundTripMode is correctly assigned.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  BUILT_IN_WIDGETS,
-  BUILT_IN_WIDGET_IDS,
-  getBuiltInWidget,
-} from '../registry';
+import { BUILT_IN_WIDGETS, BUILT_IN_WIDGET_IDS, getBuiltInWidget } from '../registry';
 
 describe('BUILT_IN_WIDGETS registry', () => {
   it('registers all 10 built-in widget types', () => {

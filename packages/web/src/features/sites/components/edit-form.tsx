@@ -67,11 +67,7 @@ function buildInitial(site: Site): SiteEditFormValues {
   };
 }
 
-export function SiteEditForm({
-  initialValues,
-  onSuccess,
-  onCancel,
-}: SiteEditFormProps) {
+export function SiteEditForm({ initialValues, onSuccess, onCancel }: SiteEditFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,11 +126,7 @@ export function SiteEditForm({
         )}
 
         <Title order={5}>Identity</Title>
-        <TextInput
-          label="Site name"
-          required
-          {...form.getInputProps('name')}
-        />
+        <TextInput label="Site name" required {...form.getInputProps('name')} />
         <TextInput
           label="Domain"
           placeholder="www.example.com"
@@ -168,10 +160,7 @@ export function SiteEditForm({
           description="Prompt browsers for HTTP basic auth credentials."
           checked={form.values.basic_auth_enabled}
           onChange={(e) => {
-            form.setFieldValue(
-              'basic_auth_enabled',
-              e.currentTarget.checked,
-            );
+            form.setFieldValue('basic_auth_enabled', e.currentTarget.checked);
           }}
         />
         <Select
@@ -208,12 +197,7 @@ export function SiteEditForm({
         ) : (
           <Stack gap="xs">
             {form.values.redirect_rules.map((rule, i) => (
-              <Group
-                key={`redirect-${String(i)}`}
-                gap="xs"
-                align="flex-end"
-                wrap="nowrap"
-              >
+              <Group key={`redirect-${String(i)}`} gap="xs" align="flex-end" wrap="nowrap">
                 <TextInput
                   label={i === 0 ? 'From' : undefined}
                   value={rule.from}
@@ -280,8 +264,8 @@ export function SiteEditForm({
 
         {form.values.tls_mode === 'manual' && (
           <Alert color="blue" variant="light">
-            Manual TLS certificates cannot be changed via the edit form. Delete
-            and re-create the site with new PEMs to rotate the certificate.
+            Manual TLS certificates cannot be changed via the edit form. Delete and re-create the
+            site with new PEMs to rotate the certificate.
           </Alert>
         )}
 

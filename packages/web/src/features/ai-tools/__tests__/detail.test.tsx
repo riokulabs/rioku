@@ -7,9 +7,7 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({ children }: { children: React.ReactNode }) => (
-    <span data-link="true">{children}</span>
-  ),
+  Link: ({ children }: { children: React.ReactNode }) => <span data-link="true">{children}</span>,
 }));
 
 import { render, screen } from '@testing-library/react';
@@ -46,12 +44,7 @@ function firstToolId(): string {
 describe('ToolDetail', () => {
   it('renders tool header, schema, test panel sections', () => {
     wrap(
-      <ToolDetail
-        toolId={firstToolId()}
-        tenantSlug="acme"
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <ToolDetail toolId={firstToolId()} tenantSlug="acme" onEdit={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getAllByText(/JSON schema/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Test/i).length).toBeGreaterThan(0);
@@ -59,12 +52,7 @@ describe('ToolDetail', () => {
 
   it('shows error alert when tool not found', () => {
     wrap(
-      <ToolDetail
-        toolId="does-not-exist"
-        tenantSlug="acme"
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <ToolDetail toolId="does-not-exist" tenantSlug="acme" onEdit={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getByText(/Tool not found/i)).toBeInTheDocument();
   });

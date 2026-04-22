@@ -24,7 +24,5 @@ export type TraceStreamEvent = CustomEvent<AiTrace>;
  * as a `CustomEvent<AiTrace>` whose `detail` is the trace.
  */
 export function publishTrace(trace: AiTrace): void {
-  traceStreamBus.dispatchEvent(
-    new CustomEvent(TRACE_STREAM_TOPIC, { detail: trace }),
-  );
+  traceStreamBus.dispatchEvent(new CustomEvent(TRACE_STREAM_TOPIC, { detail: trace }));
 }

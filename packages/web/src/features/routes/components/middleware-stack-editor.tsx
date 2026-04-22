@@ -7,17 +7,7 @@
  * in the stack.
  */
 import { useMemo, useState } from 'react';
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Select,
-  Stack,
-  Table,
-  Text,
-} from '@mantine/core';
+import { ActionIcon, Alert, Badge, Button, Group, Select, Stack, Table, Text } from '@mantine/core';
 import {
   IconAlertCircle,
   IconArrowDown,
@@ -44,10 +34,7 @@ const KIND_COLORS: Record<string, string> = {
   custom: 'grape',
 };
 
-export function MiddlewareStackEditor({
-  routeId,
-  tenantId,
-}: MiddlewareStackEditorProps) {
+export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEditorProps) {
   const routes = useMockStore((s) => s.routes);
   const middlewares = useMockStore((s) => s.middlewares);
 
@@ -64,9 +51,7 @@ export function MiddlewareStackEditor({
 
   const candidates = useMemo(() => {
     const inStack = new Set(stackIds);
-    return Object.values(middlewares).filter(
-      (m) => m.tenant_id === tenantId && !inStack.has(m.id),
-    );
+    return Object.values(middlewares).filter((m) => m.tenant_id === tenantId && !inStack.has(m.id));
   }, [middlewares, stackIds, tenantId]);
 
   const [picker, setPicker] = useState<string | null>(null);
@@ -131,15 +116,8 @@ export function MiddlewareStackEditor({
       </Text>
 
       {stack.length === 0 ? (
-        <Alert
-          icon={<IconAlertCircle size={14} />}
-          variant="light"
-          color="gray"
-          p="xs"
-        >
-          <Text size="xs">
-            No middlewares attached. Stack executes in list order.
-          </Text>
+        <Alert icon={<IconAlertCircle size={14} />} variant="light" color="gray" p="xs">
+          <Text size="xs">No middlewares attached. Stack executes in list order.</Text>
         </Alert>
       ) : (
         <Table striped>

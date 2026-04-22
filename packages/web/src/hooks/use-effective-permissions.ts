@@ -34,10 +34,7 @@ export function useEffectivePermissions(userId?: string): Map<string, ResolvedPe
     if (!targetId) return new Map<string, ResolvedPermission>();
 
     const userMemberships = Object.values(memberships).filter(
-      (m) =>
-        m.user_id === targetId &&
-        m.tenant_id === currentTenantId &&
-        m.state === 'active',
+      (m) => m.user_id === targetId && m.tenant_id === currentTenantId && m.state === 'active',
     );
 
     const roleIds = userMemberships.flatMap((m) => m.role_ids);

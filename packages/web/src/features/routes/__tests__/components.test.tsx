@@ -122,14 +122,7 @@ describe('RouteDetail', () => {
     );
     if (!r) throw new Error('no route');
 
-    wrap(
-      <RouteDetail
-        routeId={r.id}
-        tenantId={acmeId()}
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<RouteDetail routeId={r.id} tenantId={acmeId()} onEdit={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getAllByText(/match/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/middleware stack/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/attached policies/i).length).toBeGreaterThan(0);
@@ -140,11 +133,15 @@ describe('RouteDetail', () => {
  * Seed a route with exactly two tenant middlewares attached so reorder tests
  * have a deterministic stack.
  */
-function seedRouteWithTwoMiddlewares(): { routeId: string; a: string; b: string; aName: string; bName: string } {
+function seedRouteWithTwoMiddlewares(): {
+  routeId: string;
+  a: string;
+  b: string;
+  aName: string;
+  bName: string;
+} {
   const state = useMockStore.getState();
-  const tenantMids = Object.values(state.middlewares).filter(
-    (m) => m.tenant_id === acmeId(),
-  );
+  const tenantMids = Object.values(state.middlewares).filter((m) => m.tenant_id === acmeId());
   const a = tenantMids[0];
   const b = tenantMids[1];
   if (!a || !b) throw new Error('need at least 2 tenant middlewares');

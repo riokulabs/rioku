@@ -53,15 +53,10 @@ export function WidgetRenderer({ widget, data, loading, error }: WidgetRendererP
   }
 
   return (
-    <Alert
-      icon={<IconPlugOff size={16} />}
-      color="red"
-      variant="light"
-      title="Unknown widget type"
-    >
-      No renderer registered for widget kind <strong>{widget.kind}</strong>. The
-      plugin providing this widget may not be installed, or the widget is stale
-      and should be removed from the dashboard.
+    <Alert icon={<IconPlugOff size={16} />} color="red" variant="light" title="Unknown widget type">
+      No renderer registered for widget kind <strong>{widget.kind}</strong>. The plugin providing
+      this widget may not be installed, or the widget is stale and should be removed from the
+      dashboard.
     </Alert>
   );
 }

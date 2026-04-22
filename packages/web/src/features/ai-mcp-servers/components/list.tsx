@@ -7,14 +7,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Text,
-  Stack,
-  Menu,
-  ActionIcon,
-  Switch,
-} from '@mantine/core';
+import { Badge, Text, Stack, Menu, ActionIcon, Switch } from '@mantine/core';
 import {
   IconDots,
   IconPencil,
@@ -72,12 +65,7 @@ export function McpServerList({
                 {s.name}
               </Text>
               {s.description && (
-                <Text
-                  size="xs"
-                  c="var(--mantine-color-gray-7)"
-                  lineClamp={1}
-                  title={s.description}
-                >
+                <Text size="xs" c="var(--mantine-color-gray-7)" lineClamp={1} title={s.description}>
                   {s.description}
                 </Text>
               )}
@@ -90,12 +78,7 @@ export function McpServerList({
         header: 'URL',
         accessorFn: (row) => row.url,
         cell: ({ row }) => (
-          <Text
-            size="xs"
-            ff="monospace"
-            c="var(--mantine-color-gray-7)"
-            truncate
-          >
+          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)" truncate>
             {row.original.url}
           </Text>
         ),
@@ -106,11 +89,7 @@ export function McpServerList({
         size: 110,
         accessorFn: (row) => row.auth_kind,
         cell: ({ row }) => (
-          <Badge
-            size="sm"
-            variant="light"
-            color={AUTH_COLORS[row.original.auth_kind]}
-          >
+          <Badge size="sm" variant="light" color={AUTH_COLORS[row.original.auth_kind]}>
             {row.original.auth_kind}
           </Badge>
         ),
@@ -120,9 +99,7 @@ export function McpServerList({
         header: 'Tools',
         size: 80,
         accessorFn: (row) => row.exposed_tool_count,
-        cell: ({ getValue }) => (
-          <Text size="sm">{String(getValue<number>())}</Text>
-        ),
+        cell: ({ getValue }) => <Text size="sm">{String(getValue<number>())}</Text>,
       },
       {
         id: 'health',

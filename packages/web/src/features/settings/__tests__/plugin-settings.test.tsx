@@ -94,9 +94,7 @@ describe('PluginSettingsSection — list', () => {
     render(<PluginSettingsSection />, { wrapper: Wrapper });
     const plugins = Object.values(useMockStore.getState().plugins);
     for (const plugin of plugins) {
-      expect(
-        screen.getByTestId(`plugin-settings-configure-${plugin.slug}`),
-      ).toBeDefined();
+      expect(screen.getByTestId(`plugin-settings-configure-${plugin.slug}`)).toBeDefined();
     }
   });
 });
@@ -154,9 +152,7 @@ describe('PluginSettingsSection — drawer (no zone contribution)', () => {
     render(<PluginSettingsSection />, { wrapper: Wrapper });
 
     // com.example.dashboards has no registered zone contribution
-    const configureBtn = screen.getByTestId(
-      'plugin-settings-configure-com.example.dashboards',
-    );
+    const configureBtn = screen.getByTestId('plugin-settings-configure-com.example.dashboards');
     fireEvent.click(configureBtn);
 
     await waitFor(() => {
@@ -168,14 +164,10 @@ describe('PluginSettingsSection — drawer (no zone contribution)', () => {
   it('EmptyState description mentions settings panel', async () => {
     render(<PluginSettingsSection />, { wrapper: Wrapper });
 
-    fireEvent.click(
-      screen.getByTestId('plugin-settings-configure-com.example.dashboards'),
-    );
+    fireEvent.click(screen.getByTestId('plugin-settings-configure-com.example.dashboards'));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/has not declared a settings panel/i),
-      ).toBeDefined();
+      expect(screen.getByText(/has not declared a settings panel/i)).toBeDefined();
     });
   });
 });

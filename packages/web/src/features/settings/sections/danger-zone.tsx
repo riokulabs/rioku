@@ -14,14 +14,7 @@
  * Task 8c.13
  */
 import { useState } from 'react';
-import {
-  Button,
-  Card,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Button, Card, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
@@ -79,9 +72,13 @@ export function DangerZoneSection() {
             <Title order={5} data-testid="danger-zone-hard-reset-title">
               Hard reset tenant data
             </Title>
-            <Text size="sm" c="var(--mantine-color-gray-7)" mt={4} data-testid="danger-zone-hard-reset-description">
-              Resets all data for the current tenant back to seed defaults.
-              This cannot be undone.
+            <Text
+              size="sm"
+              c="var(--mantine-color-gray-7)"
+              mt={4}
+              data-testid="danger-zone-hard-reset-description"
+            >
+              Resets all data for the current tenant back to seed defaults. This cannot be undone.
             </Text>
           </div>
           <Tooltip
@@ -94,7 +91,9 @@ export function DangerZoneSection() {
               <Button
                 color="red.8"
                 disabled={!canHardReset}
-                onClick={() => { setHardResetOpen(true); }}
+                onClick={() => {
+                  setHardResetOpen(true);
+                }}
                 data-testid="danger-zone-hard-reset-button"
               >
                 Reset tenant data
@@ -111,20 +110,24 @@ export function DangerZoneSection() {
             <Title order={5} data-testid="danger-zone-export-title">
               Export all tenant data
             </Title>
-            <Text size="sm" c="var(--mantine-color-gray-7)" mt={4} data-testid="danger-zone-export-description">
-              Downloads a JSON file containing all resources, audit log,
-              notifications, and dashboards for this tenant.
+            <Text
+              size="sm"
+              c="var(--mantine-color-gray-7)"
+              mt={4}
+              data-testid="danger-zone-export-description"
+            >
+              Downloads a JSON file containing all resources, audit log, notifications, and
+              dashboards for this tenant.
             </Text>
           </div>
-          <Tooltip
-            label="You do not have permission to export tenant data"
-            disabled={canExport}
-          >
+          <Tooltip label="You do not have permission to export tenant data" disabled={canExport}>
             <span>
               <Button
                 loading={exporting}
                 disabled={!canExport}
-                onClick={() => { void handleExport(); }}
+                onClick={() => {
+                  void handleExport();
+                }}
                 data-testid="danger-zone-export-button"
               >
                 Export tenant JSON
@@ -148,16 +151,22 @@ export function DangerZoneSection() {
               <Title order={5} data-testid="danger-zone-delete-title">
                 Delete tenant
               </Title>
-              <Text size="sm" c="var(--mantine-color-gray-7)" mt={4} data-testid="danger-zone-delete-description">
-                Permanently deletes the tenant and all associated resources.
-                Super-admin only.
+              <Text
+                size="sm"
+                c="var(--mantine-color-gray-7)"
+                mt={4}
+                data-testid="danger-zone-delete-description"
+              >
+                Permanently deletes the tenant and all associated resources. Super-admin only.
               </Text>
             </div>
             {/* color="red.8" pins to red.8 (#e03131) so white text meets
                 WCAG AA (4.5:1) regardless of primaryShade. Task 9a.1. */}
             <Button
               color="red.8"
-              onClick={() => { setDeleteOpen(true); }}
+              onClick={() => {
+                setDeleteOpen(true);
+              }}
               data-testid="danger-zone-delete-button"
             >
               Delete tenant
@@ -169,14 +178,18 @@ export function DangerZoneSection() {
       {/* ── Modals ──────────────────────────────────────────────────────── */}
       <HardResetModal
         opened={hardResetOpen}
-        onClose={() => { setHardResetOpen(false); }}
+        onClose={() => {
+          setHardResetOpen(false);
+        }}
         tenantId={tenant.id}
         tenantSlug={tenant.slug}
       />
 
       <DeleteTenantModal
         opened={deleteOpen}
-        onClose={() => { setDeleteOpen(false); }}
+        onClose={() => {
+          setDeleteOpen(false);
+        }}
         tenantId={tenant.id}
         tenantSlug={tenant.slug}
         onDeleted={handleDeleted}

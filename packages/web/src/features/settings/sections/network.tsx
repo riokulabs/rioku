@@ -53,12 +53,7 @@ const LazyMonaco = lazy(async () => {
   const mod = await import('@monaco-editor/react');
   const Editor = mod.default;
   return {
-    default: ({
-      value,
-      language,
-      onChange,
-      height = 220,
-    }: MonacoEditorProps) => (
+    default: ({ value, language, onChange, height = 220 }: MonacoEditorProps) => (
       <Editor
         value={value}
         language={language}
@@ -146,10 +141,7 @@ export function NetworkSection() {
         upstream_timeouts: form.values.upstream_timeouts,
       });
       form.resetDirty(form.values);
-      notify.success(
-        'Config preview updated',
-        'Changes apply at stage 2.',
-      );
+      notify.success('Config preview updated', 'Changes apply at stage 2.');
     } catch (e) {
       notify.error('Save failed', (e as Error).message);
     } finally {
@@ -181,8 +173,8 @@ export function NetworkSection() {
       <Fieldset legend="Caddy config overrides" data-testid="fieldset-caddy-config">
         <Stack gap="xs">
           <Text size="sm">
-            Free-form Caddy JSON overrides applied to the managed Caddy process.
-            Validated at stage 2 before apply.
+            Free-form Caddy JSON overrides applied to the managed Caddy process. Validated at stage
+            2 before apply.
           </Text>
           <Suspense fallback={<Skeleton height={220} data-testid="monaco-skeleton" />}>
             <div onBlur={handleCaddyBlur} data-testid="caddy-editor-wrapper">
@@ -217,7 +209,9 @@ export function NetworkSection() {
             disabled={!canWrite}
             data-testid="http3-switch"
             checked={form.values.http3_enabled}
-            onChange={(e) => { form.setFieldValue('http3_enabled', e.currentTarget.checked); }}
+            onChange={(e) => {
+              form.setFieldValue('http3_enabled', e.currentTarget.checked);
+            }}
           />
         </Stack>
       </Fieldset>
@@ -266,14 +260,13 @@ export function NetworkSection() {
 
       {/* Save */}
       <Group justify="flex-end">
-        <Tooltip
-          label="Requires network:write permission"
-          disabled={canWrite}
-        >
+        <Tooltip label="Requires network:write permission" disabled={canWrite}>
           <span>
             <Button
               leftSection={!canWrite ? <IconLock size={14} /> : undefined}
-              onClick={() => { void handleSave(); }}
+              onClick={() => {
+                void handleSave();
+              }}
               loading={saving}
               disabled={saveDisabled}
               data-testid="save-button"

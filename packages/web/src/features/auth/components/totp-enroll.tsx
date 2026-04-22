@@ -71,8 +71,8 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
     return () => {
       cancelled = true;
     };
-  // Run once on mount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleConfirm(code: string) {
@@ -137,9 +137,8 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
     return (
       <Stack gap="md">
         <Text size="sm">
-          Open your authenticator app (Google Authenticator, Authy, 1Password, etc.)
-          and add a new account. You can either scan a QR code or enter the setup
-          key manually.
+          Open your authenticator app (Google Authenticator, Authy, 1Password, etc.) and add a new
+          account. You can either scan a QR code or enter the setup key manually.
         </Text>
 
         <Stack gap="xs">
@@ -188,7 +187,12 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
           </CopyButton>
         </Stack>
 
-        <Button onClick={() => { setStep('backup-codes'); }} fullWidth>
+        <Button
+          onClick={() => {
+            setStep('backup-codes');
+          }}
+          fullWidth
+        >
           I&apos;ve added the account — next
         </Button>
       </Stack>
@@ -205,16 +209,13 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
             Save your backup codes
           </Text>
           <Text size="sm" mt={4}>
-            If you lose access to your authenticator, these codes are the only way
-            to recover your account. Each code can only be used once.
+            If you lose access to your authenticator, these codes are the only way to recover your
+            account. Each code can only be used once.
           </Text>
         </Alert>
 
         <Paper withBorder p="md" bg="dark.8" data-testid="backup-codes-list">
-          <List
-            spacing="xs"
-            styles={{ itemWrapper: { fontFamily: 'monospace', fontSize: 14 } }}
-          >
+          <List spacing="xs" styles={{ itemWrapper: { fontFamily: 'monospace', fontSize: 14 } }}>
             {enrollment.backup_codes.map((code) => (
               <List.Item key={code}>{code}</List.Item>
             ))}
@@ -225,7 +226,12 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
           Download backup codes
         </Button>
 
-        <Button onClick={() => { setStep('confirm'); }} fullWidth>
+        <Button
+          onClick={() => {
+            setStep('confirm');
+          }}
+          fullWidth
+        >
           I&apos;ve saved my codes — next
         </Button>
       </Stack>
@@ -238,8 +244,7 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
     <Stack gap="md" align="center">
       <Title order={4}>Confirm your authenticator works</Title>
       <Text size="sm" ta="center">
-        Enter the 6-digit code currently shown in your authenticator app to
-        complete enrollment.
+        Enter the 6-digit code currently shown in your authenticator app to complete enrollment.
       </Text>
 
       {confirmError && (

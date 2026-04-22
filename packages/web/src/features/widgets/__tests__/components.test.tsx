@@ -1,4 +1,3 @@
- 
 /**
  * Widget component smoke tests — each of the 10 built-in widgets renders its
  * happy path, loading skeleton, and error alert without crashing.
@@ -33,7 +32,13 @@ function makeWidget(kind: string): Widget {
 /** Per-kind sample data that satisfies each component's type guard. */
 const SAMPLE_DATA: Record<string, unknown> = {
   'single-stat': { value: 1234, delta: 12, unit: 'req/s' },
-  sparkline: { points: [{ x: 0, y: 10 }, { x: 1, y: 15 }, { x: 2, y: 9 }] },
+  sparkline: {
+    points: [
+      { x: 0, y: 10 },
+      { x: 1, y: 15 },
+      { x: 2, y: 9 },
+    ],
+  },
   'time-series': {
     points: [
       { x: '2026-01-01', y: 1 },
@@ -48,7 +53,12 @@ const SAMPLE_DATA: Record<string, unknown> = {
     ],
     series: [{ name: 's1' }, { name: 's2' }],
   },
-  table: { rows: [{ a: 1, b: 'x' }, { a: 2, b: 'y' }] },
+  table: {
+    rows: [
+      { a: 1, b: 'x' },
+      { a: 2, b: 'y' },
+    ],
+  },
   pie: {
     slices: [
       { name: 'A', value: 60 },
@@ -73,7 +83,12 @@ const SAMPLE_DATA: Record<string, unknown> = {
       { id: 'a1', at: '2026-01-01T00:00:00Z', action: 'test', actor_id: 'u1', outcome: 'success' },
     ],
   },
-  'top-n': { items: [{ name: 'one', value: 100 }, { name: 'two', value: 50 }] },
+  'top-n': {
+    items: [
+      { name: 'one', value: 100 },
+      { name: 'two', value: 50 },
+    ],
+  },
 };
 
 function renderWidget(kind: string, overrides: Partial<WidgetRenderProps> = {}) {

@@ -4,15 +4,7 @@
  * User must type the plugin slug to confirm.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { uninstallPlugin } from '../api';
@@ -65,9 +57,9 @@ export function UninstallPluginModal({
       {plugin && (
         <Stack gap="md">
           <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-            Uninstalling removes the plugin and its declared permissions from this
-            Rioku instance. Any routes or services depending on this plugin will
-            stop working until it is reinstalled.
+            Uninstalling removes the plugin and its declared permissions from this Rioku instance.
+            Any routes or services depending on this plugin will stop working until it is
+            reinstalled.
           </Alert>
 
           <Text size="sm">

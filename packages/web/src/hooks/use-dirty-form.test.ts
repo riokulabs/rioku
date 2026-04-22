@@ -131,9 +131,9 @@ describe('useDirtyForm', () => {
     renderHook(() => useDirtyForm(form));
 
     // Extract the registered handler
-    const handler = addListenerSpy.mock.calls.find(
-      ([event]) => event === 'beforeunload',
-    )?.[1] as EventListener | undefined;
+    const handler = addListenerSpy.mock.calls.find(([event]) => event === 'beforeunload')?.[1] as
+      | EventListener
+      | undefined;
 
     if (!handler) throw new Error('beforeunload handler not registered');
 
@@ -153,9 +153,9 @@ describe('useDirtyForm', () => {
     const form = makeMockForm(false);
     renderHook(() => useDirtyForm(form));
 
-    const handler = addListenerSpy.mock.calls.find(
-      ([event]) => event === 'beforeunload',
-    )?.[1] as EventListener | undefined;
+    const handler = addListenerSpy.mock.calls.find(([event]) => event === 'beforeunload')?.[1] as
+      | EventListener
+      | undefined;
 
     if (!handler) throw new Error('beforeunload handler not registered');
 

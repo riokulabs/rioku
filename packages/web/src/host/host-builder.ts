@@ -8,32 +8,15 @@
  * spec §9.4.1
  */
 
-import {
-  registerZone,
-  unregisterZone,
-  getZoneContributions,
-  listAllZones,
-} from '@/host/zones';
-import {
-  registerRoute,
-  unregisterRoute,
-  listPluginRoutes,
-} from '@/host/routes';
-import {
-  registerSidebarEntry,
-  unregisterSidebarEntry,
-  listSidebarEntries,
-} from '@/host/sidebar';
+import { registerZone, unregisterZone, getZoneContributions, listAllZones } from '@/host/zones';
+import { registerRoute, unregisterRoute, listPluginRoutes } from '@/host/routes';
+import { registerSidebarEntry, unregisterSidebarEntry, listSidebarEntries } from '@/host/sidebar';
 import {
   registerSettingsPanel,
   unregisterSettingsPanel,
   listSettingsPanels,
 } from '@/host/settings';
-import {
-  registerPluginTheme,
-  unregisterPluginTheme,
-  listPluginThemes,
-} from '@/host/themes';
+import { registerPluginTheme, unregisterPluginTheme, listPluginThemes } from '@/host/themes';
 import {
   registerSpotlightCommand,
   unregisterSpotlightCommand,
@@ -41,24 +24,14 @@ import {
   unregisterSpotlightResource,
 } from '@/host/spotlight';
 import { setNotifyBackend, emitPluginNotification } from '@/host/notify';
-import {
-  registerWidget,
-  unregisterWidget,
-  listWidgets,
-} from '@/host/widgets';
-import {
-  subscribeHostEvent,
-  useHostEventSubscription,
-} from '@/host/events';
+import { registerWidget, unregisterWidget, listWidgets } from '@/host/widgets';
+import { subscribeHostEvent, useHostEventSubscription } from '@/host/events';
 import {
   registerPluginEndpoint,
   unregisterPluginEndpoint,
   listPluginEndpoints,
 } from '@/host/api-endpoints';
-import {
-  registerPluginOpenApi,
-  unregisterPluginOpenApi,
-} from '@/host/openapi';
+import { registerPluginOpenApi, unregisterPluginOpenApi } from '@/host/openapi';
 import {
   registerPermission,
   unregisterPermission,

@@ -9,22 +9,11 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  AuditEntry,
-  Dashboard,
-  Widget,
-} from '@/api/resources/types';
+import type { AuditEntry, Dashboard, Widget } from '@/api/resources/types';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { runWidgetQuery, WidgetQueryError } from '@/features/widgets/data-sources';
-import {
-  LayoutValidationError,
-  WidgetFlipError,
-} from './types';
-import type {
-  AddWidgetInput,
-  UpdateWidgetInput,
-  WidgetDataState,
-} from './types';
+import { LayoutValidationError, WidgetFlipError } from './types';
+import type { AddWidgetInput, UpdateWidgetInput, WidgetDataState } from './types';
 
 const nextWidgetId = makeIdFactory('widget-b');
 const nextAuditId = makeIdFactory('audit-bldr');
@@ -110,8 +99,8 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
     return () => {
       flag.cancelled = true;
     };
-  // signature encodes the subset of widget fields this hook reacts to
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // signature encodes the subset of widget fields this hook reacts to
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
   return state;
@@ -119,10 +108,7 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
 
 // ─── Widget CRUD ──────────────────────────────────────────────────────────────
 
-export async function addWidget(
-  dashboardId: string,
-  input: AddWidgetInput,
-): Promise<Widget> {
+export async function addWidget(dashboardId: string, input: AddWidgetInput): Promise<Widget> {
   await simulateLatency('mutation');
   const dashboard = requireDashboard(dashboardId);
 
@@ -164,17 +150,12 @@ export async function addWidget(
 
   useMockStore
     .getState()
-    .appendAudit(
-      makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'widget.create', id),
-    );
+    .appendAudit(makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'widget.create', id));
   emitHostEvent('widget.created', { widget_id: id, dashboard_id: dashboardId });
   return widget;
 }
 
-export async function updateWidget(
-  widgetId: string,
-  input: UpdateWidgetInput,
-): Promise<Widget> {
+export async function updateWidget(widgetId: string, input: UpdateWidgetInput): Promise<Widget> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();
   const current = state.widgets[widgetId];
@@ -274,12 +255,7 @@ export async function updateLayout(
   useMockStore
     .getState()
     .appendAudit(
-      makeAuditEntry(
-        getCurrentActorId(),
-        dashboard.tenant_id,
-        'dashboard.layout',
-        dashboardId,
-      ),
+      makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'dashboard.layout', dashboardId),
     );
   emitHostEvent('dashboard.layout-updated', { dashboard_id: dashboardId });
   const after = useMockStore.getState().dashboards[dashboardId];

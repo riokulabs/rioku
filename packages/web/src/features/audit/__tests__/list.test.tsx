@@ -72,13 +72,9 @@ describe('<AuditList>', () => {
   });
 
   it('renders TOTP shield icon when totp_verified is true', () => {
-    render(
-      <AuditList
-        rows={[makeEntry({ totp_verified: true })]}
-        onSelect={() => undefined}
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<AuditList rows={[makeEntry({ totp_verified: true })]} onSelect={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     expect(screen.getByLabelText('TOTP verified')).toBeInTheDocument();
   });
 
@@ -100,13 +96,9 @@ describe('<AuditList>', () => {
   });
 
   it('renders "admin" badge when acted_as_admin is true', () => {
-    render(
-      <AuditList
-        rows={[makeEntry({ acted_as_admin: true })]}
-        onSelect={() => undefined}
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<AuditList rows={[makeEntry({ acted_as_admin: true })]} onSelect={() => undefined} />, {
+      wrapper: Wrapper,
+    });
     expect(screen.getByText('admin')).toBeInTheDocument();
   });
 

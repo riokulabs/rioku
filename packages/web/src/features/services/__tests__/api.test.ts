@@ -79,9 +79,7 @@ describe('deleteService', () => {
     );
     if (!serviceWithRoutes) throw new Error('no service with routes seeded');
 
-    await expect(deleteService(serviceWithRoutes.id)).rejects.toBeInstanceOf(
-      ServiceInUseError,
-    );
+    await expect(deleteService(serviceWithRoutes.id)).rejects.toBeInstanceOf(ServiceInUseError);
     expect(useMockStore.getState().services[serviceWithRoutes.id]).toBeDefined();
   });
 

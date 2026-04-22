@@ -18,10 +18,7 @@
  */
 
 import { useEffect } from 'react';
-import {
-  loadDevPluginSideload,
-  loadPluginFromUrl,
-} from '@/host/plugin-loader';
+import { loadDevPluginSideload, loadPluginFromUrl } from '@/host/plugin-loader';
 import type { PluginManifest } from '@/host/manifest-schema';
 
 /** Minimal synthetic manifest for dev sideload (no real manifest provided). */
@@ -49,7 +46,11 @@ export function DevSideload() {
 
     const manifestPath = params.get('manifest');
     // Derive a slug from the filename: strip directories and extension.
-    const slug = pluginPath.split('/').pop()?.replace(/\.mjs$/, '') ?? 'dev-plugin';
+    const slug =
+      pluginPath
+        .split('/')
+        .pop()
+        ?.replace(/\.mjs$/, '') ?? 'dev-plugin';
 
     void (async () => {
       if (manifestPath) {
@@ -86,7 +87,6 @@ export function DevSideload() {
       }
     })();
     // Run once on mount only.
-     
   }, []);
 
   return null;

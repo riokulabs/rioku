@@ -9,15 +9,7 @@
  * reset on close.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { deleteSite } from '../api';
@@ -31,12 +23,7 @@ export interface DeleteSiteModalProps {
   onSuccess: () => void;
 }
 
-export function DeleteSiteModal({
-  opened,
-  site,
-  onClose,
-  onSuccess,
-}: DeleteSiteModalProps) {
+export function DeleteSiteModal({ opened, site, onClose, onSuccess }: DeleteSiteModalProps) {
   const [typed, setTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -70,8 +57,7 @@ export function DeleteSiteModal({
     >
       <Stack gap="md">
         <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-          This permanently deletes the site. Traffic to this domain will stop
-          being served.
+          This permanently deletes the site. Traffic to this domain will stop being served.
         </Alert>
         <Text size="sm">
           Type{' '}

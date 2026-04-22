@@ -29,7 +29,12 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconArrowsDiagonal, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconArrowsDiagonal,
+  IconShieldHalf,
+  IconUserSearch,
+} from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
 import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
@@ -52,11 +57,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Zone } from '@/components/zone';
 import { MembershipActions } from './membership-actions';
 
-const SAMPLE_PERMISSIONS = [
-  'rioku.viewer.read',
-  'rioku.ops.read',
-  'rioku.admin.read',
-];
+const SAMPLE_PERMISSIONS = ['rioku.viewer.read', 'rioku.ops.read', 'rioku.admin.read'];
 
 interface UserDetailProps {
   userId: string;
@@ -114,9 +115,7 @@ export function UserDetail({
 
   const { user, memberships } = detail;
 
-  const currentMembership = memberships.find(
-    (m) => m.tenant_id === currentTenantId,
-  );
+  const currentMembership = memberships.find((m) => m.tenant_id === currentTenantId);
 
   const isSelf = currentUserId === userId;
 
@@ -370,12 +369,7 @@ export function UserDetail({
 
               {/* Delete */}
               {!isSelf && (
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  color="red"
-                  onClick={openDelete}
-                >
+                <Button size="xs" variant="subtle" color="red" onClick={openDelete}>
                   Delete user…
                 </Button>
               )}
@@ -444,7 +438,6 @@ export function UserDetail({
                               size="xs"
                               variant="default"
                               onClick={() => {
-                                 
                                 setEditingRoles(({ [m.id]: _removed, ...rest }) => rest);
                               }}
                             >
@@ -478,24 +471,23 @@ export function UserDetail({
                       </Badge>
 
                       {m.tenant_id === currentTenantId && (
-                        <MembershipActions
-                          membership={m}
-                          tenantSlug={tenantSlug}
-                        />
+                        <MembershipActions membership={m} tenantSlug={tenantSlug} />
                       )}
 
                       {/* Role edit toggle (current tenant only, non-pending) */}
-                      {m.tenant_id === currentTenantId && m.state !== 'pending' && !isEditingRoles && (
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() => {
-                            setEditingRoles((prev) => ({ ...prev, [m.id]: m.role_ids }));
-                          }}
-                        >
-                          Edit roles
-                        </Button>
-                      )}
+                      {m.tenant_id === currentTenantId &&
+                        m.state !== 'pending' &&
+                        !isEditingRoles && (
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            onClick={() => {
+                              setEditingRoles((prev) => ({ ...prev, [m.id]: m.role_ids }));
+                            }}
+                          >
+                            Edit roles
+                          </Button>
+                        )}
                     </Group>
                   </Group>
 
@@ -582,9 +574,7 @@ export function UserDetail({
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="xs">
-                        {new Date(sess.last_seen).toLocaleString()}
-                      </Text>
+                      <Text size="xs">{new Date(sess.last_seen).toLocaleString()}</Text>
                     </Table.Td>
                     <Table.Td>
                       {sess.revoked ? (
@@ -627,11 +617,7 @@ export function UserDetail({
 
             {/* ── Overview: full computed set ── */}
             <Tabs.Panel value="overview" pt="md">
-              <EffectivePermissionsPanel
-                scope="user"
-                id={userId}
-                tenantId={currentTenantId}
-              />
+              <EffectivePermissionsPanel scope="user" id={userId} tenantId={currentTenantId} />
             </Tabs.Panel>
 
             {/* ── Trace: single-permission debugger ── */}
@@ -661,16 +647,14 @@ export function UserDetail({
       </Tabs>
 
       {/* ── Disable modal ── */}
-      <Modal
-        opened={disableOpened}
-        onClose={closeDisable}
-        title="Disable user"
-        size="sm"
-      >
+      <Modal opened={disableOpened} onClose={closeDisable} title="Disable user" size="sm">
         <Stack gap="md">
           <Text size="sm">
-            Disabling <Text component="span" fw={600}>{user.name}</Text> will prevent
-            them from logging in across all tenants. Their data is preserved and the
+            Disabling{' '}
+            <Text component="span" fw={600}>
+              {user.name}
+            </Text>{' '}
+            will prevent them from logging in across all tenants. Their data is preserved and the
             user can be re-enabled at any time.
           </Text>
           <Group justify="flex-end" gap="sm">
@@ -701,8 +685,8 @@ export function UserDetail({
       >
         <Stack gap="md">
           <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-            This permanently deletes the user. All memberships will be set to removed,
-            all sessions revoked, and all API keys revoked. This action cannot be undone.
+            This permanently deletes the user. All memberships will be set to removed, all sessions
+            revoked, and all API keys revoked. This action cannot be undone.
           </Alert>
           <Text size="sm">
             Type{' '}
@@ -713,7 +697,9 @@ export function UserDetail({
           </Text>
           <TextInput
             value={deleteEmailInput}
-            onChange={(e) => { setDeleteEmailInput(e.currentTarget.value); }}
+            onChange={(e) => {
+              setDeleteEmailInput(e.currentTarget.value);
+            }}
             placeholder={user.email}
             data-autofocus
           />

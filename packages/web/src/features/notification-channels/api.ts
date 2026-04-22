@@ -59,11 +59,7 @@ function makeAudit(
   };
 }
 
-function matchesFilter(
-  channel: NotificationChannel,
-  tenantId: ID,
-  filter: ChannelFilter,
-): boolean {
+function matchesFilter(channel: NotificationChannel, tenantId: ID, filter: ChannelFilter): boolean {
   if (channel.tenant_id !== tenantId) return false;
   if (filter.kinds.length > 0 && !filter.kinds.includes(channel.kind)) return false;
   if (filter.enabled !== undefined && channel.enabled !== filter.enabled) return false;
@@ -74,10 +70,7 @@ function matchesFilter(
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useChannelList(
-  tenantId: ID,
-  filter: ChannelFilter,
-): NotificationChannel[] {
+export function useChannelList(tenantId: ID, filter: ChannelFilter): NotificationChannel[] {
   const channels = useMockStore((s) => s.notificationChannels);
   return useMemo(() => {
     const out: NotificationChannel[] = [];
@@ -95,9 +88,7 @@ export function useChannelDetail(id: ID): NotificationChannel | undefined {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export async function createChannel(
-  input: CreateChannelInput,
-): Promise<NotificationChannel> {
+export async function createChannel(input: CreateChannelInput): Promise<NotificationChannel> {
   await simulateLatency('mutation');
   // Per-kind validation so the UI can't persist a broken config.
   const parsedConfig = parseChannelConfig(input.kind, input.config);
@@ -114,9 +105,7 @@ export async function createChannel(
 
   const state = useMockStore.getState();
   state.addEntity('notificationChannels', channel);
-  state.appendAudit(
-    makeAudit('notification_channel.create', channel.tenant_id, channel.id),
-  );
+  state.appendAudit(makeAudit('notification_channel.create', channel.tenant_id, channel.id));
   emitHostEvent('notification-channel:created', {
     channel_id: channel.id,
     tenant_id: channel.tenant_id,
@@ -143,9 +132,7 @@ export async function updateChannel(
   }
 
   state.updateEntity('notificationChannels', id, patch);
-  state.appendAudit(
-    makeAudit('notification_channel.update', current.tenant_id, id),
-  );
+  state.appendAudit(makeAudit('notification_channel.update', current.tenant_id, id));
   emitHostEvent('notification-channel:updated', {
     channel_id: id,
     tenant_id: current.tenant_id,
@@ -218,16 +205,17 @@ export async function testChannel(id: ID): Promise<TestChannelResult> {
     attempts: ok ? 1 : 3,
     ...(ok
       ? {}
-      : { error_message: 'Simulated test failure (hash bucket 0)', error: 'Simulated test failure (hash bucket 0)' }),
+      : {
+          error_message: 'Simulated test failure (hash bucket 0)',
+          error: 'Simulated test failure (hash bucket 0)',
+        }),
     first_attempted_at: testedAt,
     last_attempted_at: testedAt,
     attempted_at: testedAt,
   };
   state.addEntity('notificationDeliveryLog', logEntry);
 
-  state.appendAudit(
-    makeAudit('notification_channel.test', channel.tenant_id, id, 'read'),
-  );
+  state.appendAudit(makeAudit('notification_channel.test', channel.tenant_id, id, 'read'));
   emitHostEvent('notification-channel:tested', {
     channel_id: id,
     tenant_id: channel.tenant_id,

@@ -82,15 +82,10 @@ export function ImpersonationEntryForm() {
   const selectedTenantId = form.values.tenant_id;
   const tenantUserOptions = selectedTenantId
     ? Object.values(memberships)
-        .filter(
-          (m) =>
-            m.tenant_id === selectedTenantId && m.state === 'active',
-        )
+        .filter((m) => m.tenant_id === selectedTenantId && m.state === 'active')
         .map((m) => {
           const user = users[m.user_id];
-          return user
-            ? { value: user.id, label: `${user.name} (${user.email})` }
-            : null;
+          return user ? { value: user.id, label: `${user.name} (${user.email})` } : null;
         })
         .filter((opt): opt is NonNullable<typeof opt> => opt !== null)
     : [];
@@ -136,9 +131,9 @@ export function ImpersonationEntryForm() {
 
         <Alert color="orange" variant="light">
           <Text size="sm">
-            Starting an impersonation session will be logged to both the super-admin
-            audit log and the target tenant&apos;s audit log. All actions during the session
-            are attributed to you, not the impersonated user.
+            Starting an impersonation session will be logged to both the super-admin audit log and
+            the target tenant&apos;s audit log. All actions during the session are attributed to
+            you, not the impersonated user.
           </Text>
         </Alert>
 
@@ -188,7 +183,9 @@ export function ImpersonationEntryForm() {
 
         <ProfileToggle
           value={profile}
-          onChange={(v) => { form.setFieldValue('profile', v); }}
+          onChange={(v) => {
+            form.setFieldValue('profile', v);
+          }}
         />
 
         {profile === 'full' && (
@@ -213,7 +210,9 @@ export function ImpersonationEntryForm() {
         <Group justify="flex-end" gap="xs">
           <Button
             variant="default"
-            onClick={() => { void navigate({ to: '/admin' as string }); }}
+            onClick={() => {
+              void navigate({ to: '/admin' as string });
+            }}
             disabled={saving}
           >
             Cancel

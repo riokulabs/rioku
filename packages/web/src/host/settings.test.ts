@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  registerSettingsPanel,
-  unregisterSettingsPanel,
-  listSettingsPanels,
-} from './settings';
+import { registerSettingsPanel, unregisterSettingsPanel, listSettingsPanels } from './settings';
 
 const registeredIds: string[] = [];
 
@@ -74,6 +70,8 @@ describe('unregisterSettingsPanel', () => {
   });
 
   it('no-ops for unknown id', () => {
-    expect(() => { unregisterSettingsPanel('ghost'); }).not.toThrow();
+    expect(() => {
+      unregisterSettingsPanel('ghost');
+    }).not.toThrow();
   });
 });

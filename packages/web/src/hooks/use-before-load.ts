@@ -42,8 +42,7 @@ export interface RequirePermissionsOptions {
  */
 export function requirePermissions(opts: RequirePermissionsOptions) {
   return (): true => {
-    const { currentUserId, currentTenantId, memberships, roles } =
-      useMockStore.getState();
+    const { currentUserId, currentTenantId, memberships, roles } = useMockStore.getState();
 
     if (!currentUserId) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -51,27 +50,20 @@ export function requirePermissions(opts: RequirePermissionsOptions) {
         to: '/login' as string,
         search: {
           return:
-            typeof window !== 'undefined'
-              ? window.location.pathname + window.location.search
-              : '/',
+            typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/',
         } as Record<string, unknown>,
       });
     }
 
     // Derive the user's active role IDs for the current tenant
     const userMemberships = Object.values(memberships).filter(
-      (m) =>
-        m.user_id === currentUserId &&
-        m.tenant_id === currentTenantId &&
-        m.state === 'active',
+      (m) => m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active',
     );
     const roleIds = userMemberships.flatMap((m) => m.role_ids);
     const resolved = resolveRolePermissions(roleIds, roles);
 
     const has = (k: string): boolean => resolved.has(k);
-    const pass = opts.requireAny
-      ? opts.required.some(has)
-      : opts.required.every(has);
+    const pass = opts.requireAny ? opts.required.some(has) : opts.required.every(has);
 
     if (!pass) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error

@@ -282,9 +282,7 @@ describe('subscribeInboxStream + emitNotification', () => {
 
   it('the new notification appears in useNotificationList immediately', () => {
     const userId = 'user-0001';
-    const { result, rerender } = renderHook(() =>
-      useNotificationList(userId, emptyFilter()),
-    );
+    const { result, rerender } = renderHook(() => useNotificationList(userId, emptyFilter()));
     const before = result.current.length;
     act(() => {
       emitNotification({

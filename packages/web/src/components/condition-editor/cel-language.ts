@@ -60,7 +60,7 @@ export function registerCelLanguage(monaco: typeof MonacoNS): void {
         [/&&|\|\||!/, 'operator'],
 
         // Delimiters
-         
+
         [/[{}()[\]]/, '@brackets'],
         [/[.,;]/, 'delimiter'],
       ],

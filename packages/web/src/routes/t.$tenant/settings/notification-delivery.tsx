@@ -8,13 +8,7 @@
  */
 import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import {
-  Anchor,
-  Drawer,
-  Group,
-  Stack,
-  Title,
-} from '@mantine/core';
+import { Anchor, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -25,10 +19,7 @@ import {
   DeliveryLogList,
   useDeliveryLogList,
 } from '@/features/notification-log';
-import type {
-  DeliveryLogFilter,
-  NotificationDeliveryLogEntry,
-} from '@/features/notification-log';
+import type { DeliveryLogFilter, NotificationDeliveryLogEntry } from '@/features/notification-log';
 
 interface SearchParams {
   search: string;
@@ -68,9 +59,7 @@ function NotificationDeliveryPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -127,11 +116,7 @@ function NotificationDeliveryPage() {
 
       <Title order={2}>Delivery log</Title>
 
-      <DeliveryLogFilterBar
-        tenantId={tenantId}
-        filter={filter}
-        onChange={setFilter}
-      />
+      <DeliveryLogFilterBar tenantId={tenantId} filter={filter} onChange={setFilter} />
 
       <DeliveryLogList rows={rows} onSelect={handleSelect} />
 
@@ -144,11 +129,7 @@ function NotificationDeliveryPage() {
         padding="md"
       >
         {selected && (
-          <DeliveryLogDetail
-            entryId={selected.id}
-            tenantSlug={tenantSlug}
-            onClose={closeDrawer}
-          />
+          <DeliveryLogDetail entryId={selected.id} tenantSlug={tenantSlug} onClose={closeDrawer} />
         )}
       </Drawer>
     </Stack>
@@ -162,11 +143,7 @@ export const Route = createFileRoute('/t/$tenant/settings/notification-delivery'
     search: typeof s.search === 'string' ? s.search : '',
     statuses: narrowStatuses(parseCsv(s.statuses)),
     channel_ids: parseCsv(s.channel_ids),
-    date_from:
-      typeof s.date_from === 'string' && s.date_from.length > 0
-        ? s.date_from
-        : null,
-    date_to:
-      typeof s.date_to === 'string' && s.date_to.length > 0 ? s.date_to : null,
+    date_from: typeof s.date_from === 'string' && s.date_from.length > 0 ? s.date_from : null,
+    date_to: typeof s.date_to === 'string' && s.date_to.length > 0 ? s.date_to : null,
   }),
 });

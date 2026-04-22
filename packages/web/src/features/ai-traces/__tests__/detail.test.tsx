@@ -7,10 +7,7 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({
-    children,
-    ...rest
-  }: React.PropsWithChildren<Record<string, unknown>>) => (
+  Link: ({ children, ...rest }: React.PropsWithChildren<Record<string, unknown>>) => (
     <a {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>{children}</a>
   ),
 }));
@@ -39,9 +36,7 @@ beforeEach(() => {
 });
 
 function firstAcmeTrace() {
-  const acme = Object.values(useMockStore.getState().tenants).find(
-    (t) => t.slug === 'acme',
-  );
+  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant');
   const trace = Object.values(useMockStore.getState().aiTraces).find(
     (t) => t.tenant_id === acme.id,
@@ -53,13 +48,7 @@ function firstAcmeTrace() {
 describe('TraceDetail', () => {
   it('renders header with agent + status chip', () => {
     const trace = firstAcmeTrace();
-    wrap(
-      <TraceDetail
-        traceId={trace.id}
-        tenantSlug="acme"
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<TraceDetail traceId={trace.id} tenantSlug="acme" onClose={vi.fn()} />);
     // Status chip
     expect(screen.getAllByText(trace.status).length).toBeGreaterThan(0);
     // Agent name
@@ -74,24 +63,12 @@ describe('TraceDetail', () => {
       (t) => t.status === 'error' && t.error_message,
     );
     if (!errTrace) return;
-    wrap(
-      <TraceDetail
-        traceId={errTrace.id}
-        tenantSlug="acme"
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<TraceDetail traceId={errTrace.id} tenantSlug="acme" onClose={vi.fn()} />);
     expect(screen.getByTestId('trace-error-alert')).toBeInTheDocument();
   });
 
   it('shows "not found" alert for unknown trace', () => {
-    wrap(
-      <TraceDetail
-        traceId="nonexistent"
-        tenantSlug="acme"
-        onClose={vi.fn()}
-      />,
-    );
+    wrap(<TraceDetail traceId="nonexistent" tenantSlug="acme" onClose={vi.fn()} />);
     expect(screen.getByText(/trace not found/i)).toBeInTheDocument();
   });
 });

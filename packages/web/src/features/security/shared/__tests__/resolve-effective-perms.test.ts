@@ -14,10 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type { Role, Membership, RbacPolicy } from '../../../../api/resources/types';
-import {
-  resolveEffectiveRolePerms,
-  resolveEffectiveUserPerms,
-} from '../resolve-effective-perms';
+import { resolveEffectiveRolePerms, resolveEffectiveUserPerms } from '../resolve-effective-perms';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -147,17 +144,31 @@ describe('resolveEffectiveRolePerms', () => {
   it('de-duplicates same permission from two paths, merging sources', () => {
     // role-multi has two parents both granting the same perm
     const parentA: Role = {
-      id: 'parent-a', tenant_id: 'tenant-1', name: 'Parent A',
-      parent_ids: [], grants: [{ permission: 'shared:perm' }], denies: [], system: false,
+      id: 'parent-a',
+      tenant_id: 'tenant-1',
+      name: 'Parent A',
+      parent_ids: [],
+      grants: [{ permission: 'shared:perm' }],
+      denies: [],
+      system: false,
     };
     const parentB: Role = {
-      id: 'parent-b', tenant_id: 'tenant-1', name: 'Parent B',
-      parent_ids: [], grants: [{ permission: 'shared:perm' }], denies: [], system: false,
+      id: 'parent-b',
+      tenant_id: 'tenant-1',
+      name: 'Parent B',
+      parent_ids: [],
+      grants: [{ permission: 'shared:perm' }],
+      denies: [],
+      system: false,
     };
     const multi: Role = {
-      id: 'role-multi', tenant_id: 'tenant-1', name: 'Multi',
+      id: 'role-multi',
+      tenant_id: 'tenant-1',
+      name: 'Multi',
       parent_ids: ['parent-a', 'parent-b'],
-      grants: [], denies: [], system: false,
+      grants: [],
+      denies: [],
+      system: false,
     };
     const roles = { 'parent-a': parentA, 'parent-b': parentB, 'role-multi': multi };
     const grants = resolveEffectiveRolePerms('role-multi', roles);
@@ -186,7 +197,8 @@ describe('resolveEffectiveUserPerms', () => {
 
   it('resolves all permissions for a user with one role', () => {
     const grants = resolveEffectiveUserPerms(
-      'user-1', 'tenant-1',
+      'user-1',
+      'tenant-1',
       ROLES,
       { 'mbr-1': MEMBERSHIP },
       {},
@@ -209,7 +221,8 @@ describe('resolveEffectiveUserPerms', () => {
       state: 'pending',
     };
     const grants = resolveEffectiveUserPerms(
-      'user-1', 'tenant-1',
+      'user-1',
+      'tenant-1',
       ROLES,
       { 'mbr-pending': pendingMembership },
       {},
@@ -237,7 +250,8 @@ describe('resolveEffectiveUserPerms', () => {
       created_at: '2025-01-01T00:00:00Z',
     };
     const grants = resolveEffectiveUserPerms(
-      'user-1', 'tenant-1',
+      'user-1',
+      'tenant-1',
       { ...ROLES, 'role-extra': extraRole },
       { 'mbr-1': MEMBERSHIP },
       { 'pol-1': policy },
@@ -264,12 +278,13 @@ describe('resolveEffectiveUserPerms', () => {
       tenant_id: 'tenant-1',
       name: 'group-policy',
       role_id: 'role-extra',
-      subject_kind: 'group',        // not 'user'
-      subject_id: 'user-1',         // same id but kind is group
+      subject_kind: 'group', // not 'user'
+      subject_id: 'user-1', // same id but kind is group
       created_at: '2025-01-01T00:00:00Z',
     };
     const grants = resolveEffectiveUserPerms(
-      'user-1', 'tenant-1',
+      'user-1',
+      'tenant-1',
       { ...ROLES, 'role-extra': extraRole },
       { 'mbr-1': MEMBERSHIP },
       { 'pol-group': groupPolicy },
@@ -293,7 +308,13 @@ describe('resolveEffectiveUserPerms', () => {
       invited_at: '2025-01-01T00:00:00Z',
     };
     expect(() =>
-      resolveEffectiveUserPerms('user-2', 'tenant-1', cycleRoles, { 'mbr-cycle': cycleMembership }, {}),
+      resolveEffectiveUserPerms(
+        'user-2',
+        'tenant-1',
+        cycleRoles,
+        { 'mbr-cycle': cycleMembership },
+        {},
+      ),
     ).not.toThrow();
   });
 });

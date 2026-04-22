@@ -1,11 +1,7 @@
 /**
  * Notification delivery log feature — barrel exports (read-only).
  */
-export {
-  useDeliveryLogList,
-  useDeliveryLogListInfinite,
-  useDeliveryLogDetail,
-} from './api';
+export { useDeliveryLogList, useDeliveryLogListInfinite, useDeliveryLogDetail } from './api';
 
 export type { DeliveryLogInfiniteResult } from './api';
 

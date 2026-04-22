@@ -164,12 +164,23 @@ describe('BUILT_IN_PERMISSIONS', () => {
 
   it('contains all 17 Plan 3 AI / MCP keys', () => {
     const expected = [
-      'ai-provider:read', 'ai-provider:write', 'ai-provider:delete',
-      'ai-agent:read', 'ai-agent:write', 'ai-agent:delete', 'ai-agent:invoke',
-      'ai-tool:read', 'ai-tool:write', 'ai-tool:delete',
-      'ai-trace:read', 'ai-trace:read-sensitive',
-      'ai-rate-limit:read', 'ai-rate-limit:write',
-      'mcp-server:read', 'mcp-server:write', 'mcp-server:delete',
+      'ai-provider:read',
+      'ai-provider:write',
+      'ai-provider:delete',
+      'ai-agent:read',
+      'ai-agent:write',
+      'ai-agent:delete',
+      'ai-agent:invoke',
+      'ai-tool:read',
+      'ai-tool:write',
+      'ai-tool:delete',
+      'ai-trace:read',
+      'ai-trace:read-sensitive',
+      'ai-rate-limit:read',
+      'ai-rate-limit:write',
+      'mcp-server:read',
+      'mcp-server:write',
+      'mcp-server:delete',
     ];
     expect(expected).toHaveLength(17);
     for (const key of expected) {
@@ -256,7 +267,11 @@ describe('registerPermission', () => {
 
   it('throws if the key has no colon separator', () => {
     expect(() => {
-      registerPermission({ key: 'invalid-no-colon', description: 'bad', source: 'plugin-manifest' });
+      registerPermission({
+        key: 'invalid-no-colon',
+        description: 'bad',
+        source: 'plugin-manifest',
+      });
     }).toThrow(/':'.*namespace separator/i);
   });
 
@@ -276,6 +291,8 @@ describe('unregisterPermission', () => {
   });
 
   it('no-ops silently for unknown keys', () => {
-    expect(() => { unregisterPermission('com.nonexistent:perm'); }).not.toThrow();
+    expect(() => {
+      unregisterPermission('com.nonexistent:perm');
+    }).not.toThrow();
   });
 });

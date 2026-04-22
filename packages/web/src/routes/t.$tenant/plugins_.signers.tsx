@@ -9,21 +9,8 @@
  * Guard: plugin-signer:read.
  */
 import { useState } from 'react';
-import {
-  createFileRoute,
-  useNavigate,
-  Link,
-} from '@tanstack/react-router';
-import {
-  Anchor,
-  Breadcrumbs,
-  Button,
-  Drawer,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { Anchor, Breadcrumbs, Button, Drawer, Group, Stack, Text, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconShieldCheck } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
@@ -64,9 +51,7 @@ function parseCsv(v: unknown): string[] {
 }
 
 function parseStatuses(v: unknown): Status[] {
-  return parseCsv(v).filter((s): s is Status =>
-    (STATUS_VALUES as readonly string[]).includes(s),
-  );
+  return parseCsv(v).filter((s): s is Status => (STATUS_VALUES as readonly string[]).includes(s));
 }
 
 function PluginSignersPage() {
@@ -74,9 +59,7 @@ function PluginSignersPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
+  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
@@ -100,8 +83,7 @@ function PluginSignersPage() {
     } as unknown as Parameters<typeof navigate>[0]);
   }
 
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
-    useDisclosure(false);
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selected, setSelected] = useState<PluginSigner | null>(null);
 
@@ -147,7 +129,7 @@ function PluginSignersPage() {
       ? 'Add signer'
       : drawerMode === 'edit'
         ? `Edit — ${selected?.name ?? ''}`
-        : selected?.name ?? 'Signer detail';
+        : (selected?.name ?? 'Signer detail');
 
   return (
     <Stack gap="md" p="md">
@@ -164,18 +146,14 @@ function PluginSignersPage() {
           <IconShieldCheck size={24} />
           <Title order={2}>Plugin signers</Title>
         </Group>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={handleCreate}
-          disabled={!canWrite}
-        >
+        <Button leftSection={<IconPlus size={16} />} onClick={handleCreate} disabled={!canWrite}>
           Add signer
         </Button>
       </Group>
 
       <Text size="sm" c="var(--mantine-color-gray-7)">
-        Tenant-scoped signer allow-list. Global signers managed by super-admin
-        trust every tenant automatically and do not appear here.
+        Tenant-scoped signer allow-list. Global signers managed by super-admin trust every tenant
+        automatically and do not appear here.
       </Text>
 
       <SignerFilterBar filter={filter} onChange={setFilter} />

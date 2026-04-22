@@ -19,15 +19,13 @@ test('no critical/serious axe violations on /t/acme/security/audit', async ({
 }) => {
   await page.goto('/t/acme/security/audit');
 
-  await expect(
-    page.getByRole('heading', { name: /^audit log$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^audit log$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Ensure the list has hydrated — guarantees the DataTable rows and the
   // filter bar controls are in the DOM before axe walks it.
-  await expect(
-    page.locator('tbody tr[role="row"]').first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(250);
@@ -47,9 +45,9 @@ test('no critical/serious axe violations on /t/acme/settings/audit-retention', a
 }) => {
   await page.goto('/t/acme/settings/audit-retention');
 
-  await expect(
-    page.getByRole('heading', { name: /^audit retention$/i }),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: /^audit retention$/i })).toBeVisible({
+    timeout: 10_000,
+  });
 
   await expect(page.getByTestId('audit-retention-form')).toBeVisible({
     timeout: 10_000,

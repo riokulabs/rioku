@@ -106,7 +106,9 @@ describe('generateEnrollmentToken', () => {
     expect(token.token).toMatch(/^rkjoin_/);
     expect(token.expires_at).toBeDefined();
     expect(useMockStore.getState().clusterEnrollmentTokens[token.id]).toBeDefined();
-    expect(Object.keys(useMockStore.getState().clusterEnrollmentTokens).length).toBe(tokensBefore + 1);
+    expect(Object.keys(useMockStore.getState().clusterEnrollmentTokens).length).toBe(
+      tokensBefore + 1,
+    );
 
     const audit = useMockStore.getState().audit;
     expect(audit.length).toBe(auditBefore + 1);

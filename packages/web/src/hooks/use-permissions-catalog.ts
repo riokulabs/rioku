@@ -67,9 +67,7 @@ export function usePermissionsCatalog(): PermissionsCatalog {
   );
 
   const groups: PermissionGroup[] =
-    builtIns.length > 0
-      ? [builtInGroup, ...pluginGroups]
-      : pluginGroups;
+    builtIns.length > 0 ? [builtInGroup, ...pluginGroups] : pluginGroups;
 
   return { all, groups };
 }

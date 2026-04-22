@@ -42,8 +42,7 @@ function daysDiff(isoStr: string): number {
 }
 
 function enrichApiKey(key: ApiKey): ApiKeyWithMeta {
-  const isExpired =
-    key.expires_at != null && new Date(key.expires_at) < new Date();
+  const isExpired = key.expires_at != null && new Date(key.expires_at) < new Date();
   const display_status: ApiKeyWithMeta['display_status'] = key.revoked
     ? 'revoked'
     : isExpired
