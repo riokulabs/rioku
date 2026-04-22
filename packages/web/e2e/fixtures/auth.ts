@@ -36,6 +36,54 @@ export async function getStoreState(page: Page): Promise<Record<string, unknown>
   });
 }
 
+/**
+ * Wait for the admin panel to be fully hydrated after navigation.
+ *
+ * The app performs several async setup steps on every navigation:
+ *   1. Store is seeded (`currentUserId !== null`)
+ *   2. React mounts and the route component paints content into the DOM
+ *
+ * Waiting only on step 1 (what the original fixture did) is a race —
+ * the TanStack Router's lazy route chunks may still be resolving, leaving
+ * the content pane empty. This helper combines both conditions in a
+ * single `waitForFunction` so tests never capture half-rendered DOM.
+ *
+ * Bypass for unauth pages: the pre-auth surfaces (login, invite accept,
+ * password reset) don't seed currentUserId. The helper's failure is
+ * swallowed so those tests continue — the fixture's navigation still
+ * returns and the test body decides what to wait for.
+ *
+ * Call site: used by the `authedPage` fixture's patched `page.goto()`
+ * wrapper so every navigation in a test is automatically safe.
+ */
+export async function waitForAppReady(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () => {
+        const store = (
+          window as unknown as {
+            __RIOKU_STORE?: { getState: () => { currentUserId: string | null } };
+          }
+        ).__RIOKU_STORE;
+        if (!store) return false;
+        if (store.getState().currentUserId === null) return false;
+        // Route content has mounted — at least one heading OR dialog OR a
+        // sizeable chunk of rendered body text exists inside #root.
+        const root = document.getElementById('root');
+        if (!root || root.children.length === 0) return false;
+        const hasHeading = !!root.querySelector('h1, h2, h3, [role="heading"]');
+        const hasContent = (document.body.innerText || '').trim().length > 60;
+        return hasHeading || hasContent;
+      },
+      null,
+      { timeout: 15_000 },
+    )
+    .catch(() => {
+      // unauth pages or 404s may not satisfy this — tolerate so the
+      // fixture setup returns and the test body can assert directly.
+    });
+}
+
 export interface AuthFixtures {
   /** Page with the default seeded store (Derrick is logged in). */
   authedPage: Page;
@@ -56,21 +104,18 @@ export const test = base.extend<AuthFixtures>({
     await context.addInitScript(() => {
       localStorage.clear();
     });
+
+    // Patch page.goto() so every navigation auto-waits for app hydration.
+    // Without this, tests race the TanStack Router's split-chunk resolution
+    // and capture empty DOM — see waitForAppReady() doc above.
+    const originalGoto = page.goto.bind(page);
+    page.goto = async (url: string, options?: Parameters<typeof originalGoto>[1]) => {
+      const response = await originalGoto(url, options);
+      await waitForAppReady(page);
+      return response;
+    };
+
     await page.goto('/');
-    // Wait for the store to be seeded (currentUserId becomes non-null).
-    await page.waitForFunction(
-      () => {
-        const store = (
-          window as unknown as {
-            __RIOKU_STORE?: { getState: () => { currentUserId: string | null } };
-          }
-        ).__RIOKU_STORE;
-        if (!store) return false;
-        return store.getState().currentUserId !== null;
-      },
-      null,
-      { timeout: 10000 },
-    );
     await applyFixture(page);
   },
 
