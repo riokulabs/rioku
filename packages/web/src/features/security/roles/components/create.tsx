@@ -48,7 +48,6 @@ export function RoleCreate({ tenantId: _tenantId, onSave, onCancel }: RoleCreate
           label="Name"
           placeholder="e.g. ops-viewer"
           description="Lowercase alphanumeric, hyphens, dots, or colons."
-          required
           {...form.getInputProps('name')}
         />
 
