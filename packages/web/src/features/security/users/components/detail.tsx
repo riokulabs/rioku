@@ -26,12 +26,10 @@ import {
   Modal,
   TextInput,
   MultiSelect,
-  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconAlertCircle,
-  IconArrowsDiagonal,
   IconShieldHalf,
   IconUserSearch,
 } from '@tabler/icons-react';
@@ -64,8 +62,6 @@ interface UserDetailProps {
   currentTenantId: string;
   tenantSlug: string;
   onClose: () => void;
-  /** Optional: navigate to the full-page detail view. */
-  onOpenFullPage?: () => void;
 }
 
 export function UserDetail({
@@ -73,7 +69,6 @@ export function UserDetail({
   currentTenantId,
   tenantSlug,
   onClose,
-  onOpenFullPage,
 }: UserDetailProps) {
   const detail = useUserDetail(userId);
   const sessions = useUserSessions(userId);
@@ -248,19 +243,6 @@ export function UserDetail({
             </Text>
           </Stack>
         </Group>
-        {onOpenFullPage && (
-          <Tooltip label="Open full page" withArrow>
-            <Button
-              variant="subtle"
-              size="xs"
-              px={6}
-              aria-label="Open full page"
-              onClick={onOpenFullPage}
-            >
-              <IconArrowsDiagonal size={14} />
-            </Button>
-          </Tooltip>
-        )}
       </Group>
 
       {/* Zone: service.detail.header-actions — plugins can add actions here */}

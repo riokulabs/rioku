@@ -12,6 +12,7 @@ import { IconUserPlus } from '@tabler/icons-react';
 import { UserList, UserDetail, UserInviteForm } from '@/features/security/users';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { DrawerTitleExpand } from '@/components/drawer-title-expand';
 import type { UserWithMembership } from '@/features/security/users';
 
 type DrawerMode = 'detail' | 'invite';
@@ -59,7 +60,26 @@ function UsersPage() {
         transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
-        title={drawerTitle}
+        title={
+          <DrawerTitleExpand
+            title={drawerTitle}
+            {...(drawerMode === 'detail' && selectedItem
+              ? {
+                  onOpenFullPage: () => {
+                    closeDrawer();
+                    void navigate({
+                      to: '/t/$tenant/_detail/$kind/$id',
+                      params: {
+                        tenant: tenantSlug,
+                        kind: 'user',
+                        id: selectedItem.user.id,
+                      },
+                    } as unknown as Parameters<typeof navigate>[0]);
+                  },
+                }
+              : {})}
+          />
+        }
         position="right"
         size="min(520px, 95vw)"
         padding="md"
@@ -70,13 +90,6 @@ function UsersPage() {
             currentTenantId={tenantId}
             tenantSlug={tenantSlug}
             onClose={closeDrawer}
-            onOpenFullPage={() => {
-              closeDrawer();
-              void navigate({
-                to: '/t/$tenant/_detail/$kind/$id',
-                params: { tenant: tenantSlug, kind: 'user', id: selectedItem.user.id },
-              } as unknown as Parameters<typeof navigate>[0]);
-            }}
           />
         )}
         {drawerMode === 'invite' && (
