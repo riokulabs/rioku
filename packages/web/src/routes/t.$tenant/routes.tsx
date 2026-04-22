@@ -28,6 +28,7 @@ import {
 } from '@/features/routes';
 import type { RouteFilter } from '@/features/routes';
 import type { Route as RouteRecord } from '@/api/resources/types';
+import { useServiceList } from '@/features/services';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 
@@ -74,6 +75,19 @@ function RoutesPage() {
 
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
+
+  // Service filter — null = "All services"
+  const [serviceFilter, setServiceFilter] = useState<string | null>(null);
+
+  // Fetch services for the service filter dropdown
+  const services = useServiceList(tenantId, { search: '', health: [], env: [], tags: [] });
+  const serviceOptions = useMemo(
+    () => [
+      { value: '', label: 'All services' },
+      ...services.map((s) => ({ value: s.id, label: s.name })),
+    ],
+    [services],
+  );
 
   function commit(next: RouteFilter) {
     void navigate({
@@ -154,6 +168,14 @@ function RoutesPage() {
           aria-label="Search routes"
         />
         <Select
+          data={serviceOptions}
+          value={serviceFilter ?? ''}
+          onChange={(v) => { setServiceFilter(v !== '' ? v : null); }}
+          w={200}
+          aria-label="Filter by service"
+          data-testid="routes-service-filter"
+        />
+        <Select
           data={[
             { value: 'all', label: 'All methods' },
             ...VALID_METHODS.map((m) => ({ value: m, label: m })),
@@ -182,6 +204,7 @@ function RoutesPage() {
 
       <RouteList
         tenantId={tenantId}
+        {...(serviceFilter !== null ? { serviceId: serviceFilter } : {})}
         filter={filter}
         onSelect={handleRowClick}
         onEdit={handleEditFromList}

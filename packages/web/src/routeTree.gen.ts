@@ -68,6 +68,7 @@ import { Route as TTenantAiProvidersRouteImport } from './routes/t.$tenant/ai/pr
 import { Route as TTenantAiMcpServersRouteImport } from './routes/t.$tenant/ai/mcp-servers'
 import { Route as TTenantAiAgentsRouteImport } from './routes/t.$tenant/ai/agents'
 import { Route as TTenantDashboardsDashboardIdEditRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId_.edit'
+import { Route as TTenantDetailKindIdRouteImport } from './routes/t.$tenant/_detail.$kind.$id'
 
 const TenantsRoute = TenantsRouteImport.update({
   id: '/tenants',
@@ -374,6 +375,11 @@ const TTenantDashboardsDashboardIdEditRoute =
     path: '/dashboards/$dashboardId/edit',
     getParentRoute: () => TTenantRoute,
   } as any)
+const TTenantDetailKindIdRoute = TTenantDetailKindIdRouteImport.update({
+  id: '/_detail/$kind/$id',
+  path: '/$kind/$id',
+  getParentRoute: () => TTenantRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -433,6 +439,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
+  '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -491,6 +498,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
   '/t/$tenant/ai': typeof TTenantAiIndexRoute
   '/t/$tenant/settings': typeof TTenantSettingsIndexRoute
+  '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRoutesById {
@@ -553,6 +561,7 @@ export interface FileRoutesById {
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
+  '/t/$tenant/_detail/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards_/$dashboardId_/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRouteTypes {
@@ -615,6 +624,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notifications'
     | '/t/$tenant/ai/'
     | '/t/$tenant/settings/'
+    | '/t/$tenant/$kind/$id'
     | '/t/$tenant/dashboards/$dashboardId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -673,6 +683,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notifications'
     | '/t/$tenant/ai'
     | '/t/$tenant/settings'
+    | '/t/$tenant/$kind/$id'
     | '/t/$tenant/dashboards/$dashboardId/edit'
   id:
     | '__root__'
@@ -734,6 +745,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notifications'
     | '/t/$tenant/ai/'
     | '/t/$tenant/settings/'
+    | '/t/$tenant/_detail/$kind/$id'
     | '/t/$tenant/dashboards_/$dashboardId_/edit'
   fileRoutesById: FileRoutesById
 }
@@ -1162,6 +1174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantDashboardsDashboardIdEditRouteImport
       parentRoute: typeof TTenantRoute
     }
+    '/t/$tenant/_detail/$kind/$id': {
+      id: '/t/$tenant/_detail/$kind/$id'
+      path: '/$kind/$id'
+      fullPath: '/t/$tenant/$kind/$id'
+      preLoaderRoute: typeof TTenantDetailKindIdRouteImport
+      parentRoute: typeof TTenantRoute
+    }
   }
 }
 
@@ -1302,6 +1321,7 @@ interface TTenantRouteChildren {
   TTenantDashboardsDashboardIdRoute: typeof TTenantDashboardsDashboardIdRoute
   TTenantPluginsSignersRoute: typeof TTenantPluginsSignersRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
+  TTenantDetailKindIdRoute: typeof TTenantDetailKindIdRoute
   TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
 }
 
@@ -1322,6 +1342,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantDashboardsDashboardIdRoute: TTenantDashboardsDashboardIdRoute,
   TTenantPluginsSignersRoute: TTenantPluginsSignersRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
+  TTenantDetailKindIdRoute: TTenantDetailKindIdRoute,
   TTenantDashboardsDashboardIdEditRoute: TTenantDashboardsDashboardIdEditRoute,
 }
 
