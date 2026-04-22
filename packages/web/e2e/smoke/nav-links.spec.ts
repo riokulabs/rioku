@@ -47,6 +47,7 @@ const NAV_LINKS: { label: string; to: string }[] = [
   { label: 'Sessions', to: '/t/acme/security/sessions' },
   { label: 'Audit', to: '/t/acme/security/audit' },
   // System
+  { label: 'Cluster', to: '/t/acme/cluster' },
   { label: 'Plugins', to: '/t/acme/plugins' },
   { label: 'Settings', to: '/t/acme/settings' },
 ];

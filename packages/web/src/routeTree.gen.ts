@@ -39,6 +39,7 @@ import { Route as TTenantNotificationsRouteImport } from './routes/t.$tenant/not
 import { Route as TTenantMiddlewaresRouteImport } from './routes/t.$tenant/middlewares'
 import { Route as TTenantDashboardsRouteImport } from './routes/t.$tenant/dashboards'
 import { Route as TTenantDashboardRouteImport } from './routes/t.$tenant/dashboard'
+import { Route as TTenantClusterRouteImport } from './routes/t.$tenant/cluster'
 import { Route as TTenantApiExplorerRouteImport } from './routes/t.$tenant/api-explorer'
 import { Route as TTenantAiRouteImport } from './routes/t.$tenant/ai'
 import { Route as UnauthResetPasswordTokenRouteImport } from './routes/_unauth/reset-password.$token'
@@ -217,6 +218,11 @@ const TTenantDashboardsRoute = TTenantDashboardsRouteImport.update({
 const TTenantDashboardRoute = TTenantDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => TTenantRoute,
+} as any)
+const TTenantClusterRoute = TTenantClusterRouteImport.update({
+  id: '/cluster',
+  path: '/cluster',
   getParentRoute: () => TTenantRoute,
 } as any)
 const TTenantApiExplorerRoute = TTenantApiExplorerRouteImport.update({
@@ -404,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/ai': typeof TTenantAiRouteWithChildren
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
+  '/t/$tenant/cluster': typeof TTenantClusterRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
@@ -464,6 +471,7 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof UnauthInviteTokenRoute
   '/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
+  '/t/$tenant/cluster': typeof TTenantClusterRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
@@ -526,6 +534,7 @@ export interface FileRoutesById {
   '/_unauth/reset-password/$token': typeof UnauthResetPasswordTokenRoute
   '/t/$tenant/ai': typeof TTenantAiRouteWithChildren
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
+  '/t/$tenant/cluster': typeof TTenantClusterRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
@@ -589,6 +598,7 @@ export interface FileRouteTypes {
     | '/reset-password/$token'
     | '/t/$tenant/ai'
     | '/t/$tenant/api-explorer'
+    | '/t/$tenant/cluster'
     | '/t/$tenant/dashboard'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset-password/$token'
     | '/t/$tenant/api-explorer'
+    | '/t/$tenant/cluster'
     | '/t/$tenant/dashboard'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
@@ -710,6 +721,7 @@ export interface FileRouteTypes {
     | '/_unauth/reset-password/$token'
     | '/t/$tenant/ai'
     | '/t/$tenant/api-explorer'
+    | '/t/$tenant/cluster'
     | '/t/$tenant/dashboard'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
@@ -969,6 +981,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/t/$tenant/dashboard'
       preLoaderRoute: typeof TTenantDashboardRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/cluster': {
+      id: '/t/$tenant/cluster'
+      path: '/cluster'
+      fullPath: '/t/$tenant/cluster'
+      preLoaderRoute: typeof TTenantClusterRouteImport
       parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/api-explorer': {
@@ -1307,6 +1326,7 @@ const TTenantSettingsRouteWithChildren = TTenantSettingsRoute._addFileChildren(
 interface TTenantRouteChildren {
   TTenantAiRoute: typeof TTenantAiRouteWithChildren
   TTenantApiExplorerRoute: typeof TTenantApiExplorerRoute
+  TTenantClusterRoute: typeof TTenantClusterRoute
   TTenantDashboardRoute: typeof TTenantDashboardRoute
   TTenantDashboardsRoute: typeof TTenantDashboardsRoute
   TTenantMiddlewaresRoute: typeof TTenantMiddlewaresRoute
@@ -1328,6 +1348,7 @@ interface TTenantRouteChildren {
 const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantAiRoute: TTenantAiRouteWithChildren,
   TTenantApiExplorerRoute: TTenantApiExplorerRoute,
+  TTenantClusterRoute: TTenantClusterRoute,
   TTenantDashboardRoute: TTenantDashboardRoute,
   TTenantDashboardsRoute: TTenantDashboardsRoute,
   TTenantMiddlewaresRoute: TTenantMiddlewaresRoute,

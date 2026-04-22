@@ -23,6 +23,7 @@ import {
   IconLayoutDashboard,
   IconBell,
   IconBadge,
+  IconTopologyRing,
 } from '@tabler/icons-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import type { FC } from 'react';
@@ -101,6 +102,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'System',
     items: [
+      { label: 'Cluster', to: '/t/acme/cluster', icon: IconTopologyRing },
       { label: 'Plugins', to: '/t/acme/plugins', icon: IconPlug },
       { label: 'Settings', to: '/t/acme/settings', icon: IconSettings },
     ],

@@ -61,6 +61,9 @@ function makeFreshStore() {
     tlsConfigs: {},
     observabilityConfigs: {},
     webhookEndpoints: {},
+    clusterNodes: {},
+    clusterEnrollmentTokens: {},
+    notificationConfigs: {},
     currentUserId: null,
     currentTenantId: null,
     activeImpersonationId: null,
@@ -136,6 +139,9 @@ function makeFreshStore() {
         tlsConfigs: {},
         observabilityConfigs: {},
         webhookEndpoints: {},
+        clusterNodes: {},
+        clusterEnrollmentTokens: {},
+        notificationConfigs: {},
         currentUserId: null,
         currentTenantId: null,
         activeImpersonationId: null,
@@ -270,6 +276,18 @@ function makeFreshStore() {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete next[id];
         return { webhookEndpoints: next };
+      });
+    },
+    updateNotificationConfig(tenantId, patch) {
+      set((state) => {
+        const current = state.notificationConfigs[tenantId];
+        if (!current) return state;
+        return {
+          notificationConfigs: {
+            ...state.notificationConfigs,
+            [tenantId]: { ...current, ...patch },
+          },
+        };
       });
     },
   }));
