@@ -133,33 +133,33 @@ export function ServiceList({
     }
   }, []);
 
-  const handleBulkExportJson = useCallback(
-    (ids: string[]) => {
-      const state = useMockStore.getState();
-      const selected = ids
-        .map((id) => state.services[id])
-        .filter((s): s is NonNullable<typeof s> => s !== undefined)
-        .map(({ id, name, upstream, upstream_protocol, env, health, tags, description }) => ({
-          id,
-          name,
-          upstream,
-          upstream_protocol,
-          env,
-          health,
-          tags,
-          ...(description !== undefined ? { description } : {}),
-        }));
-      const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `services-export-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      notify.success('Export ready', `${String(selected.length)} service${selected.length !== 1 ? 's' : ''} exported.`);
-    },
-    [],
-  );
+  const handleBulkExportJson = useCallback((ids: string[]) => {
+    const state = useMockStore.getState();
+    const selected = ids
+      .map((id) => state.services[id])
+      .filter((s): s is NonNullable<typeof s> => s !== undefined)
+      .map(({ id, name, upstream, upstream_protocol, env, health, tags, description }) => ({
+        id,
+        name,
+        upstream,
+        upstream_protocol,
+        env,
+        health,
+        tags,
+        ...(description !== undefined ? { description } : {}),
+      }));
+    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `services-export-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify.success(
+      'Export ready',
+      `${String(selected.length)} service${selected.length !== 1 ? 's' : ''} exported.`,
+    );
+  }, []);
 
   const bulkActions = useMemo<BulkAction[]>(
     () => [

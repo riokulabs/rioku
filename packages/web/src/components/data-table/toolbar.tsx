@@ -141,13 +141,7 @@ export function BulkActionsBar({
       </Text>
 
       {useMenu ? (
-        <Menu
-          opened={menuOpened}
-          onChange={setMenuOpened}
-          withinPortal
-          shadow="md"
-          width={220}
-        >
+        <Menu opened={menuOpened} onChange={setMenuOpened} withinPortal shadow="md" width={220}>
           <Menu.Target>
             <Button
               size="xs"

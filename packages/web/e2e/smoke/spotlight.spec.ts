@@ -30,10 +30,7 @@ test('Ctrl+K opens spotlight and Services result navigates correctly', async ({
 
   // Mantine Spotlight renders each action as an UnstyledButton with data-action
   // attribute. Filter to the one whose text includes "Services".
-  const servicesResult = page
-    .locator('[data-action]')
-    .filter({ hasText: 'Services' })
-    .first();
+  const servicesResult = page.locator('[data-action]').filter({ hasText: 'Services' }).first();
 
   await expect(servicesResult).toBeVisible({ timeout: 5000 });
 
@@ -47,9 +44,7 @@ test('Ctrl+K opens spotlight and Services result navigates correctly', async ({
   await expect(page).toHaveURL(/\/t\/acme\/services/, { timeout: 8000 });
 });
 
-test('/ shortcut opens spotlight when not in a text input', async ({
-  authedPage: page,
-}) => {
+test('/ shortcut opens spotlight when not in a text input', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboard');
 
   // Click somewhere neutral (not inside an input) to ensure focus is on body

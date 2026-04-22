@@ -150,41 +150,38 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
     }
   }, []);
 
-  const handleBulkExportCsv = useCallback(
-    (rowIds: string[]) => {
-      const selected = rowIds
-        .map((id) => usersRef.current[Number(id)])
-        .filter((u): u is UserWithMembership => u !== undefined);
+  const handleBulkExportCsv = useCallback((rowIds: string[]) => {
+    const selected = rowIds
+      .map((id) => usersRef.current[Number(id)])
+      .filter((u): u is UserWithMembership => u !== undefined);
 
-      if (selected.length === 0) {
-        notify.warn('Nothing to export', 'No users in the selection.');
-        return;
-      }
+    if (selected.length === 0) {
+      notify.warn('Nothing to export', 'No users in the selection.');
+      return;
+    }
 
-      const header = 'name,email,membership_state,roles,joined_at';
-      const rows = selected.map((u) => {
-        const name = `"${u.user.name.replace(/"/g, '""')}"`;
-        const email = `"${u.user.email.replace(/"/g, '""')}"`;
-        const state = u.membership.state;
-        const roles = `"${u.roles.map((r) => r.name).join('; ')}"`;
-        const joinedAt = u.membership.joined_at ?? '';
-        return `${name},${email},${state},${roles},${joinedAt}`;
-      });
-      const csv = [header, ...rows].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-      notify.success(
-        'Export ready',
-        `${String(selected.length)} user${selected.length !== 1 ? 's' : ''} exported.`,
-      );
-    },
-    [],
-  );
+    const header = 'name,email,membership_state,roles,joined_at';
+    const rows = selected.map((u) => {
+      const name = `"${u.user.name.replace(/"/g, '""')}"`;
+      const email = `"${u.user.email.replace(/"/g, '""')}"`;
+      const state = u.membership.state;
+      const roles = `"${u.roles.map((r) => r.name).join('; ')}"`;
+      const joinedAt = u.membership.joined_at ?? '';
+      return `${name},${email},${state},${roles},${joinedAt}`;
+    });
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify.success(
+      'Export ready',
+      `${String(selected.length)} user${selected.length !== 1 ? 's' : ''} exported.`,
+    );
+  }, []);
 
   const bulkActions = useMemo<BulkAction[]>(
     () => [

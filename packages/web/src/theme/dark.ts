@@ -28,29 +28,19 @@ import { sharedTheme } from './tokens';
  *   6    = primary dark (primaryShade.dark below)
  *   7–9  = deep variants (focus rings, active states)
  */
-const riokuGreen: [
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-] = [
-  '#edfaf3', // 0 — near-white tint
-  '#c8f5df', // 1 — light tint
-  '#98e8c4', // 2
-  '#5fd5a4', // 3
-  '#30bc84', // 4
-  '#1aa068', // 5 — vivid mid (primaryShade.light)
-  '#0e8050', // 6 — muted emerald primary (primaryShade.dark)
-  '#0b6340', // 7
-  '#084830', // 8
-  '#053222', // 9 — near-black
-];
+const riokuGreen: [string, string, string, string, string, string, string, string, string, string] =
+  [
+    '#edfaf3', // 0 — near-white tint
+    '#c8f5df', // 1 — light tint
+    '#98e8c4', // 2
+    '#5fd5a4', // 3
+    '#30bc84', // 4
+    '#1aa068', // 5 — vivid mid (primaryShade.light)
+    '#0e8050', // 6 — muted emerald primary (primaryShade.dark)
+    '#0b6340', // 7
+    '#084830', // 8
+    '#053222', // 9 — near-black
+  ];
 
 export const darkTheme: MantineThemeOverride = {
   ...sharedTheme,

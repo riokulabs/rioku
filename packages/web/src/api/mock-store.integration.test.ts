@@ -339,9 +339,7 @@ describe('mock-store seed integrity', () => {
     const emptyTenant = Object.values(tenants).find((t) => t.slug === 'empty');
     expect(emptyTenant).toBeDefined();
     if (!emptyTenant) return; // type guard — satisfied by toBeDefined above
-    const emptyServices = Object.values(services).filter(
-      (s) => s.tenant_id === emptyTenant.id,
-    );
+    const emptyServices = Object.values(services).filter((s) => s.tenant_id === emptyTenant.id);
     expect(emptyServices).toHaveLength(0);
   });
 

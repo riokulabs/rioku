@@ -55,9 +55,7 @@ export function RouteList({
     if (!search.trim()) return routes;
     const q = search.toLowerCase();
     return routes.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.path.toLowerCase().includes(q),
+      (r) => r.name.toLowerCase().includes(q) || r.path.toLowerCase().includes(q),
     );
   }, [routes, search]);
 

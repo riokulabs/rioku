@@ -130,12 +130,7 @@ export function ActionsCell<T>({ row, actions, label = 'Row actions' }: ActionsC
     >
       <Menu shadow="md" position="bottom-end" withinPortal>
         <Menu.Target>
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            aria-label={label}
-            data-testid="row-actions"
-          >
+          <ActionIcon variant="subtle" size="sm" aria-label={label} data-testid="row-actions">
             <IconDots size={16} />
           </ActionIcon>
         </Menu.Target>

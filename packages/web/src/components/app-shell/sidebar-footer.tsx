@@ -124,29 +124,17 @@ export function SidebarFooter() {
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Label>Switch tenant</Menu.Label>
-          {userTenants.length > 0 ? (
-            userTenants.map((t) => (
-              <Menu.Item
-                key={t.id}
-                leftSection={
-                  t.id === currentTenantId ? <IconCheck size={14} /> : <Box style={{ width: 14 }} />
-                }
-                onClick={() => {
-                  handleTenantSwitch(t);
-                }}
-                data-testid={`tenant-option-${t.slug}`}
-              >
-                {t.slug}
-              </Menu.Item>
-            ))
-          ) : (
-            // Fallback when no currentUserId (e.g. not yet authenticated) —
-            // show all tenants from the store
-            Object.values(allTenants)
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((t) => (
+          {userTenants.length > 0
+            ? userTenants.map((t) => (
                 <Menu.Item
                   key={t.id}
+                  leftSection={
+                    t.id === currentTenantId ? (
+                      <IconCheck size={14} />
+                    ) : (
+                      <Box style={{ width: 14 }} />
+                    )
+                  }
                   onClick={() => {
                     handleTenantSwitch(t);
                   }}
@@ -155,7 +143,21 @@ export function SidebarFooter() {
                   {t.slug}
                 </Menu.Item>
               ))
-          )}
+            : // Fallback when no currentUserId (e.g. not yet authenticated) —
+              // show all tenants from the store
+              Object.values(allTenants)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((t) => (
+                  <Menu.Item
+                    key={t.id}
+                    onClick={() => {
+                      handleTenantSwitch(t);
+                    }}
+                    data-testid={`tenant-option-${t.slug}`}
+                  >
+                    {t.slug}
+                  </Menu.Item>
+                ))}
         </Menu.Dropdown>
       </Menu>
 

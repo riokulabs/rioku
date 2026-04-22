@@ -9,16 +9,7 @@
  *     revoked), closes the drawer on success
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Badge, Button, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle, IconDeviceDesktop, IconShieldLock } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';

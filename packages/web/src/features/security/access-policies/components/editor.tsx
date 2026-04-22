@@ -5,7 +5,17 @@
  * ConditionEditor provides CEL editing + syntax validation.
  */
 import { useState } from 'react';
-import { Stack, TextInput, Select, NumberInput, Switch, Button, Group, Text, Tooltip } from '@mantine/core';
+import {
+  Stack,
+  TextInput,
+  Select,
+  NumberInput,
+  Switch,
+  Button,
+  Group,
+  Text,
+  Tooltip,
+} from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
 import { usePermission } from '@/hooks/use-permission';

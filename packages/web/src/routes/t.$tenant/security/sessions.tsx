@@ -27,9 +27,7 @@ function SessionsPage() {
     openDrawer();
   }
 
-  const drawerTitle = selected
-    ? `Session — ${selected.device}`
-    : 'Session detail';
+  const drawerTitle = selected ? `Session — ${selected.device}` : 'Session detail';
 
   return (
     <Stack gap="md" p="md">

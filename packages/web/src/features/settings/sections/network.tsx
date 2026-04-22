@@ -140,7 +140,10 @@ export function NetworkSection() {
         upstream_timeouts: form.values.upstream_timeouts,
       });
       form.resetDirty(form.values);
-      notify.success('Network config updated', 'Changes will take effect when the daemon applies the configuration.');
+      notify.success(
+        'Network config updated',
+        'Changes will take effect when the daemon applies the configuration.',
+      );
     } catch (e) {
       notify.error('Save failed', (e as Error).message);
     } finally {
