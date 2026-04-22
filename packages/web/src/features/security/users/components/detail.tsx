@@ -268,7 +268,7 @@ export function UserDetail({
 
       <Divider />
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue="profile" data-testid="user-detail-tabs">
         <Tabs.List>
           <Tabs.Tab value="profile">Profile</Tabs.Tab>
           <Tabs.Tab value="memberships">Memberships</Tabs.Tab>
@@ -399,14 +399,16 @@ export function UserDetail({
                 <Stack key={m.id} gap="xs">
                   <Group justify="space-between" align="flex-start">
                     <Stack gap={2}>
-                      <Text size="sm" fw={500}>
-                        {tenant?.name ?? m.tenant_id}
+                      <Group gap={6} wrap="nowrap" align="center">
+                        <Text size="sm" fw={500}>
+                          {tenant?.name ?? m.tenant_id}
+                        </Text>
                         {m.tenant_id === currentTenantId && (
-                          <Badge ml="xs" size="xs" variant="outline" color="blue">
+                          <Badge size="xs" variant="outline" color="blue">
                             current
                           </Badge>
                         )}
-                      </Text>
+                      </Group>
 
                       {/* Role edit inline */}
                       {m.tenant_id === currentTenantId && !isEditingRoles && (

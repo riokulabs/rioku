@@ -196,6 +196,7 @@ function PluginsPage() {
             component={Link as any}
             to="/t/$tenant/plugins/signers"
             params={{ tenant: tenantSlug }}
+            data-testid="plugins-signers-link"
           >
             Signer allow-list
           </Button>

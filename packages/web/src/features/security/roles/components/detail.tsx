@@ -214,7 +214,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
 
       <Divider />
 
-      <Tabs defaultValue="parents">
+      <Tabs defaultValue="parents" data-testid="role-detail-tabs">
         <Tabs.List>
           <Tabs.Tab value="parents">Parents</Tabs.Tab>
           <Tabs.Tab value="grants">Grants</Tabs.Tab>
