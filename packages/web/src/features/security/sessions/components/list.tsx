@@ -23,9 +23,11 @@ interface SessionListProps {
   userId?: string;
   /** Filter to this tenantId */
   tenantId?: string;
+  /** Called when a row is clicked — opens the detail drawer in the parent. */
+  onSelect?: (session: SessionWithMeta) => void;
 }
 
-export function SessionList({ userId, tenantId }: SessionListProps) {
+export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeAllOpened, { open: openRevokeAll, close: closeRevokeAll }] = useDisclosure(false);
 
@@ -163,6 +165,7 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
         sorting
         pagination={{ pageSize: 20 }}
         urlSyncKey="sessions"
+        {...(onSelect ? { onRowClick: onSelect } : {})}
         emptyState={
           <EmptyState
             icon={IconDeviceDesktop}
