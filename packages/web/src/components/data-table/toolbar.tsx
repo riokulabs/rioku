@@ -3,10 +3,13 @@
  * menu, and bulk-actions row.
  */
 
-import { useState } from 'react';
+import { type FC, useState } from 'react';
 import { Group, TextInput, Menu, Button, Checkbox, ActionIcon, Text } from '@mantine/core';
 import { IconSearch, IconColumns, IconChevronDown } from '@tabler/icons-react';
 import type { Table } from '@tanstack/react-table';
+
+/** Number of actions above which BulkActionsBar collapses into a Menu dropdown. */
+const BULK_MENU_THRESHOLD = 3;
 
 // ── GlobalSearchInput ────────────────────────────────────────────────────────
 
@@ -97,6 +100,8 @@ export interface BulkAction {
   onClick: (selectedRowIds: string[]) => void;
   color?: string;
   disabled?: boolean;
+  /** Optional Tabler icon component to display next to the label. */
+  icon?: FC<{ size?: number }>;
 }
 
 export interface BulkActionsBarProps {
@@ -112,7 +117,11 @@ export function BulkActionsBar({
   actions,
   onClearSelection,
 }: BulkActionsBarProps) {
+  const [menuOpened, setMenuOpened] = useState(false);
+
   if (selectedCount === 0) return null;
+
+  const useMenu = actions.length >= BULK_MENU_THRESHOLD;
 
   return (
     <Group
@@ -130,20 +139,67 @@ export function BulkActionsBar({
       <Text size="sm" fw={500}>
         {selectedCount} selected
       </Text>
-      {actions.map((action) => (
-        <Button
-          key={action.label}
-          size="xs"
-          variant="light"
-          color={action.color ?? 'blue'}
-          disabled={action.disabled ?? false}
-          onClick={() => {
-            action.onClick(selectedRowIds);
-          }}
+
+      {useMenu ? (
+        <Menu
+          opened={menuOpened}
+          onChange={setMenuOpened}
+          withinPortal
+          shadow="md"
+          width={220}
         >
-          {action.label}
-        </Button>
-      ))}
+          <Menu.Target>
+            <Button
+              size="xs"
+              variant="light"
+              color="blue"
+              rightSection={<IconChevronDown size={12} />}
+              aria-haspopup="true"
+              aria-expanded={menuOpened}
+            >
+              Bulk actions
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {actions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Menu.Item
+                  key={action.label}
+                  {...(action.color !== undefined ? { color: action.color } : {})}
+                  disabled={action.disabled ?? false}
+                  leftSection={Icon ? <Icon size={14} /> : undefined}
+                  onClick={() => {
+                    action.onClick(selectedRowIds);
+                  }}
+                >
+                  {action.label}
+                </Menu.Item>
+              );
+            })}
+          </Menu.Dropdown>
+        </Menu>
+      ) : (
+        actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Button
+              key={action.label}
+              size="xs"
+              variant="light"
+              color={action.color ?? 'blue'}
+              disabled={action.disabled ?? false}
+              leftSection={Icon ? <Icon size={12} /> : undefined}
+              onClick={() => {
+                action.onClick(selectedRowIds);
+              }}
+            >
+              {action.label}
+            </Button>
+          );
+        })
+      )}
+
       <ActionIcon
         size="sm"
         variant="subtle"

@@ -4,7 +4,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Badge, Text, Select, Stack, Group, ActionIcon, TextInput, Tooltip } from '@mantine/core';
-import { IconKey, IconSearch, IconTrash, IconRefresh, IconBan } from '@tabler/icons-react';
+import { IconKey, IconSearch, IconTrash, IconRefresh, IconBan, IconDownload } from '@tabler/icons-react';
+import { useMockStore } from '@/api/mock-store';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
@@ -141,8 +142,48 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
     }
   }, []);
 
+  const handleBulkExportMetadata = useCallback(
+    (ids: string[]) => {
+      const state = useMockStore.getState();
+      const selected = ids
+        .map((id) => state.apiKeys[id])
+        .filter((k): k is NonNullable<typeof k> => k !== undefined)
+        .map(({ id, name, prefix, scope, tenant_id, created_at, expires_at, revoked, last_used }) => ({
+          id,
+          name,
+          prefix,
+          scope,
+          tenant_id,
+          created_at,
+          ...(expires_at !== undefined ? { expires_at } : {}),
+          revoked,
+          ...(last_used !== undefined ? { last_used } : {}),
+        }));
+      const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `api-keys-metadata-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      notify.success(
+        'Export ready',
+        `${String(selected.length)} key${selected.length !== 1 ? 's' : ''} exported (no secrets).`,
+      );
+    },
+    [],
+  );
+
   const bulkActions = useMemo<BulkAction[]>(
     () => [
+      {
+        label: 'Export metadata',
+        color: 'blue',
+        icon: IconDownload,
+        onClick: (ids) => {
+          handleBulkExportMetadata(ids);
+        },
+      },
       {
         label: 'Revoke selected',
         color: 'orange',
@@ -158,7 +199,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         },
       },
     ],
-    [handleBulkRevoke, handleBulkDelete],
+    [handleBulkExportMetadata, handleBulkRevoke, handleBulkDelete],
   );
 
   const columns = useMemo<ColumnDef<ApiKeyWithMeta>[]>(
