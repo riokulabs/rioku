@@ -5,7 +5,7 @@
  * Permission guard: requires user:read (Option A — seed sets currentUserId to admin).
  */
 import { useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUserPlus } from '@tabler/icons-react';
@@ -28,6 +28,7 @@ function UsersPage() {
   );
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
+  const navigate = useNavigate();
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] =
     useDisclosure(false);
@@ -85,6 +86,13 @@ function UsersPage() {
             currentTenantId={tenantId}
             tenantSlug={tenantSlug}
             onClose={closeDrawer}
+            onOpenFullPage={() => {
+              closeDrawer();
+              void navigate({
+                to: '/t/$tenant/_detail/$kind/$id',
+                params: { tenant: tenantSlug, kind: 'user', id: selectedItem.user.id },
+              } as unknown as Parameters<typeof navigate>[0]);
+            }}
           />
         )}
         {drawerMode === 'invite' && (

@@ -232,6 +232,13 @@ function ServicesPage() {
             onEditRoute={handleEditRoute}
             onDeleteRoute={handleDeleteRoute}
             onClose={closeDrawer}
+            onOpenFullPage={() => {
+              closeDrawer();
+              void navigate({
+                to: '/t/$tenant/_detail/$kind/$id',
+                params: { tenant: tenantSlug, kind: 'service', id: selectedService.id },
+              } as unknown as Parameters<typeof navigate>[0]);
+            }}
           />
         )}
         {drawerMode === 'create' && (

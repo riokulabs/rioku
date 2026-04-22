@@ -227,6 +227,13 @@ function RoutesPage() {
               setDrawerMode('edit');
             }}
             onClose={closeDrawer}
+            onOpenFullPage={() => {
+              closeDrawer();
+              void navigate({
+                to: '/t/$tenant/_detail/$kind/$id',
+                params: { tenant: tenantSlug, kind: 'route', id: selected.id },
+              } as unknown as Parameters<typeof navigate>[0]);
+            }}
           />
         )}
         {drawerMode === 'create' && (
