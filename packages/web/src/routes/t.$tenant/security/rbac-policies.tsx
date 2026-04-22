@@ -115,6 +115,8 @@ function RbacPoliciesPage() {
 }
 
 export const Route = createFileRoute('/t/$tenant/security/rbac-policies')({
-  beforeLoad: requirePermissions({ required: ['rbac-policy:read'] }),
+  // `rbac-policy:read` isn't a distinct stage-1 permission — RBAC policies
+  // are gated by the same `policy:read` key as Access Policies.
+  beforeLoad: requirePermissions({ required: ['policy:read'] }),
   component: RbacPoliciesPage,
 });

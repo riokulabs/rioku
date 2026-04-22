@@ -168,8 +168,11 @@ test('login with TOTP-enrolled user routes through TOTP challenge', async ({
   await pinInputs.first().click();
   await page.keyboard.type('123456');
 
-  // Should redirect to dashboard after successful TOTP.
-  await expect(page).toHaveURL(/\/t\/[^/]+\/dashboard/, { timeout: 8000 });
+  // After TOTP, Derrick has multiple tenant memberships so he lands on
+  // the /tenants picker. Click the acme tenant to advance to its dashboard.
+  await expect(page).toHaveURL(/\/tenants$/, { timeout: 8000 });
+  await page.getByTestId('tenant-picker-open-acme').click();
+  await expect(page).toHaveURL(/\/t\/acme\/dashboard/, { timeout: 8000 });
 });
 
 // ─── Test 4: TOTP challenge form blocks short/incomplete codes ────────────────
@@ -249,8 +252,10 @@ test('backup code path signs user in and shows remaining count', async ({
   await expect(page.getByText(/backup code used/i).first()).toBeVisible();
   await expect(page.getByText(/9 code/i)).toBeVisible();
 
-  // Should redirect to dashboard.
-  await expect(page).toHaveURL(/\/t\/[^/]+\/dashboard/, { timeout: 5000 });
+  // Should redirect to tenant picker (Derrick has multiple memberships).
+  await expect(page).toHaveURL(/\/tenants$/, { timeout: 5000 });
+  await page.getByTestId('tenant-picker-open-acme').click();
+  await expect(page).toHaveURL(/\/t\/acme\/dashboard/, { timeout: 5000 });
 });
 
 // ─── Test 6: forgot-password → stage-1 mock link → reset password ────────────
@@ -569,7 +574,10 @@ test('no telemetry during auth flow — login through TOTP to dashboard', async 
   await pinInputs.first().click();
   await page.keyboard.type('246810');
 
-  await expect(page).toHaveURL(/\/t\/[^/]+\/dashboard/, { timeout: 8000 });
+  // After TOTP, Derrick lands on /tenants picker (multiple memberships).
+  await expect(page).toHaveURL(/\/tenants$/, { timeout: 8000 });
+  await page.getByTestId('tenant-picker-open-acme').click();
+  await expect(page).toHaveURL(/\/t\/acme\/dashboard/, { timeout: 8000 });
   await page.waitForLoadState('networkidle');
 
   expect(

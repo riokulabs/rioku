@@ -86,6 +86,7 @@ function TenantPicker() {
               onClick={() => {
                 handleSelect(tenant.slug);
               }}
+              data-testid={`tenant-picker-open-${tenant.slug}`}
             >
               Open
             </Button>
