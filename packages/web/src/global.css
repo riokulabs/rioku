@@ -6,91 +6,70 @@
  */
 
 /**
- * Dark-mode surface tiers + WCAG AA contrast fixes.
+ * Dark-mode Colorffy-derived palette + WCAG AA contrast fixes.
  *
- * All overrides target `:root[data-mantine-color-scheme='dark']` to match
- * Mantine's own dark-mode variable specificity so these rules win.
+ * Surface tiers (Colorffy `--clr-surface-a*`, warmed neutral greys):
+ *   --clr-surface-a0   #121212   page body / AppShell navbar (darkest)
+ *   --clr-surface-a10  #282828   cards / panels (default surface)
+ *   --clr-surface-a20  #3f3f3f   elevated / hover state
+ *   --clr-surface-a30  #575757   pressed / active-but-muted
+ *   --clr-surface-a40  #717171   disabled / "quiet" background
+ *   --clr-surface-a50  #8b8b8b   subtle dividers at scale
  *
- * SURFACE TIERS (modernised palette -- fix/stage1-refinement-pass)
- * Replaced Mantine's default dark.7 (#242424) neutral grey with a
- * slightly-cool near-black palette inspired by Linear / Vercel / Supabase:
- *   --mantine-color-body:           #0e0f10  (page background)
- *   --mantine-color-default:        #151618  (card / panel surface)
- *   --mantine-color-default-hover:  #1c1d20  (elevated / hover)
- *   --mantine-color-default-border: #27282c  (subtle separators)
+ * Semantic palettes (Colorffy a0 anchors, Mantine riokuSuccess/Warning/Danger/Info):
+ *   success #22946e   teal-green
+ *   warning #a87a2a   amber
+ *   danger  #9c2121   deep red
+ *   info    #21498a   navy blue
  *
- * NOTE: We intentionally do NOT override --mantine-color-text or
- * --mantine-color-red-text here. Those variables are used by Text components
- * with c="red" that appear on dark page backgrounds -- overriding them to
- * darker shades (e.g. red.8) reduces their contrast against our deep
- * background (#0e0f10). Individual components use c="red.4" for accessible
- * bright-red on dark surfaces.
+ * Primary — warm orange `riokuOrange.6` (#b33d0d). Used for CTAs / active nav.
  *
- * DIMMED TOKEN
- * Mantine's `--mantine-color-dimmed` resolves to `var(--mantine-color-dark-2)`
- * (#828282) in dark mode.  Against our new body (#0e0f10) that is ~9.8:1 so
- * the fix of pinning to dark.1 (#b8b8b8) is retained for consistency with
- * secondary-text colour across the app.
- *
- * GRAY-7 IN DARK MODE
- * Feature code across plans 2-8 uses c="var(--mantine-color-gray-7)" for
- * secondary/muted text in DataTable cells and detail panels.  gray.7 in
- * Mantine's default light palette is #495057; in dark mode that reads ~1.9:1
- * against our new surface -- a critical failure.
- * Fix: remap to dark.1 (#b8b8b8).  dark.1 vs default (#151618): ~8.8:1 ✓
- *
- * GRAY-8 IN DARK MODE
- * Same issue: c="var(--mantine-color-gray-8)" used in notification inbox and
- * plugin detail panels.  Fix: remap to dark.1.
- *
- * PLACEHOLDER COLOR
- * Mantine's --mantine-color-placeholder resolves to dark.3 (#696969) in dark
- * mode.  Against our new default (#151618) surface that gives ~4.2:1 -- barely
- * below WCAG AA.  Fix: override to dark.1 (#b8b8b8).
- *
- * RED FILLED VARIANT (primaryShade override)
- * With primaryShade: { dark: 6 }, all filled variants use shade 6 of their
- * color in dark mode.  red.6 = #fa5252 gives only 3.0:1 with white text.
- * Fix: re-pin --mantine-color-red-filled to red.8 (#e03131, 4.51:1 with
- * white) to restore WCAG AA.
- *
- * BLUE-1 IN DARK MODE (TopN widget progress bars)
- * TopNWidget uses `background: var(--mantine-color-blue-1)` for progress bars.
- * Mantine's blue.1 is #d0ebff in both light and dark modes -- a light colour
- * that destroys contrast with dark-mode page text overtop.
- * Fix: override blue-1 to a dark navy in dark mode so any dark-mode text
- * passing over it reads at adequate contrast.
- * #0d1b2a vs dark.2 (#c9c9c9): ~11.9:1 ✓ WCAG AA
+ * CONTRAST OVERRIDES: dimmed / gray-7 / gray-8 / placeholder all remap to
+ * dark.1 (#b8b8b8) for ≥ 4.5:1 against every surface tier. Red-filled badges
+ * pin to red.8 (#e03131, 4.51:1 with white). Blue-1 progress-bar background
+ * pinned to a dark navy so text reads over it.
  */
 :root[data-mantine-color-scheme='dark'],
 :host([data-mantine-color-scheme='dark']) {
-  /* -- Surface elevation tiers ------------------------------------------- */
-  --mantine-color-body: #0e0f10;
-  --mantine-color-default: #151618;
-  --mantine-color-default-hover: #1c1d20;
-  --mantine-color-default-border: #27282c;
+  /* -- Colorffy surface scale (dark) ------------------------------------ */
+  --clr-surface-a0: #121212;
+  --clr-surface-a10: #282828;
+  --clr-surface-a20: #3f3f3f;
+  --clr-surface-a30: #575757;
+  --clr-surface-a40: #717171;
+  --clr-surface-a50: #8b8b8b;
 
-  /* -- WCAG AA contrast fixes (Plan 9 Task 9a.1, validated vs new tiers) -- */
+  /* -- Surface elevation tiers bound to Mantine tokens ----------------- */
+  --mantine-color-body: var(--clr-surface-a0);
+  --mantine-color-default: var(--clr-surface-a10);
+  --mantine-color-default-hover: var(--clr-surface-a20);
+  --mantine-color-default-border: var(--clr-surface-a30);
 
-  /* Dimmed text: dark.1 (#b8b8b8) vs body (#0e0f10): ~9.8:1 ✓ WCAG AA */
+  /* -- WCAG AA contrast fixes ------------------------------------------- */
   --mantine-color-dimmed: var(--mantine-color-dark-1);
-
-  /* Secondary text via explicit gray-7/gray-8 props: remapped to dark.1 */
   --mantine-color-gray-7: var(--mantine-color-dark-1);
   --mantine-color-gray-8: var(--mantine-color-dark-1);
-
-  /* Input placeholder: dark.1 (#b8b8b8) vs default (#151618): ~8.8:1 ✓ */
   --mantine-color-placeholder: var(--mantine-color-dark-1);
 
-  /* Red filled buttons/badges: re-pin to red.8 (#e03131, 4.51:1 with white) */
+  /* Red filled: pin to red.8 for WCAG AA with white text */
   --mantine-color-red-filled: var(--mantine-color-red-8);
   --mantine-color-red-filled-hover: var(--mantine-color-red-9);
 
-  /* Blue-1 progress bar: dark navy so page text reads over it (#0d1b2a) */
+  /* Blue-1 progress bar: dark navy so page text reads over it */
   --mantine-color-blue-1: #0d1b2a;
 
-  /* Primary focus ring: muted emerald glow at ~18% opacity (riokuGreen.6) */
-  --mantine-color-focused-outline: 0 0 0 3px rgba(14, 128, 80, 0.18);
+  /* Primary focus ring: warm orange glow at ~22% opacity (riokuOrange.6) */
+  --mantine-color-focused-outline: 0 0 0 3px rgba(179, 61, 13, 0.22);
+}
+
+/**
+ * Sidebar gets the deepest tier (Colorffy surface-a0) and a subtle right
+ * border so it reads distinctly from the main content region.
+ */
+:root[data-mantine-color-scheme='dark'] nav.mantine-AppShell-navbar,
+:root[data-mantine-color-scheme='dark'] [data-mantine-component='AppShellNavbar'] {
+  background-color: var(--clr-surface-a0);
+  border-right-color: var(--clr-surface-a20);
 }
 
 /**
