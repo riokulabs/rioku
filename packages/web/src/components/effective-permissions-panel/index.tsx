@@ -100,7 +100,7 @@ function SourceBadge({ source }: { source: GrantSource }) {
   // rbac-policy
   return (
     <Tooltip
-      label={`Added via RBAC policy "${source.policyName ?? source.policyId}" → role "${source.roleName}"`}
+      label={`Added via RBAC policy "${source.policyName ?? source.policyId ?? 'unknown'}" → role "${source.roleName}"`}
       withArrow
     >
       <Badge
@@ -167,7 +167,7 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
               <Group gap={4} wrap="wrap">
                 {grant.sources.map((source, idx) => (
                   // eslint-disable-next-line react/no-array-index-key
-                  <SourceBadge key={`${source.roleId}-${source.type}-${idx}`} source={source} />
+                  <SourceBadge key={`${source.roleId}-${source.type}-${String(idx)}`} source={source} />
                 ))}
                 {/* Show conditional badge if any source has a condition */}
                 {grant.sources.some((s) => s.condition) && (
@@ -289,7 +289,7 @@ export function EffectivePermissionsPanel({
         <SegmentedControl
           size="xs"
           value={viewMode}
-          onChange={(v) => { setViewMode(v as 'flat' | 'grouped'); }}
+          onChange={(v) => { setViewMode(v === 'grouped' ? 'grouped' : 'flat'); }}
           data={[
             { label: 'Flat', value: 'flat' },
             { label: 'Grouped', value: 'grouped' },
