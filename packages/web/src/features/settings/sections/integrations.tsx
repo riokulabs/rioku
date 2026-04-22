@@ -37,7 +37,6 @@ import {
   IconBrandGoogle,
   IconBrandWindows,
   IconDotsVertical,
-  IconInfoCircle,
   IconLock,
   IconPencil,
   IconPlus,
@@ -45,6 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
+import { isFeatureEnabled } from '@/host/feature-flags';
 import type { WebhookEndpoint } from '@/api/resources/types';
 import {
   useWebhookEndpoints,
@@ -464,34 +464,24 @@ export function IntegrationsSection() {
 
   return (
     <Stack gap="xl" data-testid="integrations-section">
-      {/* Stage-1 note banner */}
-      <Alert
-        icon={<IconInfoCircle size={16} />}
-        color="blue"
-        variant="light"
-        title="Stage-1 placeholder"
-        data-testid="integrations-stage1-banner"
-      >
-        Integrations surface is a placeholder for stage 2+. OAuth connectors are not yet functional.
-        Webhook endpoint records are stored in the mock store but are not evaluated at runtime until
-        stage 2.
-      </Alert>
+      {/* OAuth connectors — hidden until `integrationsOAuth` feature flag is enabled */}
+      {isFeatureEnabled('integrationsOAuth') && (
+        <>
+          <Stack gap="sm" data-testid="oauth-section">
+            <Title order={5}>OAuth connectors</Title>
+            <Text size="sm" c="var(--mantine-color-gray-7)">
+              Connect external OAuth applications to enable SSO and delegated API access.
+            </Text>
+            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" data-testid="oauth-cards">
+              {OAUTH_PROVIDERS.map((provider) => (
+                <OAuthCard key={provider.name} provider={provider} />
+              ))}
+            </SimpleGrid>
+          </Stack>
 
-      {/* OAuth connectors */}
-      <Stack gap="sm" data-testid="oauth-section">
-        <Title order={5}>OAuth connectors</Title>
-        <Text size="sm" c="var(--mantine-color-gray-7)">
-          Connect external OAuth applications to enable SSO and delegated API access. Configuration
-          is available at stage 2+.
-        </Text>
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" data-testid="oauth-cards">
-          {OAUTH_PROVIDERS.map((provider) => (
-            <OAuthCard key={provider.name} provider={provider} />
-          ))}
-        </SimpleGrid>
-      </Stack>
-
-      <Divider />
+          <Divider />
+        </>
+      )}
 
       {/* Inbound webhook endpoints */}
       <WebhookTable tenantId={tenant.id} canWrite={canWrite} />

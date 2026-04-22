@@ -1,12 +1,13 @@
 /**
  * <ProfileSection> — settings profile section.
  *
- * Renders 5 subsections:
+ * Renders 4 subsections (stage 1):
  *   1. Personal info  — name (inline-edit), email (read-only), avatar uploader
  *   2. Password       — "Change password" button → modal
  *   3. TOTP           — enrollment status, re-enroll link, reset backup codes
- *   4. Passkeys       — coming soon placeholder
- *   5. Preferences    — theme, locale, timezone, reduced motion, notifications
+ *   4. Preferences    — theme, locale, timezone, reduced motion, notifications
+ *
+ * Passkeys section is hidden until the `passkeys` feature flag is enabled (stage 2+).
  *
  * Rendered INLINE by <SettingsLayout> when activeSection.slug === 'profile'.
  * Always self-scope — uses `user:update-own` permission.
@@ -27,10 +28,11 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconKey, IconShieldCheck, IconShieldOff } from '@tabler/icons-react';
+import { IconAlertCircle, IconShieldCheck, IconShieldOff } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
+import { isFeatureEnabled } from '@/host/feature-flags';
 import { useMockStore } from '@/api/mock-store';
 import { useCurrentUser, resetBackupCodes } from '../api';
 import { ProfilePersonalInfo } from './profile-personal-info';
@@ -201,21 +203,14 @@ export function ProfileSection() {
 
       <Divider />
 
-      {/* ── 4. Passkeys ────────────────────────────────────────────────── */}
-      <Stack gap="sm" data-testid="profile-passkeys-section">
-        <Group gap="sm">
-          <Title order={5}>Passkeys</Title>
-          <Badge color="gray" variant="light" leftSection={<IconKey size={12} />}>
-            Coming soon
-          </Badge>
-        </Group>
-        <Text size="sm" c="var(--mantine-color-gray-7)">
-          Passkey support (WebAuthn) is planned for a future release. Once available, you will be
-          able to add hardware keys or biometric authenticators as login credentials.
-        </Text>
-      </Stack>
+      {/* ── 4. Passkeys — hidden until `passkeys` feature flag is enabled ─ */}
+      {isFeatureEnabled('passkeys') && (
+        <Stack gap="sm" data-testid="profile-passkeys-section">
+          {/* Stage-2: render WebAuthn enrollment UI here. */}
+        </Stack>
+      )}
 
-      <Divider />
+      {isFeatureEnabled('passkeys') && <Divider />}
 
       {/* ── 5. Preferences ─────────────────────────────────────────────── */}
       <Stack gap="sm" data-testid="profile-preferences-section">

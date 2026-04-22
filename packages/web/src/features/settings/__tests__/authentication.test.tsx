@@ -2,12 +2,12 @@
  * Tests for <AuthenticationSection>.
  *
  * Covers:
- *   - All 4 subsections render (TOTP, password, session, SSO placeholders)
+ *   - All 3 subsections render (TOTP, password, session) — SSO hidden behind feature flag
  *   - TOTP SegmentedControl reflects initial value from store
  *   - Changing TOTP + saving writes to store + emits audit + host event
  *   - Password min length validation (below 6 rejected, above 128 rejected)
  *   - Session idle hours validation
- *   - SSO panels are greyed and non-interactive (OAuth + SAML both present with "Coming soon")
+ *   - SSO section not rendered when feature flag is off
  *   - Permission-denied: without `tenant-auth:write`, Save button and all inputs are disabled
  *
  * Task 8a.4
@@ -79,13 +79,14 @@ beforeEach(() => {
 // ─── Section render ───────────────────────────────────────────────────────────
 
 describe('<AuthenticationSection>', () => {
-  it('renders all 4 subsections', () => {
+  it('renders 3 subsections (SSO hidden by feature flag)', () => {
     render(<AuthenticationSection />, { wrapper: Wrapper });
 
     expect(screen.getByTestId('auth-totp-fieldset')).toBeDefined();
     expect(screen.getByTestId('auth-password-fieldset')).toBeDefined();
     expect(screen.getByTestId('auth-session-fieldset')).toBeDefined();
-    expect(screen.getByTestId('auth-sso-fieldset')).toBeDefined();
+    // SSO fieldset is hidden when the `sso` feature flag is off
+    expect(screen.queryByTestId('auth-sso-fieldset')).toBeNull();
   });
 
   // ── TOTP ─────────────────────────────────────────────────────────────────
@@ -247,33 +248,15 @@ describe('<AuthenticationSection>', () => {
     });
   });
 
-  // ── SSO placeholders ──────────────────────────────────────────────────────
+  // ── SSO feature flag ─────────────────────────────────────────────────────
 
-  it('SSO OAuth panel is present with "Coming soon" text', () => {
+  it('SSO section is absent when feature flag is off', () => {
     render(<AuthenticationSection />, { wrapper: Wrapper });
 
-    const oauthPanel = screen.getByTestId('auth-sso-oauth-panel');
-    expect(oauthPanel).toBeDefined();
-    expect(screen.getByTestId('auth-sso-oauth-badge').textContent).toMatch(/coming soon/i);
-  });
-
-  it('SSO SAML panel is present with "Coming soon" text', () => {
-    render(<AuthenticationSection />, { wrapper: Wrapper });
-
-    const samlPanel = screen.getByTestId('auth-sso-saml-panel');
-    expect(samlPanel).toBeDefined();
-    expect(screen.getByTestId('auth-sso-saml-badge').textContent).toMatch(/coming soon/i);
-  });
-
-  it('SSO panels have no interactive controls', () => {
-    render(<AuthenticationSection />, { wrapper: Wrapper });
-
-    // OAuth and SAML panels should not contain any buttons or inputs
-    const oauthPanel = screen.getByTestId('auth-sso-oauth-panel');
-    const samlPanel = screen.getByTestId('auth-sso-saml-panel');
-
-    expect(oauthPanel.querySelectorAll('button, input, select').length).toBe(0);
-    expect(samlPanel.querySelectorAll('button, input, select').length).toBe(0);
+    // Panels are not rendered when sso flag is false
+    expect(screen.queryByTestId('auth-sso-oauth-panel')).toBeNull();
+    expect(screen.queryByTestId('auth-sso-saml-panel')).toBeNull();
+    expect(screen.queryByText(/coming soon/i)).toBeNull();
   });
 
   // ── Permission guard ──────────────────────────────────────────────────────

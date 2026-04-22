@@ -2,13 +2,12 @@
  * <NetworkSection> — settings network section.
  *
  * Renders 4 fieldsets:
- *   1. Listen addresses (read-only display; editable in stage 2)
+ *   1. Listen addresses (read-only display in stage 1)
  *   2. Caddy config overrides (Monaco JSON editor, lazy-loaded)
  *   3. HTTP/3 (Switch)
  *   4. Upstream timeouts (NumberInputs)
  *
- * Requires `network:write` for save. In stage 1, save writes to mock store
- * and shows "Config preview updated (changes apply at stage 2)".
+ * Requires `network:write` for save. In stage 1, save writes to mock store.
  *
  * Task 8b.6
  */
@@ -141,7 +140,7 @@ export function NetworkSection() {
         upstream_timeouts: form.values.upstream_timeouts,
       });
       form.resetDirty(form.values);
-      notify.success('Config preview updated', 'Changes apply at stage 2.');
+      notify.success('Network config updated', 'Changes will take effect when the daemon applies the configuration.');
     } catch (e) {
       notify.error('Save failed', (e as Error).message);
     } finally {
@@ -153,12 +152,9 @@ export function NetworkSection() {
 
   return (
     <Stack gap="md">
-      {/* 1. Listen addresses */}
+      {/* 1. Listen addresses — read-only display in stage 1 */}
       <Fieldset legend="Listen addresses" data-testid="fieldset-listen-addresses">
         <Stack gap="xs">
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            Editable in stage 2
-          </Text>
           <Group gap="xs" wrap="wrap">
             {(config?.listen_addresses ?? [':443', ':80']).map((addr) => (
               <Badge key={addr} variant="outline" data-testid={`listen-address-${addr}`}>

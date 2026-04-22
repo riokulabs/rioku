@@ -123,13 +123,14 @@ describe('<ProfileSection> — undefined user guard', () => {
 });
 
 describe('<ProfileSection>', () => {
-  it('renders all 5 subsections', () => {
+  it('renders 4 subsections (Passkeys hidden by feature flag)', () => {
     render(<ProfileSection />, { wrapper: Wrapper });
 
     expect(screen.getByTestId('profile-personal-info')).toBeDefined();
     expect(screen.getByTestId('profile-password-section')).toBeDefined();
     expect(screen.getByTestId('profile-totp-section')).toBeDefined();
-    expect(screen.getByTestId('profile-passkeys-section')).toBeDefined();
+    // Passkeys section is hidden when the `passkeys` feature flag is off
+    expect(screen.queryByTestId('profile-passkeys-section')).toBeNull();
     expect(screen.getByTestId('profile-preferences-section')).toBeDefined();
   });
 
@@ -150,9 +151,9 @@ describe('<ProfileSection>', () => {
     expect(screen.getByTestId('profile-backup-codes-reset')).toBeDefined();
   });
 
-  it('renders Passkeys "Coming soon" badge', () => {
+  it('does not render Passkeys "Coming soon" text when feature flag is off', () => {
     render(<ProfileSection />, { wrapper: Wrapper });
-    expect(screen.getByText(/coming soon/i)).toBeDefined();
+    expect(screen.queryByText(/coming soon/i)).toBeNull();
   });
 
   // ── Name inline-edit ─────────────────────────────────────────────────────
