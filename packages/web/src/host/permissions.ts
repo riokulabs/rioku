@@ -54,6 +54,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'logs:',
   'traces:',
   'integrations:',
+  'cluster:',
 ] as const;
 
 // ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
@@ -601,6 +602,14 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['viewer', 'ops', 'admin'],
   },
 
+  // notification:admin (Plan 8 — tenant-scoped notification config)
+  {
+    key: 'notification:admin',
+    description: 'Manage tenant-wide notification configuration (master toggle, opt-in mode, retry policy)',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
   // network:* (Plan 8b — daemon network configuration)
   {
     key: 'network:read',
@@ -695,6 +704,26 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
   {
     key: 'integrations:write',
     description: 'Configure external integrations',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+
+  // cluster:* (Plan 10 — cluster management)
+  {
+    key: 'cluster:read',
+    description: 'View cluster nodes and their status',
+    source: 'built-in',
+    default_roles: ['viewer', 'ops', 'admin'],
+  },
+  {
+    key: 'cluster:write',
+    description: 'Remove cluster nodes',
+    source: 'built-in',
+    default_roles: ['admin'],
+  },
+  {
+    key: 'cluster:enroll',
+    description: 'Generate enrollment tokens and add new cluster members',
     source: 'built-in',
     default_roles: ['admin'],
   },

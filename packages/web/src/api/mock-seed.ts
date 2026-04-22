@@ -61,6 +61,8 @@ const nextCaId = makeIdFactory('ca');
 const nextEnrollmentId = makeIdFactory('enrollment');
 const nextTlsCertId = makeIdFactory('tlscert');
 const nextWebhookId = makeIdFactory('webhook');
+const nextClusterNodeId = makeIdFactory('cluster-node');
+const nextEnrollTokenId = makeIdFactory('enroll-token');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -522,6 +524,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant:hard-reset' },
     { permission: 'tenant:export' },
     // tenant:delete and user:impersonate are super-admin only — see superAdminGrants below.
+    // Plan 10 — Cluster management (admin: full access).
+    { permission: 'cluster:read' },
+    { permission: 'cluster:write' },
+    { permission: 'cluster:enroll' },
   ];
 
   // Super-admin grants: all admin grants + super-admin-only permissions.
@@ -585,6 +591,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'traces:read' },
     // Plan 8c.11 — Integrations (ops: read-only).
     { permission: 'integrations:read' },
+    // Plan 10 — Cluster management (ops: read-only).
+    { permission: 'cluster:read' },
   ];
 
   const viewerGrants: T.Grant[] = [
@@ -637,6 +645,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'traces:read' },
     // Plan 8c.11 — Integrations (viewer: read-only).
     { permission: 'integrations:read' },
+    // Plan 10 — Cluster management (viewer: read-only).
+    { permission: 'cluster:read' },
   ];
 
   const roleIds: T.ID[] = [];
@@ -2279,6 +2289,134 @@ export function seedStore(store: StoreApi<MockStore>): void {
   }
 
   store.setState({ webhookEndpoints });
+
+  // ── Tenant notification configs (1 per tenant) ────────────────────────────
+
+  const notificationConfigs: Record<T.ID, T.TenantNotificationConfig> = {};
+  for (const tid of allTenantIds) {
+    notificationConfigs[tid] = {
+      tenant_id: tid,
+      enabled: true,
+      opt_in_mode: 'opt-out',
+      plugins_can_register_categories: true,
+      default_channel_priority: channelIds.slice(0, 2),
+      max_retries: 3,
+      retry_backoff_seconds: 30,
+      updated_at: daysAgo(3),
+    };
+  }
+  store.setState({ notificationConfigs });
+
+  // ── Cluster nodes ─────────────────────────────────────────────────────────
+  // Seed 4 nodes: 1 primary (east, healthy), 2 replicas (one healthy, one
+  // degraded), 1 witness (healthy). These are not tenant-scoped — cluster
+  // membership is per-installation.
+
+  const clusterNodes: Record<T.ID, T.ClusterNode> = {};
+  const clusterEnrollmentTokens: Record<T.ID, T.ClusterEnrollmentToken> = {};
+
+  const n1Id = nextClusterNodeId();
+  clusterNodes[n1Id] = {
+    id: n1Id,
+    name: 'rioku-east-1',
+    role: 'primary',
+    status: 'healthy',
+    address: '10.0.1.10:7777',
+    version: '0.1.0',
+    joined_at: daysAgo(90),
+    last_heartbeat_at: hoursAgo(0),
+    metrics: {
+      cpu_percent: 12,
+      memory_percent: 34,
+      requests_per_second: 523,
+      latency_p95_ms: 18,
+    },
+  };
+
+  const n2Id = nextClusterNodeId();
+  clusterNodes[n2Id] = {
+    id: n2Id,
+    name: 'rioku-west-1',
+    role: 'replica',
+    status: 'healthy',
+    address: '10.0.2.11:7777',
+    version: '0.1.0',
+    joined_at: daysAgo(85),
+    last_heartbeat_at: hoursAgo(0),
+    metrics: {
+      cpu_percent: 9,
+      memory_percent: 29,
+      requests_per_second: 447,
+      latency_p95_ms: 22,
+    },
+  };
+
+  const n3Id = nextClusterNodeId();
+  clusterNodes[n3Id] = {
+    id: n3Id,
+    name: 'rioku-eu-1',
+    role: 'replica',
+    status: 'degraded',
+    address: '10.1.0.50:7777',
+    version: '0.1.0',
+    joined_at: daysAgo(60),
+    last_heartbeat_at: hoursAgo(2),
+    metrics: {
+      cpu_percent: 71,
+      memory_percent: 82,
+      requests_per_second: 180,
+      latency_p95_ms: 145,
+    },
+  };
+
+  const n4Id = nextClusterNodeId();
+  clusterNodes[n4Id] = {
+    id: n4Id,
+    name: 'rioku-witness-1',
+    role: 'witness',
+    status: 'healthy',
+    address: '10.0.3.99:7777',
+    version: '0.1.0',
+    joined_at: daysAgo(90),
+    last_heartbeat_at: hoursAgo(0),
+    metrics: {
+      cpu_percent: 2,
+      memory_percent: 11,
+      requests_per_second: 0,
+      latency_p95_ms: 0,
+    },
+  };
+
+  // Enrollment tokens: 1 active, 1 expired, 1 consumed.
+  const tok1Id = nextEnrollTokenId();
+  clusterEnrollmentTokens[tok1Id] = {
+    id: tok1Id,
+    token: 'rkjoin_active_a1b2c3d4e5f6071829304050607080900a',
+    created_by: derrickId,
+    expires_at: daysFromNow(7),
+    created_at: daysAgo(1),
+  };
+
+  const tok2Id = nextEnrollTokenId();
+  clusterEnrollmentTokens[tok2Id] = {
+    id: tok2Id,
+    token: 'rkjoin_expired_b2c3d4e5f607182930405060708090a0b',
+    created_by: derrickId,
+    expires_at: daysAgo(3),
+    created_at: daysAgo(10),
+  };
+
+  const tok3Id = nextEnrollTokenId();
+  clusterEnrollmentTokens[tok3Id] = {
+    id: tok3Id,
+    token: 'rkjoin_consumed_c3d4e5f6071829304050607080900a0b0c',
+    created_by: derrickId,
+    expires_at: daysFromNow(4),
+    consumed_by_node_id: n3Id,
+    created_at: daysAgo(60),
+  };
+
+  store.setState({ clusterNodes, clusterEnrollmentTokens });
 
   // ── Context — current user / tenant ──────────────────────────────────────
   store.setState({ currentUserId: derrickId, currentTenantId: acmeTenantId });

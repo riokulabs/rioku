@@ -58,6 +58,10 @@ interface MockStoreState {
   // Integrations — inbound webhook endpoints
   webhookEndpoints: Record<T.ID, T.WebhookEndpoint>;
 
+  // Cluster — nodes and enrollment tokens (Plan 10)
+  clusterNodes: Record<T.ID, T.ClusterNode>;
+  clusterEnrollmentTokens: Record<T.ID, T.ClusterEnrollmentToken>;
+
   // Sites
   sites: Record<T.ID, T.Site>;
 
@@ -73,6 +77,8 @@ interface MockStoreState {
   notificationChannels: Record<T.ID, T.NotificationChannel>;
   notificationRoutingRules: Record<T.ID, T.NotificationRoutingRule>;
   notificationDeliveryLog: Record<T.ID, T.NotificationDeliveryLogEntry>;
+  // Tenant-scoped notification config — keyed by tenant_id, at most one per tenant
+  notificationConfigs: Record<T.ID, T.TenantNotificationConfig>;
 
   // Plugins
   plugins: Record<T.ID, T.Plugin>;
@@ -136,6 +142,8 @@ interface EntityKindMap {
   certAuthorities: T.CertAuthority;
   certEnrollments: T.CertEnrollment;
   tlsCertificates: T.TlsCertificate;
+  clusterNodes: T.ClusterNode;
+  clusterEnrollmentTokens: T.ClusterEnrollmentToken;
 }
 
 export type EntityKind = keyof EntityKindMap;
@@ -244,6 +252,12 @@ interface MockStoreActions {
   deleteWebhookEndpoint(id: T.ID): void;
 
   /**
+   * Atomically apply a partial patch to a TenantNotificationConfig.
+   * No-ops silently if no config exists for the tenant yet.
+   */
+  updateNotificationConfig(tenantId: T.ID, patch: Partial<Omit<T.TenantNotificationConfig, 'tenant_id' | 'updated_at'>>): void;
+
+  /**
    * Reset the entire store to empty state (useful for re-seeding).
    */
   reset(): void;
@@ -284,6 +298,7 @@ function emptyState(): MockStoreState {
     notificationChannels: {},
     notificationRoutingRules: {},
     notificationDeliveryLog: {},
+    notificationConfigs: {},
     plugins: {},
     marketplaceListings: {},
     pluginSigners: {},
@@ -297,6 +312,8 @@ function emptyState(): MockStoreState {
     certAuthorities: {},
     certEnrollments: {},
     tlsCertificates: {},
+    clusterNodes: {},
+    clusterEnrollmentTokens: {},
     tlsConfigs: {},
     observabilityConfigs: {},
     webhookEndpoints: {},
@@ -518,6 +535,19 @@ const storeInitializer = (
     });
   },
 
+  updateNotificationConfig(tenantId: T.ID, patch: Partial<Omit<T.TenantNotificationConfig, 'tenant_id' | 'updated_at'>>) {
+    set((state) => {
+      const current = state.notificationConfigs[tenantId];
+      if (!current) return state;
+      return {
+        notificationConfigs: {
+          ...state.notificationConfigs,
+          [tenantId]: { ...current, ...patch, updated_at: new Date().toISOString() },
+        },
+      };
+    });
+  },
+
   reset() {
     set(emptyState());
   },
@@ -528,7 +558,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 14,
+        version: 16,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -633,6 +663,17 @@ export const useMockStore = IS_VITEST
           // Additive; persisted stores from v13 simply get an empty map.
           if (version < 14) {
             state.webhookEndpoints = {};
+          }
+          // Version 15 — Plan 10 adds clusterNodes + clusterEnrollmentTokens maps.
+          // Additive; persisted stores from v14 simply get empty maps.
+          if (version < 15) {
+            state.clusterNodes = {};
+            state.clusterEnrollmentTokens = {};
+          }
+          // Version 16 — Plan 8 adds notificationConfigs (tenant_id → config).
+          // Additive; persisted stores from v15 simply get an empty map.
+          if (version < 16) {
+            state.notificationConfigs = {};
           }
           return state as unknown as MockStore;
         },

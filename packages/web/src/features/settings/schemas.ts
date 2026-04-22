@@ -187,6 +187,18 @@ export const tracesConfigSchema = z.object({
 
 export type TracesConfigValues = z.infer<typeof tracesConfigSchema>;
 
+// ─── Tenant notification config ──────────────────────────────────────────────
+
+export const tenantNotificationConfigSchema = z.object({
+  enabled: z.boolean(),
+  opt_in_mode: z.enum(['opt-in', 'opt-out']),
+  plugins_can_register_categories: z.boolean(),
+  max_retries: z.number().int().min(0).max(10),
+  retry_backoff_seconds: z.number().int().min(1).max(3600),
+});
+
+export type TenantNotificationConfigValues = z.infer<typeof tenantNotificationConfigSchema>;
+
 // ─── Integrations — Webhook endpoint ─────────────────────────────────────────
 
 export const webhookEndpointSchema = z.object({

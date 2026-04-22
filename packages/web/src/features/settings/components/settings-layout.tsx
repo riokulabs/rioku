@@ -46,6 +46,7 @@ import { ObservabilitySection } from '../sections/observability';
 import { IntegrationsSection } from '../sections/integrations';
 import { PluginSettingsSection } from '../sections/plugin-settings';
 import { DangerZoneSection } from '../sections/danger-zone';
+import { NotificationsSection } from '../sections/notifications';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -71,16 +72,11 @@ const SECTIONS: SettingsSection[] = [
 ];
 
 /**
- * Sections that have a real landing subroute now. These render a "Open <page>"
- * anchor instead of the placeholder EmptyState so users can jump straight into
- * the implemented UI.
+ * Sections that have a real landing subroute now (but no dedicated
+ * <Section> component yet). These render a "Open <page>" anchor instead of
+ * the placeholder EmptyState so users can jump straight into the implemented UI.
  */
-const SECTION_ROUTES: Record<string, { to: string; linkLabel: string }> = {
-  notifications: {
-    to: '/t/$tenant/settings/notifications',
-    linkLabel: 'Open notifications',
-  },
-};
+const SECTION_ROUTES: Record<string, { to: string; linkLabel: string }> = {};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -176,6 +172,8 @@ export function SettingsLayout() {
                 <TenantSection />
               ) : activeSection.slug === 'authentication' ? (
                 <AuthenticationSection />
+              ) : activeSection.slug === 'notifications' ? (
+                <NotificationsSection />
               ) : activeSection.slug === 'network' ? (
                 <NetworkSection />
               ) : activeSection.slug === 'pki' ? (

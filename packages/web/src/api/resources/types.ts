@@ -559,6 +559,31 @@ export interface NotificationDeliveryLogEntry {
   error?: string;
 }
 
+/**
+ * Tenant-scoped notification configuration.
+ * Controls master on/off, opt-in mode, plugin category registration,
+ * channel priority, and retry behaviour.
+ */
+export interface TenantNotificationConfig {
+  readonly tenant_id: ID;
+  /** Master kill switch — when false, no notifications are dispatched. */
+  enabled: boolean;
+  /** Whether users must opt-in per category (true) or opt-out (false). */
+  opt_in_mode: 'opt-in' | 'opt-out';
+  /** Allow installed plugins to register their own notification categories. */
+  plugins_can_register_categories: boolean;
+  /**
+   * Ordered list of channel IDs that define delivery priority when multiple
+   * routing rules match the same event. First channel in the list is tried first.
+   */
+  default_channel_priority: ID[];
+  /** Maximum number of delivery retries before a log entry is marked `failed`. 0–10. */
+  max_retries: number;
+  /** Base back-off interval between retries, in seconds. 1–3600. */
+  retry_backoff_seconds: number;
+  readonly updated_at: string;
+}
+
 // ─── Plugins ──────────────────────────────────────────────────────────────────
 
 export interface Plugin {
@@ -884,4 +909,40 @@ export interface TlsConfig {
   /** Allowed TLS 1.2/1.3 cipher suites (openssl-style names). */
   allowed_ciphers: string[];
   readonly updated_at: string;
+}
+
+// ─── Cluster ──────────────────────────────────────────────────────────────────
+
+/**
+ * A single node participating in the Rioku cluster.
+ * Stage-1 mock — real data flows from daemon gRPC ClusterService at stage 2.
+ */
+export interface ClusterNode {
+  readonly id: ID;
+  name: string;                           // e.g. "rioku-east-1"
+  role: 'primary' | 'replica' | 'witness';
+  status: 'healthy' | 'degraded' | 'unreachable' | 'joining' | 'leaving';
+  address: string;                        // e.g. "10.0.1.23:7777"
+  version: string;                        // e.g. "0.1.0"
+  joined_at: string;
+  last_heartbeat_at: string;
+  metrics: {
+    cpu_percent: number;                  // 0-100
+    memory_percent: number;               // 0-100
+    requests_per_second: number;
+    latency_p95_ms: number;
+  };
+}
+
+/**
+ * A short-lived enrollment token used to join a new node to the cluster.
+ * Stage-1 mock — real token issuance happens at stage 2.
+ */
+export interface ClusterEnrollmentToken {
+  readonly id: ID;
+  token: string;                          // fake bearer token
+  created_by: ID;                         // user_id
+  expires_at: string;
+  consumed_by_node_id?: ID;              // set once a node consumes the token
+  readonly created_at: string;
 }

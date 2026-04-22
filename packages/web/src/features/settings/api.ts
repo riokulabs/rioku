@@ -15,6 +15,7 @@
  * Task 8b.9 — Observability section.
  * Task 8c.11 — Integrations section (webhook endpoints).
  * Task 8c.13 — Danger zone (hard reset, export, delete tenant).
+ * Task (notifications) — Tenant-scoped notification config.
  */
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
@@ -23,8 +24,8 @@ import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { seedStore } from '@/api/mock-seed';
 import { logAdminAuditEntry } from '@/api/resources/audit';
-import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TlsCertificate, TlsConfig, User, WebhookEndpoint } from '@/api/resources/types';
-import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues, WebhookEndpointValues } from './schemas';
+import type { AuditEntry, CertAuthority, CertEnrollment, ID, NetworkConfig, ObservabilityConfig, Tenant, TenantAuthPolicy, TenantNotificationConfig, TlsCertificate, TlsConfig, User, WebhookEndpoint } from '@/api/resources/types';
+import type { CreateCaValues, CreateEnrollmentValues, MetricsConfigValues, LogsConfigValues, TracesConfigValues, TlsAcmeConfigValues, TlsCiphersValues, TlsUploadValues, TenantNotificationConfigValues, WebhookEndpointValues } from './schemas';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ const nextEnrollmentId = makeIdFactory('enrollment');
 const nextTlsCertId = makeIdFactory('tlscert');
 const nextWebhookId = makeIdFactory('webhook');
 const nextDangerZoneAuditId = makeIdFactory('audit-danger-zone');
+const nextNotificationConfigAuditId = makeIdFactory('audit-notification-config');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -860,6 +862,105 @@ export async function deleteWebhookEndpoint(id: ID): Promise<void> {
   emitHostEvent('integrations:webhook-deleted', { tenant_id: endpoint.tenant_id, webhook_id: id });
 }
 
+// ─── Tenant notification config selectors ────────────────────────────────────
+
+/** Returns the notification config for the current tenant, or undefined if not found. */
+export function useCurrentNotificationConfig(): TenantNotificationConfig | undefined {
+  return useMockStore((s) =>
+    s.currentTenantId ? s.notificationConfigs[s.currentTenantId] : undefined,
+  );
+}
+
+// ─── Tenant notification config counts (for summary cards) ───────────────────
+
+/** Returns the count of active notification channels for the current tenant. */
+export function useNotificationChannelCount(): number {
+  const channels = useMockStore((s) => s.notificationChannels);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(
+    () => Object.values(channels).filter((c) => c.tenant_id === currentTenantId).length,
+    [channels, currentTenantId],
+  );
+}
+
+/** Returns the count of routing rules for the current tenant. */
+export function useNotificationRoutingRuleCount(): number {
+  const rules = useMockStore((s) => s.notificationRoutingRules);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(
+    () => Object.values(rules).filter((r) => r.tenant_id === currentTenantId).length,
+    [rules, currentTenantId],
+  );
+}
+
+/**
+ * Returns count + delivered rate from the delivery log for the current tenant.
+ * Scans all entries; designed for a small-to-medium Stage-1 mock store.
+ */
+export function useDeliveryLogSummary(): {
+  total: number;
+  delivered: number;
+  successRate: number | null;
+} {
+  const log = useMockStore((s) => s.notificationDeliveryLog);
+  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  return useMemo(() => {
+    const entries = Object.values(log).filter((e) => e.tenant_id === currentTenantId);
+    const total = entries.length;
+    const delivered = entries.filter((e) => e.status === 'delivered').length;
+    return {
+      total,
+      delivered,
+      successRate: total > 0 ? Math.round((delivered / total) * 100) : null,
+    };
+  }, [log, currentTenantId]);
+}
+
+// ─── Tenant notification config audit helper ──────────────────────────────────
+
+function makeNotificationConfigAudit(
+  action: string,
+  tenantId: ID,
+  tier: AuditEntry['tier'] = 'write',
+): AuditEntry {
+  const state = useMockStore.getState();
+  return {
+    id: nextNotificationConfigAuditId(),
+    tenant_id: tenantId,
+    actor_id: state.currentUserId ?? 'unknown',
+    action,
+    resource_type: 'tenant',
+    resource_id: tenantId,
+    outcome: 'success',
+    at: now(),
+    tier,
+  };
+}
+
+// ─── Tenant notification config mutations ─────────────────────────────────────
+
+/**
+ * Atomically apply a full values patch to the tenant's notification config
+ * and emit audit + host event.
+ */
+export async function updateTenantNotificationConfig(
+  tenantId: ID,
+  values: TenantNotificationConfigValues,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  state.updateNotificationConfig(tenantId, {
+    enabled: values.enabled,
+    opt_in_mode: values.opt_in_mode,
+    plugins_can_register_categories: values.plugins_can_register_categories,
+    max_retries: values.max_retries,
+    retry_backoff_seconds: values.retry_backoff_seconds,
+  });
+  const updatedState = useMockStore.getState();
+  updatedState.appendAudit(makeNotificationConfigAudit('tenant.notification_config.update', tenantId));
+  emitHostEvent('tenant:notification-config-updated', { tenant_id: tenantId });
+}
+
 // ─── Danger zone ──────────────────────────────────────────────────────────────
 
 function makeDangerZoneAudit(
@@ -968,6 +1069,7 @@ export async function exportTenantJson(tenantId: ID): Promise<void> {
     cert_enrollments: Object.values(s.certEnrollments).filter((x) => x.tenant_id === tenantId),
     webhook_endpoints: Object.values(s.webhookEndpoints).filter((x) => x.tenant_id === tenantId),
     tenant_auth_policy: s.tenantAuthPolicies[tenantId] ?? null,
+    notification_config: s.notificationConfigs[tenantId] ?? null,
     exported_at: exportedAt,
   };
 
@@ -1076,6 +1178,9 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
     const nextObservabilityConfigs = { ...s.observabilityConfigs };
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete nextObservabilityConfigs[tenantId];
+    const nextNotificationConfigs = { ...s.notificationConfigs };
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete nextNotificationConfigs[tenantId];
     const nextAuditRetentionConfigs = { ...s.auditRetentionConfigs };
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete nextAuditRetentionConfigs[tenantId];
@@ -1130,6 +1235,7 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
       notificationRoutingRules: filterOut(s.notificationRoutingRules),
       notificationDeliveryLog: filterOut(s.notificationDeliveryLog),
       notifications: nextNotifications,
+      notificationConfigs: nextNotificationConfigs,
       networkConfigs: nextNetworkConfigs,
       tenantAuthPolicies: nextTenantAuthPolicies,
       tlsConfigs: nextTlsConfigs,

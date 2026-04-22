@@ -112,13 +112,15 @@ describe('SettingsLayout', () => {
     expect(screen.getByTestId('tenant-section')).toBeDefined();
   });
 
-  it('shows notifications section with link to the notifications subpage', () => {
+  it('shows notifications section inline when ?section=notifications', () => {
+    // Set current tenant so useCurrentNotificationConfig() returns a value.
+    const tenantId = Object.keys(useMockStore.getState().tenants)[0];
+    if (!tenantId) throw new Error('No tenants in store');
+    useMockStore.setState({ currentTenantId: tenantId });
     mockSection = 'notifications';
     wrap(<SettingsLayout />);
-    // Plan 7 switched notifications from an EmptyState to a live sub-route,
-    // so the layout now renders an "Open notifications" anchor + plan label.
-    expect(screen.getByTestId('settings-section-open-notifications')).toBeDefined();
-    expect(screen.getByText(/plan 7/i)).toBeDefined();
+    // NotificationsSection is now rendered inline.
+    expect(screen.getByTestId('notifications-section')).toBeDefined();
   });
 
   it('shows network section inline when ?section=network', () => {
