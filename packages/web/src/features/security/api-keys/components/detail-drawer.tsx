@@ -30,7 +30,7 @@ interface ApiKeyDetailDrawerProps {
 
 export function ApiKeyDetailDrawer({
   keyId,
-  onClose,
+  onClose: _onClose,
   onRotated,
 }: ApiKeyDetailDrawerProps) {
   const key = useApiKey(keyId);
@@ -136,9 +136,6 @@ export function ApiKeyDetailDrawer({
             Revoke
           </Button>
         )}
-        <Button size="sm" variant="default" onClick={onClose}>
-          Close
-        </Button>
       </Group>
     </Stack>
   );

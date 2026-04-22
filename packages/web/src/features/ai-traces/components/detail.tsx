@@ -78,7 +78,7 @@ interface TraceDetailProps {
   onClose: () => void;
 }
 
-export function TraceDetail({ traceId, tenantSlug, onClose }: TraceDetailProps) {
+export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDetailProps) {
   const trace = useTraceDetail(traceId);
   const agents = useMockStore((s) => s.aiAgents);
   const providers = useMockStore((s) => s.aiProviders);
@@ -158,9 +158,6 @@ export function TraceDetail({ traceId, tenantSlug, onClose }: TraceDetailProps) 
             </Text>
           </Group>
         </Stack>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       {/* Provider + model */}

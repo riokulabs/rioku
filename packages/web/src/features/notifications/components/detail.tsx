@@ -72,7 +72,7 @@ export interface NotificationDetailProps {
   onClose: () => void;
 }
 
-export function NotificationDetail({ item, onClose }: NotificationDetailProps) {
+export function NotificationDetail({ item, onClose: _onClose }: NotificationDetailProps) {
   const canManageOwn = usePermission('notification:manage-own');
   const Icon = SEVERITY_ICON[item.severity];
   const color = SEVERITY_COLOR[item.severity];
@@ -149,9 +149,6 @@ export function NotificationDetail({ item, onClose }: NotificationDetailProps) {
             </Tooltip>
           </Group>
         </Stack>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       <Divider />

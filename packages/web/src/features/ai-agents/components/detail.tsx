@@ -191,9 +191,6 @@ export function AgentDetail({
             )}
           </Stack>
         </Group>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       <Divider />

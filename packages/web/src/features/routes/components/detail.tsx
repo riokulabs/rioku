@@ -23,9 +23,10 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconRoute } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowsDiagonal, IconRoute } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
@@ -39,6 +40,8 @@ interface RouteDetailProps {
   tenantId: string;
   onEdit: () => void;
   onClose: () => void;
+  /** Optional: navigate to the full-page detail view. */
+  onOpenFullPage?: () => void;
 }
 
 const METHOD_COLORS: Record<string, string> = {
@@ -55,6 +58,7 @@ export function RouteDetail({
   tenantId,
   onEdit,
   onClose,
+  onOpenFullPage,
 }: RouteDetailProps) {
   const route = useRouteDetail(routeId);
   const services = useMockStore((s) => s.services);
@@ -134,9 +138,19 @@ export function RouteDetail({
             </Text>
           </Stack>
         </Group>
-        <Button size="xs" variant="default" onClick={onClose}>
-          Close
-        </Button>
+        {onOpenFullPage && (
+          <Tooltip label="Open full page" withArrow>
+            <Button
+              variant="subtle"
+              size="xs"
+              px={6}
+              aria-label="Open full page"
+              onClick={onOpenFullPage}
+            >
+              <IconArrowsDiagonal size={14} />
+            </Button>
+          </Tooltip>
+        )}
       </Group>
 
       <Divider />

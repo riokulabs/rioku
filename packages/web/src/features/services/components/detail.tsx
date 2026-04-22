@@ -18,6 +18,7 @@ import {
   Divider,
   Group,
   Modal,
+  Tooltip,
   Stack,
   Table,
   Text,
@@ -25,7 +26,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconRefresh, IconServer } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowsDiagonal, IconRefresh, IconServer } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
@@ -54,6 +55,8 @@ interface ServiceDetailProps {
   onEditRoute: (route: Route) => void;
   onDeleteRoute: (route: Route) => void;
   onClose: () => void;
+  /** Optional: navigate to the full-page detail view. */
+  onOpenFullPage?: () => void;
 }
 
 const DEFAULT_ROUTE_FILTER: RouteFilter = {
@@ -70,6 +73,7 @@ export function ServiceDetail({
   onEditRoute,
   onDeleteRoute,
   onClose,
+  onOpenFullPage,
 }: ServiceDetailProps) {
   const service = useServiceDetail(serviceId);
   const routes = useServiceRoutes(serviceId);
@@ -203,9 +207,19 @@ export function ServiceDetail({
             )}
           </Stack>
         </Group>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
+        {onOpenFullPage && (
+          <Tooltip label="Open full page" withArrow>
+            <Button
+              variant="subtle"
+              size="xs"
+              px={6}
+              aria-label="Open full page"
+              onClick={onOpenFullPage}
+            >
+              <IconArrowsDiagonal size={14} />
+            </Button>
+          </Tooltip>
+        )}
       </Group>
 
       <Divider />

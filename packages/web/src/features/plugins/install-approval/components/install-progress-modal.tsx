@@ -402,17 +402,13 @@ export function InstallProgressModal({
 
           {/* Actions */}
           <Group justify="flex-end" gap="sm">
-            {canCancel ? (
+            {canCancel && (
               <Button
                 variant="default"
                 leftSection={<IconX size={14} />}
                 onClick={handleCancel}
               >
                 Cancel install
-              </Button>
-            ) : (
-              <Button variant="default" onClick={handleClose}>
-                Close
               </Button>
             )}
           </Group>

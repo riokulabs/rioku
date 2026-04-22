@@ -95,7 +95,7 @@ const SAMPLE_PERMISSIONS = [
   'rioku.admin.read',
 ];
 
-export function RoleDetail({ role, onDelete, onClose }: RoleDetailProps) {
+export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProps) {
   const allRoles = useRolesMap();
   const userCounts = useRoleUserCounts();
   const users = useMockStore((s) => s.users);
@@ -202,9 +202,6 @@ export function RoleDetail({ role, onDelete, onClose }: RoleDetailProps) {
         <Group gap="xs">
           <Button size="xs" variant="light" color="red" onClick={onDelete}>
             Delete
-          </Button>
-          <Button size="xs" variant="default" onClick={onClose}>
-            Close
           </Button>
         </Group>
       </Group>

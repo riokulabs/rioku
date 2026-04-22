@@ -194,9 +194,6 @@ export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
             </Text>
           </Stack>
         </Group>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       {/* Fingerprint */}

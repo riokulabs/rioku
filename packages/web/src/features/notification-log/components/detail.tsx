@@ -13,7 +13,6 @@ import {
   Alert,
   Anchor,
   Badge,
-  Button,
   Divider,
   Group,
   Stack,
@@ -45,7 +44,7 @@ interface DeliveryLogDetailProps {
 export function DeliveryLogDetail({
   entryId,
   tenantSlug,
-  onClose,
+  onClose: _onClose,
 }: DeliveryLogDetailProps) {
   const entry = useDeliveryLogDetail(entryId);
   const notifications = useMockStore((s) => s.notifications);
@@ -84,9 +83,6 @@ export function DeliveryLogDetail({
             </Text>
           </Stack>
         </Group>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       <Divider />

@@ -7,7 +7,7 @@
  * export button.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 
 // Shiki mock — payload section uses CodeBlock.
@@ -174,15 +174,6 @@ describe('<AuditDetail>', () => {
       { wrapper: Wrapper },
     );
     expect(screen.getByTestId('audit-admin-banner')).toBeInTheDocument();
-  });
-
-  it('close button fires onClose', () => {
-    const onClose = vi.fn();
-    render(<AuditDetail entry={makeEntry()} onClose={onClose} />, {
-      wrapper: Wrapper,
-    });
-    fireEvent.click(screen.getByRole('button', { name: /close/i }));
-    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('Export button renders', () => {
