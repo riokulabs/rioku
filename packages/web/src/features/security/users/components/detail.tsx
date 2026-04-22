@@ -32,6 +32,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconArrowsDiagonal, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
+import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
@@ -618,25 +619,44 @@ export function UserDetail({
 
         {/* ── Effective permissions ── */}
         <Tabs.Panel value="permissions" pt="md">
-          <Stack gap="sm">
-            <Text size="sm" c="dimmed">
-              Trace why this user has (or doesn&apos;t have) a specific permission.
-            </Text>
-            <Select
-              label="Permission to trace"
-              data={permOptions.length > 0 ? permOptions : SAMPLE_PERMISSIONS}
-              value={tracedPermission}
-              onChange={(v) => {
-                if (v) setTracedPermission(v);
-              }}
-              searchable
-            />
-            <PermissionPathTrace
-              userId={userId}
-              tenantId={currentTenantId}
-              permission={tracedPermission}
-            />
-          </Stack>
+          <Tabs defaultValue="overview" variant="outline">
+            <Tabs.List>
+              <Tabs.Tab value="overview">Overview</Tabs.Tab>
+              <Tabs.Tab value="trace">Trace permission</Tabs.Tab>
+            </Tabs.List>
+
+            {/* ── Overview: full computed set ── */}
+            <Tabs.Panel value="overview" pt="md">
+              <EffectivePermissionsPanel
+                scope="user"
+                id={userId}
+                tenantId={currentTenantId}
+              />
+            </Tabs.Panel>
+
+            {/* ── Trace: single-permission debugger ── */}
+            <Tabs.Panel value="trace" pt="md">
+              <Stack gap="sm">
+                <Text size="sm" c="dimmed">
+                  Trace why this user has (or doesn&apos;t have) a specific permission.
+                </Text>
+                <Select
+                  label="Permission to trace"
+                  data={permOptions.length > 0 ? permOptions : SAMPLE_PERMISSIONS}
+                  value={tracedPermission}
+                  onChange={(v) => {
+                    if (v) setTracedPermission(v);
+                  }}
+                  searchable
+                />
+                <PermissionPathTrace
+                  userId={userId}
+                  tenantId={currentTenantId}
+                  permission={tracedPermission}
+                />
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
         </Tabs.Panel>
       </Tabs>
 

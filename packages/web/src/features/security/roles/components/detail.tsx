@@ -24,6 +24,7 @@ import {
 import { IconTrash, IconPlus, IconAlertCircle } from '@tabler/icons-react';
 import { PermissionSelector } from '@/components/permission-selector';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
+import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
 import { ConditionEditor } from '@/components/condition-editor';
 import { validateRoleSave } from '@/host/role-resolver';
 import { useMockStore } from '@/api/mock-store';
@@ -282,37 +283,57 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
 
         {/* ── Effective perms preview ── */}
         <Tabs.Panel value="preview" pt="md">
-          <Stack gap="sm">
-            <Select
-              label="Preview for user"
-              data={userOptions}
-              value={previewUserId}
-              onChange={setPreviewUserId}
-              searchable
-              clearable
-              placeholder="Select a user…"
-            />
-            {previewUserId && (
-              <>
+          <Tabs defaultValue="overview" variant="outline">
+            <Tabs.List>
+              <Tabs.Tab value="overview">Role overview</Tabs.Tab>
+              <Tabs.Tab value="trace">Trace for user</Tabs.Tab>
+            </Tabs.List>
+
+            {/* ── Overview: all permissions this role effectively grants ── */}
+            <Tabs.Panel value="overview" pt="md">
+              <Stack gap="xs">
+                <Text size="sm" c="dimmed">
+                  Full set of permissions this role effectively grants (own grants + inherited from parents).
+                </Text>
+                <EffectivePermissionsPanel scope="role" id={role.id} />
+              </Stack>
+            </Tabs.Panel>
+
+            {/* ── Trace: single-permission debugger for a specific user ── */}
+            <Tabs.Panel value="trace" pt="md">
+              <Stack gap="sm">
                 <Select
-                  label="Permission to trace"
-                  data={SAMPLE_PERMISSIONS}
-                  value={previewPermission}
-                  onChange={(v) => { if (v) setPreviewPermission(v); }}
+                  label="Preview for user"
+                  data={userOptions}
+                  value={previewUserId}
+                  onChange={setPreviewUserId}
+                  searchable
+                  clearable
+                  placeholder="Select a user…"
                 />
-                <PermissionPathTrace
-                  userId={previewUserId}
-                  tenantId={previewTenantId}
-                  permission={previewPermission}
-                />
-              </>
-            )}
-            {!previewUserId && (
-              <Text size="sm" c="dimmed">
-                Select a user to trace effective permissions.
-              </Text>
-            )}
-          </Stack>
+                {previewUserId && (
+                  <>
+                    <Select
+                      label="Permission to trace"
+                      data={SAMPLE_PERMISSIONS}
+                      value={previewPermission}
+                      onChange={(v) => { if (v) setPreviewPermission(v); }}
+                    />
+                    <PermissionPathTrace
+                      userId={previewUserId}
+                      tenantId={previewTenantId}
+                      permission={previewPermission}
+                    />
+                  </>
+                )}
+                {!previewUserId && (
+                  <Text size="sm" c="dimmed">
+                    Select a user to trace effective permissions.
+                  </Text>
+                )}
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
         </Tabs.Panel>
       </Tabs>
 
