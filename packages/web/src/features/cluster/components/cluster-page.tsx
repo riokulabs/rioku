@@ -173,7 +173,7 @@ export function ClusterPage() {
             size="xl"
             fw={700}
             mt={4}
-            c={stats.healthyPct === 100 ? 'teal' : stats.healthyPct >= 75 ? 'yellow' : 'red'}
+            c={stats.healthyPct === 100 ? 'teal.4' : stats.healthyPct >= 75 ? 'yellow.4' : 'red.4'}
           >
             {stats.healthyPct}%
           </Text>
@@ -274,9 +274,9 @@ export function ClusterPage() {
                         size="sm"
                         ff="monospace"
                         {...(node.metrics.latency_p95_ms > 100
-                          ? { c: 'red' }
+                          ? { c: 'red.4' }
                           : node.metrics.latency_p95_ms > 50
-                            ? { c: 'yellow' }
+                            ? { c: 'yellow.4' }
                             : {})}
                       >
                         {node.metrics.latency_p95_ms}

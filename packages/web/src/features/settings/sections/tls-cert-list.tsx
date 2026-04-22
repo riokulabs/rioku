@@ -316,11 +316,11 @@ export function TlsCertList({ tenantId, canWrite }: TlsCertListProps) {
                     </Table.Td>
                     <Table.Td>
                       {isExpired(cert.expires_at) ? (
-                        <Text size="sm" c="red" data-testid={`cert-expiry-${cert.id}`}>
+                        <Text size="sm" c="red.4" data-testid={`cert-expiry-${cert.id}`}>
                           {relativeExpiry(cert.expires_at)}
                         </Text>
                       ) : isExpiringSoon(cert.expires_at) ? (
-                        <Text size="sm" c="orange" data-testid={`cert-expiry-${cert.id}`}>
+                        <Text size="sm" c="orange.4" data-testid={`cert-expiry-${cert.id}`}>
                           {relativeExpiry(cert.expires_at)}
                         </Text>
                       ) : (
