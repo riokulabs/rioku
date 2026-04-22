@@ -5,9 +5,10 @@
  * ConditionEditor provides CEL editing + syntax validation.
  */
 import { useState } from 'react';
-import { Stack, TextInput, Select, NumberInput, Switch, Button, Group, Text } from '@mantine/core';
+import { Stack, TextInput, Select, NumberInput, Switch, Button, Group, Text, Tooltip } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
+import { usePermission } from '@/hooks/use-permission';
 import { ConditionEditor } from '@/components/condition-editor';
 import { accessPolicySchema, type AccessPolicyFormValues } from '../schemas';
 import type { AccessPolicy } from '../types';
@@ -28,6 +29,7 @@ export function AccessPolicyEditor({
 }: AccessPolicyEditorProps) {
   const [saving, setSaving] = useState(false);
   const [conditionValid, setConditionValid] = useState(true);
+  const canWrite = usePermission('policy:write');
 
   const form = useForm<AccessPolicyFormValues>({
     validate: schemaResolver(accessPolicySchema, { sync: true }),
@@ -112,9 +114,11 @@ export function AccessPolicyEditor({
           <Button variant="default" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" loading={saving} disabled={!conditionValid}>
-            {initial ? 'Save changes' : 'Create policy'}
-          </Button>
+          <Tooltip disabled={canWrite} label="Requires policy:write permission">
+            <Button type="submit" loading={saving} disabled={!canWrite || !conditionValid}>
+              {initial ? 'Save changes' : 'Create policy'}
+            </Button>
+          </Tooltip>
         </Group>
       </Stack>
     </form>

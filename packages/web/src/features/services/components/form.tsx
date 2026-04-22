@@ -17,10 +17,12 @@ import {
   Collapse,
   Text,
   Select,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
 import { useMockStore } from '@/api/mock-store';
 import { TagsInput } from '@/features/api-mgmt-shared';
@@ -73,6 +75,7 @@ export function ServiceForm({
 }: ServiceFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canWrite = usePermission('service:write');
   const [healthOpened, { toggle: toggleHealth }] = useDisclosure(
     initialValues?.health_check !== undefined,
   );
@@ -258,9 +261,11 @@ export function ServiceForm({
           <Button variant="default" onClick={onCancel} type="button">
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
-            {mode === 'create' ? 'Create service' : 'Save changes'}
-          </Button>
+          <Tooltip disabled={canWrite} label="Requires service:write permission">
+            <Button type="submit" loading={loading} disabled={!canWrite}>
+              {mode === 'create' ? 'Create service' : 'Save changes'}
+            </Button>
+          </Tooltip>
         </Group>
       </Stack>
     </form>

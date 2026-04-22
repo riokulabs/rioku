@@ -17,9 +17,11 @@ import {
   Button,
   Alert,
   Divider,
+  Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useForm, schemaResolver } from '@mantine/form';
+import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
 import { createMiddleware, updateMiddleware } from '../api';
 import { MIDDLEWARE_KINDS, createMiddlewareSchema, middlewareConfigSchemas } from '../schemas';
@@ -61,6 +63,7 @@ export function MiddlewareForm({
 }: MiddlewareFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canWrite = usePermission('middleware:write');
   const [config, setConfig] = useState<Record<string, unknown>>(() => {
     if (initialValues) {
       return { ...initialValues.config };
@@ -191,9 +194,11 @@ export function MiddlewareForm({
           <Button variant="default" onClick={onCancel} type="button">
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
-            {mode === 'create' ? 'Create middleware' : 'Save changes'}
-          </Button>
+          <Tooltip disabled={canWrite} label="Requires middleware:write permission">
+            <Button type="submit" loading={loading} disabled={!canWrite}>
+              {mode === 'create' ? 'Create middleware' : 'Save changes'}
+            </Button>
+          </Tooltip>
         </Group>
       </Stack>
     </form>

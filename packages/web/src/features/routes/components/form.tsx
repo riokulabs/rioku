@@ -18,9 +18,11 @@ import {
   TextInput,
   Text,
   ActionIcon,
+  Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useForm, schemaResolver } from '@mantine/form';
+import { usePermission } from '@/hooks/use-permission';
 import { z } from 'zod';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
@@ -96,6 +98,7 @@ export function RouteForm({
 }: RouteFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canWrite = usePermission('route:write');
   const [headerPairs, setHeaderPairs] = useState<HeaderPair[]>(
     initialValues ? headersAddToPairs(initialValues.headers_add) : [],
   );
@@ -305,9 +308,11 @@ export function RouteForm({
           <Button variant="default" onClick={onCancel} type="button">
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
-            {mode === 'create' ? 'Create route' : 'Save changes'}
-          </Button>
+          <Tooltip disabled={canWrite} label="Requires route:write permission">
+            <Button type="submit" loading={loading} disabled={!canWrite}>
+              {mode === 'create' ? 'Create route' : 'Save changes'}
+            </Button>
+          </Tooltip>
         </Group>
       </Stack>
     </form>
