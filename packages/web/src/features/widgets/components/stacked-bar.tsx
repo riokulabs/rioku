@@ -34,9 +34,13 @@ export function StackedBarWidget({ widget, data, loading, error }: WidgetRenderP
       </Alert>
     );
 
+  // Fall back to bare color names so Mantine's primaryShade resolves the
+  // correct shade per color scheme. Explicit shades (e.g. 'blue.6') are
+  // near-invisible on dark card backgrounds.
+  const FALLBACK_COLORS = ['blue', 'cyan', 'teal', 'indigo', 'violet', 'grape'] as const;
   const series = data.series.map((s, i) => ({
     name: s.name,
-    color: s.color ?? `blue.${String(3 + ((i * 2) % 6))}`,
+    color: s.color ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length] ?? 'blue',
   }));
 
   return (

@@ -397,23 +397,28 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
         const server = Math.round(base * (0.04 + ((seed + i * 37) % 5) / 100));
         return { label: day, success, 'client-error': client, 'server-error': server };
       });
+      // Use bare color names (no explicit shade) so Mantine's primaryShade
+      // mechanism picks the correct shade for the active color scheme.
+      // "green.6" is near-invisible against a dark card background; "green"
+      // lets the theme resolve to a lighter shade in dark mode automatically.
       return {
         categories,
         series: [
-          { name: 'success', color: 'green.6' },
-          { name: 'client-error', color: 'yellow.6' },
-          { name: 'server-error', color: 'red.6' },
+          { name: 'success', color: 'green' },
+          { name: 'client-error', color: 'yellow' },
+          { name: 'server-error', color: 'red' },
         ],
       };
     }
 
     case 'pie':
+      // Bare color names — Mantine resolves the correct shade per color scheme.
       return {
         slices: [
-          { name: 'Success', value: 78 + ((seed % 10) - 5), color: 'green.6' },
-          { name: 'Error 4xx', value: 12 + ((seed % 6) - 3), color: 'yellow.6' },
-          { name: 'Error 5xx', value: 6 + ((seed % 4) - 2), color: 'red.6' },
-          { name: 'Timeout', value: 4 + ((seed % 3) - 1), color: 'orange.6' },
+          { name: 'Success', value: 78 + ((seed % 10) - 5), color: 'green' },
+          { name: 'Error 4xx', value: 12 + ((seed % 6) - 3), color: 'yellow' },
+          { name: 'Error 5xx', value: 6 + ((seed % 4) - 2), color: 'red' },
+          { name: 'Timeout', value: 4 + ((seed % 3) - 1), color: 'orange' },
         ],
       };
 
