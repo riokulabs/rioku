@@ -13,7 +13,6 @@
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import {
-  Badge,
   Group,
   Text,
   Tooltip,
@@ -25,17 +24,18 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { IdBadge } from '@/components/id-badge';
+import { StatusBadge } from '@/components/status-badge';
 import { formatCost, formatTokens } from '@/features/ai-shared';
 import { useMockStore } from '@/api/mock-store';
 import type { AiTrace } from '@/api/resources/types';
 
 dayjs.extend(relativeTime);
 
-const STATUS_COLOR: Record<AiTrace['status'], string> = {
-  success: 'green',
-  error: 'red',
-  timeout: 'yellow',
-};
+const STATUS_KIND = {
+  success: 'success',
+  error:   'error',
+  timeout: 'warn',
+} as const satisfies Record<AiTrace['status'], 'success' | 'error' | 'warn'>;
 
 interface TraceListProps {
   /** Pre-filtered + sorted + sliced trace rows to render. */
@@ -150,9 +150,9 @@ export function TraceList({ rows, onSelect }: TraceListProps) {
         cell: ({ getValue }) => {
           const v = getValue<AiTrace['status']>();
           return (
-            <Badge size="xs" variant="light" color={STATUS_COLOR[v]}>
+            <StatusBadge kind={STATUS_KIND[v]} size="xs">
               {v}
-            </Badge>
+            </StatusBadge>
           );
         },
       },

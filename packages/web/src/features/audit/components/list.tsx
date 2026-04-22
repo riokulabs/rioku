@@ -35,17 +35,19 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { IdBadge } from '@/components/id-badge';
+import { StatusBadge } from '@/components/status-badge';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
 import type { AuditEntry } from '@/api/resources/types';
 
 dayjs.extend(relativeTime);
 
-const OUTCOME_COLOR: Record<AuditEntry['outcome'], string> = {
-  success: 'green',
-  denied: 'orange',
-  error: 'red',
-};
+// Outcome kinds for StatusBadge — denied/error draw attention (filled).
+const OUTCOME_KIND = {
+  success: 'success',
+  denied:  'warn',
+  error:   'error',
+} as const satisfies Record<AuditEntry['outcome'], 'success' | 'warn' | 'error'>;
 
 const TIER_COLOR: Record<AuditEntry['tier'], string> = {
   read: 'blue',
@@ -160,9 +162,9 @@ export function AuditList({ rows, onSelect }: AuditListProps) {
         cell: ({ getValue }) => {
           const v = getValue<AuditEntry['outcome']>();
           return (
-            <Badge size="xs" variant="light" color={OUTCOME_COLOR[v]}>
+            <StatusBadge kind={OUTCOME_KIND[v]} size="xs">
               {v}
-            </Badge>
+            </StatusBadge>
           );
         },
       },

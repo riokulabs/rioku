@@ -9,7 +9,6 @@ import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import {
   ActionIcon,
-  Badge,
   Text,
   Tooltip,
 } from '@mantine/core';
@@ -18,17 +17,18 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
+import { StatusBadge } from '@/components/status-badge';
 import { useMockStore } from '@/api/mock-store';
 import type { NotificationDeliveryLogEntry } from '@/api/resources/types';
 
 dayjs.extend(relativeTime);
 
-const STATUS_COLOR: Record<NotificationDeliveryLogEntry['status'], string> = {
-  delivered: 'green',
-  retrying: 'yellow',
-  failed: 'red',
-  pending: 'gray',
-};
+const STATUS_KIND = {
+  delivered: 'success',
+  retrying:  'warn',
+  failed:    'error',
+  pending:   'neutral',
+} as const satisfies Record<NotificationDeliveryLogEntry['status'], 'success' | 'warn' | 'error' | 'neutral'>;
 
 interface DeliveryLogListProps {
   rows: NotificationDeliveryLogEntry[];
@@ -115,9 +115,9 @@ export function DeliveryLogList({ rows, onSelect }: DeliveryLogListProps) {
         cell: ({ getValue }) => {
           const v = getValue<NotificationDeliveryLogEntry['status']>();
           return (
-            <Badge size="xs" variant="light" color={STATUS_COLOR[v]}>
+            <StatusBadge kind={STATUS_KIND[v]} size="xs">
               {v}
-            </Badge>
+            </StatusBadge>
           );
         },
       },

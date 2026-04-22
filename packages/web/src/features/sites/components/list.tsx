@@ -56,7 +56,7 @@ function tlsBadge(mode: Site['tls_mode']) {
     );
   }
   return (
-    <Badge size="xs" color="gray" variant="light">
+    <Badge size="xs" color="gray" variant="outline">
       TLS off
     </Badge>
   );

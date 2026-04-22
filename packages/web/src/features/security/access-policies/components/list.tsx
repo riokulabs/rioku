@@ -6,10 +6,11 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge, Text, Tooltip } from '@mantine/core';
+import { Text, Tooltip } from '@mantine/core';
 import dayjs from 'dayjs';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
+import { StatusBadge } from '@/components/status-badge';
 import { IconShield } from '@tabler/icons-react';
 import { useAccessPolicyList } from '../api';
 import type { AccessPolicy } from '../types';
@@ -41,13 +42,12 @@ export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
         cell: ({ getValue }) => {
           const v = getValue<string>();
           return (
-            <Badge
-              color={v === 'allow' ? 'green' : 'red'}
-              variant="light"
+            <StatusBadge
+              kind={v === 'allow' ? 'active' : 'error'}
               size="sm"
             >
               {v}
-            </Badge>
+            </StatusBadge>
           );
         },
       },
@@ -82,9 +82,9 @@ export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
         header: 'Enabled',
         size: 90,
         cell: ({ getValue }) => (
-          <Badge color={getValue<boolean>() ? 'teal' : 'gray'} variant="light" size="sm">
+          <StatusBadge kind={getValue<boolean>() ? 'active' : 'neutral'} size="sm">
             {getValue<boolean>() ? 'Yes' : 'No'}
-          </Badge>
+          </StatusBadge>
         ),
       },
       {

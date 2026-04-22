@@ -63,7 +63,7 @@ function tlsBadge(mode: 'auto' | 'manual' | 'off') {
     );
   }
   return (
-    <Badge size="sm" color="gray" variant="light">
+    <Badge size="sm" color="gray" variant="outline">
       TLS off
     </Badge>
   );
@@ -151,9 +151,6 @@ export function SiteDetail({
             </Text>
           </Stack>
         </Group>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       <Divider />

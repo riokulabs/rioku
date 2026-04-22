@@ -42,6 +42,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { CodeBlock } from '@/components/code-block';
 import { DiffView } from '@/components/diff-view';
 import { IdBadge } from '@/components/id-badge';
+import { StatusBadge } from '@/components/status-badge';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
@@ -50,11 +51,11 @@ import { CelDiff } from './cel-diff';
 
 dayjs.extend(relativeTime);
 
-const OUTCOME_COLOR: Record<AuditEntry['outcome'], string> = {
-  success: 'green',
-  denied: 'orange',
-  error: 'red',
-};
+const OUTCOME_KIND = {
+  success: 'success',
+  denied:  'warn',
+  error:   'error',
+} as const satisfies Record<AuditEntry['outcome'], 'success' | 'warn' | 'error'>;
 
 const TIER_COLOR: Record<AuditEntry['tier'], string> = {
   read: 'blue',
@@ -106,7 +107,7 @@ export interface AuditDetailProps {
   onClose: () => void;
 }
 
-export function AuditDetail({ entry, onClose }: AuditDetailProps) {
+export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
   const users = useMockStore((s) => s.users);
   const canReadSensitive = usePermission('audit:read-sensitive');
 
@@ -201,9 +202,9 @@ export function AuditDetail({ entry, onClose }: AuditDetailProps) {
             <Title order={4} ff="monospace">
               {entry.action}
             </Title>
-            <Badge size="sm" variant="light" color={OUTCOME_COLOR[entry.outcome]}>
+            <StatusBadge kind={OUTCOME_KIND[entry.outcome]} size="sm">
               {entry.outcome}
-            </Badge>
+            </StatusBadge>
             <Badge size="sm" variant="outline" color={TIER_COLOR[entry.tier]}>
               {entry.tier}
             </Badge>
@@ -238,9 +239,6 @@ export function AuditDetail({ entry, onClose }: AuditDetailProps) {
             </Group>
           )}
         </Stack>
-        <Button variant="default" size="xs" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       {entry.acted_as_admin && (

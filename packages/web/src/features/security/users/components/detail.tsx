@@ -26,9 +26,10 @@ import {
   Modal,
   TextInput,
   MultiSelect,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowsDiagonal, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
@@ -46,6 +47,7 @@ import {
   revokeInvite,
   updateMembershipRoles,
 } from '../api';
+import { StatusBadge } from '@/components/status-badge';
 import { Zone } from '@/components/zone';
 import { MembershipActions } from './membership-actions';
 
@@ -60,6 +62,8 @@ interface UserDetailProps {
   currentTenantId: string;
   tenantSlug: string;
   onClose: () => void;
+  /** Optional: navigate to the full-page detail view. */
+  onOpenFullPage?: () => void;
 }
 
 export function UserDetail({
@@ -67,6 +71,7 @@ export function UserDetail({
   currentTenantId,
   tenantSlug,
   onClose,
+  onOpenFullPage,
 }: UserDetailProps) {
   const detail = useUserDetail(userId);
   const sessions = useUserSessions(userId);
@@ -233,9 +238,9 @@ export function UserDetail({
             <Group gap="xs">
               <Title order={4}>{user.name}</Title>
               {user.disabled && (
-                <Badge color="red" size="sm">
+                <StatusBadge kind="error" size="sm">
                   disabled
-                </Badge>
+                </StatusBadge>
               )}
             </Group>
             <Text size="sm" c="dimmed">
@@ -243,9 +248,19 @@ export function UserDetail({
             </Text>
           </Stack>
         </Group>
-        <Button size="xs" variant="default" onClick={onClose}>
-          Close
-        </Button>
+        {onOpenFullPage && (
+          <Tooltip label="Open full page" withArrow>
+            <Button
+              variant="subtle"
+              size="xs"
+              px={6}
+              aria-label="Open full page"
+              onClick={onOpenFullPage}
+            >
+              <IconArrowsDiagonal size={14} />
+            </Button>
+          </Tooltip>
+        )}
       </Group>
 
       {/* Zone: service.detail.header-actions — plugins can add actions here */}
@@ -283,13 +298,13 @@ export function UserDetail({
                 Status:
               </Text>
               {user.disabled ? (
-                <Badge color="red" size="sm">
+                <StatusBadge kind="error" size="sm">
                   disabled
-                </Badge>
+                </StatusBadge>
               ) : (
-                <Badge color="green" size="sm">
+                <StatusBadge kind="active" size="sm">
                   enabled
-                </Badge>
+                </StatusBadge>
               )}
             </Group>
             <Group gap="xs">
@@ -572,13 +587,13 @@ export function UserDetail({
                     </Table.Td>
                     <Table.Td>
                       {sess.revoked ? (
-                        <Badge size="xs" color="red">
+                        <StatusBadge kind="error" size="xs">
                           revoked
-                        </Badge>
+                        </StatusBadge>
                       ) : (
-                        <Badge size="xs" color="green">
+                        <StatusBadge kind="active" size="xs">
                           active
-                        </Badge>
+                        </StatusBadge>
                       )}
                     </Table.Td>
                     <Table.Td>

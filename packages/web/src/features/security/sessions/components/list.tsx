@@ -16,6 +16,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconDeviceDesktop, IconShield } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
+import { StatusBadge } from '@/components/status-badge';
 import { notify } from '@/hooks/use-notify';
 import { useSessionList, revokeSession } from '../api';
 import { RevokeAllConfirm } from './revoke-confirm';
@@ -121,9 +122,9 @@ export function SessionList({ userId, tenantId }: SessionListProps) {
         accessorFn: (row) => row.revoked,
         cell: ({ getValue }) =>
           getValue<boolean>() ? (
-            <Badge size="sm" color="red" variant="light">revoked</Badge>
+            <StatusBadge kind="error" size="sm">revoked</StatusBadge>
           ) : (
-            <Badge size="sm" color="green" variant="light">active</Badge>
+            <StatusBadge kind="active" size="sm">active</StatusBadge>
           ),
       },
       {

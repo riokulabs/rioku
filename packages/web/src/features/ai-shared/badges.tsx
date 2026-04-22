@@ -3,8 +3,12 @@
  *
  * Pattern mirrors `api-mgmt-shared/protocol-badge.tsx`: enum → color + label,
  * no style wrappers (no wrappers rule B3).
+ *
+ * Variant rule: error/warn health states use "filled" to draw attention;
+ * category/kind labels use "light" (informational).
  */
 import { Badge } from '@mantine/core';
+import type { BadgeVariant } from '@mantine/core';
 import type { AiProvider, AiTool, McpServer } from '@/api/resources/types';
 
 // ─── ProviderKindBadge ────────────────────────────────────────────────────────
@@ -64,15 +68,27 @@ interface McpHealthChipProps {
 }
 
 const MCP_HEALTH_COLORS: Record<McpServer['health'], string> = {
-  healthy: 'green',
-  degraded: 'yellow',
+  healthy:     'green',
+  degraded:    'yellow',
   unreachable: 'red',
-  disabled: 'gray',
+  disabled:    'gray',
+};
+
+const MCP_HEALTH_VARIANTS: Record<McpServer['health'], BadgeVariant> = {
+  healthy:     'light',
+  degraded:    'filled',
+  unreachable: 'filled',
+  disabled:    'outline',
 };
 
 export function McpHealthChip({ health }: McpHealthChipProps) {
   return (
-    <Badge color={MCP_HEALTH_COLORS[health]} variant="light" size="sm">
+    <Badge
+      color={MCP_HEALTH_COLORS[health]}
+      variant={MCP_HEALTH_VARIANTS[health]}
+      autoContrast
+      size="sm"
+    >
       {health}
     </Badge>
   );

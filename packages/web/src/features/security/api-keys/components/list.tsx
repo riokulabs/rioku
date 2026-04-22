@@ -13,8 +13,9 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconKey, IconTrash, IconRefresh, IconBan } from '@tabler/icons-react';
-import { DataTable } from '@/components/data-table';
+import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
+import { StatusBadge } from '@/components/status-badge';
 import { notify } from '@/hooks/use-notify';
 import { useApiKeyList, revokeApiKey, deleteApiKey, rotateApiKey } from '../api';
 import type { ApiKeyWithMeta, ApiKeyFilter } from '../types';
@@ -26,11 +27,11 @@ const STATUS_OPTIONS = [
   { value: 'expired', label: 'Expired' },
 ];
 
-const STATUS_COLORS: Record<ApiKeyWithMeta['display_status'], string> = {
-  active: 'green',
-  revoked: 'red',
-  expired: 'orange',
-};
+const STATUS_KIND = {
+  active:  'active',
+  revoked: 'error',
+  expired: 'warn',
+} as const satisfies Record<ApiKeyWithMeta['display_status'], 'active' | 'error' | 'warn'>;
 
 const DEFAULT_FILTER: ApiKeyFilter = { status: 'all' };
 
@@ -88,6 +89,55 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
       setLoadingId(null);
     }
   }
+
+  const handleBulkRevoke = useCallback(async (ids: string[]) => {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await revokeApiKey(id);
+      } catch {
+        failed++;
+      }
+    }
+    const succeeded = ids.length - failed;
+    if (succeeded > 0) {
+      notify.success('Keys revoked', `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} revoked.`);
+    }
+    if (failed > 0) {
+      notify.error('Some revocations failed', `${String(failed)} key${failed !== 1 ? 's' : ''} could not be revoked.`);
+    }
+  }, []);
+
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await deleteApiKey(id);
+      } catch {
+        failed++;
+      }
+    }
+    const succeeded = ids.length - failed;
+    if (succeeded > 0) {
+      notify.success('Keys deleted', `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} deleted.`);
+    }
+    if (failed > 0) {
+      notify.error('Some deletions failed', `${String(failed)} key${failed !== 1 ? 's' : ''} could not be deleted.`);
+    }
+  }, []);
+
+  const bulkActions = useMemo<BulkAction[]>(() => [
+    {
+      label: 'Revoke selected',
+      color: 'orange',
+      onClick: (ids) => { void handleBulkRevoke(ids); },
+    },
+    {
+      label: 'Delete selected',
+      color: 'red',
+      onClick: (ids) => { void handleBulkDelete(ids); },
+    },
+  ], [handleBulkRevoke, handleBulkDelete]);
 
   const columns = useMemo<ColumnDef<ApiKeyWithMeta>[]>(
     () => [
@@ -156,9 +206,9 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         cell: ({ getValue }) => {
           const status = getValue<ApiKeyWithMeta['display_status']>();
           return (
-            <Badge size="sm" color={STATUS_COLORS[status]} variant="light">
+            <StatusBadge kind={STATUS_KIND[status]} size="sm">
               {status}
-            </Badge>
+            </StatusBadge>
           );
         },
       },
@@ -236,6 +286,8 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         sorting
         pagination={{ pageSize: 20 }}
         urlSyncKey="api-keys"
+        rowSelection="multiple"
+        bulkActions={bulkActions}
         {...(onSelect ? { onRowClick: onSelect } : {})}
         emptyState={
           <EmptyState

@@ -52,6 +52,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import dayjs from 'dayjs';
 import { notify } from '@/hooks/use-notify';
+import { StatusBadge } from '@/components/status-badge';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { useSignerDetail } from '@/features/plugin-signers';
 import type { PluginSigner } from '@/features/plugin-signers';
@@ -206,7 +207,7 @@ export function InstalledPluginDetail({
   pluginId,
   tenantSlug,
   onUninstall,
-  onClose,
+  onClose: _onClose,
   initialBuildLogOpen = false,
 }: InstalledPluginDetailProps) {
   const plugin = useInstalledPlugin(pluginId);
@@ -253,13 +254,13 @@ export function InstalledPluginDetail({
             <Group gap="xs" wrap="wrap">
               <Title order={4}>{plugin.display_name}</Title>
               {plugin.has_errors && (
-                <Badge color="red" size="sm" variant="light">
+                <StatusBadge kind="error" size="sm">
                   has errors
-                </Badge>
+                </StatusBadge>
               )}
-              <Badge color={plugin.enabled ? 'green' : 'gray'} size="sm" variant="light">
+              <StatusBadge kind={plugin.enabled ? 'active' : 'neutral'} size="sm">
                 {plugin.enabled ? 'enabled' : 'disabled'}
-              </Badge>
+              </StatusBadge>
               <SignerChip signerId={plugin.signer_id} />
             </Group>
             <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
@@ -279,9 +280,6 @@ export function InstalledPluginDetail({
             </Group>
           </Stack>
         </Group>
-        <Button size="xs" variant="default" onClick={onClose}>
-          Close
-        </Button>
       </Group>
 
       {plugin.has_errors && (

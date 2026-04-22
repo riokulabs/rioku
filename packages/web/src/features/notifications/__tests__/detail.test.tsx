@@ -108,12 +108,4 @@ describe('<NotificationDetail>', () => {
     });
   });
 
-  it('onClose prop is invoked when Close button clicked', () => {
-    const onClose = vi.fn();
-    render(<NotificationDetail item={makeItem()} onClose={onClose} />, {
-      wrapper: Wrapper,
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(onClose).toHaveBeenCalled();
-  });
 });
