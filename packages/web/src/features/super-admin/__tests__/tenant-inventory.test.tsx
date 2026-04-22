@@ -55,9 +55,9 @@ describe('TenantInventory', () => {
 
   it('shows delete button per row', () => {
     wrap(<TenantInventory />);
-    // 3 tenants = 3 delete buttons (with aria-label format "Delete <slug>")
+    // 4 tenants = 4 delete buttons (with aria-label format "Delete <slug>")
     const deleteButtons = screen.getAllByRole('button', { name: /^delete /i });
-    expect(deleteButtons.length).toBe(3);
+    expect(deleteButtons.length).toBe(4);
   });
 
   it('renders member count column in the table header', () => {

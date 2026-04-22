@@ -1275,8 +1275,8 @@ describe('hardResetTenant', () => {
   it('re-seeds the store (store has tenants after reset)', async () => {
     const tenantId = getAcmeTenantIdForDangerZone();
     await hardResetTenant(tenantId);
-    // Store should have been re-seeded (3 tenants)
-    expect(Object.keys(useMockStore.getState().tenants).length).toBe(3);
+    // Store should have been re-seeded (4 tenants: acme, beta, gamma, empty)
+    expect(Object.keys(useMockStore.getState().tenants).length).toBe(4);
   });
 });
 

@@ -4,12 +4,15 @@
  * Seed the Zustand mock store with deterministic fixtures per spec §13.2.
  *
  * Target counts:
- *   3 tenants, 15 users, 8 roles, 20 services, 60 routes, 15 access policies,
- *   6 rbac policies, 10 middlewares, 8 sites, 25 api keys, 30 sessions,
- *   300 audit entries, 5 dashboards, 4–8 widgets each, 4 installed plugins,
- *   20 marketplace listings, 40 inbox notifications, 6 notification channels,
- *   8 routing rules, 100 delivery log entries, 4 AI providers, 6 AI agents,
- *   12 AI tools, 200 AI traces, 3 MCP servers.
+ *   4 tenants (3 seeded + 1 empty), 15 users, 8 roles, 20 services, 60 routes,
+ *   15 access policies, 6 rbac policies, 10 middlewares, 8 sites, 25 api keys,
+ *   30 sessions, 300 audit entries, 5 dashboards, 4–8 widgets each,
+ *   4 installed plugins, 20 marketplace listings, 40 inbox notifications,
+ *   6 notification channels, 8 routing rules, 100 delivery log entries,
+ *   4 AI providers, 6 AI agents, 12 AI tools, 200 AI traces, 3 MCP servers.
+ *
+ * The 4th tenant (slug: 'empty') has no seeded entities and is used for
+ * empty-state UX testing. Derrick holds an admin membership to it.
  *
  * Call seedStore(useMockStore) once when the store is empty.
  */
@@ -221,6 +224,10 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const acmeTenantId = nextTenantId();
   const betaTenantId = nextTenantId();
   const gammaTenantId = nextTenantId();
+  // Empty tenant — freshly provisioned, no seeded entities. Used to exercise
+  // empty-state UX across every list page. Excluded from allTenantIds so the
+  // pick() distribution never assigns services, routes, etc. to it.
+  const emptyTenantId = nextTenantId();
 
   const tenants: T.Tenant[] = [
     {
@@ -255,9 +262,22 @@ export function seedStore(store: StoreApi<MockStore>): void {
       created_at: daysAgo(30),
       updated_at: daysAgo(2),
     },
+    {
+      id: emptyTenantId,
+      slug: 'empty',
+      name: 'Empty Demo',
+      accent: '#a855f7',
+      plan: 'community',
+      url_mode: 'path',
+      // No seeded entities — used for empty-state UX testing.
+      created_at: daysAgo(1),
+      updated_at: daysAgo(0),
+    },
   ];
   for (const t of tenants) addEntity('tenants', t);
 
+  // allTenantIds intentionally excludes emptyTenantId so the pick() helper
+  // never distributes services, routes, or any other entities to it.
   const allTenantIds = [acmeTenantId, betaTenantId, gammaTenantId];
 
   // ── Users ─────────────────────────────────────────────────────────────────
@@ -748,6 +768,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const membershipData: { userId: T.ID; tenantId: T.ID; roleId: T.ID }[] = [
     // Derrick is super-admin: the only seeded user who holds tenant:delete + user:impersonate.
     { userId: derrickId, tenantId: acmeTenantId, roleId: superAdminRoleId },
+    // Derrick is also admin on the empty tenant so he can switch to it via the picker.
+    { userId: derrickId, tenantId: emptyTenantId, roleId: adminRoleId },
     { userId: userIds[1]!, tenantId: acmeTenantId, roleId: viewerRoleId },
     { userId: userIds[2]!, tenantId: acmeTenantId, roleId: viewerRoleId },
     { userId: userIds[3]!, tenantId: acmeTenantId, roleId: viewerRoleId },

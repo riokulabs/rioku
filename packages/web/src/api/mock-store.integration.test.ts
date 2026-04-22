@@ -313,8 +313,8 @@ describe('mock-store seed integrity', () => {
 
   // ── Entity counts ──────────────────────────────────────────────────────────
 
-  it('seeds 3 tenants', () => {
-    expect(Object.keys(store.getState().tenants)).toHaveLength(3);
+  it('seeds 4 tenants', () => {
+    expect(Object.keys(store.getState().tenants)).toHaveLength(4);
   });
 
   it('seeds 15 users', () => {
@@ -325,12 +325,24 @@ describe('mock-store seed integrity', () => {
     expect(Object.keys(store.getState().roles)).toHaveLength(9);
   });
 
-  it('seeds 15 memberships', () => {
-    expect(Object.keys(store.getState().memberships)).toHaveLength(15);
+  it('seeds 16 memberships', () => {
+    // 15 original + Derrick's admin membership on the empty tenant
+    expect(Object.keys(store.getState().memberships)).toHaveLength(16);
   });
 
   it('seeds 20 services', () => {
     expect(Object.keys(store.getState().services)).toHaveLength(20);
+  });
+
+  it('empty tenant has 0 services', () => {
+    const { tenants, services } = store.getState();
+    const emptyTenant = Object.values(tenants).find((t) => t.slug === 'empty');
+    expect(emptyTenant).toBeDefined();
+    if (!emptyTenant) return; // type guard — satisfied by toBeDefined above
+    const emptyServices = Object.values(services).filter(
+      (s) => s.tenant_id === emptyTenant.id,
+    );
+    expect(emptyServices).toHaveLength(0);
   });
 
   it('seeds 60 routes', () => {
@@ -468,24 +480,30 @@ describe('mock-store seed integrity', () => {
     }
   });
 
-  it('seeds one TlsConfig per tenant', () => {
+  it('seeds one TlsConfig per seeded tenant (excludes empty tenant)', () => {
     const { tlsConfigs, tenants } = store.getState();
-    const tenantIds = Object.keys(tenants);
-    for (const tid of tenantIds) {
+    // The empty tenant has no seeded configs; check only the 3 data-bearing tenants.
+    const seededTenantIds = Object.values(tenants)
+      .filter((t) => t.slug !== 'empty')
+      .map((t) => t.id);
+    for (const tid of seededTenantIds) {
       expect(tlsConfigs[tid]).toBeDefined();
     }
-    expect(Object.keys(tlsConfigs)).toHaveLength(tenantIds.length);
+    expect(Object.keys(tlsConfigs)).toHaveLength(seededTenantIds.length);
   });
 
   // ── Observability seed integrity ───────────────────────────────────────────
 
-  it('seeds one ObservabilityConfig per tenant', () => {
+  it('seeds one ObservabilityConfig per seeded tenant (excludes empty tenant)', () => {
     const { observabilityConfigs, tenants } = store.getState();
-    const tenantIds = Object.keys(tenants);
-    for (const tid of tenantIds) {
+    // The empty tenant has no seeded configs; check only the 3 data-bearing tenants.
+    const seededTenantIds = Object.values(tenants)
+      .filter((t) => t.slug !== 'empty')
+      .map((t) => t.id);
+    for (const tid of seededTenantIds) {
       expect(observabilityConfigs[tid]).toBeDefined();
     }
-    expect(Object.keys(observabilityConfigs)).toHaveLength(tenantIds.length);
+    expect(Object.keys(observabilityConfigs)).toHaveLength(seededTenantIds.length);
   });
 
   it('every ObservabilityConfig has valid sane defaults', () => {
@@ -568,12 +586,22 @@ describe('mock-store seed integrity', () => {
 
   // ── Webhook endpoint seed integrity ───────────────────────────────────────
 
-  it('each tenant has exactly 2 webhook endpoints', () => {
+  it('each seeded tenant has exactly 2 webhook endpoints (empty tenant has 0)', () => {
     const { webhookEndpoints, tenants } = store.getState();
-    const tenantIds = Object.keys(tenants);
-    for (const tid of tenantIds) {
+    const seededTenantIds = Object.values(tenants)
+      .filter((t) => t.slug !== 'empty')
+      .map((t) => t.id);
+    const emptyTenant = Object.values(tenants).find((t) => t.slug === 'empty');
+
+    for (const tid of seededTenantIds) {
       const eps = Object.values(webhookEndpoints).filter((e) => e.tenant_id === tid);
       expect(eps.length).toBe(2);
+    }
+    if (emptyTenant) {
+      const emptyEps = Object.values(webhookEndpoints).filter(
+        (e) => e.tenant_id === emptyTenant.id,
+      );
+      expect(emptyEps.length).toBe(0);
     }
   });
 
@@ -676,7 +704,10 @@ describe('deleteTenant cascade removes all tenant-scoped records', () => {
   it('leaves other tenants and their records intact', async () => {
     const tenantId = getAcmeTenantId();
     const stateBefore = useMockStore.getState();
+    // All tenants except the one being deleted
     const otherTenants = Object.values(stateBefore.tenants).filter((t) => t.id !== tenantId);
+    // Tenants with seeded data (beta + gamma; not the empty tenant)
+    const seededOtherTenants = otherTenants.filter((t) => t.slug !== 'empty');
     expect(otherTenants.length).toBeGreaterThan(0);
 
     await deleteTenant(tenantId);
@@ -684,7 +715,9 @@ describe('deleteTenant cascade removes all tenant-scoped records', () => {
     const stateAfter = useMockStore.getState();
     for (const t of otherTenants) {
       expect(stateAfter.tenants[t.id]).toBeDefined();
-      // Their services should still exist
+    }
+    // Only seeded tenants should have services
+    for (const t of seededOtherTenants) {
       const services = Object.values(stateAfter.services).filter((s) => s.tenant_id === t.id);
       expect(services.length).toBeGreaterThan(0);
     }
