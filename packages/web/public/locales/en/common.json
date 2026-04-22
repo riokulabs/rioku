@@ -1,0 +1,8 @@
+{
+  "app.name": "Rioku",
+  "app.hello": "Rioku — hello",
+  "actions.save": "Save",
+  "actions.cancel": "Cancel",
+  "actions.delete": "Delete",
+  "actions.confirm": "Confirm"
+}

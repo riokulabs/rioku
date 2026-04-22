@@ -14,10 +14,16 @@ cd ../..
 cd packages/build-service && go vet ./... || exit 1
 cd ../..
 
-# TypeScript type check (~1s with incremental)
+# Web checks: typecheck + lint + format (~5s)
 if [ -f packages/web/package.json ]; then
-  echo "Running tsc --noEmit..."
-  cd packages/web && npx tsc --noEmit || exit 1
+  echo "Running web typecheck..."
+  cd packages/web && pnpm typecheck || exit 1
+  cd ../..
+  echo "Running web lint..."
+  cd packages/web && pnpm lint || exit 1
+  cd ../..
+  echo "Running web format check..."
+  cd packages/web && pnpm format:check || exit 1
   cd ../..
 fi
 

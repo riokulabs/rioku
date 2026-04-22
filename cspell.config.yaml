@@ -3,7 +3,7 @@ useGitignore: true
 ignorePaths:
   - "packages/proto/gen/**"
   - "packages/web/node_modules/**"
-  - "packages/web/build/**"
+  - "packages/web/dist/**"
   - "packages/daemon/web/build/**"
   - "packages/web/src/routeTree.gen.ts"
   - "docs/node_modules/**"
@@ -13,6 +13,7 @@ ignorePaths:
   - "contrib-docs/build/**"
   - "contrib-docs/.docusaurus/**"
   - "**/package-lock.json"
+  - "**/pnpm-lock.yaml"
   - "**/*_test.go"
   - "**/*.test.ts"
   - "**/*.test.tsx"

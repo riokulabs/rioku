@@ -1,0 +1,53 @@
+/**
+ * Feature-local types for services.
+ */
+export type { Service, Route, ID } from '@/api/resources/types';
+
+import type { Service } from '@/api/resources/types';
+
+type HealthStatus = Service['health'];
+
+/**
+ * Filter state for the services list.
+ *
+ * Multi-value filters use `string[]` / `HealthStatus[]`; an empty array means
+ * "no filter" (match all), matching the Mantine `MultiSelect` semantics where
+ * deselecting all options yields `[]`.
+ */
+export interface ServiceFilter {
+  search: string;
+  /** Selected health statuses. Empty array = no filter. */
+  health: HealthStatus[];
+  /** Selected environments. Empty array = no filter. */
+  env: string[];
+  /** Selected tags. A service matches if it carries any selected tag. Empty array = no filter. */
+  tags: string[];
+}
+
+export interface ServiceInput {
+  name: string;
+  description?: string;
+  upstream: string;
+  upstream_protocol: Service['upstream_protocol'];
+  env: string;
+  tags?: string[];
+  health_check?: {
+    path: string;
+    interval_seconds: number;
+    timeout_seconds: number;
+  };
+}
+
+export interface ServiceUpdateInput extends Partial<ServiceInput> {
+  health?: Service['health'];
+}
+
+export class ServiceInUseError extends Error {
+  readonly code = 'SERVICE_IN_USE';
+  readonly routeIds: string[];
+  constructor(routeIds: string[]) {
+    super(`Service cannot be deleted — ${String(routeIds.length)} route(s) still reference it.`);
+    this.name = 'ServiceInUseError';
+    this.routeIds = routeIds;
+  }
+}

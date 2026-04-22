@@ -1,18 +1,17 @@
 //go:build !noadmin
 
-// Package web is a placeholder for the embedded admin panel SPA.
-//
-// The admin panel is being rebuilt from scratch (see tmp/admin-reset-reference/
-// for the previous iteration). Until the new panel ships, SPA() returns nil
-// and the gateway serves no web UI.
-//
-// When the new admin panel is ready, restore the //go:embed directive and
-// repopulate build/ via the Makefile's web-embed target.
+// Package web embeds the admin panel SPA into the daemon binary.
 package web
 
-import "io/fs"
+import (
+	"embed"
+	"io/fs"
+)
 
-// SPA returns nil while the admin panel is being rebuilt.
+//go:embed all:build
+var buildFS embed.FS
+
+// SPA returns a filesystem rooted at the admin panel build directory.
 func SPA() (fs.FS, error) {
-	return nil, nil
+	return fs.Sub(buildFS, "build")
 }

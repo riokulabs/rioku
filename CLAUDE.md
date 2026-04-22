@@ -93,6 +93,22 @@ make dev              # Build + run daemon in dev mode
 
 **If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
 
+**Active exception — admin panel stage 1.** The Mantine admin rebuild on `feat/admin-mantine` ships stage 1 as an in-browser UI/UX/IA mock. It explicitly bypasses the sandbox for the mock stage. See `tmp/specs/2026-04-18-admin-mantine-design.md` §13.0 for the carve-out rules. Sandbox discipline resumes at stage 2 when the admin starts hitting real daemon endpoints.
+
+**Admin stage-1 status (2026-04-20): COMPLETE.** Branch `feat/admin-mantine` has 604 total commits vs `main`. All 9 plans delivered per `tmp/plans/2026-04-18..2026-04-20-*.md`:
+
+- Plan 1 (Foundation), Plan 2 (Sites + API management), Plan 3 (AI management), Plan 4 (Analytics + dashboard builder), Plan 5 (Audit extended), Plan 6 (Plugins polish), Plan 7 (Notifications), Plan 8 (Settings polish), Plan 9 (Stage-1 integration close-out)
+
+Test coverage at stage-1 close: ~1671 unit tests, ~86 a11y tests + 32 visual checks, ~80 E2E smoke tests passing (all mock-store backed). Bundle audit documented in `packages/web/BUNDLE_AUDIT.md`.
+
+**Stage-2 entry points** (not yet flipped):
+
+- `src/api/mode.ts` — flip from mock fetch to real fetch
+- `VITE_USE_MOCKS=false` env flag activates real daemon endpoints
+- See `contrib-docs/admin-stage2-entry.md` (Task 9c.11) for full migration checklist
+
+**The sandbox-bypass carve-out REMAINS in effect** until the `VITE_USE_MOCKS=false` flip occurs. Stage 2 will retire this exception per spec §13.0.
+
 ## Issue Tracking
 
 **Always reference GitHub issue numbers in plans, specs, and commit messages.** When writing implementation plans or specs, include the issue number(s) being addressed (e.g., `#68`, `#79`). This ensures work can be traced back to issues and issues can be closed promptly when the work lands — not discovered as stale months later. When completing work:
