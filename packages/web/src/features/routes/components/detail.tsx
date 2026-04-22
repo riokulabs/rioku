@@ -50,12 +50,7 @@ const METHOD_COLORS: Record<string, string> = {
   ANY: 'gray',
 };
 
-export function RouteDetail({
-  routeId,
-  tenantId,
-  onEdit,
-  onClose,
-}: RouteDetailProps) {
+export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailProps) {
   const route = useRouteDetail(routeId);
   const services = useMockStore((s) => s.services);
   const auditEntries = useMockStore((s) => s.audit);

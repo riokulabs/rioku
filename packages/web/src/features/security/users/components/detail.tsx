@@ -28,11 +28,7 @@ import {
   MultiSelect,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconShieldHalf,
-  IconUserSearch,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
 import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
@@ -64,12 +60,7 @@ interface UserDetailProps {
   onClose: () => void;
 }
 
-export function UserDetail({
-  userId,
-  currentTenantId,
-  tenantSlug,
-  onClose,
-}: UserDetailProps) {
+export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: UserDetailProps) {
   const detail = useUserDetail(userId);
   const sessions = useUserSessions(userId);
   const tenants = useMockStore((s) => s.tenants);
