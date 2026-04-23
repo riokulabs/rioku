@@ -291,9 +291,9 @@ function DashboardViewerInner({
       </Stack>
 
       {/* Time range selector — lives at dashboard scope; injected into
-         * useWidgetData via context so every widget re-queries when the
-         * user flips it. The active range ID is shown in muted text to
-         * echo the selection in human-readable terms. */}
+       * useWidgetData via context so every widget re-queries when the
+       * user flips it. The active range ID is shown in muted text to
+       * echo the selection in human-readable terms. */}
       <TimeRangeBar />
 
       {/* Grid */}
@@ -421,8 +421,7 @@ function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
   // Prefer an explicit accent from widget.config, then the kind-based default,
   // then the primary palette. Surfaced as the title-row dot and (implicitly)
   // the KPI-card / area-chart stroke colors when no override is configured.
-  const configAccent =
-    typeof widget.config.accent === 'string' ? (widget.config.accent) : undefined;
+  const configAccent = typeof widget.config.accent === 'string' ? widget.config.accent : undefined;
   const accent = configAccent ?? WIDGET_ACCENT[widget.kind] ?? 'riokuOrange';
   const accentVar = `var(--mantine-color-${accent}-6)`;
 

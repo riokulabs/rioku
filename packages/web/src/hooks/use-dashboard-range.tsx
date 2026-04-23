@@ -156,7 +156,5 @@ export function DashboardRangeProvider({
     }),
     [rangeId],
   );
-  return (
-    <DashboardRangeContext.Provider value={value}>{children}</DashboardRangeContext.Provider>
-  );
+  return <DashboardRangeContext.Provider value={value}>{children}</DashboardRangeContext.Provider>;
 }

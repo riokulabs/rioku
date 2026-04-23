@@ -412,8 +412,7 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
   switch (widget.kind) {
     case 'sparkline': {
-      const count =
-        query.limit ?? (range !== undefined ? Math.min(range.points, 30) : 20);
+      const count = query.limit ?? (range !== undefined ? Math.min(range.points, 30) : 20);
       return { points: mockTimePoints(seed, range, count) };
     }
 
@@ -488,14 +487,12 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
       // let the seed tailor each KPI card. We pull them so the same widget
       // kind can render "1.2M req/24h" and "42ms p95" from different configs.
       const cfg = widget.config;
-      const accent = typeof cfg.accent === 'string' ? (cfg.accent) : 'riokuOrange';
-      const unit = typeof cfg.unit === 'string' ? (cfg.unit) : undefined;
-      const subtitle =
-        typeof cfg.subtitle === 'string' ? (cfg.subtitle) : undefined;
-      const valueBase = typeof cfg.valueBase === 'number' ? (cfg.valueBase) : 1200;
-      const valueSpread =
-        typeof cfg.valueSpread === 'number' ? (cfg.valueSpread) : 400;
-      const deltaBase = typeof cfg.deltaBase === 'number' ? (cfg.deltaBase) : 0;
+      const accent = typeof cfg.accent === 'string' ? cfg.accent : 'riokuOrange';
+      const unit = typeof cfg.unit === 'string' ? cfg.unit : undefined;
+      const subtitle = typeof cfg.subtitle === 'string' ? cfg.subtitle : undefined;
+      const valueBase = typeof cfg.valueBase === 'number' ? cfg.valueBase : 1200;
+      const valueSpread = typeof cfg.valueSpread === 'number' ? cfg.valueSpread : 400;
+      const deltaBase = typeof cfg.deltaBase === 'number' ? cfg.deltaBase : 0;
       const inverseDelta = cfg.inverseDelta === true;
       const value = valueBase + (seed % valueSpread) - valueSpread / 2;
       const delta = deltaBase + ((seed % 17) - 8) * 0.5;
@@ -521,10 +518,10 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
     case 'gauge': {
       const cfg = widget.config;
-      const max = typeof cfg.max === 'number' ? (cfg.max) : 100;
-      const suffix = typeof cfg.suffix === 'string' ? (cfg.suffix) : '%';
-      const label = typeof cfg.label === 'string' ? (cfg.label) : undefined;
-      const target = typeof cfg.target === 'number' ? (cfg.target) : max * 0.75;
+      const max = typeof cfg.max === 'number' ? cfg.max : 100;
+      const suffix = typeof cfg.suffix === 'string' ? cfg.suffix : '%';
+      const label = typeof cfg.label === 'string' ? cfg.label : undefined;
+      const target = typeof cfg.target === 'number' ? cfg.target : max * 0.75;
       const jitter = (seed % 15) - 7;
       const value = Math.max(0, Math.min(max, target + jitter));
       const inverse = cfg.inverse === true;
@@ -548,8 +545,8 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
     case 'heatmap': {
       const cfg = widget.config;
-      const accent = typeof cfg.accent === 'string' ? (cfg.accent) : 'riokuOrange';
-      const unit = typeof cfg.unit === 'string' ? (cfg.unit) : 'req/min';
+      const accent = typeof cfg.accent === 'string' ? cfg.accent : 'riokuOrange';
+      const unit = typeof cfg.unit === 'string' ? cfg.unit : 'req/min';
       const xLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}h`);
       const yLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const cells: number[][] = [];
@@ -615,7 +612,11 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
         { name: 'Plugins', status: 'warn', value: '1 outdated' },
       ];
       const tiles = Array.isArray(cfg.tiles)
-        ? (cfg.tiles as { name: string; status: 'ok' | 'warn' | 'error' | 'unknown'; value?: string }[])
+        ? (cfg.tiles as {
+            name: string;
+            status: 'ok' | 'warn' | 'error' | 'unknown';
+            value?: string;
+          }[])
         : defaultTiles;
       return { tiles };
     }

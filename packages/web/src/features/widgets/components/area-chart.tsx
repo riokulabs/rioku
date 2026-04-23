@@ -39,7 +39,13 @@ function isAreaChartData(data: unknown): data is AreaChartData {
   return Array.isArray(d.points) && Array.isArray(d.series);
 }
 
-const FALLBACK_ACCENTS = ['riokuOrange', 'riokuInfo', 'riokuSuccess', 'riokuWarning', 'riokuDanger'];
+const FALLBACK_ACCENTS = [
+  'riokuOrange',
+  'riokuInfo',
+  'riokuSuccess',
+  'riokuWarning',
+  'riokuDanger',
+];
 
 interface TooltipPayload {
   name?: string;
@@ -177,11 +183,7 @@ export function AreaChartWidget({ widget, data, loading, error }: WidgetRenderPr
               strokeDasharray: '2 4',
             }}
           />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: 10, paddingTop: 4 }}
-          />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
           {seriesWithColor.map((s) => (
             <Area
               key={s.name}

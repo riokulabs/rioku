@@ -69,15 +69,7 @@ describe('Sidebar rail', () => {
     const ids = Array.from(rails).map((el) =>
       el.getAttribute('data-testid')?.replace('rail-section-', ''),
     );
-    expect(ids).toEqual([
-      'dashboard',
-      'sites',
-      'analytics',
-      'apim',
-      'ai',
-      'security',
-      'system',
-    ]);
+    expect(ids).toEqual(['dashboard', 'sites', 'analytics', 'apim', 'ai', 'security', 'system']);
   });
 
   it('rail icons link to each section default route', () => {

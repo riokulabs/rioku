@@ -23,7 +23,13 @@ function isPieData(data: unknown): data is PieData {
   );
 }
 
-const FALLBACK_ACCENTS = ['riokuSuccess', 'riokuInfo', 'riokuWarning', 'riokuDanger', 'riokuOrange'];
+const FALLBACK_ACCENTS = [
+  'riokuSuccess',
+  'riokuInfo',
+  'riokuWarning',
+  'riokuDanger',
+  'riokuOrange',
+];
 
 /** Resolve a palette name (Mantine color slug) to a CSS var against shade-6. */
 function accentVar(name: string): string {
@@ -110,12 +116,7 @@ export function PieWidget({ widget, data, loading, error }: WidgetRenderProps) {
   });
 
   return (
-    <Stack
-      gap={6}
-      h="100%"
-      aria-label={`Pie chart for ${widget.title}`}
-      style={{ minHeight: 180 }}
-    >
+    <Stack gap={6} h="100%" aria-label={`Pie chart for ${widget.title}`} style={{ minHeight: 180 }}>
       <Box style={{ flex: 1, minHeight: 120 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

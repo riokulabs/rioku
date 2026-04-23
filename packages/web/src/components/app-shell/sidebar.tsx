@@ -263,7 +263,8 @@ function SectionPanel({
             </Text>
             <Stack gap={2}>
               {pluginEntries.map((entry) => {
-                const Icon = (entry.icon as ComponentType<{ size?: number }> | undefined) ?? IconPlug;
+                const Icon =
+                  (entry.icon as ComponentType<{ size?: number }> | undefined) ?? IconPlug;
                 return (
                   <NavLink
                     key={entry.id}

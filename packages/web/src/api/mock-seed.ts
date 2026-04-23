@@ -1996,7 +1996,13 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
     // Overview uses the hand-crafted `overviewSpecs`; the other dashboards
     // continue to use the rotated kind/title arrays.
-    const widgetBlueprints: { kind: string; title: string; data_source: string; config: Record<string, unknown>; pos: { x: number; y: number; w: number; h: number } }[] =
+    const widgetBlueprints: {
+      kind: string;
+      title: string;
+      data_source: string;
+      config: Record<string, unknown>;
+      pos: { x: number; y: number; w: number; h: number };
+    }[] =
       di === 0
         ? overviewSpecs.map((s) => ({
             kind: s.kind,

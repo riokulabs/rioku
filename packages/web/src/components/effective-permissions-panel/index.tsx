@@ -164,7 +164,6 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
             <Table.Td>
               <Group gap={4} wrap="wrap">
                 {grant.sources.map((source, idx) => (
-                   
                   <SourceBadge
                     key={`${source.roleId}-${source.type}-${String(idx)}`}
                     source={source}
