@@ -114,7 +114,7 @@ describe('Sidebar panel — APIM section', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
-      Array.from(carriers).find((el) => el.textContent?.trim() === label);
+      Array.from(carriers).find((el) => el.textContent.trim() === label);
     expect(byLabel('Services')?.getAttribute('data-link-to')).toBe('/t/acme/services');
     expect(byLabel('Routes')?.getAttribute('data-link-to')).toBe('/t/acme/routes');
     expect(byLabel('Policies')?.getAttribute('data-link-to')).toBe('/t/acme/policies');
@@ -129,7 +129,7 @@ describe('Sidebar panel — AI section', () => {
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
-      Array.from(carriers).find((el) => el.textContent?.trim() === label);
+      Array.from(carriers).find((el) => el.textContent.trim() === label);
     const expectations: [string, string][] = [
       ['Providers', '/t/acme/ai/providers'],
       ['Agents', '/t/acme/ai/agents'],
@@ -162,7 +162,7 @@ describe('Sidebar panel — Analytics section', () => {
     currentPath = '/t/acme/dashboards';
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
-    const entry = Array.from(carriers).find((el) => el.textContent?.trim() === 'Insights');
+    const entry = Array.from(carriers).find((el) => el.textContent.trim() === 'Insights');
     expect(entry).toBeDefined();
     expect(entry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
   });

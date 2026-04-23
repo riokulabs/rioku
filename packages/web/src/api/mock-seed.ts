@@ -2018,10 +2018,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
             },
           }));
 
-    for (let wi = 0; wi < widgetBlueprints.length; wi++) {
+    for (const bp of widgetBlueprints) {
       const wid = nextWidgetId();
       widgetIds.push(wid);
-      const bp = widgetBlueprints[wi]!;
       const position = bp.pos;
       layout[wid] = position;
 

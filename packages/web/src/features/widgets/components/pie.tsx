@@ -131,6 +131,7 @@ export function PieWidget({ widget, data, loading, error }: WidgetRenderProps) {
               isAnimationActive={false}
             >
               {resolved.map((s) => (
+                // eslint-disable-next-line @typescript-eslint/no-deprecated -- recharts types mark Cell deprecated but it is the idiomatic per-slice color API.
                 <Cell key={s.name} fill={s.color} />
               ))}
             </Pie>

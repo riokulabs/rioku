@@ -327,7 +327,7 @@ function hashCode(s: string): number {
  * their pre-range defaults instead of silently swapping point counts.
  */
 function rangeFromConfig(widget: Widget): TimeRange | undefined {
-  const rid = widget.config['_range'];
+  const rid = widget.config._range;
   if (typeof rid === 'string') return getTimeRange(rid as TimeRangeId);
   return undefined;
 }
@@ -449,8 +449,8 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
       // HTTP methods, status classes, provider split). Without it we
       // synthesise a generic status-code breakdown.
       const cfg = widget.config;
-      if (Array.isArray(cfg['slices'])) {
-        const provided = cfg['slices'] as { name: string; color?: string; base?: number }[];
+      if (Array.isArray(cfg.slices)) {
+        const provided = cfg.slices as { name: string; color?: string; base?: number }[];
         return {
           slices: provided.map((s, i) => ({
             name: s.name,
@@ -488,15 +488,15 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
       // let the seed tailor each KPI card. We pull them so the same widget
       // kind can render "1.2M req/24h" and "42ms p95" from different configs.
       const cfg = widget.config;
-      const accent = typeof cfg['accent'] === 'string' ? (cfg['accent'] as string) : 'riokuOrange';
-      const unit = typeof cfg['unit'] === 'string' ? (cfg['unit'] as string) : undefined;
+      const accent = typeof cfg.accent === 'string' ? (cfg.accent) : 'riokuOrange';
+      const unit = typeof cfg.unit === 'string' ? (cfg.unit) : undefined;
       const subtitle =
-        typeof cfg['subtitle'] === 'string' ? (cfg['subtitle'] as string) : undefined;
-      const valueBase = typeof cfg['valueBase'] === 'number' ? (cfg['valueBase'] as number) : 1200;
+        typeof cfg.subtitle === 'string' ? (cfg.subtitle) : undefined;
+      const valueBase = typeof cfg.valueBase === 'number' ? (cfg.valueBase) : 1200;
       const valueSpread =
-        typeof cfg['valueSpread'] === 'number' ? (cfg['valueSpread'] as number) : 400;
-      const deltaBase = typeof cfg['deltaBase'] === 'number' ? (cfg['deltaBase'] as number) : 0;
-      const inverseDelta = cfg['inverseDelta'] === true;
+        typeof cfg.valueSpread === 'number' ? (cfg.valueSpread) : 400;
+      const deltaBase = typeof cfg.deltaBase === 'number' ? (cfg.deltaBase) : 0;
+      const inverseDelta = cfg.inverseDelta === true;
       const value = valueBase + (seed % valueSpread) - valueSpread / 2;
       const delta = deltaBase + ((seed % 17) - 8) * 0.5;
       // Sparkline trend sized to the active range. Longer windows get more
@@ -521,13 +521,13 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
     case 'gauge': {
       const cfg = widget.config;
-      const max = typeof cfg['max'] === 'number' ? (cfg['max'] as number) : 100;
-      const suffix = typeof cfg['suffix'] === 'string' ? (cfg['suffix'] as string) : '%';
-      const label = typeof cfg['label'] === 'string' ? (cfg['label'] as string) : undefined;
-      const target = typeof cfg['target'] === 'number' ? (cfg['target'] as number) : max * 0.75;
+      const max = typeof cfg.max === 'number' ? (cfg.max) : 100;
+      const suffix = typeof cfg.suffix === 'string' ? (cfg.suffix) : '%';
+      const label = typeof cfg.label === 'string' ? (cfg.label) : undefined;
+      const target = typeof cfg.target === 'number' ? (cfg.target) : max * 0.75;
       const jitter = (seed % 15) - 7;
       const value = Math.max(0, Math.min(max, target + jitter));
-      const inverse = cfg['inverse'] === true;
+      const inverse = cfg.inverse === true;
       // Thresholds:
       //   - Non-inverse (higher = worse, e.g. CPU %): amber at 70% max,
       //     red at 90% max.
@@ -548,8 +548,8 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
     case 'heatmap': {
       const cfg = widget.config;
-      const accent = typeof cfg['accent'] === 'string' ? (cfg['accent'] as string) : 'riokuOrange';
-      const unit = typeof cfg['unit'] === 'string' ? (cfg['unit'] as string) : 'req/min';
+      const accent = typeof cfg.accent === 'string' ? (cfg.accent) : 'riokuOrange';
+      const unit = typeof cfg.unit === 'string' ? (cfg.unit) : 'req/min';
       const xLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}h`);
       const yLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const cells: number[][] = [];
@@ -570,10 +570,10 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
     case 'area-chart': {
       const cfg = widget.config;
       const rawSeries =
-        Array.isArray(cfg['series']) && (cfg['series'] as unknown[]).length > 0
-          ? (cfg['series'] as { name: string; color?: string }[])
+        Array.isArray(cfg.series) && (cfg.series as unknown[]).length > 0
+          ? (cfg.series as { name: string; color?: string }[])
           : [{ name: '2xx', color: 'riokuSuccess' }];
-      const stacked = cfg['stacked'] === true;
+      const stacked = cfg.stacked === true;
       const totalPoints = range !== undefined ? range.points : 24;
       const points: Record<string, string | number>[] = [];
       for (let i = 0; i < totalPoints; i++) {
@@ -614,8 +614,8 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
         { name: 'REST', status: 'ok', value: ':7778' },
         { name: 'Plugins', status: 'warn', value: '1 outdated' },
       ];
-      const tiles = Array.isArray(cfg['tiles'])
-        ? (cfg['tiles'] as { name: string; status: 'ok' | 'warn' | 'error' | 'unknown'; value?: string }[])
+      const tiles = Array.isArray(cfg.tiles)
+        ? (cfg.tiles as { name: string; status: 'ok' | 'warn' | 'error' | 'unknown'; value?: string }[])
         : defaultTiles;
       return { tiles };
     }

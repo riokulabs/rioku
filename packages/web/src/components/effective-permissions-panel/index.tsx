@@ -164,7 +164,7 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
             <Table.Td>
               <Group gap={4} wrap="wrap">
                 {grant.sources.map((source, idx) => (
-                  // eslint-disable-next-line react/no-array-index-key
+                   
                   <SourceBadge
                     key={`${source.roleId}-${source.type}-${String(idx)}`}
                     source={source}

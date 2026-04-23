@@ -67,14 +67,16 @@ export interface NavSection {
   children?: NavLeaf[];
 }
 
+const DASHBOARD_SECTION: NavSection = {
+  id: 'dashboard',
+  label: 'Dashboard',
+  icon: IconDashboard,
+  defaultRoute: 'dashboard',
+  matchPaths: ['dashboard'],
+};
+
 export const NAV_SECTIONS: NavSection[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: IconDashboard,
-    defaultRoute: 'dashboard',
-    matchPaths: ['dashboard'],
-  },
+  DASHBOARD_SECTION,
   {
     id: 'sites',
     label: 'Sites',
@@ -169,5 +171,5 @@ export function activeSectionFor(pathSuffix: string): NavSection {
       if (pathSuffix === m || pathSuffix.startsWith(`${m}/`)) return section;
     }
   }
-  return NAV_SECTIONS[0]!; // fallback: Dashboard
+  return DASHBOARD_SECTION;
 }

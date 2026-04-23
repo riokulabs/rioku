@@ -35,6 +35,18 @@ export interface TimeRange {
   formatTick: (index: number, total: number) => string;
 }
 
+const DEFAULT_RANGE: TimeRange = {
+  id: '24h',
+  label: '24h',
+  longLabel: 'last 24 hours',
+  seconds: 86_400,
+  points: 24,
+  formatTick: (i) => {
+    const hour = new Date(Date.now() - (23 - i) * 3_600_000);
+    return `${hour.getHours().toString().padStart(2, '0')}:00`;
+  },
+};
+
 /** Ordered list of selectable ranges — renders left→right in the selector. */
 export const TIME_RANGES: readonly TimeRange[] = [
   {
@@ -59,17 +71,7 @@ export const TIME_RANGES: readonly TimeRange[] = [
       return `${String(minsAgo)}m`;
     },
   },
-  {
-    id: '24h',
-    label: '24h',
-    longLabel: 'last 24 hours',
-    seconds: 86_400,
-    points: 24,
-    formatTick: (i) => {
-      const hour = new Date(Date.now() - (23 - i) * 3_600_000);
-      return `${hour.getHours().toString().padStart(2, '0')}:00`;
-    },
-  },
+  DEFAULT_RANGE,
   {
     id: '7d',
     label: '7d',
@@ -110,8 +112,7 @@ export const TIME_RANGES: readonly TimeRange[] = [
 export function getTimeRange(id: TimeRangeId): TimeRange {
   const found = TIME_RANGES.find((r) => r.id === id);
   // TIME_RANGES covers every member of TimeRangeId, so this is a safety net.
-  if (!found) return TIME_RANGES[2]!; // fallback to 24h
-  return found;
+  return found ?? DEFAULT_RANGE;
 }
 
 interface DashboardRangeContextValue {

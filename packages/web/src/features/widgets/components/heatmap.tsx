@@ -12,7 +12,7 @@
  *
  * `cells` is row-major: `cells[y][x]`. Missing cells render as zero.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Group, Skeleton, Stack, Text } from '@mantine/core';
 import type { WidgetRenderProps } from '../types';
 
@@ -42,7 +42,21 @@ interface HoverState {
 
 export function HeatmapWidget({ widget, data, loading, error }: WidgetRenderProps) {
   const [hover, setHover] = useState<HoverState | null>(null);
+  const [containerWidth, setContainerWidth] = useState(400);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   if (loading) return <Skeleton height={200} width="100%" radius="sm" />;
   if (error)
@@ -180,7 +194,7 @@ export function HeatmapWidget({ widget, data, loading, error }: WidgetRenderProp
           role="tooltip"
           style={{
             position: 'absolute',
-            left: Math.min(hover.mouseX + 12, (containerRef.current?.clientWidth ?? 400) - 160),
+            left: Math.min(hover.mouseX + 12, containerWidth - 160),
             top: Math.max(0, hover.mouseY - 50),
             pointerEvents: 'none',
             background: 'var(--mantine-color-default)',

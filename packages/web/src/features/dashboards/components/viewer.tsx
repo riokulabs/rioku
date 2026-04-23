@@ -45,7 +45,6 @@ import {
   DashboardRangeProvider,
   TIME_RANGES,
   useDashboardRange,
-  type TimeRangeId,
 } from '@/hooks/use-dashboard-range';
 import { useWidgetData } from '@/features/dashboard-builder';
 import type { Widget } from '@/api/resources/types';
@@ -364,7 +363,7 @@ function TimeRangeBar() {
         size="xs"
         value={range.id}
         onChange={(v) => {
-          setRangeId(v as TimeRangeId);
+          setRangeId(v);
         }}
         data={TIME_RANGES.map((r) => ({ label: r.label, value: r.id }))}
         aria-label="Dashboard time range"
@@ -423,7 +422,7 @@ function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
   // then the primary palette. Surfaced as the title-row dot and (implicitly)
   // the KPI-card / area-chart stroke colors when no override is configured.
   const configAccent =
-    typeof widget.config['accent'] === 'string' ? (widget.config['accent'] as string) : undefined;
+    typeof widget.config.accent === 'string' ? (widget.config.accent) : undefined;
   const accent = configAccent ?? WIDGET_ACCENT[widget.kind] ?? 'riokuOrange';
   const accentVar = `var(--mantine-color-${accent}-6)`;
 

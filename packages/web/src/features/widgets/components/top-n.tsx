@@ -36,8 +36,8 @@ export function TopNWidget({ widget, data, loading, error }: WidgetRenderProps) 
     );
 
   const accent =
-    typeof widget.config['accent'] === 'string'
-      ? (widget.config['accent'] as string)
+    typeof widget.config.accent === 'string'
+      ? (widget.config.accent)
       : 'riokuInfo';
   const accentVar = `var(--mantine-color-${accent}-6)`;
   const max = data.items.reduce((m, it) => (it.value > m ? it.value : m), 0);
