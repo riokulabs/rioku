@@ -25,6 +25,7 @@ import type {
   WidgetWizardState,
 } from '@/api/resources/types';
 import type { MockStore } from '@/api/mock-store';
+import { getTimeRange, type TimeRange, type TimeRangeId } from '@/hooks/use-dashboard-range';
 
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
@@ -319,18 +320,48 @@ function hashCode(s: string): number {
   return h >>> 0;
 }
 
+/**
+ * Resolve the active dashboard time range from `widget.config._range`
+ * (written by `useWidgetData`). Returns undefined when no provider is
+ * active (e.g. unit tests, builder preview) so callers can fall back to
+ * their pre-range defaults instead of silently swapping point counts.
+ */
+function rangeFromConfig(widget: Widget): TimeRange | undefined {
+  const rid = widget.config['_range'];
+  if (typeof rid === 'string') return getTimeRange(rid as TimeRangeId);
+  return undefined;
+}
+
 // ─── Rich mock-data generators (kind-aware) ───────────────────────────────────
 
-/** Sinusoidal + seeded noise for time-series / sparkline points. */
-function mockTimePoints(seed: number, count: number): { x: string; y: number }[] {
+/**
+ * Sinusoidal + seeded noise for time-series / sparkline points, sized to
+ * the active dashboard range. Longer windows get more points and wider
+ * x-axis tick labels (e.g. date for 7d+, HH:00 for 24h, minutes-ago for 1h).
+ *
+ * When no range is provided (range=undefined), falls back to hour-bucket
+ * labels over the last N hours — preserves the pre-range-selector behavior
+ * for callers outside a DashboardViewer (tests, builder preview).
+ */
+function mockTimePoints(
+  seed: number,
+  range: TimeRange | undefined,
+  count: number,
+): { x: string; y: number }[] {
   const base = 40 + (seed % 60);
   const amp = 15 + (seed % 25);
   const points: { x: string; y: number }[] = [];
   for (let i = 0; i < count; i++) {
     const noise = ((seed * (i + 1) * 6271) % 21) - 10;
     const y = Math.max(1, Math.round(base + amp * Math.sin((i / count) * Math.PI * 2) + noise));
-    const d = new Date(Date.now() - (count - i) * 60 * 60 * 1000);
-    points.push({ x: `${d.getHours().toString().padStart(2, '0')}:00`, y });
+    const label =
+      range !== undefined
+        ? range.formatTick(i, count)
+        : (() => {
+            const d = new Date(Date.now() - (count - i) * 60 * 60 * 1000);
+            return `${d.getHours().toString().padStart(2, '0')}:00`;
+          })();
+    points.push({ x: label, y });
   }
   return points;
 }
@@ -375,18 +406,20 @@ const MOCK_SERVICE_EDGES = [
  */
 function mockAdapter(widget: Widget, state: MockStore): unknown {
   const seed = hashCode(widget.id);
+  const range = rangeFromConfig(widget);
 
   const query = resolveQuery(widget, widgetVariables(widget, state));
 
   switch (widget.kind) {
     case 'sparkline': {
-      const count = query.limit ?? 20;
-      return { points: mockTimePoints(seed, count) };
+      const count =
+        query.limit ?? (range !== undefined ? Math.min(range.points, 30) : 20);
+      return { points: mockTimePoints(seed, range, count) };
     }
 
     case 'time-series': {
-      const count = query.limit ?? 24;
-      return { points: mockTimePoints(seed, count), series: 'req/s' };
+      const count = query.limit ?? (range !== undefined ? range.points : 24);
+      return { points: mockTimePoints(seed, range, count), series: 'req/s' };
     }
 
     case 'stacked-bar': {
@@ -411,16 +444,31 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
       };
     }
 
-    case 'pie':
-      // Bare color names — Mantine resolves the correct shade per color scheme.
+    case 'pie': {
+      // `config.slices` lets the seed override the default slice set (e.g.
+      // HTTP methods, status classes, provider split). Without it we
+      // synthesise a generic status-code breakdown.
+      const cfg = widget.config;
+      if (Array.isArray(cfg['slices'])) {
+        const provided = cfg['slices'] as { name: string; color?: string; base?: number }[];
+        return {
+          slices: provided.map((s, i) => ({
+            name: s.name,
+            // Apply small seeded jitter so the pie doesn't look hand-tuned.
+            value: Math.max(1, (s.base ?? 50 - i * 7) + ((seed + i * 137) % 10) - 5),
+            ...(s.color !== undefined ? { color: s.color } : {}),
+          })),
+        };
+      }
       return {
         slices: [
-          { name: 'Success', value: 78 + ((seed % 10) - 5), color: 'green' },
-          { name: 'Error 4xx', value: 12 + ((seed % 6) - 3), color: 'yellow' },
-          { name: 'Error 5xx', value: 6 + ((seed % 4) - 2), color: 'red' },
-          { name: 'Timeout', value: 4 + ((seed % 3) - 1), color: 'orange' },
+          { name: 'Success', value: 78 + ((seed % 10) - 5), color: 'riokuSuccess' },
+          { name: 'Error 4xx', value: 12 + ((seed % 6) - 3), color: 'riokuWarning' },
+          { name: 'Error 5xx', value: 6 + ((seed % 4) - 2), color: 'riokuDanger' },
+          { name: 'Timeout', value: 4 + ((seed % 3) - 1), color: 'riokuOrange' },
         ],
       };
+    }
 
     case 'top-n': {
       const zipf = [1247, 891, 612, 432, 287, 198, 143, 97, 64, 41];
@@ -434,6 +482,143 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
 
     case 'service-map':
       return { nodes: MOCK_SERVICE_NODES, edges: MOCK_SERVICE_EDGES };
+
+    case 'kpi-card': {
+      // `config.accent`, `config.unit`, `config.subtitle`, `config.valueSeed`
+      // let the seed tailor each KPI card. We pull them so the same widget
+      // kind can render "1.2M req/24h" and "42ms p95" from different configs.
+      const cfg = widget.config;
+      const accent = typeof cfg['accent'] === 'string' ? (cfg['accent'] as string) : 'riokuOrange';
+      const unit = typeof cfg['unit'] === 'string' ? (cfg['unit'] as string) : undefined;
+      const subtitle =
+        typeof cfg['subtitle'] === 'string' ? (cfg['subtitle'] as string) : undefined;
+      const valueBase = typeof cfg['valueBase'] === 'number' ? (cfg['valueBase'] as number) : 1200;
+      const valueSpread =
+        typeof cfg['valueSpread'] === 'number' ? (cfg['valueSpread'] as number) : 400;
+      const deltaBase = typeof cfg['deltaBase'] === 'number' ? (cfg['deltaBase'] as number) : 0;
+      const inverseDelta = cfg['inverseDelta'] === true;
+      const value = valueBase + (seed % valueSpread) - valueSpread / 2;
+      const delta = deltaBase + ((seed % 17) - 8) * 0.5;
+      // Sparkline trend sized to the active range. Longer windows get more
+      // points so the line has more articulation, not just a stretched
+      // 24-point sample. Falls back to 24 when no range context is active.
+      const trendPoints = range !== undefined ? Math.min(range.points, 60) : 24;
+      const trend: number[] = [];
+      for (let i = 0; i < trendPoints; i++) {
+        const wiggle = ((seed + i * 7919) % 40) - 20;
+        trend.push(Math.max(1, valueBase / 24 + wiggle));
+      }
+      return {
+        value: Math.round(value),
+        unit,
+        subtitle,
+        delta: Math.round(delta * 10) / 10,
+        trend,
+        accent,
+        inverseDelta,
+      };
+    }
+
+    case 'gauge': {
+      const cfg = widget.config;
+      const max = typeof cfg['max'] === 'number' ? (cfg['max'] as number) : 100;
+      const suffix = typeof cfg['suffix'] === 'string' ? (cfg['suffix'] as string) : '%';
+      const label = typeof cfg['label'] === 'string' ? (cfg['label'] as string) : undefined;
+      const target = typeof cfg['target'] === 'number' ? (cfg['target'] as number) : max * 0.75;
+      const jitter = (seed % 15) - 7;
+      const value = Math.max(0, Math.min(max, target + jitter));
+      const inverse = cfg['inverse'] === true;
+      // Thresholds:
+      //   - Non-inverse (higher = worse, e.g. CPU %): amber at 70% max,
+      //     red at 90% max.
+      //   - Inverse (lower = worse, e.g. uptime %): amber under 95% max,
+      //     red under 80% max.
+      const thresholds = inverse
+        ? { warn: max * 0.95, crit: max * 0.8 }
+        : { warn: max * 0.7, crit: max * 0.9 };
+      return {
+        value: Math.round(value * 10) / 10,
+        max,
+        suffix,
+        label,
+        thresholds,
+        inverse,
+      };
+    }
+
+    case 'heatmap': {
+      const cfg = widget.config;
+      const accent = typeof cfg['accent'] === 'string' ? (cfg['accent'] as string) : 'riokuOrange';
+      const unit = typeof cfg['unit'] === 'string' ? (cfg['unit'] as string) : 'req/min';
+      const xLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}h`);
+      const yLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const cells: number[][] = [];
+      for (let y = 0; y < yLabels.length; y++) {
+        const row: number[] = [];
+        const weekendDampen = y >= 5 ? 0.4 : 1.0;
+        for (let x = 0; x < xLabels.length; x++) {
+          // Typical "business hours" pattern: low at night, peak 10–16.
+          const hourBias = Math.exp(-0.02 * Math.pow(x - 13, 2));
+          const noise = ((seed + x * 101 + y * 997) % 23) / 23;
+          row.push(Math.round((hourBias * 400 + noise * 120) * weekendDampen));
+        }
+        cells.push(row);
+      }
+      return { xLabels, yLabels, cells, accent, unit };
+    }
+
+    case 'area-chart': {
+      const cfg = widget.config;
+      const rawSeries =
+        Array.isArray(cfg['series']) && (cfg['series'] as unknown[]).length > 0
+          ? (cfg['series'] as { name: string; color?: string }[])
+          : [{ name: '2xx', color: 'riokuSuccess' }];
+      const stacked = cfg['stacked'] === true;
+      const totalPoints = range !== undefined ? range.points : 24;
+      const points: Record<string, string | number>[] = [];
+      for (let i = 0; i < totalPoints; i++) {
+        const label =
+          range !== undefined
+            ? range.formatTick(i, totalPoints)
+            : (() => {
+                const d = new Date(Date.now() - (totalPoints - i) * 60 * 60 * 1000);
+                return `${d.getHours().toString().padStart(2, '0')}:00`;
+              })();
+        const rec: Record<string, string | number> = {
+          x: label,
+        };
+        rawSeries.forEach((s, si) => {
+          const base = 60 - si * 15 + (seed % 25);
+          const amp = 18 + ((seed + si * 53) % 12);
+          const noise = ((seed + i * 6271 + si * 137) % 21) - 10;
+          const y = Math.max(
+            1,
+            Math.round(base + amp * Math.sin((i / totalPoints) * Math.PI * 2) + noise),
+          );
+          rec[s.name] = y;
+        });
+        points.push(rec);
+      }
+      return { points, series: rawSeries, stacked };
+    }
+
+    case 'status-grid': {
+      const cfg = widget.config;
+      const defaultTiles = [
+        { name: 'Daemon', status: 'ok', value: 'v0.2.0' },
+        { name: 'Caddy', status: 'ok', value: 'v2.8.4' },
+        { name: 'Postgres', status: 'ok', value: '3.2 GB' },
+        { name: 'Valkey', status: 'ok', value: '112 MB' },
+        { name: 'Cluster', status: 'ok', value: '3/3 nodes' },
+        { name: 'gRPC', status: 'ok', value: ':7777' },
+        { name: 'REST', status: 'ok', value: ':7778' },
+        { name: 'Plugins', status: 'warn', value: '1 outdated' },
+      ];
+      const tiles = Array.isArray(cfg['tiles'])
+        ? (cfg['tiles'] as { name: string; status: 'ok' | 'warn' | 'error' | 'unknown'; value?: string }[])
+        : defaultTiles;
+      return { tiles };
+    }
 
     default: {
       // Generic rows for single-stat, table, log-viewer, audit-tail

@@ -379,8 +379,14 @@ describe('mock-store seed integrity', () => {
     expect(Object.keys(store.getState().dashboards)).toHaveLength(5);
   });
 
-  it('seeds 33 widgets (7+7+6+7+6 across 5 dashboards)', () => {
-    expect(Object.keys(store.getState().widgets)).toHaveLength(33);
+  it('seeds 45 widgets (19+7+6+7+6 across 5 dashboards)', () => {
+    // Overview dashboard (di=0) covers the whole Rioku system with 19
+    // hand-crafted widgets (traffic, latency, errors, security, AI,
+    // cluster). The audit-tail / log-viewer / service-map widgets were
+    // pulled from the Overview — they live on their own routes already.
+    // The other 4 dashboards retain their original rotated kinds:
+    // API Health (7), Security (6), AI Usage (7), Billing (6).
+    expect(Object.keys(store.getState().widgets)).toHaveLength(45);
   });
 
   it('seeds 15 dashboard versions (3 per dashboard)', () => {

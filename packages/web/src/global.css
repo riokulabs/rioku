@@ -39,11 +39,19 @@
   --clr-surface-a40: #717171;
   --clr-surface-a50: #8b8b8b;
 
-  /* -- Surface elevation tiers bound to Mantine tokens ----------------- */
+  /* -- Surface elevation tiers bound to Mantine tokens -----------------
+   *
+   * Visual hierarchy (lightest chrome, darkest canvas, lifted cards):
+   *   Top bar + Sidebar:   surface-a10  #282828  (distinctly "alive" grey)
+   *   Page body (canvas):  surface-a0   #121212  (darkest, recedes)
+   *   Cards / panels:      surface-a10  #282828  (lifted above canvas)
+   *   Hover / active:      surface-a20  #3f3f3f
+   *   Borders:             surface-a20  #3f3f3f
+   */
   --mantine-color-body: var(--clr-surface-a0);
   --mantine-color-default: var(--clr-surface-a10);
   --mantine-color-default-hover: var(--clr-surface-a20);
-  --mantine-color-default-border: var(--clr-surface-a30);
+  --mantine-color-default-border: var(--clr-surface-a20);
 
   /* -- WCAG AA contrast fixes ------------------------------------------- */
   --mantine-color-dimmed: var(--mantine-color-dark-1);
@@ -63,13 +71,16 @@
 }
 
 /**
- * Sidebar gets the deepest tier (Colorffy surface-a0) and a subtle right
- * border so it reads distinctly from the main content region.
+ * AppShell chrome (sidebar + top bar) lifts to surface-a10 so the navigation
+ * reads as "chrome" above the darker page canvas (surface-a0). Pure-black
+ * chrome looks dead; this is the Colorffy / Pylon two-tier convention.
  */
 :root[data-mantine-color-scheme='dark'] nav.mantine-AppShell-navbar,
-:root[data-mantine-color-scheme='dark'] [data-mantine-component='AppShellNavbar'] {
-  background-color: var(--clr-surface-a0);
-  border-right-color: var(--clr-surface-a20);
+:root[data-mantine-color-scheme='dark'] [data-mantine-component='AppShellNavbar'],
+:root[data-mantine-color-scheme='dark'] header.mantine-AppShell-header,
+:root[data-mantine-color-scheme='dark'] [data-mantine-component='AppShellHeader'] {
+  background-color: var(--clr-surface-a10);
+  border-color: var(--clr-surface-a20);
 }
 
 /**

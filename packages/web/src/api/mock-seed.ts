@@ -1675,18 +1675,257 @@ export function seedStore(store: StoreApi<MockStore>): void {
   // ── Dashboards (5) + Widgets (4–8 each) + 3 versions each ────────────────
 
   const dashboardNames = ['Overview', 'API Health', 'Security', 'AI Usage', 'Billing'];
+
+  // ── Overview (di=0) — hand-crafted 22-widget layout ─────────────────────────
+  // This dashboard is the tenant default. It covers the whole Rioku system:
+  // traffic, latency, errors, status codes, service topology, security,
+  // AI usage, cache, cluster health, and recent activity. It uses the mock
+  // data source exclusively so every card renders with rich sample data in
+  // stage 1. When stage-2 wires real daemon endpoints, each widget's
+  // data_source + config/query get repointed to live metrics.
+  interface OverviewSpec {
+    kind: string;
+    title: string;
+    data_source: string;
+    config: Record<string, unknown>;
+    pos: { x: number; y: number; w: number; h: number };
+  }
+  const overviewSpecs: OverviewSpec[] = [
+    // Row 0 — KPI hero row (4 × 3w × 3h)
+    {
+      kind: 'kpi-card',
+      title: 'Requests / sec',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuInfo',
+        unit: 'req/s',
+        subtitle: 'last 24h',
+        valueBase: 1450,
+        valueSpread: 400,
+        deltaBase: 8,
+      },
+      pos: { x: 0, y: 0, w: 3, h: 3 },
+    },
+    {
+      kind: 'kpi-card',
+      title: 'p95 Latency',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuSuccess',
+        unit: 'ms',
+        subtitle: 'proxied through Rioku',
+        valueBase: 38,
+        valueSpread: 20,
+        deltaBase: -4,
+        inverseDelta: true,
+      },
+      pos: { x: 3, y: 0, w: 3, h: 3 },
+    },
+    {
+      kind: 'kpi-card',
+      title: 'Error rate',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuDanger',
+        unit: '%',
+        subtitle: '5xx + timeouts',
+        valueBase: 2,
+        valueSpread: 2,
+        deltaBase: 1,
+        inverseDelta: true,
+      },
+      pos: { x: 6, y: 0, w: 3, h: 3 },
+    },
+    {
+      kind: 'kpi-card',
+      title: 'AI tokens (24h)',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuOrange',
+        unit: 'tok',
+        subtitle: 'across all providers',
+        valueBase: 184000,
+        valueSpread: 40000,
+        deltaBase: 14,
+      },
+      pos: { x: 9, y: 0, w: 3, h: 3 },
+    },
+
+    // Row 3 — Big charts (area 8w + pie 4w, both 4h)
+    {
+      kind: 'area-chart',
+      title: 'Request volume by status class',
+      data_source: 'mock',
+      config: {
+        stacked: true,
+        series: [
+          { name: '2xx', color: 'riokuSuccess' },
+          { name: '3xx', color: 'riokuInfo' },
+          { name: '4xx', color: 'riokuWarning' },
+          { name: '5xx', color: 'riokuDanger' },
+        ],
+      },
+      pos: { x: 0, y: 3, w: 8, h: 4 },
+    },
+    {
+      kind: 'pie',
+      title: 'Status code distribution',
+      data_source: 'mock',
+      config: {},
+      pos: { x: 8, y: 3, w: 4, h: 4 },
+    },
+
+    // Row 7 — Analysis row (top-N × 2 + percentiles)
+    {
+      kind: 'top-n',
+      title: 'Top routes by volume',
+      data_source: 'mock',
+      config: { limit: 8, accent: 'riokuInfo' },
+      pos: { x: 0, y: 7, w: 4, h: 4 },
+    },
+    {
+      kind: 'top-n',
+      title: 'Top services by error rate',
+      data_source: 'mock',
+      config: { limit: 8, accent: 'riokuDanger' },
+      pos: { x: 4, y: 7, w: 4, h: 4 },
+    },
+    {
+      kind: 'area-chart',
+      title: 'Latency percentiles (p50 · p95 · p99)',
+      data_source: 'mock',
+      config: {
+        stacked: false,
+        series: [
+          { name: 'p50', color: 'riokuInfo' },
+          { name: 'p95', color: 'riokuWarning' },
+          { name: 'p99', color: 'riokuDanger' },
+        ],
+      },
+      pos: { x: 8, y: 7, w: 4, h: 4 },
+    },
+
+    // Row 11 — System health (status grid + 2 gauges)
+    {
+      kind: 'status-grid',
+      title: 'System components',
+      data_source: 'mock',
+      config: {},
+      pos: { x: 0, y: 11, w: 6, h: 3 },
+    },
+    {
+      kind: 'gauge',
+      title: 'Uptime (7d)',
+      data_source: 'mock',
+      config: { max: 100, suffix: '%', target: 99.8, inverse: true, label: 'vs. 99.9% SLO' },
+      pos: { x: 6, y: 11, w: 3, h: 3 },
+    },
+    {
+      kind: 'gauge',
+      title: 'Cache hit rate',
+      data_source: 'mock',
+      config: { max: 100, suffix: '%', target: 82, inverse: true, label: 'Valkey + embedded' },
+      pos: { x: 9, y: 11, w: 3, h: 3 },
+    },
+
+    // Row 14 — Secondary KPIs (4 × 3w × 3h)
+    {
+      kind: 'kpi-card',
+      title: 'Active sessions',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuInfo',
+        unit: 'users',
+        subtitle: 'last 5m',
+        valueBase: 312,
+        valueSpread: 80,
+        deltaBase: 6,
+      },
+      pos: { x: 0, y: 14, w: 3, h: 3 },
+    },
+    {
+      kind: 'kpi-card',
+      title: 'Failed auth (24h)',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuDanger',
+        unit: '',
+        subtitle: 'across all tenants',
+        valueBase: 74,
+        valueSpread: 40,
+        deltaBase: -12,
+        inverseDelta: true,
+      },
+      pos: { x: 3, y: 14, w: 3, h: 3 },
+    },
+    {
+      kind: 'kpi-card',
+      title: 'Rate-limit hits',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuWarning',
+        unit: '',
+        subtitle: 'policy blocks',
+        valueBase: 1280,
+        valueSpread: 600,
+        deltaBase: 3,
+        inverseDelta: true,
+      },
+      pos: { x: 6, y: 14, w: 3, h: 3 },
+    },
+    {
+      kind: 'kpi-card',
+      title: 'Plugins installed',
+      data_source: 'mock',
+      config: {
+        accent: 'riokuSuccess',
+        unit: '',
+        subtitle: '1 update available',
+        valueBase: 12,
+        valueSpread: 4,
+        deltaBase: 0,
+      },
+      pos: { x: 9, y: 14, w: 3, h: 3 },
+    },
+
+    // Row 17 — Heatmap + methods
+    {
+      kind: 'heatmap',
+      title: 'Traffic by day × hour',
+      data_source: 'mock',
+      config: { accent: 'riokuOrange', unit: 'req/min' },
+      pos: { x: 0, y: 17, w: 8, h: 4 },
+    },
+    {
+      kind: 'pie',
+      title: 'HTTP methods',
+      data_source: 'mock',
+      config: {
+        slices: [
+          { name: 'GET', color: 'riokuInfo', base: 62 },
+          { name: 'POST', color: 'riokuSuccess', base: 22 },
+          { name: 'PUT', color: 'riokuWarning', base: 7 },
+          { name: 'PATCH', color: 'riokuOrange', base: 5 },
+          { name: 'DELETE', color: 'riokuDanger', base: 4 },
+        ],
+      },
+      pos: { x: 8, y: 17, w: 4, h: 4 },
+    },
+
+    // Row 21 — Status codes by day, full-width
+    {
+      kind: 'stacked-bar',
+      title: 'Status codes by day',
+      data_source: 'mock',
+      config: {},
+      pos: { x: 0, y: 21, w: 12, h: 4 },
+    },
+  ];
+
   /** Per-dashboard widget kind lists — curated to reflect an API gateway platform. */
   const widgetsByDashboard: string[][] = [
-    // Overview: summary dashboard — single-stats + trend lines + service breakdown
-    [
-      'single-stat',
-      'single-stat',
-      'single-stat',
-      'sparkline',
-      'time-series',
-      'stacked-bar',
-      'top-n',
-    ],
+    // Overview: driven from overviewSpecs above — this row is unused for di===0.
+    [],
     // API Health: traffic/errors/latency focus — no audit-tail, no log-viewer
     [
       'single-stat',
@@ -1706,15 +1945,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
   ];
   /** Per-dashboard, per-widget human-readable titles. */
   const titlesByDashboard: string[][] = [
-    [
-      'Total Requests (24h)',
-      'Error Rate',
-      'Active Sessions',
-      'Request throughput',
-      'Requests over time',
-      'Requests by service',
-      'Top routes',
-    ],
+    // Overview — driven from overviewSpecs above.
+    [],
     [
       'p95 Latency',
       'Uptime %',
@@ -1757,28 +1989,44 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   for (let di = 0; di < 5; di++) {
     const dashId = nextDashboardId();
-    const kindsForThisDash = widgetsByDashboard[di]!;
-    const widgetCount = kindsForThisDash.length;
     const widgetIds: T.ID[] = [];
     const layout: Record<T.ID, { x: number; y: number; w: number; h: number }> = {};
     const widgetSnapshots: Omit<T.Widget, 'dashboard_id' | 'created_at' | 'updated_at'>[] = [];
     const dashCreatedAt = daysAgo(70 - di * 10);
 
-    for (let wi = 0; wi < widgetCount; wi++) {
+    // Overview uses the hand-crafted `overviewSpecs`; the other dashboards
+    // continue to use the rotated kind/title arrays.
+    const widgetBlueprints: { kind: string; title: string; data_source: string; config: Record<string, unknown>; pos: { x: number; y: number; w: number; h: number } }[] =
+      di === 0
+        ? overviewSpecs.map((s) => ({
+            kind: s.kind,
+            title: s.title,
+            data_source: s.data_source,
+            config: s.config,
+            pos: s.pos,
+          }))
+        : (widgetsByDashboard[di] ?? []).map((kind, wi) => ({
+            kind,
+            title: titlesByDashboard[di]?.[wi] ?? `${dashboardNames[di]!} — ${kind}`,
+            data_source: pick(builtinDataSources, wi + di),
+            config: { refresh_interval: 30 + wi * 10 },
+            pos: {
+              x: (wi % 3) * 4,
+              y: Math.floor(wi / 3) * 3,
+              w: 4,
+              h: 3,
+            },
+          }));
+
+    for (let wi = 0; wi < widgetBlueprints.length; wi++) {
       const wid = nextWidgetId();
       widgetIds.push(wid);
-      const kind = kindsForThisDash[wi]!;
-      const dataSource = pick(builtinDataSources, wi + di);
-      const position = {
-        x: (wi % 3) * 4,
-        y: Math.floor(wi / 3) * 3,
-        w: 4,
-        h: 3,
-      };
+      const bp = widgetBlueprints[wi]!;
+      const position = bp.pos;
       layout[wid] = position;
 
       /** Trivial types get a wizard_state; one-way types leave wizard_state undefined. */
-      const wizardState: T.WidgetWizardState | undefined = trivialKinds.has(kind)
+      const wizardState: T.WidgetWizardState | undefined = trivialKinds.has(bp.kind)
         ? {
             dimensions: [],
             measures: [{ field: 'count', aggregation: 'count' }],
@@ -1790,11 +2038,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
       const widget: T.Widget = {
         id: wid,
         dashboard_id: dashId,
-        kind,
-        title: titlesByDashboard[di]![wi] ?? `${dashboardNames[di]!} — ${kind}`,
-        config: { refresh_interval: 30 + wi * 10 },
+        kind: bp.kind,
+        title: bp.title,
+        config: bp.config,
         position,
-        data_source: dataSource,
+        data_source: bp.data_source,
         raw_query: '',
         ...(wizardState !== undefined ? { wizard_state: wizardState } : {}),
         locked_advanced: false,

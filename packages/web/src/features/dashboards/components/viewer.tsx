@@ -16,6 +16,7 @@ import {
   Button,
   Card,
   Group,
+  SegmentedControl,
   Stack,
   Text,
   Title,
@@ -40,6 +41,12 @@ import { WidgetRenderer } from '@/components/widget-renderer';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
+import {
+  DashboardRangeProvider,
+  TIME_RANGES,
+  useDashboardRange,
+  type TimeRangeId,
+} from '@/hooks/use-dashboard-range';
 import { useWidgetData } from '@/features/dashboard-builder';
 import type { Widget } from '@/api/resources/types';
 import { useDashboardDetail, useDashboardWidgets, setAsMyHome } from '../api';
@@ -60,7 +67,15 @@ interface DashboardViewerProps {
   onVersionHistory?: (dashboardId: string) => void;
 }
 
-export function DashboardViewer({
+export function DashboardViewer(props: DashboardViewerProps) {
+  return (
+    <DashboardRangeProvider>
+      <DashboardViewerInner {...props} />
+    </DashboardRangeProvider>
+  );
+}
+
+function DashboardViewerInner({
   dashboardId,
   onEdit,
   onClone,
@@ -276,6 +291,12 @@ export function DashboardViewer({
         </Group>
       </Stack>
 
+      {/* Time range selector — lives at dashboard scope; injected into
+         * useWidgetData via context so every widget re-queries when the
+         * user flips it. The active range ID is shown in muted text to
+         * echo the selection in human-readable terms. */}
+      <TimeRangeBar />
+
       {/* Grid */}
       {widgets.length === 0 ? (
         <EmptyState
@@ -327,6 +348,55 @@ interface WidgetCellProps {
   effectiveCols: number;
 }
 
+/**
+ * Dashboard-scope time-range segmented control. Posts to the shared
+ * `DashboardRangeProvider` so every widget re-queries when the user
+ * clicks a new range. Rendered above the widget grid.
+ */
+function TimeRangeBar() {
+  const { range, setRangeId } = useDashboardRange();
+  return (
+    <Group justify="flex-end" gap="sm" wrap="wrap">
+      <Text size="xs" c="dimmed">
+        Showing {range.longLabel}
+      </Text>
+      <SegmentedControl
+        size="xs"
+        value={range.id}
+        onChange={(v) => {
+          setRangeId(v as TimeRangeId);
+        }}
+        data={TIME_RANGES.map((r) => ({ label: r.label, value: r.id }))}
+        aria-label="Dashboard time range"
+      />
+    </Group>
+  );
+}
+
+/**
+ * Per-kind accent colour for the title rail + header dot. Keyed to the
+ * widget's role on the page: traffic metrics = info, health = success,
+ * errors = danger, AI = primary orange. Any unknown kind falls back to
+ * the primary palette.
+ */
+const WIDGET_ACCENT: Record<string, string> = {
+  'kpi-card': 'riokuOrange',
+  'single-stat': 'riokuOrange',
+  sparkline: 'riokuInfo',
+  'time-series': 'riokuInfo',
+  'area-chart': 'riokuInfo',
+  'stacked-bar': 'riokuInfo',
+  pie: 'riokuOrange',
+  'top-n': 'riokuWarning',
+  table: 'riokuSuccess',
+  'service-map': 'riokuInfo',
+  'log-viewer': 'riokuSuccess',
+  'audit-tail': 'riokuSuccess',
+  gauge: 'riokuSuccess',
+  heatmap: 'riokuOrange',
+  'status-grid': 'riokuSuccess',
+};
+
 function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
   const { data, loading, error } = useWidgetData(widget);
 
@@ -349,6 +419,14 @@ function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
     ...(error !== undefined ? { error } : {}),
   };
 
+  // Prefer an explicit accent from widget.config, then the kind-based default,
+  // then the primary palette. Surfaced as the title-row dot and (implicitly)
+  // the KPI-card / area-chart stroke colors when no override is configured.
+  const configAccent =
+    typeof widget.config['accent'] === 'string' ? (widget.config['accent'] as string) : undefined;
+  const accent = configAccent ?? WIDGET_ACCENT[widget.kind] ?? 'riokuOrange';
+  const accentVar = `var(--mantine-color-${accent}-6)`;
+
   return (
     <Card
       withBorder
@@ -359,17 +437,37 @@ function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
         gridRow: effectiveCols === 1 ? undefined : `${String(row + 1)} / span ${String(h)}`,
         overflow: 'hidden',
         minWidth: 0,
-        // On mobile auto-row layout, allow card height to grow with content.
-        // On desktop fixed-row grid, fill the assigned grid area.
         height: effectiveCols === 1 ? 'auto' : '100%',
+        backgroundColor: 'var(--mantine-color-default)',
+        borderColor: 'var(--mantine-color-default-border)',
+        position: 'relative',
       }}
       role="listitem"
       aria-label={widget.title}
     >
-      <Stack gap="xs" style={{ height: effectiveCols === 1 ? 'auto' : '100%' }}>
-        <Text size="sm" fw={600}>
-          {widget.title}
-        </Text>
+      <Stack gap={10} style={{ height: effectiveCols === 1 ? 'auto' : '100%' }}>
+        <Group gap={8} wrap="nowrap" align="center">
+          <div
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: accentVar,
+              boxShadow: `0 0 6px ${accentVar}`,
+              flexShrink: 0,
+            }}
+          />
+          <Text
+            size="xs"
+            fw={600}
+            tt="uppercase"
+            style={{ letterSpacing: '0.04em', color: 'var(--mantine-color-dimmed)' }}
+            truncate
+          >
+            {widget.title}
+          </Text>
+        </Group>
         <div style={{ flex: effectiveCols === 1 ? undefined : 1, minHeight: 0 }}>
           <WidgetRenderer {...rendererProps} />
         </div>

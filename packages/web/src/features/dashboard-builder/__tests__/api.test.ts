@@ -100,13 +100,15 @@ describe('flipWidgetToAdvanced', () => {
   });
 });
 
+const CLEAN_KINDS = ['single-stat', 'sparkline', 'time-series', 'kpi-card', 'gauge'] as const;
+
 describe('flipWidgetToWizard', () => {
   it('allows flip for clean round-trip kinds that are not locked', async () => {
     const dashId = firstAcmeDashboardId();
-    // Find a single-stat / sparkline / time-series widget in the seed.
+    // Find any clean round-trip widget in the seed (kpi-card / gauge /
+    // single-stat / sparkline / time-series).
     const widget = Object.values(useMockStore.getState().widgets).find(
-      (w) =>
-        ['single-stat', 'sparkline', 'time-series'].includes(w.kind) && w.dashboard_id === dashId,
+      (w) => (CLEAN_KINDS as readonly string[]).includes(w.kind) && w.dashboard_id === dashId,
     );
     if (!widget) throw new Error('Test requires a clean-mode widget in seed');
     const after = await flipWidgetToWizard(widget.id);
@@ -116,8 +118,7 @@ describe('flipWidgetToWizard', () => {
   it('rejects flip for one-way kinds', async () => {
     const dashId = firstAcmeDashboardId();
     const widget = Object.values(useMockStore.getState().widgets).find(
-      (w) =>
-        !['single-stat', 'sparkline', 'time-series'].includes(w.kind) && w.dashboard_id === dashId,
+      (w) => !(CLEAN_KINDS as readonly string[]).includes(w.kind) && w.dashboard_id === dashId,
     );
     if (!widget) throw new Error('Test requires a one-way-mode widget in seed');
     await expect(flipWidgetToWizard(widget.id)).rejects.toThrow(WidgetFlipError);
@@ -126,8 +127,7 @@ describe('flipWidgetToWizard', () => {
   it('rejects flip when widget is locked_advanced', async () => {
     const dashId = firstAcmeDashboardId();
     const widget = Object.values(useMockStore.getState().widgets).find(
-      (w) =>
-        ['single-stat', 'sparkline', 'time-series'].includes(w.kind) && w.dashboard_id === dashId,
+      (w) => (CLEAN_KINDS as readonly string[]).includes(w.kind) && w.dashboard_id === dashId,
     );
     if (!widget) throw new Error('Test requires a clean-mode widget in seed');
     await flipWidgetToAdvanced(widget.id);

@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { logout } from '@/features/auth/api';
-import { Box, Stack, Menu, MenuSub, Avatar, Group, Text, Modal, Button } from '@mantine/core';
+import {
+  Box,
+  Stack,
+  Menu,
+  MenuSub,
+  Avatar,
+  Group,
+  Text,
+  Modal,
+  Button,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
 import {
   IconChevronDown,
   IconChevronRight,
@@ -10,6 +22,7 @@ import {
   IconCheck,
   IconPalette,
   IconLanguage,
+  IconUser,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useDisclosure } from '@mantine/hooks';
@@ -27,7 +40,16 @@ const LANGUAGES = [
   { code: 'ar', label: 'العربية' },
 ];
 
-export function SidebarFooter() {
+interface SidebarFooterProps {
+  /**
+   * Rail mode — render tenant + user as bare avatar buttons stacked
+   * vertically, each acting as its own menu target. The existing Menu
+   * dropdowns render fine from an avatar trigger.
+   */
+  collapsed?: boolean;
+}
+
+export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
   const { slug } = useTenant();
   const { currentUserId, currentTenantId } = useSession();
   const navigate = useNavigate();
@@ -91,36 +113,54 @@ export function SidebarFooter() {
   }
 
   return (
-    <Stack gap="xs" p="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+    <Stack
+      gap="xs"
+      p={collapsed ? 6 : 'xs'}
+      style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
+      align={collapsed ? 'center' : 'stretch'}
+    >
       {/* Tenant switcher */}
-      <Menu>
+      <Menu position={collapsed ? 'right-end' : 'bottom'} withinPortal>
         <Menu.Target>
-          <Box
-            role="button"
-            style={{
-              cursor: 'pointer',
-              background: isImpersonating
-                ? 'var(--mantine-color-yellow-light)'
-                : 'var(--mantine-color-green-light)',
-              color: isImpersonating
-                ? 'var(--mantine-color-yellow-filled)'
-                : 'var(--mantine-color-green-filled)',
-              padding: '4px 8px',
-              borderRadius: 4,
-            }}
-          >
-            <Group justify="space-between" gap="xs">
-              <Group gap="xs">
-                <Avatar color={isImpersonating ? 'yellow' : 'green'} size="sm" radius="sm">
+          {collapsed ? (
+            <Tooltip label={`Tenant: ${tenantLabel}`} position="right" withArrow>
+              <UnstyledButton
+                aria-label={`Switch tenant (${tenantLabel})`}
+                style={{ borderRadius: 8, padding: 2 }}
+              >
+                <Avatar color={isImpersonating ? 'yellow' : 'green'} size="md" radius="sm">
                   {tenantInitial}
                 </Avatar>
-                <Text size="sm" fw={600}>
-                  {tenantLabel}
-                </Text>
+              </UnstyledButton>
+            </Tooltip>
+          ) : (
+            <Box
+              role="button"
+              style={{
+                cursor: 'pointer',
+                background: isImpersonating
+                  ? 'var(--mantine-color-yellow-light)'
+                  : 'var(--mantine-color-green-light)',
+                color: isImpersonating
+                  ? 'var(--mantine-color-yellow-filled)'
+                  : 'var(--mantine-color-green-filled)',
+                padding: '4px 8px',
+                borderRadius: 4,
+              }}
+            >
+              <Group justify="space-between" gap="xs">
+                <Group gap="xs">
+                  <Avatar color={isImpersonating ? 'yellow' : 'green'} size="sm" radius="sm">
+                    {tenantInitial}
+                  </Avatar>
+                  <Text size="sm" fw={600}>
+                    {tenantLabel}
+                  </Text>
+                </Group>
+                <IconChevronDown size={14} />
               </Group>
-              <IconChevronDown size={14} />
-            </Group>
-          </Box>
+            </Box>
+          )}
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Label>Switch tenant</Menu.Label>
@@ -162,27 +202,64 @@ export function SidebarFooter() {
       </Menu>
 
       {/* User menu */}
-      <Menu>
+      <Menu position={collapsed ? 'right-end' : 'bottom'} withinPortal>
         <Menu.Target>
-          <Box role="button" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}>
-            <Group justify="space-between" gap="xs">
-              <Group gap="xs">
-                <Avatar color="blue" size="sm" radius="xl">
+          {collapsed ? (
+            <Tooltip label={userDisplayName} position="right" withArrow>
+              <UnstyledButton
+                aria-label={`User menu (${userDisplayName})`}
+                style={{ borderRadius: 999, padding: 2 }}
+              >
+                <Avatar color="blue" size="md" radius="xl">
                   {userInitial}
                 </Avatar>
-                <Box>
-                  <Text size="sm" fw={600}>
-                    {userDisplayName}
-                  </Text>
-                  <Text size="xs">{userEmail}</Text>
-                </Box>
+              </UnstyledButton>
+            </Tooltip>
+          ) : (
+            <Box role="button" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}>
+              <Group justify="space-between" gap="xs">
+                <Group gap="xs">
+                  <Avatar color="blue" size="sm" radius="xl">
+                    {userInitial}
+                  </Avatar>
+                  <Box>
+                    <Text size="sm" fw={600}>
+                      {userDisplayName}
+                    </Text>
+                    <Text size="xs">{userEmail}</Text>
+                  </Box>
+                </Group>
+                <IconChevronDown size={14} />
               </Group>
-              <IconChevronDown size={14} />
-            </Group>
-          </Box>
+            </Box>
+          )}
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Item leftSection={<IconSettings size={14} />}>Profile</Menu.Item>
+          <Menu.Item
+            leftSection={<IconUser size={14} />}
+            onClick={() => {
+              void navigate({
+                to: '/t/$tenant/settings',
+                params: { tenant: slug ?? 'acme' },
+                search: { section: 'profile' },
+              });
+            }}
+          >
+            Profile
+          </Menu.Item>
+          <Menu.Item
+            leftSection={<IconSettings size={14} />}
+            onClick={() => {
+              void navigate({
+                to: '/t/$tenant/settings',
+                params: { tenant: slug ?? 'acme' },
+                search: { section: undefined },
+              });
+            }}
+            data-testid="user-menu-settings"
+          >
+            Settings
+          </Menu.Item>
           <Menu.Item
             leftSection={<IconMessageCircle size={14} />}
             component="a"

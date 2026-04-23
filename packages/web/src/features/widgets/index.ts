@@ -18,3 +18,8 @@ export { ServiceMapWidget } from './components/service-map';
 export { LogViewerWidget } from './components/log-viewer';
 export { AuditTailWidget } from './components/audit-tail';
 export { TopNWidget } from './components/top-n';
+export { KpiCardWidget } from './components/kpi-card';
+export { GaugeWidget } from './components/gauge';
+export { HeatmapWidget } from './components/heatmap';
+export { AreaChartWidget } from './components/area-chart';
+export { StatusGridWidget } from './components/status-grid';
