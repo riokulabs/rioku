@@ -1,17 +1,21 @@
 /**
  * Generic full-page detail route — /t/$tenant/_detail/$kind/$id
  *
- * Stage-1 implementation: renders detail content for a small set of known
- * entity kinds inside a full-width page frame.  Unknown kinds show a "coming
- * soon" stub.  The underscore prefix on `_detail` in the filename is the
- * TanStack Router flat-route convention to prevent the segment from acting as
- * a layout: the emitted URL path is still `/t/$tenant/_detail/$kind/$id`.
+ * Stage-1 implementation: renders detail content for every known entity
+ * kind inside a full-width page frame with a kind-specific back button.
+ * Drawer-style detail components are reused by adapter shims that map
+ * `(entityId, tenantId, tenantSlug)` → the component's expected prop shape.
  *
- * Registry (stage 1):
- *   service → ServiceDetailPage (reuses services_.$serviceId logic)
- *   route   → RouteDetailPage
- *   user    → UserDetailPage
- *   *       → StubPage
+ * Kinds wired up:
+ *   service / route / user                  (legacy)
+ *   agent / provider / tool / mcp-server    (AI)
+ *   trace / rate-limit / middleware
+ *   api-key / session / audit               (security)
+ *   role / access-policy / rbac-policy
+ *   plugin / notification
+ *
+ * Unknown kinds fall through to a friendly "this kind doesn't have a
+ * full-page view yet" alert with a Back button.
  */
 import { useState } from 'react';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
@@ -21,19 +25,57 @@ import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// ── Service / Route / User (legacy) ─────────────────────────────────────────
 import { ServiceDetail, ServiceForm, useServiceDetail } from '@/features/services';
 import type { Route as RouteRecord } from '@/features/routes/types';
+import { RouteDetail, RouteForm, useRouteDetail } from '@/features/routes';
+import { UserDetail } from '@/features/security/users';
 
-function ServiceDetailPage({
-  entityId,
-  tenantId,
-  tenantSlug,
-}: {
+// ── AI ──────────────────────────────────────────────────────────────────────
+import { AgentDetail } from '@/features/ai-agents';
+import { ProviderDetail } from '@/features/ai-providers';
+import { ToolDetail } from '@/features/ai-tools';
+import { McpServerDetail } from '@/features/ai-mcp-servers';
+import { TraceDetail } from '@/features/ai-traces';
+import { RateLimitDetail } from '@/features/ai-rate-limits';
+
+// ── Routing primitives ──────────────────────────────────────────────────────
+import { MiddlewareDetail } from '@/features/middlewares';
+
+// ── Security ────────────────────────────────────────────────────────────────
+import { ApiKeyDetailDrawer } from '@/features/security/api-keys/components/detail-drawer';
+import { SessionDetail } from '@/features/security/sessions';
+import { AuditDetail } from '@/features/audit';
+import { RoleDetail } from '@/features/security/roles';
+import { AccessPolicyDetail } from '@/features/security/access-policies';
+import { RbacPolicyDetail } from '@/features/security/rbac-policies';
+import { useApiKey } from '@/features/security/api-keys/api';
+
+// ── Plugins / Notifications ─────────────────────────────────────────────────
+import { InstalledPluginDetail } from '@/features/plugins/installed';
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RendererProps {
   entityId: string;
   tenantId: string;
   tenantSlug: string;
-}) {
+}
+
+type DetailRenderer = React.ComponentType<RendererProps>;
+
+// Generic "not found" alert — used by every adapter when its lookup misses.
+function NotFound({ what }: { what: string }) {
+  return (
+    <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
+      {what} not found.
+    </Alert>
+  );
+}
+
+// ── Adapters ─────────────────────────────────────────────────────────────────
+
+function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   const service = useServiceDetail(entityId);
   const [editing, setEditing] = useState(false);
@@ -49,13 +91,7 @@ function ServiceDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const handleDeleteRoute = (_r: RouteRecord) => {};
 
-  if (!service) {
-    return (
-      <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-        Service not found.
-      </Alert>
-    );
-  }
+  if (!service) return <NotFound what="Service" />;
 
   return (
     <>
@@ -95,30 +131,11 @@ function ServiceDetailPage({
   );
 }
 
-// ── Route ────────────────────────────────────────────────────────────────────
-import { RouteDetail, RouteForm, useRouteDetail } from '@/features/routes';
-
-function RouteDetailPage({
-  entityId,
-  tenantId,
-  tenantSlug,
-}: {
-  entityId: string;
-  tenantId: string;
-  tenantSlug: string;
-}) {
+function RouteDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   const route = useRouteDetail(entityId);
   const [editing, setEditing] = useState(false);
-
-  if (!route) {
-    return (
-      <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-        Route not found.
-      </Alert>
-    );
-  }
-
+  if (!route) return <NotFound what="Route" />;
   return (
     <>
       {!editing && (
@@ -154,20 +171,8 @@ function RouteDetailPage({
   );
 }
 
-// ── User ─────────────────────────────────────────────────────────────────────
-import { UserDetail } from '@/features/security/users';
-
-function UserDetailPage({
-  entityId,
-  tenantId,
-  tenantSlug,
-}: {
-  entityId: string;
-  tenantId: string;
-  tenantSlug: string;
-}) {
+function UserDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-
   return (
     <UserDetail
       userId={entityId}
@@ -183,35 +188,380 @@ function UserDetailPage({
   );
 }
 
-// ── Stub ─────────────────────────────────────────────────────────────────────
-function StubPage({ kind }: { kind: string }) {
+function AgentDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
   return (
-    <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
-      <Text size="sm">
-        Full page mode coming soon for{' '}
-        <Text component="span" fw={600} ff="monospace">
-          {kind}
-        </Text>
-        .
-      </Text>
-    </Alert>
+    <AgentDetail
+      agentId={entityId}
+      tenantSlug={tenantSlug}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/ai/agents',
+          params: { tenant: tenantSlug },
+          search: { selected: entityId },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/ai/agents',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function ProviderDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <ProviderDetail
+      providerId={entityId}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/ai/providers',
+          params: { tenant: tenantSlug },
+          search: { selected: entityId },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/ai/providers',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function ToolDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <ToolDetail
+      toolId={entityId}
+      tenantSlug={tenantSlug}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/ai/tools',
+          params: { tenant: tenantSlug },
+          search: { selected: entityId },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/ai/tools',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function McpServerDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <McpServerDetail
+      serverId={entityId}
+      tenantSlug={tenantSlug}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/ai/mcp-servers',
+          params: { tenant: tenantSlug },
+          search: { selected: entityId },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/ai/mcp-servers',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function TraceDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <TraceDetail
+      traceId={entityId}
+      tenantSlug={tenantSlug}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/ai/traces',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function RateLimitDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <RateLimitDetail
+      ruleId={entityId}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/ai/rate-limits',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/ai/rate-limits',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function MiddlewareDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <MiddlewareDetail
+      middlewareId={entityId}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/middlewares',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/middlewares',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function ApiKeyDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  const key = useApiKey(entityId);
+  if (!key) return <NotFound what="API key" />;
+  return (
+    <ApiKeyDetailDrawer
+      keyId={entityId}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/security/api-keys',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function SessionDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  const session = useMockStore((s) => {
+    const raw = s.sessions[entityId];
+    if (!raw) return null;
+    return {
+      ...raw,
+      device: raw.user_agent || 'Unknown device',
+      location: '—',
+      is_current: false,
+      last_seen_relative: '',
+    };
+  });
+  if (!session) return <NotFound what="Session" />;
+  return (
+    <SessionDetail
+      session={session}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/security/sessions',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function AuditDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  const entry = useMockStore((s) => s.audit.find((e) => e.id === entityId) ?? null);
+  if (!entry) return <NotFound what="Audit entry" />;
+  return (
+    <AuditDetail
+      entry={entry}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/security/audit',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function RoleDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  const role = useMockStore((s) => s.roles[entityId] ?? null);
+  if (!role) return <NotFound what="Role" />;
+  return (
+    <RoleDetail
+      role={role}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/security/roles',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onDelete={() => {
+        void navigate({
+          to: '/t/$tenant/security/roles',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function AccessPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  const policy = useMockStore((s) => s.accessPolicies[entityId] ?? null);
+  if (!policy) return <NotFound what="Access policy" />;
+  return (
+    <AccessPolicyDetail
+      policy={policy}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/security/access-policies',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onDelete={() => {
+        void navigate({
+          to: '/t/$tenant/security/access-policies',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function RbacPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  const policy = useMockStore((s) => {
+    const raw = s.rbacPolicies[entityId];
+    if (!raw) return null;
+    return raw;
+  });
+  if (!policy) return <NotFound what="RBAC policy" />;
+  return (
+    <RbacPolicyDetail
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      policy={policy as any}
+      onEdit={() => {
+        void navigate({
+          to: '/t/$tenant/security/rbac-policies',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onDelete={() => {
+        void navigate({
+          to: '/t/$tenant/security/rbac-policies',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
+  );
+}
+
+function PluginDetailPage({ entityId, tenantSlug }: RendererProps) {
+  const navigate = useNavigate();
+  return (
+    <InstalledPluginDetail
+      pluginId={entityId}
+      tenantSlug={tenantSlug}
+      onUninstall={() => {
+        void navigate({
+          to: '/t/$tenant/plugins',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+      onClose={() => {
+        void navigate({
+          to: '/t/$tenant/plugins',
+          params: { tenant: tenantSlug },
+        } as unknown as Parameters<typeof navigate>[0]);
+      }}
+    />
   );
 }
 
 // ── Registry ─────────────────────────────────────────────────────────────────
-type DetailRenderer = React.ComponentType<{
-  entityId: string;
-  tenantId: string;
-  tenantSlug: string;
-}>;
 
-const DETAIL_REGISTRY: Record<string, DetailRenderer> = {
-  service: ServiceDetailPage,
-  route: RouteDetailPage,
-  user: UserDetailPage,
+interface DetailEntry {
+  renderer: DetailRenderer;
+  /** Path to navigate back to (after `/t/$tenant`). */
+  backTo: string;
+  /** Label for the back button. */
+  backLabel: string;
+}
+
+const DETAIL_REGISTRY: Record<string, DetailEntry> = {
+  service: { renderer: ServiceDetailPage, backTo: '/t/$tenant/services', backLabel: 'Back to services' },
+  route: { renderer: RouteDetailPage, backTo: '/t/$tenant/routes', backLabel: 'Back to routes' },
+  user: { renderer: UserDetailPage, backTo: '/t/$tenant/security/users', backLabel: 'Back to users' },
+  agent: { renderer: AgentDetailPage, backTo: '/t/$tenant/ai/agents', backLabel: 'Back to agents' },
+  provider: {
+    renderer: ProviderDetailPage,
+    backTo: '/t/$tenant/ai/providers',
+    backLabel: 'Back to providers',
+  },
+  tool: { renderer: ToolDetailPage, backTo: '/t/$tenant/ai/tools', backLabel: 'Back to tools' },
+  'mcp-server': {
+    renderer: McpServerDetailPage,
+    backTo: '/t/$tenant/ai/mcp-servers',
+    backLabel: 'Back to MCP servers',
+  },
+  trace: { renderer: TraceDetailPage, backTo: '/t/$tenant/ai/traces', backLabel: 'Back to traces' },
+  'rate-limit': {
+    renderer: RateLimitDetailPage,
+    backTo: '/t/$tenant/ai/rate-limits',
+    backLabel: 'Back to rate limits',
+  },
+  middleware: {
+    renderer: MiddlewareDetailPage,
+    backTo: '/t/$tenant/middlewares',
+    backLabel: 'Back to middlewares',
+  },
+  'api-key': {
+    renderer: ApiKeyDetailPage,
+    backTo: '/t/$tenant/security/api-keys',
+    backLabel: 'Back to API keys',
+  },
+  session: {
+    renderer: SessionDetailPage,
+    backTo: '/t/$tenant/security/sessions',
+    backLabel: 'Back to sessions',
+  },
+  audit: {
+    renderer: AuditDetailPage,
+    backTo: '/t/$tenant/security/audit',
+    backLabel: 'Back to audit log',
+  },
+  role: { renderer: RoleDetailPage, backTo: '/t/$tenant/security/roles', backLabel: 'Back to roles' },
+  'access-policy': {
+    renderer: AccessPolicyDetailPage,
+    backTo: '/t/$tenant/security/access-policies',
+    backLabel: 'Back to access policies',
+  },
+  'rbac-policy': {
+    renderer: RbacPolicyDetailPage,
+    backTo: '/t/$tenant/security/rbac-policies',
+    backLabel: 'Back to RBAC policies',
+  },
+  plugin: { renderer: PluginDetailPage, backTo: '/t/$tenant/plugins', backLabel: 'Back to plugins' },
 };
 
 // ── Page ─────────────────────────────────────────────────────────────────────
+
 function DetailPage() {
   const { tenant, kind, id } = Route.useParams();
 
@@ -219,25 +569,10 @@ function DetailPage() {
   const tenantId = tenantRecord?.id ?? '';
   const tenantSlug = tenantRecord?.slug ?? tenant;
 
-  const DetailComponent = DETAIL_REGISTRY[kind];
-
-  const backLabel =
-    kind === 'service'
-      ? 'Back to services'
-      : kind === 'route'
-        ? 'Back to routes'
-        : kind === 'user'
-          ? 'Back to users'
-          : 'Back';
-
-  const backTo =
-    kind === 'service'
-      ? '/t/$tenant/services'
-      : kind === 'route'
-        ? '/t/$tenant/routes'
-        : kind === 'user'
-          ? '/t/$tenant/security/users'
-          : '/t/$tenant/dashboard';
+  const entry = DETAIL_REGISTRY[kind];
+  const DetailComponent = entry?.renderer;
+  const backLabel = entry?.backLabel ?? 'Back';
+  const backTo = entry?.backTo ?? '/t/$tenant/dashboard';
 
   return (
     <Stack gap="md" p="md">
@@ -254,14 +589,22 @@ function DetailPage() {
           {backLabel}
         </Button>
         <Title order={2} style={{ textTransform: 'capitalize' }}>
-          {kind} detail
+          {kind.replace(/-/g, ' ')} detail
         </Title>
       </Group>
 
       {DetailComponent ? (
         <DetailComponent entityId={id} tenantId={tenantId} tenantSlug={tenantSlug} />
       ) : (
-        <StubPage kind={kind} />
+        <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
+          <Text size="sm">
+            No full-page detail view registered for{' '}
+            <Text component="span" fw={600} ff="monospace">
+              {kind}
+            </Text>
+            . Open this entity from its list page instead.
+          </Text>
+        </Alert>
       )}
     </Stack>
   );

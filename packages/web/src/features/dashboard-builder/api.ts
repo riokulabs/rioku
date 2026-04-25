@@ -88,10 +88,12 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
         try {
           // Inject the active dashboard range into the widget config under
           // the `_range` key — mock adapters read this to synthesise trends
-          // at the right density/labels for the selected window.
+          // at the right density/labels for the selected window. Pass the
+          // entire TimeRange object so non-preset specs (relative/absolute)
+          // still drive correct point counts and tick labels.
           const widgetWithRange: Widget = {
             ...w,
-            config: { ...w.config, _range: range.id },
+            config: { ...w.config, _range: range },
           };
           const data = runWidgetQuery(widgetWithRange, useMockStore.getState());
           // flag.cancelled may have flipped across the microtask boundary.

@@ -325,6 +325,13 @@ export interface CertAuthority {
   fingerprint_sha256: string;
   /** For external CAs, the PEM blob the operator pasted. Empty for internal. */
   certificate_pem: string;
+  /** True once the CA has been revoked. Existing certs already issued continue
+   *  to be valid until they expire, but no new enrollments are allowed. */
+  revoked?: boolean;
+  /** ISO-8601 revocation timestamp. */
+  revoked_at?: string;
+  /** Operator-supplied reason for revocation. */
+  revocation_reason?: string;
   readonly created_at: string;
 }
 
@@ -437,6 +444,35 @@ export interface DashboardVariable {
   options?: string[];
 }
 
+/**
+ * Dashboard time-range specification — three flavours:
+ *   - preset:   one of the canonical short ranges (1h, 24h, 7d, …).
+ *   - relative: "past N <unit>" where unit is hour / day / week / month / quarter / year.
+ *   - absolute: explicit from/to ISO timestamps.
+ */
+export type DashboardRangeUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+export type DashboardRangeSpec =
+  | { kind: 'preset'; id: '1h' | '6h' | '24h' | '7d' | '30d' | '90d' }
+  | { kind: 'relative'; amount: number; unit: DashboardRangeUnit }
+  | { kind: 'absolute'; from: string; to: string };
+
+/**
+ * Per-dashboard permission grant: a role or user gets either read-only access
+ * or full read/update (edit). Owners always have implicit write access.
+ */
+export type DashboardPermissionLevel = 'read' | 'write';
+
+export interface DashboardRoleGrant {
+  role_id: ID;
+  level: DashboardPermissionLevel;
+}
+
+export interface DashboardUserGrant {
+  user_id: ID;
+  level: DashboardPermissionLevel;
+}
+
 export interface Dashboard {
   readonly id: ID;
   readonly tenant_id: ID;
@@ -448,14 +484,43 @@ export interface Dashboard {
   /** null = tenant-shared. */
   owner_user_id: ID | null;
   mode: 'metabase' | 'grafana';
-  /** Scope: 'personal' = owner-only, 'tenant' = all tenant members, 'shared' = role-restricted. */
+  /**
+   * Dashboard visibility:
+   *   - `personal`: only the owner can view/edit.
+   *   - `shared`:   only listed roles + users grants apply.
+   *   - `tenant`:   anyone in the tenant with `dashboard:read` can view (i.e. "public to tenant").
+   */
   scope: 'personal' | 'tenant' | 'shared';
+  /**
+   * Default permission level applied to anyone who has access via `scope`
+   * (excluding the owner, who always has write). For `tenant` scope this
+   * controls whether the dashboard is read-only or editable by all tenant
+   * members. For `shared` scope it's the fallback level for roles that
+   * appear in `shared_role_ids` without an explicit `role_grants` entry.
+   * For `personal` scope this field is ignored. Defaults to 'read' when
+   * omitted on existing seeds.
+   */
+  share_permission?: DashboardPermissionLevel;
   /** Roles allowed to view when scope === 'shared'. */
   shared_role_ids: ID[];
+  /**
+   * Per-role permission overrides. When present, these override
+   * `share_permission` for the specified role. Used to e.g. give one role
+   * write access while keeping the rest read-only.
+   */
+  role_grants?: DashboardRoleGrant[];
+  /**
+   * Per-user permission grants — independent of scope. A user listed here
+   * gets access at the specified level even if scope is 'personal' or
+   * their roles aren't in `shared_role_ids`.
+   */
+  user_grants?: DashboardUserGrant[];
   /** Grid layout (w,h,x,y per widget) keyed by widget id. Canonical layout source. */
   layout: Record<ID, { x: number; y: number; w: number; h: number }>;
   /** Grafana-mode variables (only relevant when mode === 'grafana'). */
   variables: DashboardVariable[];
+  /** Default time-range applied when the dashboard opens. Optional — falls back to 24h. */
+  default_range?: DashboardRangeSpec;
   readonly created_at: string;
   readonly updated_at: string;
 }

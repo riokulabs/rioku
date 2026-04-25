@@ -1,24 +1,23 @@
 /**
- * <Sidebar> — two-pane navigation: thin icon rail + section panel.
+ * <Sidebar> — main nav (rail) + optional sub-menu panel.
  *
  * Layout:
- *   ┌────┬──────────────┐
- *   │    │ Section      │
- *   │ R  │ nav items    │
- *   │ a  │              │
- *   │ i  │              │
- *   │ l  │              │
- *   └────┴──────────────┘
+ *   ┌────┬──────────────┐       ┌──────────┬──────────────┐
+ *   │ R  │ Sub menu     │       │ icon Lbl │ Sub menu     │
+ *   │ a  │              │  or   │ icon Lbl │              │
+ *   │ i  │              │       │ icon Lbl │              │
+ *   │ l  │              │       │  …       │              │
+ *   └────┴──────────────┘       └──────────┴──────────────┘
+ *      collapsed rail               expanded rail
  *
- * The rail is always 60px wide and stays visible on desktop even when
- * "collapsed" — the collapse toggle only hides the panel. On mobile the
- * whole sidebar (rail + panel) slides in via AppShell's mobile burger.
+ * The main nav (rail) has two modes:
+ *   - collapsed: icons only (60px)
+ *   - expanded:  icons + labels (190px)
  *
- * The rail hosts: the 7 top-level sections, a collapse/expand toggle, and
- * the tenant + user avatars (which open the existing menus). The panel
- * hosts the active section's children (e.g. AI → Providers / Agents /
- * Tools / …). Sections with no children leave the panel blank when
- * active, which is the right behavior for leaf pages like Sites.
+ * The toggle chevron lives in the rail itself (bottom, above the footer).
+ * The sub-menu panel renders to the right whenever the active section has
+ * children. Sections without children don't render a panel — the rail
+ * fills the sidebar on its own.
  */
 import { Box, Group, NavLink, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconPlug } from '@tabler/icons-react';
@@ -27,11 +26,12 @@ import type { ComponentType } from 'react';
 import { useSidebarEntries } from '@/hooks/use-sidebar-entries';
 import { NAV_SECTIONS, activeSectionFor, type NavSection } from './nav-tree';
 import { SidebarFooter } from './sidebar-footer';
+import { AnalyticsNavPanel } from './analytics-nav-panel';
 
 interface SidebarProps {
   /** Closes mobile drawer after navigation — no-op on desktop. */
   onNavLinkClick?: () => void;
-  /** Desktop only: hide the section panel, keep the rail. */
+  /** Desktop only: when true, the rail shows icons only; when false, icons + labels. */
   collapsed?: boolean;
   /** Toggles `collapsed`. Renders the rail's collapse chevron. */
   onToggleCollapsed?: () => void;
@@ -42,10 +42,16 @@ export function Sidebar({ onNavLinkClick, collapsed = false, onToggleCollapsed }
   const { tenant: tenantSlug = 'acme' } = useParams({ strict: false });
   const pluginEntries = useSidebarEntries('plugins');
 
-  // Derive the tenant-prefixed suffix so nav-tree's match logic is
-  // tenant-agnostic ("ai/providers" rather than "/t/acme/ai/providers").
   const pathSuffix = extractSuffix(location.pathname, tenantSlug);
   const active = activeSectionFor(pathSuffix);
+
+  const pluginEntriesForPanel = active.id === 'system' ? pluginEntries : [];
+  // Analytics renders its own dynamic panel (lists dashboards), so it always
+  // has a panel even though `children` is empty in the static nav tree.
+  const hasChildren =
+    active.id === 'analytics' ||
+    (active.children !== undefined && active.children.length > 0) ||
+    pluginEntriesForPanel.length > 0;
 
   return (
     <Group gap={0} align="stretch" h="100%" wrap="nowrap">
@@ -56,12 +62,18 @@ export function Sidebar({ onNavLinkClick, collapsed = false, onToggleCollapsed }
         {...(onToggleCollapsed !== undefined && { onToggleCollapsed })}
         {...(onNavLinkClick !== undefined && { onNavLinkClick })}
       />
-      {!collapsed && (
+      {hasChildren && active.id === 'analytics' && (
+        <AnalyticsNavPanel
+          tenantSlug={tenantSlug}
+          {...(onNavLinkClick !== undefined && { onNavLinkClick })}
+        />
+      )}
+      {hasChildren && active.id !== 'analytics' && (
         <SectionPanel
           section={active}
           tenantSlug={tenantSlug}
           pathname={location.pathname}
-          pluginEntries={pluginEntries}
+          pluginEntries={pluginEntriesForPanel}
           {...(onNavLinkClick !== undefined && { onNavLinkClick })}
         />
       )}
@@ -98,43 +110,47 @@ function Rail({
       gap={4}
       py="xs"
       style={{
-        width: 60,
+        width: collapsed ? 60 : 190,
         flexShrink: 0,
         borderRight: '1px solid var(--mantine-color-default-border)',
       }}
-      align="center"
+      align="stretch"
     >
-      {/* Section icons */}
-      <Stack gap={4} align="center" style={{ flex: 1, width: '100%' }}>
+      {/* Section entries */}
+      <Stack gap={4} style={{ flex: 1 }}>
         {NAV_SECTIONS.map((section) => (
-          <RailSectionIcon
+          <RailSectionEntry
             key={section.id}
             section={section}
             tenantSlug={tenantSlug}
             active={section.id === activeSectionId}
+            collapsed={collapsed}
             {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
           />
         ))}
       </Stack>
 
-      {/* Collapse/expand toggle */}
+      {/* Collapse/expand toggle — lives in the main nav per design */}
       {onToggleCollapsed !== undefined && (
         <Tooltip
-          label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          label={collapsed ? 'Expand main menu' : 'Collapse main menu'}
           position="right"
           withArrow
+          disabled={!collapsed}
         >
           <UnstyledButton
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand main menu' : 'Collapse main menu'}
             onClick={onToggleCollapsed}
             data-testid="sidebar-collapse-toggle"
             style={{
-              width: 40,
               height: 32,
+              margin: collapsed ? '0 auto' : '0 8px',
+              width: collapsed ? 40 : 'auto',
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: collapsed ? 'center' : 'flex-end',
+              padding: collapsed ? 0 : '0 8px',
               color: 'var(--mantine-color-dimmed)',
             }}
           >
@@ -143,65 +159,88 @@ function Rail({
         </Tooltip>
       )}
 
-      {/* Tenant + user avatars — SidebarFooter is tight in its rail rendering */}
-      <SidebarFooter collapsed />
+      {/* Tenant + user avatars — footer matches the rail's current mode */}
+      <SidebarFooter collapsed={collapsed} />
     </Stack>
   );
 }
 
-interface RailSectionIconProps {
+interface RailSectionEntryProps {
   section: NavSection;
   tenantSlug: string;
   active: boolean;
+  collapsed: boolean;
   onClick?: () => void;
 }
 
-function RailSectionIcon({ section, tenantSlug, active, onClick }: RailSectionIconProps) {
+function RailSectionEntry({
+  section,
+  tenantSlug,
+  active,
+  collapsed,
+  onClick,
+}: RailSectionEntryProps) {
   const to =
     section.defaultRoute !== undefined
       ? `/t/${tenantSlug}/${section.defaultRoute}`
       : `/t/${tenantSlug}/${section.matchPaths[0] ?? section.id}`;
   const Icon = section.icon;
-  return (
+
+  const button = (
+    <UnstyledButton
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      component={Link as any}
+      to={to}
+      aria-label={section.label}
+      aria-current={active ? 'page' : undefined}
+      data-testid={`rail-section-${section.id}`}
+      {...(onClick !== undefined && { onClick })}
+      style={{
+        height: 40,
+        margin: collapsed ? '0 auto' : '0 8px',
+        width: collapsed ? 40 : 'auto',
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: 10,
+        padding: collapsed ? 0 : '0 10px',
+        position: 'relative',
+        background: active ? 'var(--mantine-color-default-hover)' : 'transparent',
+        color: active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-text)',
+      }}
+    >
+      {/* Active-state rail indicator: 2px accent bar along the left edge */}
+      {active && (
+        <Box
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: collapsed ? -10 : -8,
+            top: 8,
+            bottom: 8,
+            width: 3,
+            borderRadius: 2,
+            background: 'var(--mantine-primary-color-filled)',
+          }}
+        />
+      )}
+      <Icon size={18} />
+      {!collapsed && (
+        <Text size="sm" fw={active ? 600 : 500} style={{ lineHeight: 1 }}>
+          {section.label}
+        </Text>
+      )}
+    </UnstyledButton>
+  );
+
+  // Tooltips are only useful in the collapsed state (no labels visible).
+  return collapsed ? (
     <Tooltip label={section.label} position="right" withArrow openDelay={200}>
-      <UnstyledButton
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-        component={Link as any}
-        to={to}
-        aria-label={section.label}
-        aria-current={active ? 'page' : undefined}
-        data-testid={`rail-section-${section.id}`}
-        {...(onClick !== undefined && { onClick })}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          background: active ? 'var(--mantine-color-default-hover)' : 'transparent',
-          color: active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-text)',
-        }}
-      >
-        {/* Active-state rail indicator: 2px accent bar along the left edge */}
-        {active && (
-          <Box
-            aria-hidden
-            style={{
-              position: 'absolute',
-              left: -10,
-              top: 8,
-              bottom: 8,
-              width: 3,
-              borderRadius: 2,
-              background: 'var(--mantine-primary-color-filled)',
-            }}
-          />
-        )}
-        <Icon size={18} />
-      </UnstyledButton>
+      {button}
     </Tooltip>
+  ) : (
+    button
   );
 }
 

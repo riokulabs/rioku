@@ -1,10 +1,20 @@
 /**
  * <LogViewerWidget> — scrollable list of recent log entries.
  *
- * Expected data shape: { lines: { level: 'debug'|'info'|'warn'|'error'; ts: string; msg: string }[] }.
+ * Polished layout: each line has a left colored rail (level), monospace
+ * relative timestamp, level chip (uppercase, tiny), and the message. Hover
+ * highlights the row. Newest line is visually grouped at the top with a
+ * subtle "fresh" indicator.
+ *
+ * Expected data shape:
+ *   { lines: { level: 'debug'|'info'|'warn'|'error'; ts: string; msg: string }[] }.
  */
-import { Alert, ScrollArea, Skeleton, Stack, Text } from '@mantine/core';
+import { Alert, Box, Group, ScrollArea, Skeleton, Text } from '@mantine/core';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import type { WidgetRenderProps } from '../types';
+
+dayjs.extend(relativeTime);
 
 interface LogViewerData {
   lines: { level: 'debug' | 'info' | 'warn' | 'error'; ts: string; msg: string }[];
@@ -16,12 +26,25 @@ function isLogViewerData(data: unknown): data is LogViewerData {
   );
 }
 
-const LEVEL_COLORS: Record<'debug' | 'info' | 'warn' | 'error', string> = {
-  debug: 'var(--mantine-color-gray-7)',
-  info: 'var(--mantine-color-blue-7)',
-  warn: 'var(--mantine-color-yellow-8)',
-  error: 'var(--mantine-color-red-7)',
+const LEVEL_RAIL: Record<'debug' | 'info' | 'warn' | 'error', string> = {
+  debug: 'var(--mantine-color-gray-6)',
+  info: 'var(--mantine-color-riokuInfo-6)',
+  warn: 'var(--mantine-color-riokuWarning-6)',
+  error: 'var(--mantine-color-riokuDanger-6)',
 };
+
+const LEVEL_TEXT: Record<'debug' | 'info' | 'warn' | 'error', string> = {
+  debug: 'var(--mantine-color-gray-6)',
+  info: 'var(--mantine-color-riokuInfo-6)',
+  warn: 'var(--mantine-color-riokuWarning-6)',
+  error: 'var(--mantine-color-riokuDanger-6)',
+};
+
+function tsLabel(ts: string): string {
+  const d = dayjs(ts);
+  if (!d.isValid()) return ts;
+  return d.fromNow(true);
+}
 
 export function LogViewerWidget({ widget, data, loading, error }: WidgetRenderProps) {
   if (loading) return <Skeleton height={200} width="100%" radius="sm" />;
@@ -38,15 +61,63 @@ export function LogViewerWidget({ widget, data, loading, error }: WidgetRenderPr
       </Alert>
     );
 
+  if (data.lines.length === 0) {
+    return (
+      <Box p="md">
+        <Text size="sm" c="dimmed" ta="center">
+          No log lines in this range.
+        </Text>
+      </Box>
+    );
+  }
+
   return (
-    <ScrollArea.Autosize mah={240} aria-label={`Log viewer for ${widget.title}`}>
-      <Stack gap={2} style={{ fontFamily: 'var(--mantine-font-family-monospace)' }}>
+    <ScrollArea h="100%" type="hover" offsetScrollbars aria-label={`Log viewer for ${widget.title}`}>
+      <Box>
         {data.lines.map((l, i) => (
-          <Text key={i} size="xs" c={LEVEL_COLORS[l.level]}>
-            [{l.ts}] {l.level.toUpperCase()} {l.msg}
-          </Text>
+          <Group
+            key={i}
+            gap="xs"
+            wrap="nowrap"
+            align="flex-start"
+            px="xs"
+            py={4}
+            style={{
+              borderLeft: `2px solid ${LEVEL_RAIL[l.level]}`,
+              transition: 'background 80ms linear',
+              fontSize: 11,
+              fontFamily: 'var(--mantine-font-family-monospace)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--mantine-color-default-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <Text
+              size="xs"
+              ff="monospace"
+              c="dimmed"
+              w={48}
+              style={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {tsLabel(l.ts)}
+            </Text>
+            <Text
+              size="xs"
+              fw={700}
+              w={42}
+              style={{ flexShrink: 0, color: LEVEL_TEXT[l.level], letterSpacing: '0.04em' }}
+            >
+              {l.level.toUpperCase()}
+            </Text>
+            <Text size="xs" style={{ wordBreak: 'break-word', flex: 1 }}>
+              {l.msg}
+            </Text>
+          </Group>
         ))}
-      </Stack>
-    </ScrollArea.Autosize>
+      </Box>
+    </ScrollArea>
   );
 }

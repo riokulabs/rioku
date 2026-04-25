@@ -90,7 +90,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: IconLayoutDashboard,
     defaultRoute: 'dashboards',
     matchPaths: ['dashboards'],
-    children: [{ label: 'Insights', suffix: 'dashboards', icon: IconLayoutDashboard }],
+    // No static `children` — the secondary panel is rendered by
+    // <AnalyticsNavPanel> which lists dashboards dynamically.
   },
   {
     id: 'apim',

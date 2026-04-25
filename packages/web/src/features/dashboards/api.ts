@@ -186,6 +186,7 @@ export async function updateDashboard(id: string, input: UpdateDashboardInput): 
   if (input.variables !== undefined) patch.variables = input.variables;
   if (input.layout !== undefined) patch.layout = input.layout;
   if (input.widget_ids !== undefined) patch.widget_ids = input.widget_ids;
+  if (input.default_range !== undefined) patch.default_range = input.default_range;
 
   state.updateEntity('dashboards', id, patch);
   const updated = useMockStore.getState().dashboards[id];

@@ -20,6 +20,11 @@ import { GaugeWidget } from './components/gauge';
 import { HeatmapWidget } from './components/heatmap';
 import { AreaChartWidget } from './components/area-chart';
 import { StatusGridWidget } from './components/status-grid';
+import { BarChartWidget } from './components/bar-chart';
+import { DonutWidget } from './components/donut';
+import { FunnelWidget } from './components/funnel';
+import { MarkdownWidget } from './components/markdown';
+import { ProgressWidget } from './components/progress';
 import type { WidgetTypeDefinition } from './types';
 
 export const BUILT_IN_WIDGETS: Record<string, WidgetTypeDefinition> = {
@@ -157,6 +162,51 @@ export const BUILT_IN_WIDGETS: Record<string, WidgetTypeDefinition> = {
     supportedDataSources: 'any',
     roundTripMode: 'one-way',
     component: StatusGridWidget,
+  },
+  'bar-chart': {
+    type: 'bar-chart',
+    displayName: 'Bar chart',
+    description: 'Single-series vertical bar chart.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: BarChartWidget,
+  },
+  donut: {
+    type: 'donut',
+    displayName: 'Donut',
+    description: 'Donut chart with a centered headline value.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: DonutWidget,
+  },
+  funnel: {
+    type: 'funnel',
+    displayName: 'Funnel',
+    description: 'Conversion funnel with proportional stage segments.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: FunnelWidget,
+  },
+  markdown: {
+    type: 'markdown',
+    displayName: 'Markdown',
+    description: 'Free-form text / markdown panel for annotations.',
+    defaultConfig: { content: '## Notes\n\nUse this panel for context.' },
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: MarkdownWidget,
+  },
+  progress: {
+    type: 'progress',
+    displayName: 'Progress',
+    description: 'Linear progress bar — single or stacked goal indicators.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: ProgressWidget,
   },
 };
 

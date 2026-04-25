@@ -1,12 +1,31 @@
 /**
  * <StackedBarWidget> — stacked bar chart across categories and series.
  *
+ * Recharts direct (not Mantine's BarChart wrapper) so we can inject the
+ * shared dark tooltip + axis/grid styling.
+ *
  * Expected data shape: { categories: { label: string; [seriesName]: number }[];
  *                         series: { name: string; color?: string }[] }.
  */
-import { Alert, Box, Skeleton } from '@mantine/core';
-import { BarChart } from '@mantine/charts';
+import { Alert, Box } from '@mantine/core';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type { WidgetRenderProps } from '../types';
+import {
+  ChartTooltip,
+  chartAxisProps,
+  chartGridProps,
+  ChartSkeleton,
+  WidgetContainer,
+} from '../chart-primitives';
 
 interface StackedBarData {
   categories: Record<string, string | number>[];
@@ -19,8 +38,17 @@ function isStackedBarData(data: unknown): data is StackedBarData {
   return Array.isArray(d.categories) && Array.isArray(d.series);
 }
 
+const FALLBACK_COLORS = [
+  'riokuSuccess',
+  'riokuWarning',
+  'riokuDanger',
+  'riokuInfo',
+  'riokuOrange',
+  'grape',
+] as const;
+
 export function StackedBarWidget({ widget, data, loading, error }: WidgetRenderProps) {
-  if (loading) return <Skeleton height={200} width="100%" radius="sm" />;
+  if (loading) return <ChartSkeleton kind="bar" height={200} />;
   if (error)
     return (
       <Alert color="red" title="Widget error" variant="light">
@@ -33,31 +61,57 @@ export function StackedBarWidget({ widget, data, loading, error }: WidgetRenderP
         Expected {'{ categories, series }'}
       </Alert>
     );
+  if (data.categories.length === 0) {
+    return (
+      <Box p="md" ta="center">
+        No data in this range.
+      </Box>
+    );
+  }
 
-  // Fall back to bare color names so Mantine's primaryShade resolves the
-  // correct shade per color scheme. Explicit shades (e.g. 'blue.6') are
-  // near-invisible on dark card backgrounds.
-  const FALLBACK_COLORS = ['blue', 'cyan', 'teal', 'indigo', 'violet', 'grape'] as const;
   const series = data.series.map((s, i) => ({
     name: s.name,
-    color: s.color ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length] ?? 'blue',
+    color: `var(--mantine-color-${s.color ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length] ?? 'riokuInfo'}-6)`,
   }));
 
+  const showLegend = series.length > 1;
+
   return (
-    <Box
-      role="img"
-      aria-label={`Stacked bar chart for ${widget.title}`}
-      style={{ width: '100%', height: 200 }}
-    >
-      <BarChart
-        h="100%"
-        w="100%"
-        data={data.categories}
-        dataKey="label"
-        type="stacked"
-        series={series}
-        withTooltip
-      />
-    </Box>
+    <WidgetContainer>
+      <Box
+        role="img"
+        aria-label={`Stacked bar chart for ${widget.title}`}
+        style={{ width: '100%', height: '100%', minHeight: 140 }}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data.categories} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid {...chartGridProps()} />
+            <XAxis dataKey="label" {...chartAxisProps()} minTickGap={20} />
+            <YAxis {...chartAxisProps({ width: 32 })} />
+            <Tooltip
+              content={<ChartTooltip />}
+              cursor={{ fill: 'var(--mantine-color-default-hover)', opacity: 0.4 }}
+            />
+            {showLegend && (
+              <Legend
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+              />
+            )}
+            {series.map((s, idx) => (
+              <Bar
+                key={s.name}
+                dataKey={s.name}
+                stackId="stack"
+                fill={s.color}
+                radius={idx === series.length - 1 ? [4, 4, 0, 0] : 0}
+                isAnimationActive={false}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </Box>
+    </WidgetContainer>
   );
 }

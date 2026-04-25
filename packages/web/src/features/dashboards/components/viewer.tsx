@@ -16,7 +16,6 @@ import {
   Button,
   Card,
   Group,
-  SegmentedControl,
   Stack,
   Text,
   Title,
@@ -33,7 +32,15 @@ import {
   IconPencil,
   IconStar,
   IconCopy,
+  IconDots,
+  IconTrash,
+  IconLock,
+  IconShare,
+  IconUsers,
+  IconWorld,
 } from '@tabler/icons-react';
+import { Menu } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { EmptyState } from '@/components/empty-state';
@@ -41,15 +48,14 @@ import { WidgetRenderer } from '@/components/widget-renderer';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import {
-  DashboardRangeProvider,
-  TIME_RANGES,
-  useDashboardRange,
-} from '@/hooks/use-dashboard-range';
+import { DashboardRangeProvider, useDashboardRange } from '@/hooks/use-dashboard-range';
 import { useWidgetData } from '@/features/dashboard-builder';
-import type { Widget } from '@/api/resources/types';
-import { useDashboardDetail, useDashboardWidgets, setAsMyHome } from '../api';
+import type { Widget, DashboardRangeSpec } from '@/api/resources/types';
+import { useDashboardDetail, useDashboardWidgets, setAsMyHome, updateDashboard } from '../api';
+import { useDashboardAccess } from '../use-dashboard-access';
 import { downloadDashboardExport } from '../export-download';
+import { DashboardRangePicker } from './range-picker';
+import { ShareDashboardModal } from './share-dashboard-modal';
 
 dayjs.extend(relativeTime);
 
@@ -64,11 +70,25 @@ interface DashboardViewerProps {
   onClone?: (dashboardId: string) => void;
   /** Called when the user opens Version history. */
   onVersionHistory?: (dashboardId: string) => void;
+  /** Called when the user requests deletion. Parent confirms and deletes. */
+  onDelete?: (dashboardId: string) => void;
+  /** Called when the user wants to set this dashboard as the tenant default. */
+  onSetDefault?: (dashboardId: string) => void;
+  /** Hide the "Make this my home" action — used on the landing route. */
+  hideMakeHome?: boolean;
 }
 
 export function DashboardViewer(props: DashboardViewerProps) {
+  // Read the dashboard's saved default_range so the provider seeds with it
+  // instead of the global 24h fallback. We grab the dashboard here rather
+  // than inside Inner because the provider needs the spec at mount time.
+  const dashboard = useDashboardDetail(props.dashboardId);
+  const initialSpec = dashboard?.default_range;
   return (
-    <DashboardRangeProvider>
+    <DashboardRangeProvider
+      key={props.dashboardId}
+      {...(initialSpec ? { initialSpec } : {})}
+    >
       <DashboardViewerInner {...props} />
     </DashboardRangeProvider>
   );
@@ -79,11 +99,22 @@ function DashboardViewerInner({
   onEdit,
   onClone,
   onVersionHistory,
+  onDelete,
+  onSetDefault,
+  hideMakeHome,
 }: DashboardViewerProps) {
   const dashboard = useDashboardDetail(dashboardId);
   const widgets = useDashboardWidgets(dashboardId);
   const currentUserId = useMockStore((s) => s.currentUserId);
-  const canWrite = usePermission('dashboard:write');
+  // Effective per-dashboard access — combines tenant write perm + dashboard
+  // owner/scope/grants. Edit/Delete buttons gate on this, not on the raw
+  // tenant-level permission alone.
+  const effectiveAccess = useDashboardAccess(dashboard);
+  const canWrite = effectiveAccess === 'write';
+  const canDelete = usePermission('dashboard:delete') && effectiveAccess === 'write';
+  const canSetDefault = usePermission('dashboard:set-default');
+  const isOwner = currentUserId !== null && dashboard?.owner_user_id === currentUserId;
+  const [shareOpened, { open: openShare, close: closeShare }] = useDisclosure(false);
   // On mobile collapse the 12-col grid to a single column so widgets don't
   // render at sub-100px widths. Tablet gets 6 cols (half layout).
   const effectiveColumns = useMatches({ base: 1, sm: 6, md: GRID_COLUMNS });
@@ -128,25 +159,50 @@ function DashboardViewerInner({
   }
 
   const absoluteUpdated = dayjs(dashboard.updated_at).format('YYYY-MM-DD HH:mm:ss');
+  const visibility = visibilityMeta(dashboard.scope);
 
   return (
     <Stack gap="md" p="md">
+      <ShareDashboardModal opened={shareOpened} dashboard={dashboard} onClose={closeShare} />
       {/* Header */}
       <Stack gap={4}>
         <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
           <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-            <Group gap="sm" align="center" wrap="wrap">
-              <Title order={titleOrder}>{dashboard.name}</Title>
-              <Badge
-                size="sm"
-                variant="light"
-                color={dashboard.mode === 'metabase' ? 'blue' : 'violet'}
-              >
-                {dashboard.mode}
-              </Badge>
-              {dashboard.default && (
+            <Group gap="xs" align="center" wrap="wrap">
+              <Title order={titleOrder} style={{ minWidth: 0 }}>
+                {dashboard.name}
+              </Title>
+              {/* On mobile: only show the visibility icon (no label) to keep
+                  the title row scannable. Mode/Default/View-only badges drop
+                  off small screens — owner can confirm via the share modal. */}
+              {!isMobile && (
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color={dashboard.mode === 'metabase' ? 'blue' : 'violet'}
+                >
+                  {dashboard.mode}
+                </Badge>
+              )}
+              <Tooltip label={visibility.tooltip} withArrow>
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color={visibility.color}
+                  leftSection={visibility.icon}
+                  data-testid="dashboard-visibility-badge"
+                >
+                  {isMobile ? '' : visibility.label}
+                </Badge>
+              </Tooltip>
+              {dashboard.default && !isMobile && (
                 <Badge size="sm" variant="light" color="green" leftSection={<IconStar size={10} />}>
                   Default
+                </Badge>
+              )}
+              {!canWrite && effectiveAccess === 'read' && !isMobile && (
+                <Badge size="sm" variant="outline" color="gray">
+                  View only
                 </Badge>
               )}
             </Group>
@@ -164,6 +220,29 @@ function DashboardViewerInner({
 
           {/* Action buttons — full labels on ≥sm, icon-only on mobile */}
           <Group gap="xs" wrap="wrap" style={{ flexShrink: 0 }}>
+            {isOwner &&
+              (isMobile ? (
+                <Tooltip label="Share" withArrow>
+                  <ActionIcon
+                    variant="default"
+                    size="lg"
+                    aria-label="Share dashboard"
+                    onClick={openShare}
+                    data-testid="dashboard-share-btn"
+                  >
+                    <IconShare size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="default"
+                  leftSection={<IconShare size={14} />}
+                  onClick={openShare}
+                  data-testid="dashboard-share-btn"
+                >
+                  Share
+                </Button>
+              ))}
             {canWrite &&
               onEdit &&
               (isMobile ? (
@@ -235,66 +314,99 @@ function DashboardViewerInner({
                 Export JSON
               </Button>
             )}
-            {isMobile ? (
-              <Tooltip label="Set as home" withArrow>
-                <ActionIcon
-                  variant="default"
-                  size="lg"
-                  aria-label="Set as home dashboard"
-                  disabled={currentUserId === null}
-                  onClick={() => {
-                    void handleMakeMyHome();
-                  }}
-                >
-                  <IconHome size={16} />
-                </ActionIcon>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="default"
-                leftSection={<IconHome size={14} />}
-                disabled={currentUserId === null}
-                onClick={() => {
-                  void handleMakeMyHome();
-                }}
-              >
-                Make this my home
-              </Button>
-            )}
-            {onVersionHistory &&
+            {!hideMakeHome &&
               (isMobile ? (
-                <Tooltip label="Version history" withArrow>
+                <Tooltip label="Set as home" withArrow>
                   <ActionIcon
                     variant="default"
                     size="lg"
-                    aria-label="Version history"
+                    aria-label="Set as home dashboard"
+                    disabled={currentUserId === null}
                     onClick={() => {
-                      onVersionHistory(dashboard.id);
+                      void handleMakeMyHome();
                     }}
                   >
-                    <IconHistory size={16} />
+                    <IconHome size={16} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
                 <Button
                   variant="default"
-                  leftSection={<IconHistory size={14} />}
+                  leftSection={<IconHome size={14} />}
+                  disabled={currentUserId === null}
                   onClick={() => {
-                    onVersionHistory(dashboard.id);
+                    void handleMakeMyHome();
                   }}
                 >
-                  Version history
+                  Make this my home
                 </Button>
               ))}
+            {(onVersionHistory || onSetDefault || onDelete) && (
+              <Menu shadow="md" position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <Tooltip label="More" withArrow>
+                    <ActionIcon
+                      variant="default"
+                      size="lg"
+                      aria-label="More dashboard actions"
+                      data-testid="dashboard-viewer-more"
+                    >
+                      <IconDots size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {onSetDefault && (
+                    <Menu.Item
+                      leftSection={<IconStar size={14} />}
+                      disabled={!canSetDefault || dashboard.default}
+                      onClick={() => {
+                        onSetDefault(dashboard.id);
+                      }}
+                      data-testid="dashboard-viewer-set-default"
+                    >
+                      {dashboard.default ? 'Already the default' : 'Set as tenant default'}
+                    </Menu.Item>
+                  )}
+                  {onVersionHistory && (
+                    <Menu.Item
+                      leftSection={<IconHistory size={14} />}
+                      onClick={() => {
+                        onVersionHistory(dashboard.id);
+                      }}
+                      data-testid="dashboard-viewer-version-history"
+                    >
+                      Version history
+                    </Menu.Item>
+                  )}
+                  {onDelete && (
+                    <>
+                      <Menu.Divider />
+                      <Menu.Item
+                        leftSection={<IconTrash size={14} />}
+                        color="red"
+                        disabled={!canDelete}
+                        onClick={() => {
+                          onDelete(dashboard.id);
+                        }}
+                        data-testid="dashboard-viewer-delete"
+                      >
+                        Delete dashboard…
+                      </Menu.Item>
+                    </>
+                  )}
+                </Menu.Dropdown>
+              </Menu>
+            )}
           </Group>
         </Group>
       </Stack>
 
       {/* Time range selector — lives at dashboard scope; injected into
        * useWidgetData via context so every widget re-queries when the
-       * user flips it. The active range ID is shown in muted text to
-       * echo the selection in human-readable terms. */}
-      <TimeRangeBar />
+       * user flips it. Save button appears when the local spec differs
+       * from the dashboard's saved default_range. */}
+      <DashboardToolbar dashboardId={dashboard.id} canWrite={canWrite} />
 
       {/* Grid */}
       {widgets.length === 0 ? (
@@ -348,28 +460,94 @@ interface WidgetCellProps {
 }
 
 /**
- * Dashboard-scope time-range segmented control. Posts to the shared
- * `DashboardRangeProvider` so every widget re-queries when the user
- * clicks a new range. Rendered above the widget grid.
+ * Dashboard toolbar: range picker + filter chips (future) + save button.
+ * Posts spec changes to the `DashboardRangeProvider` so every widget
+ * re-queries on apply. Save persists the current spec to the dashboard's
+ * `default_range`, hiding the save indicator.
  */
-function TimeRangeBar() {
-  const { range, setRangeId } = useDashboardRange();
+function DashboardToolbar({ dashboardId, canWrite }: { dashboardId: string; canWrite: boolean }) {
+  const dashboard = useDashboardDetail(dashboardId);
+  const { spec, range, setSpec } = useDashboardRange();
+  const isMobile = useMatches({ base: true, sm: false });
+
+  const savedSpec = dashboard?.default_range;
+  const dirty = !specEqual(spec, savedSpec);
+
+  const handleSave = useCallback(async () => {
+    if (!dashboard) return;
+    try {
+      await updateDashboard(dashboard.id, { default_range: spec });
+      notify.success('Default range saved', `${dashboard.name} now opens at this range.`);
+    } catch (e) {
+      notify.error('Save failed', (e as Error).message);
+    }
+  }, [dashboard, spec]);
+
+  const handleReset = useCallback(() => {
+    if (savedSpec) {
+      setSpec(savedSpec);
+    } else {
+      setSpec({ kind: 'preset', id: '24h' });
+    }
+  }, [savedSpec, setSpec]);
+
   return (
-    <Group justify="flex-end" gap="sm" wrap="wrap">
-      <Text size="xs" c="dimmed">
-        Showing {range.longLabel}
-      </Text>
-      <SegmentedControl
-        size="xs"
-        value={range.id}
-        onChange={(v) => {
-          setRangeId(v);
-        }}
-        data={TIME_RANGES.map((r) => ({ label: r.label, value: r.id }))}
-        aria-label="Dashboard time range"
-      />
+    <Group justify="space-between" gap="sm" wrap="wrap" align="center">
+      {!isMobile && (
+        <Text size="xs" c="dimmed">
+          Showing {range.longLabel}
+        </Text>
+      )}
+      <Group gap="xs" wrap="wrap" style={{ marginLeft: isMobile ? 'auto' : undefined }}>
+        {dirty && (
+          <Badge size="sm" variant="light" color="yellow" data-testid="dashboard-toolbar-dirty">
+            Unsaved
+          </Badge>
+        )}
+        {dirty && (
+          <Button
+            variant="default"
+            size="xs"
+            onClick={handleReset}
+            data-testid="dashboard-toolbar-reset"
+          >
+            Reset
+          </Button>
+        )}
+        {dirty && canWrite && (
+          <Button
+            size="xs"
+            onClick={() => {
+              void handleSave();
+            }}
+            data-testid="dashboard-toolbar-save"
+          >
+            {isMobile ? 'Save' : 'Save as default'}
+          </Button>
+        )}
+        <DashboardRangePicker value={spec} onChange={setSpec} />
+      </Group>
     </Group>
   );
+}
+
+function specEqual(
+  a: import('@/api/resources/types').DashboardRangeSpec,
+  b: import('@/api/resources/types').DashboardRangeSpec | undefined,
+): boolean {
+  if (!b) {
+    // No saved spec → consider current dirty if anything other than the 24h default.
+    return a.kind === 'preset' && a.id === '24h';
+  }
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'preset' && b.kind === 'preset') return a.id === b.id;
+  if (a.kind === 'relative' && b.kind === 'relative') {
+    return a.amount === b.amount && a.unit === b.unit;
+  }
+  if (a.kind === 'absolute' && b.kind === 'absolute') {
+    return a.from === b.from && a.to === b.to;
+  }
+  return false;
 }
 
 /**
@@ -385,7 +563,10 @@ const WIDGET_ACCENT: Record<string, string> = {
   'time-series': 'riokuInfo',
   'area-chart': 'riokuInfo',
   'stacked-bar': 'riokuInfo',
+  'bar-chart': 'riokuInfo',
   pie: 'riokuOrange',
+  donut: 'riokuOrange',
+  funnel: 'riokuWarning',
   'top-n': 'riokuWarning',
   table: 'riokuSuccess',
   'service-map': 'riokuInfo',
@@ -394,6 +575,8 @@ const WIDGET_ACCENT: Record<string, string> = {
   gauge: 'riokuSuccess',
   heatmap: 'riokuOrange',
   'status-grid': 'riokuSuccess',
+  markdown: 'riokuInfo',
+  progress: 'riokuSuccess',
 };
 
 function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
@@ -472,4 +655,34 @@ function WidgetCell({ widget, layout, effectiveCols }: WidgetCellProps) {
       </Stack>
     </Card>
   );
+}
+
+function visibilityMeta(scope: 'personal' | 'shared' | 'tenant'): {
+  label: string;
+  color: string;
+  icon: React.ReactNode;
+  tooltip: string;
+} {
+  if (scope === 'personal') {
+    return {
+      label: 'Private',
+      color: 'gray',
+      icon: <IconLock size={10} />,
+      tooltip: 'Only you can view or edit this dashboard.',
+    };
+  }
+  if (scope === 'shared') {
+    return {
+      label: 'Shared',
+      color: 'indigo',
+      icon: <IconUsers size={10} />,
+      tooltip: 'Shared with specific roles or users.',
+    };
+  }
+  return {
+    label: 'Public',
+    color: 'teal',
+    icon: <IconWorld size={10} />,
+    tooltip: 'Visible to everyone in this tenant.',
+  };
 }

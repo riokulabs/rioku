@@ -130,7 +130,7 @@ function DashboardPage() {
   if (userHomeId) {
     const home = dashboards[userHomeId];
     if (home?.tenant_id === currentTenantId) {
-      return <DashboardViewer dashboardId={userHomeId} />;
+      return <DashboardViewer dashboardId={userHomeId} hideMakeHome />;
     }
   }
 
@@ -143,7 +143,7 @@ function DashboardPage() {
     }
   }
   if (tenantDefault) {
-    return <DashboardViewer dashboardId={tenantDefault.id} />;
+    return <DashboardViewer dashboardId={tenantDefault.id} hideMakeHome />;
   }
 
   // 3. Stock placeholder.

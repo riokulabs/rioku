@@ -159,3 +159,50 @@ describe('Sidebar panel — Analytics section', () => {
     expect(entry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
   });
 });
+
+describe('Sidebar collapse behavior', () => {
+  it('shows icons only (no labels) in the rail when collapsed', () => {
+    currentPath = '/t/acme/ai/providers';
+    wrap(<Sidebar collapsed onToggleCollapsed={() => {}} />);
+    // Rail is still visible
+    expect(document.querySelectorAll('[data-testid^="rail-section-"]')).toHaveLength(7);
+    // Section labels are NOT rendered inside rail entries when collapsed
+    const dashboardEntry = document.querySelector('[data-testid="rail-section-dashboard"]');
+    expect(dashboardEntry?.textContent).toBe('');
+    // Sub menu (panel) is still open because AI has children
+    expect(screen.getByText('Providers')).toBeInTheDocument();
+  });
+
+  it('shows icons + labels in the rail when expanded', () => {
+    currentPath = '/t/acme/ai/providers';
+    wrap(<Sidebar collapsed={false} onToggleCollapsed={() => {}} />);
+    expect(document.querySelectorAll('[data-testid^="rail-section-"]')).toHaveLength(7);
+    // Each rail entry now carries its label text
+    const dashboardEntry = document.querySelector('[data-testid="rail-section-dashboard"]');
+    expect(dashboardEntry?.textContent).toContain('Dashboard');
+    const aiEntry = document.querySelector('[data-testid="rail-section-ai"]');
+    expect(aiEntry?.textContent).toContain('AI');
+    // Sub menu still open
+    expect(screen.getByText('Providers')).toBeInTheDocument();
+  });
+
+  it('renders the collapse toggle in the main nav (rail), so it shows even when no sub-menu is present', () => {
+    // Dashboard has no children → no panel renders. If the toggle appears
+    // here, it must be living in the rail (the only visible surface).
+    currentPath = '/t/acme/dashboard';
+    wrap(<Sidebar collapsed onToggleCollapsed={() => {}} />);
+    const toggle = document.querySelector('[data-testid="sidebar-collapse-toggle"]');
+    expect(toggle).not.toBeNull();
+  });
+
+  it('does not render a sub-menu panel for sections without children', () => {
+    currentPath = '/t/acme/dashboard';
+    wrap(<Sidebar collapsed={false} onToggleCollapsed={() => {}} />);
+    expect(document.querySelectorAll('[data-testid^="rail-section-"]')).toHaveLength(7);
+    // Dashboard has no children — sub-menu NavLinks from other sections
+    // should not appear, and neither should a panel header for children.
+    expect(screen.queryByText('Providers')).toBeNull();
+    expect(screen.queryByText('Services')).toBeNull();
+    expect(screen.queryByText('Insights')).toBeNull();
+  });
+});

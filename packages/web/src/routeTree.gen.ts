@@ -45,6 +45,7 @@ import { Route as TTenantAiRouteImport } from './routes/t.$tenant/ai'
 import { Route as UnauthResetPasswordTokenRouteImport } from './routes/_unauth/reset-password.$token'
 import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$token'
 import { Route as TTenantSettingsIndexRouteImport } from './routes/t.$tenant/settings/index'
+import { Route as TTenantDashboardsIndexRouteImport } from './routes/t.$tenant/dashboards.index'
 import { Route as TTenantAiIndexRouteImport } from './routes/t.$tenant/ai/index'
 import { Route as TTenantSettingsNotificationsRouteImport } from './routes/t.$tenant/settings/notifications'
 import { Route as TTenantSettingsNotificationRoutingRouteImport } from './routes/t.$tenant/settings/notification-routing'
@@ -60,7 +61,7 @@ import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/sec
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
 import { Route as TTenantPluginsSignersRouteImport } from './routes/t.$tenant/plugins_.signers'
-import { Route as TTenantDashboardsDashboardIdRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId'
+import { Route as TTenantDashboardsDashboardIdRouteImport } from './routes/t.$tenant/dashboards.$dashboardId'
 import { Route as TTenantAiTracesRouteImport } from './routes/t.$tenant/ai/traces'
 import { Route as TTenantAiToolsRouteImport } from './routes/t.$tenant/ai/tools'
 import { Route as TTenantAiToolRoutingRouteImport } from './routes/t.$tenant/ai/tool-routing'
@@ -251,6 +252,11 @@ const TTenantSettingsIndexRoute = TTenantSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TTenantSettingsRoute,
 } as any)
+const TTenantDashboardsIndexRoute = TTenantDashboardsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TTenantDashboardsRoute,
+} as any)
 const TTenantAiIndexRoute = TTenantAiIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -336,9 +342,9 @@ const TTenantPluginsSignersRoute = TTenantPluginsSignersRouteImport.update({
 } as any)
 const TTenantDashboardsDashboardIdRoute =
   TTenantDashboardsDashboardIdRouteImport.update({
-    id: '/dashboards_/$dashboardId',
-    path: '/dashboards/$dashboardId',
-    getParentRoute: () => TTenantRoute,
+    id: '/$dashboardId',
+    path: '/$dashboardId',
+    getParentRoute: () => TTenantDashboardsRoute,
   } as any)
 const TTenantAiTracesRoute = TTenantAiTracesRouteImport.update({
   id: '/traces',
@@ -412,7 +418,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
   '/t/$tenant/cluster': typeof TTenantClusterRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
-  '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
+  '/t/$tenant/dashboards': typeof TTenantDashboardsRouteWithChildren
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
   '/t/$tenant/notifications': typeof TTenantNotificationsRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
@@ -445,6 +451,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
+  '/t/$tenant/dashboards/': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
@@ -473,7 +480,6 @@ export interface FileRoutesByTo {
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
   '/t/$tenant/cluster': typeof TTenantClusterRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
-  '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
   '/t/$tenant/notifications': typeof TTenantNotificationsRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
@@ -505,6 +511,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
   '/t/$tenant/ai': typeof TTenantAiIndexRoute
+  '/t/$tenant/dashboards': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings': typeof TTenantSettingsIndexRoute
   '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
@@ -536,7 +543,7 @@ export interface FileRoutesById {
   '/t/$tenant/api-explorer': typeof TTenantApiExplorerRoute
   '/t/$tenant/cluster': typeof TTenantClusterRoute
   '/t/$tenant/dashboard': typeof TTenantDashboardRoute
-  '/t/$tenant/dashboards': typeof TTenantDashboardsRoute
+  '/t/$tenant/dashboards': typeof TTenantDashboardsRouteWithChildren
   '/t/$tenant/middlewares': typeof TTenantMiddlewaresRoute
   '/t/$tenant/notifications': typeof TTenantNotificationsRoute
   '/t/$tenant/plugins': typeof TTenantPluginsRoute
@@ -553,7 +560,7 @@ export interface FileRoutesById {
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
-  '/t/$tenant/dashboards_/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
@@ -569,6 +576,7 @@ export interface FileRoutesById {
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
+  '/t/$tenant/dashboards/': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/_detail/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards_/$dashboardId_/edit': typeof TTenantDashboardsDashboardIdEditRoute
@@ -633,6 +641,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/settings/notifications'
     | '/t/$tenant/ai/'
+    | '/t/$tenant/dashboards/'
     | '/t/$tenant/settings/'
     | '/t/$tenant/$kind/$id'
     | '/t/$tenant/dashboards/$dashboardId/edit'
@@ -661,7 +670,6 @@ export interface FileRouteTypes {
     | '/t/$tenant/api-explorer'
     | '/t/$tenant/cluster'
     | '/t/$tenant/dashboard'
-    | '/t/$tenant/dashboards'
     | '/t/$tenant/middlewares'
     | '/t/$tenant/notifications'
     | '/t/$tenant/plugins'
@@ -693,6 +701,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/settings/notifications'
     | '/t/$tenant/ai'
+    | '/t/$tenant/dashboards'
     | '/t/$tenant/settings'
     | '/t/$tenant/$kind/$id'
     | '/t/$tenant/dashboards/$dashboardId/edit'
@@ -740,7 +749,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tool-routing'
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
-    | '/t/$tenant/dashboards_/$dashboardId'
+    | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/plugins_/signers'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
@@ -756,6 +765,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/settings/notifications'
     | '/t/$tenant/ai/'
+    | '/t/$tenant/dashboards/'
     | '/t/$tenant/settings/'
     | '/t/$tenant/_detail/$kind/$id'
     | '/t/$tenant/dashboards_/$dashboardId_/edit'
@@ -1025,6 +1035,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSettingsIndexRouteImport
       parentRoute: typeof TTenantSettingsRoute
     }
+    '/t/$tenant/dashboards/': {
+      id: '/t/$tenant/dashboards/'
+      path: '/'
+      fullPath: '/t/$tenant/dashboards/'
+      preLoaderRoute: typeof TTenantDashboardsIndexRouteImport
+      parentRoute: typeof TTenantDashboardsRoute
+    }
     '/t/$tenant/ai/': {
       id: '/t/$tenant/ai/'
       path: '/'
@@ -1130,12 +1147,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantPluginsSignersRouteImport
       parentRoute: typeof TTenantRoute
     }
-    '/t/$tenant/dashboards_/$dashboardId': {
-      id: '/t/$tenant/dashboards_/$dashboardId'
-      path: '/dashboards/$dashboardId'
+    '/t/$tenant/dashboards/$dashboardId': {
+      id: '/t/$tenant/dashboards/$dashboardId'
+      path: '/$dashboardId'
       fullPath: '/t/$tenant/dashboards/$dashboardId'
       preLoaderRoute: typeof TTenantDashboardsDashboardIdRouteImport
-      parentRoute: typeof TTenantRoute
+      parentRoute: typeof TTenantDashboardsRoute
     }
     '/t/$tenant/ai/traces': {
       id: '/t/$tenant/ai/traces'
@@ -1274,6 +1291,19 @@ const TTenantAiRouteWithChildren = TTenantAiRoute._addFileChildren(
   TTenantAiRouteChildren,
 )
 
+interface TTenantDashboardsRouteChildren {
+  TTenantDashboardsDashboardIdRoute: typeof TTenantDashboardsDashboardIdRoute
+  TTenantDashboardsIndexRoute: typeof TTenantDashboardsIndexRoute
+}
+
+const TTenantDashboardsRouteChildren: TTenantDashboardsRouteChildren = {
+  TTenantDashboardsDashboardIdRoute: TTenantDashboardsDashboardIdRoute,
+  TTenantDashboardsIndexRoute: TTenantDashboardsIndexRoute,
+}
+
+const TTenantDashboardsRouteWithChildren =
+  TTenantDashboardsRoute._addFileChildren(TTenantDashboardsRouteChildren)
+
 interface TTenantSecurityRouteChildren {
   TTenantSecurityAccessPoliciesRoute: typeof TTenantSecurityAccessPoliciesRoute
   TTenantSecurityApiKeysRoute: typeof TTenantSecurityApiKeysRoute
@@ -1328,7 +1358,7 @@ interface TTenantRouteChildren {
   TTenantApiExplorerRoute: typeof TTenantApiExplorerRoute
   TTenantClusterRoute: typeof TTenantClusterRoute
   TTenantDashboardRoute: typeof TTenantDashboardRoute
-  TTenantDashboardsRoute: typeof TTenantDashboardsRoute
+  TTenantDashboardsRoute: typeof TTenantDashboardsRouteWithChildren
   TTenantMiddlewaresRoute: typeof TTenantMiddlewaresRoute
   TTenantNotificationsRoute: typeof TTenantNotificationsRoute
   TTenantPluginsRoute: typeof TTenantPluginsRoute
@@ -1338,7 +1368,6 @@ interface TTenantRouteChildren {
   TTenantServicesRoute: typeof TTenantServicesRoute
   TTenantSettingsRoute: typeof TTenantSettingsRouteWithChildren
   TTenantSitesRoute: typeof TTenantSitesRoute
-  TTenantDashboardsDashboardIdRoute: typeof TTenantDashboardsDashboardIdRoute
   TTenantPluginsSignersRoute: typeof TTenantPluginsSignersRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
   TTenantDetailKindIdRoute: typeof TTenantDetailKindIdRoute
@@ -1350,7 +1379,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantApiExplorerRoute: TTenantApiExplorerRoute,
   TTenantClusterRoute: TTenantClusterRoute,
   TTenantDashboardRoute: TTenantDashboardRoute,
-  TTenantDashboardsRoute: TTenantDashboardsRoute,
+  TTenantDashboardsRoute: TTenantDashboardsRouteWithChildren,
   TTenantMiddlewaresRoute: TTenantMiddlewaresRoute,
   TTenantNotificationsRoute: TTenantNotificationsRoute,
   TTenantPluginsRoute: TTenantPluginsRoute,
@@ -1360,7 +1389,6 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantServicesRoute: TTenantServicesRoute,
   TTenantSettingsRoute: TTenantSettingsRouteWithChildren,
   TTenantSitesRoute: TTenantSitesRoute,
-  TTenantDashboardsDashboardIdRoute: TTenantDashboardsDashboardIdRoute,
   TTenantPluginsSignersRoute: TTenantPluginsSignersRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
   TTenantDetailKindIdRoute: TTenantDetailKindIdRoute,

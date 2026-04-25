@@ -6,20 +6,25 @@
  */
 import { useState } from 'react';
 import {
+  Alert,
   Badge,
   Button,
   Code,
   Drawer,
   Group,
+  Modal,
   Stack,
   Table,
   Text,
+  Textarea,
+  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconLock, IconPlus } from '@tabler/icons-react';
+import { IconAlertTriangle, IconLock, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { CertAuthority } from '@/api/resources/types';
-import { useCertAuthorities } from '../api';
+import { notify } from '@/hooks/use-notify';
+import { useCertAuthorities, revokeCertAuthority, deleteCertAuthority } from '../api';
 import { CreateCaModal } from './pki-create-ca-modal';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -51,13 +56,23 @@ interface CaDetailDrawerProps {
 }
 
 function CaDetailDrawer({ ca, onClose }: CaDetailDrawerProps) {
+  const [confirming, setConfirming] = useState<'revoke' | 'delete' | null>(null);
   if (!ca) return null;
 
   return (
     <Drawer
       opened
       onClose={onClose}
-      title={ca.name}
+      title={
+        <Group gap="xs">
+          <Text fw={600}>{ca.name}</Text>
+          {ca.revoked && (
+            <Badge size="sm" color="red" variant="light">
+              Revoked
+            </Badge>
+          )}
+        </Group>
+      }
       position="right"
       size="min(400px, 95vw)"
       data-testid="ca-detail-drawer"
@@ -133,15 +148,215 @@ function CaDetailDrawer({ ca, onClose }: CaDetailDrawerProps) {
           </Stack>
         )}
 
-        <Tooltip label="Revocation coming soon" position="bottom">
-          <span>
-            <Button variant="light" color="red.8" size="sm" disabled data-testid="ca-revoke-button">
-              Revoke / Delete
+        {ca.revoked ? (
+          <Stack gap="xs">
+            <Alert
+              color="red"
+              variant="light"
+              icon={<IconAlertTriangle size={16} />}
+              title="Revoked"
+            >
+              <Text size="sm">
+                Revoked {ca.revoked_at ? new Date(ca.revoked_at).toLocaleString() : ''}.
+              </Text>
+              {ca.revocation_reason && (
+                <Text size="xs" c="var(--mantine-color-gray-7)" mt={4}>
+                  Reason: {ca.revocation_reason}
+                </Text>
+              )}
+            </Alert>
+            <Button
+              size="sm"
+              color="red"
+              variant="filled"
+              leftSection={<IconTrash size={14} />}
+              onClick={() => {
+                setConfirming('delete');
+              }}
+              data-testid="ca-delete-button"
+            >
+              Permanently delete
             </Button>
-          </span>
-        </Tooltip>
+          </Stack>
+        ) : (
+          <Button
+            variant="light"
+            color="red.8"
+            size="sm"
+            onClick={() => {
+              setConfirming('revoke');
+            }}
+            data-testid="ca-revoke-button"
+          >
+            Revoke
+          </Button>
+        )}
       </Stack>
+
+      {confirming === 'revoke' && (
+        <RevokeCaModal
+          ca={ca}
+          onClose={() => {
+            setConfirming(null);
+          }}
+        />
+      )}
+      {confirming === 'delete' && (
+        <DeleteCaModal
+          ca={ca}
+          onClose={() => {
+            setConfirming(null);
+          }}
+          onDeleted={() => {
+            setConfirming(null);
+            onClose();
+          }}
+        />
+      )}
     </Drawer>
+  );
+}
+
+// ─── Revoke modal ─────────────────────────────────────────────────────────────
+
+interface RevokeCaModalProps {
+  ca: CertAuthority;
+  onClose: () => void;
+}
+
+function RevokeCaModal({ ca, onClose }: RevokeCaModalProps) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function handleRevoke() {
+    setBusy(true);
+    try {
+      await revokeCertAuthority(ca.id, reason.trim());
+      notify.success('CA revoked', `${ca.name} has been revoked.`);
+      onClose();
+    } catch (e) {
+      notify.error('Revoke failed', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      opened
+      onClose={onClose}
+      title="Revoke certificate authority?"
+      size="sm"
+      transitionProps={{ duration: 0 }}
+    >
+      <Stack gap="md">
+        <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
+          New enrollments under this CA will be blocked. Already-issued certificates remain
+          valid until they expire.
+        </Alert>
+        <Textarea
+          label="Reason (optional)"
+          placeholder="e.g. Key compromise, scheduled rotation"
+          minRows={2}
+          autosize
+          maxRows={4}
+          value={reason}
+          onChange={(e) => {
+            setReason(e.currentTarget.value);
+          }}
+        />
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            loading={busy}
+            onClick={() => {
+              void handleRevoke();
+            }}
+            data-testid="ca-revoke-confirm"
+          >
+            Revoke CA
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+// ─── Delete modal (typed-name confirmation) ──────────────────────────────────
+
+interface DeleteCaModalProps {
+  ca: CertAuthority;
+  onClose: () => void;
+  onDeleted: () => void;
+}
+
+function DeleteCaModal({ ca, onClose, onDeleted }: DeleteCaModalProps) {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const matches = typed === ca.name;
+
+  async function handleDelete() {
+    if (!matches) return;
+    setBusy(true);
+    try {
+      await deleteCertAuthority(ca.id);
+      notify.success('CA deleted', `${ca.name} was permanently removed.`);
+      onDeleted();
+    } catch (e) {
+      notify.error('Delete failed', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      opened
+      onClose={onClose}
+      title="Permanently delete CA?"
+      size="sm"
+      transitionProps={{ duration: 0 }}
+    >
+      <Stack gap="md">
+        <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>
+          This permanently removes the CA record. Issued certificates may still be honored by
+          third parties — operators are responsible for distributing CRLs / OCSP info externally.
+        </Alert>
+        <Text size="sm">
+          Type the CA name to confirm:{' '}
+          <Text component="span" fw={600} ff="monospace">
+            {ca.name}
+          </Text>
+        </Text>
+        <TextInput
+          value={typed}
+          onChange={(e) => {
+            setTyped(e.currentTarget.value);
+          }}
+          placeholder={ca.name}
+          data-autofocus
+        />
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            loading={busy}
+            disabled={!matches}
+            onClick={() => {
+              void handleDelete();
+            }}
+            data-testid="ca-delete-confirm"
+          >
+            Delete permanently
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 

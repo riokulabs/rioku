@@ -1,6 +1,10 @@
 /**
  * Per-dashboard viewer — /t/$tenant/dashboards/$dashboardId
  *
+ * Nested under the dashboards layout (sidebar + outlet). Renders the
+ * <DashboardViewer> with edit / delete / clone / export / version-history
+ * actions wired up. Delete uses the parent layout's modal via outlet context.
+ *
  * Read-only grid view. Guarded by dashboard:read. `beforeLoad` additionally
  * enforces scope rules:
  *   - `personal`: only the owner may view → otherwise /access-denied.
@@ -9,17 +13,23 @@
  */
 import { useState } from 'react';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Button, Group, Stack } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { DashboardViewer, VersionHistoryDrawer, createDashboard } from '@/features/dashboards';
-import { useDashboardDetail } from '@/features/dashboards';
+import {
+  DashboardViewer,
+  VersionHistoryDrawer,
+  createDashboard,
+  setDefaultDashboard,
+  useDashboardDetail,
+} from '@/features/dashboards';
+import { resolveDashboardAccess } from '@/features/dashboards/access';
+import { useDashboardsLayoutContext } from './-dashboards-layout-context';
 
 function DashboardViewerPage() {
   const { tenant, dashboardId } = Route.useParams();
   const navigate = useNavigate();
+  const { openDelete } = useDashboardsLayoutContext();
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
@@ -27,13 +37,6 @@ function DashboardViewerPage() {
   const tenantId = tenantRecord?.id ?? '';
 
   const dashboard = useDashboardDetail(dashboardId);
-
-  function handleBack() {
-    void navigate({
-      to: '/t/$tenant/dashboards',
-      params: { tenant: tenantSlug },
-    } as unknown as Parameters<typeof navigate>[0]);
-  }
 
   function handleEdit(id: string) {
     void navigate({
@@ -62,26 +65,39 @@ function DashboardViewerPage() {
     } catch (e) {
       notify.error('Clone failed', (e as Error).message);
     }
-    // id unused — silence eslint
     void id;
+  }
+
+  async function handleSetDefault() {
+    if (!dashboard) return;
+    try {
+      await setDefaultDashboard(tenantId, dashboard.id);
+      notify.success('Default set', `${dashboard.name} is now the tenant default.`);
+    } catch (e) {
+      notify.error('Failed to set default', (e as Error).message);
+    }
   }
 
   function handleVersionHistory(_id: string) {
     setHistoryOpen(true);
   }
 
+  function handleDelete() {
+    if (!dashboard) return;
+    openDelete(dashboard);
+  }
+
   return (
-    <Stack gap={0}>
-      <Group p="md" pb={0}>
-        <Button variant="subtle" leftSection={<IconArrowLeft size={14} />} onClick={handleBack}>
-          All dashboards
-        </Button>
-      </Group>
+    <>
       <DashboardViewer
         dashboardId={dashboardId}
         onEdit={handleEdit}
         onClone={(id) => {
           void handleClone(id);
+        }}
+        onDelete={handleDelete}
+        onSetDefault={() => {
+          void handleSetDefault();
         }}
         onVersionHistory={handleVersionHistory}
       />
@@ -93,31 +109,46 @@ function DashboardViewerPage() {
             setHistoryOpen(false);
           }}
           onRestored={() => {
-            // Restore writes a new version + updates the dashboard. The
-            // viewer's hooks re-read the store automatically.
             setHistoryOpen(false);
           }}
         />
       )}
-    </Stack>
+    </>
   );
 }
 
-export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId')({
+export const Route = createFileRoute('/t/$tenant/dashboards/$dashboardId')({
   beforeLoad: (ctx) => {
-    // 1. Baseline permission + auth check.
     requirePermissions({ required: ['dashboard:read'] })();
 
-    // 2. Scope enforcement.
     const { params } = ctx;
     const { dashboardId } = params as { dashboardId: string };
     const { dashboards, currentUserId, currentTenantId, memberships } = useMockStore.getState();
     const dashboard = dashboards[dashboardId];
     if (!dashboard) {
-      // Missing dashboard → let the component render its not-found state.
       return true;
     }
-    if (dashboard.tenant_id !== currentTenantId) {
+
+    // Resolve effective access via the centralised access helper. We don't
+    // need tenant-write here — read access is sufficient for the viewer.
+    const roleIds = new Set<string>();
+    for (const m of Object.values(memberships)) {
+      if (
+        m.user_id === currentUserId &&
+        m.tenant_id === currentTenantId &&
+        m.state === 'active'
+      ) {
+        for (const rid of m.role_ids) roleIds.add(rid);
+      }
+    }
+    const level = resolveDashboardAccess({
+      dashboard,
+      userId: currentUserId,
+      tenantId: currentTenantId,
+      roleIds: Array.from(roleIds),
+      hasTenantWrite: false,
+    });
+    if (level === 'none') {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({
         to: '/access-denied' as string,
@@ -126,40 +157,6 @@ export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId')({
           requireAny: false,
         } as Record<string, unknown>,
       });
-    }
-    if (dashboard.scope === 'personal') {
-      if (dashboard.owner_user_id !== currentUserId) {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        throw redirect({
-          to: '/access-denied' as string,
-          search: {
-            required: ['dashboard:read'],
-            requireAny: false,
-          } as Record<string, unknown>,
-        });
-      }
-    } else if (dashboard.scope === 'shared') {
-      const userRoleIds = new Set<string>();
-      for (const m of Object.values(memberships)) {
-        if (
-          m.user_id === currentUserId &&
-          m.tenant_id === currentTenantId &&
-          m.state === 'active'
-        ) {
-          for (const rid of m.role_ids) userRoleIds.add(rid);
-        }
-      }
-      const intersects = dashboard.shared_role_ids.some((rid) => userRoleIds.has(rid));
-      if (!intersects) {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        throw redirect({
-          to: '/access-denied' as string,
-          search: {
-            required: ['dashboard:read'],
-            requireAny: false,
-          } as Record<string, unknown>,
-        });
-      }
     }
     return true;
   },

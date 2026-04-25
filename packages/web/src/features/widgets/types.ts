@@ -39,6 +39,17 @@ export interface WidgetTypeDefinition {
    *   - `'one-way'`   = once flipped to advanced, wizard view is permanently disabled.
    */
   roundTripMode: 'clean' | 'one-way';
+  /**
+   * Suggested grid size when added from the palette. Falls back to a
+   * 4×3 cell when omitted. The grid still enforces global MIN/MAX clamps.
+   */
+  defaultSize?: { w: number; h: number };
+  /**
+   * Minimum grid size below which the widget's content stops rendering
+   * usefully. Non-binding (the user can still resize smaller) — used by
+   * the renderer to switch to a compact layout if available.
+   */
+  minSize?: { w: number; h: number };
   component: ComponentType<WidgetRenderProps>;
 }
 

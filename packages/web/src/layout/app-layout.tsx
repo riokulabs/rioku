@@ -1,23 +1,41 @@
 import type { ReactNode } from 'react';
 import { AppShell } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { useLocation, useParams } from '@tanstack/react-router';
 import { TopBar } from '@/components/app-shell/top-bar';
 import { Sidebar } from '@/components/app-shell/sidebar';
+import { activeSectionFor } from '@/components/app-shell/nav-tree';
+import { useSidebarEntries } from '@/hooks/use-sidebar-entries';
 import { KeyboardShortcutsHelp } from '@/components/keyboard-shortcuts-help';
 import { Zone } from '@/components/zone';
 import { ImpersonationBanner } from './impersonation-banner';
 
-// The sidebar is a composite: a 60px icon rail + an optional 220px section
-// panel. When "collapsed" we hide only the panel; the rail is always visible
-// on desktop. Mobile still fully-hides the navbar via AppShell.
-const RAIL_WIDTH = 60;
+// Main nav (rail) has two widths: icons-only (collapsed) vs icons + labels
+// (expanded). The sub-menu panel renders alongside when the active section
+// has children; otherwise the rail fills the sidebar on its own.
+const RAIL_COLLAPSED_WIDTH = 60;
+const RAIL_EXPANDED_WIDTH = 190;
 const PANEL_WIDTH = 220;
-const NAVBAR_EXPANDED_WIDTH = RAIL_WIDTH + PANEL_WIDTH;
-const NAVBAR_COLLAPSED_WIDTH = RAIL_WIDTH;
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [navOpened, { toggle: toggleNav, close: closeNav }] = useDisclosure(false);
-  const [navDesktopOpened, { toggle: toggleNavDesktop }] = useDisclosure(true);
+  // Default to "icons only" — the refined rail is iconographic by default,
+  // users opt in to labels via the collapse toggle.
+  const [navDesktopExpanded, { toggle: toggleNavDesktop }] = useDisclosure(false);
+
+  const location = useLocation();
+  const { tenant: tenantSlug = 'acme' } = useParams({ strict: false });
+  const pluginEntries = useSidebarEntries('plugins');
+
+  const pathSuffix = extractSuffix(location.pathname, tenantSlug);
+  const active = activeSectionFor(pathSuffix);
+  const pluginEntriesForActive = active.id === 'system' ? pluginEntries : [];
+  const hasChildren =
+    (active.children !== undefined && active.children.length > 0) ||
+    pluginEntriesForActive.length > 0;
+
+  const railWidth = navDesktopExpanded ? RAIL_EXPANDED_WIDTH : RAIL_COLLAPSED_WIDTH;
+  const navbarWidth = hasChildren ? railWidth + PANEL_WIDTH : railWidth;
 
   return (
     <>
@@ -26,7 +44,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <AppShell
         header={{ height: 56 }}
         navbar={{
-          width: navDesktopOpened ? NAVBAR_EXPANDED_WIDTH : NAVBAR_COLLAPSED_WIDTH,
+          width: navbarWidth,
           breakpoint: 'sm',
           collapsed: { mobile: !navOpened, desktop: false },
         }}
@@ -37,7 +55,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </AppShell.Header>
         <AppShell.Navbar>
           <Sidebar
-            collapsed={!navDesktopOpened}
+            collapsed={!navDesktopExpanded}
             onToggleCollapsed={toggleNavDesktop}
             onNavLinkClick={closeNav}
           />
@@ -49,4 +67,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <Zone id="global.bottom-banner" />
     </>
   );
+}
+
+function extractSuffix(pathname: string, tenantSlug: string): string {
+  const prefix = `/t/${tenantSlug}/`;
+  if (pathname.startsWith(prefix)) return pathname.slice(prefix.length);
+  return pathname.replace(/^\/+/, '');
 }

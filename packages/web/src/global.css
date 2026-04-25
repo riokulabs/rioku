@@ -68,6 +68,55 @@
 
   /* Primary focus ring: warm orange glow at ~22% opacity (riokuOrange.6) */
   --mantine-color-focused-outline: 0 0 0 3px rgba(179, 61, 13, 0.22);
+
+  /* -- Categorical chart palette (Vercel-Geist-inspired, dark-mode-tuned) -
+   *
+   * These variables back chart-primitives.tsx CHART_COLORS. Designed for
+   * adjacent-pair distinguishability and color-blind friendliness when
+   * paired with the Okabe-Ito override (see :root[data-palette]).
+   */
+  --chart-1: #b33d0d; /* riokuOrange-6 — warm primary */
+  --chart-2: #3b82f6; /* blue */
+  --chart-3: #22c55e; /* green */
+  --chart-4: #f59e0b; /* amber */
+  --chart-5: #ef4444; /* red */
+  --chart-6: #a855f7; /* purple */
+  --chart-7: #06b6d4; /* cyan */
+}
+
+/* Color-blind safe override (Okabe-Ito) — toggled via [data-palette="okabe-ito"]
+ * on the html element. Stage-2 will surface this from user preferences. */
+:root[data-palette='okabe-ito'] {
+  --chart-1: #e69f00;
+  --chart-2: #56b4e9;
+  --chart-3: #009e73;
+  --chart-4: #f0e442;
+  --chart-5: #0072b2;
+  --chart-6: #d55e00;
+  --chart-7: #cc79a7;
+}
+
+/**
+ * Container-query degradation for chart cards. When a widget's container
+ * (set by <WidgetContainer>) shrinks below ~280px, hide the legend; below
+ * 200px hide the y-axis tick labels too. Keeps tight cards readable
+ * without JS measurement.
+ */
+@container (max-width: 280px) {
+  .recharts-legend-wrapper {
+    display: none !important;
+  }
+}
+@container (max-width: 200px) {
+  .recharts-yAxis .recharts-cartesian-axis-tick-value {
+    display: none !important;
+  }
+}
+
+/* Tabular numerics on common numeric surfaces. */
+.rioku-numeric,
+.rioku-tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /**

@@ -327,8 +327,11 @@ function hashCode(s: string): number {
  * their pre-range defaults instead of silently swapping point counts.
  */
 function rangeFromConfig(widget: Widget): TimeRange | undefined {
-  const rid = widget.config._range;
-  if (typeof rid === 'string') return getTimeRange(rid as TimeRangeId);
+  const r = widget.config._range;
+  if (typeof r === 'string') return getTimeRange(r as TimeRangeId);
+  if (r && typeof r === 'object' && 'seconds' in r && 'points' in r) {
+    return r as TimeRange;
+  }
   return undefined;
 }
 
@@ -619,6 +622,122 @@ function mockAdapter(widget: Widget, state: MockStore): unknown {
           }[])
         : defaultTiles;
       return { tiles };
+    }
+
+    case 'bar-chart': {
+      const cfg = widget.config;
+      if (Array.isArray(cfg.bars)) {
+        const provided = cfg.bars as { name: string; color?: string; base?: number }[];
+        return {
+          bars: provided.map((b, i) => ({
+            name: b.name,
+            value: Math.max(1, (b.base ?? 50 - i * 6) + ((seed + i * 137) % 20) - 10),
+            ...(b.color !== undefined ? { color: b.color } : {}),
+          })),
+        };
+      }
+      // Default: 7 weekday request totals.
+      return {
+        bars: MOCK_DAYS.map((day, i) => ({
+          name: day,
+          value: 200 + ((seed + i * 1301) % 600),
+        })),
+      };
+    }
+
+    case 'donut': {
+      const cfg = widget.config;
+      const baseSlices = Array.isArray(cfg.slices)
+        ? (cfg.slices as { name: string; color?: string; base?: number }[])
+        : [
+            { name: 'Success', color: 'riokuSuccess', base: 78 },
+            { name: '4xx', color: 'riokuWarning', base: 12 },
+            { name: '5xx', color: 'riokuDanger', base: 6 },
+            { name: 'Other', color: 'riokuOrange', base: 4 },
+          ];
+      const slices = baseSlices.map((s, i) => ({
+        name: s.name,
+        value: Math.max(1, (s.base ?? 25) + ((seed + i * 137) % 10) - 5),
+        ...(s.color !== undefined ? { color: s.color } : {}),
+      }));
+      const total = slices.reduce((acc, s) => acc + s.value, 0);
+      const centerLabel = typeof cfg.centerLabel === 'string' ? cfg.centerLabel : 'Total';
+      const centerValue =
+        typeof cfg.centerValue === 'string' || typeof cfg.centerValue === 'number'
+          ? cfg.centerValue
+          : total.toLocaleString();
+      return { slices, centerValue, centerLabel };
+    }
+
+    case 'funnel': {
+      const cfg = widget.config;
+      if (Array.isArray(cfg.stages)) {
+        const provided = cfg.stages as { name: string; color?: string; base?: number }[];
+        let prev = provided[0]?.base ?? 1000;
+        return {
+          stages: provided.map((s, i) => {
+            const value = i === 0 ? prev : Math.round(prev * (0.6 + ((seed + i * 53) % 30) / 100));
+            prev = value;
+            return {
+              name: s.name,
+              value,
+              ...(s.color !== undefined ? { color: s.color } : {}),
+            };
+          }),
+        };
+      }
+      // Default: classic acquisition funnel.
+      const totalVisitors = 12000 + (seed % 3000);
+      const signups = Math.round(totalVisitors * 0.42);
+      const verified = Math.round(signups * 0.78);
+      const trial = Math.round(verified * 0.55);
+      const paid = Math.round(trial * 0.32);
+      return {
+        stages: [
+          { name: 'Visitors', value: totalVisitors, color: 'riokuOrange' },
+          { name: 'Sign-ups', value: signups, color: 'riokuInfo' },
+          { name: 'Verified', value: verified, color: 'riokuInfo' },
+          { name: 'Started trial', value: trial, color: 'riokuSuccess' },
+          { name: 'Paid', value: paid, color: 'riokuSuccess' },
+        ],
+      };
+    }
+
+    case 'markdown': {
+      // Markdown is config-driven — content lives in widget.config.content.
+      // Adapter just passes it through so the renderer reads from data.
+      const content =
+        typeof widget.config.content === 'string'
+          ? widget.config.content
+          : '## Notes\n\nUse this panel for context.';
+      return { content };
+    }
+
+    case 'progress': {
+      const cfg = widget.config;
+      if (Array.isArray(cfg.items)) {
+        const provided = cfg.items as {
+          name: string;
+          base?: number;
+          max?: number;
+          color?: string;
+        }[];
+        return {
+          items: provided.map((it, i) => ({
+            name: it.name,
+            value: Math.max(0, (it.base ?? 50) + ((seed + i * 89) % 30) - 15),
+            max: it.max ?? 100,
+            ...(it.color !== undefined ? { color: it.color } : {}),
+          })),
+        };
+      }
+      // Default single-bar — quota / utilization style.
+      const max = typeof cfg.max === 'number' ? cfg.max : 100;
+      const valueBase = typeof cfg.valueBase === 'number' ? cfg.valueBase : 73;
+      const value = Math.max(0, Math.min(max, valueBase + ((seed % 20) - 10)));
+      const label = typeof cfg.label === 'string' ? cfg.label : widget.title;
+      const unit = typeof cfg.unit === 'string' ? cfg.unit : '';
+      return { value, max, label, unit };
     }
 
     default: {

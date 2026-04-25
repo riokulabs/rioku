@@ -8,7 +8,7 @@
  *
  * Task 8c.11
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -20,6 +20,7 @@ import {
   Group,
   Menu,
   Modal,
+  PasswordInput,
   SimpleGrid,
   Stack,
   Switch,
@@ -36,6 +37,7 @@ import {
   IconBrandGitlab,
   IconBrandGoogle,
   IconBrandWindows,
+  IconCheck,
   IconDotsVertical,
   IconLock,
   IconPencil,
@@ -58,23 +60,203 @@ import type { WebhookEndpointValues } from '../schemas';
 
 // ─── OAuth connector card definitions ────────────────────────────────────────
 
-interface OAuthProvider {
+interface OAuthProviderDef {
   name: string;
+  slug: string;
   Icon: React.ComponentType<{ size?: number }>;
   testId: string;
+  /** Default OAuth scopes to request. */
+  defaultScopes: string;
 }
 
-const OAUTH_PROVIDERS: OAuthProvider[] = [
-  { name: 'GitHub', Icon: IconBrandGithub, testId: 'oauth-card-github' },
-  { name: 'Google', Icon: IconBrandGoogle, testId: 'oauth-card-google' },
-  { name: 'GitLab', Icon: IconBrandGitlab, testId: 'oauth-card-gitlab' },
-  { name: 'Microsoft', Icon: IconBrandWindows, testId: 'oauth-card-microsoft' },
+const OAUTH_PROVIDERS: OAuthProviderDef[] = [
+  {
+    name: 'GitHub',
+    slug: 'github',
+    Icon: IconBrandGithub,
+    testId: 'oauth-card-github',
+    defaultScopes: 'read:user user:email',
+  },
+  {
+    name: 'Google',
+    slug: 'google',
+    Icon: IconBrandGoogle,
+    testId: 'oauth-card-google',
+    defaultScopes: 'openid email profile',
+  },
+  {
+    name: 'GitLab',
+    slug: 'gitlab',
+    Icon: IconBrandGitlab,
+    testId: 'oauth-card-gitlab',
+    defaultScopes: 'read_user openid email profile',
+  },
+  {
+    name: 'Microsoft',
+    slug: 'microsoft',
+    Icon: IconBrandWindows,
+    testId: 'oauth-card-microsoft',
+    defaultScopes: 'openid email profile User.Read',
+  },
 ];
+
+interface OAuthConfig {
+  enabled: boolean;
+  client_id: string;
+  client_secret: string;
+  scopes: string;
+  configured_at: string;
+}
+
+// ─── OAuth Configure modal ────────────────────────────────────────────────────
+
+interface OAuthConfigureModalProps {
+  provider: OAuthProviderDef;
+  existing: OAuthConfig | undefined;
+  callbackUrl: string;
+  onClose: () => void;
+  onSave: (slug: string, config: OAuthConfig) => void;
+  onDelete: (slug: string) => void;
+}
+
+function OAuthConfigureModal({
+  provider,
+  existing,
+  callbackUrl,
+  onClose,
+  onSave,
+  onDelete,
+}: OAuthConfigureModalProps) {
+  const [clientId, setClientId] = useState(existing?.client_id ?? '');
+  const [clientSecret, setClientSecret] = useState(existing?.client_secret ?? '');
+  const [scopes, setScopes] = useState(existing?.scopes ?? provider.defaultScopes);
+  const [enabled, setEnabled] = useState(existing?.enabled ?? true);
+  const [saving, setSaving] = useState(false);
+
+  function handleSave() {
+    if (clientId.trim().length === 0 || clientSecret.trim().length === 0) {
+      notify.error('Missing fields', 'Client ID and secret are required.');
+      return;
+    }
+    setSaving(true);
+    onSave(provider.slug, {
+      enabled,
+      client_id: clientId.trim(),
+      client_secret: clientSecret,
+      scopes: scopes.trim(),
+      configured_at: existing?.configured_at ?? new Date().toISOString(),
+    });
+    setSaving(false);
+    onClose();
+  }
+
+  return (
+    <Modal
+      opened
+      onClose={onClose}
+      title={
+        <Group gap="xs">
+          <provider.Icon size={20} />
+          <Text fw={600}>Configure {provider.name}</Text>
+        </Group>
+      }
+      size="md"
+      transitionProps={{ duration: 0 }}
+      data-testid={`oauth-configure-modal-${provider.slug}`}
+    >
+      <Stack gap="sm">
+        <Box>
+          <Text size="sm" fw={500} mb={4}>
+            Callback URL
+          </Text>
+          <Code block>{callbackUrl}</Code>
+          <Text size="xs" c="var(--mantine-color-gray-7)" mt={4}>
+            Add this redirect URI to your {provider.name} OAuth application.
+          </Text>
+        </Box>
+        <TextInput
+          label="Client ID"
+          placeholder={`${provider.slug}-app-…`}
+          value={clientId}
+          onChange={(e) => {
+            setClientId(e.currentTarget.value);
+          }}
+          required
+          data-testid={`oauth-client-id-${provider.slug}`}
+        />
+        <PasswordInput
+          label="Client secret"
+          value={clientSecret}
+          onChange={(e) => {
+            setClientSecret(e.currentTarget.value);
+          }}
+          placeholder={existing ? '••••••••' : 'Paste your secret'}
+          required
+          data-testid={`oauth-client-secret-${provider.slug}`}
+        />
+        <TextInput
+          label="Scopes"
+          description="Space-separated OAuth scopes."
+          value={scopes}
+          onChange={(e) => {
+            setScopes(e.currentTarget.value);
+          }}
+          data-testid={`oauth-scopes-${provider.slug}`}
+        />
+        <Switch
+          label="Enabled"
+          checked={enabled}
+          onChange={(e) => {
+            setEnabled(e.currentTarget.checked);
+          }}
+        />
+        <Group justify="space-between" mt="sm">
+          {existing ? (
+            <Button
+              variant="subtle"
+              color="red"
+              size="sm"
+              leftSection={<IconTrash size={14} />}
+              onClick={() => {
+                onDelete(provider.slug);
+                onClose();
+              }}
+            >
+              Disconnect
+            </Button>
+          ) : (
+            <span />
+          )}
+          <Group gap="xs">
+            <Button variant="default" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              loading={saving}
+              onClick={handleSave}
+              data-testid={`oauth-save-${provider.slug}`}
+            >
+              {existing ? 'Save changes' : 'Connect'}
+            </Button>
+          </Group>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
 
 // ─── OAuth connector card ─────────────────────────────────────────────────────
 
-function OAuthCard({ provider }: { provider: OAuthProvider }) {
+interface OAuthCardProps {
+  provider: OAuthProviderDef;
+  config: OAuthConfig | undefined;
+  canWrite: boolean;
+  onConfigure: () => void;
+}
+
+function OAuthCard({ provider, config, canWrite, onConfigure }: OAuthCardProps) {
   const { name, Icon, testId } = provider;
+  const isConfigured = config !== undefined;
   return (
     <Card withBorder radius="md" p="md" data-testid={testId}>
       <Stack gap="sm" align="center">
@@ -82,18 +264,30 @@ function OAuthCard({ provider }: { provider: OAuthProvider }) {
         <Text size="sm" fw={500}>
           {name}
         </Text>
-        <Text size="xs" c="var(--mantine-color-gray-7)">
-          Not configured
-        </Text>
-        <Tooltip label="Coming at stage 2">
+        {isConfigured ? (
+          <Badge
+            size="sm"
+            variant="light"
+            color={config.enabled ? 'green' : 'gray'}
+            leftSection={<IconCheck size={10} />}
+          >
+            {config.enabled ? 'Connected' : 'Disabled'}
+          </Badge>
+        ) : (
+          <Text size="xs" c="var(--mantine-color-gray-7)">
+            Not configured
+          </Text>
+        )}
+        <Tooltip label="Requires integrations:write permission" disabled={canWrite}>
           <span>
             <Button
               size="xs"
-              variant="light"
-              disabled
+              variant={isConfigured ? 'default' : 'light'}
+              disabled={!canWrite}
+              onClick={onConfigure}
               data-testid={`oauth-configure-${name.toLowerCase()}`}
             >
-              Configure
+              {isConfigured ? 'Edit' : 'Configure'}
             </Button>
           </span>
         </Tooltip>
@@ -445,6 +639,13 @@ export function IntegrationsSection() {
   const canRead = usePermission('integrations:read');
   const canWrite = usePermission('integrations:write');
   const tenant = useCurrentTenant();
+  const [oauthConfigs, setOauthConfigs] = useState<Record<string, OAuthConfig>>({});
+  const [configuring, setConfiguring] = useState<OAuthProviderDef | null>(null);
+
+  const callbackBase = useMemo(() => {
+    if (typeof window === 'undefined') return 'https://your-domain.example/oauth/callback';
+    return `${window.location.origin}/oauth/callback`;
+  }, []);
 
   if (!canRead) {
     return (
@@ -474,13 +675,50 @@ export function IntegrationsSection() {
             </Text>
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" data-testid="oauth-cards">
               {OAUTH_PROVIDERS.map((provider) => (
-                <OAuthCard key={provider.name} provider={provider} />
+                <OAuthCard
+                  key={provider.slug}
+                  provider={provider}
+                  config={oauthConfigs[provider.slug]}
+                  canWrite={canWrite}
+                  onConfigure={() => {
+                    setConfiguring(provider);
+                  }}
+                />
               ))}
             </SimpleGrid>
           </Stack>
 
           <Divider />
         </>
+      )}
+
+      {configuring && (
+        <OAuthConfigureModal
+          provider={configuring}
+          existing={oauthConfigs[configuring.slug]}
+          callbackUrl={`${callbackBase}/${configuring.slug}`}
+          onClose={() => {
+            setConfiguring(null);
+          }}
+          onSave={(slug, cfg) => {
+            setOauthConfigs((prev) => ({ ...prev, [slug]: cfg }));
+            notify.success(
+              `${configuring.name} ${oauthConfigs[slug] ? 'updated' : 'connected'}`,
+              `${configuring.name} OAuth ${cfg.enabled ? 'enabled' : 'configured (disabled)'}.`,
+            );
+          }}
+          onDelete={(slug) => {
+            setOauthConfigs((prev) => {
+              const next = { ...prev };
+              delete next[slug];
+              return next;
+            });
+            notify.success(
+              `${configuring.name} disconnected`,
+              `${configuring.name} OAuth credentials removed.`,
+            );
+          }}
+        />
       )}
 
       {/* Inbound webhook endpoints */}
