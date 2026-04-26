@@ -10,13 +10,16 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	goruntime "runtime"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/cluster"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
 	"github.com/riokulabs/rioku/internal/tracestore"
+	"github.com/riokulabs/rioku/internal/version"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
@@ -122,8 +125,20 @@ func NewGateway(
 	// Traffic analytics endpoints.
 	RegisterTrafficRoutes(topMux, engine, traceStore)
 
-	// Stub routes for endpoints the frontend calls but that don't have
-	// real implementations yet (cluster, plugins).
+	// Cluster management — single-node default. Real multi-node Discovery
+	// gets swapped in once #57 lands.
+	clusterSvc := cluster.NewLocalOnlyService(cluster.LocalOnlyConfig{
+		DaemonVersion: version.Version,
+		GoVersion:     goruntime.Version(),
+		StoreMode:     cfg.Store.Driver,
+		// CaddyReload is wired up at the daemon layer when ForceSync is
+		// supposed to reload the local Caddy admin config.
+	})
+	RegisterClusterRoutes(topMux, clusterSvc)
+
+	// Remaining stub routes for endpoints the frontend calls but that
+	// don't have real implementations yet (plugins). Cluster moved to
+	// RegisterClusterRoutes above.
 	RegisterStubRoutes(topMux, cfg)
 
 	// grpc-gateway handles API routes.

@@ -14,8 +14,11 @@ import (
 // the frontend calls but don't have real implementations yet. Each handler
 // returns static or config-derived data so the admin panel can render
 // without hitting 404s or error boundaries.
-func RegisterStubRoutes(mux *http.ServeMux, cfg *config.Config) {
-	mux.HandleFunc("GET /api/v1/cluster", handleStubCluster(cfg))
+//
+// Note: GET /api/v1/cluster moved to RegisterClusterRoutes (#83). The
+// handleStubCluster helper below is kept for any older test that still
+// imports it, but it is no longer registered automatically.
+func RegisterStubRoutes(mux *http.ServeMux, _ *config.Config) {
 	mux.HandleFunc("GET /api/v1/plugins", handleStubEmptyArray())
 	mux.HandleFunc("GET /api/v1/plugins/manifest", handleStubEmptyArray())
 }
