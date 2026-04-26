@@ -10,6 +10,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/riokulabs/rioku/internal/logging"
 )
 
 // ProblemDetail implements RFC 7807 Problem Details for HTTP APIs.
@@ -129,7 +131,22 @@ func getOrCreateRequestID(r *http.Request, w http.ResponseWriter) string {
 	return id
 }
 
-// RequestIDMiddleware ensures every response has an X-Request-ID header.
+// RequestIDMiddleware ensures every response has an X-Request-ID header
+// and propagates the id (plus any W3C `traceparent`-derived trace id) into
+// the request context so downstream slog calls can correlate by request.
+//
+// `X-Request-ID` is preserved if the client supplied one, otherwise
+// generated as `req_<8 hex>`.
+//
+// `traceparent` is parsed per W3C Trace Context: the trace id is the second
+// hyphen-delimited field, e.g.
+//
+//	traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
+//	                ↑                                                   ↑
+//	                version  trace-id                  parent-id  flags
+//
+// Malformed traceparent headers are silently ignored — we never want a bad
+// header to break a request.
 func RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-ID")
@@ -137,6 +154,48 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 			id = "req_" + uuid.New().String()[:8]
 		}
 		w.Header().Set("X-Request-ID", id)
-		next.ServeHTTP(w, r)
+
+		ctx := logging.WithRequestID(r.Context(), id)
+		if tid := parseTraceparent(r.Header.Get("traceparent")); tid != "" {
+			ctx = logging.WithTraceID(ctx, tid)
+		}
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// parseTraceparent extracts the 32-hex-character trace id from a W3C
+// traceparent header value. Returns "" for any malformed input.
+func parseTraceparent(h string) string {
+	if h == "" {
+		return ""
+	}
+	// Format: <2-hex version>-<32-hex trace-id>-<16-hex parent-id>-<2-hex flags>
+	// We accept anything that has the trace-id at the right offset.
+	const traceIDStart = 3 // after "00-"
+	const traceIDLen = 32
+	if len(h) < traceIDStart+traceIDLen+1 {
+		return ""
+	}
+	if h[2] != '-' || h[traceIDStart+traceIDLen] != '-' {
+		return ""
+	}
+	tid := h[traceIDStart : traceIDStart+traceIDLen]
+	for i := 0; i < traceIDLen; i++ {
+		c := tid[i]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return ""
+		}
+	}
+	// All-zeroes trace id is invalid per the W3C spec.
+	allZero := true
+	for i := 0; i < traceIDLen; i++ {
+		if tid[i] != '0' {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return ""
+	}
+	return tid
 }

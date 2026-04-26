@@ -38,12 +38,17 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		return nil, fmt.Errorf("grpc: listen %s: %w", addr, err)
 	}
 
-	var opts []grpc.ServerOption
+	// Logging interceptors run first so request_id / trace_id are in
+	// context for any downstream interceptor (auth, etc.) and handler.
+	unaryChain := []grpc.UnaryServerInterceptor{UnaryLoggingInterceptor()}
+	streamChain := []grpc.StreamServerInterceptor{StreamLoggingInterceptor()}
 	if a != nil {
-		opts = append(opts,
-			grpc.UnaryInterceptor(UnaryAuthInterceptor(a)),
-			grpc.StreamInterceptor(StreamAuthInterceptor(a)),
-		)
+		unaryChain = append(unaryChain, UnaryAuthInterceptor(a))
+		streamChain = append(streamChain, StreamAuthInterceptor(a))
+	}
+	opts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(unaryChain...),
+		grpc.ChainStreamInterceptor(streamChain...),
 	}
 	gs := grpc.NewServer(opts...)
 

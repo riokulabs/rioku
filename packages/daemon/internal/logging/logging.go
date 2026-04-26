@@ -72,6 +72,11 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 		return nil, fmt.Errorf("invalid log format: %q", cfg.Format)
 	}
 
+	// Wrap with the context handler so that any *Context logging call
+	// automatically picks up request_id / trace_id / component from the
+	// active request context.
+	handler = NewContextHandler(handler)
+
 	slog.SetDefault(slog.New(handler))
 	return &lv, nil
 }
