@@ -383,11 +383,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 20: settings configs singletons (stage-2).
+	if current < 20 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000020_settings_configs.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 20: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 20: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (20, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 20: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 20 down: drop settings config singletons.
+	if current >= 20 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000020_settings_configs.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 20: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 20: %w", err)
+		}
+	}
 
 	// Migration 19 down: drop pki/tls tables.
 	if current >= 19 {

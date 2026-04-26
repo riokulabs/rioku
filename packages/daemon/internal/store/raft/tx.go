@@ -1543,3 +1543,48 @@ func (t *raftTx) GetTLSConfig(_ context.Context, tenantID string) (*store.TLSCon
 func (t *raftTx) UpsertTLSConfig(_ context.Context, _ *store.TLSConfig) (*store.TLSConfig, error) {
 	return nil, fmt.Errorf("raft: UpsertTLSConfig not implemented")
 }
+
+// ---------------------------------------------------------------------------
+// Settings configs (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) GetNetworkConfig(_ context.Context, tenantID string) (*store.NetworkConfig, error) {
+	return &store.NetworkConfig{
+		TenantID: tenantID, ListenAddresses: "[]", CaddyConfigOverrides: "{}",
+		ReadTimeoutSeconds: 60, WriteTimeoutSeconds: 60, IdleTimeoutSeconds: 120,
+	}, nil
+}
+func (t *raftTx) UpsertNetworkConfig(_ context.Context, _ *store.NetworkConfig) (*store.NetworkConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertNetworkConfig not implemented")
+}
+
+func (t *raftTx) GetTenantAuthPolicy(_ context.Context, tenantID string) (*store.TenantAuthPolicy, error) {
+	return &store.TenantAuthPolicy{
+		TenantID: tenantID, TOTPPolicy: "optional", MinLength: 12,
+		IdleHours: 24, AbsoluteHours: 168, MaxFailedAttempts: 5, LockoutMinutes: 15,
+	}, nil
+}
+func (t *raftTx) UpsertTenantAuthPolicy(_ context.Context, _ *store.TenantAuthPolicy) (*store.TenantAuthPolicy, error) {
+	return nil, fmt.Errorf("raft: UpsertTenantAuthPolicy not implemented")
+}
+
+func (t *raftTx) GetObservabilityConfig(_ context.Context, tenantID string) (*store.ObservabilityConfig, error) {
+	return &store.ObservabilityConfig{
+		TenantID: tenantID, MetricsScrapeAuth: "{}", MetricsRetentionDays: 30,
+		LogLevels: "{}", LogFormat: "json", LogRotation: "{}",
+		TracesRetentionDays: 7, TracesSampleRate: 1.0,
+	}, nil
+}
+func (t *raftTx) UpsertObservabilityConfig(_ context.Context, _ *store.ObservabilityConfig) (*store.ObservabilityConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertObservabilityConfig not implemented")
+}
+
+func (t *raftTx) GetAuditRetentionConfig(_ context.Context, tenantID string) (*store.AuditRetentionConfig, error) {
+	return &store.AuditRetentionConfig{
+		TenantID: tenantID, RetentionDaysRead: 30, RetentionDaysWrite: 90,
+		RetentionDaysDestructive: 365, AutoExport: "never", AutoExportFormat: "jsonl",
+	}, nil
+}
+func (t *raftTx) UpsertAuditRetentionConfig(_ context.Context, _ *store.AuditRetentionConfig) (*store.AuditRetentionConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertAuditRetentionConfig not implemented")
+}

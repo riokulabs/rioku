@@ -373,6 +373,20 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- Settings configs (stage-2): singleton-per-tenant ---
+
+	GetNetworkConfig(ctx context.Context, tenantID string) (*NetworkConfig, error)
+	UpsertNetworkConfig(ctx context.Context, c *NetworkConfig) (*NetworkConfig, error)
+
+	GetTenantAuthPolicy(ctx context.Context, tenantID string) (*TenantAuthPolicy, error)
+	UpsertTenantAuthPolicy(ctx context.Context, c *TenantAuthPolicy) (*TenantAuthPolicy, error)
+
+	GetObservabilityConfig(ctx context.Context, tenantID string) (*ObservabilityConfig, error)
+	UpsertObservabilityConfig(ctx context.Context, c *ObservabilityConfig) (*ObservabilityConfig, error)
+
+	GetAuditRetentionConfig(ctx context.Context, tenantID string) (*AuditRetentionConfig, error)
+	UpsertAuditRetentionConfig(ctx context.Context, c *AuditRetentionConfig) (*AuditRetentionConfig, error)
+
 	// --- PKI/TLS (stage-2) ---
 
 	CreateCertAuthority(ctx context.Context, ca *CertAuthority) (*CertAuthority, error)
@@ -1183,6 +1197,60 @@ type TLSConfig struct {
 	AllowedCiphers string // JSON array
 	MinProtocol    string // 1.2 | 1.3
 	UpdatedAt      time.Time
+}
+
+// NetworkConfig is a singleton-per-tenant network config.
+type NetworkConfig struct {
+	TenantID             string
+	ListenAddresses      string // JSON array
+	HTTP3Enabled         bool
+	CaddyConfigOverrides string // JSON
+	ReadTimeoutSeconds   int32
+	WriteTimeoutSeconds  int32
+	IdleTimeoutSeconds   int32
+	UpdatedAt            time.Time
+}
+
+// TenantAuthPolicy is a singleton-per-tenant password/TOTP policy.
+type TenantAuthPolicy struct {
+	TenantID          string
+	TOTPPolicy        string // all | admins | optional
+	MinLength         int32
+	RequireUppercase  bool
+	RequireLowercase  bool
+	RequireDigit      bool
+	RequireSymbol     bool
+	IdleHours         int32
+	AbsoluteHours     int32
+	MaxFailedAttempts int32
+	LockoutMinutes    int32
+	UpdatedAt         time.Time
+}
+
+// ObservabilityConfig holds metrics/log/trace settings per tenant.
+type ObservabilityConfig struct {
+	TenantID              string
+	MetricsScrapeEndpoint string
+	MetricsScrapeAuth     string // JSON
+	MetricsRetentionDays  int32
+	LogLevels             string // JSON map
+	LogFormat             string // json | text
+	LogRotation           string // JSON
+	TracesRetentionDays   int32
+	TracesSampleRate      float64
+	UpdatedAt             time.Time
+}
+
+// AuditRetentionConfig is a singleton-per-tenant audit retention policy.
+type AuditRetentionConfig struct {
+	TenantID                 string
+	RetentionDaysRead        int32
+	RetentionDaysWrite       int32
+	RetentionDaysDestructive int32
+	AutoExport               string // daily | weekly | monthly | never
+	AutoExportFormat         string // csv | jsonl
+	AutoExportDestination    *string
+	UpdatedAt                time.Time
 }
 
 // PKI/TLS sentinel errors.
