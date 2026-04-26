@@ -339,6 +339,40 @@ type Tx interface {
 	// ListMembershipRoles returns every role granted to a membership.
 	ListMembershipRoles(ctx context.Context, membershipID string) ([]Role, error)
 
+	// --- Dashboards (stage-2) ---
+
+	CreateDashboard(ctx context.Context, d *Dashboard) (*Dashboard, error)
+	GetDashboard(ctx context.Context, tenantID, id string) (*Dashboard, error)
+	ListDashboardsByTenant(ctx context.Context, tenantID string) ([]*Dashboard, error)
+	UpdateDashboard(ctx context.Context, tenantID, id string, params UpdateDashboardParams) (*Dashboard, error)
+	DeleteDashboard(ctx context.Context, tenantID, id string) error
+	// SetDefaultDashboard atomically clears is_default on every other
+	// dashboard in the tenant and sets it on `id`. Returns the updated
+	// row, or ErrDashboardNotFound.
+	SetDefaultDashboard(ctx context.Context, tenantID, id string) (*Dashboard, error)
+	// SetDashboardHomeForUser appends `userID` to the dashboard's
+	// `home_for_users` JSON array (idempotent) and removes them from
+	// any other dashboard's home list in the same tenant. Per-user.
+	SetDashboardHomeForUser(ctx context.Context, tenantID, id, userID string) (*Dashboard, error)
+
+	// --- Widgets (stage-2) ---
+
+	CreateWidget(ctx context.Context, w *Widget) (*Widget, error)
+	GetWidget(ctx context.Context, id string) (*Widget, error)
+	ListWidgetsByDashboard(ctx context.Context, dashboardID string) ([]*Widget, error)
+	UpdateWidget(ctx context.Context, id string, params UpdateWidgetParams) (*Widget, error)
+	DeleteWidget(ctx context.Context, dashboardID, id string) error
+	// UpdateDashboardLayout rewrites every widget's layout in one
+	// transaction. The map is keyed by widget id; missing widgets
+	// are left unchanged.
+	UpdateDashboardLayout(ctx context.Context, dashboardID string, layouts map[string]string) error
+
+	// --- Dashboard versions (stage-2) ---
+
+	CreateDashboardVersion(ctx context.Context, v *DashboardVersion) (*DashboardVersion, error)
+	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
+	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
+
 	// --- Sites (stage-2) ---
 
 	CreateSite(ctx context.Context, s *Site) (*Site, error)
@@ -493,6 +527,86 @@ var (
 	ErrSiteDomainTaken     = fmt.Errorf("store: site with that domain already exists in this tenant")
 	ErrMiddlewareNotFound  = fmt.Errorf("store: middleware not found")
 	ErrMiddlewareNameTaken = fmt.Errorf("store: middleware with that name already exists in this tenant")
+)
+
+// Dashboard represents a per-tenant analytics surface — a named
+// container for Widgets that the admin renders. Mode (metabase vs
+// grafana) and scope (personal/tenant/shared) determine visibility
+// and rendering style.
+type Dashboard struct {
+	ID            string
+	TenantID      string
+	Name          string
+	Description   string
+	Mode          string // metabase | grafana
+	Scope         string // personal | tenant | shared
+	OwnerUserID   *string
+	IsDefault     bool
+	SharedRoleIDs string // JSON array of role IDs
+	HomeForUsers  string // JSON array of user IDs
+	Variables     string // JSON array of variable definitions
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+// UpdateDashboardParams is the partial-update payload.
+type UpdateDashboardParams struct {
+	Name          *string
+	Description   *string
+	Mode          *string
+	Scope         *string
+	OwnerUserID   *string
+	SharedRoleIDs *string // JSON
+	Variables     *string // JSON
+}
+
+// Widget represents a visualization tile inside a Dashboard.
+// `Config` holds the wizard state; when LockedAdvanced is true, the
+// compiler reads RawQuery instead.
+type Widget struct {
+	ID             string
+	DashboardID    string
+	Kind           string
+	Title          string
+	DataSource     string
+	Config         string // JSON wizard state
+	RawQuery       *string
+	LockedAdvanced bool
+	Layout         string // JSON {x,y,w,h}
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// UpdateWidgetParams is the partial-update payload.
+type UpdateWidgetParams struct {
+	Kind           *string
+	Title          *string
+	DataSource     *string
+	Config         *string
+	RawQuery       *string
+	LockedAdvanced *bool
+	Layout         *string
+}
+
+// DashboardVersion is a point-in-time snapshot of a Dashboard plus
+// its Widgets. Used by the version-history page and restore button.
+// The snapshot_json blob is the wire format that round-trips through
+// import/export — i.e. self-contained.
+type DashboardVersion struct {
+	ID           string
+	DashboardID  string
+	Version      int32
+	CreatedBy    *string
+	CreatedAt    time.Time
+	Note         string
+	SnapshotJSON string
+}
+
+// Dashboard sentinel errors.
+var (
+	ErrDashboardNotFound = fmt.Errorf("store: dashboard not found")
+	ErrWidgetNotFound    = fmt.Errorf("store: widget not found")
+	ErrVersionNotFound   = fmt.Errorf("store: dashboard version not found")
 )
 
 // APIKey represents a stored API key.

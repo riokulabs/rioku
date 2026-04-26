@@ -303,11 +303,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 15: dashboards + widgets + versions (stage-2).
+	if current < 15 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000015_dashboards.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 15: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 15: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (15, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 15: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 15 down: drop dashboards + widgets + versions.
+	if current >= 15 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000015_dashboards.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 15: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 15: %w", err)
+		}
+	}
 
 	// Migration 14 down: drop sites + middlewares.
 	if current >= 14 {

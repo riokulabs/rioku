@@ -155,6 +155,9 @@ func NewGateway(
 	RegisterSiteRoutes(topMux, st)
 	RegisterMiddlewareRoutes(topMux, st)
 
+	// Dashboards + Widgets + Versions (stage-2).
+	RegisterDashboardRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.

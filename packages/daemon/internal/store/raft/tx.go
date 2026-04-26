@@ -1180,3 +1180,58 @@ func (t *raftTx) UpdateMiddleware(_ context.Context, _, _ string, _ store.Update
 func (t *raftTx) DeleteMiddleware(_ context.Context, _, _ string) error {
 	return fmt.Errorf("raft: DeleteMiddleware not implemented")
 }
+
+// ---------------------------------------------------------------------------
+// Dashboards + Widgets + Versions (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateDashboard(_ context.Context, _ *store.Dashboard) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: CreateDashboard not implemented")
+}
+func (t *raftTx) GetDashboard(_ context.Context, _, _ string) (*store.Dashboard, error) {
+	return nil, store.ErrDashboardNotFound
+}
+func (t *raftTx) ListDashboardsByTenant(_ context.Context, _ string) ([]*store.Dashboard, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateDashboard(_ context.Context, _, _ string, _ store.UpdateDashboardParams) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: UpdateDashboard not implemented")
+}
+func (t *raftTx) DeleteDashboard(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteDashboard not implemented")
+}
+func (t *raftTx) SetDefaultDashboard(_ context.Context, _, _ string) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: SetDefaultDashboard not implemented")
+}
+func (t *raftTx) SetDashboardHomeForUser(_ context.Context, _, _, _ string) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: SetDashboardHomeForUser not implemented")
+}
+
+func (t *raftTx) CreateWidget(_ context.Context, _ *store.Widget) (*store.Widget, error) {
+	return nil, fmt.Errorf("raft: CreateWidget not implemented")
+}
+func (t *raftTx) GetWidget(_ context.Context, _ string) (*store.Widget, error) {
+	return nil, store.ErrWidgetNotFound
+}
+func (t *raftTx) ListWidgetsByDashboard(_ context.Context, _ string) ([]*store.Widget, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateWidget(_ context.Context, _ string, _ store.UpdateWidgetParams) (*store.Widget, error) {
+	return nil, fmt.Errorf("raft: UpdateWidget not implemented")
+}
+func (t *raftTx) DeleteWidget(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteWidget not implemented")
+}
+func (t *raftTx) UpdateDashboardLayout(_ context.Context, _ string, _ map[string]string) error {
+	return fmt.Errorf("raft: UpdateDashboardLayout not implemented")
+}
+
+func (t *raftTx) CreateDashboardVersion(_ context.Context, _ *store.DashboardVersion) (*store.DashboardVersion, error) {
+	return nil, fmt.Errorf("raft: CreateDashboardVersion not implemented")
+}
+func (t *raftTx) GetDashboardVersion(_ context.Context, _ string) (*store.DashboardVersion, error) {
+	return nil, store.ErrVersionNotFound
+}
+func (t *raftTx) ListDashboardVersions(_ context.Context, _ string) ([]*store.DashboardVersion, error) {
+	return nil, nil
+}
