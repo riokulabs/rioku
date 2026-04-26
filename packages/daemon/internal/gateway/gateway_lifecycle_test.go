@@ -62,6 +62,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 		nil, // traceBuf
 		nil, // traceStore
 		slog.Default(),
+		nil, // levelVar
 	)
 	if err != nil {
 		t.Fatalf("NewGateway: %v", err)
@@ -123,6 +124,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 		traceBuf,
 		nil, // traceStore
 		slog.Default(),
+		nil, // levelVar
 	)
 	if err != nil {
 		t.Fatalf("NewGateway with TrafficService: %v", err)

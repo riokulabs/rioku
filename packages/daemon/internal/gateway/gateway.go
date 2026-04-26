@@ -36,6 +36,10 @@ type Gateway struct {
 
 // NewGateway creates a REST gateway that translates HTTP+JSON to gRPC.
 // If spaFS is non-nil, the admin panel SPA is served at /.
+//
+// `levelVar` is the slog.LevelVar returned by logging.Setup — passing it
+// through enables PATCH /api/v1/settings/general to change the daemon log
+// level at runtime. Pass nil to disable runtime log-level updates.
 func NewGateway(
 	addr string,
 	configSvc riokuv1.ConfigServiceServer,
@@ -50,6 +54,7 @@ func NewGateway(
 	traceBuf *tracestore.RingBuffer,
 	traceStore tracestore.Driver,
 	logger *slog.Logger,
+	levelVar *slog.LevelVar,
 ) (*Gateway, error) {
 	ctx := context.Background()
 
@@ -108,7 +113,8 @@ func NewGateway(
 	RegisterAuditRoutes(topMux, st)
 
 	// Settings endpoints (replaces old monolithic GET /api/v1/settings stub).
-	RegisterSettingsRoutes(topMux, cfg, st, time.Now().UTC())
+	runtimeSettings := NewRuntimeSettings(cfg, levelVar)
+	RegisterSettingsRoutes(topMux, cfg, st, time.Now().UTC(), runtimeSettings)
 
 	// Traffic analytics endpoints.
 	RegisterTrafficRoutes(topMux, engine, traceStore)

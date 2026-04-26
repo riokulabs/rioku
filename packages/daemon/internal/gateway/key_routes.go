@@ -328,3 +328,9 @@ func writeInternalError(w http.ResponseWriter, r *http.Request, context string) 
 		Instance: r.URL.Path,
 	})
 }
+
+// writeBadRequest writes a 400 ProblemDetail with the supplied detail message.
+// Used for invalid JSON bodies and validation failures on PATCH/POST endpoints.
+func writeBadRequest(w http.ResponseWriter, r *http.Request, detail string) {
+	writeProblem(w, http.StatusBadRequest, errTypeValidation, "Bad request", detail, r.URL.Path, nil)
+}

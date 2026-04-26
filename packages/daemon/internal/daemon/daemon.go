@@ -207,7 +207,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		var gw *gateway.Gateway
 		for attempt := 0; attempt < 10; attempt++ {
 			addr := fmt.Sprintf("127.0.0.1:%d", basePort+attempt)
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, gwLog)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}
