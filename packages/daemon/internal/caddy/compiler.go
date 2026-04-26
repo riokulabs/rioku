@@ -418,7 +418,11 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		handler["load_balancing"] = lb
 	}
 
-	// Health checks
+	// Health checks (active + passive). Both blocks coexist under
+	// `health_checks` in Caddy's reverse_proxy schema; we emit each
+	// independently and only attach the parent when at least one fires.
+	healthChecks := map[string]any{}
+
 	hc := svc.GetHealthCheck()
 	if hc != nil && hc.GetEnabled() {
 		active := make(map[string]any)
@@ -440,9 +444,15 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		if statuses := hc.GetExpectedStatuses(); len(statuses) > 0 {
 			active["expect_status"] = statuses
 		}
-		handler["health_checks"] = map[string]any{
-			"active": active,
-		}
+		healthChecks["active"] = active
+	}
+
+	if passive := buildPassiveHealthCheck(svc.GetPassiveHealthCheck()); passive != nil {
+		healthChecks["passive"] = passive
+	}
+
+	if len(healthChecks) > 0 {
+		handler["health_checks"] = healthChecks
 	}
 
 	// Transport timeouts
@@ -467,6 +477,38 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		}
 		handler["transport"] = transport
 	}
+}
+
+// buildPassiveHealthCheck returns the Caddy `health_checks.passive`
+// block for the supplied proto, or nil if passive checking is disabled
+// or has no meaningful thresholds set. A passive block with all-zero
+// thresholds would be a no-op in Caddy but pollutes the config; we
+// suppress it here to keep the compiled JSON clean.
+func buildPassiveHealthCheck(phc *riokuv1.PassiveHealthCheck) map[string]any {
+	if phc == nil || !phc.GetEnabled() {
+		return nil
+	}
+	out := map[string]any{}
+	if v := phc.GetFailDurationSeconds(); v > 0 {
+		out["fail_duration"] = fmt.Sprintf("%ds", v)
+	}
+	if v := phc.GetMaxFails(); v > 0 {
+		out["max_fails"] = v
+	}
+	if statuses := phc.GetUnhealthyStatus(); len(statuses) > 0 {
+		out["unhealthy_status"] = statuses
+	}
+	if v := phc.GetUnhealthyLatencyMs(); v > 0 {
+		out["unhealthy_latency"] = fmt.Sprintf("%dms", v)
+	}
+	if v := phc.GetUnhealthyRequestCount(); v > 0 {
+		out["unhealthy_request_count"] = v
+	}
+	// Suppress an empty block — see comment above.
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // buildAdminServer creates the Caddy server block that reverse-proxies

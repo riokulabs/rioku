@@ -207,11 +207,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 9: passive_health_check column on services (#67).
+	if current < 9 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000009_passive_health_check.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 9: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 9: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (9, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 9: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 9 down: drop passive_health_check column.
+	if current >= 9 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000009_passive_health_check.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 9: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 9: %w", err)
+		}
+	}
 
 	// Migration 8 down: drop access_policies table.
 	if current >= 8 {
@@ -511,16 +538,21 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal health_check: %w", err)
 	}
+	phcJSON, err := marshalPassiveHealthCheckJSON(svc.GetPassiveHealthCheck())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal passive_health_check: %w", err)
+	}
 	labelsJSON, err := marshalLabelsJSON(svc.GetLabels())
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
+		phcJSON,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert service: %w", err)
@@ -550,7 +582,7 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check
 		 FROM services WHERE id = ?`, id)
 
 	svc, err := scanService(row)
@@ -568,7 +600,7 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds FROM services ORDER BY id`)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check FROM services ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
@@ -636,16 +668,21 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal health_check: %w", err)
 	}
+	phcJSON, err := marshalPassiveHealthCheckJSON(svc.GetPassiveHealthCheck())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal passive_health_check: %w", err)
+	}
 	labelsJSON, err := marshalLabelsJSON(svc.GetLabels())
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?
 		 WHERE id=?`,
 		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
+		phcJSON,
 		svc.GetId(),
 	)
 	if err != nil {
@@ -1944,9 +1981,10 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		dialTimeoutSeconds           int32
 		responseHeaderTimeoutSeconds int32
 		idleTimeoutSeconds           int32
+		phcJSON                      *string
 	)
 	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt,
-		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds); err != nil {
+		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds, &phcJSON); err != nil {
 		return nil, fmt.Errorf("sqlite: scan service: %w", err)
 	}
 
@@ -1973,6 +2011,14 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 			return nil, fmt.Errorf("sqlite: unmarshal health_check: %w", err)
 		}
 		svc.HealthCheck = hc
+	}
+
+	if phcJSON != nil && *phcJSON != "" {
+		phc, err := unmarshalPassiveHealthCheckJSON(*phcJSON)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: unmarshal passive_health_check: %w", err)
+		}
+		svc.PassiveHealthCheck = phc
 	}
 
 	return svc, nil
@@ -2248,6 +2294,26 @@ func unmarshalHealthCheckJSON(s string) (*riokuv1.HealthCheck, error) {
 		return nil, err
 	}
 	return hc, nil
+}
+
+func marshalPassiveHealthCheckJSON(phc *riokuv1.PassiveHealthCheck) (*string, error) {
+	if phc == nil {
+		return nil, nil
+	}
+	b, err := protojson.Marshal(phc)
+	if err != nil {
+		return nil, err
+	}
+	s := string(b)
+	return &s, nil
+}
+
+func unmarshalPassiveHealthCheckJSON(s string) (*riokuv1.PassiveHealthCheck, error) {
+	phc := &riokuv1.PassiveHealthCheck{}
+	if err := protojson.Unmarshal([]byte(s), phc); err != nil {
+		return nil, err
+	}
+	return phc, nil
 }
 
 func marshalStructJSON(st *structpb.Struct) (string, error) {

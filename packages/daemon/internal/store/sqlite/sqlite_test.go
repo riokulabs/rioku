@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 8 {
-		t.Fatalf("expected version 8, got %d", v)
+	if v != 9 {
+		t.Fatalf("expected version 9, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3106,5 +3106,81 @@ func TestAccessPolicyDeleteNotFound(t *testing.T) {
 
 	if err := tx.DeleteAccessPolicy(ctx, "nonexistent"); err != store.ErrAccessPolicyNotFound {
 		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
+	}
+}
+
+// ─── PassiveHealthCheck round-trip (#67) ────────────────────────────────────
+
+func TestPassiveHealthCheck_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	want := &riokuv1.PassiveHealthCheck{
+		Enabled:               true,
+		FailDurationSeconds:   30,
+		MaxFails:              5,
+		UnhealthyStatus:       []int32{500, 502, 503},
+		UnhealthyLatencyMs:    250,
+		UnhealthyRequestCount: 100,
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:               "phc-svc",
+		LbPolicy:           riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:          []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+		PassiveHealthCheck: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	phc := got.GetPassiveHealthCheck()
+	if phc == nil {
+		t.Fatal("expected non-nil PassiveHealthCheck after round-trip")
+	}
+	if phc.GetMaxFails() != 5 || phc.GetFailDurationSeconds() != 30 ||
+		phc.GetUnhealthyLatencyMs() != 250 || phc.GetUnhealthyRequestCount() != 100 {
+		t.Errorf("round-trip mismatch: %+v", phc)
+	}
+	if len(phc.GetUnhealthyStatus()) != 3 || phc.GetUnhealthyStatus()[0] != 500 {
+		t.Errorf("unhealthy_status mismatch: %v", phc.GetUnhealthyStatus())
+	}
+}
+
+func TestPassiveHealthCheck_NilPersistsAsNil(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:      "no-phc-svc",
+		LbPolicy:  riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	if got.GetPassiveHealthCheck() != nil {
+		t.Errorf("expected nil PassiveHealthCheck, got %+v", got.GetPassiveHealthCheck())
 	}
 }

@@ -2138,6 +2138,178 @@ func TestCompile_OnDemandTLS_RateLimit(t *testing.T) {
 	}
 }
 
+// ─── Passive health checks (#67) ────────────────────────────────────────────
+
+func TestCompile_PassiveHealthCheck_FullBlock(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id:      "r1",
+			Enabled: true,
+			Matchers: []*riokuv1.Matcher{
+				{Hosts: []string{"api.example.com"}},
+			},
+			Target: &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			PassiveHealthCheck: &riokuv1.PassiveHealthCheck{
+				Enabled:               true,
+				FailDurationSeconds:   30,
+				MaxFails:              3,
+				UnhealthyStatus:       []int32{500, 502, 503, 504},
+				UnhealthyLatencyMs:    250,
+				UnhealthyRequestCount: 100,
+			},
+		}},
+	}
+
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handlers := route["handle"].([]any)
+	rp := handlers[len(handlers)-1].(map[string]any)
+	hcs := rp["health_checks"].(map[string]any)
+	passive, ok := hcs["passive"].(map[string]any)
+	if !ok {
+		t.Fatalf("passive block missing or wrong type: %T", hcs["passive"])
+	}
+	if passive["fail_duration"] != "30s" {
+		t.Errorf("fail_duration = %v", passive["fail_duration"])
+	}
+	if passive["max_fails"].(float64) != 3 {
+		t.Errorf("max_fails = %v", passive["max_fails"])
+	}
+	if passive["unhealthy_latency"] != "250ms" {
+		t.Errorf("unhealthy_latency = %v", passive["unhealthy_latency"])
+	}
+	if passive["unhealthy_request_count"].(float64) != 100 {
+		t.Errorf("unhealthy_request_count = %v", passive["unhealthy_request_count"])
+	}
+	statuses := passive["unhealthy_status"].([]any)
+	if len(statuses) != 4 || statuses[0].(float64) != 500 {
+		t.Errorf("unhealthy_status = %v", statuses)
+	}
+}
+
+func TestCompile_PassiveHealthCheck_DisabledOmits(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			// Enabled=false despite having values — gate is enforced.
+			PassiveHealthCheck: &riokuv1.PassiveHealthCheck{
+				Enabled:  false,
+				MaxFails: 3,
+			},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	if _, has := last["health_checks"]; has {
+		t.Error("disabled passive (and no active) should leave health_checks omitted entirely")
+	}
+}
+
+func TestCompile_PassiveHealthCheck_CoexistsWithActive(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			HealthCheck: &riokuv1.HealthCheck{
+				Enabled:         true,
+				Path:            "/health",
+				IntervalSeconds: 10,
+			},
+			PassiveHealthCheck: &riokuv1.PassiveHealthCheck{
+				Enabled:  true,
+				MaxFails: 3,
+			},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	hcs := last["health_checks"].(map[string]any)
+	if _, has := hcs["active"]; !has {
+		t.Error("active block missing")
+	}
+	if _, has := hcs["passive"]; !has {
+		t.Error("passive block missing")
+	}
+}
+
+func TestCompile_PassiveHealthCheck_EnabledWithNoThresholdsOmits(t *testing.T) {
+	// Enabled=true but every threshold is zero — emitting an empty
+	// passive block would be a Caddy no-op that just adds noise.
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:                 "svc1",
+			Upstreams:          []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			PassiveHealthCheck: &riokuv1.PassiveHealthCheck{Enabled: true},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	if _, has := last["health_checks"]; has {
+		t.Error("empty passive + no active should leave health_checks omitted")
+	}
+}
+
 func TestCompile_OnDemandTLS_EnabledWithoutAskURLSkips(t *testing.T) {
 	// Misconfigured: Enabled=true but AskURL empty. Compiler must
 	// refuse to emit the block — silently emitting on-demand without

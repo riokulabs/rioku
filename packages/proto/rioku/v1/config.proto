@@ -67,6 +67,7 @@ message Service {
   int32 dial_timeout_seconds             = 9;
   int32 response_header_timeout_seconds  = 10;
   int32 idle_timeout_seconds             = 11;
+  PassiveHealthCheck        passive_health_check = 12;
 }
 
 message Upstream {
@@ -95,6 +96,45 @@ message HealthCheck {
   int32          unhealthy_threshold = 5;
   int32          healthy_threshold   = 6;
   repeated int32 expected_statuses   = 7;
+}
+
+// PassiveHealthCheck configures passive (in-band) health checking against
+// upstream backends — i.e. health is inferred from the success/failure
+// pattern of real proxied traffic rather than from synthetic probes.
+//
+// Compiles to Caddy's `reverse_proxy.health_checks.passive` block. All
+// thresholds are evaluated within a sliding window of fail_duration_seconds.
+// When omitted (passive_health_check = nil) no passive checks are emitted
+// and Caddy will only consider an upstream unhealthy via active checks.
+message PassiveHealthCheck {
+  // enabled gates the entire passive block. When false the compiler
+  // emits nothing — useful for keeping the configured thresholds in
+  // place while temporarily disabling enforcement.
+  bool enabled = 1;
+
+  // fail_duration_seconds is the rolling window in which max_fails is
+  // counted. Caddy default is 0 (passive checks disabled). Typical
+  // production values are 10–30 seconds.
+  int32 fail_duration_seconds = 2;
+
+  // max_fails is the number of recent failures within fail_duration that
+  // marks an upstream unhealthy. Must be > 0 for the threshold to fire.
+  int32 max_fails = 3;
+
+  // unhealthy_status is the list of HTTP status codes considered failures
+  // for passive accounting. Empty means "use Caddy default" (5xx).
+  // Codes like -1 or wildcards are not supported here — list explicit
+  // integer codes (e.g. 500, 502, 503, 504).
+  repeated int32 unhealthy_status = 4;
+
+  // unhealthy_latency_ms is the response latency threshold above which a
+  // request is counted as a failure. Zero disables latency-based
+  // failure accounting.
+  int32 unhealthy_latency_ms = 5;
+
+  // unhealthy_request_count is the in-flight request count above which
+  // an upstream is considered overloaded. Zero disables this check.
+  int32 unhealthy_request_count = 6;
 }
 
 message Policy {

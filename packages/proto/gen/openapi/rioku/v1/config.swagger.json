@@ -559,6 +559,44 @@
         }
       }
     },
+    "v1PassiveHealthCheck": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire passive block. When false the compiler\nemits nothing — useful for keeping the configured thresholds in\nplace while temporarily disabling enforcement."
+        },
+        "failDurationSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "fail_duration_seconds is the rolling window in which max_fails is\ncounted. Caddy default is 0 (passive checks disabled). Typical\nproduction values are 10–30 seconds."
+        },
+        "maxFails": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_fails is the number of recent failures within fail_duration that\nmarks an upstream unhealthy. Must be \u003e 0 for the threshold to fire."
+        },
+        "unhealthyStatus": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "unhealthy_status is the list of HTTP status codes considered failures\nfor passive accounting. Empty means \"use Caddy default\" (5xx).\nCodes like -1 or wildcards are not supported here — list explicit\ninteger codes (e.g. 500, 502, 503, 504)."
+        },
+        "unhealthyLatencyMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "unhealthy_latency_ms is the response latency threshold above which a\nrequest is counted as a failure. Zero disables latency-based\nfailure accounting."
+        },
+        "unhealthyRequestCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "unhealthy_request_count is the in-flight request count above which\nan upstream is considered overloaded. Zero disables this check."
+        }
+      },
+      "description": "PassiveHealthCheck configures passive (in-band) health checking against\nupstream backends — i.e. health is inferred from the success/failure\npattern of real proxied traffic rather than from synthetic probes.\n\nCompiles to Caddy's `reverse_proxy.health_checks.passive` block. All\nthresholds are evaluated within a sliding window of fail_duration_seconds.\nWhen omitted (passive_health_check = nil) no passive checks are emitted\nand Caddy will only consider an upstream unhealthy via active checks."
+    },
     "v1PathMatcher": {
       "type": "object",
       "properties": {
@@ -755,6 +793,9 @@
         "idleTimeoutSeconds": {
           "type": "integer",
           "format": "int32"
+        },
+        "passiveHealthCheck": {
+          "$ref": "#/definitions/v1PassiveHealthCheck"
         }
       }
     },
