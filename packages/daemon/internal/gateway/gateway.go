@@ -15,6 +15,7 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/cluster"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
@@ -135,6 +136,11 @@ func NewGateway(
 		// supposed to reload the local Caddy admin config.
 	})
 	RegisterClusterRoutes(topMux, clusterSvc)
+
+	// Certificate management (#84). Stub-backed in stage-1 — real Caddy
+	// filesystem scan + admin-API renew/revoke lands alongside #77.
+	certSvc := caddy.NewStubCertService()
+	RegisterCertificateRoutes(topMux, certSvc)
 
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to

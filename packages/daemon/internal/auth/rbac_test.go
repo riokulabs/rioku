@@ -120,9 +120,9 @@ func TestLoadUserScopes_WithRole(t *testing.T) {
 	}
 
 	// Viewer has: config:read, audit:read, settings:read, traffic:read,
-	// plugins:read, cluster:read, access-policies:read
-	if len(scopes) != 7 {
-		t.Errorf("expected 7 scopes for viewer, got %d: %v", len(scopes), scopes)
+	// plugins:read, cluster:read, access-policies:read, certificates:read
+	if len(scopes) != 8 {
+		t.Errorf("expected 8 scopes for viewer, got %d: %v", len(scopes), scopes)
 	}
 }
 

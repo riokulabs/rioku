@@ -1567,8 +1567,8 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPermissions: %v", err)
 	}
-	if len(perms) != 24 {
-		t.Fatalf("expected 24 atomic permissions, got %d", len(perms))
+	if len(perms) != 26 {
+		t.Fatalf("expected 26 atomic permissions, got %d", len(perms))
 	}
 	_ = tx2.Rollback()
 
@@ -1772,9 +1772,10 @@ func TestResolveUserPermissions(t *testing.T) {
 	}
 	// admin has: config:*, keys:*, users:read, users:manage, roles:read,
 	// sessions:*, audit:read, settings:*, traffic:read, plugins:*, cluster:read,
-	// access-policies:read, access-policies:write
-	if len(scopes) != 13 {
-		t.Fatalf("expected 13 admin scopes, got %d: %v", len(scopes), scopes)
+	// access-policies:read, access-policies:write, certificates:read,
+	// certificates:manage
+	if len(scopes) != 15 {
+		t.Fatalf("expected 15 admin scopes, got %d: %v", len(scopes), scopes)
 	}
 
 	// Verify wildcards are included.

@@ -28,16 +28,23 @@ CREATE INDEX idx_access_policies_enabled_priority
 CREATE INDEX idx_access_policies_target_type
     ON access_policies (target_type);
 
--- Permissions for the new endpoints (#80).
+-- Permissions for the new endpoints (#80, #84).
 -- Read: list/get policies. Write: create/update/delete policies.
+-- Manage: certificate renew/revoke.
 INSERT INTO permissions (id, resource, action, description) VALUES
-    ('access-policies:read',  'access-policies', 'read',  'View conditional access policies'),
-    ('access-policies:write', 'access-policies', 'write', 'Create, update, delete conditional access policies');
+    ('access-policies:read',  'access-policies', 'read',   'View conditional access policies'),
+    ('access-policies:write', 'access-policies', 'write',  'Create, update, delete conditional access policies'),
+    ('certificates:read',     'certificates',    'read',   'View managed TLS certificates'),
+    ('certificates:manage',   'certificates',    'manage', 'Force renewal or revoke certificates');
 
 -- Grant the new permissions to the same roles that already manage RBAC.
 -- superadmin already has '*' so it implicitly grants these too.
 INSERT INTO role_permissions (role_id, permission_id) VALUES
     ('role_admin',    'access-policies:read'),
     ('role_admin',    'access-policies:write'),
+    ('role_admin',    'certificates:read'),
+    ('role_admin',    'certificates:manage'),
     ('role_operator', 'access-policies:read'),
-    ('role_viewer',   'access-policies:read');
+    ('role_operator', 'certificates:read'),
+    ('role_viewer',   'access-policies:read'),
+    ('role_viewer',   'certificates:read');
