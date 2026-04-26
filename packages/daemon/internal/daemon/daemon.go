@@ -34,24 +34,25 @@ import (
 
 // Daemon orchestrates all subsystems.
 type Daemon struct {
-	cfg        *config.Config
-	cfgPath    string
-	store      store.Driver
-	caddy      *caddy.Manager
-	engine     *config.Engine
-	auth       *auth.Auth
-	sessions   *auth.SessionManager
-	grpc       *riokugrpc.Server
-	gateway    *gateway.Gateway
-	syncAgent  *riokusync.Agent
-	tlsAsk     *tlsask.Server
-	traceStore tracestore.Driver
-	ringBuffer *tracestore.RingBuffer
-	ingester   *tracestore.Ingester
-	aggregator *tracestore.Aggregator
-	logLevel   *slog.LevelVar
-	pidFile    string
-	startedAt  time.Time
+	cfg            *config.Config
+	cfgPath        string
+	store          store.Driver
+	caddy          *caddy.Manager
+	engine         *config.Engine
+	auth           *auth.Auth
+	sessions       *auth.SessionManager
+	grpc           *riokugrpc.Server
+	gateway        *gateway.Gateway
+	syncAgent      *riokusync.Agent
+	tlsAsk         *tlsask.Server
+	upstreamHealth *caddy.UpstreamHealthPoller
+	traceStore     tracestore.Driver
+	ringBuffer     *tracestore.RingBuffer
+	ingester       *tracestore.Ingester
+	aggregator     *tracestore.Aggregator
+	logLevel       *slog.LevelVar
+	pidFile        string
+	startedAt      time.Time
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -195,6 +196,20 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}()
 	}
 
+	// 6a. Start the Caddy upstream-health poller (#122) when the
+	// child process is up. The poller queries Caddy's
+	// /reverse_proxy/upstreams admin endpoint on a fixed interval
+	// and caches the snapshot for the gateway to expose. When Caddy
+	// is unavailable we leave d.upstreamHealth nil so the REST
+	// route returns "available: false" and the admin panel can
+	// render a graceful empty state.
+	if d.caddy != nil && d.caddy.IsRunning() {
+		uhLog := slog.Default().With("component", "upstream-health")
+		d.upstreamHealth = caddy.NewUpstreamHealthPoller(d.cfg.Caddy.AdminAddr, 5*time.Second, uhLog)
+		d.upstreamHealth.Start(ctx)
+		uhLog.Info("polling started", "admin_addr", d.cfg.Caddy.AdminAddr, "interval", "5s")
+	}
+
 	// 7. Start REST gateway on loopback (OS-assigned port).
 	if d.grpc != nil {
 		spaFS, err := riokuweb.SPA()
@@ -209,7 +224,11 @@ func (d *Daemon) Start(ctx context.Context) error {
 		var gw *gateway.Gateway
 		for attempt := 0; attempt < 10; attempt++ {
 			addr := fmt.Sprintf("127.0.0.1:%d", basePort+attempt)
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, gwLog, d.logLevel)
+			var uhSource gateway.UpstreamHealthSource
+			if d.upstreamHealth != nil {
+				uhSource = d.upstreamHealth
+			}
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}
@@ -362,6 +381,11 @@ func (d *Daemon) Stop(ctx context.Context) error {
 		if err := d.tlsAsk.Shutdown(); err != nil {
 			slog.Error("tlsask shutdown error", "component", "tlsask", "error", err)
 		}
+	}
+
+	// Stop upstream health poller (#122).
+	if d.upstreamHealth != nil {
+		d.upstreamHealth.Stop()
 	}
 
 	// Stop Caddy.

@@ -57,6 +57,7 @@ func NewGateway(
 	spaFS fs.FS,
 	traceBuf *tracestore.RingBuffer,
 	traceStore tracestore.Driver,
+	upstreamHealth UpstreamHealthSource,
 	logger *slog.Logger,
 	levelVar *slog.LevelVar,
 ) (*Gateway, error) {
@@ -141,6 +142,11 @@ func NewGateway(
 	// filesystem scan + admin-API renew/revoke lands alongside #77.
 	certSvc := caddy.NewStubCertService()
 	RegisterCertificateRoutes(topMux, certSvc)
+
+	// Upstream health snapshot (#122). Source may be nil when Caddy
+	// isn't running — the handler returns an "unavailable" payload
+	// rather than 404 so the admin panel can render an empty state.
+	RegisterUpstreamHealthRoutes(topMux, upstreamHealth)
 
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to

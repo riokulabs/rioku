@@ -61,6 +61,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 		nil, // spaFS
 		nil, // traceBuf
 		nil, // traceStore
+		nil, // upstreamHealth
 		slog.Default(),
 		nil, // levelVar
 	)
@@ -123,6 +124,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 		nil,
 		traceBuf,
 		nil, // traceStore
+		nil, // upstreamHealth
 		slog.Default(),
 		nil, // levelVar
 	)
