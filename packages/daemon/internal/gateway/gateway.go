@@ -151,6 +151,10 @@ func NewGateway(
 	// Tenant + membership management (stage-2).
 	RegisterTenantRoutes(topMux, st)
 
+	// Sites + Middlewares (stage-2 leaf).
+	RegisterSiteRoutes(topMux, st)
+	RegisterMiddlewareRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.

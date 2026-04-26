@@ -287,11 +287,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 14: sites + middlewares (stage-2).
+	if current < 14 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000014_sites_middlewares.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 14: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 14: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (14, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 14: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 14 down: drop sites + middlewares.
+	if current >= 14 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000014_sites_middlewares.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 14: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 14: %w", err)
+		}
+	}
 
 	// Migration 13 down: drop tenants + memberships + membership_roles.
 	if current >= 13 {

@@ -1141,3 +1141,42 @@ func (t *raftTx) RevokeMembershipRole(_ context.Context, _, _ string) error {
 func (t *raftTx) ListMembershipRoles(_ context.Context, _ string) ([]store.Role, error) {
 	return nil, nil
 }
+
+// ---------------------------------------------------------------------------
+// Sites + Middlewares (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateSite(_ context.Context, _ *store.Site) (*store.Site, error) {
+	return nil, fmt.Errorf("raft: CreateSite not implemented")
+}
+func (t *raftTx) GetSite(_ context.Context, _, _ string) (*store.Site, error) {
+	return nil, store.ErrSiteNotFound
+}
+func (t *raftTx) ListSitesByTenant(_ context.Context, _ string) ([]*store.Site, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateSite(_ context.Context, _, _ string, _ store.UpdateSiteParams) (*store.Site, error) {
+	return nil, fmt.Errorf("raft: UpdateSite not implemented")
+}
+func (t *raftTx) ToggleSite(_ context.Context, _, _ string, _ bool) (*store.Site, error) {
+	return nil, fmt.Errorf("raft: ToggleSite not implemented")
+}
+func (t *raftTx) DeleteSite(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteSite not implemented")
+}
+
+func (t *raftTx) CreateMiddleware(_ context.Context, _ *store.Middleware) (*store.Middleware, error) {
+	return nil, fmt.Errorf("raft: CreateMiddleware not implemented")
+}
+func (t *raftTx) GetMiddleware(_ context.Context, _, _ string) (*store.Middleware, error) {
+	return nil, store.ErrMiddlewareNotFound
+}
+func (t *raftTx) ListMiddlewaresByTenant(_ context.Context, _ string) ([]*store.Middleware, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateMiddleware(_ context.Context, _, _ string, _ store.UpdateMiddlewareParams) (*store.Middleware, error) {
+	return nil, fmt.Errorf("raft: UpdateMiddleware not implemented")
+}
+func (t *raftTx) DeleteMiddleware(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteMiddleware not implemented")
+}

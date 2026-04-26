@@ -339,6 +339,23 @@ type Tx interface {
 	// ListMembershipRoles returns every role granted to a membership.
 	ListMembershipRoles(ctx context.Context, membershipID string) ([]Role, error)
 
+	// --- Sites (stage-2) ---
+
+	CreateSite(ctx context.Context, s *Site) (*Site, error)
+	GetSite(ctx context.Context, tenantID, id string) (*Site, error)
+	ListSitesByTenant(ctx context.Context, tenantID string) ([]*Site, error)
+	UpdateSite(ctx context.Context, tenantID, id string, params UpdateSiteParams) (*Site, error)
+	ToggleSite(ctx context.Context, tenantID, id string, enabled bool) (*Site, error)
+	DeleteSite(ctx context.Context, tenantID, id string) error
+
+	// --- Middlewares (stage-2) ---
+
+	CreateMiddleware(ctx context.Context, m *Middleware) (*Middleware, error)
+	GetMiddleware(ctx context.Context, tenantID, id string) (*Middleware, error)
+	ListMiddlewaresByTenant(ctx context.Context, tenantID string) ([]*Middleware, error)
+	UpdateMiddleware(ctx context.Context, tenantID, id string, params UpdateMiddlewareParams) (*Middleware, error)
+	DeleteMiddleware(ctx context.Context, tenantID, id string) error
+
 	// --- Access Policies ---
 
 	// CreateAccessPolicy persists a new access policy and returns it with
@@ -412,6 +429,70 @@ var (
 	ErrMembershipNotFound     = fmt.Errorf("store: membership not found")
 	ErrMembershipExists       = fmt.Errorf("store: membership for that tenant+user already exists")
 	ErrMembershipInvalidState = fmt.Errorf("store: invalid membership state transition")
+)
+
+// Site represents a per-tenant gateway entry — a customer-facing
+// domain with TLS mode + handler-stack presets. Compiles into a
+// Caddy server block.
+type Site struct {
+	ID                string
+	TenantID          string
+	Name              string
+	Domain            string
+	TLSMode           string // auto | manual | off
+	Enabled           bool
+	UpstreamServiceID *string
+	BasicAuthEnabled  bool
+	BasicAuthRealm    *string
+	RateLimitPreset   string // none | lenient | standard | strict
+	RedirectRules     string // JSON array — passthrough for the compiler
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+// UpdateSiteParams is the partial-update payload for UpdateSite.
+type UpdateSiteParams struct {
+	Name              *string
+	Domain            *string
+	TLSMode           *string
+	UpstreamServiceID *string
+	BasicAuthEnabled  *bool
+	BasicAuthRealm    *string
+	RateLimitPreset   *string
+	RedirectRules     *string
+}
+
+// Middleware represents a per-tenant reusable handler-stack
+// component (rate-limit, auth, transform, cors, cache, logging,
+// custom). Routes attach Middlewares by id; the order is the
+// route's responsibility.
+type Middleware struct {
+	ID        string
+	TenantID  string
+	Name      string
+	Kind      string // rate-limit | auth | transform | cors | cache | logging | custom
+	Config    string // JSON config blob — kind-specific shape
+	Enabled   bool
+	OrderHint int32
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// UpdateMiddlewareParams is the partial-update payload.
+type UpdateMiddlewareParams struct {
+	Name      *string
+	Kind      *string
+	Config    *string
+	Enabled   *bool
+	OrderHint *int32
+}
+
+// Site + Middleware sentinel errors.
+var (
+	ErrSiteNotFound        = fmt.Errorf("store: site not found")
+	ErrSiteDomainTaken     = fmt.Errorf("store: site with that domain already exists in this tenant")
+	ErrMiddlewareNotFound  = fmt.Errorf("store: middleware not found")
+	ErrMiddlewareNameTaken = fmt.Errorf("store: middleware with that name already exists in this tenant")
 )
 
 // APIKey represents a stored API key.
