@@ -1445,3 +1445,42 @@ func (t *raftTx) GetTenantNotificationConfig(_ context.Context, tenantID string)
 func (t *raftTx) UpsertTenantNotificationConfig(_ context.Context, _ *store.TenantNotificationConfig) (*store.TenantNotificationConfig, error) {
 	return nil, fmt.Errorf("raft: UpsertTenantNotificationConfig not implemented")
 }
+
+// ---------------------------------------------------------------------------
+// Plugins (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreatePlugin(_ context.Context, _ *store.Plugin) (*store.Plugin, error) {
+	return nil, fmt.Errorf("raft: CreatePlugin not implemented")
+}
+func (t *raftTx) GetPlugin(_ context.Context, _, _ string) (*store.Plugin, error) {
+	return nil, store.ErrPluginNotFound
+}
+func (t *raftTx) ListPluginsByScope(_ context.Context, _ string) ([]*store.Plugin, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdatePlugin(_ context.Context, _, _ string, _ store.UpdatePluginParams) (*store.Plugin, error) {
+	return nil, fmt.Errorf("raft: UpdatePlugin not implemented")
+}
+func (t *raftTx) DeletePlugin(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeletePlugin not implemented")
+}
+
+func (t *raftTx) CreatePluginSigner(_ context.Context, _ *store.PluginSigner) (*store.PluginSigner, error) {
+	return nil, fmt.Errorf("raft: CreatePluginSigner not implemented")
+}
+func (t *raftTx) GetPluginSigner(_ context.Context, _, _ string) (*store.PluginSigner, error) {
+	return nil, store.ErrPluginSignerNotFound
+}
+func (t *raftTx) ListPluginSignersByScope(_ context.Context, _ string) ([]*store.PluginSigner, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdatePluginSigner(_ context.Context, _, _ string, _ store.UpdatePluginSignerParams) (*store.PluginSigner, error) {
+	return nil, fmt.Errorf("raft: UpdatePluginSigner not implemented")
+}
+func (t *raftTx) DeletePluginSigner(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeletePluginSigner not implemented")
+}
+func (t *raftTx) ListPluginsBySigner(_ context.Context, _ string) ([]*store.Plugin, error) {
+	return nil, nil
+}

@@ -351,11 +351,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 18: Plugins + PluginSigners (stage-2).
+	if current < 18 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000018_plugins.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 18: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 18: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (18, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 18: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 18 down: drop plugins + plugin_signers.
+	if current >= 18 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000018_plugins.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 18: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 18: %w", err)
+		}
+	}
 
 	// Migration 17 down: drop notifications tables.
 	if current >= 17 {

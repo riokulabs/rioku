@@ -164,6 +164,9 @@ func NewGateway(
 	// Notifications subsystem (stage-2): inbox, channels, routing, delivery log, tenant config.
 	RegisterNotificationsRoutes(topMux, st)
 
+	// Plugins + PluginSigners (stage-2): per-tenant + global scopes.
+	RegisterPluginRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.

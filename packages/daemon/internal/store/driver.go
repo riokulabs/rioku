@@ -373,6 +373,21 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- Plugins (stage-2) ---
+
+	CreatePlugin(ctx context.Context, p *Plugin) (*Plugin, error)
+	GetPlugin(ctx context.Context, tenantID, id string) (*Plugin, error)
+	ListPluginsByScope(ctx context.Context, tenantID string) ([]*Plugin, error)
+	UpdatePlugin(ctx context.Context, tenantID, id string, params UpdatePluginParams) (*Plugin, error)
+	DeletePlugin(ctx context.Context, tenantID, id string) error
+
+	CreatePluginSigner(ctx context.Context, s *PluginSigner) (*PluginSigner, error)
+	GetPluginSigner(ctx context.Context, tenantID, id string) (*PluginSigner, error)
+	ListPluginSignersByScope(ctx context.Context, tenantID string) ([]*PluginSigner, error)
+	UpdatePluginSigner(ctx context.Context, tenantID, id string, params UpdatePluginSignerParams) (*PluginSigner, error)
+	DeletePluginSigner(ctx context.Context, tenantID, id string) error
+	ListPluginsBySigner(ctx context.Context, signerID string) ([]*Plugin, error)
+
 	// --- Notifications (stage-2) ---
 
 	// Items (per-user inbox)
@@ -998,6 +1013,63 @@ type TenantNotificationConfig struct {
 	ChannelPriority     string // JSON ordered array of channel kinds
 	UpdatedAt           time.Time
 }
+
+// Plugin represents an installed (or pending-install) plugin.
+type Plugin struct {
+	ID             string
+	TenantScope    *string // nullable for global plugins
+	Slug           string
+	Name           string
+	Version        string
+	Enabled        bool
+	BuildState     string // stable | building | failed
+	CosignVerified bool
+	SignerID       *string
+	Config         string // JSON
+	Metadata       string // JSON
+	LastBuildLog   *string
+	InstalledAt    time.Time
+	UpdatedAt      time.Time
+}
+
+type UpdatePluginParams struct {
+	Name           *string
+	Version        *string
+	Enabled        *bool
+	BuildState     *string
+	CosignVerified *bool
+	SignerID       *string
+	Config         *string
+	Metadata       *string
+	LastBuildLog   *string
+}
+
+// PluginSigner is a verified key/fingerprint trust anchor.
+type PluginSigner struct {
+	ID          string
+	TenantScope *string // nullable for global signers
+	Name        string
+	Fingerprint string
+	Status      string // verified | revoked | pending
+	Notes       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type UpdatePluginSignerParams struct {
+	Name        *string
+	Fingerprint *string
+	Status      *string
+	Notes       *string
+}
+
+// Plugin sentinel errors.
+var (
+	ErrPluginNotFound       = fmt.Errorf("store: plugin not found")
+	ErrPluginSlugTaken      = fmt.Errorf("store: plugin slug already in use in this scope")
+	ErrPluginSignerNotFound = fmt.Errorf("store: plugin signer not found")
+	ErrPluginSignerFPTaken  = fmt.Errorf("store: plugin signer fingerprint already in use in this scope")
+)
 
 // Notification sentinel errors.
 var (
