@@ -173,6 +173,9 @@ func NewGateway(
 	// Settings config singletons (stage-2): network, auth-policy, observability, audit retention.
 	RegisterSettingsConfigRoutes(topMux, st)
 
+	// Webhooks + Cluster enrollment + Impersonation (stage-2).
+	RegisterWebhooksClusterImpersonationRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.

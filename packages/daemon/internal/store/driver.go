@@ -373,6 +373,30 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- Webhooks (stage-2) ---
+
+	CreateWebhookEndpoint(ctx context.Context, e *WebhookEndpoint) (*WebhookEndpoint, error)
+	GetWebhookEndpoint(ctx context.Context, tenantID, id string) (*WebhookEndpoint, error)
+	ListWebhookEndpointsByTenant(ctx context.Context, tenantID string) ([]*WebhookEndpoint, error)
+	UpdateWebhookEndpoint(ctx context.Context, tenantID, id string, params UpdateWebhookEndpointParams) (*WebhookEndpoint, error)
+	DeleteWebhookEndpoint(ctx context.Context, tenantID, id string) error
+
+	// --- Cluster enrollment tokens (stage-2) ---
+
+	CreateEnrollmentToken(ctx context.Context, t *ClusterEnrollmentToken) (*ClusterEnrollmentToken, error)
+	GetEnrollmentTokenByHash(ctx context.Context, hash string) (*ClusterEnrollmentToken, error)
+	ListActiveEnrollmentTokens(ctx context.Context) ([]*ClusterEnrollmentToken, error)
+	ConsumeEnrollmentToken(ctx context.Context, hash, nodeID string) (*ClusterEnrollmentToken, error)
+	RevokeEnrollmentToken(ctx context.Context, id string) error
+
+	// --- Impersonation sessions (stage-2) ---
+
+	CreateImpersonationSession(ctx context.Context, s *ImpersonationSession) (*ImpersonationSession, error)
+	GetImpersonationSession(ctx context.Context, id string) (*ImpersonationSession, error)
+	ListActiveImpersonationSessions(ctx context.Context) ([]*ImpersonationSession, error)
+	EndImpersonationSession(ctx context.Context, id, reason string) (*ImpersonationSession, error)
+	TouchImpersonationSession(ctx context.Context, id string) error
+
 	// --- Settings configs (stage-2): singleton-per-tenant ---
 
 	GetNetworkConfig(ctx context.Context, tenantID string) (*NetworkConfig, error)
@@ -1240,6 +1264,70 @@ type ObservabilityConfig struct {
 	TracesSampleRate      float64
 	UpdatedAt             time.Time
 }
+
+// WebhookEndpoint is a per-tenant outbound HTTP webhook for
+// infra-targeted events (vs. notification_channels which target
+// users).
+type WebhookEndpoint struct {
+	ID        string
+	TenantID  string
+	Name      string
+	URL       string
+	Secret    *string // HMAC signing secret, encrypted in production
+	Events    string  // JSON array of event types
+	Enabled   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type UpdateWebhookEndpointParams struct {
+	Name    *string
+	URL     *string
+	Secret  *string
+	Events  *string
+	Enabled *bool
+}
+
+// ClusterEnrollmentToken is a single-use token for bootstrapping a
+// new cluster node. Not tenant-scoped — cluster is global.
+type ClusterEnrollmentToken struct {
+	ID               string
+	TokenHash        string // hash of the actual token; raw token returned once at create
+	CreatedBy        *string
+	ExpiresAt        time.Time
+	ConsumedAt       *time.Time
+	ConsumedByNodeID *string
+	RevokedAt        *time.Time
+	Notes            string
+	CreatedAt        time.Time
+}
+
+// ImpersonationSession is a super-admin impersonation audit row
+// with TOTP gating + session deadlines. UserID nullable for
+// read-only impersonation (no user context, just a tenant view).
+type ImpersonationSession struct {
+	ID           string
+	SuperAdminID string
+	TenantID     *string
+	UserID       *string
+	Reason       string
+	StartedAt    time.Time
+	ExpiresAt    time.Time
+	LastActiveAt *time.Time
+	EndedAt      *time.Time
+	EndReason    *string // explicit_exit | idle_timeout | absolute_timeout | revoked
+}
+
+// Webhook + cluster + impersonation sentinel errors.
+var (
+	ErrWebhookEndpointNotFound      = fmt.Errorf("store: webhook endpoint not found")
+	ErrWebhookEndpointNameTaken     = fmt.Errorf("store: webhook endpoint name already in use in this tenant")
+	ErrEnrollmentTokenNotFound      = fmt.Errorf("store: enrollment token not found")
+	ErrEnrollmentTokenAlreadyUsed   = fmt.Errorf("store: enrollment token already consumed or revoked")
+	ErrEnrollmentTokenExpired       = fmt.Errorf("store: enrollment token expired")
+	ErrImpersonationSessionNotFound = fmt.Errorf("store: impersonation session not found")
+	ErrImpersonationSessionEnded    = fmt.Errorf("store: impersonation session already ended")
+)
 
 // AuditRetentionConfig is a singleton-per-tenant audit retention policy.
 type AuditRetentionConfig struct {

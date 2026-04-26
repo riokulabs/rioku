@@ -1588,3 +1588,55 @@ func (t *raftTx) GetAuditRetentionConfig(_ context.Context, tenantID string) (*s
 func (t *raftTx) UpsertAuditRetentionConfig(_ context.Context, _ *store.AuditRetentionConfig) (*store.AuditRetentionConfig, error) {
 	return nil, fmt.Errorf("raft: UpsertAuditRetentionConfig not implemented")
 }
+
+// ---------------------------------------------------------------------------
+// Webhooks + cluster + impersonation (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateWebhookEndpoint(_ context.Context, _ *store.WebhookEndpoint) (*store.WebhookEndpoint, error) {
+	return nil, fmt.Errorf("raft: CreateWebhookEndpoint not implemented")
+}
+func (t *raftTx) GetWebhookEndpoint(_ context.Context, _, _ string) (*store.WebhookEndpoint, error) {
+	return nil, store.ErrWebhookEndpointNotFound
+}
+func (t *raftTx) ListWebhookEndpointsByTenant(_ context.Context, _ string) ([]*store.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateWebhookEndpoint(_ context.Context, _, _ string, _ store.UpdateWebhookEndpointParams) (*store.WebhookEndpoint, error) {
+	return nil, fmt.Errorf("raft: UpdateWebhookEndpoint not implemented")
+}
+func (t *raftTx) DeleteWebhookEndpoint(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteWebhookEndpoint not implemented")
+}
+
+func (t *raftTx) CreateEnrollmentToken(_ context.Context, _ *store.ClusterEnrollmentToken) (*store.ClusterEnrollmentToken, error) {
+	return nil, fmt.Errorf("raft: CreateEnrollmentToken not implemented")
+}
+func (t *raftTx) GetEnrollmentTokenByHash(_ context.Context, _ string) (*store.ClusterEnrollmentToken, error) {
+	return nil, store.ErrEnrollmentTokenNotFound
+}
+func (t *raftTx) ListActiveEnrollmentTokens(_ context.Context) ([]*store.ClusterEnrollmentToken, error) {
+	return nil, nil
+}
+func (t *raftTx) ConsumeEnrollmentToken(_ context.Context, _, _ string) (*store.ClusterEnrollmentToken, error) {
+	return nil, fmt.Errorf("raft: ConsumeEnrollmentToken not implemented")
+}
+func (t *raftTx) RevokeEnrollmentToken(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: RevokeEnrollmentToken not implemented")
+}
+
+func (t *raftTx) CreateImpersonationSession(_ context.Context, _ *store.ImpersonationSession) (*store.ImpersonationSession, error) {
+	return nil, fmt.Errorf("raft: CreateImpersonationSession not implemented")
+}
+func (t *raftTx) GetImpersonationSession(_ context.Context, _ string) (*store.ImpersonationSession, error) {
+	return nil, store.ErrImpersonationSessionNotFound
+}
+func (t *raftTx) ListActiveImpersonationSessions(_ context.Context) ([]*store.ImpersonationSession, error) {
+	return nil, nil
+}
+func (t *raftTx) EndImpersonationSession(_ context.Context, _, _ string) (*store.ImpersonationSession, error) {
+	return nil, fmt.Errorf("raft: EndImpersonationSession not implemented")
+}
+func (t *raftTx) TouchImpersonationSession(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: TouchImpersonationSession not implemented")
+}
