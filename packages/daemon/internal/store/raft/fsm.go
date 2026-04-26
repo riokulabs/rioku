@@ -191,9 +191,54 @@ func (f *fsm) applyCommand(tx *bolt.Tx, cmd Command) (*CommandResult, error) {
 	case OpAppendAuditEntry:
 		return f.applyAppendAuditEntry(tx, cmd)
 
+	// --- Batch (multi-op atomic) ---
+	case OpBatch:
+		return f.applyBatch(tx, cmd)
+
 	default:
 		return nil, fmt.Errorf("unknown command op: %s", cmd.Op)
 	}
+}
+
+// applyBatch runs each sub-command inside the *same* bbolt transaction. If
+// any sub-command returns an error, the surrounding db.Update rolls back
+// the whole bbolt tx — giving raftTx true atomicity.
+//
+// Per-sub-command results are returned in order so callers that need a
+// server-assigned value (e.g. SaveConfigVersion's auto-incremented version)
+// can extract it.
+//
+// Nested OpBatch is rejected to keep the wire format flat.
+func (f *fsm) applyBatch(tx *bolt.Tx, cmd Command) (*CommandResult, error) {
+	var bd batchData
+	if err := json.Unmarshal(cmd.Data, &bd); err != nil {
+		return nil, fmt.Errorf("unmarshal batch: %w", err)
+	}
+	results := make([]batchSubResult, len(bd.Commands))
+	for i, sub := range bd.Commands {
+		if sub.Op == OpBatch {
+			return nil, fmt.Errorf("batch[%d]: nested OpBatch is not allowed", i)
+		}
+		r, err := f.applyCommand(tx, sub)
+		if err != nil {
+			// Hard error: bubble out so db.Update rolls back the whole tx.
+			return nil, fmt.Errorf("batch[%d] (%s): %w", i, sub.Op, err)
+		}
+		if r.Error != "" {
+			// Soft error reported via CommandResult.Error (e.g. "not found"
+			// from applyDelete). Treat the same as a hard error inside a
+			// batch — atomic-or-nothing — so the caller's expectations
+			// match the standalone-Apply path's "if Error != '' then op
+			// failed" contract.
+			return nil, fmt.Errorf("batch[%d] (%s): %s", i, sub.Op, r.Error)
+		}
+		results[i] = batchSubResult{Data: r.Data}
+	}
+	out, err := json.Marshal(batchResult{Results: results})
+	if err != nil {
+		return nil, fmt.Errorf("marshal batch result: %w", err)
+	}
+	return &CommandResult{Data: out}, nil
 }
 
 // ---------------------------------------------------------------------------

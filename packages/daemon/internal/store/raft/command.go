@@ -30,7 +30,32 @@ const (
 
 	OpSaveConfigVersion CommandOp = "save_config_version"
 	OpAppendAuditEntry  CommandOp = "append_audit_entry"
+
+	// OpBatch wraps a sequence of sub-commands that the FSM applies inside a
+	// single bbolt write transaction. If any sub-command returns an error,
+	// the entire bbolt tx is rolled back and the raft log entry is committed
+	// but observed as a no-op. This is the mechanism that makes raftTx
+	// truly transactional — see fix for issue #56.
+	//
+	// Nested OpBatch is rejected.
+	OpBatch CommandOp = "batch"
 )
+
+// batchData is the payload for OpBatch.
+type batchData struct {
+	Commands []Command `json:"commands"`
+}
+
+// batchResult is the FSM response payload for OpBatch — one entry per
+// sub-command, in the same order they were submitted.
+type batchResult struct {
+	Results []batchSubResult `json:"results"`
+}
+
+type batchSubResult struct {
+	Data  []byte `json:"data,omitempty"`
+	Error string `json:"error,omitempty"`
+}
 
 // Command is the envelope serialized into each raft log entry.
 // The FSM deserializes this and applies the mutation to bbolt.

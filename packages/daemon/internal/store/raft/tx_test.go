@@ -832,3 +832,268 @@ func TestDriverOpenBadBindAddr(t *testing.T) {
 		t.Error("expected error for invalid bind address")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Buffered Tx atomicity (issue #56 — Commit/Rollback truly transactional)
+// ---------------------------------------------------------------------------
+
+// TestTxBatch_MultiOpCommitsAtomically verifies that multiple writes in a
+// single Tx are applied as one OpBatch — observable as a single FSM
+// state transition rather than per-op intermediate states.
+func TestTxBatch_MultiOpCommitsAtomically(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, err := node.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	// Three writes inside one Tx.
+	r1, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "r1", Enabled: true})
+	if err != nil {
+		t.Fatalf("CreateRoute r1: %v", err)
+	}
+	r2, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "r2", Enabled: true})
+	if err != nil {
+		t.Fatalf("CreateRoute r2: %v", err)
+	}
+	pol, err := tx.CreatePolicy(ctx, &riokuv1.Policy{Name: "p1"})
+	if err != nil {
+		t.Fatalf("CreatePolicy: %v", err)
+	}
+
+	// Buffered writes should NOT be visible from a separate read tx
+	// before Commit().
+	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if _, err := rtx.GetRoute(ctx, r1.GetId()); err == nil {
+		t.Error("buffered route r1 should not be visible before Commit")
+	}
+	_ = rtx.Rollback()
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// All three writes must be visible after Commit.
+	rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer rtx2.Rollback()
+	if _, err := rtx2.GetRoute(ctx, r1.GetId()); err != nil {
+		t.Errorf("r1 not visible after commit: %v", err)
+	}
+	if _, err := rtx2.GetRoute(ctx, r2.GetId()); err != nil {
+		t.Errorf("r2 not visible after commit: %v", err)
+	}
+	if _, err := rtx2.GetPolicy(ctx, pol.GetId()); err != nil {
+		t.Errorf("policy not visible after commit: %v", err)
+	}
+}
+
+// TestTxBatch_RollbackDiscardsBuffer verifies that Rollback() drops all
+// buffered writes — no FSM state changes.
+func TestTxBatch_RollbackDiscardsBuffer(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+	r, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "rolled-back", Enabled: true})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+
+	// Route must NOT exist in the FSM.
+	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer rtx.Rollback()
+	if _, err := rtx.GetRoute(ctx, r.GetId()); err == nil {
+		t.Errorf("rolled-back route %q should not be visible", r.GetId())
+	}
+}
+
+// TestTxBatch_FailedSubcommandRollsBackAll verifies that if any sub-command
+// in a batch fails, the entire bbolt tx rolls back — earlier writes in the
+// same Tx must not be visible.
+//
+// We force a failure by deleting a non-existent ID, which surfaces as a
+// CommandResult.Error and (under the new batch semantics) is treated as a
+// hard error that aborts the batch.
+func TestTxBatch_FailedSubcommandRollsBackAll(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+
+	r, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "should-not-persist", Enabled: true})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	// Queue a delete of a non-existent route — this fails inside applyDelete.
+	if err := tx.DeleteRoute(ctx, "nonexistent-id-causing-failure"); err != nil {
+		t.Fatalf("DeleteRoute submit: %v", err)
+	}
+
+	// Commit should fail because of the doomed delete.
+	if err := tx.Commit(); err == nil {
+		t.Fatal("expected Commit to fail because of bad delete")
+	}
+
+	// The earlier CreateRoute must NOT have persisted (atomicity).
+	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer rtx.Rollback()
+	if _, err := rtx.GetRoute(ctx, r.GetId()); err == nil {
+		t.Errorf("route from failed batch %q should not be visible", r.GetId())
+	}
+}
+
+// TestTxBatch_WriteAfterCommitFails — calling a write op after Commit
+// returns errTxClosed.
+func TestTxBatch_WriteAfterCommitFails(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+	if _, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "first", Enabled: true}); err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if _, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "after-commit", Enabled: true}); err == nil {
+		t.Error("expected error writing to committed tx")
+	}
+}
+
+// TestTxBatch_WriteAfterRollbackFails — same after Rollback.
+func TestTxBatch_WriteAfterRollbackFails(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+	if _, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "after-rollback", Enabled: true}); err == nil {
+		t.Error("expected error writing to rolled-back tx")
+	}
+}
+
+// TestTxBatch_WriteOnReadOnlyFails — read-only Tx rejects writes.
+func TestTxBatch_WriteOnReadOnlyFails(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer rtx.Rollback()
+	if _, err := rtx.CreateRoute(ctx, &riokuv1.Route{Name: "ro-write", Enabled: true}); err == nil {
+		t.Error("expected error writing to read-only tx")
+	}
+}
+
+// TestTxBatch_RollbackAfterCommitNoOp — rollback after commit is silently
+// idempotent (matches the common defer-tx.Rollback() pattern in callers).
+func TestTxBatch_RollbackAfterCommitNoOp(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+	if _, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "double-finalise", Enabled: true}); err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Errorf("Rollback after Commit should be no-op, got %v", err)
+	}
+}
+
+// TestTxBatch_EmptyCommitNoOp — committing a Tx with no writes does nothing
+// (no raft round-trip).
+func TestTxBatch_EmptyCommitNoOp(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("empty Commit failed: %v", err)
+	}
+}
+
+// TestTxBatch_SaveConfigVersionAutoFlushes — SaveConfigVersion auto-flushes
+// pending writes (so they're not silently dropped) and returns the
+// FSM-assigned version inline.
+func TestTxBatch_SaveConfigVersionAutoFlushes(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	tx, _ := node.Begin(ctx, store.TxOptions{})
+
+	// A buffered write followed by SaveConfigVersion.
+	r, err := tx.CreateRoute(ctx, &riokuv1.Route{Name: "before-version", Enabled: true})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	v, err := tx.SaveConfigVersion(ctx, []byte(`{"snapshot":"v1"}`), "tester")
+	if err != nil {
+		t.Fatalf("SaveConfigVersion: %v", err)
+	}
+	if v <= 0 {
+		t.Errorf("expected positive version, got %d", v)
+	}
+
+	// The route should have been flushed already (visible without Commit).
+	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if _, err := rtx.GetRoute(ctx, r.GetId()); err != nil {
+		t.Errorf("route should be flushed by SaveConfigVersion auto-flush: %v", err)
+	}
+	_ = rtx.Rollback()
+
+	// The version should be readable.
+	rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer rtx2.Rollback()
+	cv, err := rtx2.GetConfigVersion(ctx, v)
+	if err != nil {
+		t.Errorf("GetConfigVersion(%d): %v", v, err)
+	}
+	if cv != nil && cv.Actor != "tester" {
+		t.Errorf("actor mismatch: got %q", cv.Actor)
+	}
+
+	// And Commit on the now-empty buffer is a no-op.
+	if err := tx.Commit(); err != nil {
+		t.Errorf("trailing Commit failed: %v", err)
+	}
+}
+
+// TestTxBatch_NestedBatchRejected — defence-in-depth: the FSM rejects an
+// OpBatch nested inside another OpBatch.
+func TestTxBatch_NestedBatchRejected(t *testing.T) {
+	node, cleanup := singleNode(t)
+	defer cleanup()
+
+	// Hand-craft a malicious nested batch and apply it directly.
+	inner, err := json.Marshal(batchData{Commands: []Command{
+		{Op: OpDeleteRoute, Data: []byte(`{"id":"x"}`)},
+	}})
+	if err != nil {
+		t.Fatalf("marshal inner: %v", err)
+	}
+	outer := batchData{Commands: []Command{{Op: OpBatch, Data: inner}}}
+
+	_, err = node.apply(OpBatch, outer)
+	if err == nil {
+		t.Fatal("expected nested OpBatch to be rejected")
+	}
+}

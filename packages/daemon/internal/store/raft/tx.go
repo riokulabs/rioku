@@ -18,22 +18,131 @@ import (
 
 const timeFormat = "2006-01-02T15:04:05.000Z"
 
-// raftTx implements store.Tx. Writes go through raft consensus, reads
-// come from the local bbolt FSM.
+// raftTx implements store.Tx with deferred apply.
+//
+// Writes are *buffered* in `pending` and committed as a single OpBatch in
+// Commit(). The FSM applies all sub-commands inside one bbolt transaction,
+// giving true atomicity — if any sub-command fails, the entire batch rolls
+// back at the bbolt layer and no observable state changes (issue #56).
+//
+// Reads still hit the local bbolt FSM directly and do NOT see uncommitted
+// writes from this Tx. This matches the semantics of Postgres `READ
+// COMMITTED` for cross-Tx visibility — within a Tx, callers must construct
+// expected return values from the input rather than read-after-write.
+//
+// SaveConfigVersion is an exception: it returns a server-assigned version
+// number that the caller needs *immediately*, so it auto-flushes any
+// pending writes (as a batch) and then applies itself in a separate raft
+// log entry. Mixing SaveConfigVersion with other writes therefore costs
+// two raft entries instead of one.
 type raftTx struct {
 	driver   *Driver
 	readOnly bool
 	ctx      context.Context
+
+	// pending holds buffered write commands. nil when the tx is read-only.
+	pending []Command
+
+	// state tracks the tx lifecycle:
+	//   0 = open
+	//   1 = committed
+	//   2 = rolled back
+	state uint8
+}
+
+const (
+	txStateOpen uint8 = iota
+	txStateCommitted
+	txStateRolledBack
+)
+
+// errTxClosed is returned when a write op is attempted after Commit/Rollback.
+var errTxClosed = fmt.Errorf("raft: tx already closed (committed or rolled back)")
+
+// errTxReadOnly is returned when a write op is attempted on a read-only Tx.
+var errTxReadOnly = fmt.Errorf("raft: write op on read-only tx")
+
+// submit enqueues a write command into the Tx buffer. Returns immediately
+// without any raft round-trip — the actual apply happens on Commit().
+//
+// Callers must construct their own return values from the input plus any
+// IDs / timestamps assigned before submit (see CreateRoute for the pattern).
+func (t *raftTx) submit(op CommandOp, data any) error {
+	if t.readOnly {
+		return errTxReadOnly
+	}
+	if t.state != txStateOpen {
+		return errTxClosed
+	}
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("raft: marshal %s data: %w", op, err)
+	}
+	t.pending = append(t.pending, Command{Op: op, Data: raw})
+	return nil
+}
+
+// flushPending applies any buffered writes as a single OpBatch and clears
+// the buffer. Used by Commit() and by SaveConfigVersion's auto-flush.
+//
+// If the buffer is empty this is a cheap no-op (no raft round-trip).
+func (t *raftTx) flushPending() (*batchResult, error) {
+	if len(t.pending) == 0 {
+		return &batchResult{}, nil
+	}
+	pending := t.pending
+	t.pending = nil
+
+	result, err := t.driver.apply(OpBatch, batchData{Commands: pending})
+	if err != nil {
+		// Restore the buffer so the caller can inspect what was attempted.
+		t.pending = pending
+		return nil, err
+	}
+	var br batchResult
+	if len(result.Data) > 0 {
+		if err := json.Unmarshal(result.Data, &br); err != nil {
+			return nil, fmt.Errorf("raft: unmarshal batch result: %w", err)
+		}
+	}
+	return &br, nil
 }
 
 func (t *raftTx) Commit() error {
-	// Raft commits are per-operation (each apply is atomic).
-	// This is a no-op for the raft driver.
+	if t.state == txStateRolledBack {
+		return errTxClosed
+	}
+	if t.state == txStateCommitted {
+		// Idempotent — already committed.
+		return nil
+	}
+	if t.readOnly {
+		t.state = txStateCommitted
+		return nil
+	}
+	if _, err := t.flushPending(); err != nil {
+		// Leave state open so the caller can choose to retry / rollback.
+		return err
+	}
+	t.state = txStateCommitted
 	return nil
 }
 
 func (t *raftTx) Rollback() error {
-	// No rollback support — each operation is individually committed via raft.
+	if t.state == txStateCommitted {
+		// Already committed — rollback is a no-op (matches database/sql
+		// semantics where Rollback after Commit returns sql.ErrTxDone, but
+		// we choose silent no-op to match common defer-pattern usage:
+		//   defer tx.Rollback()
+		//   ...
+		//   tx.Commit()
+		return nil
+	}
+	if t.state == txStateRolledBack {
+		return nil
+	}
+	t.pending = nil
+	t.state = txStateRolledBack
 	return nil
 }
 
@@ -54,11 +163,12 @@ func (t *raftTx) CreateRoute(_ context.Context, route *riokuv1.Route) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal route: %w", err)
 	}
 
-	_, err = t.driver.apply(OpCreateRoute, putData{ID: id, Data: data})
-	if err != nil {
+	if err := t.submit(OpCreateRoute, putData{ID: id, Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetRoute(t.ctx, id)
+	// Return the locally-enriched input — buffered writes aren't visible
+	// via GetRoute until Commit().
+	return route, nil
 }
 
 func (t *raftTx) GetRoute(_ context.Context, id string) (*riokuv1.Route, error) {
@@ -102,16 +212,14 @@ func (t *raftTx) UpdateRoute(_ context.Context, route *riokuv1.Route) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal route: %w", err)
 	}
 
-	_, err = t.driver.apply(OpUpdateRoute, putData{ID: route.GetId(), Data: data})
-	if err != nil {
+	if err := t.submit(OpUpdateRoute, putData{ID: route.GetId(), Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetRoute(t.ctx, route.GetId())
+	return route, nil
 }
 
 func (t *raftTx) DeleteRoute(_ context.Context, id string) error {
-	_, err := t.driver.apply(OpDeleteRoute, deleteData{ID: id})
-	return err
+	return t.submit(OpDeleteRoute, deleteData{ID: id})
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +234,14 @@ func (t *raftTx) CreateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 	svc.CreatedAt = timestamppb.New(now)
 	svc.UpdatedAt = timestamppb.New(now)
 
+	// Assign upstream IDs locally so the returned Service has the same
+	// IDs the FSM will write on commit.
+	for _, u := range svc.GetUpstreams() {
+		if u.GetId() == "" {
+			u.Id = uuid.New().String()
+		}
+	}
+
 	svcData, err := protojson.Marshal(svc)
 	if err != nil {
 		return nil, fmt.Errorf("raft: marshal service: %w", err)
@@ -133,22 +249,17 @@ func (t *raftTx) CreateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 
 	var upstreams []upstreamEntry
 	for _, u := range svc.GetUpstreams() {
-		uid := u.GetId()
-		if uid == "" {
-			uid = uuid.New().String()
-		}
-		uData, err := marshalUpstreamWithServiceID(u, id, uid)
+		uData, err := marshalUpstreamWithServiceID(u, id, u.GetId())
 		if err != nil {
 			return nil, err
 		}
-		upstreams = append(upstreams, upstreamEntry{ID: uid, Data: uData})
+		upstreams = append(upstreams, upstreamEntry{ID: u.GetId(), Data: uData})
 	}
 
-	_, err = t.driver.apply(OpCreateService, serviceData{ID: id, Data: svcData, Upstreams: upstreams})
-	if err != nil {
+	if err := t.submit(OpCreateService, serviceData{ID: id, Data: svcData, Upstreams: upstreams}); err != nil {
 		return nil, err
 	}
-	return t.GetService(t.ctx, id)
+	return svc, nil
 }
 
 func (t *raftTx) GetService(_ context.Context, id string) (*riokuv1.Service, error) {
@@ -226,6 +337,12 @@ func (t *raftTx) UpdateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 	now := nowUTC()
 	svc.UpdatedAt = timestamppb.New(now)
 
+	for _, u := range svc.GetUpstreams() {
+		if u.GetId() == "" {
+			u.Id = uuid.New().String()
+		}
+	}
+
 	svcData, err := protojson.Marshal(svc)
 	if err != nil {
 		return nil, fmt.Errorf("raft: marshal service: %w", err)
@@ -233,27 +350,21 @@ func (t *raftTx) UpdateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 
 	var upstreams []upstreamEntry
 	for _, u := range svc.GetUpstreams() {
-		uid := u.GetId()
-		if uid == "" {
-			uid = uuid.New().String()
-		}
-		uData, err := marshalUpstreamWithServiceID(u, svc.GetId(), uid)
+		uData, err := marshalUpstreamWithServiceID(u, svc.GetId(), u.GetId())
 		if err != nil {
 			return nil, err
 		}
-		upstreams = append(upstreams, upstreamEntry{ID: uid, Data: uData})
+		upstreams = append(upstreams, upstreamEntry{ID: u.GetId(), Data: uData})
 	}
 
-	_, err = t.driver.apply(OpUpdateService, serviceData{ID: svc.GetId(), Data: svcData, Upstreams: upstreams})
-	if err != nil {
+	if err := t.submit(OpUpdateService, serviceData{ID: svc.GetId(), Data: svcData, Upstreams: upstreams}); err != nil {
 		return nil, err
 	}
-	return t.GetService(t.ctx, svc.GetId())
+	return svc, nil
 }
 
 func (t *raftTx) DeleteService(_ context.Context, id string) error {
-	_, err := t.driver.apply(OpDeleteService, deleteData{ID: id})
-	return err
+	return t.submit(OpDeleteService, deleteData{ID: id})
 }
 
 // ---------------------------------------------------------------------------
@@ -273,11 +384,10 @@ func (t *raftTx) CreatePolicy(_ context.Context, pol *riokuv1.Policy) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal policy: %w", err)
 	}
 
-	_, err = t.driver.apply(OpCreatePolicy, putData{ID: id, Data: data})
-	if err != nil {
+	if err := t.submit(OpCreatePolicy, putData{ID: id, Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetPolicy(t.ctx, id)
+	return pol, nil
 }
 
 func (t *raftTx) GetPolicy(_ context.Context, id string) (*riokuv1.Policy, error) {
@@ -321,16 +431,14 @@ func (t *raftTx) UpdatePolicy(_ context.Context, pol *riokuv1.Policy) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal policy: %w", err)
 	}
 
-	_, err = t.driver.apply(OpUpdatePolicy, putData{ID: pol.GetId(), Data: data})
-	if err != nil {
+	if err := t.submit(OpUpdatePolicy, putData{ID: pol.GetId(), Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetPolicy(t.ctx, pol.GetId())
+	return pol, nil
 }
 
 func (t *raftTx) DeletePolicy(_ context.Context, id string) error {
-	_, err := t.driver.apply(OpDeletePolicy, deleteData{ID: id})
-	return err
+	return t.submit(OpDeletePolicy, deleteData{ID: id})
 }
 
 // ---------------------------------------------------------------------------
@@ -338,21 +446,19 @@ func (t *raftTx) DeletePolicy(_ context.Context, id string) error {
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) AttachPolicy(_ context.Context, policyID, targetType, targetID string) error {
-	_, err := t.driver.apply(OpAttachPolicy, policyBindingData{
+	return t.submit(OpAttachPolicy, policyBindingData{
 		PolicyID:   policyID,
 		TargetType: targetType,
 		TargetID:   targetID,
 	})
-	return err
 }
 
 func (t *raftTx) DetachPolicy(_ context.Context, policyID, targetType, targetID string) error {
-	_, err := t.driver.apply(OpDetachPolicy, policyBindingData{
+	return t.submit(OpDetachPolicy, policyBindingData{
 		PolicyID:   policyID,
 		TargetType: targetType,
 		TargetID:   targetID,
 	})
-	return err
 }
 
 func (t *raftTx) ListPoliciesByTarget(_ context.Context, targetType, targetID string) ([]string, error) {
@@ -400,8 +506,7 @@ func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []
 		return "", fmt.Errorf("raft: marshal api_key: %w", err)
 	}
 
-	_, err = t.driver.apply(OpCreateAPIKey, apiKeyData{ID: id, KeyHash: keyHash, Data: data})
-	if err != nil {
+	if err := t.submit(OpCreateAPIKey, apiKeyData{ID: id, KeyHash: keyHash, Data: data}); err != nil {
 		return "", err
 	}
 	return id, nil
@@ -449,11 +554,10 @@ func (t *raftTx) ListAPIKeys(_ context.Context) ([]*store.APIKey, error) {
 
 func (t *raftTx) RevokeAPIKey(_ context.Context, id string) error {
 	now := nowUTC()
-	_, err := t.driver.apply(OpRevokeAPIKey, revokeKeyData{
+	return t.submit(OpRevokeAPIKey, revokeKeyData{
 		ID:        id,
 		RevokedAt: now.Format(timeFormat),
 	})
-	return err
 }
 
 func (t *raftTx) ListAPIKeysByOwner(_ context.Context, ownerID string) ([]*store.APIKey, error) {
@@ -493,7 +597,34 @@ func (t *raftTx) readAPIKey(bucket, id string) (*store.APIKey, error) {
 // Config Versions
 // ---------------------------------------------------------------------------
 
+// SaveConfigVersion is a special-case op that needs the FSM-assigned version
+// number returned to the caller *immediately*. To preserve that contract we:
+//
+//  1. Flush any other writes pending in this Tx as a single OpBatch (so they
+//     remain atomic with each other), then
+//  2. Apply this op as a separate raft log entry inline and return the
+//     version it generated.
+//
+// The trade-off: a SaveConfigVersion alongside other writes in the same Tx
+// costs *two* raft entries instead of one, and the two entries are NOT
+// jointly atomic — the version save can succeed even if the earlier batch
+// failed (we'd return the batch error before reaching here). Callers that
+// need a known-version-with-other-writes flow should call SaveConfigVersion
+// in its own Tx.
 func (t *raftTx) SaveConfigVersion(_ context.Context, snapshot []byte, actor string) (int64, error) {
+	if t.readOnly {
+		return 0, errTxReadOnly
+	}
+	if t.state != txStateOpen {
+		return 0, errTxClosed
+	}
+
+	// 1. Flush any prior buffered writes so they don't get silently dropped.
+	if _, err := t.flushPending(); err != nil {
+		return 0, fmt.Errorf("raft: flush pending before SaveConfigVersion: %w", err)
+	}
+
+	// 2. Apply the version save inline so we can return the assigned version.
 	now := nowUTC()
 	result, err := t.driver.apply(OpSaveConfigVersion, configVersionData{
 		Snapshot: string(snapshot),
@@ -571,6 +702,7 @@ func (t *raftTx) AppendAuditEntry(_ context.Context, entry *riokuv1.AuditEntry) 
 	id := entry.GetId()
 	if id == "" {
 		id = uuid.New().String()
+		entry.Id = id
 	}
 
 	data, err := protojson.Marshal(entry)
@@ -578,8 +710,7 @@ func (t *raftTx) AppendAuditEntry(_ context.Context, entry *riokuv1.AuditEntry) 
 		return fmt.Errorf("raft: marshal audit entry: %w", err)
 	}
 
-	_, err = t.driver.apply(OpAppendAuditEntry, auditEntryData{ID: id, Data: data})
-	return err
+	return t.submit(OpAppendAuditEntry, auditEntryData{ID: id, Data: data})
 }
 
 func (t *raftTx) QueryAuditLog(_ context.Context, query store.AuditQuery) ([]*riokuv1.AuditEntry, error) {
