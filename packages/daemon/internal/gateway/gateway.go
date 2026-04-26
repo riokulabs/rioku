@@ -167,6 +167,9 @@ func NewGateway(
 	// Plugins + PluginSigners (stage-2): per-tenant + global scopes.
 	RegisterPluginRoutes(topMux, st)
 
+	// PKI/TLS (stage-2): CAs, enrollments, certificates, config.
+	RegisterPKIRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.

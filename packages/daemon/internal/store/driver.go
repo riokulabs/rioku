@@ -373,6 +373,29 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- PKI/TLS (stage-2) ---
+
+	CreateCertAuthority(ctx context.Context, ca *CertAuthority) (*CertAuthority, error)
+	GetCertAuthority(ctx context.Context, tenantID, id string) (*CertAuthority, error)
+	ListCertAuthoritiesByTenant(ctx context.Context, tenantID string) ([]*CertAuthority, error)
+	UpdateCertAuthority(ctx context.Context, tenantID, id string, params UpdateCertAuthorityParams) (*CertAuthority, error)
+	DeleteCertAuthority(ctx context.Context, tenantID, id string) error
+
+	CreateCertEnrollment(ctx context.Context, e *CertEnrollment) (*CertEnrollment, error)
+	GetCertEnrollment(ctx context.Context, tenantID, id string) (*CertEnrollment, error)
+	ListCertEnrollmentsByTenant(ctx context.Context, tenantID string) ([]*CertEnrollment, error)
+	UpdateCertEnrollment(ctx context.Context, tenantID, id string, params UpdateCertEnrollmentParams) (*CertEnrollment, error)
+	RevokeCertEnrollmentRow(ctx context.Context, tenantID, id, reason string) (*CertEnrollment, error)
+
+	CreateTLSCertificate(ctx context.Context, c *TLSCertificate) (*TLSCertificate, error)
+	GetTLSCertificate(ctx context.Context, tenantID, id string) (*TLSCertificate, error)
+	ListTLSCertificatesByTenant(ctx context.Context, tenantID string) ([]*TLSCertificate, error)
+	UpdateTLSCertificate(ctx context.Context, tenantID, id string, params UpdateTLSCertificateParams) (*TLSCertificate, error)
+	DeleteTLSCertificate(ctx context.Context, tenantID, id string) error
+
+	GetTLSConfig(ctx context.Context, tenantID string) (*TLSConfig, error)
+	UpsertTLSConfig(ctx context.Context, c *TLSConfig) (*TLSConfig, error)
+
 	// --- Plugins (stage-2) ---
 
 	CreatePlugin(ctx context.Context, p *Plugin) (*Plugin, error)
@@ -1069,6 +1092,106 @@ var (
 	ErrPluginSlugTaken      = fmt.Errorf("store: plugin slug already in use in this scope")
 	ErrPluginSignerNotFound = fmt.Errorf("store: plugin signer not found")
 	ErrPluginSignerFPTaken  = fmt.Errorf("store: plugin signer fingerprint already in use in this scope")
+)
+
+// CertAuthority is a per-tenant root or intermediate CA.
+type CertAuthority struct {
+	ID                string
+	TenantID          string
+	Name              string
+	Kind              string // internal | external
+	Subject           string
+	NotBefore         *time.Time
+	NotAfter          *time.Time
+	FingerprintSHA256 *string
+	CertificatePEM    string
+	PrivateKeyRef     *string // pointer to keyring entry, never the raw key
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type UpdateCertAuthorityParams struct {
+	Name              *string
+	Kind              *string
+	Subject           *string
+	NotBefore         *time.Time
+	NotAfter          *time.Time
+	FingerprintSHA256 *string
+	CertificatePEM    *string
+	PrivateKeyRef     *string
+}
+
+// CertEnrollment is a certificate issuance request through a CA.
+type CertEnrollment struct {
+	ID                string
+	TenantID          string
+	CAID              *string
+	Subject           string
+	DNSSANs           string // JSON array
+	State             string // pending | issued | revoked | failed
+	RequestedAt       time.Time
+	IssuedAt          *time.Time
+	RevokedAt         *time.Time
+	RevocationReason  *string
+	CertificatePEM    string
+	ChainPEM          string
+	FingerprintSHA256 *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type UpdateCertEnrollmentParams struct {
+	State             *string
+	IssuedAt          *time.Time
+	CertificatePEM    *string
+	ChainPEM          *string
+	FingerprintSHA256 *string
+}
+
+// TLSCertificate is a TLS cert managed by the daemon.
+type TLSCertificate struct {
+	ID                string
+	TenantID          string
+	Domain            string
+	Issuer            string
+	Source            string // acme | manual
+	ExpiresAt         *time.Time
+	AutoRenew         bool
+	FingerprintSHA256 *string
+	CertificatePEM    string
+	PrivateKeyRef     *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type UpdateTLSCertificateParams struct {
+	Issuer            *string
+	Source            *string
+	ExpiresAt         *time.Time
+	AutoRenew         *bool
+	FingerprintSHA256 *string
+	CertificatePEM    *string
+	PrivateKeyRef     *string
+}
+
+// TLSConfig is a singleton-per-tenant ACME provider + cipher policy.
+type TLSConfig struct {
+	TenantID       string
+	ACMEProvider   string // lets-encrypt | zerossl | custom
+	ACMEEmail      string
+	ACMEDirectory  *string
+	AllowedCiphers string // JSON array
+	MinProtocol    string // 1.2 | 1.3
+	UpdatedAt      time.Time
+}
+
+// PKI/TLS sentinel errors.
+var (
+	ErrCertAuthorityNotFound  = fmt.Errorf("store: cert authority not found")
+	ErrCertAuthorityNameTaken = fmt.Errorf("store: cert authority name already in use in this tenant")
+	ErrCertEnrollmentNotFound = fmt.Errorf("store: cert enrollment not found")
+	ErrTLSCertificateNotFound = fmt.Errorf("store: tls certificate not found")
+	ErrTLSCertificateTaken    = fmt.Errorf("store: tls certificate domain already in use in this tenant")
 )
 
 // Notification sentinel errors.

@@ -1484,3 +1484,62 @@ func (t *raftTx) DeletePluginSigner(_ context.Context, _, _ string) error {
 func (t *raftTx) ListPluginsBySigner(_ context.Context, _ string) ([]*store.Plugin, error) {
 	return nil, nil
 }
+
+// ---------------------------------------------------------------------------
+// PKI/TLS (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateCertAuthority(_ context.Context, _ *store.CertAuthority) (*store.CertAuthority, error) {
+	return nil, fmt.Errorf("raft: CreateCertAuthority not implemented")
+}
+func (t *raftTx) GetCertAuthority(_ context.Context, _, _ string) (*store.CertAuthority, error) {
+	return nil, store.ErrCertAuthorityNotFound
+}
+func (t *raftTx) ListCertAuthoritiesByTenant(_ context.Context, _ string) ([]*store.CertAuthority, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateCertAuthority(_ context.Context, _, _ string, _ store.UpdateCertAuthorityParams) (*store.CertAuthority, error) {
+	return nil, fmt.Errorf("raft: UpdateCertAuthority not implemented")
+}
+func (t *raftTx) DeleteCertAuthority(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteCertAuthority not implemented")
+}
+
+func (t *raftTx) CreateCertEnrollment(_ context.Context, _ *store.CertEnrollment) (*store.CertEnrollment, error) {
+	return nil, fmt.Errorf("raft: CreateCertEnrollment not implemented")
+}
+func (t *raftTx) GetCertEnrollment(_ context.Context, _, _ string) (*store.CertEnrollment, error) {
+	return nil, store.ErrCertEnrollmentNotFound
+}
+func (t *raftTx) ListCertEnrollmentsByTenant(_ context.Context, _ string) ([]*store.CertEnrollment, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateCertEnrollment(_ context.Context, _, _ string, _ store.UpdateCertEnrollmentParams) (*store.CertEnrollment, error) {
+	return nil, fmt.Errorf("raft: UpdateCertEnrollment not implemented")
+}
+func (t *raftTx) RevokeCertEnrollmentRow(_ context.Context, _, _, _ string) (*store.CertEnrollment, error) {
+	return nil, fmt.Errorf("raft: RevokeCertEnrollmentRow not implemented")
+}
+
+func (t *raftTx) CreateTLSCertificate(_ context.Context, _ *store.TLSCertificate) (*store.TLSCertificate, error) {
+	return nil, fmt.Errorf("raft: CreateTLSCertificate not implemented")
+}
+func (t *raftTx) GetTLSCertificate(_ context.Context, _, _ string) (*store.TLSCertificate, error) {
+	return nil, store.ErrTLSCertificateNotFound
+}
+func (t *raftTx) ListTLSCertificatesByTenant(_ context.Context, _ string) ([]*store.TLSCertificate, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateTLSCertificate(_ context.Context, _, _ string, _ store.UpdateTLSCertificateParams) (*store.TLSCertificate, error) {
+	return nil, fmt.Errorf("raft: UpdateTLSCertificate not implemented")
+}
+func (t *raftTx) DeleteTLSCertificate(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteTLSCertificate not implemented")
+}
+
+func (t *raftTx) GetTLSConfig(_ context.Context, tenantID string) (*store.TLSConfig, error) {
+	return &store.TLSConfig{TenantID: tenantID, ACMEProvider: "lets-encrypt", AllowedCiphers: "[]", MinProtocol: "1.2"}, nil
+}
+func (t *raftTx) UpsertTLSConfig(_ context.Context, _ *store.TLSConfig) (*store.TLSConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertTLSConfig not implemented")
+}
