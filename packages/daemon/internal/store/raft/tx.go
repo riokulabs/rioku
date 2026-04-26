@@ -1364,3 +1364,84 @@ func (t *raftTx) ListAITracesByTenant(_ context.Context, _ string, _ store.AITra
 func (t *raftTx) ListAITracesByAgent(_ context.Context, _ string, _ store.AITraceQuery) ([]*store.AITrace, error) {
 	return nil, nil
 }
+
+// ---------------------------------------------------------------------------
+// Notifications (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) AppendNotificationItem(_ context.Context, _ *store.NotificationItem) (*store.NotificationItem, error) {
+	return nil, fmt.Errorf("raft: AppendNotificationItem not implemented")
+}
+func (t *raftTx) GetNotificationItem(_ context.Context, _ string) (*store.NotificationItem, error) {
+	return nil, store.ErrNotificationItemNotFound
+}
+func (t *raftTx) ListNotificationItemsByUser(_ context.Context, _, _ string, _ store.NotificationItemQuery) ([]*store.NotificationItem, error) {
+	return nil, nil
+}
+func (t *raftTx) CountUnreadNotifications(_ context.Context, _, _ string) (int, error) {
+	return 0, nil
+}
+func (t *raftTx) MarkNotificationRead(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: MarkNotificationRead not implemented")
+}
+func (t *raftTx) MarkAllNotificationsRead(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: MarkAllNotificationsRead not implemented")
+}
+func (t *raftTx) ArchiveNotification(_ context.Context, _ string, _ bool) error {
+	return fmt.Errorf("raft: ArchiveNotification not implemented")
+}
+
+func (t *raftTx) CreateNotificationChannel(_ context.Context, _ *store.NotificationChannel) (*store.NotificationChannel, error) {
+	return nil, fmt.Errorf("raft: CreateNotificationChannel not implemented")
+}
+func (t *raftTx) GetNotificationChannel(_ context.Context, _, _ string) (*store.NotificationChannel, error) {
+	return nil, store.ErrNotificationChannelNotFound
+}
+func (t *raftTx) ListNotificationChannelsByTenant(_ context.Context, _ string) ([]*store.NotificationChannel, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateNotificationChannel(_ context.Context, _, _ string, _ store.UpdateNotificationChannelParams) (*store.NotificationChannel, error) {
+	return nil, fmt.Errorf("raft: UpdateNotificationChannel not implemented")
+}
+func (t *raftTx) DeleteNotificationChannel(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteNotificationChannel not implemented")
+}
+
+func (t *raftTx) CreateRoutingRule(_ context.Context, _ *store.NotificationRoutingRule) (*store.NotificationRoutingRule, error) {
+	return nil, fmt.Errorf("raft: CreateRoutingRule not implemented")
+}
+func (t *raftTx) GetRoutingRule(_ context.Context, _, _ string) (*store.NotificationRoutingRule, error) {
+	return nil, store.ErrRoutingRuleNotFound
+}
+func (t *raftTx) ListRoutingRulesByTenant(_ context.Context, _ string) ([]*store.NotificationRoutingRule, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateRoutingRule(_ context.Context, _, _ string, _ store.UpdateRoutingRuleParams) (*store.NotificationRoutingRule, error) {
+	return nil, fmt.Errorf("raft: UpdateRoutingRule not implemented")
+}
+func (t *raftTx) DeleteRoutingRule(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteRoutingRule not implemented")
+}
+func (t *raftTx) ReorderRoutingRules(_ context.Context, _ string, _ []string) error {
+	return fmt.Errorf("raft: ReorderRoutingRules not implemented")
+}
+
+func (t *raftTx) AppendDeliveryLogEntry(_ context.Context, _ *store.NotificationDeliveryLogEntry) (*store.NotificationDeliveryLogEntry, error) {
+	return nil, fmt.Errorf("raft: AppendDeliveryLogEntry not implemented")
+}
+func (t *raftTx) GetDeliveryLogEntry(_ context.Context, _, _ string) (*store.NotificationDeliveryLogEntry, error) {
+	return nil, store.ErrDeliveryLogEntryNotFound
+}
+func (t *raftTx) ListDeliveryLogByTenant(_ context.Context, _ string, _ store.DeliveryLogQuery) ([]*store.NotificationDeliveryLogEntry, error) {
+	return nil, nil
+}
+
+func (t *raftTx) GetTenantNotificationConfig(_ context.Context, tenantID string) (*store.TenantNotificationConfig, error) {
+	return &store.TenantNotificationConfig{
+		TenantID: tenantID, Enabled: true, OptInMode: "opt-in",
+		MaxRetries: 3, RetryBackoffSeconds: 30, ChannelPriority: "[]",
+	}, nil
+}
+func (t *raftTx) UpsertTenantNotificationConfig(_ context.Context, _ *store.TenantNotificationConfig) (*store.TenantNotificationConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertTenantNotificationConfig not implemented")
+}

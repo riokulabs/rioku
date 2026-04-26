@@ -161,6 +161,9 @@ func NewGateway(
 	// AI subsystem (stage-2): providers, agents, tools, bindings, rate limits, traces, MCP.
 	RegisterAIRoutes(topMux, st)
 
+	// Notifications subsystem (stage-2): inbox, channels, routing, delivery log, tenant config.
+	RegisterNotificationsRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.

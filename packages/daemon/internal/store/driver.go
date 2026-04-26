@@ -373,6 +373,41 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- Notifications (stage-2) ---
+
+	// Items (per-user inbox)
+	AppendNotificationItem(ctx context.Context, n *NotificationItem) (*NotificationItem, error)
+	GetNotificationItem(ctx context.Context, id string) (*NotificationItem, error)
+	ListNotificationItemsByUser(ctx context.Context, tenantID, userID string, q NotificationItemQuery) ([]*NotificationItem, error)
+	CountUnreadNotifications(ctx context.Context, tenantID, userID string) (int, error)
+	MarkNotificationRead(ctx context.Context, id string) error
+	MarkAllNotificationsRead(ctx context.Context, tenantID, userID string) error
+	ArchiveNotification(ctx context.Context, id string, archived bool) error
+
+	// Channels
+	CreateNotificationChannel(ctx context.Context, c *NotificationChannel) (*NotificationChannel, error)
+	GetNotificationChannel(ctx context.Context, tenantID, id string) (*NotificationChannel, error)
+	ListNotificationChannelsByTenant(ctx context.Context, tenantID string) ([]*NotificationChannel, error)
+	UpdateNotificationChannel(ctx context.Context, tenantID, id string, params UpdateNotificationChannelParams) (*NotificationChannel, error)
+	DeleteNotificationChannel(ctx context.Context, tenantID, id string) error
+
+	// Routing rules
+	CreateRoutingRule(ctx context.Context, r *NotificationRoutingRule) (*NotificationRoutingRule, error)
+	GetRoutingRule(ctx context.Context, tenantID, id string) (*NotificationRoutingRule, error)
+	ListRoutingRulesByTenant(ctx context.Context, tenantID string) ([]*NotificationRoutingRule, error)
+	UpdateRoutingRule(ctx context.Context, tenantID, id string, params UpdateRoutingRuleParams) (*NotificationRoutingRule, error)
+	DeleteRoutingRule(ctx context.Context, tenantID, id string) error
+	ReorderRoutingRules(ctx context.Context, tenantID string, orderedIDs []string) error
+
+	// Delivery log (append-only)
+	AppendDeliveryLogEntry(ctx context.Context, e *NotificationDeliveryLogEntry) (*NotificationDeliveryLogEntry, error)
+	GetDeliveryLogEntry(ctx context.Context, tenantID, id string) (*NotificationDeliveryLogEntry, error)
+	ListDeliveryLogByTenant(ctx context.Context, tenantID string, q DeliveryLogQuery) ([]*NotificationDeliveryLogEntry, error)
+
+	// Tenant config (singleton)
+	GetTenantNotificationConfig(ctx context.Context, tenantID string) (*TenantNotificationConfig, error)
+	UpsertTenantNotificationConfig(ctx context.Context, c *TenantNotificationConfig) (*TenantNotificationConfig, error)
+
 	// --- AI subsystem (stage-2) ---
 
 	// Providers
@@ -864,6 +899,115 @@ type AITraceQuery struct {
 	Limit  int
 	Offset int
 }
+
+// NotificationItem is one inbox entry for a single user.
+type NotificationItem struct {
+	ID         string
+	TenantID   *string // nullable for super-admin broadcasts
+	UserID     string
+	Category   string
+	Severity   string // info | warn | error | success
+	Title      string
+	Body       string
+	ActionLink *string
+	Metadata   string // JSON
+	ReadAt     *time.Time
+	ArchivedAt *time.Time
+	OccurredAt time.Time
+}
+
+// NotificationItemQuery filters inbox lookups.
+type NotificationItemQuery struct {
+	Category string
+	Severity string
+	Read     *bool // nil=all, true=read-only, false=unread-only
+	Archived *bool
+	Limit    int
+	Offset   int
+}
+
+// NotificationChannel is an outbound delivery destination
+// (email, slack, webhook, ...).
+type NotificationChannel struct {
+	ID        string
+	TenantID  string
+	Name      string
+	Kind      string // email | slack | webhook | pagerduty | teams | sms
+	Config    string // JSON kind-specific config
+	Enabled   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type UpdateNotificationChannelParams struct {
+	Name    *string
+	Kind    *string
+	Config  *string
+	Enabled *bool
+}
+
+// NotificationRoutingRule maps event filters to channels.
+type NotificationRoutingRule struct {
+	ID          string
+	TenantID    string
+	Name        string
+	EventFilter string // JSON
+	ChannelIDs  string // JSON array
+	Enabled     bool
+	OrderHint   int32
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type UpdateRoutingRuleParams struct {
+	Name        *string
+	EventFilter *string
+	ChannelIDs  *string
+	Enabled     *bool
+	OrderHint   *int32
+}
+
+// NotificationDeliveryLogEntry is an audit row per delivery attempt.
+type NotificationDeliveryLogEntry struct {
+	ID               string
+	TenantID         string
+	ChannelID        *string
+	NotificationID   *string
+	Status           string // delivered | retrying | failed | pending
+	Attempts         int32
+	FirstAttemptedAt *time.Time
+	LastAttemptedAt  *time.Time
+	LastError        *string
+	Metadata         string
+}
+
+// DeliveryLogQuery filters delivery log lookups.
+type DeliveryLogQuery struct {
+	Status string
+	Limit  int
+	Offset int
+}
+
+// TenantNotificationConfig is a singleton-per-tenant master switch.
+type TenantNotificationConfig struct {
+	TenantID            string
+	Enabled             bool
+	OptInMode           string // opt-in | opt-out
+	MaxRetries          int32
+	RetryBackoffSeconds int32
+	ChannelPriority     string // JSON ordered array of channel kinds
+	UpdatedAt           time.Time
+}
+
+// Notification sentinel errors.
+var (
+	ErrNotificationItemNotFound    = fmt.Errorf("store: notification item not found")
+	ErrNotificationChannelNotFound = fmt.Errorf("store: notification channel not found")
+	ErrNotificationChannelTaken    = fmt.Errorf("store: notification channel name already in use")
+	ErrRoutingRuleNotFound         = fmt.Errorf("store: notification routing rule not found")
+	ErrRoutingRuleNameTaken        = fmt.Errorf("store: notification routing rule name already in use")
+	ErrDeliveryLogEntryNotFound    = fmt.Errorf("store: delivery log entry not found")
+)
 
 // AI sentinel errors.
 var (

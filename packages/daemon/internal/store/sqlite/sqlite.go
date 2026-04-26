@@ -335,11 +335,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 17: Notifications (5 tables, stage-2).
+	if current < 17 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000017_notifications.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 17: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 17: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (17, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 17: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 17 down: drop notifications tables.
+	if current >= 17 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000017_notifications.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 17: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 17: %w", err)
+		}
+	}
 
 	// Migration 16 down: drop AI subsystem tables.
 	if current >= 16 {
