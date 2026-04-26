@@ -2049,3 +2049,112 @@ func dig(t *testing.T, m map[string]any, keys ...string) map[string]any {
 	}
 	return current
 }
+
+// ─── On-demand TLS (#66) ────────────────────────────────────────────────────
+
+func TestCompile_OnDemandTLS_Disabled(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	// Note: SetOnDemandTLS not called — Enabled defaults to false.
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	apps := cfg["apps"].(map[string]any)
+	if _, ok := apps["tls"]; ok {
+		t.Error("apps.tls block should be omitted when on-demand TLS is disabled")
+	}
+}
+
+func TestCompile_OnDemandTLS_Enabled(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c.SetOnDemandTLS(OnDemandTLSConfig{
+		Enabled: true,
+		AskURL:  "http://127.0.0.1:7790/tls/ask",
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	tls := dig(t, cfg, "apps", "tls", "automation")
+	onDemand := tls["on_demand"].(map[string]any)
+	if got := onDemand["ask"].(string); got != "http://127.0.0.1:7790/tls/ask" {
+		t.Errorf("ask URL = %q", got)
+	}
+
+	policies := tls["policies"].([]any)
+	if len(policies) != 1 {
+		t.Fatalf("expected 1 policy, got %d", len(policies))
+	}
+	p := policies[0].(map[string]any)
+	if p["on_demand"].(bool) != true {
+		t.Error("policy.on_demand should be true")
+	}
+
+	if _, has := onDemand["rate_limit"]; has {
+		t.Error("rate_limit should be absent when interval/burst are zero")
+	}
+}
+
+func TestCompile_OnDemandTLS_RateLimit(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c.SetOnDemandTLS(OnDemandTLSConfig{
+		Enabled:         true,
+		AskURL:          "http://127.0.0.1:7790/tls/ask",
+		IntervalSeconds: 60,
+		Burst:           10,
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	onDemand := dig(t, cfg, "apps", "tls", "automation", "on_demand")
+	rl, ok := onDemand["rate_limit"].(map[string]any)
+	if !ok {
+		t.Fatalf("rate_limit missing or wrong type: %T", onDemand["rate_limit"])
+	}
+	if rl["interval"].(string) != "60s" {
+		t.Errorf("interval = %v, want 60s", rl["interval"])
+	}
+	// JSON numbers decode as float64.
+	if rl["burst"].(float64) != 10 {
+		t.Errorf("burst = %v, want 10", rl["burst"])
+	}
+}
+
+func TestCompile_OnDemandTLS_EnabledWithoutAskURLSkips(t *testing.T) {
+	// Misconfigured: Enabled=true but AskURL empty. Compiler must
+	// refuse to emit the block — silently emitting on-demand without
+	// the ask gate would let an attacker drive ACME issuance for
+	// any host pointed at the gateway.
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c.SetOnDemandTLS(OnDemandTLSConfig{Enabled: true, AskURL: ""})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, has := cfg["apps"].(map[string]any)["tls"]; has {
+		t.Error("apps.tls must NOT be emitted when AskURL is empty")
+	}
+}

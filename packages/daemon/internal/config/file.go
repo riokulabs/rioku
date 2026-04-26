@@ -118,6 +118,14 @@ type ListenConfig struct {
 	REST         string `yaml:"rest"`
 	AdminDomain  string `yaml:"admin_domain"` // optional; dedicated domain for admin with auto-TLS
 	InternalPort int    `yaml:"internal_port"`
+
+	// TLSAskAddr is the loopback-only address the on-demand TLS `ask`
+	// endpoint binds to. Caddy's TLS automation calls into this URL
+	// during the TLS handshake to validate that an unknown SNI value
+	// corresponds to a configured route — without it, anyone can DoS
+	// our ACME issuance allowance. MUST be a loopback host (127.x.x.x,
+	// ::1, or localhost). Default: "127.0.0.1:7790".
+	TLSAskAddr string `yaml:"tls_ask_addr"`
 }
 
 // --------------------------------------------------------------------------
@@ -130,6 +138,14 @@ type CaddyConfig struct {
 	AdminAddr    string   `yaml:"admin_addr"`
 	DataDir      string   `yaml:"data_dir"`
 	TrafficAddrs []string `yaml:"traffic_addrs"` // listen addresses for user traffic server block (default: [":443"])
+
+	// OnDemandTLS turns on Caddy's on-demand TLS automation: instead of
+	// pre-provisioning certificates for every configured route, Caddy
+	// provisions them on the first TLS handshake for an unknown SNI.
+	// When true, the compiler injects an `apps.tls.automation.on_demand.ask`
+	// URL pointing at the daemon's local /tls/ask endpoint so we gate
+	// which domains Caddy is willing to issue for. See #66.
+	OnDemandTLS bool `yaml:"on_demand_tls"`
 }
 
 // --------------------------------------------------------------------------
@@ -344,6 +360,7 @@ func Default() *Config {
 			GRPC:         ":7777",
 			REST:         ":7778",
 			InternalPort: 7780,
+			TLSAskAddr:   "127.0.0.1:7790",
 		},
 		Caddy: CaddyConfig{
 			Binary:       "caddy",

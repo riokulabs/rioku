@@ -56,6 +56,30 @@ type HSTSConfig struct {
 	IncludeSubdomains bool
 }
 
+// OnDemandTLSConfig controls Caddy's on-demand TLS automation. When
+// Enabled is true the compiler emits an `apps.tls.automation.on_demand.ask`
+// URL pointing at AskURL — Caddy calls into that URL during the TLS
+// handshake to validate that an unknown SNI matches a configured route.
+// This is the security gate from issue #66.
+type OnDemandTLSConfig struct {
+	// Enabled turns the entire feature on. When false the compiler
+	// emits no TLS automation block and Caddy falls back to its
+	// default certificate-management behavior.
+	Enabled bool
+
+	// AskURL is the absolute URL Caddy will call to validate an SNI.
+	// Typically "http://127.0.0.1:7790/tls/ask" — must be reachable
+	// from the Caddy process. Required when Enabled is true.
+	AskURL string
+
+	// IntervalSeconds and Burst are passed through to Caddy's
+	// `apps.tls.automation.on_demand.rate_limit` block when both are
+	// > 0. They form a secondary defence on top of the ask gate
+	// against runaway issuance attempts.
+	IntervalSeconds int
+	Burst           int
+}
+
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
 	trafficAddrs    []string
@@ -63,6 +87,7 @@ type Compiler struct {
 	traceSocketPath string
 	trustedProxies  *TrustedProxiesConfig
 	securityHeaders SecurityHeadersConfig
+	onDemandTLS     OnDemandTLSConfig
 }
 
 // NewCompiler creates a compiler with the given traffic listen addresses, admin config,
@@ -74,6 +99,13 @@ func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath strin
 	addrs := make([]string, len(trafficAddrs))
 	copy(addrs, trafficAddrs)
 	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath, trustedProxies: trustedProxies, securityHeaders: secHeaders}
+}
+
+// SetOnDemandTLS enables (or disables) on-demand TLS provisioning in
+// future Compile() calls. Callers are expected to invoke this after
+// construction once the daemon knows the local AskURL.
+func (c *Compiler) SetOnDemandTLS(cfg OnDemandTLSConfig) {
+	c.onDemandTLS = cfg
 }
 
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
@@ -146,13 +178,19 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		}
 	}
 
-	config := map[string]any{
-		"apps": map[string]any{
-			"http": map[string]any{
-				"servers": servers,
-				"metrics": map[string]any{}, // Prometheus metrics at root http level
-			},
+	apps := map[string]any{
+		"http": map[string]any{
+			"servers": servers,
+			"metrics": map[string]any{}, // Prometheus metrics at root http level
 		},
+	}
+
+	if tls := c.buildTLSApp(); tls != nil {
+		apps["tls"] = tls
+	}
+
+	config := map[string]any{
+		"apps": apps,
 	}
 
 	if c.traceSocketPath != "" {
@@ -524,6 +562,50 @@ func (c *Compiler) buildSecurityHeadersHandler() map[string]any {
 		"handler": "headers",
 		"response": map[string]any{
 			"set": set,
+		},
+	}
+}
+
+// buildTLSApp returns the `apps.tls` block for on-demand TLS provisioning
+// when c.onDemandTLS is enabled, or nil to omit the block entirely.
+//
+// The compiled block instructs Caddy to call AskURL during the TLS
+// handshake for any unknown SNI; the rioku tlsask service answers
+// 200/403 based on whether the host is allow-listed by a configured,
+// enabled route. This is the security gate from issue #66 — without
+// the ask URL, on-demand TLS would let an attacker trigger ACME
+// issuance for any domain pointed at the gateway.
+func (c *Compiler) buildTLSApp() map[string]any {
+	if !c.onDemandTLS.Enabled {
+		return nil
+	}
+	if c.onDemandTLS.AskURL == "" {
+		// Misconfigured: enabled without an ask URL. Refuse to emit
+		// the block — silently allowing on-demand TLS without the
+		// gate would let an attacker drive ACME issuance for any
+		// host. The daemon should never reach this state because
+		// SetOnDemandTLS is invoked with both fields together.
+		return nil
+	}
+
+	onDemand := map[string]any{
+		"ask": c.onDemandTLS.AskURL,
+	}
+	if c.onDemandTLS.IntervalSeconds > 0 && c.onDemandTLS.Burst > 0 {
+		onDemand["rate_limit"] = map[string]any{
+			"interval": fmt.Sprintf("%ds", c.onDemandTLS.IntervalSeconds),
+			"burst":    c.onDemandTLS.Burst,
+		}
+	}
+
+	return map[string]any{
+		"automation": map[string]any{
+			"policies": []map[string]any{
+				{
+					"on_demand": true,
+				},
+			},
+			"on_demand": onDemand,
 		},
 	}
 }

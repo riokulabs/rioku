@@ -21,6 +21,7 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
+	"github.com/riokulabs/rioku/internal/tlsask"
 	"github.com/riokulabs/rioku/internal/tracestore"
 	riokuweb "github.com/riokulabs/rioku/web"
 
@@ -43,6 +44,7 @@ type Daemon struct {
 	grpc       *riokugrpc.Server
 	gateway    *gateway.Gateway
 	syncAgent  *riokusync.Agent
+	tlsAsk     *tlsask.Server
 	traceStore tracestore.Driver
 	ringBuffer *tracestore.RingBuffer
 	ingester   *tracestore.Ingester
@@ -228,6 +230,44 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}
 	}
 
+	// 7a. Start the on-demand TLS ask endpoint on loopback (#66). The
+	// listener answers Caddy's automation `ask` calls during the TLS
+	// handshake, allowing certificate issuance only for hosts that
+	// match an enabled route. Without this gate an attacker could
+	// drive ACME issuance for arbitrary domains pointed at the
+	// gateway. The server is fail-safe: until SetSnapshot fires, the
+	// matcher denies everything.
+	tlsAskAddr := d.cfg.Listen.TLSAskAddr
+	if tlsAskAddr == "" {
+		tlsAskAddr = "127.0.0.1:7790"
+	}
+	if d.cfg.Caddy.OnDemandTLS {
+		tlsAskLog := slog.Default().With("component", "tlsask")
+		d.tlsAsk = tlsask.New()
+		if err := d.tlsAsk.Listen(tlsAskAddr); err != nil {
+			tlsAskLog.Error("listen failed — on-demand TLS will be DISABLED for safety", "addr", tlsAskAddr, "error", err)
+			d.tlsAsk = nil
+		} else {
+			tlsAskLog.Info("listening", "addr", d.tlsAsk.Addr())
+			// Seed the matcher from the current snapshot before serving so the
+			// gate is correct from the very first handshake.
+			if snap, err := d.engine.GetConfig(ctx); err != nil {
+				tlsAskLog.Warn("initial snapshot fetch failed; deny-all matcher in effect until next change", "error", err)
+			} else {
+				d.tlsAsk.SetSnapshot(snap)
+				exact, wild := d.tlsAsk.CurrentMatcher().Stats()
+				tlsAskLog.Info("matcher seeded", "exact_hosts", exact, "wildcard_hosts", wild)
+			}
+			go func() {
+				if err := d.tlsAsk.Serve(); err != nil && err.Error() != "http: Server closed" {
+					tlsAskLog.Error("server error", "error", err)
+				}
+			}()
+			// Refresh the matcher on every config change.
+			go d.runTLSAskWatcher(ctx, tlsAskLog)
+		}
+	}
+
 	// 8. Update compiler with the real admin config now that we know the gateway port.
 	adminListenAddr := d.cfg.Listen.REST
 	if adminListenAddr == "" {
@@ -260,6 +300,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 			IncludeSubdomains: d.cfg.SecurityHeaders.HSTS.IncludeSubdomains,
 		},
 	})
+	if d.tlsAsk != nil {
+		compiler.SetOnDemandTLS(caddy.OnDemandTLSConfig{
+			Enabled: true,
+			AskURL:  "http://" + d.tlsAsk.Addr() + "/tls/ask",
+		})
+	}
 	d.engine.SetCompiler(compiler)
 	slog.Info("compiler updated with admin config", "component", "config")
 
@@ -309,6 +355,13 @@ func (d *Daemon) Stop(ctx context.Context) error {
 	// Stop sync agent.
 	if d.syncAgent != nil {
 		d.syncAgent.Stop()
+	}
+
+	// Stop tlsask listener (#66).
+	if d.tlsAsk != nil {
+		if err := d.tlsAsk.Shutdown(); err != nil {
+			slog.Error("tlsask shutdown error", "component", "tlsask", "error", err)
+		}
 	}
 
 	// Stop Caddy.
@@ -439,6 +492,70 @@ func loadOrCreateSigningKey(path string) ([]byte, error) {
 	}
 
 	return key, nil
+}
+
+// runTLSAskWatcher subscribes to config changes and refreshes the tlsask
+// matcher on every event. The watcher debounces bursty changes (e.g. an
+// import of many routes at once) to avoid rebuilding the matcher per
+// route. The watcher exits when ctx is cancelled or the change channel
+// closes (e.g. on store shutdown). Refresh is best-effort: a transient
+// snapshot fetch failure leaves the previous matcher in place rather
+// than wiping it (which would deny everything).
+func (d *Daemon) runTLSAskWatcher(ctx context.Context, log *slog.Logger) {
+	ch, err := d.engine.WatchChanges(ctx, 0)
+	if err != nil {
+		log.Error("watch changes failed; matcher will not refresh", "error", err)
+		return
+	}
+
+	const debounceDur = 100 * time.Millisecond
+	var debounce *time.Timer
+	debounceC := func() <-chan time.Time {
+		if debounce == nil {
+			return nil
+		}
+		return debounce.C
+	}
+	pending := false
+
+	for {
+		select {
+		case <-ctx.Done():
+			if debounce != nil {
+				debounce.Stop()
+			}
+			return
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+			if debounce == nil {
+				debounce = time.NewTimer(debounceDur)
+			} else {
+				if !debounce.Stop() {
+					select {
+					case <-debounce.C:
+					default:
+					}
+				}
+				debounce.Reset(debounceDur)
+			}
+			pending = true
+		case <-debounceC():
+			if !pending {
+				continue
+			}
+			pending = false
+			snap, err := d.engine.GetConfig(ctx)
+			if err != nil {
+				log.Warn("snapshot fetch failed; matcher unchanged", "error", err)
+				continue
+			}
+			d.tlsAsk.SetSnapshot(snap)
+			exact, wild := d.tlsAsk.CurrentMatcher().Stats()
+			log.Debug("matcher refreshed", "exact_hosts", exact, "wildcard_hosts", wild)
+		}
+	}
 }
 
 // derefFloat64 returns *p if non-nil, otherwise def.
