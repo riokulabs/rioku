@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 10 {
-		t.Fatalf("expected version 10, got %d", v)
+	if v != 11 {
+		t.Fatalf("expected version 11, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3156,6 +3156,81 @@ func TestPassiveHealthCheck_RoundTrip(t *testing.T) {
 	}
 	if len(phc.GetUnhealthyStatus()) != 3 || phc.GetUnhealthyStatus()[0] != 500 {
 		t.Errorf("unhealthy_status mismatch: %v", phc.GetUnhealthyStatus())
+	}
+}
+
+// ─── UpstreamTLS + ConnectionPool round-trip (#70) ──────────────────────────
+
+func TestUpstreamTLS_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	want := &riokuv1.UpstreamTLS{
+		Enabled:            true,
+		ServerName:         "internal.example.com",
+		InsecureSkipVerify: false,
+		RootCaPem:          "-----BEGIN CERTIFICATE-----\nXYZ\n-----END CERTIFICATE-----\n",
+		ClientCertPem:      "/etc/rioku/c.crt",
+		ClientKeyPem:       "/etc/rioku/c.key",
+		MinVersion:         "1.2",
+		MaxVersion:         "1.3",
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:        "tls-svc",
+		LbPolicy:    riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:443", Healthy: true}},
+		UpstreamTls: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	got, _ := tx2.GetService(ctx, created.GetId())
+	ut := got.GetUpstreamTls()
+	if ut == nil {
+		t.Fatal("expected non-nil UpstreamTLS after round-trip")
+	}
+	if ut.GetServerName() != "internal.example.com" || ut.GetMinVersion() != "1.2" {
+		t.Errorf("round-trip mismatch: %+v", ut)
+	}
+}
+
+func TestConnectionPool_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	want := &riokuv1.ConnectionPool{
+		MaxConnsPerUpstream:     200,
+		MaxIdleConnsPerUpstream: 50,
+		MaxIdleConns:            500,
+		WriteBufferKb:           16,
+		ReadBufferKb:            32,
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:           "pool-svc",
+		LbPolicy:       riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:      []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+		ConnectionPool: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	got, _ := tx2.GetService(ctx, created.GetId())
+	cp := got.GetConnectionPool()
+	if cp == nil {
+		t.Fatal("expected non-nil ConnectionPool after round-trip")
+	}
+	if cp.GetMaxConnsPerUpstream() != 200 || cp.GetMaxIdleConns() != 500 || cp.GetWriteBufferKb() != 16 {
+		t.Errorf("round-trip mismatch: %+v", cp)
 	}
 }
 

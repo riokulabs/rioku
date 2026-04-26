@@ -239,11 +239,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 11: upstream_tls + connection_pool columns (#70).
+	if current < 11 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000011_upstream_tls_pool.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 11: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 11: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (11, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 11: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 11 down: drop upstream_tls + connection_pool columns.
+	if current >= 11 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000011_upstream_tls_pool.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 11: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 11: %w", err)
+		}
+	}
 
 	// Migration 10 down: drop retry_policy column.
 	if current >= 10 {
@@ -573,17 +600,25 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal retry_policy: %w", err)
 	}
+	utJSON, err := marshalUpstreamTLSJSON(svc.GetUpstreamTls())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal upstream_tls: %w", err)
+	}
+	cpJSON, err := marshalConnectionPoolJSON(svc.GetConnectionPool())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal connection_pool: %w", err)
+	}
 	labelsJSON, err := marshalLabelsJSON(svc.GetLabels())
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
-		phcJSON, rpJSON,
+		phcJSON, rpJSON, utJSON, cpJSON,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert service: %w", err)
@@ -613,7 +648,7 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool
 		 FROM services WHERE id = ?`, id)
 
 	svc, err := scanService(row)
@@ -631,7 +666,7 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy FROM services ORDER BY id`)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool FROM services ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
@@ -707,17 +742,25 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal retry_policy: %w", err)
 	}
+	utJSON, err := marshalUpstreamTLSJSON(svc.GetUpstreamTls())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal upstream_tls: %w", err)
+	}
+	cpJSON, err := marshalConnectionPoolJSON(svc.GetConnectionPool())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal connection_pool: %w", err)
+	}
 	labelsJSON, err := marshalLabelsJSON(svc.GetLabels())
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?
 		 WHERE id=?`,
 		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
-		phcJSON, rpJSON,
+		phcJSON, rpJSON, utJSON, cpJSON,
 		svc.GetId(),
 	)
 	if err != nil {
@@ -2018,9 +2061,12 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		idleTimeoutSeconds           int32
 		phcJSON                      *string
 		rpJSON                       *string
+		utJSON                       *string
+		cpJSON                       *string
 	)
 	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt,
-		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds, &phcJSON, &rpJSON); err != nil {
+		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds,
+		&phcJSON, &rpJSON, &utJSON, &cpJSON); err != nil {
 		return nil, fmt.Errorf("sqlite: scan service: %w", err)
 	}
 
@@ -2063,6 +2109,22 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 			return nil, fmt.Errorf("sqlite: unmarshal retry_policy: %w", err)
 		}
 		svc.RetryPolicy = rp
+	}
+
+	if utJSON != nil && *utJSON != "" {
+		ut, err := unmarshalUpstreamTLSJSON(*utJSON)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: unmarshal upstream_tls: %w", err)
+		}
+		svc.UpstreamTls = ut
+	}
+
+	if cpJSON != nil && *cpJSON != "" {
+		cp, err := unmarshalConnectionPoolJSON(*cpJSON)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: unmarshal connection_pool: %w", err)
+		}
+		svc.ConnectionPool = cp
 	}
 
 	return svc, nil
@@ -2378,6 +2440,46 @@ func unmarshalRetryPolicyJSON(s string) (*riokuv1.RetryPolicy, error) {
 		return nil, err
 	}
 	return rp, nil
+}
+
+func marshalUpstreamTLSJSON(ut *riokuv1.UpstreamTLS) (*string, error) {
+	if ut == nil {
+		return nil, nil
+	}
+	b, err := protojson.Marshal(ut)
+	if err != nil {
+		return nil, err
+	}
+	s := string(b)
+	return &s, nil
+}
+
+func unmarshalUpstreamTLSJSON(s string) (*riokuv1.UpstreamTLS, error) {
+	ut := &riokuv1.UpstreamTLS{}
+	if err := protojson.Unmarshal([]byte(s), ut); err != nil {
+		return nil, err
+	}
+	return ut, nil
+}
+
+func marshalConnectionPoolJSON(cp *riokuv1.ConnectionPool) (*string, error) {
+	if cp == nil {
+		return nil, nil
+	}
+	b, err := protojson.Marshal(cp)
+	if err != nil {
+		return nil, err
+	}
+	s := string(b)
+	return &s, nil
+}
+
+func unmarshalConnectionPoolJSON(s string) (*riokuv1.ConnectionPool, error) {
+	cp := &riokuv1.ConnectionPool{}
+	if err := protojson.Unmarshal([]byte(s), cp); err != nil {
+		return nil, err
+	}
+	return cp, nil
 }
 
 func marshalStructJSON(st *structpb.Struct) (string, error) {

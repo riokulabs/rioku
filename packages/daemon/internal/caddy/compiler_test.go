@@ -2310,6 +2310,154 @@ func TestCompile_PassiveHealthCheck_EnabledWithNoThresholdsOmits(t *testing.T) {
 	}
 }
 
+// ─── Upstream TLS + connection pool (#70) ───────────────────────────────────
+
+func TestCompile_UpstreamTLS_FullBlock(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:443"}},
+			UpstreamTls: &riokuv1.UpstreamTLS{
+				Enabled:    true,
+				ServerName: "internal.example.com",
+				RootCaPem:  "-----BEGIN CERTIFICATE-----\nXYZ\n-----END CERTIFICATE-----\n",
+				MinVersion: "1.2",
+				MaxVersion: "1.3",
+			},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	transport := last["transport"].(map[string]any)
+	if transport["protocol"] != "http" {
+		t.Errorf("protocol = %v", transport["protocol"])
+	}
+	tls := transport["tls"].(map[string]any)
+	if tls["server_name"] != "internal.example.com" {
+		t.Errorf("server_name = %v", tls["server_name"])
+	}
+	if tls["protocol_min"] != "tls1.2" || tls["protocol_max"] != "tls1.3" {
+		t.Errorf("min/max version = %v / %v", tls["protocol_min"], tls["protocol_max"])
+	}
+	cas := tls["root_ca_pem"].([]any)
+	if len(cas) != 1 {
+		t.Errorf("root_ca_pem entries = %d", len(cas))
+	}
+	if _, has := tls["insecure_skip_verify"]; has {
+		t.Error("insecure_skip_verify should be omitted when false")
+	}
+}
+
+func TestCompile_UpstreamTLS_DisabledOmits(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:          "svc1",
+			Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:443"}},
+			UpstreamTls: &riokuv1.UpstreamTLS{Enabled: false, ServerName: "x.com"},
+		}},
+	}
+	data, _ := c.Compile(snap)
+	var cfg map[string]any
+	_ = json.Unmarshal(data, &cfg)
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	if _, has := last["transport"]; has {
+		t.Error("disabled UpstreamTLS with no other transport fields should leave transport omitted")
+	}
+}
+
+func TestCompile_UpstreamTLS_HalfMTLSDoesNotEmit(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:443"}},
+			UpstreamTls: &riokuv1.UpstreamTLS{
+				Enabled:       true,
+				ClientCertPem: "/etc/rioku/client.crt", // key missing
+			},
+		}},
+	}
+	data, _ := c.Compile(snap)
+	var cfg map[string]any
+	_ = json.Unmarshal(data, &cfg)
+	tls := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := tls[len(tls)-1].(map[string]any)
+	tlsBlock := last["transport"].(map[string]any)["tls"].(map[string]any)
+	if _, has := tlsBlock["client_certificate_file"]; has {
+		t.Error("half mTLS pair should not emit client_certificate_file")
+	}
+}
+
+func TestCompile_ConnectionPool_FullBlock(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			ConnectionPool: &riokuv1.ConnectionPool{
+				MaxConnsPerUpstream:     200,
+				MaxIdleConnsPerUpstream: 50,
+				MaxIdleConns:            500,
+				WriteBufferKb:           16,
+				ReadBufferKb:            32,
+			},
+		}},
+	}
+	data, _ := c.Compile(snap)
+	var cfg map[string]any
+	_ = json.Unmarshal(data, &cfg)
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	transport := last["transport"].(map[string]any)
+	if transport["max_conns_per_host"].(float64) != 200 {
+		t.Errorf("max_conns_per_host = %v", transport["max_conns_per_host"])
+	}
+	if transport["write_buffer_size"].(float64) != 16*1024 {
+		t.Errorf("write_buffer_size = %v", transport["write_buffer_size"])
+	}
+	if transport["read_buffer_size"].(float64) != 32*1024 {
+		t.Errorf("read_buffer_size = %v", transport["read_buffer_size"])
+	}
+	keepAlive := transport["keep_alive"].(map[string]any)
+	if keepAlive["max_idle_conns_per_host"].(float64) != 50 {
+		t.Errorf("max_idle_conns_per_host = %v", keepAlive["max_idle_conns_per_host"])
+	}
+	if keepAlive["max_idle_conns"].(float64) != 500 {
+		t.Errorf("max_idle_conns = %v", keepAlive["max_idle_conns"])
+	}
+}
+
 // ─── Retry policy (#69) ─────────────────────────────────────────────────────
 
 func TestCompile_RetryPolicy_FullBlock(t *testing.T) {

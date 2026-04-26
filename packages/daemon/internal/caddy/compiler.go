@@ -474,26 +474,78 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		}
 	}
 
-	// Transport timeouts
+	// Transport: timeouts (#5 — already supported), upstream TLS (#70),
+	// and connection-pool tuning (#70). All three feed the same
+	// `reverse_proxy.transport` block.
 	dialTimeout := svc.GetDialTimeoutSeconds()
 	respHeaderTimeout := svc.GetResponseHeaderTimeoutSeconds()
 	idleTimeout := svc.GetIdleTimeoutSeconds()
+	upstreamTLS := svc.GetUpstreamTls()
+	connPool := svc.GetConnectionPool()
 
-	if dialTimeout > 0 || respHeaderTimeout > 0 || idleTimeout > 0 {
-		transport := map[string]any{
-			"protocol": "http",
+	transport := map[string]any{}
+	keepAlive := map[string]any{}
+
+	if dialTimeout > 0 {
+		transport["dial_timeout"] = fmt.Sprintf("%ds", dialTimeout)
+	}
+	if respHeaderTimeout > 0 {
+		transport["response_header_timeout"] = fmt.Sprintf("%ds", respHeaderTimeout)
+	}
+	if idleTimeout > 0 {
+		keepAlive["idle_conn_timeout"] = fmt.Sprintf("%ds", idleTimeout)
+	}
+
+	if upstreamTLS != nil && upstreamTLS.GetEnabled() {
+		tls := map[string]any{}
+		if v := upstreamTLS.GetServerName(); v != "" {
+			tls["server_name"] = v
 		}
-		if dialTimeout > 0 {
-			transport["dial_timeout"] = fmt.Sprintf("%ds", dialTimeout)
+		if upstreamTLS.GetInsecureSkipVerify() {
+			tls["insecure_skip_verify"] = true
 		}
-		if respHeaderTimeout > 0 {
-			transport["response_header_timeout"] = fmt.Sprintf("%ds", respHeaderTimeout)
+		if v := upstreamTLS.GetRootCaPem(); v != "" {
+			tls["root_ca_pem"] = []string{v}
 		}
-		if idleTimeout > 0 {
-			transport["keep_alive"] = map[string]any{
-				"idle_conn_timeout": fmt.Sprintf("%ds", idleTimeout),
-			}
+		if cert, key := upstreamTLS.GetClientCertPem(), upstreamTLS.GetClientKeyPem(); cert != "" && key != "" {
+			tls["client_certificate_file"] = cert
+			tls["client_certificate_key_file"] = key
 		}
+		if v := upstreamTLS.GetMinVersion(); v != "" {
+			tls["protocol_min"] = "tls" + v
+		}
+		if v := upstreamTLS.GetMaxVersion(); v != "" {
+			tls["protocol_max"] = "tls" + v
+		}
+		// Empty enabled-block is still valid — Caddy will use defaults.
+		transport["tls"] = tls
+	}
+
+	if connPool != nil {
+		if v := connPool.GetMaxConnsPerUpstream(); v > 0 {
+			transport["max_conns_per_host"] = v
+		}
+		if v := connPool.GetMaxIdleConnsPerUpstream(); v > 0 {
+			keepAlive["max_idle_conns_per_host"] = v
+		}
+		if v := connPool.GetMaxIdleConns(); v > 0 {
+			keepAlive["max_idle_conns"] = v
+		}
+		if v := connPool.GetWriteBufferKb(); v > 0 {
+			transport["write_buffer_size"] = v * 1024
+		}
+		if v := connPool.GetReadBufferKb(); v > 0 {
+			transport["read_buffer_size"] = v * 1024
+		}
+	}
+
+	if len(keepAlive) > 0 {
+		transport["keep_alive"] = keepAlive
+	}
+	if len(transport) > 0 {
+		// `protocol: http` is required for Caddy to recognize the block;
+		// it's the only protocol we currently support compiling for.
+		transport["protocol"] = "http"
 		handler["transport"] = transport
 	}
 }
