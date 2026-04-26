@@ -1068,3 +1068,76 @@ func getString(m map[string]interface{}, key string) string {
 	}
 	return ""
 }
+
+// ---------------------------------------------------------------------------
+// Tenants + Memberships (stage-2) — raft stubs
+//
+// The raft FSM doesn't yet have ops for tenant/membership writes.
+// Callers should use the SQLite driver for tenant work until a
+// dedicated raft op lands. Read methods return empty results so the
+// tenant-resolution middleware can fall back to the default tenant.
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateTenant(_ context.Context, _ *store.Tenant) (*store.Tenant, error) {
+	return nil, fmt.Errorf("raft: CreateTenant not implemented")
+}
+
+func (t *raftTx) GetTenant(_ context.Context, _ string) (*store.Tenant, error) {
+	return nil, store.ErrTenantNotFound
+}
+
+func (t *raftTx) GetTenantBySlug(_ context.Context, _ string) (*store.Tenant, error) {
+	return nil, store.ErrTenantNotFound
+}
+
+func (t *raftTx) ListTenants(_ context.Context) ([]*store.Tenant, error) {
+	return nil, nil
+}
+
+func (t *raftTx) UpdateTenant(_ context.Context, _ string, _ store.UpdateTenantParams) (*store.Tenant, error) {
+	return nil, fmt.Errorf("raft: UpdateTenant not implemented")
+}
+
+func (t *raftTx) DeleteTenant(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteTenant not implemented")
+}
+
+func (t *raftTx) CreateMembership(_ context.Context, _ *store.Membership) (*store.Membership, error) {
+	return nil, fmt.Errorf("raft: CreateMembership not implemented")
+}
+
+func (t *raftTx) GetMembership(_ context.Context, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {
+	return nil, nil
+}
+
+func (t *raftTx) ListMembershipsByUser(_ context.Context, _ string) ([]*store.Membership, error) {
+	return nil, nil
+}
+
+func (t *raftTx) UpdateMembershipState(_ context.Context, _, _ string) (*store.Membership, error) {
+	return nil, fmt.Errorf("raft: UpdateMembershipState not implemented")
+}
+
+func (t *raftTx) DeleteMembership(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteMembership not implemented")
+}
+
+func (t *raftTx) AssignMembershipRole(_ context.Context, _, _, _ string) error {
+	return fmt.Errorf("raft: AssignMembershipRole not implemented")
+}
+
+func (t *raftTx) RevokeMembershipRole(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: RevokeMembershipRole not implemented")
+}
+
+func (t *raftTx) ListMembershipRoles(_ context.Context, _ string) ([]store.Role, error) {
+	return nil, nil
+}

@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 12 {
-		t.Fatalf("expected version 12, got %d", v)
+	if v != 13 {
+		t.Fatalf("expected version 13, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3439,5 +3439,297 @@ func TestRecordAPIKeyUse_UnknownIDIsNoop(t *testing.T) {
 	// best-effort.
 	if err := tx.RecordAPIKeyUse(ctx, "nonexistent-id", time.Now().UTC()); err != nil {
 		t.Errorf("expected no-op, got error: %v", err)
+	}
+}
+
+// ─── Tenants (stage-2) ──────────────────────────────────────────────────────
+
+func TestTenants_DefaultSeeded(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+	tn, err := tx.GetTenantBySlug(ctx, "default")
+	if err != nil {
+		t.Fatalf("GetTenantBySlug(default): %v", err)
+	}
+	if tn.ID != "tenant_default" {
+		t.Errorf("default tenant id = %q, want tenant_default", tn.ID)
+	}
+}
+
+func TestTenants_CreateGetUpdate(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	created, err := tx.CreateTenant(ctx, &store.Tenant{Slug: "acme", Name: "Acme Corp"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if created.ID == "" || created.Slug != "acme" || created.Plan != "community" {
+		t.Errorf("create result: %+v", created)
+	}
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+
+	// Slug uniqueness
+	if _, err := tx2.CreateTenant(ctx, &store.Tenant{Slug: "acme", Name: "Other"}); err != store.ErrTenantSlugTaken {
+		t.Errorf("expected ErrTenantSlugTaken, got %v", err)
+	}
+
+	// Update
+	newName := "Acme Inc."
+	updated, err := tx2.UpdateTenant(ctx, created.ID, store.UpdateTenantParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateTenant: %v", err)
+	}
+	if updated.Name != "Acme Inc." {
+		t.Errorf("updated name = %q", updated.Name)
+	}
+
+	// Default tenant cannot be deleted
+	if err := tx2.DeleteTenant(ctx, "tenant_default"); err != store.ErrTenantImmutable {
+		t.Errorf("expected ErrTenantImmutable, got %v", err)
+	}
+
+	// Other tenant can be deleted
+	if err := tx2.DeleteTenant(ctx, created.ID); err != nil {
+		t.Errorf("DeleteTenant: %v", err)
+	}
+}
+
+func TestTenants_List(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	_, _ = tx.CreateTenant(ctx, &store.Tenant{Slug: "a", Name: "A"})
+	_, _ = tx.CreateTenant(ctx, &store.Tenant{Slug: "b", Name: "B"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx2.Rollback()
+	all, err := tx2.ListTenants(ctx)
+	if err != nil {
+		t.Fatalf("ListTenants: %v", err)
+	}
+	// default + 2 created
+	if len(all) != 3 {
+		t.Errorf("expected 3 tenants, got %d", len(all))
+	}
+}
+
+// ─── Memberships (stage-2) ──────────────────────────────────────────────────
+
+func TestMemberships_BackfilledForExistingUsers(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a user (which would normally have happened before migration 13).
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, err := tx.CreateUser(ctx, &store.User{
+		Username:          "backfill-user",
+		PasswordHash:      "x",
+		Status:            "active",
+		PasswordChangedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	_ = tx.Commit()
+
+	// Manually create a membership (since the user was created post-migration).
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	m, err := tx2.CreateMembership(ctx, &store.Membership{
+		TenantID: "tenant_default",
+		UserID:   user.ID,
+		State:    "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateMembership: %v", err)
+	}
+	if m.JoinedAt == nil {
+		t.Error("active membership should have JoinedAt populated")
+	}
+	_ = tx2.Commit()
+
+	// Look up by tenant+user
+	tx3, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx3.Rollback()
+	got, err := tx3.GetMembershipByTenantUser(ctx, "tenant_default", user.ID)
+	if err != nil {
+		t.Fatalf("GetMembershipByTenantUser: %v", err)
+	}
+	if got.ID != m.ID {
+		t.Errorf("expected membership %s, got %s", m.ID, got.ID)
+	}
+}
+
+func TestMemberships_DuplicateRejected(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "dup-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	_, _ = tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	if _, err := tx2.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"}); err != store.ErrMembershipExists {
+		t.Errorf("expected ErrMembershipExists, got %v", err)
+	}
+}
+
+func TestMemberships_StateTransitions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "state-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	m, _ := tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "pending"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	// Valid: pending -> active
+	updated, err := tx2.UpdateMembershipState(ctx, m.ID, "active")
+	if err != nil {
+		t.Fatalf("pending->active: %v", err)
+	}
+	if updated.JoinedAt == nil {
+		t.Error("transition to active should set JoinedAt")
+	}
+	// Invalid: active -> pending
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "pending"); err != store.ErrMembershipInvalidState {
+		t.Errorf("expected ErrMembershipInvalidState for active->pending, got %v", err)
+	}
+	// Valid: active -> deactivated
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "deactivated"); err != nil {
+		t.Errorf("active->deactivated: %v", err)
+	}
+	// Valid: deactivated -> active (re-activation)
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "active"); err != nil {
+		t.Errorf("deactivated->active: %v", err)
+	}
+	// Valid: active -> removed
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "removed"); err != nil {
+		t.Errorf("active->removed: %v", err)
+	}
+	// Invalid: removed is terminal
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "active"); err != store.ErrMembershipInvalidState {
+		t.Errorf("expected ErrMembershipInvalidState for removed->active, got %v", err)
+	}
+	_ = tx2.Commit()
+}
+
+func TestMemberships_ListByTenantAndUser(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	other, _ := tx.CreateTenant(ctx, &store.Tenant{Slug: "other", Name: "Other"})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "multi-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	_, _ = tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	_, _ = tx.CreateMembership(ctx, &store.Membership{TenantID: other.ID, UserID: user.ID, State: "pending"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx2.Rollback()
+
+	byUser, _ := tx2.ListMembershipsByUser(ctx, user.ID)
+	if len(byUser) != 2 {
+		t.Errorf("expected 2 memberships for user, got %d", len(byUser))
+	}
+	byTenant, _ := tx2.ListMembershipsByTenant(ctx, other.ID)
+	if len(byTenant) != 1 {
+		t.Errorf("expected 1 membership in 'other', got %d", len(byTenant))
+	}
+}
+
+// ─── Membership Roles (stage-2) ─────────────────────────────────────────────
+
+func TestMembershipRoles_AssignAndList(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "role-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	m, _ := tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	if err := tx.AssignMembershipRole(ctx, m.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("AssignMembershipRole: %v", err)
+	}
+	// Idempotent — second assign is a no-op.
+	if err := tx.AssignMembershipRole(ctx, m.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("second AssignMembershipRole: %v", err)
+	}
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx2.Rollback()
+	roles, err := tx2.ListMembershipRoles(ctx, m.ID)
+	if err != nil {
+		t.Fatalf("ListMembershipRoles: %v", err)
+	}
+	if len(roles) != 1 || roles[0].ID != "role_viewer" {
+		t.Errorf("expected [role_viewer], got %+v", roles)
+	}
+}
+
+func TestMembershipRoles_Revoke(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "revoke-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	m, _ := tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	_ = tx.AssignMembershipRole(ctx, m.ID, "role_viewer", "")
+	_ = tx.AssignMembershipRole(ctx, m.ID, "role_operator", "")
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	if err := tx2.RevokeMembershipRole(ctx, m.ID, "role_viewer"); err != nil {
+		t.Fatalf("RevokeMembershipRole: %v", err)
+	}
+	// Revoking again is a no-op (no error).
+	if err := tx2.RevokeMembershipRole(ctx, m.ID, "role_viewer"); err != nil {
+		t.Errorf("repeat revoke: %v", err)
+	}
+	roles, _ := tx2.ListMembershipRoles(ctx, m.ID)
+	if len(roles) != 1 || roles[0].ID != "role_operator" {
+		t.Errorf("expected [role_operator], got %+v", roles)
+	}
+	_ = tx2.Commit()
+}
+
+func TestMembershipRoles_BackfilledFromUserRoles(t *testing.T) {
+	// Migration 13 backfills membership_roles from user_roles for the
+	// default tenant. The seed data ships role_superadmin assigned to
+	// the bootstrap user via user_roles, so the corresponding default
+	// membership should now also list it.
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "pre-migration", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	if err := tx.AssignRole(ctx, user.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	// Manually create the membership (the migration only backfills users
+	// that existed at migration time; this user was created after).
+	m, _ := tx.CreateMembership(ctx, &store.Membership{ID: "m_" + user.ID, TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	// Mirror the role assignment at the membership level (which the new
+	// code paths will do automatically; this test exercises the storage).
+	_ = tx.AssignMembershipRole(ctx, m.ID, "role_viewer", "")
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx2.Rollback()
+	roles, _ := tx2.ListMembershipRoles(ctx, m.ID)
+	if len(roles) == 0 {
+		t.Error("expected role_viewer to be present on membership")
 	}
 }

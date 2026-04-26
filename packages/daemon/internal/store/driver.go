@@ -281,6 +281,64 @@ type Tx interface {
 	// DeleteTOTPBackupCodes removes all backup codes for a user (called on TOTP disable/reset).
 	DeleteTOTPBackupCodes(ctx context.Context, userID string) error
 
+	// --- Tenants (stage-2) ---
+
+	// CreateTenant persists a new tenant. The supplied Tenant must have
+	// Slug + Name set; ID is generated if empty. Returns ErrTenantSlugTaken
+	// when the slug collides.
+	CreateTenant(ctx context.Context, t *Tenant) (*Tenant, error)
+	// GetTenant returns a tenant by id, or ErrTenantNotFound.
+	GetTenant(ctx context.Context, id string) (*Tenant, error)
+	// GetTenantBySlug looks up a tenant by URL-safe slug — used by the
+	// tenant-resolution middleware to translate `/api/v1/t/:slug/...`.
+	GetTenantBySlug(ctx context.Context, slug string) (*Tenant, error)
+	// ListTenants returns every tenant ordered by created_at ASC.
+	// Super-admin only — there's no per-tenant pagination.
+	ListTenants(ctx context.Context) ([]*Tenant, error)
+	// UpdateTenant applies a partial update. Returns the post-update row,
+	// or ErrTenantNotFound when the id doesn't exist. The default tenant
+	// (slug "default") is renameable but its slug is immutable.
+	UpdateTenant(ctx context.Context, id string, params UpdateTenantParams) (*Tenant, error)
+	// DeleteTenant removes a tenant and cascades through every FK
+	// (memberships, sessions, routes, services, policies, ...). The
+	// default tenant cannot be deleted; ErrTenantImmutable is returned.
+	DeleteTenant(ctx context.Context, id string) error
+
+	// --- Memberships (stage-2) ---
+
+	// CreateMembership persists a new (tenant_id, user_id, state) tuple.
+	// Returns ErrMembershipExists if the pair already has a membership
+	// (regardless of state — operators can re-activate via Update).
+	CreateMembership(ctx context.Context, m *Membership) (*Membership, error)
+	// GetMembership returns a membership by id, or ErrMembershipNotFound.
+	GetMembership(ctx context.Context, id string) (*Membership, error)
+	// GetMembershipByTenantUser returns the membership for a (tenant, user)
+	// pair, or ErrMembershipNotFound.
+	GetMembershipByTenantUser(ctx context.Context, tenantID, userID string) (*Membership, error)
+	// ListMembershipsByTenant returns every membership in a tenant. Used
+	// by the Users page in the admin panel.
+	ListMembershipsByTenant(ctx context.Context, tenantID string) ([]*Membership, error)
+	// ListMembershipsByUser returns every tenant the user belongs to.
+	// Used by the tenant-picker after login.
+	ListMembershipsByUser(ctx context.Context, userID string) ([]*Membership, error)
+	// UpdateMembershipState transitions a membership through the state
+	// machine (pending -> active -> deactivated -> removed). Invalid
+	// transitions return ErrMembershipInvalidState.
+	UpdateMembershipState(ctx context.Context, id, state string) (*Membership, error)
+	// DeleteMembership hard-deletes a membership. Prefer
+	// UpdateMembershipState("removed") for audit retention; this is for
+	// administrative cleanup.
+	DeleteMembership(ctx context.Context, id string) error
+
+	// --- Membership Roles (stage-2) ---
+
+	// AssignMembershipRole grants `roleID` to the membership. Idempotent.
+	AssignMembershipRole(ctx context.Context, membershipID, roleID, grantedBy string) error
+	// RevokeMembershipRole removes a role grant. No-op if absent.
+	RevokeMembershipRole(ctx context.Context, membershipID, roleID string) error
+	// ListMembershipRoles returns every role granted to a membership.
+	ListMembershipRoles(ctx context.Context, membershipID string) ([]Role, error)
+
 	// --- Access Policies ---
 
 	// CreateAccessPolicy persists a new access policy and returns it with
@@ -302,6 +360,59 @@ type Tx interface {
 // ---------------------------------------------------------------------------
 // Helper types (not in proto)
 // ---------------------------------------------------------------------------
+
+// Tenant represents a logical workspace boundary. Every tenant-scoped
+// entity carries a tenant_id FK referencing tenants(id). The default
+// tenant (slug "default") is seeded by migration 13 and is the parent
+// of all data created before stage-2.
+type Tenant struct {
+	ID                 string
+	Slug               string
+	Name               string
+	Plan               string  // community | pro | enterprise
+	URLMode            string  // path | subdomain
+	Accent             *string // hex color, nullable
+	LogoURL            *string
+	DefaultDashboardID *string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+// UpdateTenantParams is the partial-update payload for UpdateTenant.
+// nil pointers leave the field unchanged.
+type UpdateTenantParams struct {
+	Name               *string
+	Plan               *string
+	URLMode            *string
+	Accent             *string
+	LogoURL            *string
+	DefaultDashboardID *string
+}
+
+// Membership ties a User to a Tenant with a state machine
+// (pending -> active -> deactivated -> removed).
+type Membership struct {
+	ID              string
+	TenantID        string
+	UserID          string
+	State           string // pending | active | deactivated | removed
+	InvitedBy       *string
+	InvitedAt       *time.Time
+	JoinedAt        *time.Time
+	InviteTokenHash *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// Tenant + Membership sentinel errors.
+var (
+	ErrTenantNotFound         = fmt.Errorf("store: tenant not found")
+	ErrTenantSlugTaken        = fmt.Errorf("store: tenant slug already in use")
+	ErrTenantImmutable        = fmt.Errorf("store: default tenant cannot be deleted")
+	ErrMembershipNotFound     = fmt.Errorf("store: membership not found")
+	ErrMembershipExists       = fmt.Errorf("store: membership for that tenant+user already exists")
+	ErrMembershipInvalidState = fmt.Errorf("store: invalid membership state transition")
+)
 
 // APIKey represents a stored API key.
 type APIKey struct {
