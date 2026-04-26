@@ -10,14 +10,33 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// RegisterAuditRoutes registers the hand-written REST audit endpoint.
+// RegisterAuditRoutes registers the hand-written REST audit endpoints.
 // gRPC-gateway cannot translate server-streaming RPCs in in-process mode,
-// so this handler queries the store directly and returns a JSON array.
+// so these handlers query the store directly and return a JSON array.
+//
+// Routes:
+//
+//	GET /api/v1/audit                                      generic query (filters via query string)
+//	GET /api/v1/audit/entity/{entityType}/{entityId}       per-entity convenience (#82)
+//
+// Both routes require `audit:read`. Both honor the same filter set
+// (actor, entity_type, entity_id, range, since, until, limit, offset);
+// the per-entity route just pre-fills entity_type and entity_id from
+// the path. Both set X-Total-Count to the unpaginated match count so
+// UIs can render "Page 1 of N" without a separate count call.
 func RegisterAuditRoutes(mux *http.ServeMux, st store.Driver) {
-	mux.HandleFunc("GET /api/v1/audit", handleAuditQuery(st))
+	h := http.HandlerFunc(handleAuditQuery(st, false))
+	mux.Handle("GET /api/v1/audit",
+		RequirePermission("audit:read")(h))
+	mux.Handle("GET /api/v1/audit/entity/{entityType}/{entityId}",
+		RequirePermission("audit:read")(http.HandlerFunc(handleAuditQuery(st, true))))
 }
 
-func handleAuditQuery(st store.Driver) http.HandlerFunc {
+// handleAuditQuery serves both the generic and per-entity routes. When
+// pathScoped is true, EntityType and EntityID are sourced from the
+// URL path — and conflicting values in the query string are rejected
+// rather than silently overridden, so callers don't get surprised.
+func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		q := r.URL.Query()
@@ -26,6 +45,25 @@ func handleAuditQuery(st store.Driver) http.HandlerFunc {
 			Actor:      q.Get("actor"),
 			EntityType: q.Get("entity_type"),
 			EntityID:   q.Get("entity_id"),
+		}
+
+		if pathScoped {
+			pt, pid := r.PathValue("entityType"), r.PathValue("entityId")
+			// Reject query-string conflicts so a caller's intent is
+			// unambiguous. Letting one silently override the other
+			// would obscure copy-paste mistakes.
+			if query.EntityType != "" && query.EntityType != pt {
+				writeProblem(w, http.StatusBadRequest, errTypeValidation, "entity_type conflict",
+					"entity_type query parameter conflicts with path", r.URL.Path, nil)
+				return
+			}
+			if query.EntityID != "" && query.EntityID != pid {
+				writeProblem(w, http.StatusBadRequest, errTypeValidation, "entity_id conflict",
+					"entity_id query parameter conflicts with path", r.URL.Path, nil)
+				return
+			}
+			query.EntityType = pt
+			query.EntityID = pid
 		}
 
 		// Parse range (e.g. "24h", "7d") into a Since timestamp.
@@ -38,6 +76,28 @@ func handleAuditQuery(st store.Driver) http.HandlerFunc {
 			}
 			since := time.Now().UTC().Add(-dur)
 			query.Since = &since
+		}
+
+		// Parse explicit since/until (RFC3339). These take precedence
+		// over `range` if both are supplied — the operator presumably
+		// knows what they want when they pass an absolute timestamp.
+		if sinceStr := q.Get("since"); sinceStr != "" {
+			ts, err := time.Parse(time.RFC3339, sinceStr)
+			if err != nil {
+				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid since",
+					"since must be an RFC3339 timestamp", r.URL.Path, nil)
+				return
+			}
+			query.Since = &ts
+		}
+		if untilStr := q.Get("until"); untilStr != "" {
+			ts, err := time.Parse(time.RFC3339, untilStr)
+			if err != nil {
+				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid until",
+					"until must be an RFC3339 timestamp", r.URL.Path, nil)
+				return
+			}
+			query.Until = &ts
 		}
 
 		// Parse limit.
@@ -77,11 +137,19 @@ func handleAuditQuery(st store.Driver) http.HandlerFunc {
 				"Failed to query audit log", r.URL.Path, nil)
 			return
 		}
+		// Total ignores Limit/Offset — UIs use it to render "X of Y".
+		total, err := tx.CountAuditLog(ctx, query)
+		if err != nil {
+			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
+				"Failed to count audit log", r.URL.Path, nil)
+			return
+		}
 
 		// Marshal each entry with protojson and build a JSON array.
 		marshaler := protojson.MarshalOptions{EmitUnpopulated: true}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", strconv.Itoa(total))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("["))
 		for i, entry := range entries {

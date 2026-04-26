@@ -1654,6 +1654,42 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 	return entries, rows.Err()
 }
 
+// CountAuditLog mirrors QueryAuditLog's WHERE clause but returns
+// COUNT(*) so the REST layer can expose total counts for paginated
+// UIs (#82). Limit/Offset are intentionally ignored — counting only
+// what the current page shows would defeat the point.
+func (t *tx) CountAuditLog(ctx context.Context, query store.AuditQuery) (int, error) {
+	q := `SELECT COUNT(*) FROM audit_log WHERE 1=1`
+	var args []any
+
+	if query.Actor != "" {
+		q += ` AND actor = ?`
+		args = append(args, query.Actor)
+	}
+	if query.EntityType != "" {
+		q += ` AND entity_type = ?`
+		args = append(args, query.EntityType)
+	}
+	if query.EntityID != "" {
+		q += ` AND entity_id = ?`
+		args = append(args, query.EntityID)
+	}
+	if query.Since != nil {
+		q += ` AND occurred_at >= ?`
+		args = append(args, query.Since.UTC().Format(timeFormat))
+	}
+	if query.Until != nil {
+		q += ` AND occurred_at <= ?`
+		args = append(args, query.Until.UTC().Format(timeFormat))
+	}
+
+	var count int
+	if err := t.sqlTx.QueryRowContext(ctx, q, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("sqlite: count audit log: %w", err)
+	}
+	return count, nil
+}
+
 // ---------------------------------------------------------------------------
 // Roles
 // ---------------------------------------------------------------------------

@@ -56,7 +56,7 @@ func TestRESTContractFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.CreateUser(ctx, &store.User{
+	rootUser, err := tx.CreateUser(ctx, &store.User{
 		Username:            "root",
 		PasswordHash:        hash,
 		Status:              "active",
@@ -64,6 +64,12 @@ func TestRESTContractFields(t *testing.T) {
 		PasswordChangedAt:   time.Now().UTC(),
 	})
 	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	// Assign the superadmin role so the audit endpoint (which now
+	// requires audit:read) is reachable from the contract test.
+	if err := tx.AssignRole(ctx, rootUser.ID, "role_superadmin", ""); err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
 	}

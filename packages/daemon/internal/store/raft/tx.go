@@ -761,6 +761,43 @@ func (t *raftTx) QueryAuditLog(_ context.Context, query store.AuditQuery) ([]*ri
 	return entries, nil
 }
 
+// CountAuditLog mirrors QueryAuditLog's filter logic but returns a
+// count instead of materializing every match. Limit/Offset are
+// intentionally ignored.
+func (t *raftTx) CountAuditLog(_ context.Context, query store.AuditQuery) (int, error) {
+	count := 0
+	err := t.driver.readFSM(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketAuditLog))
+		return b.ForEach(func(k, v []byte) error {
+			var e riokuv1.AuditEntry
+			if err := protojson.Unmarshal(v, &e); err != nil {
+				return nil
+			}
+			if query.Actor != "" && e.GetActor() != query.Actor {
+				return nil
+			}
+			if query.EntityType != "" && e.GetEntityType() != query.EntityType {
+				return nil
+			}
+			if query.EntityID != "" && e.GetEntityId() != query.EntityID {
+				return nil
+			}
+			if query.Since != nil && e.GetOccurredAt().AsTime().Before(*query.Since) {
+				return nil
+			}
+			if query.Until != nil && e.GetOccurredAt().AsTime().After(*query.Until) {
+				return nil
+			}
+			count++
+			return nil
+		})
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // ---------------------------------------------------------------------------
 // Users (stubs)
 // ---------------------------------------------------------------------------

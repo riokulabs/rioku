@@ -194,6 +194,10 @@ type Tx interface {
 
 	AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) error
 	QueryAuditLog(ctx context.Context, query AuditQuery) ([]*riokuv1.AuditEntry, error)
+	// CountAuditLog returns the number of entries matching `query`,
+	// ignoring Limit/Offset. Used by the REST audit endpoint to
+	// expose total counts for paginated UIs (#82).
+	CountAuditLog(ctx context.Context, query AuditQuery) (int, error)
 
 	// --- Users ---
 

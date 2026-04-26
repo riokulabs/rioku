@@ -451,6 +451,164 @@ func TestAuditRoutes_ListAudit_InvalidOffset(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Per-entity routes + total-count header (#82)
+// ---------------------------------------------------------------------------
+
+func TestAuditRoutes_ListAudit_TotalCountHeader(t *testing.T) {
+	server, drv, rootPassword := setupAuditTestServer(t)
+
+	// Seed 5 entries; query with limit=2 should show 5 in X-Total-Count.
+	now := time.Now().UTC()
+	var entries []*riokuv1.AuditEntry
+	for i := 0; i < 5; i++ {
+		entries = append(entries, &riokuv1.AuditEntry{
+			Actor:         "admin",
+			EntityType:    "route",
+			EntityId:      "route-x",
+			Operation:     "update",
+			ConfigVersion: int64(i + 1),
+			OccurredAt:    timestamppb.New(now.Add(time.Duration(i) * time.Second)),
+		})
+	}
+	seedAuditEntries(t, drv, entries)
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	loginResp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "root",
+		"password": rootPassword,
+	})
+	_ = loginResp.Body.Close()
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?limit=2", nil)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("X-Total-Count"); got != "5" {
+		t.Errorf("X-Total-Count = %q, want 5", got)
+	}
+	var body []map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if len(body) != 2 {
+		t.Errorf("expected 2 entries (limit=2), got %d", len(body))
+	}
+}
+
+func TestAuditRoutes_PerEntityRoute(t *testing.T) {
+	server, drv, rootPassword := setupAuditTestServer(t)
+
+	now := time.Now().UTC()
+	seedAuditEntries(t, drv, []*riokuv1.AuditEntry{
+		{Actor: "admin", EntityType: "route", EntityId: "r1", Operation: "create", OccurredAt: timestamppb.New(now)},
+		{Actor: "admin", EntityType: "route", EntityId: "r2", Operation: "create", OccurredAt: timestamppb.New(now)},
+		{Actor: "admin", EntityType: "service", EntityId: "r1", Operation: "create", OccurredAt: timestamppb.New(now)},
+	})
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	_ = doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "root",
+		"password": rootPassword,
+	}).Body.Close()
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit/entity/route/r1", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body []map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if len(body) != 1 {
+		t.Errorf("expected 1 entry for route/r1, got %d", len(body))
+	}
+	if len(body) > 0 {
+		if body[0]["entityType"] != "route" || body[0]["entityId"] != "r1" {
+			t.Errorf("wrong entity returned: %+v", body[0])
+		}
+	}
+}
+
+func TestAuditRoutes_PerEntityRoute_QueryConflictRejected(t *testing.T) {
+	server, _, rootPassword := setupAuditTestServer(t)
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	_ = doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "root",
+		"password": rootPassword,
+	}).Body.Close()
+
+	// Path says route/r1 but query says service — must reject.
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit/entity/route/r1?entity_type=service", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 on path/query conflict, got %d", resp.StatusCode)
+	}
+}
+
+func TestAuditRoutes_UntilParam(t *testing.T) {
+	server, drv, rootPassword := setupAuditTestServer(t)
+
+	now := time.Now().UTC()
+	seedAuditEntries(t, drv, []*riokuv1.AuditEntry{
+		{Actor: "admin", EntityType: "route", EntityId: "r1", Operation: "create", OccurredAt: timestamppb.New(now.Add(-2 * time.Hour))},
+		{Actor: "admin", EntityType: "route", EntityId: "r2", Operation: "create", OccurredAt: timestamppb.New(now)},
+	})
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	_ = doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "root",
+		"password": rootPassword,
+	}).Body.Close()
+
+	cutoff := now.Add(-1 * time.Hour).Format(time.RFC3339)
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?until="+cutoff, nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body []map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if len(body) != 1 {
+		t.Errorf("expected 1 entry before cutoff, got %d", len(body))
+	}
+}
+
+func TestAuditRoutes_UntilParam_InvalidRejected(t *testing.T) {
+	server, _, rootPassword := setupAuditTestServer(t)
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	_ = doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "root",
+		"password": rootPassword,
+	}).Body.Close()
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?until=not-a-timestamp", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 for malformed until, got %d", resp.StatusCode)
+	}
+}
+
+func TestAuditRoutes_RequiresPermission(t *testing.T) {
+	server, _, _ := setupAuditTestServer(t)
+
+	// No login — request should be rejected by the permission middleware.
+	resp, err := http.Get(server.URL + "/api/v1/audit")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusOK {
+		t.Errorf("expected non-200 for unauthenticated audit query, got %d", resp.StatusCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // parseRange (unit tests)
 // ---------------------------------------------------------------------------
 

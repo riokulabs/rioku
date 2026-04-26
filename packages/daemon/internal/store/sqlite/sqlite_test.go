@@ -3159,6 +3159,59 @@ func TestPassiveHealthCheck_RoundTrip(t *testing.T) {
 	}
 }
 
+// ─── CountAuditLog (#82) ────────────────────────────────────────────────────
+
+func TestCountAuditLog_FiltersAndIgnoresPagination(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	now := time.Now().UTC()
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	for i := 0; i < 5; i++ {
+		_ = tx1.AppendAuditEntry(ctx, &riokuv1.AuditEntry{
+			Actor:      "alice",
+			EntityType: "route",
+			EntityId:   "r1",
+			Operation:  "update",
+			OccurredAt: timestamppb.New(now.Add(time.Duration(i) * time.Second)),
+		})
+	}
+	for i := 0; i < 3; i++ {
+		_ = tx1.AppendAuditEntry(ctx, &riokuv1.AuditEntry{
+			Actor:      "bob",
+			EntityType: "service",
+			EntityId:   "s1",
+			Operation:  "create",
+			OccurredAt: timestamppb.New(now),
+		})
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx2.Rollback()
+
+	// Total
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{}); c != 8 {
+		t.Errorf("total count = %d, want 8", c)
+	}
+	// Filtered by entity type
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{EntityType: "route"}); c != 5 {
+		t.Errorf("route count = %d, want 5", c)
+	}
+	// Filtered by entity id
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{EntityType: "route", EntityID: "r1"}); c != 5 {
+		t.Errorf("route/r1 count = %d, want 5", c)
+	}
+	// Filtered by actor
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{Actor: "bob"}); c != 3 {
+		t.Errorf("bob count = %d, want 3", c)
+	}
+	// Limit/Offset must be ignored — count is total matches.
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{Limit: 1, Offset: 100}); c != 8 {
+		t.Errorf("count with limit/offset = %d, want 8 (must ignore pagination)", c)
+	}
+}
+
 // ─── UpstreamTLS + ConnectionPool round-trip (#70) ──────────────────────────
 
 func TestUpstreamTLS_RoundTrip(t *testing.T) {
