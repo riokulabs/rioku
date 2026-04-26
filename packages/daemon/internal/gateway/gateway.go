@@ -148,6 +148,9 @@ func NewGateway(
 	// rather than 404 so the admin panel can render an empty state.
 	RegisterUpstreamHealthRoutes(topMux, upstreamHealth)
 
+	// Tenant + membership management (stage-2).
+	RegisterTenantRoutes(topMux, st)
+
 	// Remaining stub routes for endpoints the frontend calls but that
 	// don't have real implementations yet (plugins). Cluster moved to
 	// RegisterClusterRoutes above.
@@ -164,15 +167,18 @@ func NewGateway(
 	}
 
 	// Apply middleware stack (outermost first).
-	// Order: RequestID → Auth → RateLimit → CORS → SecurityHeaders → handler
-	// RequestID is outermost (always applied). Auth extracts identity. RateLimit
-	// needs auth context for session/user keying. CORS handles preflight before
-	// the handler runs. SecurityHeaders is innermost (closest to response).
+	// Order: RequestID → Auth → Tenant → RateLimit → CORS → SecurityHeaders → handler
+	// RequestID is outermost (always applied). Auth extracts identity. Tenant
+	// resolves /api/v1/t/{slug}/... once identity is known so we don't hit
+	// the store on unauthenticated requests. RateLimit needs auth context for
+	// session/user keying. CORS handles preflight before the handler runs.
+	// SecurityHeaders is innermost (closest to response).
 	var handler http.Handler = topMux
 	handler = SecurityHeadersMiddleware(handler)
 	handler = CORSMiddleware(cfg.Auth.CORS)(handler)
 	rl := NewRateLimiter(cfg.Auth.RateLimit)
 	handler = rl.Middleware()(handler)
+	handler = TenantMiddleware(st)(handler)
 	handler = AuthMiddleware(a, sm)(handler)
 	handler = RequestIDMiddleware(handler)
 
