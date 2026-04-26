@@ -373,6 +373,63 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- AI subsystem (stage-2) ---
+
+	// Providers
+	CreateAIProvider(ctx context.Context, p *AIProvider) (*AIProvider, error)
+	GetAIProvider(ctx context.Context, tenantID, id string) (*AIProvider, error)
+	ListAIProvidersByTenant(ctx context.Context, tenantID string) ([]*AIProvider, error)
+	UpdateAIProvider(ctx context.Context, tenantID, id string, params UpdateAIProviderParams) (*AIProvider, error)
+	DeleteAIProvider(ctx context.Context, tenantID, id string) error
+
+	// Provider models
+	AddProviderModel(ctx context.Context, m *AIProviderModel) (*AIProviderModel, error)
+	UpdateProviderModel(ctx context.Context, providerID, modelID string, params UpdateAIProviderModelParams) (*AIProviderModel, error)
+	RemoveProviderModel(ctx context.Context, providerID, modelID string) error
+	ListProviderModels(ctx context.Context, providerID string) ([]*AIProviderModel, error)
+
+	// MCP servers
+	CreateMCPServer(ctx context.Context, s *AIMCPServer) (*AIMCPServer, error)
+	GetMCPServer(ctx context.Context, tenantID, id string) (*AIMCPServer, error)
+	ListMCPServersByTenant(ctx context.Context, tenantID string) ([]*AIMCPServer, error)
+	UpdateMCPServer(ctx context.Context, tenantID, id string, params UpdateAIMCPServerParams) (*AIMCPServer, error)
+	DeleteMCPServer(ctx context.Context, tenantID, id string) error
+
+	// Tools
+	CreateAITool(ctx context.Context, t *AITool) (*AITool, error)
+	GetAITool(ctx context.Context, tenantID, id string) (*AITool, error)
+	ListAIToolsByTenant(ctx context.Context, tenantID string) ([]*AITool, error)
+	UpdateAITool(ctx context.Context, tenantID, id string, params UpdateAIToolParams) (*AITool, error)
+	DeleteAITool(ctx context.Context, tenantID, id string) error
+
+	// Agents
+	CreateAIAgent(ctx context.Context, a *AIAgent) (*AIAgent, error)
+	GetAIAgent(ctx context.Context, tenantID, id string) (*AIAgent, error)
+	ListAIAgentsByTenant(ctx context.Context, tenantID string) ([]*AIAgent, error)
+	UpdateAIAgent(ctx context.Context, tenantID, id string, params UpdateAIAgentParams) (*AIAgent, error)
+	DeleteAIAgent(ctx context.Context, tenantID, id string) error
+
+	// Tool bindings
+	CreateAIToolBinding(ctx context.Context, b *AIToolBinding) (*AIToolBinding, error)
+	GetAIToolBinding(ctx context.Context, tenantID, id string) (*AIToolBinding, error)
+	ListAIToolBindingsByTenant(ctx context.Context, tenantID string) ([]*AIToolBinding, error)
+	ListAIToolBindingsByAgent(ctx context.Context, agentID string) ([]*AIToolBinding, error)
+	UpdateAIToolBinding(ctx context.Context, tenantID, id string, params UpdateAIToolBindingParams) (*AIToolBinding, error)
+	DeleteAIToolBinding(ctx context.Context, tenantID, id string) error
+
+	// Semantic rate limits
+	CreateAIRateLimit(ctx context.Context, l *AISemanticRateLimit) (*AISemanticRateLimit, error)
+	GetAIRateLimit(ctx context.Context, tenantID, id string) (*AISemanticRateLimit, error)
+	ListAIRateLimitsByTenant(ctx context.Context, tenantID string) ([]*AISemanticRateLimit, error)
+	UpdateAIRateLimit(ctx context.Context, tenantID, id string, params UpdateAIRateLimitParams) (*AISemanticRateLimit, error)
+	DeleteAIRateLimit(ctx context.Context, tenantID, id string) error
+
+	// Traces (append-only)
+	AppendAITrace(ctx context.Context, t *AITrace) (*AITrace, error)
+	GetAITrace(ctx context.Context, tenantID, id string) (*AITrace, error)
+	ListAITracesByTenant(ctx context.Context, tenantID string, query AITraceQuery) ([]*AITrace, error)
+	ListAITracesByAgent(ctx context.Context, agentID string, query AITraceQuery) ([]*AITrace, error)
+
 	// --- Sites (stage-2) ---
 
 	CreateSite(ctx context.Context, s *Site) (*Site, error)
@@ -607,6 +664,223 @@ var (
 	ErrDashboardNotFound = fmt.Errorf("store: dashboard not found")
 	ErrWidgetNotFound    = fmt.Errorf("store: widget not found")
 	ErrVersionNotFound   = fmt.Errorf("store: dashboard version not found")
+)
+
+// AIProvider configures upstream LLM providers (openai, anthropic, ...).
+type AIProvider struct {
+	ID         string
+	TenantID   string
+	Name       string
+	Kind       string // openai | anthropic | gemini | ollama | custom
+	BaseURL    string
+	Credential *string // encrypted/masked reference, never returned in REST listings
+	Enabled    bool
+	Metadata   string // JSON blob, kind-specific
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type UpdateAIProviderParams struct {
+	Name       *string
+	Kind       *string
+	BaseURL    *string
+	Credential *string
+	Enabled    *bool
+	Metadata   *string
+}
+
+// AIProviderModel maps an upstream model id to a friendly alias used by agents.
+type AIProviderModel struct {
+	ID               string
+	ProviderID       string
+	UpstreamModelID  string
+	Alias            string
+	RateLimitRPM     int32
+	DailyQuotaTokens int64
+	Enabled          bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type UpdateAIProviderModelParams struct {
+	Alias            *string
+	RateLimitRPM     *int32
+	DailyQuotaTokens *int64
+	Enabled          *bool
+}
+
+// AIMCPServer is a remote MCP endpoint exposing tools to agents.
+type AIMCPServer struct {
+	ID                 string
+	TenantID           string
+	Name               string
+	URL                string
+	AuthKind           string // none | bearer | api-key
+	AuthCredential     *string
+	Health             string // healthy | degraded | unreachable | disabled
+	Enabled            bool
+	AuthorizedAgentIDs string // JSON array
+	LastCheckedAt      *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type UpdateAIMCPServerParams struct {
+	Name               *string
+	URL                *string
+	AuthKind           *string
+	AuthCredential     *string
+	Health             *string
+	Enabled            *bool
+	AuthorizedAgentIDs *string
+	LastCheckedAt      *time.Time
+}
+
+// AITool is a callable an agent can invoke.
+type AITool struct {
+	ID           string
+	TenantID     string
+	Name         string
+	Kind         string // native | mcp | http
+	Description  string
+	SchemaJSON   string
+	HTTPEndpoint *string
+	MCPServerID  *string
+	Dangerous    bool
+	Enabled      bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type UpdateAIToolParams struct {
+	Name         *string
+	Kind         *string
+	Description  *string
+	SchemaJSON   *string
+	HTTPEndpoint *string
+	MCPServerID  *string
+	Dangerous    *bool
+	Enabled      *bool
+}
+
+// AIAgent is a configured persona/role bound to a provider+model.
+type AIAgent struct {
+	ID               string
+	TenantID         string
+	ProviderID       *string
+	Name             string
+	Description      string
+	Model            string
+	SystemPrompt     string
+	Guardrails       string  // JSON
+	ScopedCredential *string // optional per-agent override
+	Enabled          bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type UpdateAIAgentParams struct {
+	ProviderID       *string
+	Name             *string
+	Description      *string
+	Model            *string
+	SystemPrompt     *string
+	Guardrails       *string
+	ScopedCredential *string
+	Enabled          *bool
+}
+
+// AIToolBinding wires an Agent to a Tool with an optional CEL guard.
+type AIToolBinding struct {
+	ID        string
+	TenantID  string
+	AgentID   string
+	ToolID    string
+	Condition string // CEL
+	Enabled   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type UpdateAIToolBindingParams struct {
+	Condition *string
+	Enabled   *bool
+}
+
+// AISemanticRateLimit fires when prompts cluster around exemplar text.
+type AISemanticRateLimit struct {
+	ID                  string
+	TenantID            string
+	Name                string
+	Scope               string // tenant | agent | tool
+	AgentID             *string
+	ToolID              *string
+	Exemplars           string // JSON array
+	SimilarityThreshold float64
+	WindowSeconds       int32
+	Threshold           int32
+	Action              string // block | degrade | log
+	Enabled             bool
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+type UpdateAIRateLimitParams struct {
+	Name                *string
+	Scope               *string
+	AgentID             *string
+	ToolID              *string
+	Exemplars           *string
+	SimilarityThreshold *float64
+	WindowSeconds       *int32
+	Threshold           *int32
+	Action              *string
+	Enabled             *bool
+}
+
+// AITrace is an append-only record of one agent invocation.
+type AITrace struct {
+	ID            string
+	TenantID      string
+	AgentID       *string
+	ProviderID    *string
+	Model         string
+	Status        string // success | error | timeout
+	InputTokens   int32
+	OutputTokens  int32
+	DurationMS    int32
+	Prompt        *string // sensitive — gated on read
+	Completion    *string // sensitive — gated on read
+	ToolCallsJSON string
+	Error         *string
+	OccurredAt    time.Time
+}
+
+// AITraceQuery filters trace lookups; Status="" means any.
+type AITraceQuery struct {
+	Status *string
+	Since  *time.Time
+	Until  *time.Time
+	Limit  int
+	Offset int
+}
+
+// AI sentinel errors.
+var (
+	ErrAIProviderNotFound      = fmt.Errorf("store: ai provider not found")
+	ErrAIProviderNameTaken     = fmt.Errorf("store: ai provider name already in use")
+	ErrAIProviderModelNotFound = fmt.Errorf("store: ai provider model not found")
+	ErrAIToolNotFound          = fmt.Errorf("store: ai tool not found")
+	ErrAIToolNameTaken         = fmt.Errorf("store: ai tool name already in use")
+	ErrAIAgentNotFound         = fmt.Errorf("store: ai agent not found")
+	ErrAIAgentNameTaken        = fmt.Errorf("store: ai agent name already in use")
+	ErrAIBindingNotFound       = fmt.Errorf("store: ai tool binding not found")
+	ErrAIBindingExists         = fmt.Errorf("store: ai tool binding for that agent+tool already exists")
+	ErrAIRateLimitNotFound     = fmt.Errorf("store: ai rate limit not found")
+	ErrAIRateLimitNameTaken    = fmt.Errorf("store: ai rate limit name already in use")
+	ErrAITraceNotFound         = fmt.Errorf("store: ai trace not found")
+	ErrMCPServerNotFound       = fmt.Errorf("store: mcp server not found")
+	ErrMCPServerNameTaken      = fmt.Errorf("store: mcp server name already in use")
 )
 
 // APIKey represents a stored API key.

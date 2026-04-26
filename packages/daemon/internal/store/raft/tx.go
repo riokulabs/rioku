@@ -1235,3 +1235,132 @@ func (t *raftTx) GetDashboardVersion(_ context.Context, _ string) (*store.Dashbo
 func (t *raftTx) ListDashboardVersions(_ context.Context, _ string) ([]*store.DashboardVersion, error) {
 	return nil, nil
 }
+
+// ---------------------------------------------------------------------------
+// AI subsystem (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateAIProvider(_ context.Context, _ *store.AIProvider) (*store.AIProvider, error) {
+	return nil, fmt.Errorf("raft: CreateAIProvider not implemented")
+}
+func (t *raftTx) GetAIProvider(_ context.Context, _, _ string) (*store.AIProvider, error) {
+	return nil, store.ErrAIProviderNotFound
+}
+func (t *raftTx) ListAIProvidersByTenant(_ context.Context, _ string) ([]*store.AIProvider, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIProvider(_ context.Context, _, _ string, _ store.UpdateAIProviderParams) (*store.AIProvider, error) {
+	return nil, fmt.Errorf("raft: UpdateAIProvider not implemented")
+}
+func (t *raftTx) DeleteAIProvider(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIProvider not implemented")
+}
+
+func (t *raftTx) AddProviderModel(_ context.Context, _ *store.AIProviderModel) (*store.AIProviderModel, error) {
+	return nil, fmt.Errorf("raft: AddProviderModel not implemented")
+}
+func (t *raftTx) UpdateProviderModel(_ context.Context, _, _ string, _ store.UpdateAIProviderModelParams) (*store.AIProviderModel, error) {
+	return nil, fmt.Errorf("raft: UpdateProviderModel not implemented")
+}
+func (t *raftTx) RemoveProviderModel(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: RemoveProviderModel not implemented")
+}
+func (t *raftTx) ListProviderModels(_ context.Context, _ string) ([]*store.AIProviderModel, error) {
+	return nil, nil
+}
+
+func (t *raftTx) CreateMCPServer(_ context.Context, _ *store.AIMCPServer) (*store.AIMCPServer, error) {
+	return nil, fmt.Errorf("raft: CreateMCPServer not implemented")
+}
+func (t *raftTx) GetMCPServer(_ context.Context, _, _ string) (*store.AIMCPServer, error) {
+	return nil, store.ErrMCPServerNotFound
+}
+func (t *raftTx) ListMCPServersByTenant(_ context.Context, _ string) ([]*store.AIMCPServer, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateMCPServer(_ context.Context, _, _ string, _ store.UpdateAIMCPServerParams) (*store.AIMCPServer, error) {
+	return nil, fmt.Errorf("raft: UpdateMCPServer not implemented")
+}
+func (t *raftTx) DeleteMCPServer(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteMCPServer not implemented")
+}
+
+func (t *raftTx) CreateAITool(_ context.Context, _ *store.AITool) (*store.AITool, error) {
+	return nil, fmt.Errorf("raft: CreateAITool not implemented")
+}
+func (t *raftTx) GetAITool(_ context.Context, _, _ string) (*store.AITool, error) {
+	return nil, store.ErrAIToolNotFound
+}
+func (t *raftTx) ListAIToolsByTenant(_ context.Context, _ string) ([]*store.AITool, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAITool(_ context.Context, _, _ string, _ store.UpdateAIToolParams) (*store.AITool, error) {
+	return nil, fmt.Errorf("raft: UpdateAITool not implemented")
+}
+func (t *raftTx) DeleteAITool(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAITool not implemented")
+}
+
+func (t *raftTx) CreateAIAgent(_ context.Context, _ *store.AIAgent) (*store.AIAgent, error) {
+	return nil, fmt.Errorf("raft: CreateAIAgent not implemented")
+}
+func (t *raftTx) GetAIAgent(_ context.Context, _, _ string) (*store.AIAgent, error) {
+	return nil, store.ErrAIAgentNotFound
+}
+func (t *raftTx) ListAIAgentsByTenant(_ context.Context, _ string) ([]*store.AIAgent, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIAgent(_ context.Context, _, _ string, _ store.UpdateAIAgentParams) (*store.AIAgent, error) {
+	return nil, fmt.Errorf("raft: UpdateAIAgent not implemented")
+}
+func (t *raftTx) DeleteAIAgent(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIAgent not implemented")
+}
+
+func (t *raftTx) CreateAIToolBinding(_ context.Context, _ *store.AIToolBinding) (*store.AIToolBinding, error) {
+	return nil, fmt.Errorf("raft: CreateAIToolBinding not implemented")
+}
+func (t *raftTx) GetAIToolBinding(_ context.Context, _, _ string) (*store.AIToolBinding, error) {
+	return nil, store.ErrAIBindingNotFound
+}
+func (t *raftTx) ListAIToolBindingsByTenant(_ context.Context, _ string) ([]*store.AIToolBinding, error) {
+	return nil, nil
+}
+func (t *raftTx) ListAIToolBindingsByAgent(_ context.Context, _ string) ([]*store.AIToolBinding, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIToolBinding(_ context.Context, _, _ string, _ store.UpdateAIToolBindingParams) (*store.AIToolBinding, error) {
+	return nil, fmt.Errorf("raft: UpdateAIToolBinding not implemented")
+}
+func (t *raftTx) DeleteAIToolBinding(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIToolBinding not implemented")
+}
+
+func (t *raftTx) CreateAIRateLimit(_ context.Context, _ *store.AISemanticRateLimit) (*store.AISemanticRateLimit, error) {
+	return nil, fmt.Errorf("raft: CreateAIRateLimit not implemented")
+}
+func (t *raftTx) GetAIRateLimit(_ context.Context, _, _ string) (*store.AISemanticRateLimit, error) {
+	return nil, store.ErrAIRateLimitNotFound
+}
+func (t *raftTx) ListAIRateLimitsByTenant(_ context.Context, _ string) ([]*store.AISemanticRateLimit, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIRateLimit(_ context.Context, _, _ string, _ store.UpdateAIRateLimitParams) (*store.AISemanticRateLimit, error) {
+	return nil, fmt.Errorf("raft: UpdateAIRateLimit not implemented")
+}
+func (t *raftTx) DeleteAIRateLimit(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIRateLimit not implemented")
+}
+
+func (t *raftTx) AppendAITrace(_ context.Context, _ *store.AITrace) (*store.AITrace, error) {
+	return nil, fmt.Errorf("raft: AppendAITrace not implemented")
+}
+func (t *raftTx) GetAITrace(_ context.Context, _, _ string) (*store.AITrace, error) {
+	return nil, store.ErrAITraceNotFound
+}
+func (t *raftTx) ListAITracesByTenant(_ context.Context, _ string, _ store.AITraceQuery) ([]*store.AITrace, error) {
+	return nil, nil
+}
+func (t *raftTx) ListAITracesByAgent(_ context.Context, _ string, _ store.AITraceQuery) ([]*store.AITrace, error) {
+	return nil, nil
+}
