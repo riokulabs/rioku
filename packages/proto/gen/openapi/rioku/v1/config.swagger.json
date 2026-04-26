@@ -682,6 +682,39 @@
       ],
       "default": "POLICY_TYPE_UNSPECIFIED"
     },
+    "v1RetryPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire block. When false the compiler emits no\nretry config, even if the other fields are set."
+        },
+        "maxRetries": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_retries is the upper bound on additional attempts after the\ninitial request. Total attempts = 1 + max_retries. Must be \u003e 0\nfor retries to fire."
+        },
+        "retryOnStatus": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "retry_on_status is the list of HTTP status codes that trigger a\nretry. Empty means \"retry only on connection-level errors\"\n(Caddy's default behavior — no status-based retries)."
+        },
+        "tryDurationMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "try_duration_ms is the maximum total time (across all attempts)\nthe proxy will keep trying before returning to the client. Zero\nmeans \"no time bound — keep retrying until max_retries hits\"."
+        },
+        "tryIntervalMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "try_interval_ms is the wait between retry attempts. Zero retries\nimmediately; use a small backoff (e.g. 50–250ms) for upstreams\nthat need a moment to recover."
+        }
+      },
+      "description": "RetryPolicy configures Caddy's reverse_proxy retry behavior so a\ntransient upstream failure (connection reset, 5xx, dial error) is\nretried against the next upstream before the client sees an error.\n\nCompiled fields:\n  - max_retries  -\u003e reverse_proxy.lb_retries\n  - retry_match  -\u003e reverse_proxy.lb_retry_match (status codes)\n  - try_duration -\u003e reverse_proxy.lb_try_duration (cap on total time)\n  - try_interval -\u003e reverse_proxy.lb_try_interval (gap between tries)\n\nWhen omitted, no retry block is emitted and Caddy will not retry —\nmatching the historical behavior. Retries only kick in when there\nare multiple upstreams; with a single upstream, max_retries is\nsilently ignored by Caddy."
+    },
     "v1Route": {
       "type": "object",
       "properties": {
@@ -796,6 +829,9 @@
         },
         "passiveHealthCheck": {
           "$ref": "#/definitions/v1PassiveHealthCheck"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/v1RetryPolicy"
         }
       }
     },

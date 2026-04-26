@@ -2310,6 +2310,124 @@ func TestCompile_PassiveHealthCheck_EnabledWithNoThresholdsOmits(t *testing.T) {
 	}
 }
 
+// ─── Retry policy (#69) ─────────────────────────────────────────────────────
+
+func TestCompile_RetryPolicy_FullBlock(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id: "svc1",
+			Upstreams: []*riokuv1.Upstream{
+				{Address: "10.0.0.1:8080"}, {Address: "10.0.0.2:8080"},
+			},
+			RetryPolicy: &riokuv1.RetryPolicy{
+				Enabled:       true,
+				MaxRetries:    3,
+				RetryOnStatus: []int32{502, 503, 504},
+				TryDurationMs: 5000,
+				TryIntervalMs: 100,
+			},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	if last["lb_retries"].(float64) != 3 {
+		t.Errorf("lb_retries = %v, want 3", last["lb_retries"])
+	}
+	if last["lb_try_duration"] != "5000ms" {
+		t.Errorf("lb_try_duration = %v", last["lb_try_duration"])
+	}
+	if last["lb_try_interval"] != "100ms" {
+		t.Errorf("lb_try_interval = %v", last["lb_try_interval"])
+	}
+	matchers := last["lb_retry_match"].([]any)
+	if len(matchers) != 1 {
+		t.Fatalf("expected 1 retry matcher, got %d", len(matchers))
+	}
+	statuses := matchers[0].(map[string]any)["status_code"].([]any)
+	if len(statuses) != 3 || statuses[0].(float64) != 502 {
+		t.Errorf("status_code = %v", statuses)
+	}
+}
+
+func TestCompile_RetryPolicy_DisabledOmits(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			// Configured but disabled — gate is enforced.
+			RetryPolicy: &riokuv1.RetryPolicy{Enabled: false, MaxRetries: 5},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	if _, has := last["lb_retries"]; has {
+		t.Error("disabled retry policy should not emit lb_retries")
+	}
+}
+
+func TestCompile_RetryPolicy_ZeroMaxRetriesOmits(t *testing.T) {
+	// Enabled=true but max_retries=0 means "no retries", which is also
+	// the no-config baseline. Suppress the block to avoid pushing a
+	// no-op to Caddy.
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:          "svc1",
+			Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			RetryPolicy: &riokuv1.RetryPolicy{Enabled: true, MaxRetries: 0},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rp := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)["routes"].([]any)[0].(map[string]any)["handle"].([]any)
+	last := rp[len(rp)-1].(map[string]any)
+	if _, has := last["lb_retries"]; has {
+		t.Error("max_retries=0 should not emit lb_retries")
+	}
+}
+
 func TestCompile_OnDemandTLS_EnabledWithoutAskURLSkips(t *testing.T) {
 	// Misconfigured: Enabled=true but AskURL empty. Compiler must
 	// refuse to emit the block — silently emitting on-demand without

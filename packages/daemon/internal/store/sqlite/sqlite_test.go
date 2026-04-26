@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 9 {
-		t.Fatalf("expected version 9, got %d", v)
+	if v != 10 {
+		t.Fatalf("expected version 10, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3156,6 +3156,72 @@ func TestPassiveHealthCheck_RoundTrip(t *testing.T) {
 	}
 	if len(phc.GetUnhealthyStatus()) != 3 || phc.GetUnhealthyStatus()[0] != 500 {
 		t.Errorf("unhealthy_status mismatch: %v", phc.GetUnhealthyStatus())
+	}
+}
+
+// ─── RetryPolicy round-trip (#69) ───────────────────────────────────────────
+
+func TestRetryPolicy_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	want := &riokuv1.RetryPolicy{
+		Enabled:       true,
+		MaxRetries:    3,
+		RetryOnStatus: []int32{502, 503, 504},
+		TryDurationMs: 5000,
+		TryIntervalMs: 100,
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:        "retry-svc",
+		LbPolicy:    riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+		RetryPolicy: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	rp := got.GetRetryPolicy()
+	if rp == nil {
+		t.Fatal("expected non-nil RetryPolicy after round-trip")
+	}
+	if rp.GetMaxRetries() != 3 || rp.GetTryDurationMs() != 5000 || rp.GetTryIntervalMs() != 100 {
+		t.Errorf("round-trip mismatch: %+v", rp)
+	}
+	if len(rp.GetRetryOnStatus()) != 3 {
+		t.Errorf("retry_on_status mismatch: %v", rp.GetRetryOnStatus())
+	}
+}
+
+func TestRetryPolicy_NilPersistsAsNil(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:      "no-retry-svc",
+		LbPolicy:  riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx2.Rollback()
+	got, _ := tx2.GetService(ctx, created.GetId())
+	if got.GetRetryPolicy() != nil {
+		t.Errorf("expected nil RetryPolicy, got %+v", got.GetRetryPolicy())
 	}
 }
 

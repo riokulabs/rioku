@@ -68,6 +68,7 @@ message Service {
   int32 response_header_timeout_seconds  = 10;
   int32 idle_timeout_seconds             = 11;
   PassiveHealthCheck        passive_health_check = 12;
+  RetryPolicy               retry_policy = 13;
 }
 
 message Upstream {
@@ -96,6 +97,46 @@ message HealthCheck {
   int32          unhealthy_threshold = 5;
   int32          healthy_threshold   = 6;
   repeated int32 expected_statuses   = 7;
+}
+
+// RetryPolicy configures Caddy's reverse_proxy retry behavior so a
+// transient upstream failure (connection reset, 5xx, dial error) is
+// retried against the next upstream before the client sees an error.
+//
+// Compiled fields:
+//   - max_retries  -> reverse_proxy.lb_retries
+//   - retry_match  -> reverse_proxy.lb_retry_match (status codes)
+//   - try_duration -> reverse_proxy.lb_try_duration (cap on total time)
+//   - try_interval -> reverse_proxy.lb_try_interval (gap between tries)
+//
+// When omitted, no retry block is emitted and Caddy will not retry —
+// matching the historical behavior. Retries only kick in when there
+// are multiple upstreams; with a single upstream, max_retries is
+// silently ignored by Caddy.
+message RetryPolicy {
+  // enabled gates the entire block. When false the compiler emits no
+  // retry config, even if the other fields are set.
+  bool enabled = 1;
+
+  // max_retries is the upper bound on additional attempts after the
+  // initial request. Total attempts = 1 + max_retries. Must be > 0
+  // for retries to fire.
+  int32 max_retries = 2;
+
+  // retry_on_status is the list of HTTP status codes that trigger a
+  // retry. Empty means "retry only on connection-level errors"
+  // (Caddy's default behavior — no status-based retries).
+  repeated int32 retry_on_status = 3;
+
+  // try_duration_ms is the maximum total time (across all attempts)
+  // the proxy will keep trying before returning to the client. Zero
+  // means "no time bound — keep retrying until max_retries hits".
+  int32 try_duration_ms = 4;
+
+  // try_interval_ms is the wait between retry attempts. Zero retries
+  // immediately; use a small backoff (e.g. 50–250ms) for upstreams
+  // that need a moment to recover.
+  int32 try_interval_ms = 5;
 }
 
 // PassiveHealthCheck configures passive (in-band) health checking against

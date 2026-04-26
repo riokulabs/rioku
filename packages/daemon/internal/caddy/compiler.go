@@ -455,6 +455,25 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		handler["health_checks"] = healthChecks
 	}
 
+	// Retry policy (#69). Retries only apply when there are multiple
+	// upstreams; with a single backend Caddy ignores lb_retries. We
+	// emit the block regardless when enabled — the operator may have
+	// just removed an upstream and the policy stays meaningful.
+	if rp := svc.GetRetryPolicy(); rp != nil && rp.GetEnabled() && rp.GetMaxRetries() > 0 {
+		handler["lb_retries"] = rp.GetMaxRetries()
+		if v := rp.GetTryDurationMs(); v > 0 {
+			handler["lb_try_duration"] = fmt.Sprintf("%dms", v)
+		}
+		if v := rp.GetTryIntervalMs(); v > 0 {
+			handler["lb_try_interval"] = fmt.Sprintf("%dms", v)
+		}
+		if statuses := rp.GetRetryOnStatus(); len(statuses) > 0 {
+			handler["lb_retry_match"] = []map[string]any{
+				{"status_code": statuses},
+			}
+		}
+	}
+
 	// Transport timeouts
 	dialTimeout := svc.GetDialTimeoutSeconds()
 	respHeaderTimeout := svc.GetResponseHeaderTimeoutSeconds()
