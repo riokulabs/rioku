@@ -560,6 +560,15 @@ func (t *raftTx) RevokeAPIKey(_ context.Context, id string) error {
 	})
 }
 
+// RecordAPIKeyUse is intentionally a no-op on the raft driver for
+// now: per-request usage telemetry would require a new raft op
+// (and would amplify cluster traffic with a write per request).
+// The sqlite driver implements it directly; raft callers will see
+// usage_count stay at 0 until a dedicated op lands.
+func (t *raftTx) RecordAPIKeyUse(_ context.Context, _ string, _ time.Time) error {
+	return nil
+}
+
 func (t *raftTx) ListAPIKeysByOwner(_ context.Context, ownerID string) ([]*store.APIKey, error) {
 	var keys []*store.APIKey
 	err := t.driver.readFSM(func(tx *bolt.Tx) error {

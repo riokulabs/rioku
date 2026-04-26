@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 11 {
-		t.Fatalf("expected version 11, got %d", v)
+	if v != 12 {
+		t.Fatalf("expected version 12, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3376,5 +3376,68 @@ func TestPassiveHealthCheck_NilPersistsAsNil(t *testing.T) {
 	}
 	if got.GetPassiveHealthCheck() != nil {
 		t.Errorf("expected nil PassiveHealthCheck, got %+v", got.GetPassiveHealthCheck())
+	}
+}
+
+// ─── RecordAPIKeyUse (#85) ──────────────────────────────────────────────────
+
+func TestRecordAPIKeyUse_BumpsCounterAndTimestamp(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create the key.
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc", []string{"keys:own"}, nil, "")
+	if err != nil {
+		t.Fatalf("CreateAPIKey: %v", err)
+	}
+	_ = tx1.Commit()
+
+	// Initially, usage stats are zero.
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	k, err := tx2.GetAPIKey(ctx, id)
+	if err != nil {
+		t.Fatalf("GetAPIKey: %v", err)
+	}
+	if k.UsageCount != 0 || k.LastUsedAt != nil {
+		t.Errorf("fresh key should have zero usage, got count=%d lastUsed=%v", k.UsageCount, k.LastUsedAt)
+	}
+	_ = tx2.Rollback()
+
+	// Record three uses.
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 0; i < 3; i++ {
+		tx, _ := d.Begin(ctx, store.TxOptions{})
+		if err := tx.RecordAPIKeyUse(ctx, id, now.Add(time.Duration(i)*time.Second)); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("RecordAPIKeyUse: %v", err)
+		}
+		_ = tx.Commit()
+	}
+
+	tx3, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx3.Rollback()
+	k, _ = tx3.GetAPIKey(ctx, id)
+	if k.UsageCount != 3 {
+		t.Errorf("usage_count = %d, want 3", k.UsageCount)
+	}
+	if k.LastUsedAt == nil {
+		t.Fatal("expected non-nil LastUsedAt after RecordAPIKeyUse")
+	}
+}
+
+func TestRecordAPIKeyUse_UnknownIDIsNoop(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx.Rollback()
+
+	// Should not error even though the id doesn't exist — the auth
+	// path is the caller and a missing row already means the request
+	// failed validation upstream. Silent no-op keeps the contract
+	// best-effort.
+	if err := tx.RecordAPIKeyUse(ctx, "nonexistent-id", time.Now().UTC()); err != nil {
+		t.Errorf("expected no-op, got error: %v", err)
 	}
 }

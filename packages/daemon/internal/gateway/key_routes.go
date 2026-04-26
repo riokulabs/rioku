@@ -19,6 +19,8 @@ func RegisterKeyRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("keys:own")(http.HandlerFunc(handleKeyList(st))))
 	mux.Handle("DELETE /api/v1/keys/",
 		RequirePermission("keys:own")(http.HandlerFunc(handleKeyRevoke(st))))
+	mux.Handle("GET /api/v1/keys/{id}/usage",
+		RequirePermission("keys:own")(http.HandlerFunc(handleKeyUsage(st))))
 }
 
 type keyCreateRequest struct {
@@ -313,6 +315,81 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleKeyUsage returns simple usage stats for one API key (#85).
+//
+//	GET /api/v1/keys/{id}/usage
+//
+// Response: { "id", "name", "lastUsedAt", "usageCount", "createdAt" }
+//
+// Permission rules mirror the other key routes: keys:own users see
+// only their own keys; keys:manage / admin / * users see any key.
+// Returns 404 (not 403) for keys that exist but the caller can't
+// view, to avoid leaking key-id existence to unprivileged callers.
+func handleKeyUsage(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			writeBadRequest(w, r, "key id is required")
+			return
+		}
+
+		ctx := r.Context()
+		var userID string
+		var hasManage bool
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil {
+			userID = sc.UserID
+			hasManage = sc.HasPermission("keys:manage") ||
+				sc.HasPermission("admin") || sc.HasPermission("*")
+		} else if c := auth.ClaimsFromContext(ctx); c != nil {
+			for _, role := range c.Roles {
+				if role == "admin" || role == "keys:manage" || role == "*" {
+					hasManage = true
+					break
+				}
+			}
+		}
+
+		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		key, err := tx.GetAPIKey(ctx, id)
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
+				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
+			return
+		}
+		// Hide existence of keys the caller can't see (return 404 not 403).
+		if !hasManage && key.OwnerID != userID {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
+				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
+			return
+		}
+
+		resp := map[string]any{
+			"id":         key.ID,
+			"name":       key.Name,
+			"createdAt":  key.CreatedAt.Format(time.RFC3339),
+			"usageCount": key.UsageCount,
+		}
+		if key.LastUsedAt != nil {
+			resp["lastUsedAt"] = key.LastUsedAt.Format(time.RFC3339)
+		}
+		if key.RevokedAt != nil {
+			resp["revokedAt"] = key.RevokedAt.Format(time.RFC3339)
+		}
+		if key.ExpiresAt != nil {
+			resp["expiresAt"] = key.ExpiresAt.Format(time.RFC3339)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 

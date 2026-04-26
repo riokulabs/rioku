@@ -179,6 +179,12 @@ type Tx interface {
 	ListAPIKeys(ctx context.Context) ([]*APIKey, error)
 	ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*APIKey, error)
 	RevokeAPIKey(ctx context.Context, id string) error
+	// RecordAPIKeyUse bumps the key's usage_count by 1 and sets
+	// last_used_at to `at`. Called from the auth path on every
+	// authenticated API key request (#85). Best-effort: callers are
+	// expected to ignore errors so usage tracking never blocks a
+	// valid request.
+	RecordAPIKeyUse(ctx context.Context, id string, at time.Time) error
 
 	// --- Config Versions ---
 
@@ -299,14 +305,16 @@ type Tx interface {
 
 // APIKey represents a stored API key.
 type APIKey struct {
-	ID        string
-	Name      string
-	KeyHash   string
-	Scopes    []string
-	OwnerID   string // user ID of creator, empty for system keys
-	ExpiresAt *time.Time
-	CreatedAt time.Time
-	RevokedAt *time.Time
+	ID         string
+	Name       string
+	KeyHash    string
+	Scopes     []string
+	OwnerID    string // user ID of creator, empty for system keys
+	ExpiresAt  *time.Time
+	CreatedAt  time.Time
+	RevokedAt  *time.Time
+	LastUsedAt *time.Time // nil = never used; updated by RecordAPIKeyUse (#85)
+	UsageCount int64      // monotonically increasing counter (#85)
 }
 
 // ConfigVersion represents a stored config snapshot.

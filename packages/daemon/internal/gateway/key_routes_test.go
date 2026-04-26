@@ -1113,3 +1113,68 @@ func TestKeyRoutes_RevokeAlreadyRevokedAsNonOwner(t *testing.T) {
 		t.Fatalf("expected 404 for nonexistent id, got %d", resp2.StatusCode)
 	}
 }
+
+// ─── Usage stats endpoint (#85) ─────────────────────────────────────────────
+
+func TestKeyRoutes_Usage_FreshKeyShowsZero(t *testing.T) {
+	server, _, _, client := setupKeyTestServer(t)
+	id, _ := createKeyViaAPI(t, client, server.URL, map[string]string{"name": "fresh-usage"})
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/keys/"+id+"/usage", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body["id"] != id {
+		t.Errorf("id = %v, want %s", body["id"], id)
+	}
+	if uc, ok := body["usageCount"].(float64); !ok || uc != 0 {
+		t.Errorf("usageCount = %v, want 0", body["usageCount"])
+	}
+	if _, has := body["lastUsedAt"]; has {
+		t.Errorf("lastUsedAt should be omitted on fresh key, got %v", body["lastUsedAt"])
+	}
+}
+
+func TestKeyRoutes_Usage_AfterRecordedUse(t *testing.T) {
+	server, drv, _, client := setupKeyTestServer(t)
+	id, _ := createKeyViaAPI(t, client, server.URL, map[string]string{"name": "used-key"})
+
+	// Simulate 4 authenticated requests by writing usage events
+	// directly through the store (bypasses the goroutine in the
+	// auth path, which would race with the test).
+	ctx := context.Background()
+	for i := 0; i < 4; i++ {
+		tx, _ := drv.Begin(ctx, store.TxOptions{})
+		if err := tx.RecordAPIKeyUse(ctx, id, time.Now().UTC()); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("RecordAPIKeyUse: %v", err)
+		}
+		_ = tx.Commit()
+	}
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/keys/"+id+"/usage", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if uc, _ := body["usageCount"].(float64); uc != 4 {
+		t.Errorf("usageCount = %v, want 4", body["usageCount"])
+	}
+	if _, has := body["lastUsedAt"]; !has {
+		t.Errorf("lastUsedAt should be set after usage, got body=%v", body)
+	}
+}
+
+func TestKeyRoutes_Usage_NotFoundForBogusID(t *testing.T) {
+	server, _, _, client := setupKeyTestServer(t)
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/keys/bogus-id-xyz/usage", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for unknown key id, got %d", resp.StatusCode)
+	}
+}

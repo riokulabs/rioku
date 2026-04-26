@@ -255,11 +255,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 12: api_keys.last_used_at + usage_count columns (#85).
+	if current < 12 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000012_api_key_usage.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 12: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 12: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (12, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 12: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 12 down: drop api_keys.last_used_at + usage_count.
+	if current >= 12 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000012_api_key_usage.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 12: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 12: %w", err)
+		}
+	}
 
 	// Migration 11 down: drop upstream_tls + connection_pool columns.
 	if current >= 11 {
@@ -1049,21 +1076,21 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 
 func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
 		 FROM api_keys WHERE id = ?`, id)
 	return scanAPIKey(row)
 }
 
 func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
 		 FROM api_keys WHERE key_hash = ?`, keyHash)
 	return scanAPIKey(row)
 }
 
 func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
 		 FROM api_keys WHERE revoked_at IS NULL`)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys: %w", err)
@@ -1083,7 +1110,7 @@ func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 
 func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.APIKey, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id
+		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
 		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ?`, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys by owner: %w", err)
@@ -1115,6 +1142,21 @@ func (t *tx) RevokeAPIKey(ctx context.Context, id string) error {
 		return fmt.Errorf("sqlite: api_key %q not found or already revoked", id)
 	}
 	t.emit("api_keys", id, "UPDATE")
+	return nil
+}
+
+// RecordAPIKeyUse atomically bumps usage_count and overwrites
+// last_used_at. No-op (no error) when the key id doesn't exist —
+// the caller is the auth path and a missing row at this point is
+// already an authentication failure handled upstream.
+func (t *tx) RecordAPIKeyUse(ctx context.Context, id string, at time.Time) error {
+	_, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE api_keys SET last_used_at = ?, usage_count = usage_count + 1 WHERE id = ?`,
+		at.UTC().Format(timeFormat), id,
+	)
+	if err != nil {
+		return fmt.Errorf("sqlite: record api_key use: %w", err)
+	}
 	return nil
 }
 
@@ -2309,8 +2351,10 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		createdAt  string
 		revokedAt  *string
 		ownerID    *string
+		lastUsedAt *string
+		usageCount int64
 	)
-	if err := s.Scan(&id, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID); err != nil {
+	if err := s.Scan(&id, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
 		return nil, fmt.Errorf("sqlite: scan api_key: %w", err)
 	}
 
@@ -2320,11 +2364,12 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 	}
 
 	key := &store.APIKey{
-		ID:        id,
-		Name:      name,
-		KeyHash:   keyHash,
-		Scopes:    scopes,
-		CreatedAt: parseTime(createdAt),
+		ID:         id,
+		Name:       name,
+		KeyHash:    keyHash,
+		Scopes:     scopes,
+		CreatedAt:  parseTime(createdAt),
+		UsageCount: usageCount,
 	}
 	if ownerID != nil {
 		key.OwnerID = *ownerID
@@ -2336,6 +2381,10 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 	if revokedAt != nil {
 		t := parseTime(*revokedAt)
 		key.RevokedAt = &t
+	}
+	if lastUsedAt != nil {
+		t := parseTime(*lastUsedAt)
+		key.LastUsedAt = &t
 	}
 	return key, nil
 }
