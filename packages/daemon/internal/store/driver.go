@@ -17,9 +17,11 @@ import (
 
 // Sentinel errors for RBAC and TOTP operations.
 var (
-	ErrRoleImmutable      = fmt.Errorf("store: superadmin role cannot be modified or deleted")
-	ErrRoleNotFound       = fmt.Errorf("store: role not found")
-	ErrNoUnusedBackupCode = fmt.Errorf("store: no unused backup codes")
+	ErrRoleImmutable         = fmt.Errorf("store: superadmin role cannot be modified or deleted")
+	ErrRoleNotFound          = fmt.Errorf("store: role not found")
+	ErrNoUnusedBackupCode    = fmt.Errorf("store: no unused backup codes")
+	ErrAccessPolicyNotFound  = fmt.Errorf("store: access policy not found")
+	ErrAccessPolicyDuplicate = fmt.Errorf("store: access policy with that name already exists")
 )
 
 // ---------------------------------------------------------------------------
@@ -268,6 +270,23 @@ type Tx interface {
 	MarkTOTPBackupCodeUsed(ctx context.Context, codeID string) error
 	// DeleteTOTPBackupCodes removes all backup codes for a user (called on TOTP disable/reset).
 	DeleteTOTPBackupCodes(ctx context.Context, userID string) error
+
+	// --- Access Policies ---
+
+	// CreateAccessPolicy persists a new access policy and returns it with
+	// its assigned ID + timestamps.
+	CreateAccessPolicy(ctx context.Context, p *AccessPolicy) (*AccessPolicy, error)
+	// GetAccessPolicy returns a policy by ID, or ErrAccessPolicyNotFound.
+	GetAccessPolicy(ctx context.Context, id string) (*AccessPolicy, error)
+	// ListAccessPolicies returns every access policy ordered by
+	// (priority ASC, created_at ASC) — i.e. evaluation order.
+	ListAccessPolicies(ctx context.Context) ([]*AccessPolicy, error)
+	// UpdateAccessPolicy applies a partial update. Returns the post-update
+	// row, or ErrAccessPolicyNotFound.
+	UpdateAccessPolicy(ctx context.Context, id string, params UpdateAccessPolicyParams) (*AccessPolicy, error)
+	// DeleteAccessPolicy removes a policy. Returns ErrAccessPolicyNotFound
+	// if no row matched.
+	DeleteAccessPolicy(ctx context.Context, id string) error
 }
 
 // ---------------------------------------------------------------------------
@@ -395,4 +414,68 @@ func New(name string) (Driver, error) {
 		return nil, fmt.Errorf("unknown store driver: %q", name)
 	}
 	return factory(), nil
+}
+
+// ---------------------------------------------------------------------------
+// Access policies (#80) — conditional access rules
+// ---------------------------------------------------------------------------
+
+// AccessPolicyEffect is either "allow" or "deny".
+type AccessPolicyEffect string
+
+const (
+	AccessPolicyAllow AccessPolicyEffect = "allow"
+	AccessPolicyDeny  AccessPolicyEffect = "deny"
+)
+
+// AccessPolicyTargetType describes how `TargetIDs` should be interpreted.
+type AccessPolicyTargetType string
+
+const (
+	// AccessPolicyTargetRoles — TargetIDs is a list of role IDs.
+	AccessPolicyTargetRoles AccessPolicyTargetType = "roles"
+	// AccessPolicyTargetUsers — TargetIDs is a list of user IDs.
+	AccessPolicyTargetUsers AccessPolicyTargetType = "users"
+	// AccessPolicyTargetAll — TargetIDs is ignored; the policy applies to
+	// every authenticated subject.
+	AccessPolicyTargetAll AccessPolicyTargetType = "all"
+)
+
+// AccessPolicyCondition is an opaque-to-the-store description of one
+// condition the policy engine evaluates. Type values include "time", "ip",
+// "mfa", "geo", "device", and "custom"; the daemon's auth middleware owns
+// validation + evaluation.
+type AccessPolicyCondition struct {
+	Type   string         `json:"type"`
+	Config map[string]any `json:"config"`
+}
+
+// AccessPolicy is a conditional access-control rule evaluated by the auth
+// middleware. Lower priority numbers evaluate first; on tie, created_at
+// ASC.
+type AccessPolicy struct {
+	ID          string
+	Name        string
+	Description string
+	Effect      AccessPolicyEffect
+	TargetType  AccessPolicyTargetType
+	TargetIDs   []string
+	Conditions  []AccessPolicyCondition
+	Priority    int
+	Enabled     bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// UpdateAccessPolicyParams is the partial-update payload for
+// UpdateAccessPolicy. Nil fields mean "leave alone".
+type UpdateAccessPolicyParams struct {
+	Name        *string
+	Description *string
+	Effect      *AccessPolicyEffect
+	TargetType  *AccessPolicyTargetType
+	TargetIDs   *[]string
+	Conditions  *[]AccessPolicyCondition
+	Priority    *int
+	Enabled     *bool
 }

@@ -914,6 +914,30 @@ func (t *raftTx) DeleteTOTPBackupCodes(_ context.Context, _ string) error {
 }
 
 // ---------------------------------------------------------------------------
+// Access Policies (stubs — raft driver hasn't ported these yet)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateAccessPolicy(_ context.Context, _ *store.AccessPolicy) (*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: CreateAccessPolicy not implemented")
+}
+
+func (t *raftTx) GetAccessPolicy(_ context.Context, _ string) (*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: GetAccessPolicy not implemented")
+}
+
+func (t *raftTx) ListAccessPolicies(_ context.Context) ([]*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: ListAccessPolicies not implemented")
+}
+
+func (t *raftTx) UpdateAccessPolicy(_ context.Context, _ string, _ store.UpdateAccessPolicyParams) (*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: UpdateAccessPolicy not implemented")
+}
+
+func (t *raftTx) DeleteAccessPolicy(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteAccessPolicy not implemented")
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

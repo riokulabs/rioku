@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 7 {
-		t.Fatalf("expected version 7, got %d", v)
+	if v != 8 {
+		t.Fatalf("expected version 8, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -1567,8 +1567,8 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPermissions: %v", err)
 	}
-	if len(perms) != 22 {
-		t.Fatalf("expected 22 atomic permissions, got %d", len(perms))
+	if len(perms) != 24 {
+		t.Fatalf("expected 24 atomic permissions, got %d", len(perms))
 	}
 	_ = tx2.Rollback()
 
@@ -1771,9 +1771,10 @@ func TestResolveUserPermissions(t *testing.T) {
 		t.Fatalf("GetUserScopes: %v", err)
 	}
 	// admin has: config:*, keys:*, users:read, users:manage, roles:read,
-	// sessions:*, audit:read, settings:*, traffic:read, plugins:*, cluster:read
-	if len(scopes) != 11 {
-		t.Fatalf("expected 11 admin scopes, got %d: %v", len(scopes), scopes)
+	// sessions:*, audit:read, settings:*, traffic:read, plugins:*, cluster:read,
+	// access-policies:read, access-policies:write
+	if len(scopes) != 13 {
+		t.Fatalf("expected 13 admin scopes, got %d: %v", len(scopes), scopes)
 	}
 
 	// Verify wildcards are included.
@@ -2924,5 +2925,185 @@ func TestServiceTimeout_ZeroValues(t *testing.T) {
 	}
 	if err := tx1.Commit(); err != nil {
 		t.Fatalf("Commit: %v", err)
+	}
+}
+
+// ─── Access Policies (#80) ──────────────────────────────────────────────────
+
+func TestAccessPolicyCRUD(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := &store.AccessPolicy{
+		Name:        "deny-after-hours",
+		Description: "Block writes outside business hours",
+		Effect:      store.AccessPolicyDeny,
+		TargetType:  store.AccessPolicyTargetRoles,
+		TargetIDs:   []string{"role_engineer"},
+		Conditions: []store.AccessPolicyCondition{
+			{Type: "time", Config: map[string]any{"start": "18:00", "end": "08:00", "tz": "America/Los_Angeles"}},
+		},
+		Priority: 50,
+		Enabled:  true,
+	}
+	out, err := tx.CreateAccessPolicy(ctx, in)
+	if err != nil {
+		t.Fatalf("CreateAccessPolicy: %v", err)
+	}
+	if out.ID == "" {
+		t.Error("expected assigned ID")
+	}
+	if out.Name != "deny-after-hours" {
+		t.Errorf("name round-trip failed: %s", out.Name)
+	}
+	if out.Effect != store.AccessPolicyDeny {
+		t.Errorf("effect: %s", out.Effect)
+	}
+	if len(out.TargetIDs) != 1 || out.TargetIDs[0] != "role_engineer" {
+		t.Errorf("target_ids round-trip failed: %v", out.TargetIDs)
+	}
+	if len(out.Conditions) != 1 || out.Conditions[0].Type != "time" {
+		t.Errorf("conditions round-trip failed: %v", out.Conditions)
+	}
+	if out.Conditions[0].Config["tz"] != "America/Los_Angeles" {
+		t.Errorf("condition config round-trip failed: %v", out.Conditions[0].Config)
+	}
+
+	// Get
+	got, err := tx.GetAccessPolicy(ctx, out.ID)
+	if err != nil {
+		t.Fatalf("GetAccessPolicy: %v", err)
+	}
+	if got.Name != out.Name {
+		t.Errorf("get mismatch: %s vs %s", got.Name, out.Name)
+	}
+
+	// Update — change name + disable
+	newName := "deny-after-hours-pst"
+	disabled := false
+	_, err = tx.UpdateAccessPolicy(ctx, out.ID, store.UpdateAccessPolicyParams{
+		Name:    &newName,
+		Enabled: &disabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAccessPolicy: %v", err)
+	}
+	got2, _ := tx.GetAccessPolicy(ctx, out.ID)
+	if got2.Name != newName || got2.Enabled {
+		t.Errorf("update did not apply: name=%s enabled=%v", got2.Name, got2.Enabled)
+	}
+
+	// List should return one row.
+	list, err := tx.ListAccessPolicies(ctx)
+	if err != nil {
+		t.Fatalf("ListAccessPolicies: %v", err)
+	}
+	if len(list) != 1 {
+		t.Errorf("expected 1 policy, got %d", len(list))
+	}
+
+	// Delete
+	if err := tx.DeleteAccessPolicy(ctx, out.ID); err != nil {
+		t.Fatalf("DeleteAccessPolicy: %v", err)
+	}
+	if _, err := tx.GetAccessPolicy(ctx, out.ID); err != store.ErrAccessPolicyNotFound {
+		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAccessPolicyDuplicateName(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+
+	_, err := tx.CreateAccessPolicy(ctx, &store.AccessPolicy{
+		Name: "dup", Effect: store.AccessPolicyAllow, TargetType: store.AccessPolicyTargetAll,
+	})
+	if err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+	_, err = tx.CreateAccessPolicy(ctx, &store.AccessPolicy{
+		Name: "dup", Effect: store.AccessPolicyDeny, TargetType: store.AccessPolicyTargetAll,
+	})
+	if err != store.ErrAccessPolicyDuplicate {
+		t.Errorf("expected ErrAccessPolicyDuplicate, got %v", err)
+	}
+	_ = tx.Rollback()
+}
+
+func TestAccessPolicyListOrdering(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+
+	// Insert three policies with different priorities.
+	for _, p := range []struct {
+		name string
+		prio int
+	}{
+		{"third", 300},
+		{"first", 100},
+		{"second", 200},
+	} {
+		if _, err := tx.CreateAccessPolicy(ctx, &store.AccessPolicy{
+			Name:       p.name,
+			Effect:     store.AccessPolicyAllow,
+			TargetType: store.AccessPolicyTargetAll,
+			Priority:   p.prio,
+			Enabled:    true,
+		}); err != nil {
+			t.Fatalf("create %s: %v", p.name, err)
+		}
+	}
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer tx2.Rollback()
+
+	list, err := tx2.ListAccessPolicies(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 3 {
+		t.Fatalf("expected 3, got %d", len(list))
+	}
+	wantOrder := []string{"first", "second", "third"}
+	for i, p := range list {
+		if p.Name != wantOrder[i] {
+			t.Errorf("position %d: got %s, want %s", i, p.Name, wantOrder[i])
+		}
+	}
+}
+
+func TestAccessPolicyUpdateNotFound(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx.Rollback()
+
+	name := "x"
+	_, err := tx.UpdateAccessPolicy(ctx, "nonexistent", store.UpdateAccessPolicyParams{Name: &name})
+	if err != store.ErrAccessPolicyNotFound {
+		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
+	}
+}
+
+func TestAccessPolicyDeleteNotFound(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	defer tx.Rollback()
+
+	if err := tx.DeleteAccessPolicy(ctx, "nonexistent"); err != store.ErrAccessPolicyNotFound {
+		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
 	}
 }

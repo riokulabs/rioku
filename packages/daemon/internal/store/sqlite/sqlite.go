@@ -191,11 +191,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 8: access_policies table for conditional access rules.
+	if current < 8 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000008_access_policies.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 8: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 8: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (8, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 8: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 8 down: drop access_policies table.
+	if current >= 8 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000008_access_policies.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 8: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 8: %w", err)
+		}
+	}
 
 	// Migration 7 down: remove owner_id from api_keys.
 	if current >= 7 {
@@ -2240,6 +2267,234 @@ func unmarshalStructJSON(s string) (*structpb.Struct, error) {
 		return nil, err
 	}
 	return st, nil
+}
+
+// ---------------------------------------------------------------------------
+// Access policies (#80)
+// ---------------------------------------------------------------------------
+
+func (t *tx) CreateAccessPolicy(ctx context.Context, p *store.AccessPolicy) (*store.AccessPolicy, error) {
+	if p.ID == "" {
+		p.ID = uuid.New().String()
+	}
+	now := nowUTC()
+	targetIDs, err := json.Marshal(orEmpty(p.TargetIDs))
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal target_ids: %w", err)
+	}
+	conditions, err := json.Marshal(orEmptyConditions(p.Conditions))
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal conditions: %w", err)
+	}
+	enabled := 0
+	if p.Enabled {
+		enabled = 1
+	}
+	_, err = t.sqlTx.ExecContext(ctx, `
+		INSERT INTO access_policies
+			(id, name, description, effect, target_type, target_ids_json, conditions_json, priority, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, p.ID, p.Name, p.Description, string(p.Effect), string(p.TargetType),
+		string(targetIDs), string(conditions), p.Priority, enabled, now, now)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrAccessPolicyDuplicate
+		}
+		return nil, fmt.Errorf("sqlite: create access_policy: %w", err)
+	}
+	t.emit("access_policies", p.ID, "INSERT")
+	return t.GetAccessPolicy(ctx, p.ID)
+}
+
+func (t *tx) GetAccessPolicy(ctx context.Context, id string) (*store.AccessPolicy, error) {
+	row := t.sqlTx.QueryRowContext(ctx, `
+		SELECT id, name, description, effect, target_type, target_ids_json,
+		       conditions_json, priority, enabled, created_at, updated_at
+		  FROM access_policies WHERE id = ?
+	`, id)
+	p, err := scanAccessPolicy(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrAccessPolicyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: get access_policy: %w", err)
+	}
+	return p, nil
+}
+
+func (t *tx) ListAccessPolicies(ctx context.Context) ([]*store.AccessPolicy, error) {
+	rows, err := t.sqlTx.QueryContext(ctx, `
+		SELECT id, name, description, effect, target_type, target_ids_json,
+		       conditions_json, priority, enabled, created_at, updated_at
+		  FROM access_policies
+		 ORDER BY priority ASC, created_at ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list access_policies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.AccessPolicy
+	for rows.Next() {
+		p, err := scanAccessPolicy(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+func (t *tx) UpdateAccessPolicy(ctx context.Context, id string, params store.UpdateAccessPolicyParams) (*store.AccessPolicy, error) {
+	// Confirm existence first so we can return a stable not-found error.
+	if _, err := t.GetAccessPolicy(ctx, id); err != nil {
+		return nil, err
+	}
+	now := nowUTC()
+	if params.Name != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET name = ?, updated_at = ? WHERE id = ?`,
+			*params.Name, now, id); err != nil {
+			if isUniqueViolation(err) {
+				return nil, store.ErrAccessPolicyDuplicate
+			}
+			return nil, fmt.Errorf("sqlite: update access_policy name: %w", err)
+		}
+	}
+	if params.Description != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET description = ?, updated_at = ? WHERE id = ?`,
+			*params.Description, now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy description: %w", err)
+		}
+	}
+	if params.Effect != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET effect = ?, updated_at = ? WHERE id = ?`,
+			string(*params.Effect), now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy effect: %w", err)
+		}
+	}
+	if params.TargetType != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET target_type = ?, updated_at = ? WHERE id = ?`,
+			string(*params.TargetType), now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy target_type: %w", err)
+		}
+	}
+	if params.TargetIDs != nil {
+		raw, err := json.Marshal(orEmpty(*params.TargetIDs))
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: marshal target_ids: %w", err)
+		}
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET target_ids_json = ?, updated_at = ? WHERE id = ?`,
+			string(raw), now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy target_ids: %w", err)
+		}
+	}
+	if params.Conditions != nil {
+		raw, err := json.Marshal(orEmptyConditions(*params.Conditions))
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: marshal conditions: %w", err)
+		}
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET conditions_json = ?, updated_at = ? WHERE id = ?`,
+			string(raw), now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy conditions: %w", err)
+		}
+	}
+	if params.Priority != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET priority = ?, updated_at = ? WHERE id = ?`,
+			*params.Priority, now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy priority: %w", err)
+		}
+	}
+	if params.Enabled != nil {
+		v := 0
+		if *params.Enabled {
+			v = 1
+		}
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET enabled = ?, updated_at = ? WHERE id = ?`,
+			v, now, id); err != nil {
+			return nil, fmt.Errorf("sqlite: update access_policy enabled: %w", err)
+		}
+	}
+	t.emit("access_policies", id, "UPDATE")
+	return t.GetAccessPolicy(ctx, id)
+}
+
+func (t *tx) DeleteAccessPolicy(ctx context.Context, id string) error {
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM access_policies WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("sqlite: delete access_policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrAccessPolicyNotFound
+	}
+	t.emit("access_policies", id, "DELETE")
+	return nil
+}
+
+func scanAccessPolicy(s scanner) (*store.AccessPolicy, error) {
+	var (
+		p             store.AccessPolicy
+		effect        string
+		targetType    string
+		targetIDsRaw  string
+		conditionsRaw string
+		enabledInt    int
+		createdStr    string
+		updatedStr    string
+	)
+	if err := s.Scan(&p.ID, &p.Name, &p.Description, &effect, &targetType,
+		&targetIDsRaw, &conditionsRaw, &p.Priority, &enabledInt, &createdStr, &updatedStr); err != nil {
+		return nil, err
+	}
+	p.Effect = store.AccessPolicyEffect(effect)
+	p.TargetType = store.AccessPolicyTargetType(targetType)
+	p.Enabled = enabledInt == 1
+	p.CreatedAt = parseTime(createdStr)
+	p.UpdatedAt = parseTime(updatedStr)
+	if err := json.Unmarshal([]byte(targetIDsRaw), &p.TargetIDs); err != nil {
+		return nil, fmt.Errorf("sqlite: parse target_ids JSON: %w", err)
+	}
+	if p.TargetIDs == nil {
+		p.TargetIDs = []string{}
+	}
+	if err := json.Unmarshal([]byte(conditionsRaw), &p.Conditions); err != nil {
+		return nil, fmt.Errorf("sqlite: parse conditions JSON: %w", err)
+	}
+	if p.Conditions == nil {
+		p.Conditions = []store.AccessPolicyCondition{}
+	}
+	return &p, nil
+}
+
+func orEmpty(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+func orEmptyConditions(c []store.AccessPolicyCondition) []store.AccessPolicyCondition {
+	if c == nil {
+		return []store.AccessPolicyCondition{}
+	}
+	return c
+}
+
+// isUniqueViolation returns true for SQLite UNIQUE constraint failures.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "UNIQUE constraint failed") ||
+		strings.Contains(msg, "constraint failed: UNIQUE")
 }
 
 // ---------------------------------------------------------------------------

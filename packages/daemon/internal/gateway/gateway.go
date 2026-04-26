@@ -112,6 +112,9 @@ func NewGateway(
 	// translate server-streaming RPCs in in-process mode).
 	RegisterAuditRoutes(topMux, st)
 
+	// Access policy CRUD (#80).
+	RegisterAccessPolicyRoutes(topMux, st)
+
 	// Settings endpoints (replaces old monolithic GET /api/v1/settings stub).
 	runtimeSettings := NewRuntimeSettings(cfg, levelVar)
 	RegisterSettingsRoutes(topMux, cfg, st, time.Now().UTC(), runtimeSettings)
