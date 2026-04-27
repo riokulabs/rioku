@@ -1381,6 +1381,7 @@ var (
 // APIKey represents a stored API key.
 type APIKey struct {
 	ID         string
+	TenantID   string
 	Name       string
 	KeyHash    string
 	Scopes     []string

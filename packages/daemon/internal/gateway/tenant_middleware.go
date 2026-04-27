@@ -79,6 +79,9 @@ func TenantMiddleware(st store.Driver) func(http.Handler) http.Handler {
 			}
 
 			ctx := WithTenant(r.Context(), tenant)
+			// Also attach the tenant id via the store-level context key so
+			// downstream storage methods automatically filter by tenant.
+			ctx = store.WithTenantID(ctx, tenant.ID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

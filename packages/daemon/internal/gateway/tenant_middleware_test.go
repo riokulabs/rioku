@@ -120,3 +120,25 @@ func TestWithTenant_RoundTrip(t *testing.T) {
 		t.Errorf("round-trip: got %+v, want %+v", got, want)
 	}
 }
+
+// TestTenantMiddleware_PropagatesTenantIDToStoreContext asserts that
+// resolving `/api/v1/t/{slug}/...` attaches the tenant id to the
+// store-level context key so downstream storage methods automatically
+// filter by that tenant.
+func TestTenantMiddleware_PropagatesTenantIDToStoreContext(t *testing.T) {
+	drv := openTenantTestStore(t)
+
+	var observed string
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		observed = store.TenantIDFromContext(r.Context())
+	})
+	mw := TenantMiddleware(drv)(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/t/default/dashboards", nil)
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if observed != store.DefaultTenantID {
+		t.Errorf("store.TenantIDFromContext = %q, want %q", observed, store.DefaultTenantID)
+	}
+}

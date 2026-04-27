@@ -768,10 +768,11 @@ func (t *tx) CreateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Ro
 		enabled = 0
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO routes (id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, route.GetName(), matchersJSON, targetServiceID, targetUpstreamJSON, enabled, labelsJSON, now, now,
+		`INSERT INTO routes (id, tenant_id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, route.GetName(), matchersJSON, targetServiceID, targetUpstreamJSON, enabled, labelsJSON, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert route: %w", err)
@@ -783,16 +784,18 @@ func (t *tx) CreateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Ro
 }
 
 func (t *tx) GetRoute(ctx context.Context, id string) (*riokuv1.Route, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at
-		 FROM routes WHERE id = ?`, id)
+		 FROM routes WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	return scanRoute(row)
 }
 
 func (t *tx) ListRoutes(ctx context.Context) ([]*riokuv1.Route, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
 		`SELECT id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at
-		 FROM routes ORDER BY id`)
+		 FROM routes WHERE tenant_id = ? ORDER BY id`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list routes: %w", err)
 	}
@@ -840,10 +843,11 @@ func (t *tx) UpdateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Ro
 		enabled = 0
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	res, err := t.sqlTx.ExecContext(ctx,
 		`UPDATE routes SET name=?, matchers=?, target_service_id=?, target_upstream=?, enabled=?, labels=?, updated_at=?
-		 WHERE id=?`,
-		route.GetName(), matchersJSON, targetServiceID, targetUpstreamJSON, enabled, labelsJSON, now, route.GetId(),
+		 WHERE id=? AND tenant_id=?`,
+		route.GetName(), matchersJSON, targetServiceID, targetUpstreamJSON, enabled, labelsJSON, now, route.GetId(), tenantID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: update route: %w", err)
@@ -859,7 +863,8 @@ func (t *tx) UpdateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Ro
 }
 
 func (t *tx) DeleteRoute(ctx context.Context, id string) error {
-	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM routes WHERE id = ?`, id)
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM routes WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("sqlite: delete route: %w", err)
 	}
@@ -910,10 +915,11 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
+		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
 	)
@@ -944,9 +950,10 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 }
 
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool
-		 FROM services WHERE id = ?`, id)
+		 FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
 
 	svc, err := scanService(row)
 	if err != nil {
@@ -962,8 +969,9 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 }
 
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool FROM services ORDER BY id`)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
@@ -984,9 +992,12 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	}
 
 	// Batch-fetch all upstreams in a single query (fixes N+1).
+	// Upstreams are scoped through their parent service's tenant.
 	if len(services) > 0 {
 		uRows, err := t.sqlTx.QueryContext(ctx,
-			`SELECT id, service_id, address, weight, tls_mode, healthy, dial_err FROM upstreams ORDER BY service_id, id`)
+			`SELECT u.id, u.service_id, u.address, u.weight, u.tls_mode, u.healthy, u.dial_err
+			 FROM upstreams u JOIN services s ON s.id = u.service_id
+			 WHERE s.tenant_id = ? ORDER BY u.service_id, u.id`, tenantID)
 		if err != nil {
 			return nil, fmt.Errorf("sqlite: fetch all upstreams: %w", err)
 		}
@@ -1052,13 +1063,14 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	res, err := t.sqlTx.ExecContext(ctx,
 		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?
-		 WHERE id=?`,
+		 WHERE id=? AND tenant_id=?`,
 		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
-		svc.GetId(),
+		svc.GetId(), tenantID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: update service: %w", err)
@@ -1097,7 +1109,8 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 }
 
 func (t *tx) DeleteService(ctx context.Context, id string) error {
-	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM services WHERE id = ?`, id)
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("sqlite: delete service: %w", err)
 	}
@@ -1166,10 +1179,11 @@ func (t *tx) CreatePolicy(ctx context.Context, pol *riokuv1.Policy) (*riokuv1.Po
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO policies (id, name, type, config, labels, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, pol.GetName(), int32(pol.GetType()), configJSON, labelsJSON, now, now,
+		`INSERT INTO policies (id, tenant_id, name, type, config, labels, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, pol.GetName(), int32(pol.GetType()), configJSON, labelsJSON, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert policy: %w", err)
@@ -1181,15 +1195,17 @@ func (t *tx) CreatePolicy(ctx context.Context, pol *riokuv1.Policy) (*riokuv1.Po
 }
 
 func (t *tx) GetPolicy(ctx context.Context, id string) (*riokuv1.Policy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, name, type, config, labels, created_at, updated_at
-		 FROM policies WHERE id = ?`, id)
+		 FROM policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	return scanPolicy(row)
 }
 
 func (t *tx) ListPolicies(ctx context.Context) ([]*riokuv1.Policy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, type, config, labels, created_at, updated_at FROM policies ORDER BY id`)
+		`SELECT id, name, type, config, labels, created_at, updated_at FROM policies WHERE tenant_id = ? ORDER BY id`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list policies: %w", err)
 	}
@@ -1218,9 +1234,10 @@ func (t *tx) UpdatePolicy(ctx context.Context, pol *riokuv1.Policy) (*riokuv1.Po
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE policies SET name=?, type=?, config=?, labels=?, updated_at=? WHERE id=?`,
-		pol.GetName(), int32(pol.GetType()), configJSON, labelsJSON, now, pol.GetId(),
+		`UPDATE policies SET name=?, type=?, config=?, labels=?, updated_at=? WHERE id=? AND tenant_id=?`,
+		pol.GetName(), int32(pol.GetType()), configJSON, labelsJSON, now, pol.GetId(), tenantID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: update policy: %w", err)
@@ -1236,7 +1253,8 @@ func (t *tx) UpdatePolicy(ctx context.Context, pol *riokuv1.Policy) (*riokuv1.Po
 }
 
 func (t *tx) DeletePolicy(ctx context.Context, id string) error {
-	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM policies WHERE id = ?`, id)
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("sqlite: delete policy: %w", err)
 	}
@@ -1330,10 +1348,11 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 		ownerIDVal = &ownerID
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO api_keys (id, name, key_hash, scopes, expires_at, created_at, owner_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, name, keyHash, string(scopesJSON), expiresStr, now, ownerIDVal,
+		`INSERT INTO api_keys (id, tenant_id, name, key_hash, scopes, expires_at, created_at, owner_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, name, keyHash, string(scopesJSON), expiresStr, now, ownerIDVal,
 	)
 	if err != nil {
 		return "", fmt.Errorf("sqlite: insert api_key: %w", err)
@@ -1345,23 +1364,29 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 }
 
 func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
-		 FROM api_keys WHERE id = ?`, id)
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	return scanAPIKey(row)
 }
 
+// GetAPIKeyByHash is invoked by the auth middleware before any tenant
+// context exists. The hash is unique system-wide; the resolved key
+// carries its tenant_id so the caller can attach it to the request
+// context for downstream tenant filtering.
 func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
 		 FROM api_keys WHERE key_hash = ?`, keyHash)
 	return scanAPIKey(row)
 }
 
 func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
-		 FROM api_keys WHERE revoked_at IS NULL`)
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE revoked_at IS NULL AND tenant_id = ?`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys: %w", err)
 	}
@@ -1379,9 +1404,10 @@ func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 }
 
 func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
-		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ?`, ownerID)
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ? AND tenant_id = ?`, ownerID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys by owner: %w", err)
 	}
@@ -1399,10 +1425,11 @@ func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.A
 }
 
 func (t *tx) RevokeAPIKey(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
 	now := nowUTC()
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE api_keys SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL`,
-		now, id,
+		`UPDATE api_keys SET revoked_at = ? WHERE id = ? AND tenant_id = ? AND revoked_at IS NULL`,
+		now, id, tenantID,
 	)
 	if err != nil {
 		return fmt.Errorf("sqlite: revoke api_key: %w", err)
@@ -1684,10 +1711,11 @@ func (t *tx) CreateSession(ctx context.Context, s *store.Session) (*store.Sessio
 		userAgent = sql.NullString{String: *s.UserAgent, Valid: true}
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err := t.sqlTx.ExecContext(ctx,
-		`INSERT INTO sessions (id, user_id, fingerprint, created_at, expires_at, last_active, ip_address, user_agent)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.ID, s.UserID, s.Fingerprint,
+		`INSERT INTO sessions (id, tenant_id, user_id, fingerprint, created_at, expires_at, last_active, ip_address, user_agent)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.ID, tenantID, s.UserID, s.Fingerprint,
 		s.CreatedAt.UTC().Format(timeFormat),
 		s.ExpiresAt.UTC().Format(timeFormat),
 		s.LastActive.UTC().Format(timeFormat),
@@ -1702,6 +1730,11 @@ func (t *tx) CreateSession(ctx context.Context, s *store.Session) (*store.Sessio
 	return t.GetSession(ctx, s.ID)
 }
 
+// GetSession does NOT filter by tenant. Sessions live for the user's
+// active tenant only — but the auth middleware looks up the session
+// before any tenant context exists. Cross-tenant safety is provided by
+// session id being a long random string + the tenant_id column carrying
+// the tenant the user was acting under at session creation time.
 func (t *tx) GetSession(ctx context.Context, id string) (*store.Session, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, user_id, fingerprint, created_at, expires_at, last_active, ip_address, user_agent
@@ -1877,10 +1910,11 @@ func (t *tx) AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) er
 		now = entry.GetOccurredAt().AsTime().UTC().Format(timeFormat)
 	}
 
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err := t.sqlTx.ExecContext(ctx,
-		`INSERT INTO audit_log (id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, entry.GetActor(), entry.GetEntityType(), entry.GetEntityId(),
+		`INSERT INTO audit_log (id, tenant_id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, entry.GetActor(), entry.GetEntityType(), entry.GetEntityId(),
 		entry.GetOperation(), entry.GetDiff(), entry.GetConfigVersion(), now,
 	)
 	if err != nil {
@@ -1891,8 +1925,9 @@ func (t *tx) AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) er
 }
 
 func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riokuv1.AuditEntry, error) {
-	q := `SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at FROM audit_log WHERE 1=1`
-	var args []any
+	tenantID := store.TenantIDFromContext(ctx)
+	q := `SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
 
 	if query.Actor != "" {
 		q += ` AND actor = ?`
@@ -1971,8 +2006,9 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 // UIs (#82). Limit/Offset are intentionally ignored — counting only
 // what the current page shows would defeat the point.
 func (t *tx) CountAuditLog(ctx context.Context, query store.AuditQuery) (int, error) {
-	q := `SELECT COUNT(*) FROM audit_log WHERE 1=1`
-	var args []any
+	tenantID := store.TenantIDFromContext(ctx)
+	q := `SELECT COUNT(*) FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
 
 	if query.Actor != "" {
 		q += ` AND actor = ?`
@@ -2008,10 +2044,11 @@ func (t *tx) CountAuditLog(ctx context.Context, query store.AuditQuery) (int, er
 
 func (t *tx) CreateRole(ctx context.Context, params store.CreateRoleParams) (*store.Role, error) {
 	now := nowUTC()
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err := t.sqlTx.ExecContext(ctx,
-		`INSERT INTO roles (id, name, description, is_builtin, created_at, updated_at)
-		 VALUES (?, ?, ?, 0, ?, ?)`,
-		params.ID, params.Name, params.Description, now, now,
+		`INSERT INTO roles (id, tenant_id, name, description, is_builtin, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, 0, ?, ?)`,
+		params.ID, tenantID, params.Name, params.Description, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: create role: %w", err)
@@ -2029,8 +2066,9 @@ func (t *tx) CreateRole(ctx context.Context, params store.CreateRoleParams) (*st
 }
 
 func (t *tx) GetRole(ctx context.Context, id string) (*store.Role, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles WHERE id = ?`, id)
+		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles WHERE id = ? AND (tenant_id IS NULL OR tenant_id = ?)`, id, tenantID)
 	r := &store.Role{}
 	var isBuiltinInt int
 	var createdStr, updatedStr string
@@ -2070,8 +2108,9 @@ func (t *tx) getRolePermissions(ctx context.Context, roleID string) ([]string, e
 }
 
 func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles ORDER BY name`)
+		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles WHERE tenant_id IS NULL OR tenant_id = ? ORDER BY name`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list roles: %w", err)
 	}
@@ -2102,18 +2141,19 @@ func (t *tx) UpdateRole(ctx context.Context, id string, params store.UpdateRoleP
 		return nil, store.ErrRoleImmutable
 	}
 	now := nowUTC()
+	tenantID := store.TenantIDFromContext(ctx)
 	if params.Name != nil {
 		if _, err := t.sqlTx.ExecContext(ctx,
-			`UPDATE roles SET name = ?, updated_at = ? WHERE id = ?`,
-			*params.Name, now, id,
+			`UPDATE roles SET name = ?, updated_at = ? WHERE id = ? AND tenant_id = ?`,
+			*params.Name, now, id, tenantID,
 		); err != nil {
 			return nil, fmt.Errorf("sqlite: update role name: %w", err)
 		}
 	}
 	if params.Description != nil {
 		if _, err := t.sqlTx.ExecContext(ctx,
-			`UPDATE roles SET description = ?, updated_at = ? WHERE id = ?`,
-			*params.Description, now, id,
+			`UPDATE roles SET description = ?, updated_at = ? WHERE id = ? AND tenant_id = ?`,
+			*params.Description, now, id, tenantID,
 		); err != nil {
 			return nil, fmt.Errorf("sqlite: update role description: %w", err)
 		}
@@ -2142,7 +2182,8 @@ func (t *tx) DeleteRole(ctx context.Context, id string) error {
 	if id == "role_superadmin" {
 		return store.ErrRoleImmutable
 	}
-	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM roles WHERE id = ?`, id)
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM roles WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("sqlite: delete role: %w", err)
 	}
@@ -2614,6 +2655,7 @@ func scanSession(s scanner) (*store.Session, error) {
 func scanAPIKey(s scanner) (*store.APIKey, error) {
 	var (
 		id         string
+		tenantID   string
 		name       string
 		keyHash    string
 		scopesJSON string
@@ -2624,7 +2666,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		lastUsedAt *string
 		usageCount int64
 	)
-	if err := s.Scan(&id, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
 		return nil, fmt.Errorf("sqlite: scan api_key: %w", err)
 	}
 
@@ -2635,6 +2677,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 
 	key := &store.APIKey{
 		ID:         id,
+		TenantID:   tenantID,
 		Name:       name,
 		KeyHash:    keyHash,
 		Scopes:     scopes,
@@ -2877,11 +2920,12 @@ func (t *tx) CreateAccessPolicy(ctx context.Context, p *store.AccessPolicy) (*st
 	if p.Enabled {
 		enabled = 1
 	}
+	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx, `
 		INSERT INTO access_policies
-			(id, name, description, effect, target_type, target_ids_json, conditions_json, priority, enabled, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, p.ID, p.Name, p.Description, string(p.Effect), string(p.TargetType),
+			(id, tenant_id, name, description, effect, target_type, target_ids_json, conditions_json, priority, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, p.ID, tenantID, p.Name, p.Description, string(p.Effect), string(p.TargetType),
 		string(targetIDs), string(conditions), p.Priority, enabled, now, now)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -2894,11 +2938,12 @@ func (t *tx) CreateAccessPolicy(ctx context.Context, p *store.AccessPolicy) (*st
 }
 
 func (t *tx) GetAccessPolicy(ctx context.Context, id string) (*store.AccessPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx, `
 		SELECT id, name, description, effect, target_type, target_ids_json,
 		       conditions_json, priority, enabled, created_at, updated_at
-		  FROM access_policies WHERE id = ?
-	`, id)
+		  FROM access_policies WHERE id = ? AND tenant_id = ?
+	`, id, tenantID)
 	p, err := scanAccessPolicy(row)
 	if err == sql.ErrNoRows {
 		return nil, store.ErrAccessPolicyNotFound
@@ -2910,12 +2955,14 @@ func (t *tx) GetAccessPolicy(ctx context.Context, id string) (*store.AccessPolic
 }
 
 func (t *tx) ListAccessPolicies(ctx context.Context) ([]*store.AccessPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx, `
 		SELECT id, name, description, effect, target_type, target_ids_json,
 		       conditions_json, priority, enabled, created_at, updated_at
 		  FROM access_policies
+		 WHERE tenant_id = ?
 		 ORDER BY priority ASC, created_at ASC
-	`)
+	`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list access_policies: %w", err)
 	}
@@ -3013,7 +3060,8 @@ func (t *tx) UpdateAccessPolicy(ctx context.Context, id string, params store.Upd
 }
 
 func (t *tx) DeleteAccessPolicy(ctx context.Context, id string) error {
-	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM access_policies WHERE id = ?`, id)
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM access_policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("sqlite: delete access_policy: %w", err)
 	}
