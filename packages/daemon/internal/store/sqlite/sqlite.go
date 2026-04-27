@@ -415,11 +415,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 22: tenant_id retrofit on existing tables (stage-2 final).
+	if current < 22 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000022_tenant_id_retrofit.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 22: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 22: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (22, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 22: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 22 down: drop tenant_id columns from existing tables.
+	if current >= 22 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000022_tenant_id_retrofit.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 22: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 22: %w", err)
+		}
+	}
 
 	// Migration 21 down: drop webhooks + cluster_enrollment_tokens + impersonation_sessions.
 	if current >= 21 {
