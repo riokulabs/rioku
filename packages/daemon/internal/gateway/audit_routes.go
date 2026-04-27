@@ -25,11 +25,14 @@ import (
 // the path. Both set X-Total-Count to the unpaginated match count so
 // UIs can render "Page 1 of N" without a separate count call.
 func RegisterAuditRoutes(mux *http.ServeMux, st store.Driver) {
-	h := http.HandlerFunc(handleAuditQuery(st, false))
-	mux.Handle("GET /api/v1/audit",
-		RequirePermission("audit:read")(h))
-	mux.Handle("GET /api/v1/audit/entity/{entityType}/{entityId}",
-		RequirePermission("audit:read")(http.HandlerFunc(handleAuditQuery(st, true))))
+	generic := RequirePermission("audit:read")(http.HandlerFunc(handleAuditQuery(st, false)))
+	perEntity := RequirePermission("audit:read")(http.HandlerFunc(handleAuditQuery(st, true)))
+
+	mux.Handle("GET /api/v1/audit", generic)
+	mux.Handle("GET /api/v1/audit/entity/{entityType}/{entityId}", perEntity)
+
+	mux.Handle("GET /api/v1/t/{tenant}/audit", generic)
+	mux.Handle("GET /api/v1/t/{tenant}/audit/entity/{entityType}/{entityId}", perEntity)
 }
 
 // handleAuditQuery serves both the generic and per-entity routes. When

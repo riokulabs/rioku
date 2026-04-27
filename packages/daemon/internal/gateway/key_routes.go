@@ -11,16 +11,27 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 )
 
-// RegisterKeyRoutes registers API key management endpoints.
+// RegisterKeyRoutes registers API key management endpoints. Both the
+// legacy `/api/v1/keys` and the tenant-scoped `/api/v1/t/{tenant}/api-keys`
+// paths are exposed; the legacy form falls through to the default tenant
+// via `store.TenantIDFromContext`'s fallback, while the tenant-scoped
+// form is resolved by `TenantMiddleware` and operates on whichever
+// tenant the slug points to.
 func RegisterKeyRoutes(mux *http.ServeMux, st store.Driver) {
-	mux.Handle("POST /api/v1/keys",
-		RequirePermission("keys:own")(http.HandlerFunc(handleKeyCreate(st))))
-	mux.Handle("GET /api/v1/keys",
-		RequirePermission("keys:own")(http.HandlerFunc(handleKeyList(st))))
-	mux.Handle("DELETE /api/v1/keys/",
-		RequirePermission("keys:own")(http.HandlerFunc(handleKeyRevoke(st))))
-	mux.Handle("GET /api/v1/keys/{id}/usage",
-		RequirePermission("keys:own")(http.HandlerFunc(handleKeyUsage(st))))
+	create := RequirePermission("keys:own")(http.HandlerFunc(handleKeyCreate(st)))
+	list := RequirePermission("keys:own")(http.HandlerFunc(handleKeyList(st)))
+	revoke := RequirePermission("keys:own")(http.HandlerFunc(handleKeyRevoke(st)))
+	usage := RequirePermission("keys:own")(http.HandlerFunc(handleKeyUsage(st)))
+
+	mux.Handle("POST /api/v1/keys", create)
+	mux.Handle("GET /api/v1/keys", list)
+	mux.Handle("DELETE /api/v1/keys/", revoke)
+	mux.Handle("GET /api/v1/keys/{id}/usage", usage)
+
+	mux.Handle("POST /api/v1/t/{tenant}/api-keys", create)
+	mux.Handle("GET /api/v1/t/{tenant}/api-keys", list)
+	mux.Handle("DELETE /api/v1/t/{tenant}/api-keys/{id}", revoke)
+	mux.Handle("GET /api/v1/t/{tenant}/api-keys/{id}/usage", usage)
 }
 
 type keyCreateRequest struct {
@@ -225,8 +236,12 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 
 func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract ID from path: /api/v1/keys/<id>
-		id := strings.TrimPrefix(r.URL.Path, "/api/v1/keys/")
+		// Tenant-scoped path uses `{id}` pattern variable; legacy path
+		// embeds the id straight after `/api/v1/keys/`.
+		id := r.PathValue("id")
+		if id == "" {
+			id = strings.TrimPrefix(r.URL.Path, "/api/v1/keys/")
+		}
 		if id == "" {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusBadRequest)

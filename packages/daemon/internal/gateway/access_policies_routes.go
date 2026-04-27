@@ -28,17 +28,28 @@ import (
 )
 
 // RegisterAccessPolicyRoutes registers the access policy CRUD endpoints.
+// Both legacy `/api/v1/auth/access-policies` and the tenant-scoped
+// `/api/v1/t/{tenant}/access-policies` are exposed. Storage filters by
+// tenant_id from the request context, so the legacy form operates on
+// the default tenant while the tenant-scoped form follows the URL slug.
 func RegisterAccessPolicyRoutes(mux *http.ServeMux, st store.Driver) {
-	mux.Handle("GET /api/v1/auth/access-policies",
-		RequirePermission("access-policies:read")(http.HandlerFunc(handleListAccessPolicies(st))))
-	mux.Handle("POST /api/v1/auth/access-policies",
-		RequirePermission("access-policies:write")(http.HandlerFunc(handleCreateAccessPolicy(st))))
-	mux.Handle("GET /api/v1/auth/access-policies/{id}",
-		RequirePermission("access-policies:read")(http.HandlerFunc(handleGetAccessPolicy(st))))
-	mux.Handle("PUT /api/v1/auth/access-policies/{id}",
-		RequirePermission("access-policies:write")(http.HandlerFunc(handleUpdateAccessPolicy(st))))
-	mux.Handle("DELETE /api/v1/auth/access-policies/{id}",
-		RequirePermission("access-policies:write")(http.HandlerFunc(handleDeleteAccessPolicy(st))))
+	list := RequirePermission("access-policies:read")(http.HandlerFunc(handleListAccessPolicies(st)))
+	create := RequirePermission("access-policies:write")(http.HandlerFunc(handleCreateAccessPolicy(st)))
+	get := RequirePermission("access-policies:read")(http.HandlerFunc(handleGetAccessPolicy(st)))
+	update := RequirePermission("access-policies:write")(http.HandlerFunc(handleUpdateAccessPolicy(st)))
+	del := RequirePermission("access-policies:write")(http.HandlerFunc(handleDeleteAccessPolicy(st)))
+
+	mux.Handle("GET /api/v1/auth/access-policies", list)
+	mux.Handle("POST /api/v1/auth/access-policies", create)
+	mux.Handle("GET /api/v1/auth/access-policies/{id}", get)
+	mux.Handle("PUT /api/v1/auth/access-policies/{id}", update)
+	mux.Handle("DELETE /api/v1/auth/access-policies/{id}", del)
+
+	mux.Handle("GET /api/v1/t/{tenant}/access-policies", list)
+	mux.Handle("POST /api/v1/t/{tenant}/access-policies", create)
+	mux.Handle("GET /api/v1/t/{tenant}/access-policies/{id}", get)
+	mux.Handle("PUT /api/v1/t/{tenant}/access-policies/{id}", update)
+	mux.Handle("DELETE /api/v1/t/{tenant}/access-policies/{id}", del)
 }
 
 // ─── Wire types ─────────────────────────────────────────────────────────────

@@ -1178,3 +1178,44 @@ func TestKeyRoutes_Usage_NotFoundForBogusID(t *testing.T) {
 		t.Errorf("expected 404 for unknown key id, got %d", resp.StatusCode)
 	}
 }
+
+// TestKeyRoutes_TenantScopedPath asserts that the new
+// `/api/v1/t/{tenant}/api-keys` aliases are wired alongside the legacy
+// `/api/v1/keys` paths. We don't need to drive a full CRUD flow — just
+// confirm that the tenant-scoped path resolves through TenantMiddleware
+// (200/401 = matched the route; 404 from the middleware = unknown slug).
+func TestKeyRoutes_TenantScopedPath(t *testing.T) {
+	_, drv, _, _ := setupKeyTestServer(t)
+
+	mux := http.NewServeMux()
+	RegisterKeyRoutes(mux, drv)
+	var handler http.Handler = mux
+	handler = TenantMiddleware(drv)(handler)
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	// Known tenant slug → middleware resolves, route handler runs.
+	// Without AuthMiddleware in the chain RequirePermission returns 401
+	// — that's fine; it proves the alias is registered (a missing route
+	// would 404).
+	resp, err := http.Get(server.URL + "/api/v1/t/default/api-keys")
+	if err != nil {
+		t.Fatalf("GET tenant-scoped api-keys: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		t.Errorf("GET /api/v1/t/default/api-keys: 404 — path alias not registered")
+	}
+
+	// Unknown tenant slug → TenantMiddleware writes 404 before the
+	// handler runs.
+	resp, err = http.Get(server.URL + "/api/v1/t/no-such-tenant/api-keys")
+	if err != nil {
+		t.Fatalf("GET unknown tenant: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("unknown tenant: expected 404 from TenantMiddleware, got %d", resp.StatusCode)
+	}
+}
