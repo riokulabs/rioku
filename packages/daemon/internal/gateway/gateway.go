@@ -173,6 +173,9 @@ func NewGateway(
 
 	// AI subsystem (stage-2): providers, agents, tools, bindings, rate limits, traces, MCP.
 	RegisterAIRoutes(topMux, st)
+	// Stage-2 admin completion chunk 9: PATCH / OPTIONS / actions /
+	// sub-collections / traces stream + export.
+	RegisterAIExtraRoutes(topMux, st)
 
 	// Notifications subsystem (stage-2): inbox, channels, routing, delivery log, tenant config.
 	RegisterNotificationsRoutes(topMux, st)
