@@ -2,6 +2,8 @@ module github.com/riokulabs/rioku
 
 go 1.25.0
 
+require github.com/mattn/go-isatty v0.0.20
+
 require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
@@ -28,8 +30,11 @@ require (
 	github.com/hashicorp/raft v1.7.3 // indirect
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.9.2 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.20
 	github.com/maypok86/otter v1.2.4 // indirect
 	github.com/miekg/dns v1.1.68 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
