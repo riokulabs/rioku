@@ -2907,6 +2907,271 @@
         }
       ]
     },
+    "/api/v1/t/{tenant}/audit/actors": {
+      "get": {
+        "operationId": "listAuditActors",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Distinct audit actor typeahead",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "description": "Optional prefix filter.",
+          "in": "query",
+          "name": "q",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "schema": {
+            "default": 50,
+            "maximum": 1000,
+            "type": "integer"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/export/csv": {
+      "get": {
+        "description": "Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until).",
+        "operationId": "exportAuditCSV",
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "csv stream"
+          }
+        },
+        "summary": "CSV export",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/export/jsonl": {
+      "get": {
+        "operationId": "exportAuditJSONL",
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ndjson stream"
+          }
+        },
+        "summary": "JSON-Lines export",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/resource-ids": {
+      "get": {
+        "operationId": "listAuditResourceIDs",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Distinct audit entity-id typeahead",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "description": "Optional entity_type filter (e.g. route, service).",
+          "in": "query",
+          "name": "entity_type",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional prefix filter.",
+          "in": "query",
+          "name": "q",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "schema": {
+            "default": 50,
+            "maximum": 1000,
+            "type": "integer"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/stream": {
+      "get": {
+        "description": "Server-Sent Events feed. Each event is named `audit` with a JSON\npayload of {id, actor, entityType, entityId, operation, occurredAt}.\nBacked by a 5-second poll today; will move to push once an audit\nwatcher lands.\n",
+        "operationId": "streamAuditEntries",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "stream open"
+          }
+        },
+        "summary": "SSE stream of new audit entries",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/{id}": {
+      "get": {
+        "operationId": "getAuditEntry",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "actor": {
+                      "type": "string"
+                    },
+                    "configVersion": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "diff": {
+                      "type": "string"
+                    },
+                    "entityId": {
+                      "type": "string"
+                    },
+                    "entityType": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "operation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "summary": "Get a single audit entry by id",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/routes": {
       "get": {
         "operationId": "listRoutes",

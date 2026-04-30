@@ -116,6 +116,9 @@ func NewGateway(
 	// Audit log endpoint (hand-written because gRPC-gateway cannot
 	// translate server-streaming RPCs in in-process mode).
 	RegisterAuditRoutes(topMux, st)
+	// Stage-2 admin completion chunk 6: detail / stream / export /
+	// typeahead.
+	RegisterAuditExtraRoutes(topMux, st)
 
 	// Access policy CRUD (#80).
 	RegisterAccessPolicyRoutes(topMux, st)

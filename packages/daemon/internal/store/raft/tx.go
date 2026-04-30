@@ -814,6 +814,23 @@ func (t *raftTx) CountAuditLog(_ context.Context, query store.AuditQuery) (int, 
 	return count, nil
 }
 
+// GetAuditEntry / ListAuditActors / ListAuditResourceIDs — not yet
+// implemented on the raft driver. Single-tenant raft isn't a stage-2
+// release target; these stubs satisfy the Tx interface so the daemon
+// builds against either backend.
+
+func (t *raftTx) GetAuditEntry(_ context.Context, _ string) (*riokuv1.AuditEntry, error) {
+	return nil, fmt.Errorf("raft: GetAuditEntry not implemented")
+}
+
+func (t *raftTx) ListAuditActors(_ context.Context, _ string, _ int) ([]string, error) {
+	return nil, nil
+}
+
+func (t *raftTx) ListAuditResourceIDs(_ context.Context, _, _ string, _ int) ([]string, error) {
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // Users (stubs)
 // ---------------------------------------------------------------------------

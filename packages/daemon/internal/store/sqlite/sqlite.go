@@ -2114,6 +2114,110 @@ func (t *tx) CountAuditLog(ctx context.Context, query store.AuditQuery) (int, er
 	return count, nil
 }
 
+// GetAuditEntry returns a single audit entry by id, scoped to the
+// active tenant.
+func (t *tx) GetAuditEntry(ctx context.Context, id string) (*riokuv1.AuditEntry, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at
+		 FROM audit_log WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	var (
+		gotID         string
+		actor         string
+		entityType    string
+		entityID      string
+		operation     string
+		diff          string
+		configVersion int64
+		occurredAt    string
+	)
+	if err := row.Scan(&gotID, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("sqlite: audit entry %q not found", id)
+		}
+		return nil, fmt.Errorf("sqlite: get audit entry: %w", err)
+	}
+	return &riokuv1.AuditEntry{
+		Id:            gotID,
+		Actor:         actor,
+		EntityType:    entityType,
+		EntityId:      entityID,
+		Operation:     operation,
+		Diff:          diff,
+		ConfigVersion: configVersion,
+		OccurredAt:    timestamppb.New(parseTime(occurredAt)),
+	}, nil
+}
+
+// ListAuditActors returns distinct actors matching `prefix`, capped at
+// `limit` (default 50, max 1000).
+func (t *tx) ListAuditActors(ctx context.Context, prefix string, limit int) ([]string, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if limit <= 0 || limit > 1000 {
+		limit = 50
+	}
+	q := `SELECT DISTINCT actor FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
+	if prefix != "" {
+		q += ` AND actor LIKE ?`
+		args = append(args, prefix+"%")
+	}
+	q += ` ORDER BY actor LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := t.sqlTx.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list audit actors: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
+// ListAuditResourceIDs returns distinct entity_ids matching the
+// optional entity_type filter and `prefix`. Used by the audit page's
+// "resource id" typeahead.
+func (t *tx) ListAuditResourceIDs(ctx context.Context, entityType, prefix string, limit int) ([]string, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if limit <= 0 || limit > 1000 {
+		limit = 50
+	}
+	q := `SELECT DISTINCT entity_id FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
+	if entityType != "" {
+		q += ` AND entity_type = ?`
+		args = append(args, entityType)
+	}
+	if prefix != "" {
+		q += ` AND entity_id LIKE ?`
+		args = append(args, prefix+"%")
+	}
+	q += ` ORDER BY entity_id LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := t.sqlTx.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list audit resource_ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
 // ---------------------------------------------------------------------------
 // Roles
 // ---------------------------------------------------------------------------

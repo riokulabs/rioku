@@ -211,6 +211,17 @@ type Tx interface {
 	// ignoring Limit/Offset. Used by the REST audit endpoint to
 	// expose total counts for paginated UIs (#82).
 	CountAuditLog(ctx context.Context, query AuditQuery) (int, error)
+	// GetAuditEntry returns a single entry by id. Used by the
+	// per-entry detail endpoint that exposes the full diff body.
+	GetAuditEntry(ctx context.Context, id string) (*riokuv1.AuditEntry, error)
+	// ListAuditActors returns distinct `actor` strings matching the
+	// optional prefix, capped at `limit`. Used by the audit page's
+	// actor typeahead.
+	ListAuditActors(ctx context.Context, prefix string, limit int) ([]string, error)
+	// ListAuditResourceIDs returns distinct `entity_id` strings for
+	// the supplied entity_type (optional) matching the optional
+	// prefix. Used by the audit page's resource-id typeahead.
+	ListAuditResourceIDs(ctx context.Context, entityType, prefix string, limit int) ([]string, error)
 
 	// --- Users ---
 
