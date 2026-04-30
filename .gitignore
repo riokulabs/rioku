@@ -59,6 +59,7 @@ packages/ui/storybook-static/
 .serena/
 .superpowers/
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 *.swp
 *.swo
 *~
