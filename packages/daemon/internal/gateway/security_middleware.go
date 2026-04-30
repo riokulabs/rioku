@@ -53,12 +53,16 @@ func CORSMiddleware(cfg config.CORSConfig) func(http.Handler) http.Handler {
 			w.Header().Set("Vary", "Origin")
 
 			if r.Method == http.MethodOptions {
-				// Preflight.
+				// CORS preflight: set the Access-Control-* headers and
+				// fall through so the resource's OPTIONS handler can add
+				// `Allow`, `Accept-Patch`, and `X-Rioku-Capabilities`.
+				// When no resource OPTIONS handler is registered, mux's
+				// 405 (with its own Allow header) reaches the browser —
+				// which is the correct preflight outcome for unsupported
+				// methods, and 404 for unknown paths.
 				w.Header().Set("Access-Control-Allow-Methods", strings.Join(cfg.AllowedMethods, ", "))
 				w.Header().Set("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
 				w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", cfg.MaxAge))
-				w.WriteHeader(http.StatusNoContent)
-				return
 			}
 
 			next.ServeHTTP(w, r)
