@@ -2591,6 +2591,322 @@
         ]
       }
     },
+    "/api/v1/t/{tenant}/api-keys": {
+      "get": {
+        "operationId": "listAPIKeys",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List API keys",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAPIKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expires": {
+                    "description": "Go duration string (e.g. 720h, 30d)",
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "description": "Comma-separated scopes",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created. Returns the plaintext secret in the `key` field exactly\nonce — it cannot be retrieved later.\n"
+          }
+        },
+        "summary": "Create an API key",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}": {
+      "delete": {
+        "operationId": "deleteAPIKey",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke (delete alias)",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "get": {
+        "operationId": "getAPIKey",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "lastUsedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerId": {
+                      "type": "string"
+                    },
+                    "revokedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "scopes": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "tenantId": {
+                      "type": "string"
+                    },
+                    "usageCount": {
+                      "format": "int64",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get an API key",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchAPIKey",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "properties": {
+                  "clearExpiresAt": {
+                    "description": "Explicit clear flag — equivalent to expiresAt: null.",
+                    "type": "boolean"
+                  },
+                  "expiresAt": {
+                    "format": "date-time",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Patch API key metadata",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "put": {
+        "operationId": "replaceAPIKey",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Replace API key metadata",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}/revoke": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "revokeAPIKey",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke (action alias)",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}/rotate": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "description": "Mints a new key with the same name + scopes + owner + expiry,\nreturns the plaintext secret on the response, and revokes the\nprior id. The old id stays in the audit log; the secret is gone.\n",
+        "operationId": "rotateAPIKey",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "id": {
+                      "description": "New key id",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Plaintext secret (returned once)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Rotate the secret",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}/usage": {
+      "get": {
+        "operationId": "getAPIKeyUsage",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Get usage stats",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/routes": {
       "get": {
         "operationId": "listRoutes",

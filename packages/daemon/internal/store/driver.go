@@ -179,6 +179,13 @@ type Tx interface {
 	ListAPIKeys(ctx context.Context) ([]*APIKey, error)
 	ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*APIKey, error)
 	RevokeAPIKey(ctx context.Context, id string) error
+	// UpdateAPIKey applies partial changes to a key's metadata: name,
+	// scopes, expires_at. Pointer fields are nil when unchanged. The
+	// key's hash, usage stats, and tenant binding are immutable; for
+	// secret rotation use RotateAPIKey at the handler level (revoke +
+	// create new). Returns the post-update key, or an error wrapping
+	// "not found" when the id doesn't exist in the active tenant.
+	UpdateAPIKey(ctx context.Context, id string, params UpdateAPIKeyParams) (*APIKey, error)
 	// RecordAPIKeyUse bumps the key's usage_count by 1 and sets
 	// last_used_at to `at`. Called from the auth path on every
 	// authenticated API key request (#85). Best-effort: callers are
@@ -1391,6 +1398,16 @@ type APIKey struct {
 	RevokedAt  *time.Time
 	LastUsedAt *time.Time // nil = never used; updated by RecordAPIKeyUse (#85)
 	UsageCount int64      // monotonically increasing counter (#85)
+}
+
+// UpdateAPIKeyParams is the partial-update payload for UpdateAPIKey.
+// nil pointers leave the field unchanged; ExpiresAt may be set to a
+// pointer-to-zero-time to explicitly clear an existing expiry, in
+// which case the storage layer treats it as "no expiry".
+type UpdateAPIKeyParams struct {
+	Name      *string
+	Scopes    *[]string
+	ExpiresAt **time.Time
 }
 
 // ConfigVersion represents a stored config snapshot.

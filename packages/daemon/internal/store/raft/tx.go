@@ -569,6 +569,13 @@ func (t *raftTx) RecordAPIKeyUse(_ context.Context, _ string, _ time.Time) error
 	return nil
 }
 
+// UpdateAPIKey is not yet implemented on the raft driver — single-tenant
+// raft deployments aren't a stage-2 release target. Returns ErrUnsupported
+// (sentinel) so callers can fall back gracefully.
+func (t *raftTx) UpdateAPIKey(_ context.Context, _ string, _ store.UpdateAPIKeyParams) (*store.APIKey, error) {
+	return nil, fmt.Errorf("raft: UpdateAPIKey not implemented")
+}
+
 func (t *raftTx) ListAPIKeysByOwner(_ context.Context, ownerID string) ([]*store.APIKey, error) {
 	var keys []*store.APIKey
 	err := t.driver.readFSM(func(tx *bolt.Tx) error {

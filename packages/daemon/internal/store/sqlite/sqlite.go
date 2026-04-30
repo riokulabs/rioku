@@ -1471,6 +1471,53 @@ func (t *tx) RevokeAPIKey(ctx context.Context, id string) error {
 	return nil
 }
 
+// UpdateAPIKey applies partial changes to a key's metadata.
+func (t *tx) UpdateAPIKey(ctx context.Context, id string, params store.UpdateAPIKeyParams) (*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	// Build the SET clause from the supplied fields. Skip the UPDATE
+	// entirely when nothing was supplied so we don't bump updated_at
+	// for a no-op call.
+	var (
+		setClauses []string
+		args       []any
+	)
+	if params.Name != nil {
+		setClauses = append(setClauses, "name = ?")
+		args = append(args, *params.Name)
+	}
+	if params.Scopes != nil {
+		raw, err := json.Marshal(*params.Scopes)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: marshal scopes: %w", err)
+		}
+		setClauses = append(setClauses, "scopes = ?")
+		args = append(args, string(raw))
+	}
+	if params.ExpiresAt != nil {
+		if *params.ExpiresAt == nil {
+			setClauses = append(setClauses, "expires_at = NULL")
+		} else {
+			setClauses = append(setClauses, "expires_at = ?")
+			args = append(args, (*params.ExpiresAt).UTC().Format(timeFormat))
+		}
+	}
+	if len(setClauses) > 0 {
+		args = append(args, id, tenantID)
+		query := "UPDATE api_keys SET " + strings.Join(setClauses, ", ") +
+			" WHERE id = ? AND tenant_id = ? AND revoked_at IS NULL"
+		res, err := t.sqlTx.ExecContext(ctx, query, args...)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: update api_key: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return nil, fmt.Errorf("sqlite: api_key %q not found", id)
+		}
+		t.emit("api_keys", id, "UPDATE")
+	}
+	return t.GetAPIKey(ctx, id)
+}
+
 // RecordAPIKeyUse atomically bumps usage_count and overwrites
 // last_used_at. No-op (no error) when the key id doesn't exist —
 // the caller is the auth path and a missing row at this point is
