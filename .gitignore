@@ -93,3 +93,4 @@ contrib-docs/.docusaurus/
 # Sandbox runtime data
 sandbox/.data/
 sandbox/.env
+openapi-merge

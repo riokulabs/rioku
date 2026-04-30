@@ -1,5 +1,27 @@
 {
   "components": {
+    "parameters": {
+      "ID": {
+        "description": "Resource id (UUID).",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "Tenant": {
+        "description": "Tenant slug (e.g. `default`, `acme`).",
+        "in": "path",
+        "name": "tenant",
+        "required": true,
+        "schema": {
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        }
+      }
+    },
     "schemas": {
       "Link": {
         "description": "OpenAPI/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n",
@@ -2568,6 +2590,439 @@
           "PluginService"
         ]
       }
+    },
+    "/api/v1/t/{tenant}/routes": {
+      "get": {
+        "operationId": "listRoutes",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List routes",
+        "tags": [
+          "routes"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createRoute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          }
+        },
+        "summary": "Create a route",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/routes/{id}": {
+      "delete": {
+        "operationId": "deleteRoute",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      },
+      "get": {
+        "operationId": "getRoute",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchRoute",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      },
+      "put": {
+        "operationId": "replaceRoute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/routes/{id}/policies": {
+      "get": {
+        "operationId": "listPoliciesByRoute",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List policies bound to a route",
+        "tags": [
+          "routes",
+          "policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/routes/{id}/policies/{policyId}": {
+      "delete": {
+        "operationId": "detachPolicyFromRoute",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Detach a policy from a route",
+        "tags": [
+          "routes",
+          "policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        },
+        {
+          "in": "path",
+          "name": "policyId",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "attachPolicyToRoute",
+        "responses": {
+          "201": {
+            "description": "created"
+          }
+        },
+        "summary": "Attach a policy to a route",
+        "tags": [
+          "routes",
+          "policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services": {
+      "get": {
+        "operationId": "listServices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/v1Service"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "paginated services collection"
+          }
+        },
+        "summary": "List services",
+        "tags": [
+          "services"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "summary": "Discover supported methods",
+        "tags": [
+          "services"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createService",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Service"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "service created"
+          }
+        },
+        "summary": "Create a service",
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services/{id}": {
+      "delete": {
+        "operationId": "deleteService",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Delete service",
+        "tags": [
+          "services"
+        ]
+      },
+      "get": {
+        "operationId": "getService",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Get service",
+        "tags": [
+          "services"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "services"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchService",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Service"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Patch service (RFC 7396 merge-patch)",
+        "tags": [
+          "services"
+        ]
+      },
+      "put": {
+        "operationId": "replaceService",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Service"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Replace service",
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services/{id}/force-reload": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "services"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "forceReloadService",
+        "responses": {
+          "202": {
+            "description": "reload queued"
+          }
+        },
+        "summary": "Force-reload this service's Caddy admin block",
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services/{id}/routes": {
+      "get": {
+        "operationId": "listRoutesByService",
+        "responses": {
+          "200": {
+            "description": "paginated route collection"
+          }
+        },
+        "summary": "List routes targeting this service",
+        "tags": [
+          "services",
+          "routes"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
     },
     "/api/v1/traffic/sessions": {
       "get": {

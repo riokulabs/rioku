@@ -13,6 +13,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -23,12 +24,29 @@ func RegisterSiteRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("site:write")(http.HandlerFunc(handleCreateSite(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/sites/{id}",
 		RequirePermission("site:read")(http.HandlerFunc(handleGetSite(st))))
+	// PUT and PATCH share the same underlying handler — both accept the
+	// pointer-field updateSiteRequest where omitted fields are unchanged.
+	// Future work can split them when the storage layer grows a discrete
+	// "replace whole row" path; for now the verbs are equivalent.
 	mux.Handle("PUT /api/v1/t/{tenant}/sites/{id}",
+		RequirePermission("site:write")(http.HandlerFunc(handleUpdateSite(st))))
+	mux.Handle("PATCH /api/v1/t/{tenant}/sites/{id}",
 		RequirePermission("site:write")(http.HandlerFunc(handleUpdateSite(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/sites/{id}",
 		RequirePermission("site:delete")(http.HandlerFunc(handleDeleteSite(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/sites/{id}/enabled",
 		RequirePermission("site:write")(http.HandlerFunc(handleToggleSite(st))))
+	mux.Handle("POST /api/v1/t/{tenant}/sites/{id}/toggle",
+		RequirePermission("site:write")(http.HandlerFunc(handleToggleSite(st))))
+
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/sites",
+		[]string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/sites/{id}",
+		[]string{"GET", "PUT", "PATCH", "DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/sites/{id}/enabled",
+		[]string{"PATCH"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/sites/{id}/toggle",
+		[]string{"POST"})
 }
 
 type siteResponse struct {

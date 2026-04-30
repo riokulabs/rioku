@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -20,10 +21,20 @@ func RegisterMiddlewareRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("middleware:write")(http.HandlerFunc(handleCreateMiddleware(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/middlewares/{id}",
 		RequirePermission("middleware:read")(http.HandlerFunc(handleGetMiddleware(st))))
+	// PUT and PATCH share the underlying handler — both accept the
+	// pointer-field updateMiddlewareRequest where omitted fields are
+	// unchanged. See sites_routes for the rationale.
 	mux.Handle("PUT /api/v1/t/{tenant}/middlewares/{id}",
+		RequirePermission("middleware:write")(http.HandlerFunc(handleUpdateMiddleware(st))))
+	mux.Handle("PATCH /api/v1/t/{tenant}/middlewares/{id}",
 		RequirePermission("middleware:write")(http.HandlerFunc(handleUpdateMiddleware(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/middlewares/{id}",
 		RequirePermission("middleware:delete")(http.HandlerFunc(handleDeleteMiddleware(st))))
+
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/middlewares",
+		[]string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/middlewares/{id}",
+		[]string{"GET", "PUT", "PATCH", "DELETE"})
 }
 
 type middlewareResponse struct {

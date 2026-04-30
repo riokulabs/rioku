@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -43,13 +44,24 @@ func RegisterAccessPolicyRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/auth/access-policies", create)
 	mux.Handle("GET /api/v1/auth/access-policies/{id}", get)
 	mux.Handle("PUT /api/v1/auth/access-policies/{id}", update)
+	mux.Handle("PATCH /api/v1/auth/access-policies/{id}", update)
 	mux.Handle("DELETE /api/v1/auth/access-policies/{id}", del)
 
 	mux.Handle("GET /api/v1/t/{tenant}/access-policies", list)
 	mux.Handle("POST /api/v1/t/{tenant}/access-policies", create)
 	mux.Handle("GET /api/v1/t/{tenant}/access-policies/{id}", get)
 	mux.Handle("PUT /api/v1/t/{tenant}/access-policies/{id}", update)
+	mux.Handle("PATCH /api/v1/t/{tenant}/access-policies/{id}", update)
 	mux.Handle("DELETE /api/v1/t/{tenant}/access-policies/{id}", del)
+
+	optionsutil.Register(mux, "/api/v1/auth/access-policies",
+		[]string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/auth/access-policies/{id}",
+		[]string{"GET", "PUT", "PATCH", "DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/access-policies",
+		[]string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/access-policies/{id}",
+		[]string{"GET", "PUT", "PATCH", "DELETE"})
 }
 
 // ─── Wire types ─────────────────────────────────────────────────────────────

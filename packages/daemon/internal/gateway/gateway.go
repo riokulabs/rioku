@@ -155,6 +155,13 @@ func NewGateway(
 	RegisterSiteRoutes(topMux, st)
 	RegisterMiddlewareRoutes(topMux, st)
 
+	// Tenant-scoped Services + Routes (stage-2 admin completion chunk 4).
+	// These coexist with the legacy gRPC-gateway-derived `/api/v1/services`
+	// and `/api/v1/routes` paths, which keep working for the default
+	// tenant via `store.TenantIDFromContext`'s fallback.
+	RegisterServicesRoutes(topMux, st)
+	RegisterRoutesRoutes(topMux, st)
+
 	// Dashboards + Widgets + Versions (stage-2).
 	RegisterDashboardRoutes(topMux, st)
 
