@@ -1,0 +1,2931 @@
+{
+  "components": {
+    "schemas": {
+      "Link": {
+        "description": "OpenAPI/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n",
+        "properties": {
+          "href": {
+            "format": "uri-reference",
+            "type": "string"
+          },
+          "templated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "type": "object"
+      },
+      "LinkSet": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/Link"
+        },
+        "type": "object"
+      },
+      "Problem": {
+        "description": "RFC 7807 problem+json error envelope.",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "status": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerToken": {
+        "bearerFormat": "JWT",
+        "description": "API key or short-lived JWT issued by /api/v1/auth/token.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "sessionCookie": {
+        "description": "Web-UI session cookie issued by /api/v1/auth/login.",
+        "in": "cookie",
+        "name": "rioku_sid",
+        "type": "apiKey"
+      }
+    }
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "definitions": {
+    "BuildServiceSwapBinaryBody": {
+      "properties": {
+        "dryRun": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "InstallEventStage": {
+      "default": "STAGE_UNSPECIFIED",
+      "enum": [
+        "STAGE_UNSPECIFIED",
+        "STAGE_RESOLVING",
+        "STAGE_FETCHING",
+        "STAGE_VALIDATING",
+        "STAGE_BUILDING",
+        "STAGE_SWAPPING",
+        "STAGE_COMPLETE",
+        "STAGE_FAILED"
+      ],
+      "type": "string"
+    },
+    "PluginServiceSetPluginConfigBody": {
+      "properties": {
+        "config": {
+          "type": "object"
+        },
+        "merge": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "protobufAny": {
+      "additionalProperties": {},
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "protobufNullValue": {
+      "default": "NULL_VALUE",
+      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value.",
+      "enum": [
+        "NULL_VALUE"
+      ],
+      "type": "string"
+    },
+    "rpcStatus": {
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "details": {
+          "items": {
+            "$ref": "#/definitions/protobufAny",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1AITrace": {
+      "properties": {
+        "agentId": {
+          "type": "string"
+        },
+        "cacheHitTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "contentTruncated": {
+          "type": "boolean"
+        },
+        "estimatedCostUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "finishReason": {
+          "type": "string"
+        },
+        "inputTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "isStreaming": {
+          "type": "boolean"
+        },
+        "model": {
+          "type": "string"
+        },
+        "outputTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "parentTraceId": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "toolCalls": {
+          "items": {
+            "$ref": "#/definitions/v1ToolCallTrace",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "totalTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "turnNumber": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1AgentSession": {
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "agentId": {
+          "type": "string"
+        },
+        "agentName": {
+          "type": "string"
+        },
+        "anomalous": {
+          "type": "boolean"
+        },
+        "anomalyReason": {
+          "type": "string"
+        },
+        "estimatedCostUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "lastSeenAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "startedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "totalTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "turnCount": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1ApplyResult": {
+      "properties": {
+        "meta": {
+          "$ref": "#/definitions/v1MutationMeta"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1AuditEntry": {
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "configVersion": {
+          "format": "int64",
+          "type": "string"
+        },
+        "diff": {
+          "type": "string"
+        },
+        "entityId": {
+          "type": "string"
+        },
+        "entityType": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1BuildEvent": {
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "logLine": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "record": {
+          "$ref": "#/definitions/v1BuildRecord"
+        },
+        "state": {
+          "$ref": "#/definitions/v1BuildState"
+        }
+      },
+      "type": "object"
+    },
+    "v1BuildRecord": {
+      "properties": {
+        "artifactHash": {
+          "type": "string"
+        },
+        "buildService": {
+          "type": "string"
+        },
+        "completedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "log": {
+          "type": "string"
+        },
+        "pluginIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/definitions/v1BuildState"
+        },
+        "target": {
+          "$ref": "#/definitions/v1BuildTarget"
+        },
+        "triggeredAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1BuildRequest": {
+      "properties": {
+        "force": {
+          "type": "boolean"
+        },
+        "pluginIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "target": {
+          "$ref": "#/definitions/v1BuildTarget"
+        }
+      },
+      "type": "object"
+    },
+    "v1BuildState": {
+      "default": "BUILD_STATE_UNSPECIFIED",
+      "enum": [
+        "BUILD_STATE_UNSPECIFIED",
+        "BUILD_STATE_IDLE",
+        "BUILD_STATE_TRIGGERED",
+        "BUILD_STATE_FETCHING_DEPS",
+        "BUILD_STATE_BUILDING",
+        "BUILD_STATE_TESTING",
+        "BUILD_STATE_SWAPPING",
+        "BUILD_STATE_COMPLETE",
+        "BUILD_STATE_FAILED"
+      ],
+      "type": "string"
+    },
+    "v1BuildStatus": {
+      "properties": {
+        "caddyBuild": {
+          "$ref": "#/definitions/v1BuildRecord"
+        },
+        "daemonBuild": {
+          "$ref": "#/definitions/v1BuildRecord"
+        }
+      },
+      "type": "object"
+    },
+    "v1BuildTarget": {
+      "default": "BUILD_TARGET_UNSPECIFIED",
+      "enum": [
+        "BUILD_TARGET_UNSPECIFIED",
+        "BUILD_TARGET_CADDY",
+        "BUILD_TARGET_DAEMON"
+      ],
+      "type": "string"
+    },
+    "v1CaddyStatus": {
+      "properties": {
+        "checkedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "loadedConfigVersion": {
+          "format": "int64",
+          "type": "string"
+        },
+        "pid": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "running": {
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "#/definitions/v1HealthState"
+        },
+        "upstreamsHealthy": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "upstreamsTotal": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1ConfigChange": {
+      "properties": {
+        "expectedVersion": {
+          "format": "int64",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/definitions/v1PolicyOp"
+        },
+        "route": {
+          "$ref": "#/definitions/v1RouteOp"
+        },
+        "service": {
+          "$ref": "#/definitions/v1ServiceOp"
+        }
+      },
+      "type": "object"
+    },
+    "v1ConfigChunk": {
+      "properties": {
+        "data": {
+          "format": "byte",
+          "type": "string"
+        },
+        "last": {
+          "type": "boolean"
+        },
+        "sequence": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1ConfigSnapshot": {
+      "properties": {
+        "policies": {
+          "items": {
+            "$ref": "#/definitions/v1Policy",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "routes": {
+          "items": {
+            "$ref": "#/definitions/v1Route",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "services": {
+          "items": {
+            "$ref": "#/definitions/v1Service",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "snapshotAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1ConnectionPool": {
+      "description": "ConnectionPool tunes the HTTP transport's connection-pooling\nparameters for a service. Compiles into Caddy's\n`reverse_proxy.transport` block alongside the existing\ndial/response/idle timeouts.\n\nDefaults are picked by Caddy when fields are zero — leaving the\nblock empty is fine for most workloads. Tune for high-RPS or\nlong-tail-latency services.",
+      "properties": {
+        "maxConnsPerUpstream": {
+          "description": "max_conns_per_upstream caps the total number of open connections\nthe gateway will hold per upstream backend. Zero means \"no limit\"\n(Caddy default).",
+          "format": "int32",
+          "type": "integer"
+        },
+        "maxIdleConns": {
+          "description": "max_idle_conns caps the total idle keep-alive connections across\nall upstreams in this service. Zero means \"no limit\".",
+          "format": "int32",
+          "type": "integer"
+        },
+        "maxIdleConnsPerUpstream": {
+          "description": "max_idle_conns_per_upstream caps the number of idle keep-alive\nconnections retained per upstream. Zero falls back to Go's\nhttp.DefaultMaxIdleConnsPerHost (2). Bump for high-concurrency\nbackends where reconnect cost dominates.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "readBufferKb": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "writeBufferKb": {
+          "description": "write_buffer_kb / read_buffer_kb override the HTTP transport's\nread/write buffer sizes (in kilobytes). Zero uses Go's default\n(4 KB). Bump for backends that ship large request/response\nbodies to reduce syscall count.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1DirectUpstream": {
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "tls": {
+          "$ref": "#/definitions/v1TLSMode"
+        }
+      },
+      "type": "object"
+    },
+    "v1ExportRequest": {
+      "properties": {
+        "includeAuditLog": {
+          "type": "boolean"
+        },
+        "version": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1HeaderMatcher": {
+      "properties": {
+        "invert": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "regexp": {
+          "description": "regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy's header_regexp doesn't support\na \"!\" prefix); wrap the matcher in `not` instead.",
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1HealthCheck": {
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "expectedStatuses": {
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "healthyThreshold": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "intervalSeconds": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        },
+        "timeoutSeconds": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "unhealthyThreshold": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1HealthState": {
+      "default": "HEALTH_STATE_UNSPECIFIED",
+      "enum": [
+        "HEALTH_STATE_UNSPECIFIED",
+        "HEALTH_STATE_OK",
+        "HEALTH_STATE_DEGRADED",
+        "HEALTH_STATE_UNHEALTHY"
+      ],
+      "type": "string"
+    },
+    "v1HealthStatus": {
+      "properties": {
+        "caddy": {
+          "$ref": "#/definitions/v1SubsystemHealth"
+        },
+        "certmgr": {
+          "$ref": "#/definitions/v1SubsystemHealth"
+        },
+        "checkedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "cluster": {
+          "$ref": "#/definitions/v1SubsystemHealth"
+        },
+        "overall": {
+          "$ref": "#/definitions/v1HealthState"
+        },
+        "store": {
+          "$ref": "#/definitions/v1SubsystemHealth"
+        },
+        "uptimeSeconds": {
+          "format": "int64",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1ImportResult": {
+      "properties": {
+        "meta": {
+          "$ref": "#/definitions/v1MutationMeta"
+        },
+        "policiesImported": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "routesImported": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "servicesImported": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1InstallEvent": {
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1Plugin"
+        },
+        "stage": {
+          "$ref": "#/definitions/InstallEventStage"
+        }
+      },
+      "type": "object"
+    },
+    "v1InstallRequest": {
+      "properties": {
+        "deferBuild": {
+          "type": "boolean"
+        },
+        "initialConfig": {
+          "type": "object"
+        },
+        "modulePath": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1JoinRequest": {
+      "properties": {
+        "caFingerprint": {
+          "type": "string"
+        },
+        "csrPem": {
+          "format": "byte",
+          "type": "string"
+        },
+        "nodeAddress": {
+          "type": "string"
+        },
+        "nodeName": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1JoinResult": {
+      "properties": {
+        "caCertPem": {
+          "format": "byte",
+          "type": "string"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/definitions/v1Node",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "nodeCertPem": {
+          "format": "byte",
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1Labels": {
+      "properties": {
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "v1LeaveRequest": {
+      "properties": {
+        "deregister": {
+          "type": "boolean"
+        },
+        "nodeId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1LeaveResult": {
+      "properties": {
+        "meta": {
+          "$ref": "#/definitions/v1MutationMeta"
+        }
+      },
+      "type": "object"
+    },
+    "v1LoadBalancingPolicy": {
+      "default": "LB_POLICY_UNSPECIFIED",
+      "description": " - LB_POLICY_COOKIE: LB_POLICY_COOKIE pins each client to an upstream via a cookie\n(sticky sessions). The cookie name comes from Service.lb_cookie_name\n(defaults to \"lb\").\n - LB_POLICY_URI_HASH: LB_POLICY_URI_HASH selects an upstream by consistent hash of the\nrequest URI — useful for cache-friendly fan-out where the same\npath should land on the same backend.\n - LB_POLICY_HEADER: LB_POLICY_HEADER selects an upstream by consistent hash of a\nrequest header. The header name comes from\nService.lb_header_name (required).",
+      "enum": [
+        "LB_POLICY_UNSPECIFIED",
+        "LB_POLICY_ROUND_ROBIN",
+        "LB_POLICY_RANDOM",
+        "LB_POLICY_LEAST_CONN",
+        "LB_POLICY_IP_HASH",
+        "LB_POLICY_WEIGHTED_ROUND_ROBIN",
+        "LB_POLICY_COOKIE",
+        "LB_POLICY_URI_HASH",
+        "LB_POLICY_HEADER"
+      ],
+      "type": "string"
+    },
+    "v1Matcher": {
+      "properties": {
+        "expression": {
+          "description": "expression is a CEL expression evaluated against the request.\nCompiles to Caddy's `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don't fit the simpler\nhost/path/method/header/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms.",
+          "type": "string"
+        },
+        "headers": {
+          "items": {
+            "$ref": "#/definitions/v1HeaderMatcher",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "hosts": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "methods": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "not": {
+          "description": "not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy's\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry's primitives).\nUseful for `match X but not Y`.",
+          "items": {
+            "$ref": "#/definitions/v1Matcher",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "paths": {
+          "items": {
+            "$ref": "#/definitions/v1PathMatcher",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "queries": {
+          "description": "queries match against URL query string parameters. Compiles to\nCaddy's `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only).",
+          "items": {
+            "$ref": "#/definitions/v1QueryMatcher",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ModelBreakdown": {
+      "properties": {
+        "estimatedCostUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "model": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "requestCount": {
+          "format": "int64",
+          "type": "string"
+        },
+        "totalTokens": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1MutationMeta": {
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "configVersion": {
+          "format": "int64",
+          "type": "string"
+        },
+        "mutatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1Node": {
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "caddyVersion": {
+          "type": "string"
+        },
+        "certFingerprint": {
+          "type": "string"
+        },
+        "daemonVersion": {
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/definitions/v1HealthState"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isLeader": {
+          "type": "boolean"
+        },
+        "joinedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/definitions/v1Labels"
+        },
+        "lastSeenAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/definitions/v1NodeRole"
+        },
+        "state": {
+          "$ref": "#/definitions/v1NodeState"
+        },
+        "storeMode": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1NodeList": {
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/definitions/v1Node",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      },
+      "type": "object"
+    },
+    "v1NodeRole": {
+      "default": "NODE_ROLE_UNSPECIFIED",
+      "enum": [
+        "NODE_ROLE_UNSPECIFIED",
+        "NODE_ROLE_BOOTSTRAP",
+        "NODE_ROLE_MEMBER"
+      ],
+      "type": "string"
+    },
+    "v1NodeState": {
+      "default": "NODE_STATE_UNSPECIFIED",
+      "enum": [
+        "NODE_STATE_UNSPECIFIED",
+        "NODE_STATE_JOINING",
+        "NODE_STATE_ACTIVE",
+        "NODE_STATE_DEGRADED",
+        "NODE_STATE_LEAVING",
+        "NODE_STATE_UNREACHABLE"
+      ],
+      "type": "string"
+    },
+    "v1PageRequest": {
+      "properties": {
+        "pageSize": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1PageResponse": {
+      "properties": {
+        "nextPageToken": {
+          "type": "string"
+        },
+        "total": {
+          "format": "int64",
+          "title": "-1 if unknown",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1PassiveHealthCheck": {
+      "description": "PassiveHealthCheck configures passive (in-band) health checking against\nupstream backends — i.e. health is inferred from the success/failure\npattern of real proxied traffic rather than from synthetic probes.\n\nCompiles to Caddy's `reverse_proxy.health_checks.passive` block. All\nthresholds are evaluated within a sliding window of fail_duration_seconds.\nWhen omitted (passive_health_check = nil) no passive checks are emitted\nand Caddy will only consider an upstream unhealthy via active checks.",
+      "properties": {
+        "enabled": {
+          "description": "enabled gates the entire passive block. When false the compiler\nemits nothing — useful for keeping the configured thresholds in\nplace while temporarily disabling enforcement.",
+          "type": "boolean"
+        },
+        "failDurationSeconds": {
+          "description": "fail_duration_seconds is the rolling window in which max_fails is\ncounted. Caddy default is 0 (passive checks disabled). Typical\nproduction values are 10–30 seconds.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "maxFails": {
+          "description": "max_fails is the number of recent failures within fail_duration that\nmarks an upstream unhealthy. Must be \u003e 0 for the threshold to fire.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "unhealthyLatencyMs": {
+          "description": "unhealthy_latency_ms is the response latency threshold above which a\nrequest is counted as a failure. Zero disables latency-based\nfailure accounting.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "unhealthyRequestCount": {
+          "description": "unhealthy_request_count is the in-flight request count above which\nan upstream is considered overloaded. Zero disables this check.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "unhealthyStatus": {
+          "description": "unhealthy_status is the list of HTTP status codes considered failures\nfor passive accounting. Empty means \"use Caddy default\" (5xx).\nCodes like -1 or wildcards are not supported here — list explicit\ninteger codes (e.g. 500, 502, 503, 504).",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1PathMatcher": {
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/v1PathMatcherType"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1PathMatcherType": {
+      "default": "TYPE_UNSPECIFIED",
+      "enum": [
+        "TYPE_UNSPECIFIED",
+        "TYPE_EXACT",
+        "TYPE_PREFIX",
+        "TYPE_REGEXP"
+      ],
+      "type": "string"
+    },
+    "v1Plugin": {
+      "properties": {
+        "caddyDeps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "config": {
+          "type": "object"
+        },
+        "configSchema": {
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "installedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/definitions/v1Labels"
+        },
+        "modulePath": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/v1PluginStatus"
+        },
+        "type": {
+          "$ref": "#/definitions/v1PluginType"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1PluginConfig": {
+      "properties": {
+        "config": {
+          "type": "object"
+        },
+        "pluginId": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1PluginList": {
+      "properties": {
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        },
+        "plugins": {
+          "items": {
+            "$ref": "#/definitions/v1Plugin",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1PluginStatus": {
+      "default": "PLUGIN_STATUS_UNSPECIFIED",
+      "enum": [
+        "PLUGIN_STATUS_UNSPECIFIED",
+        "PLUGIN_STATUS_INSTALLING",
+        "PLUGIN_STATUS_ACTIVE",
+        "PLUGIN_STATUS_DISABLED",
+        "PLUGIN_STATUS_ERROR",
+        "PLUGIN_STATUS_REBUILDING"
+      ],
+      "type": "string"
+    },
+    "v1PluginType": {
+      "default": "PLUGIN_TYPE_UNSPECIFIED",
+      "enum": [
+        "PLUGIN_TYPE_UNSPECIFIED",
+        "PLUGIN_TYPE_TRAFFIC",
+        "PLUGIN_TYPE_MIDDLEWARE",
+        "PLUGIN_TYPE_CLI",
+        "PLUGIN_TYPE_WEB",
+        "PLUGIN_TYPE_AGENTIC"
+      ],
+      "type": "string"
+    },
+    "v1Policy": {
+      "properties": {
+        "config": {
+          "type": "object"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/definitions/v1Labels"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1PolicyType"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1PolicyOp": {
+      "properties": {
+        "action": {
+          "$ref": "#/definitions/v1PolicyOpAction"
+        },
+        "id": {
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/definitions/v1Policy"
+        }
+      },
+      "type": "object"
+    },
+    "v1PolicyOpAction": {
+      "default": "ACTION_UNSPECIFIED",
+      "enum": [
+        "ACTION_UNSPECIFIED",
+        "UPSERT",
+        "DELETE"
+      ],
+      "type": "string"
+    },
+    "v1PolicyType": {
+      "default": "POLICY_TYPE_UNSPECIFIED",
+      "enum": [
+        "POLICY_TYPE_UNSPECIFIED",
+        "POLICY_TYPE_RATE_LIMIT",
+        "POLICY_TYPE_AUTH_API_KEY",
+        "POLICY_TYPE_AUTH_JWT",
+        "POLICY_TYPE_TRANSFORM",
+        "POLICY_TYPE_ALLOW_LIST",
+        "POLICY_TYPE_BLOCK_LIST"
+      ],
+      "type": "string"
+    },
+    "v1QueryMatcher": {
+      "description": "QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy.",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1RemoveResult": {
+      "properties": {
+        "meta": {
+          "$ref": "#/definitions/v1MutationMeta"
+        },
+        "rebuildTriggered": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "v1RequestTrace": {
+      "properties": {
+        "actorId": {
+          "type": "string"
+        },
+        "actorType": {
+          "title": "\"api_key\" | \"agent\" | \"anonymous\"",
+          "type": "string"
+        },
+        "ai": {
+          "$ref": "#/definitions/v1AITrace",
+          "title": "nil for non-AI requests"
+        },
+        "authResult": {
+          "title": "\"pass\" | \"fail\" | \"bypass\"",
+          "type": "string"
+        },
+        "bytesRecv": {
+          "format": "int64",
+          "type": "string"
+        },
+        "bytesSent": {
+          "format": "int64",
+          "type": "string"
+        },
+        "durationMs": {
+          "format": "int64",
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "policyIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rateLimitHit": {
+          "type": "boolean"
+        },
+        "routeId": {
+          "type": "string"
+        },
+        "serviceId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "spanId": {
+          "type": "string"
+        },
+        "startedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "statusCode": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "traceId": {
+          "type": "string"
+        },
+        "upstreamAddr": {
+          "type": "string"
+        },
+        "upstreamDurationMs": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1RetryPolicy": {
+      "description": "RetryPolicy configures Caddy's reverse_proxy retry behavior so a\ntransient upstream failure (connection reset, 5xx, dial error) is\nretried against the next upstream before the client sees an error.\n\nCompiled fields:\n  - max_retries  -\u003e reverse_proxy.lb_retries\n  - retry_match  -\u003e reverse_proxy.lb_retry_match (status codes)\n  - try_duration -\u003e reverse_proxy.lb_try_duration (cap on total time)\n  - try_interval -\u003e reverse_proxy.lb_try_interval (gap between tries)\n\nWhen omitted, no retry block is emitted and Caddy will not retry —\nmatching the historical behavior. Retries only kick in when there\nare multiple upstreams; with a single upstream, max_retries is\nsilently ignored by Caddy.",
+      "properties": {
+        "enabled": {
+          "description": "enabled gates the entire block. When false the compiler emits no\nretry config, even if the other fields are set.",
+          "type": "boolean"
+        },
+        "maxRetries": {
+          "description": "max_retries is the upper bound on additional attempts after the\ninitial request. Total attempts = 1 + max_retries. Must be \u003e 0\nfor retries to fire.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "retryOnStatus": {
+          "description": "retry_on_status is the list of HTTP status codes that trigger a\nretry. Empty means \"retry only on connection-level errors\"\n(Caddy's default behavior — no status-based retries).",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "tryDurationMs": {
+          "description": "try_duration_ms is the maximum total time (across all attempts)\nthe proxy will keep trying before returning to the client. Zero\nmeans \"no time bound — keep retrying until max_retries hits\".",
+          "format": "int32",
+          "type": "integer"
+        },
+        "tryIntervalMs": {
+          "description": "try_interval_ms is the wait between retry attempts. Zero retries\nimmediately; use a small backoff (e.g. 50–250ms) for upstreams\nthat need a moment to recover.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1Route": {
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/definitions/v1Labels"
+        },
+        "matchers": {
+          "items": {
+            "$ref": "#/definitions/v1Matcher",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "policyIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "serviceId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "upstream": {
+          "$ref": "#/definitions/v1DirectUpstream"
+        }
+      },
+      "type": "object"
+    },
+    "v1RouteOp": {
+      "properties": {
+        "action": {
+          "$ref": "#/definitions/v1RouteOpAction"
+        },
+        "id": {
+          "type": "string"
+        },
+        "route": {
+          "$ref": "#/definitions/v1Route"
+        }
+      },
+      "type": "object"
+    },
+    "v1RouteOpAction": {
+      "default": "ACTION_UNSPECIFIED",
+      "enum": [
+        "ACTION_UNSPECIFIED",
+        "UPSERT",
+        "DELETE"
+      ],
+      "type": "string"
+    },
+    "v1Service": {
+      "properties": {
+        "connectionPool": {
+          "$ref": "#/definitions/v1ConnectionPool"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "dialTimeoutSeconds": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "healthCheck": {
+          "$ref": "#/definitions/v1HealthCheck"
+        },
+        "id": {
+          "type": "string"
+        },
+        "idleTimeoutSeconds": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "labels": {
+          "$ref": "#/definitions/v1Labels"
+        },
+        "lbCookieName": {
+          "description": "lb_cookie_name is the cookie used by LB_POLICY_COOKIE for sticky\nsessions. Empty defaults to \"lb\". Ignored for non-cookie policies.",
+          "type": "string"
+        },
+        "lbHeaderName": {
+          "description": "lb_header_name is the request header consulted by LB_POLICY_HEADER\nto pick an upstream (consistent hash on the header value). Required\nwhen lb_policy = LB_POLICY_HEADER; ignored otherwise.",
+          "type": "string"
+        },
+        "lbPolicy": {
+          "$ref": "#/definitions/v1LoadBalancingPolicy"
+        },
+        "name": {
+          "type": "string"
+        },
+        "passiveHealthCheck": {
+          "$ref": "#/definitions/v1PassiveHealthCheck"
+        },
+        "responseHeaderTimeoutSeconds": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/v1RetryPolicy"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "upstreamTls": {
+          "$ref": "#/definitions/v1UpstreamTLS"
+        },
+        "upstreams": {
+          "items": {
+            "$ref": "#/definitions/v1Upstream",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ServiceOp": {
+      "properties": {
+        "action": {
+          "$ref": "#/definitions/v1ServiceOpAction"
+        },
+        "id": {
+          "type": "string"
+        },
+        "service": {
+          "$ref": "#/definitions/v1Service"
+        }
+      },
+      "type": "object"
+    },
+    "v1ServiceOpAction": {
+      "default": "ACTION_UNSPECIFIED",
+      "enum": [
+        "ACTION_UNSPECIFIED",
+        "UPSERT",
+        "DELETE"
+      ],
+      "type": "string"
+    },
+    "v1SessionDetail": {
+      "properties": {
+        "session": {
+          "$ref": "#/definitions/v1AgentSession"
+        },
+        "turns": {
+          "items": {
+            "$ref": "#/definitions/v1RequestTrace",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1SessionList": {
+      "properties": {
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        },
+        "sessions": {
+          "items": {
+            "$ref": "#/definitions/v1AgentSession",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1SetResult": {
+      "properties": {
+        "config": {
+          "type": "object"
+        },
+        "meta": {
+          "$ref": "#/definitions/v1MutationMeta"
+        }
+      },
+      "type": "object"
+    },
+    "v1StatsBucket": {
+      "properties": {
+        "bucketStart": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "bytesRecv": {
+          "format": "int64",
+          "type": "string"
+        },
+        "bytesSent": {
+          "format": "int64",
+          "type": "string"
+        },
+        "errorCount": {
+          "format": "int64",
+          "type": "string"
+        },
+        "errorRate": {
+          "format": "double",
+          "type": "number"
+        },
+        "p50LatencyMs": {
+          "format": "int64",
+          "type": "string"
+        },
+        "p95LatencyMs": {
+          "format": "int64",
+          "type": "string"
+        },
+        "p99LatencyMs": {
+          "format": "int64",
+          "type": "string"
+        },
+        "requestCount": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1SubsystemHealth": {
+      "properties": {
+        "detail": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/v1HealthState"
+        }
+      },
+      "type": "object"
+    },
+    "v1SwapResult": {
+      "properties": {
+        "buildId": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "newHash": {
+          "type": "string"
+        },
+        "priorHash": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "swappedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1TLSMode": {
+      "default": "TLS_MODE_UNSPECIFIED",
+      "enum": [
+        "TLS_MODE_UNSPECIFIED",
+        "TLS_MODE_OFF",
+        "TLS_MODE_AUTO",
+        "TLS_MODE_CUSTOM",
+        "TLS_MODE_INTERNAL"
+      ],
+      "type": "string"
+    },
+    "v1TokenBucket": {
+      "properties": {
+        "bucketStart": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "estimatedCostUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "inputTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "outputTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "requestCount": {
+          "format": "int64",
+          "type": "string"
+        },
+        "totalTokens": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1TokenStats": {
+      "properties": {
+        "buckets": {
+          "items": {
+            "$ref": "#/definitions/v1TokenBucket",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "modelBreakdown": {
+          "items": {
+            "$ref": "#/definitions/v1ModelBreakdown",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "totals": {
+          "$ref": "#/definitions/v1TokenTotals"
+        }
+      },
+      "type": "object"
+    },
+    "v1TokenTotals": {
+      "properties": {
+        "budgetUsedPct": {
+          "format": "double",
+          "type": "number"
+        },
+        "estimatedCostUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "inputTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "outputTokens": {
+          "format": "int64",
+          "type": "string"
+        },
+        "requestCount": {
+          "format": "int64",
+          "type": "string"
+        },
+        "totalTokens": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1ToolCallTrace": {
+      "properties": {
+        "durationMs": {
+          "format": "int64",
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "toolId": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1TraceQueryResult": {
+      "properties": {
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        },
+        "traces": {
+          "items": {
+            "$ref": "#/definitions/v1RequestTrace",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1TrafficStats": {
+      "properties": {
+        "buckets": {
+          "items": {
+            "$ref": "#/definitions/v1StatsBucket",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1Upstream": {
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "dialErr": {
+          "type": "string"
+        },
+        "healthy": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "tls": {
+          "$ref": "#/definitions/v1TLSMode"
+        },
+        "weight": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1UpstreamTLS": {
+      "description": "UpstreamTLS configures TLS parameters used when the gateway dials\nupstream backends over HTTPS. Compiles into Caddy's\n`reverse_proxy.transport.tls` block.\n\nWhen omitted, Caddy uses default TLS dialing (verify cert against\nsystem roots, ServerName from upstream address). Most production\nconfigurations only need server_name (when fronting an upstream\nwhose cert SAN doesn't match the dial address) and root_ca_pem\n(when the upstream is signed by a private CA).\n\nSECURITY NOTE: insecure_skip_verify=true disables certificate\nverification entirely — it must only be used for development or\nwhen paired with a separate verification mechanism. Production\nconfigs should use root_ca_pem to trust a private CA.",
+      "properties": {
+        "clientCertPem": {
+          "description": "client_cert_pem + client_key_pem provide a client certificate\nfor upstream mTLS. Both must be set together; either field\nalone is rejected at validation. Empty disables mTLS.",
+          "type": "string"
+        },
+        "clientKeyPem": {
+          "type": "string"
+        },
+        "enabled": {
+          "description": "enabled gates the entire block. When false the compiler emits\nno transport.tls config, regardless of other fields.",
+          "type": "boolean"
+        },
+        "insecureSkipVerify": {
+          "description": "insecure_skip_verify disables certificate verification entirely.\nDev/test only — DO NOT enable in production. Use root_ca_pem\nfor private-CA upstreams instead.",
+          "type": "boolean"
+        },
+        "maxVersion": {
+          "type": "string"
+        },
+        "minVersion": {
+          "description": "min_version / max_version pin the TLS protocol version range.\nAcceptable values: \"1.0\", \"1.1\", \"1.2\", \"1.3\". Empty means\n\"Caddy default\" (1.2 minimum).",
+          "type": "string"
+        },
+        "rootCaPem": {
+          "description": "root_ca_pem is one or more PEM-encoded CA certificates the\ngateway will trust when verifying upstream certs. Empty means\n\"use the system trust store\".",
+          "type": "string"
+        },
+        "serverName": {
+          "description": "server_name overrides the SNI / certificate-name match when\ndialing the upstream. Required when the upstream cert's SAN\ndoes not match the dial address (e.g. dialing by IP).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "info": {
+    "contact": {
+      "name": "Rioku Labs",
+      "url": "https://github.com/riokulabs/rioku"
+    },
+    "description": "Rioku is an open-source, AI-native API gateway platform built on\nCaddy. This document is the canonical OpenAPI 3.1 specification\nfor every REST endpoint exposed by the daemon.\n\nConventions:\n\n- Tenant-scoped paths live under `/api/v1/t/{tenant}/...`.\n- Every resource exposes `OPTIONS` for capability discovery.\n- Both `PUT` (replace, full body) and `PATCH` (partial, RFC 7396\n  merge-patch) are supported on every resource that takes\n  mutations.\n- Relations carry both the foreign-key id AND a `_links.\u003crelation\u003e.href`\n  pointing at the canonical resource path.\n- Pagination is cursor-based (`?page_token=`); page size is\n  bounded at 1000.\n",
+    "license": {
+      "name": "BUSL-1.1",
+      "url": "https://github.com/riokulabs/rioku/blob/main/LICENSE"
+    },
+    "title": "Rioku API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "ConfigService_GetAuditLog",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "entityType",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "int32",
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1AuditEntry"
+                }
+              },
+              "title": "Stream result of v1AuditEntry",
+              "type": "object"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      }
+    },
+    "/api/v1/build": {
+      "get": {
+        "operationId": "BuildService_GetBuildStatus",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "buildId",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BuildStatus"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BuildService"
+        ]
+      },
+      "post": {
+        "operationId": "BuildService_TriggerBuild",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BuildRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1BuildEvent"
+                }
+              },
+              "title": "Stream result of v1BuildEvent",
+              "type": "object"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BuildService"
+        ]
+      }
+    },
+    "/api/v1/build/{buildId}/swap": {
+      "post": {
+        "operationId": "BuildService_SwapBinary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "buildId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BuildServiceSwapBinaryBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SwapResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BuildService"
+        ]
+      }
+    },
+    "/api/v1/cluster/join": {
+      "post": {
+        "operationId": "ClusterService_Join",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1JoinRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1JoinResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/cluster/leave": {
+      "post": {
+        "operationId": "ClusterService_Leave",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1LeaveRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1LeaveResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/cluster/nodes": {
+      "get": {
+        "operationId": "ClusterService_ListNodes",
+        "parameters": [
+          {
+            "default": "NODE_STATE_UNSPECIFIED",
+            "enum": [
+              "NODE_STATE_UNSPECIFIED",
+              "NODE_STATE_JOINING",
+              "NODE_STATE_ACTIVE",
+              "NODE_STATE_DEGRADED",
+              "NODE_STATE_LEAVING",
+              "NODE_STATE_UNREACHABLE"
+            ],
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "int32",
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1NodeList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/config": {
+      "get": {
+        "operationId": "ConfigService_GetConfig",
+        "parameters": [
+          {
+            "format": "int64",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ConfigSnapshot"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      },
+      "post": {
+        "operationId": "ConfigService_ApplyChange",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ConfigChange"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ApplyResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      }
+    },
+    "/api/v1/config/export": {
+      "post": {
+        "operationId": "ConfigService_ExportConfig",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ExportRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1ConfigChunk"
+                }
+              },
+              "title": "Stream result of v1ConfigChunk",
+              "type": "object"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      }
+    },
+    "/api/v1/config/import": {
+      "post": {
+        "operationId": "ConfigService_ImportConfig",
+        "parameters": [
+          {
+            "description": " (streaming inputs)",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ConfigChunk"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ImportResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthService_GetHealth",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "verbose",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1HealthStatus"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "HealthService"
+        ]
+      }
+    },
+    "/api/v1/health/caddy": {
+      "get": {
+        "operationId": "HealthService_GetCaddyStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CaddyStatus"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "HealthService"
+        ]
+      }
+    },
+    "/api/v1/plugins": {
+      "get": {
+        "operationId": "PluginService_ListPlugins",
+        "parameters": [
+          {
+            "default": "PLUGIN_TYPE_UNSPECIFIED",
+            "enum": [
+              "PLUGIN_TYPE_UNSPECIFIED",
+              "PLUGIN_TYPE_TRAFFIC",
+              "PLUGIN_TYPE_MIDDLEWARE",
+              "PLUGIN_TYPE_CLI",
+              "PLUGIN_TYPE_WEB",
+              "PLUGIN_TYPE_AGENTIC"
+            ],
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "default": "PLUGIN_STATUS_UNSPECIFIED",
+            "enum": [
+              "PLUGIN_STATUS_UNSPECIFIED",
+              "PLUGIN_STATUS_INSTALLING",
+              "PLUGIN_STATUS_ACTIVE",
+              "PLUGIN_STATUS_DISABLED",
+              "PLUGIN_STATUS_ERROR",
+              "PLUGIN_STATUS_REBUILDING"
+            ],
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "int32",
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PluginList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      },
+      "post": {
+        "operationId": "PluginService_InstallPlugin",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1InstallRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1InstallEvent"
+                }
+              },
+              "title": "Stream result of v1InstallEvent",
+              "type": "object"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}": {
+      "delete": {
+        "operationId": "PluginService_RemovePlugin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pluginId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "purgeConfig",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "in": "query",
+            "name": "deferBuild",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RemoveResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}/config": {
+      "get": {
+        "operationId": "PluginService_GetPluginConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pluginId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PluginConfig"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      },
+      "put": {
+        "operationId": "PluginService_SetPluginConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pluginId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PluginServiceSetPluginConfigBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SetResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      }
+    },
+    "/api/v1/traffic/sessions": {
+      "get": {
+        "operationId": "TrafficService_ListSessions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "activeOnly",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "in": "query",
+            "name": "agentId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "int32",
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SessionList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/sessions/{sessionId}": {
+      "get": {
+        "operationId": "TrafficService_GetSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SessionDetail"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/stats": {
+      "get": {
+        "operationId": "TrafficService_GetStats",
+        "parameters": [
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "\"minute\" | \"hour\" | \"day\"",
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "collectionFormat": "multi",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "routeIds",
+            "required": false,
+            "type": "array"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TrafficStats"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/tokens": {
+      "get": {
+        "operationId": "TrafficService_GetTokenStats",
+        "parameters": [
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TokenStats"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/traces": {
+      "get": {
+        "operationId": "TrafficService_QueryTraces",
+        "parameters": [
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "date-time",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "collectionFormat": "multi",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "routeIds",
+            "required": false,
+            "type": "array"
+          },
+          {
+            "collectionFormat": "multi",
+            "in": "query",
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "name": "statusCodes",
+            "required": false,
+            "type": "array"
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "sessionId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "aiOnly",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "format": "int32",
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TraceQueryResult"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/traces/{traceId}": {
+      "get": {
+        "operationId": "TrafficService_GetTrace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "traceId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RequestTrace"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    }
+  },
+  "produces": [
+    "application/json"
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    },
+    {
+      "bearerToken": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Rioku daemon REST endpoint",
+      "url": "{scheme}://{host}/api/v1",
+      "variables": {
+        "host": {
+          "default": "localhost:7778"
+        },
+        "scheme": {
+          "default": "https",
+          "enum": [
+            "https",
+            "http"
+          ]
+        }
+      }
+    }
+  ],
+  "swagger": "2.0",
+  "tags": [
+    {
+      "name": "TrafficService"
+    }
+  ]
+}

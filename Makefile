@@ -207,6 +207,18 @@ proto-lint:
 proto-breaking:
 	cd $(PKG)/proto && buf breaking --against '.git#branch=main'
 
+## openapi: Merge buf-generated swagger files with hand-written
+##          fragments into a single canonical document at
+##          packages/proto/gen/openapi/rioku/v1/api.full.json. Run
+##          after `make proto` whenever the proto definitions OR the
+##          hand-written fragments change.
+openapi:
+	cd $(PKG)/daemon && $(GO) run ./cmd/openapi-merge \
+		-base ../../$(PKG)/proto/gen/openapi/rioku/v1/config.swagger.json \
+		-extra-bases ../../$(PKG)/proto/gen/openapi/rioku/v1/ \
+		-fragments ../../$(PKG)/proto/openapi-fragments/ \
+		-out ../../$(PKG)/proto/gen/openapi/rioku/v1/api.full.json
+
 ## test: Run all tests
 test:
 	cd $(PKG)/daemon && $(GO) test ./...
