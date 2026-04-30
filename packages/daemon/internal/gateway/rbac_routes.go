@@ -6,26 +6,46 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 // RegisterRBACRoutes registers the RBAC management endpoints (roles,
-// permissions, and user-role assignments) on the mux.
+// permissions, and user-role assignments). Both legacy `/api/v1/roles`
+// and tenant-scoped `/api/v1/t/{tenant}/roles` paths are exposed;
+// storage's `tenant_id IS NULL OR tenant_id = ?` filter keeps built-in
+// roles visible from every tenant alongside tenant-scoped custom ones.
 func RegisterRBACRoutes(mux *http.ServeMux, st store.Driver) {
-	// Roles.
-	mux.Handle("GET /api/v1/roles", RequirePermission("roles:read")(http.HandlerFunc(handleListRoles(st))))
-	mux.Handle("POST /api/v1/roles", RequirePermission("roles:manage")(http.HandlerFunc(handleCreateRole(st))))
-	mux.Handle("GET /api/v1/roles/{id}", RequirePermission("roles:read")(http.HandlerFunc(handleGetRole(st))))
-	mux.Handle("PATCH /api/v1/roles/{id}", RequirePermission("roles:manage")(http.HandlerFunc(handleUpdateRole(st))))
-	mux.Handle("DELETE /api/v1/roles/{id}", RequirePermission("roles:manage")(http.HandlerFunc(handleDeleteRole(st))))
+	listRolesH := RequirePermission("roles:read")(http.HandlerFunc(handleListRoles(st)))
+	createRoleH := RequirePermission("roles:manage")(http.HandlerFunc(handleCreateRole(st)))
+	getRoleH := RequirePermission("roles:read")(http.HandlerFunc(handleGetRole(st)))
+	updateRoleH := RequirePermission("roles:manage")(http.HandlerFunc(handleUpdateRole(st)))
+	deleteRoleH := RequirePermission("roles:manage")(http.HandlerFunc(handleDeleteRole(st)))
+	listPermsH := RequirePermission("roles:read")(http.HandlerFunc(handleListPermissions(st)))
+	listUserRolesH := RequirePermission("users:read")(http.HandlerFunc(handleListUserRoles(st)))
+	assignRoleH := RequirePermission("users:manage")(http.HandlerFunc(handleAssignRole(st)))
+	revokeRoleH := RequirePermission("users:manage")(http.HandlerFunc(handleRevokeRole(st)))
 
-	// Permissions.
-	mux.Handle("GET /api/v1/permissions", RequirePermission("roles:read")(http.HandlerFunc(handleListPermissions(st))))
+	for _, base := range []string{"/api/v1", "/api/v1/t/{tenant}"} {
+		mux.Handle("GET "+base+"/roles", listRolesH)
+		mux.Handle("POST "+base+"/roles", createRoleH)
+		mux.Handle("GET "+base+"/roles/{id}", getRoleH)
+		mux.Handle("PATCH "+base+"/roles/{id}", updateRoleH)
+		mux.Handle("PUT "+base+"/roles/{id}", updateRoleH)
+		mux.Handle("DELETE "+base+"/roles/{id}", deleteRoleH)
 
-	// User role management.
-	mux.Handle("GET /api/v1/users/{id}/roles", RequirePermission("users:read")(http.HandlerFunc(handleListUserRoles(st))))
-	mux.Handle("POST /api/v1/users/{id}/roles", RequirePermission("users:manage")(http.HandlerFunc(handleAssignRole(st))))
-	mux.Handle("DELETE /api/v1/users/{id}/roles/{roleId}", RequirePermission("users:manage")(http.HandlerFunc(handleRevokeRole(st))))
+		mux.Handle("GET "+base+"/permissions", listPermsH)
+
+		mux.Handle("GET "+base+"/users/{id}/roles", listUserRolesH)
+		mux.Handle("POST "+base+"/users/{id}/roles", assignRoleH)
+		mux.Handle("DELETE "+base+"/users/{id}/roles/{roleId}", revokeRoleH)
+
+		optionsutil.Register(mux, base+"/roles", []string{"GET", "POST"})
+		optionsutil.Register(mux, base+"/roles/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
+		optionsutil.Register(mux, base+"/permissions", []string{"GET"})
+		optionsutil.Register(mux, base+"/users/{id}/roles", []string{"GET", "POST"})
+		optionsutil.Register(mux, base+"/users/{id}/roles/{roleId}", []string{"DELETE"})
+	}
 }
 
 // ---------------------------------------------------------------------------

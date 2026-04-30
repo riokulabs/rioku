@@ -27,6 +27,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -59,10 +60,74 @@ func RegisterTenantRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("user:read")(http.HandlerFunc(handleGetMembership(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/memberships/{id}",
 		RequirePermission("user:invite")(http.HandlerFunc(handleUpdateMembershipState(st))))
+	mux.Handle("PUT /api/v1/t/{tenant}/memberships/{id}",
+		RequirePermission("user:invite")(http.HandlerFunc(handleUpdateMembershipState(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/memberships/{id}",
 		RequirePermission("user:disable")(http.HandlerFunc(handleDeleteMembership(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/memberships/{id}/roles",
 		RequirePermission("role:write")(http.HandlerFunc(handleSetMembershipRoles(st))))
+
+	// Membership state-machine action aliases. Each transitions a
+	// membership to a fixed state via the same storage method the
+	// PATCH endpoint uses, so audit trails are identical regardless
+	// of which surface the caller hits.
+	mux.Handle("POST /api/v1/t/{tenant}/memberships/{id}/activate",
+		RequirePermission("user:invite")(http.HandlerFunc(handleMembershipTransition(st, "active"))))
+	mux.Handle("POST /api/v1/t/{tenant}/memberships/{id}/deactivate",
+		RequirePermission("user:invite")(http.HandlerFunc(handleMembershipTransition(st, "deactivated"))))
+
+	optionsutil.Register(mux, "/api/v1/admin/tenants", []string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/admin/tenants/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/settings/tenant", []string{"GET", "PUT", "PATCH"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/memberships", []string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/memberships/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/memberships/{id}/roles", []string{"PUT"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/memberships/{id}/activate", []string{"POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/memberships/{id}/deactivate", []string{"POST"})
+}
+
+// handleMembershipTransition POST-transitions a membership to the
+// supplied state via the same storage path used by PATCH so audit
+// records are uniform.
+func handleMembershipTransition(st store.Driver, targetState string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant := TenantFromContext(r.Context())
+		if tenant == nil {
+			writeInternalError(w, r, "tenant resolution")
+			return
+		}
+		id := r.PathValue("id")
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		current, err := tx.GetMembership(r.Context(), id)
+		if err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound,
+				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
+			return
+		}
+		if current.TenantID != tenant.ID {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound,
+				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
+			return
+		}
+		updated, err := tx.UpdateMembershipState(r.Context(), id, targetState)
+		if err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusUnprocessableEntity, errTypeUnprocess,
+				"Invalid state transition", err.Error(), r.URL.Path, nil)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		writeJSON(w, http.StatusOK, membershipToResponse(updated))
+	}
 }
 
 // ─── Tenant DTOs ────────────────────────────────────────────────────────────

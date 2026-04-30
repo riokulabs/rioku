@@ -11,6 +11,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -49,9 +50,23 @@ func RegisterAuthRoutes(mux *http.ServeMux, a *auth.Auth, sm *auth.SessionManage
 	mux.HandleFunc("POST /api/v1/auth/password", handlePasswordChange(sm, st, cfg))
 	mux.HandleFunc("PATCH /api/v1/auth/me", handleUpdateProfile(sm, st))
 
-	// Session management endpoints.
+	// Session management endpoints. Tenant-scoped aliases let the
+	// admin panel render the per-tenant sessions list at the
+	// canonical path while keeping `/auth/sessions` working for
+	// session-cookie auth flows.
 	mux.HandleFunc("GET /api/v1/auth/sessions", handleListSessions(st))
 	mux.HandleFunc("DELETE /api/v1/auth/sessions/{id}", handleRevokeSessionByID(sm, st))
+	mux.HandleFunc("POST /api/v1/auth/sessions/revoke-others", handleRevokeOtherSessions(sm))
+
+	mux.HandleFunc("GET /api/v1/t/{tenant}/sessions", handleListSessions(st))
+	mux.HandleFunc("DELETE /api/v1/t/{tenant}/sessions/{id}", handleRevokeSessionByID(sm, st))
+	mux.HandleFunc("POST /api/v1/t/{tenant}/sessions/revoke-others", handleRevokeOtherSessions(sm))
+
+	for _, base := range []string{"/api/v1/auth", "/api/v1/t/{tenant}"} {
+		optionsutil.Register(mux, base+"/sessions", []string{"GET"})
+		optionsutil.Register(mux, base+"/sessions/{id}", []string{"DELETE"})
+		optionsutil.Register(mux, base+"/sessions/revoke-others", []string{"POST"})
+	}
 }
 
 type tokenExchangeRequest struct {
@@ -943,5 +958,29 @@ func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.Hand
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	}
+}
+
+// handleRevokeOtherSessions revokes every session for the
+// authenticated user except the caller's current one. The current
+// session id is sourced from the SessionClaims attached by
+// AuthMiddleware; bearer-token callers don't have a current
+// session and get a 400.
+func handleRevokeOtherSessions(sm *auth.SessionManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		sc := auth.SessionClaimsFromContext(ctx)
+		if sc == nil {
+			writeProblem(w, http.StatusBadRequest, errTypeValidation,
+				"Validation failed",
+				"revoke-others requires session-cookie auth (not bearer-token)",
+				r.URL.Path, nil)
+			return
+		}
+		if err := sm.RevokeOtherSessions(ctx, sc.UserID, sc.SessionID); err != nil {
+			writeInternalError(w, r, "revoke other sessions")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

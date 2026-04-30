@@ -406,12 +406,10 @@ func TestSecurityHeaders(t *testing.T) {
 	})
 
 	t.Run("cors_preflight", func(t *testing.T) {
-		// CORS now sets preflight headers and falls through to the
-		// resource's OPTIONS handler. `/api/v1/roles` doesn't yet have
-		// an OPTIONS handler registered (chunk 7 of the stage-2 plan
-		// adds it) so mux returns 405 with its own Allow header. The
-		// preflight-relevant CORS headers must still be present so a
-		// browser receives them.
+		// /api/v1/roles now has OPTIONS handler from chunk 7, so the
+		// preflight reaches the resource handler which returns 204
+		// + Allow headers. CORS middleware adds its preflight headers
+		// in addition.
 		req, err := http.NewRequest(http.MethodOptions, server.URL+"/api/v1/roles", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -425,11 +423,8 @@ func TestSecurityHeaders(t *testing.T) {
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		// 405 is correct: GET/POST handlers exist, OPTIONS does not.
-		// Once OPTIONS handlers ship for /api/v1/roles in chunk 7,
-		// flip this assertion to 204.
-		if resp.StatusCode != http.StatusMethodNotAllowed {
-			t.Fatalf("CORS preflight (no OPTIONS handler): expected 405, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusNoContent {
+			t.Fatalf("CORS preflight: expected 204, got %d", resp.StatusCode)
 		}
 
 		origin := resp.Header.Get("Access-Control-Allow-Origin")
