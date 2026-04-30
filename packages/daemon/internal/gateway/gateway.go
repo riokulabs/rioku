@@ -168,6 +168,11 @@ func NewGateway(
 	// RBAC policies (chunk 7b): subject ↔ role mappings per tenant.
 	RegisterRbacPolicyRoutes(topMux, st)
 
+	// Stage-2 admin completion chunks 10-15: notifications stream +
+	// channel test, PKI/TLS PATCH/OPTIONS, webhook test, tenant-
+	// scoped cluster aliases, settings singleton OPTIONS coverage.
+	RegisterStage2ExtrasRoutes(topMux, st)
+
 	// Dashboards + Widgets + Versions (stage-2).
 	RegisterDashboardRoutes(topMux, st)
 
