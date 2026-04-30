@@ -12,10 +12,16 @@ import (
 // Caveats:
 //   - `?` inside single-quoted string literals is skipped.
 //   - `?` inside double-quoted identifiers is skipped.
-//   - Nested/escaped quotes follow standard SQL escaping (”).
+//   - Nested/escaped quotes follow standard SQL escaping (“).
 //
 // A simple state-machine is used; a full SQL parser is not required for the
 // subset of queries used in this codebase.
+//
+// IMPORTANT: This function MUST be called on every SQL string before passing
+// it to sqlTx.ExecContext, sqlTx.QueryContext, or sqlTx.QueryRowContext inside
+// postgres_tx.go. PostgreSQL rejects `?` placeholders at the wire protocol
+// level; the failure is a runtime error, not a compile-time one. Every Tx
+// method implementation must call rewritePlaceholders(query) before executing.
 func rewritePlaceholders(query string) string {
 	var b strings.Builder
 	b.Grow(len(query))

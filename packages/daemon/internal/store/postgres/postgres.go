@@ -5,6 +5,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -89,6 +90,9 @@ func (d *driver) Close() error {
 }
 
 func (d *driver) Ping(ctx context.Context) error {
+	if d.db == nil {
+		return errors.New("postgres: driver not open")
+	}
 	return d.db.PingContext(ctx)
 }
 
@@ -120,6 +124,14 @@ func (d *driver) ensureSchemaVersionsTable(ctx context.Context) error {
 
 // migrateUp reads all *.up.sql files from migrations/postgres/ and applies
 // any with a version number higher than the currently recorded version.
+//
+// Each migration file is executed inside its own transaction. The dirty flag
+// is set to TRUE before the DDL runs and updated to FALSE only after a
+// successful commit. A crash or error between those two points leaves the row
+// with dirty=TRUE so the next run fails loudly instead of silently skipping
+// the version. PostgreSQL supports transactional DDL so this is safe for all
+// migration statements we use (note: CREATE INDEX CONCURRENTLY cannot run
+// inside a transaction and must not be used in migration files).
 func (d *driver) migrateUp(ctx context.Context) error {
 	if err := d.ensureSchemaVersionsTable(ctx); err != nil {
 		return err
@@ -142,18 +154,52 @@ func (d *driver) migrateUp(ctx context.Context) error {
 			return fmt.Errorf("postgres: read up migration %d (%s): %w", mf.version, mf.path, err)
 		}
 
-		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
-			return fmt.Errorf("postgres: apply up migration %d (%s): %w", mf.version, mf.path, err)
-		}
-
-		_, err = d.db.ExecContext(ctx,
-			`INSERT INTO schema_versions (version, dirty) VALUES ($1, FALSE) ON CONFLICT (version) DO NOTHING`,
-			mf.version)
-		if err != nil {
-			return fmt.Errorf("postgres: record schema version %d: %w", mf.version, err)
+		if err := d.applyMigration(ctx, mf.version, string(data)); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// applyMigration executes a single migration inside a transaction. It marks
+// the version as dirty=TRUE before running the SQL body, then marks it
+// dirty=FALSE on success. A failure at any point rolls back the transaction
+// and, if the dirty INSERT had already been committed by an earlier partial
+// attempt, leaves the dirty row visible so the operator can investigate.
+func (d *driver) applyMigration(ctx context.Context, version int, sql string) error {
+	txn, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("postgres: begin migration tx for version %d: %w", version, err)
+	}
+	// Always roll back on the way out; a committed tx makes Rollback a no-op.
+	defer func() { _ = txn.Rollback() }()
+
+	// Mark dirty=TRUE before touching the schema so a crash is detectable.
+	_, err = txn.ExecContext(ctx,
+		`INSERT INTO schema_versions (version, dirty) VALUES ($1, TRUE)
+		 ON CONFLICT (version) DO UPDATE SET dirty = TRUE`,
+		version)
+	if err != nil {
+		return fmt.Errorf("postgres: mark dirty for version %d: %w", version, err)
+	}
+
+	// Execute the migration body.
+	if _, err := txn.ExecContext(ctx, sql); err != nil {
+		return fmt.Errorf("postgres: apply up migration %d: %w", version, err)
+	}
+
+	// Clear the dirty flag now that the DDL succeeded.
+	_, err = txn.ExecContext(ctx,
+		`UPDATE schema_versions SET dirty = FALSE WHERE version = $1`,
+		version)
+	if err != nil {
+		return fmt.Errorf("postgres: clear dirty for version %d: %w", version, err)
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("postgres: commit migration %d: %w", version, err)
+	}
 	return nil
 }
 
@@ -223,6 +269,15 @@ func (d *driver) Notify() <-chan store.ChangeEvent {
 }
 
 func (d *driver) Health(ctx context.Context) store.DriverHealth {
+	if d.db == nil {
+		return store.DriverHealth{
+			OK:   false,
+			Mode: store.ModeDegraded,
+			Details: map[string]string{
+				"error": "postgres: driver not open",
+			},
+		}
+	}
 	var inRecovery bool
 	err := d.db.QueryRowContext(ctx, `SELECT pg_is_in_recovery()`).Scan(&inRecovery)
 	if err != nil {
