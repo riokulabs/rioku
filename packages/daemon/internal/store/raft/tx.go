@@ -831,6 +831,23 @@ func (t *raftTx) ListAuditResourceIDs(_ context.Context, _, _ string, _ int) ([]
 	return nil, nil
 }
 
+// RBAC policies — not implemented on the raft driver yet.
+func (t *raftTx) CreateRbacPolicy(_ context.Context, _ *store.RbacPolicy) (*store.RbacPolicy, error) {
+	return nil, fmt.Errorf("raft: CreateRbacPolicy not implemented")
+}
+func (t *raftTx) GetRbacPolicy(_ context.Context, _ string) (*store.RbacPolicy, error) {
+	return nil, fmt.Errorf("raft: GetRbacPolicy not implemented")
+}
+func (t *raftTx) ListRbacPolicies(_ context.Context) ([]*store.RbacPolicy, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateRbacPolicy(_ context.Context, _ string, _ store.UpdateRbacPolicyParams) (*store.RbacPolicy, error) {
+	return nil, fmt.Errorf("raft: UpdateRbacPolicy not implemented")
+}
+func (t *raftTx) DeleteRbacPolicy(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteRbacPolicy not implemented")
+}
+
 // ---------------------------------------------------------------------------
 // Users (stubs)
 // ---------------------------------------------------------------------------

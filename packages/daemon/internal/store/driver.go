@@ -576,6 +576,19 @@ type Tx interface {
 	UpdateMiddleware(ctx context.Context, tenantID, id string, params UpdateMiddlewareParams) (*Middleware, error)
 	DeleteMiddleware(ctx context.Context, tenantID, id string) error
 
+	// --- RBAC Policies (stage-2 admin completion chunk 7b) ---
+
+	// CreateRbacPolicy persists a new rbac policy.
+	CreateRbacPolicy(ctx context.Context, p *RbacPolicy) (*RbacPolicy, error)
+	// GetRbacPolicy returns a policy by id, scoped to the active tenant.
+	GetRbacPolicy(ctx context.Context, id string) (*RbacPolicy, error)
+	// ListRbacPolicies returns every rbac policy in the active tenant.
+	ListRbacPolicies(ctx context.Context) ([]*RbacPolicy, error)
+	// UpdateRbacPolicy applies a partial update; returns the post-update row.
+	UpdateRbacPolicy(ctx context.Context, id string, params UpdateRbacPolicyParams) (*RbacPolicy, error)
+	// DeleteRbacPolicy removes a policy by id.
+	DeleteRbacPolicy(ctx context.Context, id string) error
+
 	// --- Access Policies ---
 
 	// CreateAccessPolicy persists a new access policy and returns it with
@@ -649,6 +662,42 @@ var (
 	ErrMembershipNotFound     = fmt.Errorf("store: membership not found")
 	ErrMembershipExists       = fmt.Errorf("store: membership for that tenant+user already exists")
 	ErrMembershipInvalidState = fmt.Errorf("store: invalid membership state transition")
+)
+
+// RbacPolicy maps a subject (user / group / service-account) to a role
+// within a tenant. Distinct from AccessPolicy (request-time conditional
+// access) and the legacy proto Policy (Caddy handler config blob); RBAC
+// policies are evaluated at session-claim resolution time and feed the
+// effective-scopes calculation. Persisted in the rbac_policies table
+// (migration 24).
+type RbacPolicy struct {
+	ID          string
+	TenantID    string
+	Name        string
+	Description string
+	SubjectType string // user | group | service-account
+	SubjectID   string
+	RoleID      string
+	Enabled     bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// UpdateRbacPolicyParams is the partial-update payload for
+// UpdateRbacPolicy. nil pointers leave the field unchanged.
+type UpdateRbacPolicyParams struct {
+	Name        *string
+	Description *string
+	SubjectType *string
+	SubjectID   *string
+	RoleID      *string
+	Enabled     *bool
+}
+
+// RbacPolicy sentinel errors.
+var (
+	ErrRbacPolicyNotFound  = fmt.Errorf("store: rbac policy not found")
+	ErrRbacPolicyDuplicate = fmt.Errorf("store: rbac policy with that subject + role already exists")
 )
 
 // Site represents a per-tenant gateway entry — a customer-facing

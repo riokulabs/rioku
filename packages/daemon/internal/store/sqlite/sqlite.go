@@ -447,11 +447,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 24: rbac_policies table (stage-2 admin completion).
+	if current < 24 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000024_rbac_policies.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 24: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 24: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (24, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 24: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 24 down: drop rbac_policies.
+	if current >= 24 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000024_rbac_policies.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 24: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 24: %w", err)
+		}
+	}
 
 	// Migration 23 down: drop lb_cookie_name + lb_header_name columns.
 	if current >= 23 {
@@ -3255,6 +3282,150 @@ func (t *tx) DeleteAccessPolicy(ctx context.Context, id string) error {
 	}
 	t.emit("access_policies", id, "DELETE")
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// RBAC policies (stage-2 admin completion chunk 7b)
+// ---------------------------------------------------------------------------
+
+func (t *tx) CreateRbacPolicy(ctx context.Context, p *store.RbacPolicy) (*store.RbacPolicy, error) {
+	if p.ID == "" {
+		p.ID = uuid.New().String()
+	}
+	now := nowUTC()
+	tenantID := store.TenantIDFromContext(ctx)
+	enabled := 1
+	if !p.Enabled {
+		enabled = 0
+	}
+	_, err := t.sqlTx.ExecContext(ctx, `
+		INSERT INTO rbac_policies (id, tenant_id, name, description, subject_type, subject_id, role_id, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, p.ID, tenantID, p.Name, p.Description, p.SubjectType, p.SubjectID, p.RoleID, enabled, now, now)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrRbacPolicyDuplicate
+		}
+		return nil, fmt.Errorf("sqlite: create rbac_policy: %w", err)
+	}
+	t.emit("rbac_policies", p.ID, "INSERT")
+	return t.GetRbacPolicy(ctx, p.ID)
+}
+
+func (t *tx) GetRbacPolicy(ctx context.Context, id string) (*store.RbacPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, `
+		SELECT id, tenant_id, name, description, subject_type, subject_id, role_id, enabled, created_at, updated_at
+		FROM rbac_policies WHERE id = ? AND tenant_id = ?
+	`, id, tenantID)
+	p, err := scanRbacPolicy(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrRbacPolicyNotFound
+	}
+	return p, err
+}
+
+func (t *tx) ListRbacPolicies(ctx context.Context) ([]*store.RbacPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx, `
+		SELECT id, tenant_id, name, description, subject_type, subject_id, role_id, enabled, created_at, updated_at
+		FROM rbac_policies WHERE tenant_id = ? ORDER BY created_at, id
+	`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list rbac_policies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.RbacPolicy
+	for rows.Next() {
+		p, err := scanRbacPolicy(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+func (t *tx) UpdateRbacPolicy(ctx context.Context, id string, params store.UpdateRbacPolicyParams) (*store.RbacPolicy, error) {
+	if _, err := t.GetRbacPolicy(ctx, id); err != nil {
+		return nil, err
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	now := nowUTC()
+	var setClauses []string
+	var args []any
+	if params.Name != nil {
+		setClauses = append(setClauses, "name = ?")
+		args = append(args, *params.Name)
+	}
+	if params.Description != nil {
+		setClauses = append(setClauses, "description = ?")
+		args = append(args, *params.Description)
+	}
+	if params.SubjectType != nil {
+		setClauses = append(setClauses, "subject_type = ?")
+		args = append(args, *params.SubjectType)
+	}
+	if params.SubjectID != nil {
+		setClauses = append(setClauses, "subject_id = ?")
+		args = append(args, *params.SubjectID)
+	}
+	if params.RoleID != nil {
+		setClauses = append(setClauses, "role_id = ?")
+		args = append(args, *params.RoleID)
+	}
+	if params.Enabled != nil {
+		v := 0
+		if *params.Enabled {
+			v = 1
+		}
+		setClauses = append(setClauses, "enabled = ?")
+		args = append(args, v)
+	}
+	if len(setClauses) > 0 {
+		setClauses = append(setClauses, "updated_at = ?")
+		args = append(args, now, id, tenantID)
+		query := "UPDATE rbac_policies SET " + strings.Join(setClauses, ", ") +
+			" WHERE id = ? AND tenant_id = ?"
+		if _, err := t.sqlTx.ExecContext(ctx, query, args...); err != nil {
+			if isUniqueViolation(err) {
+				return nil, store.ErrRbacPolicyDuplicate
+			}
+			return nil, fmt.Errorf("sqlite: update rbac_policy: %w", err)
+		}
+		t.emit("rbac_policies", id, "UPDATE")
+	}
+	return t.GetRbacPolicy(ctx, id)
+}
+
+func (t *tx) DeleteRbacPolicy(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM rbac_policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("sqlite: delete rbac_policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrRbacPolicyNotFound
+	}
+	t.emit("rbac_policies", id, "DELETE")
+	return nil
+}
+
+func scanRbacPolicy(s scanner) (*store.RbacPolicy, error) {
+	var (
+		p          store.RbacPolicy
+		enabledInt int
+		createdStr string
+		updatedStr string
+	)
+	if err := s.Scan(&p.ID, &p.TenantID, &p.Name, &p.Description, &p.SubjectType, &p.SubjectID, &p.RoleID, &enabledInt, &createdStr, &updatedStr); err != nil {
+		return nil, err
+	}
+	p.Enabled = enabledInt == 1
+	p.CreatedAt = parseTime(createdStr)
+	p.UpdatedAt = parseTime(updatedStr)
+	return &p, nil
 }
 
 func scanAccessPolicy(s scanner) (*store.AccessPolicy, error) {

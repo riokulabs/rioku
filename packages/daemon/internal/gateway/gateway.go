@@ -165,6 +165,9 @@ func NewGateway(
 	RegisterServicesRoutes(topMux, st)
 	RegisterRoutesRoutes(topMux, st)
 
+	// RBAC policies (chunk 7b): subject ↔ role mappings per tenant.
+	RegisterRbacPolicyRoutes(topMux, st)
+
 	// Dashboards + Widgets + Versions (stage-2).
 	RegisterDashboardRoutes(topMux, st)
 

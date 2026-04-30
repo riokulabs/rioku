@@ -3172,6 +3172,223 @@
         }
       ]
     },
+    "/api/v1/t/{tenant}/rbac-policies": {
+      "get": {
+        "operationId": "listRbacPolicies",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List RBAC policies",
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createRbacPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "roleId": {
+                    "type": "string"
+                  },
+                  "subjectId": {
+                    "type": "string"
+                  },
+                  "subjectType": {
+                    "enum": [
+                      "user",
+                      "group",
+                      "service-account"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "subjectType",
+                  "subjectId",
+                  "roleId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "409": {
+            "description": "duplicate (subjectType + subjectId + roleId already mapped)"
+          }
+        },
+        "summary": "Create an RBAC policy",
+        "tags": [
+          "rbac-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/rbac-policies/{id}": {
+      "delete": {
+        "operationId": "deleteRbacPolicy",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "get": {
+        "operationId": "getRbacPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchRbacPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "put": {
+        "operationId": "replaceRbacPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/rbac-policies/{id}/test": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "testRbacPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "subjectId": {
+                    "type": "string"
+                  },
+                  "subjectType": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "subjectId",
+                  "subjectType"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "policyId": {
+                      "type": "string"
+                    },
+                    "roleId": {
+                      "description": "Only present when matched is true",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Dry-run an RBAC policy against a candidate subject",
+        "tags": [
+          "rbac-policies"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/routes": {
       "get": {
         "operationId": "listRoutes",
