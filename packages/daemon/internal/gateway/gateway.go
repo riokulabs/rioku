@@ -173,6 +173,11 @@ func NewGateway(
 	// scoped cluster aliases, settings singleton OPTIONS coverage.
 	RegisterStage2ExtrasRoutes(topMux, st)
 
+	// Stage-2 admin completion chunks 12, 16-19: plugins install
+	// alias, /settings/me profile family, super-admin surface,
+	// auth flow recovery, danger-zone.
+	RegisterStage2FinalsRoutes(topMux, st)
+
 	// Dashboards + Widgets + Versions (stage-2).
 	RegisterDashboardRoutes(topMux, st)
 
