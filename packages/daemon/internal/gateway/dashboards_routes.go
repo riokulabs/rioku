@@ -27,8 +27,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -78,6 +80,184 @@ func RegisterDashboardRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("dashboard:read")(http.HandlerFunc(handleExportDashboard(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/import",
 		RequirePermission("dashboard:write")(http.HandlerFunc(handleImportDashboard(st))))
+
+	// PATCH aliases for the existing PUT handlers — semantics
+	// identical at this layer (the PUT handler already accepts
+	// pointer-field partial bodies); both verbs map to the same
+	// closure so the OpenAPI advertises the canonical pair.
+	mux.Handle("PATCH /api/v1/t/{tenant}/dashboards/{id}",
+		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateDashboard(st))))
+	mux.Handle("PATCH /api/v1/t/{tenant}/widgets/{id}",
+		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateWidget(st))))
+
+	// Sharing — POST creates a role grant; GET lists all grants for
+	// the dashboard; DELETE revokes one grant by share id.
+	mux.Handle("POST /api/v1/t/{tenant}/dashboards/{id}/share",
+		RequirePermission("dashboard:write")(http.HandlerFunc(handleShareDashboard(st))))
+	mux.Handle("GET /api/v1/t/{tenant}/dashboards/{id}/shares",
+		RequirePermission("dashboard:read")(http.HandlerFunc(handleListDashboardShares(st))))
+	mux.Handle("DELETE /api/v1/t/{tenant}/dashboards/{id}/shares/{shareId}",
+		RequirePermission("dashboard:write")(http.HandlerFunc(handleDeleteDashboardShare(st))))
+
+	// OPTIONS coverage on the canonical dashboards/widgets paths.
+	// The dashboards/versions/{vid}/restore POST endpoint occupies a
+	// path shape that collides with several /dashboards/{id}/{action}
+	// patterns in Go's ServeMux dispatcher, so we deliberately skip
+	// OPTIONS on `versions/{vid}/restore` and on `{id}/import` to
+	// avoid the route-conflict panic. Browsers don't preflight POST
+	// without a custom header in any case; the action is reachable
+	// directly via POST.
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/dashboards", []string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/dashboards/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/dashboards/{id}/widgets", []string{"GET", "POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/dashboards/{id}/widgets/{wid}", []string{"DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/dashboards/{id}/shares", []string{"GET"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/dashboards/{id}/shares/{shareId}", []string{"DELETE"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/widgets/{id}", []string{"PUT", "PATCH"})
+}
+
+// handleShareDashboard creates a share grant for the dashboard.
+//
+// Body: { "roleId": "role_xyz", "expiresAt": "2026-12-31T00:00:00Z" }
+// (expiresAt optional). Returns the created share with `_links`.
+func handleShareDashboard(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant := TenantFromContext(r.Context())
+		if tenant == nil {
+			writeInternalError(w, r, "tenant resolution")
+			return
+		}
+		dashboardID := r.PathValue("id")
+		var req struct {
+			RoleID    string  `json:"roleId"`
+			ExpiresAt *string `json:"expiresAt,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeBadRequest(w, r, "invalid JSON body")
+			return
+		}
+		if req.RoleID == "" {
+			writeBadRequest(w, r, "roleId is required")
+			return
+		}
+
+		share := &store.DashboardShare{
+			DashboardID: dashboardID,
+			RoleID:      req.RoleID,
+		}
+		if sc := auth.SessionClaimsFromContext(r.Context()); sc != nil {
+			uid := sc.UserID
+			share.CreatedBy = &uid
+		}
+		if req.ExpiresAt != nil && *req.ExpiresAt != "" {
+			t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+			if err != nil {
+				writeBadRequest(w, r, "expiresAt must be RFC3339")
+				return
+			}
+			share.ExpiresAt = &t
+		}
+
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		// Confirm the dashboard belongs to this tenant before creating the share.
+		if _, err := tx.GetDashboard(r.Context(), tenant.ID, dashboardID); err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound,
+				"Dashboard not found", "No dashboard with id "+dashboardID, r.URL.Path, nil)
+			return
+		}
+		created, err := tx.CreateDashboardShare(r.Context(), share)
+		if err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusUnprocessableEntity, errTypeUnprocess,
+				"Share failed", err.Error(), r.URL.Path, nil)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		writeJSON(w, http.StatusCreated, dashboardShareToResponse(created, tenant.Slug))
+	}
+}
+
+func handleListDashboardShares(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant := TenantFromContext(r.Context())
+		if tenant == nil {
+			writeInternalError(w, r, "tenant resolution")
+			return
+		}
+		dashboardID := r.PathValue("id")
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		shares, err := tx.ListDashboardShares(r.Context(), dashboardID)
+		if err != nil {
+			writeInternalError(w, r, "list shares")
+			return
+		}
+		out := make([]map[string]any, 0, len(shares))
+		for _, s := range shares {
+			out = append(out, dashboardShareToResponse(s, tenant.Slug))
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items": out,
+			"total": len(out),
+		})
+	}
+}
+
+func handleDeleteDashboardShare(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_ = TenantFromContext(r.Context())
+		shareID := r.PathValue("shareId")
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		if err := tx.DeleteDashboardShare(r.Context(), shareID); err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound,
+				"Share not found", "No share with id "+shareID, r.URL.Path, nil)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func dashboardShareToResponse(s *store.DashboardShare, tenantSlug string) map[string]any {
+	out := map[string]any{
+		"id":          s.ID,
+		"tenantId":    s.TenantID,
+		"dashboardId": s.DashboardID,
+		"roleId":      s.RoleID,
+		"createdAt":   s.CreatedAt.UTC().Format(time.RFC3339),
+		"_links": map[string]any{
+			"self":      map[string]any{"href": "/api/v1/t/" + tenantSlug + "/dashboards/" + s.DashboardID + "/shares/" + s.ID},
+			"dashboard": map[string]any{"href": "/api/v1/t/" + tenantSlug + "/dashboards/" + s.DashboardID},
+			"role":      map[string]any{"href": "/api/v1/t/" + tenantSlug + "/roles/" + s.RoleID},
+		},
+	}
+	if s.CreatedBy != nil {
+		out["createdBy"] = *s.CreatedBy
+	}
+	if s.ExpiresAt != nil {
+		out["expiresAt"] = s.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+	return out
 }
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────

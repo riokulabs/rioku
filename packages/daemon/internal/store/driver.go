@@ -391,6 +391,12 @@ type Tx interface {
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
+	// --- Dashboard shares (stage-2 admin completion chunk 8) ---
+
+	CreateDashboardShare(ctx context.Context, s *DashboardShare) (*DashboardShare, error)
+	ListDashboardShares(ctx context.Context, dashboardID string) ([]*DashboardShare, error)
+	DeleteDashboardShare(ctx context.Context, id string) error
+
 	// --- Webhooks (stage-2) ---
 
 	CreateWebhookEndpoint(ctx context.Context, e *WebhookEndpoint) (*WebhookEndpoint, error)
@@ -843,6 +849,19 @@ var (
 	ErrWidgetNotFound    = fmt.Errorf("store: widget not found")
 	ErrVersionNotFound   = fmt.Errorf("store: dashboard version not found")
 )
+
+// DashboardShare authorises one role to view a dashboard. Multiple
+// shares per dashboard = multiple role grants. Persisted in
+// dashboard_shares (migration 25).
+type DashboardShare struct {
+	ID          string
+	TenantID    string
+	DashboardID string
+	RoleID      string
+	CreatedBy   *string
+	ExpiresAt   *time.Time
+	CreatedAt   time.Time
+}
 
 // AIProvider configures upstream LLM providers (openai, anthropic, ...).
 type AIProvider struct {

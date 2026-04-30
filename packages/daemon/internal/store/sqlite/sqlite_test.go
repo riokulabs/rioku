@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 24 {
-		t.Fatalf("expected version 24, got %d", v)
+	if v != 25 {
+		t.Fatalf("expected version 25, got %d", v)
 	}
 
 	h := d.Health(ctx)

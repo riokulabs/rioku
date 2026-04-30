@@ -848,6 +848,17 @@ func (t *raftTx) DeleteRbacPolicy(_ context.Context, _ string) error {
 	return fmt.Errorf("raft: DeleteRbacPolicy not implemented")
 }
 
+// Dashboard shares — not implemented on the raft driver yet.
+func (t *raftTx) CreateDashboardShare(_ context.Context, _ *store.DashboardShare) (*store.DashboardShare, error) {
+	return nil, fmt.Errorf("raft: CreateDashboardShare not implemented")
+}
+func (t *raftTx) ListDashboardShares(_ context.Context, _ string) ([]*store.DashboardShare, error) {
+	return nil, nil
+}
+func (t *raftTx) DeleteDashboardShare(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteDashboardShare not implemented")
+}
+
 // ---------------------------------------------------------------------------
 // Users (stubs)
 // ---------------------------------------------------------------------------
