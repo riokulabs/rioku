@@ -444,6 +444,10 @@
         },
         "invert": {
           "type": "boolean"
+        },
+        "regexp": {
+          "type": "boolean",
+          "description": "regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy's header_regexp doesn't support\na \"!\" prefix); wrap the matcher in `not` instead."
         }
       }
     },
@@ -526,9 +530,13 @@
         "LB_POLICY_RANDOM",
         "LB_POLICY_LEAST_CONN",
         "LB_POLICY_IP_HASH",
-        "LB_POLICY_WEIGHTED_ROUND_ROBIN"
+        "LB_POLICY_WEIGHTED_ROUND_ROBIN",
+        "LB_POLICY_COOKIE",
+        "LB_POLICY_URI_HASH",
+        "LB_POLICY_HEADER"
       ],
-      "default": "LB_POLICY_UNSPECIFIED"
+      "default": "LB_POLICY_UNSPECIFIED",
+      "description": " - LB_POLICY_COOKIE: LB_POLICY_COOKIE pins each client to an upstream via a cookie\n(sticky sessions). The cookie name comes from Service.lb_cookie_name\n(defaults to \"lb\").\n - LB_POLICY_URI_HASH: LB_POLICY_URI_HASH selects an upstream by consistent hash of the\nrequest URI — useful for cache-friendly fan-out where the same\npath should land on the same backend.\n - LB_POLICY_HEADER: LB_POLICY_HEADER selects an upstream by consistent hash of a\nrequest header. The header name comes from\nService.lb_header_name (required)."
     },
     "v1Matcher": {
       "type": "object",
@@ -558,6 +566,26 @@
             "type": "object",
             "$ref": "#/definitions/v1HeaderMatcher"
           }
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1QueryMatcher"
+          },
+          "description": "queries match against URL query string parameters. Compiles to\nCaddy's `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only)."
+        },
+        "expression": {
+          "type": "string",
+          "description": "expression is a CEL expression evaluated against the request.\nCompiles to Caddy's `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don't fit the simpler\nhost/path/method/header/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms."
+        },
+        "not": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Matcher"
+          },
+          "description": "not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy's\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry's primitives).\nUseful for `match X but not Y`."
         }
       }
     },
@@ -711,6 +739,18 @@
         "POLICY_TYPE_BLOCK_LIST"
       ],
       "default": "POLICY_TYPE_UNSPECIFIED"
+    },
+    "v1QueryMatcher": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "description": "QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy."
     },
     "v1RetryPolicy": {
       "type": "object",
@@ -868,6 +908,14 @@
         },
         "connectionPool": {
           "$ref": "#/definitions/v1ConnectionPool"
+        },
+        "lbCookieName": {
+          "type": "string",
+          "description": "lb_cookie_name is the cookie used by LB_POLICY_COOKIE for sticky\nsessions. Empty defaults to \"lb\". Ignored for non-cookie policies."
+        },
+        "lbHeaderName": {
+          "type": "string",
+          "description": "lb_header_name is the request header consulted by LB_POLICY_HEADER\nto pick an upstream (consistent hash on the header value). Required\nwhen lb_policy = LB_POLICY_HEADER; ignored otherwise."
         }
       }
     },

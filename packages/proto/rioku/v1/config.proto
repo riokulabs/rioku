@@ -31,6 +31,25 @@ message Matcher {
   repeated PathMatcher   paths   = 2;
   repeated string        methods = 3;
   repeated HeaderMatcher headers = 4;
+
+  // queries match against URL query string parameters. Compiles to
+  // Caddy's `query` matcher: a map of parameter name to permitted
+  // values. An empty value matches any value (existence-only).
+  repeated QueryMatcher queries = 5;
+
+  // expression is a CEL expression evaluated against the request.
+  // Compiles to Caddy's `expression` matcher; empty means "no
+  // expression". Use this for conditions that don't fit the simpler
+  // host/path/method/header/query primitives — e.g. cross-field
+  // checks, time-based routing, or value transforms.
+  string expression = 6;
+
+  // not is a list of nested Matcher sets that, when ANY matches the
+  // request, cause this Matcher to NOT match. Compiles to Caddy's
+  // `not` matcher (an array of nested match sets — OR semantics
+  // between entries; AND semantics within each entry's primitives).
+  // Useful for `match X but not Y`.
+  repeated Matcher not = 7;
 }
 
 message PathMatcher {
@@ -48,6 +67,22 @@ message HeaderMatcher {
   string name   = 1;
   string value  = 2;
   bool   invert = 3;
+
+  // regexp marks the value as a regex pattern. The compiler emits
+  // `header_regexp` instead of `header` for this entry. invert is
+  // ignored for regexp entries (Caddy's header_regexp doesn't support
+  // a "!" prefix); wrap the matcher in `not` instead.
+  bool   regexp = 4;
+}
+
+// QueryMatcher matches a single query string parameter. An empty
+// `value` matches any value (existence-only). To match multiple
+// permitted values for the same key, repeat the QueryMatcher with the
+// same `key` — the compiler folds them into a single
+// `{ key: [v1, v2, ...] }` entry in Caddy.
+message QueryMatcher {
+  string key   = 1;
+  string value = 2;
 }
 
 message DirectUpstream {
@@ -71,6 +106,15 @@ message Service {
   RetryPolicy               retry_policy = 13;
   UpstreamTLS               upstream_tls = 14;
   ConnectionPool            connection_pool = 15;
+
+  // lb_cookie_name is the cookie used by LB_POLICY_COOKIE for sticky
+  // sessions. Empty defaults to "lb". Ignored for non-cookie policies.
+  string lb_cookie_name = 16;
+
+  // lb_header_name is the request header consulted by LB_POLICY_HEADER
+  // to pick an upstream (consistent hash on the header value). Required
+  // when lb_policy = LB_POLICY_HEADER; ignored otherwise.
+  string lb_header_name = 17;
 }
 
 message Upstream {
@@ -89,6 +133,18 @@ enum LoadBalancingPolicy {
   LB_POLICY_LEAST_CONN          = 3;
   LB_POLICY_IP_HASH             = 4;
   LB_POLICY_WEIGHTED_ROUND_ROBIN = 5;
+  // LB_POLICY_COOKIE pins each client to an upstream via a cookie
+  // (sticky sessions). The cookie name comes from Service.lb_cookie_name
+  // (defaults to "lb").
+  LB_POLICY_COOKIE              = 6;
+  // LB_POLICY_URI_HASH selects an upstream by consistent hash of the
+  // request URI — useful for cache-friendly fan-out where the same
+  // path should land on the same backend.
+  LB_POLICY_URI_HASH            = 7;
+  // LB_POLICY_HEADER selects an upstream by consistent hash of a
+  // request header. The header name comes from
+  // Service.lb_header_name (required).
+  LB_POLICY_HEADER              = 8;
 }
 
 message HealthCheck {

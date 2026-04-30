@@ -451,6 +451,86 @@ func TestMatcherTypes(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "header regexp matcher (#72)",
+			matcher: &riokuv1.Matcher{
+				Headers: []*riokuv1.HeaderMatcher{
+					{Name: "X-Trace", Value: "^abc[0-9]+$", Regexp: true},
+				},
+			},
+			check: func(t *testing.T, ms map[string]any) {
+				t.Helper()
+				if _, ok := ms["header"]; ok {
+					t.Error("regexp header should not appear under `header` key")
+				}
+				hr := ms["header_regexp"].(map[string]any)
+				entry := hr["X-Trace"].(map[string]any)
+				if entry["pattern"].(string) != "^abc[0-9]+$" {
+					t.Errorf("X-Trace pattern = %v", entry["pattern"])
+				}
+			},
+		},
+		{
+			name: "query matcher (#72)",
+			matcher: &riokuv1.Matcher{
+				Queries: []*riokuv1.QueryMatcher{
+					{Key: "version", Value: "v1"},
+					{Key: "version", Value: "v2"},
+					{Key: "debug", Value: ""},
+				},
+			},
+			check: func(t *testing.T, ms map[string]any) {
+				t.Helper()
+				q := ms["query"].(map[string]any)
+				versions := q["version"].([]any)
+				if len(versions) != 2 || versions[0].(string) != "v1" || versions[1].(string) != "v2" {
+					t.Errorf("query version = %v, want [v1 v2]", versions)
+				}
+				dbg := q["debug"].([]any)
+				if len(dbg) != 1 || dbg[0].(string) != "" {
+					t.Errorf("query debug = %v, want [\"\"] (existence-only)", dbg)
+				}
+			},
+		},
+		{
+			name: "expression matcher (#72)",
+			matcher: &riokuv1.Matcher{
+				Expression: `header({'Host': 'example.com'}) && method('GET')`,
+			},
+			check: func(t *testing.T, ms map[string]any) {
+				t.Helper()
+				expr := ms["expression"].(string)
+				if expr != `header({'Host': 'example.com'}) && method('GET')` {
+					t.Errorf("expression = %q", expr)
+				}
+			},
+		},
+		{
+			name: "not matcher (#72)",
+			matcher: &riokuv1.Matcher{
+				Hosts: []string{"api.example.com"},
+				Not: []*riokuv1.Matcher{
+					{Paths: []*riokuv1.PathMatcher{
+						{Type: riokuv1.PathMatcher_TYPE_PREFIX, Value: "/internal"},
+					}},
+				},
+			},
+			check: func(t *testing.T, ms map[string]any) {
+				t.Helper()
+				if hosts := ms["host"].([]any); len(hosts) != 1 || hosts[0].(string) != "api.example.com" {
+					t.Errorf("host = %v", hosts)
+				}
+				notSets := ms["not"].([]any)
+				if len(notSets) != 1 {
+					t.Fatalf("expected 1 not-set, got %d", len(notSets))
+				}
+				inner := notSets[0].(map[string]any)
+				paths := inner["path"].([]any)
+				if len(paths) != 1 || paths[0].(string) != "/internal/*" {
+					t.Errorf("not.path = %v", paths)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -558,6 +638,110 @@ func TestCompileWeightedRoundRobin(t *testing.T) {
 	// JSON numbers unmarshal to float64.
 	if weights[0].(float64) != 3 || weights[1].(float64) != 1 {
 		t.Errorf("weights = %v, want [3, 1]", weights)
+	}
+}
+
+// digSelectionPolicy compiles a service with the given LB policy and
+// extracts the selection_policy map from the resulting reverse_proxy
+// handler. Used by the new session-affinity / hash LB tests below.
+func digSelectionPolicy(t *testing.T, svc *riokuv1.Service) map[string]any {
+	t.Helper()
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Target:  &riokuv1.Route_ServiceId{ServiceId: svc.GetId()},
+			},
+		},
+		Services: []*riokuv1.Service{svc},
+	}
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	handler := route["handle"].([]any)[2].(map[string]any)
+	lb := handler["load_balancing"].(map[string]any)
+	return lb["selection_policy"].(map[string]any)
+}
+
+// TestCompile_CookieLBPolicy verifies #71's cookie selection policy
+// with a custom cookie name.
+func TestCompile_CookieLBPolicy(t *testing.T) {
+	sp := digSelectionPolicy(t, &riokuv1.Service{
+		Id:           "svc1",
+		LbPolicy:     riokuv1.LoadBalancingPolicy_LB_POLICY_COOKIE,
+		LbCookieName: "rioku_sticky",
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080"},
+			{Address: "10.0.0.2:8080"},
+		},
+	})
+	if sp["policy"] != "cookie" {
+		t.Errorf("policy = %v, want cookie", sp["policy"])
+	}
+	if sp["name"] != "rioku_sticky" {
+		t.Errorf("name = %v, want rioku_sticky", sp["name"])
+	}
+}
+
+// TestCompile_CookieLBPolicy_DefaultName verifies that an empty
+// LbCookieName omits the `name` field so Caddy applies its built-in
+// default ("lb").
+func TestCompile_CookieLBPolicy_DefaultName(t *testing.T) {
+	sp := digSelectionPolicy(t, &riokuv1.Service{
+		Id:       "svc1",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_COOKIE,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080"},
+		},
+	})
+	if sp["policy"] != "cookie" {
+		t.Errorf("policy = %v, want cookie", sp["policy"])
+	}
+	if _, ok := sp["name"]; ok {
+		t.Errorf("name should be omitted when LbCookieName empty, got %v", sp["name"])
+	}
+}
+
+// TestCompile_URIHashLBPolicy verifies #71's uri_hash selection
+// policy.
+func TestCompile_URIHashLBPolicy(t *testing.T) {
+	sp := digSelectionPolicy(t, &riokuv1.Service{
+		Id:       "svc1",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_URI_HASH,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080"},
+		},
+	})
+	if sp["policy"] != "uri_hash" {
+		t.Errorf("policy = %v, want uri_hash", sp["policy"])
+	}
+}
+
+// TestCompile_HeaderLBPolicy verifies #71's header selection policy
+// with the required field.
+func TestCompile_HeaderLBPolicy(t *testing.T) {
+	sp := digSelectionPolicy(t, &riokuv1.Service{
+		Id:           "svc1",
+		LbPolicy:     riokuv1.LoadBalancingPolicy_LB_POLICY_HEADER,
+		LbHeaderName: "X-Customer-ID",
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080"},
+		},
+	})
+	if sp["policy"] != "header" {
+		t.Errorf("policy = %v, want header", sp["policy"])
+	}
+	if sp["field"] != "X-Customer-ID" {
+		t.Errorf("field = %v, want X-Customer-ID", sp["field"])
 	}
 }
 

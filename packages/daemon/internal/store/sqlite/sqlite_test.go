@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 22 {
-		t.Fatalf("expected version 22, got %d", v)
+	if v != 23 {
+		t.Fatalf("expected version 23, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3731,5 +3731,155 @@ func TestMembershipRoles_BackfilledFromUserRoles(t *testing.T) {
 	roles, _ := tx2.ListMembershipRoles(ctx, m.ID)
 	if len(roles) == 0 {
 		t.Error("expected role_viewer to be present on membership")
+	}
+}
+
+// TestServiceLBSessionAffinity verifies that lb_cookie_name and
+// lb_header_name round-trip through INSERT/SELECT/UPDATE on the
+// services table (#71, migration 23).
+func TestServiceLBSessionAffinity(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:         "sticky-svc",
+		LbPolicy:     riokuv1.LoadBalancingPolicy_LB_POLICY_COOKIE,
+		LbCookieName: "rioku_sess",
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:80", Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if got := created.GetLbCookieName(); got != "rioku_sess" {
+		t.Errorf("created lb_cookie_name = %q, want rioku_sess", got)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Update the service to switch to header-based LB.
+	tx, err = d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx.UpdateService(ctx, &riokuv1.Service{
+		Id:           created.GetId(),
+		Name:         "sticky-svc",
+		LbPolicy:     riokuv1.LoadBalancingPolicy_LB_POLICY_HEADER,
+		LbHeaderName: "X-Tenant-ID",
+		LbCookieName: "", // clear
+		Upstreams:    created.GetUpstreams(),
+	})
+	if err != nil {
+		t.Fatalf("UpdateService: %v", err)
+	}
+	if got := updated.GetLbHeaderName(); got != "X-Tenant-ID" {
+		t.Errorf("updated lb_header_name = %q, want X-Tenant-ID", got)
+	}
+	if got := updated.GetLbCookieName(); got != "" {
+		t.Errorf("updated lb_cookie_name = %q, want empty", got)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Re-fetch via Get and List to confirm both code paths return the new fields.
+	tx, _ = d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	got, err := tx.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	if got.GetLbHeaderName() != "X-Tenant-ID" || got.GetLbCookieName() != "" {
+		t.Errorf("Get round-trip mismatch: header=%q cookie=%q", got.GetLbHeaderName(), got.GetLbCookieName())
+	}
+	listed, err := tx.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	var found bool
+	for _, s := range listed {
+		if s.GetId() == created.GetId() {
+			if s.GetLbHeaderName() != "X-Tenant-ID" {
+				t.Errorf("List round-trip header = %q", s.GetLbHeaderName())
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("ListServices: created service missing from results")
+	}
+}
+
+// TestRouteMatcherExtensions verifies that the new Matcher fields
+// (queries, expression, not, header_regexp) round-trip through the
+// SQLite JSON column unchanged (#72).
+func TestRouteMatcherExtensions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Need a service to point the route at.
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	svc, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "tgt",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "127.0.0.1:8080", Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx.Commit()
+
+	tx, _ = d.Begin(ctx, store.TxOptions{})
+	created, err := tx.CreateRoute(ctx, &riokuv1.Route{
+		Name: "r-with-extensions",
+		Matchers: []*riokuv1.Matcher{{
+			Hosts:   []string{"api.example.com"},
+			Queries: []*riokuv1.QueryMatcher{{Key: "v", Value: "1"}, {Key: "v", Value: "2"}},
+			Headers: []*riokuv1.HeaderMatcher{
+				{Name: "X-Trace", Value: "^abc[0-9]+$", Regexp: true},
+			},
+			Expression: `method('POST')`,
+			Not: []*riokuv1.Matcher{
+				{Paths: []*riokuv1.PathMatcher{{Type: riokuv1.PathMatcher_TYPE_PREFIX, Value: "/internal"}}},
+			},
+		}},
+		Target:  &riokuv1.Route_ServiceId{ServiceId: svc.GetId()},
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	_ = tx.Commit()
+
+	tx, _ = d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	got, err := tx.GetRoute(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetRoute: %v", err)
+	}
+	if len(got.GetMatchers()) != 1 {
+		t.Fatalf("expected 1 matcher, got %d", len(got.GetMatchers()))
+	}
+	m := got.GetMatchers()[0]
+	if len(m.GetQueries()) != 2 {
+		t.Errorf("queries len = %d, want 2", len(m.GetQueries()))
+	}
+	if got := m.GetExpression(); got != `method('POST')` {
+		t.Errorf("expression = %q", got)
+	}
+	if len(m.GetNot()) != 1 {
+		t.Errorf("not len = %d, want 1", len(m.GetNot()))
+	}
+	if len(m.GetHeaders()) != 1 || !m.GetHeaders()[0].GetRegexp() {
+		t.Errorf("headers regexp lost in round-trip")
 	}
 }

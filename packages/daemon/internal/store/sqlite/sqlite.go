@@ -431,11 +431,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 23: session affinity / hash LB columns on services (#71).
+	if current < 23 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000023_lb_session_affinity.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 23: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 23: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (23, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 23: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 23 down: drop lb_cookie_name + lb_header_name columns.
+	if current >= 23 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000023_lb_session_affinity.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 23: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 23: %w", err)
+		}
+	}
 
 	// Migration 22 down: drop tenant_id columns from existing tables.
 	if current >= 22 {
@@ -917,11 +944,12 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 
 	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, tenantID, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
+		svc.GetLbCookieName(), svc.GetLbHeaderName(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert service: %w", err)
@@ -952,7 +980,7 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name
 		 FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
 
 	svc, err := scanService(row)
@@ -971,7 +999,7 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
@@ -1065,11 +1093,12 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 
 	tenantID := store.TenantIDFromContext(ctx)
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?, lb_cookie_name=?, lb_header_name=?
 		 WHERE id=? AND tenant_id=?`,
 		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
+		svc.GetLbCookieName(), svc.GetLbHeaderName(),
 		svc.GetId(), tenantID,
 	)
 	if err != nil {
@@ -2452,10 +2481,12 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		rpJSON                       *string
 		utJSON                       *string
 		cpJSON                       *string
+		lbCookieName                 string
+		lbHeaderName                 string
 	)
 	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt,
 		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds,
-		&phcJSON, &rpJSON, &utJSON, &cpJSON); err != nil {
+		&phcJSON, &rpJSON, &utJSON, &cpJSON, &lbCookieName, &lbHeaderName); err != nil {
 		return nil, fmt.Errorf("sqlite: scan service: %w", err)
 	}
 
@@ -2474,6 +2505,8 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		DialTimeoutSeconds:           dialTimeoutSeconds,
 		ResponseHeaderTimeoutSeconds: responseHeaderTimeoutSeconds,
 		IdleTimeoutSeconds:           idleTimeoutSeconds,
+		LbCookieName:                 lbCookieName,
+		LbHeaderName:                 lbHeaderName,
 	}
 
 	if hcJSON != nil && *hcJSON != "" {
