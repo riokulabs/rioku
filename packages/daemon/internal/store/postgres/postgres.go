@@ -125,16 +125,33 @@ func (d *driver) ensureSchemaVersionsTable(ctx context.Context) error {
 // migrateUp reads all *.up.sql files from migrations/postgres/ and applies
 // any with a version number higher than the currently recorded version.
 //
-// Each migration file is executed inside its own transaction. The dirty flag
-// is set to TRUE before the DDL runs and updated to FALSE only after a
-// successful commit. A crash or error between those two points leaves the row
-// with dirty=TRUE so the next run fails loudly instead of silently skipping
-// the version. PostgreSQL supports transactional DDL so this is safe for all
-// migration statements we use (note: CREATE INDEX CONCURRENTLY cannot run
-// inside a transaction and must not be used in migration files).
+// Each migration file is executed using the two-transaction pattern: a short
+// Tx 1 commits dirty=TRUE before the migration body runs, so a crash or error
+// during the DDL leaves a detectable dirty row on disk. A successful Tx 2 is
+// followed by a plain UPDATE to clear the dirty flag. See applyMigration for
+// the full protocol.
+//
+// Before iterating migration files, migrateUp checks for any dirty rows from a
+// previous failed run and aborts with a descriptive error. The operator must
+// investigate the failed migration and either resolve the schema manually or
+// delete the dirty row before the daemon will start again.
+//
+// Note: CREATE INDEX CONCURRENTLY cannot run inside a transaction and must not
+// be used in migration files.
 func (d *driver) migrateUp(ctx context.Context) error {
 	if err := d.ensureSchemaVersionsTable(ctx); err != nil {
 		return err
+	}
+
+	// Abort if any dirty row exists from a previous failed run.
+	var dirtyVersion int
+	err := d.db.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(version), 0) FROM schema_versions WHERE dirty = TRUE`).Scan(&dirtyVersion)
+	if err != nil {
+		return fmt.Errorf("postgres: check dirty migrations: %w", err)
+	}
+	if dirtyVersion != 0 {
+		return fmt.Errorf("postgres: schema has dirty migration at version %d — manual intervention required", dirtyVersion)
 	}
 
 	current, _ := d.CurrentVersion(ctx)
@@ -162,21 +179,28 @@ func (d *driver) migrateUp(ctx context.Context) error {
 	return nil
 }
 
-// applyMigration executes a single migration inside a transaction. It marks
-// the version as dirty=TRUE before running the SQL body, then marks it
-// dirty=FALSE on success. A failure at any point rolls back the transaction
-// and, if the dirty INSERT had already been committed by an earlier partial
-// attempt, leaves the dirty row visible so the operator can investigate.
+// applyMigration executes a single migration using the two-transaction pattern
+// so that a failed migration always leaves a detectable dirty row on disk:
+//
+//  1. Tx 1 (short): INSERT dirty=TRUE and commit immediately. If this fails the
+//     migration is not attempted and no row is left.
+//  2. Tx 2 (the migration): run the SQL body. On failure the transaction rolls
+//     back but the dirty=TRUE row from Tx 1 stays on disk. On success, commit
+//     Tx 2, then clear the dirty flag with a plain UPDATE outside any
+//     transaction.
+//
+// This mirrors the golang-migrate two-phase approach: the dirty marker is
+// durable before the DDL begins, so any crash or error during DDL execution
+// leaves the operator with a clear signal that manual inspection is required.
 func (d *driver) applyMigration(ctx context.Context, version int, sql string) error {
-	txn, err := d.db.BeginTx(ctx, nil)
+	// ---- Tx 1: commit the dirty marker before touching the schema ----
+	tx1, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("postgres: begin migration tx for version %d: %w", version, err)
+		return fmt.Errorf("postgres: begin dirty-marker tx for version %d: %w", version, err)
 	}
-	// Always roll back on the way out; a committed tx makes Rollback a no-op.
-	defer func() { _ = txn.Rollback() }()
+	defer func() { _ = tx1.Rollback() }()
 
-	// Mark dirty=TRUE before touching the schema so a crash is detectable.
-	_, err = txn.ExecContext(ctx,
+	_, err = tx1.ExecContext(ctx,
 		`INSERT INTO schema_versions (version, dirty) VALUES ($1, TRUE)
 		 ON CONFLICT (version) DO UPDATE SET dirty = TRUE`,
 		version)
@@ -184,22 +208,35 @@ func (d *driver) applyMigration(ctx context.Context, version int, sql string) er
 		return fmt.Errorf("postgres: mark dirty for version %d: %w", version, err)
 	}
 
-	// Execute the migration body.
-	if _, err := txn.ExecContext(ctx, sql); err != nil {
+	if err := tx1.Commit(); err != nil {
+		return fmt.Errorf("postgres: commit dirty-marker for version %d: %w", version, err)
+	}
+
+	// ---- Tx 2: run the migration body ----
+	tx2, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("postgres: begin migration tx for version %d: %w", version, err)
+	}
+	defer func() { _ = tx2.Rollback() }()
+
+	if _, err := tx2.ExecContext(ctx, sql); err != nil {
+		// Rollback tx2; the dirty row from Tx 1 remains on disk.
 		return fmt.Errorf("postgres: apply up migration %d: %w", version, err)
 	}
 
-	// Clear the dirty flag now that the DDL succeeded.
-	_, err = txn.ExecContext(ctx,
+	if err := tx2.Commit(); err != nil {
+		return fmt.Errorf("postgres: commit migration %d: %w", version, err)
+	}
+
+	// ---- Clear dirty flag outside any transaction ----
+	// Both transactions have committed; the migration succeeded.
+	_, err = d.db.ExecContext(ctx,
 		`UPDATE schema_versions SET dirty = FALSE WHERE version = $1`,
 		version)
 	if err != nil {
 		return fmt.Errorf("postgres: clear dirty for version %d: %w", version, err)
 	}
 
-	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("postgres: commit migration %d: %w", version, err)
-	}
 	return nil
 }
 
@@ -249,7 +286,7 @@ func (d *driver) migrateDown(ctx context.Context) error {
 func (d *driver) CurrentVersion(ctx context.Context) (int, error) {
 	var version int
 	err := d.db.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) FROM schema_versions`).Scan(&version)
+		`SELECT COALESCE(MAX(version), 0) FROM schema_versions WHERE dirty = FALSE`).Scan(&version)
 	if err != nil {
 		return 0, fmt.Errorf("postgres: current version: %w", err)
 	}

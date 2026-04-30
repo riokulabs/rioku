@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -13,10 +14,12 @@ import (
 // mid-execution leaves a row with dirty=TRUE in schema_versions, making the
 // broken state detectable on the next run rather than silently skipped.
 //
+// With the two-transaction pattern, Tx 1 commits dirty=TRUE before the
+// migration body runs, so a DDL failure in Tx 2 leaves the dirty row on disk.
+//
 // This test requires a real PostgreSQL instance. Set POSTGRES_TEST_DSN to a
 // connection string (e.g. "postgres://user:pass@localhost/testdb") to enable
-// it. The test creates a temporary schema_versions table, runs a deliberately
-// broken migration, and asserts that the dirty row is present.
+// it.
 func TestMigrateUp_DirtyFlagOnFailure(t *testing.T) {
 	dsn := os.Getenv("POSTGRES_TEST_DSN")
 	if dsn == "" {
@@ -63,29 +66,46 @@ func TestMigrateUp_DirtyFlagOnFailure(t *testing.T) {
 		t.Fatal("expected applyMigration to return an error for invalid SQL, got nil")
 	}
 
-	// The transaction should have been rolled back entirely (dirty INSERT included),
-	// so there should be NO row for version 9999 — the rollback prevents even the
-	// dirty marker from persisting. This is the correct transactional behavior:
-	// if the tx rolls back, nothing is written, and the next run will retry from scratch.
+	// With the two-transaction pattern, Tx 1 (dirty=TRUE marker) committed
+	// before Tx 2 (the DDL) ran. Tx 2 rolled back, but Tx 1 is durable.
+	// The dirty row MUST be present on disk.
 	var count int
+	var dirty bool
 	err = db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM schema_versions WHERE version = $1`, testVersion).Scan(&count)
+		`SELECT COUNT(*), COALESCE(bool_or(dirty), FALSE)
+		 FROM schema_versions WHERE version = $1`, testVersion).Scan(&count, &dirty)
 	if err != nil {
 		t.Fatalf("query dirty row: %v", err)
 	}
-	if count != 0 {
-		// If a row exists, confirm it is dirty (partial commit scenario).
-		var dirty bool
-		_ = db.QueryRowContext(ctx,
-			`SELECT dirty FROM schema_versions WHERE version = $1`, testVersion).Scan(&dirty)
-		if !dirty {
-			t.Errorf("version %d row exists after failed migration but dirty=FALSE — clean state was incorrectly recorded", testVersion)
-		}
-		// dirty=TRUE is acceptable (partial commit outside our tx), but count=0 is the expected path.
+	if count != 1 {
+		t.Errorf("expected 1 dirty row after failed migration, got %d", count)
 	}
-	// count == 0 means the rollback worked correctly: no trace of the failed migration.
-	// This is the desired behaviour — the next run will retry the migration.
-	t.Logf("failed migration left %d rows (expected 0 due to rollback); dirty-flag mechanism verified", count)
+	if !dirty {
+		t.Errorf("version %d row exists but dirty=FALSE — dirty marker was incorrectly cleared", testVersion)
+	}
+
+	// CurrentVersion must not return the dirty version.
+	ver, err := d.CurrentVersion(ctx)
+	if err != nil {
+		t.Fatalf("CurrentVersion: %v", err)
+	}
+	if ver == testVersion {
+		t.Errorf("CurrentVersion returned dirty version %d — WHERE dirty=FALSE filter missing", testVersion)
+	}
+
+	// migrateUp must abort with a "manual intervention required" error when a
+	// dirty row exists, rather than silently skipping or re-attempting it.
+	//
+	// Re-use d (same DB connection); migrateUp checks for dirty rows before
+	// iterating files so it will abort immediately.
+	migrateErr := d.migrateUp(ctx)
+	if migrateErr == nil {
+		t.Fatal("expected migrateUp to return an error for dirty schema, got nil")
+	}
+	wantSubstr := "manual intervention required"
+	if !strings.Contains(migrateErr.Error(), wantSubstr) {
+		t.Errorf("migrateUp error = %q; want it to contain %q", migrateErr.Error(), wantSubstr)
+	}
 }
 
 // TestMigrateUp_DirtyFlagClearedOnSuccess verifies that a successful migration
@@ -138,5 +158,14 @@ func TestMigrateUp_DirtyFlagClearedOnSuccess(t *testing.T) {
 	}
 	if dirty {
 		t.Errorf("version 9998: dirty=TRUE after successful migration, expected FALSE")
+	}
+
+	// CurrentVersion must return the successfully-applied version.
+	ver, err := d.CurrentVersion(ctx)
+	if err != nil {
+		t.Fatalf("CurrentVersion: %v", err)
+	}
+	if ver < 9998 {
+		t.Errorf("CurrentVersion = %d after applying 9998, want >= 9998", ver)
 	}
 }
