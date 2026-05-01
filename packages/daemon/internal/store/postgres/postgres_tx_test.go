@@ -4895,3 +4895,1217 @@ func TestAITrace(t *testing.T) {
 		t.Fatalf("expected ErrAITraceNotFound, got %v", nfErr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Notification Items
+// ---------------------------------------------------------------------------
+
+func TestNotificationItem(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create a tenant and user.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin setup: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "notif-item-tenant", Name: "Notif Item Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	user, err := txSetup.CreateUser(ctx, &store.User{
+		Username:     "notif-item-user",
+		PasswordHash: "hash",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+	userID := user.ID
+
+	// --- Append ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	item, err := tx1.AppendNotificationItem(ctx, &store.NotificationItem{
+		TenantID: &tenantID,
+		UserID:   userID,
+		Category: "security",
+		Severity: "warn",
+		Title:    "Test notification",
+		Body:     "This is the body",
+		Metadata: `{"key":"value"}`,
+	})
+	if err != nil {
+		t.Fatalf("AppendNotificationItem: %v", err)
+	}
+	if item.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if item.Title != "Test notification" {
+		t.Fatalf("expected title 'Test notification', got %q", item.Title)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	itemID := item.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetNotificationItem(ctx, itemID)
+	if err != nil {
+		t.Fatalf("GetNotificationItem: %v", err)
+	}
+	if got.Category != "security" {
+		t.Fatalf("expected category 'security', got %q", got.Category)
+	}
+	if got.ReadAt != nil {
+		t.Fatal("expected ReadAt to be nil on new item")
+	}
+	_ = tx2.Rollback()
+
+	// --- CountUnread ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	count, err := tx3.CountUnreadNotifications(ctx, tenantID, userID)
+	if err != nil {
+		t.Fatalf("CountUnreadNotifications: %v", err)
+	}
+	if count < 1 {
+		t.Fatalf("expected at least 1 unread, got %d", count)
+	}
+	_ = tx3.Rollback()
+
+	// --- ListByUser (no filter) ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx4.ListNotificationItemsByUser(ctx, tenantID, userID, store.NotificationItemQuery{Limit: 50})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser: %v", err)
+	}
+	found := false
+	for _, n := range list {
+		if n.ID == itemID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("item not found in list")
+	}
+	_ = tx4.Rollback()
+
+	// --- ListByUser with category filter ---
+	tx4b, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byCategory, err := tx4b.ListNotificationItemsByUser(ctx, tenantID, userID, store.NotificationItemQuery{Category: "security", Limit: 50})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser category filter: %v", err)
+	}
+	for _, n := range byCategory {
+		if n.Category != "security" {
+			t.Fatalf("expected category 'security', got %q", n.Category)
+		}
+	}
+	_ = tx4b.Rollback()
+
+	// --- ListByUser with severity filter ---
+	tx4c, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	bySeverity, err := tx4c.ListNotificationItemsByUser(ctx, tenantID, userID, store.NotificationItemQuery{Severity: "warn", Limit: 50})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser severity filter: %v", err)
+	}
+	for _, n := range bySeverity {
+		if n.Severity != "warn" {
+			t.Fatalf("expected severity 'warn', got %q", n.Severity)
+		}
+	}
+	_ = tx4c.Rollback()
+
+	// --- ListByUser unread filter ---
+	unread := false
+	tx4d, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	unreadList, err := tx4d.ListNotificationItemsByUser(ctx, tenantID, userID, store.NotificationItemQuery{Read: &unread, Limit: 50})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser unread filter: %v", err)
+	}
+	unreadFound := false
+	for _, n := range unreadList {
+		if n.ID == itemID {
+			unreadFound = true
+		}
+	}
+	if !unreadFound {
+		t.Fatal("item not found in unread list before MarkRead")
+	}
+	_ = tx4d.Rollback()
+
+	// --- MarkRead ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.MarkNotificationRead(ctx, itemID); err != nil {
+		t.Fatalf("MarkNotificationRead: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify read_at is set.
+	tx5b, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterRead, err := tx5b.GetNotificationItem(ctx, itemID)
+	if err != nil {
+		t.Fatalf("GetNotificationItem after MarkRead: %v", err)
+	}
+	if afterRead.ReadAt == nil {
+		t.Fatal("expected ReadAt to be set after MarkRead")
+	}
+	_ = tx5b.Rollback()
+
+	// --- Verify read filter returns item after marking read ---
+	readTrue := true
+	tx5c, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	readList, err := tx5c.ListNotificationItemsByUser(ctx, tenantID, userID, store.NotificationItemQuery{Read: &readTrue, Limit: 50})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser read=true: %v", err)
+	}
+	foundRead := false
+	for _, n := range readList {
+		if n.ID == itemID {
+			foundRead = true
+		}
+	}
+	if !foundRead {
+		t.Fatal("item not found in read list after MarkRead")
+	}
+	_ = tx5c.Rollback()
+
+	// --- Append second item for MarkAllRead test ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	item2, err := tx6.AppendNotificationItem(ctx, &store.NotificationItem{
+		TenantID: &tenantID,
+		UserID:   userID,
+		Title:    "Second notification",
+	})
+	if err != nil {
+		t.Fatalf("AppendNotificationItem second: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- MarkAllRead ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.MarkAllNotificationsRead(ctx, tenantID, userID); err != nil {
+		t.Fatalf("MarkAllNotificationsRead: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Both items should now be read.
+	tx8, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	item2After, err := tx8.GetNotificationItem(ctx, item2.ID)
+	if err != nil {
+		t.Fatalf("GetNotificationItem item2: %v", err)
+	}
+	if item2After.ReadAt == nil {
+		t.Fatal("expected item2 ReadAt set after MarkAllRead")
+	}
+	_ = tx8.Rollback()
+
+	// --- Archive ---
+	tx9, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx9.ArchiveNotification(ctx, itemID, true); err != nil {
+		t.Fatalf("ArchiveNotification(true): %v", err)
+	}
+	if err := tx9.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify archived.
+	tx10, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	archived, err := tx10.GetNotificationItem(ctx, itemID)
+	if err != nil {
+		t.Fatalf("GetNotificationItem after archive: %v", err)
+	}
+	if archived.ArchivedAt == nil {
+		t.Fatal("expected ArchivedAt set after archive")
+	}
+	_ = tx10.Rollback()
+
+	// Verify archived filter works.
+	archivedTrue := true
+	tx10b, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	archivedList, err := tx10b.ListNotificationItemsByUser(ctx, tenantID, userID, store.NotificationItemQuery{Archived: &archivedTrue, Limit: 50})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser archived=true: %v", err)
+	}
+	foundArchived := false
+	for _, n := range archivedList {
+		if n.ID == itemID {
+			foundArchived = true
+		}
+	}
+	if !foundArchived {
+		t.Fatal("item not found in archived list")
+	}
+	_ = tx10b.Rollback()
+
+	// --- Unarchive ---
+	tx11, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx11.ArchiveNotification(ctx, itemID, false); err != nil {
+		t.Fatalf("ArchiveNotification(false): %v", err)
+	}
+	if err := tx11.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	tx12, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	unarchived, err := tx12.GetNotificationItem(ctx, itemID)
+	if err != nil {
+		t.Fatalf("GetNotificationItem after unarchive: %v", err)
+	}
+	if unarchived.ArchivedAt != nil {
+		t.Fatal("expected ArchivedAt to be nil after unarchive")
+	}
+	_ = tx12.Rollback()
+
+	// --- ErrNotificationItemNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetNotificationItem(ctx, "notif_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrNotificationItemNotFound) {
+		t.Fatalf("expected ErrNotificationItemNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Notification Channels
+// ---------------------------------------------------------------------------
+
+func TestNotificationChannel_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin setup: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "notif-chan-tenant", Name: "Notif Chan Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateNotificationChannel(ctx, &store.NotificationChannel{
+		TenantID: tenantID,
+		Name:     "slack-alerts",
+		Kind:     "slack",
+		Config:   `{"webhook_url":"https://hooks.slack.com/test"}`,
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateNotificationChannel: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Kind != "slack" {
+		t.Fatalf("expected kind 'slack', got %q", created.Kind)
+	}
+	if !created.Enabled {
+		t.Fatal("expected enabled=true")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	chanID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetNotificationChannel(ctx, tenantID, chanID)
+	if err != nil {
+		t.Fatalf("GetNotificationChannel: %v", err)
+	}
+	if got.Name != "slack-alerts" {
+		t.Fatalf("expected name 'slack-alerts', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListNotificationChannelsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListNotificationChannelsByTenant: %v", err)
+	}
+	found := false
+	for _, c := range list {
+		if c.ID == chanID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("channel not found in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newName := "slack-alerts-v2"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateNotificationChannel(ctx, tenantID, chanID, store.UpdateNotificationChannelParams{
+		Name:    &newName,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateNotificationChannel: %v", err)
+	}
+	if upd.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, upd.Name)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteNotificationChannel(ctx, tenantID, chanID); err != nil {
+		t.Fatalf("DeleteNotificationChannel: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify gone.
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetNotificationChannel(ctx, tenantID, chanID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrNotificationChannelNotFound) {
+		t.Fatalf("expected ErrNotificationChannelNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Routing Rules
+// ---------------------------------------------------------------------------
+
+func TestRoutingRule_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin setup: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "notif-rule-tenant", Name: "Notif Rule Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create two rules ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	rule1, err := tx1.CreateRoutingRule(ctx, &store.NotificationRoutingRule{
+		TenantID:    tenantID,
+		Name:        "rule-one",
+		EventFilter: `{"type":"alert"}`,
+		ChannelIDs:  `["chan-001"]`,
+		Enabled:     true,
+		OrderHint:   0,
+	})
+	if err != nil {
+		t.Fatalf("CreateRoutingRule (rule1): %v", err)
+	}
+	rule2, err := tx1.CreateRoutingRule(ctx, &store.NotificationRoutingRule{
+		TenantID:    tenantID,
+		Name:        "rule-two",
+		EventFilter: `{"type":"info"}`,
+		ChannelIDs:  `["chan-002"]`,
+		Enabled:     true,
+		OrderHint:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateRoutingRule (rule2): %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	rule1ID := rule1.ID
+	rule2ID := rule2.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetRoutingRule(ctx, tenantID, rule1ID)
+	if err != nil {
+		t.Fatalf("GetRoutingRule: %v", err)
+	}
+	if got.Name != "rule-one" {
+		t.Fatalf("expected name 'rule-one', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List (ordered by order_hint) ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListRoutingRulesByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListRoutingRulesByTenant: %v", err)
+	}
+	if len(list) < 2 {
+		t.Fatalf("expected at least 2 rules, got %d", len(list))
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newName := "rule-one-updated"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateRoutingRule(ctx, tenantID, rule1ID, store.UpdateRoutingRuleParams{
+		Name:    &newName,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateRoutingRule: %v", err)
+	}
+	if upd.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, upd.Name)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Reorder ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.ReorderRoutingRules(ctx, tenantID, []string{rule2ID, rule1ID}); err != nil {
+		t.Fatalf("ReorderRoutingRules: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify order_hint changed.
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	r2After, err := tx6.GetRoutingRule(ctx, tenantID, rule2ID)
+	if err != nil {
+		t.Fatalf("GetRoutingRule rule2 after reorder: %v", err)
+	}
+	if r2After.OrderHint != 0 {
+		t.Fatalf("expected rule2 order_hint=0 after reorder, got %d", r2After.OrderHint)
+	}
+	r1After, err := tx6.GetRoutingRule(ctx, tenantID, rule1ID)
+	if err != nil {
+		t.Fatalf("GetRoutingRule rule1 after reorder: %v", err)
+	}
+	if r1After.OrderHint != 1 {
+		t.Fatalf("expected rule1 order_hint=1 after reorder, got %d", r1After.OrderHint)
+	}
+	_ = tx6.Rollback()
+
+	// --- Delete ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.DeleteRoutingRule(ctx, tenantID, rule1ID); err != nil {
+		t.Fatalf("DeleteRoutingRule: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify gone.
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetRoutingRule(ctx, tenantID, rule1ID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrRoutingRuleNotFound) {
+		t.Fatalf("expected ErrRoutingRuleNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Delivery Log
+// ---------------------------------------------------------------------------
+
+func TestDeliveryLog(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin setup: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "delivery-log-tenant", Name: "Delivery Log Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Append ---
+	now := time.Now().UTC().Truncate(time.Second)
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	entry, err := tx1.AppendDeliveryLogEntry(ctx, &store.NotificationDeliveryLogEntry{
+		TenantID:         tenantID,
+		Status:           "delivered",
+		Attempts:         1,
+		FirstAttemptedAt: &now,
+		LastAttemptedAt:  &now,
+		Metadata:         `{"channel":"email"}`,
+	})
+	if err != nil {
+		t.Fatalf("AppendDeliveryLogEntry: %v", err)
+	}
+	if entry.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if entry.Status != "delivered" {
+		t.Fatalf("expected status 'delivered', got %q", entry.Status)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	entryID := entry.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetDeliveryLogEntry(ctx, tenantID, entryID)
+	if err != nil {
+		t.Fatalf("GetDeliveryLogEntry: %v", err)
+	}
+	if got.Attempts != 1 {
+		t.Fatalf("expected attempts=1, got %d", got.Attempts)
+	}
+	if got.FirstAttemptedAt == nil {
+		t.Fatal("expected FirstAttemptedAt to be set")
+	}
+	_ = tx2.Rollback()
+
+	// --- Append a failed entry ---
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	errMsg := "connection refused"
+	_, err = tx3.AppendDeliveryLogEntry(ctx, &store.NotificationDeliveryLogEntry{
+		TenantID:  tenantID,
+		Status:    "failed",
+		Attempts:  3,
+		LastError: &errMsg,
+	})
+	if err != nil {
+		t.Fatalf("AppendDeliveryLogEntry failed entry: %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ListByTenant (no filter) ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx4.ListDeliveryLogByTenant(ctx, tenantID, store.DeliveryLogQuery{Limit: 50})
+	if err != nil {
+		t.Fatalf("ListDeliveryLogByTenant: %v", err)
+	}
+	if len(list) < 2 {
+		t.Fatalf("expected at least 2 entries, got %d", len(list))
+	}
+	_ = tx4.Rollback()
+
+	// --- ListByTenant with status filter ---
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byStatus, err := tx5.ListDeliveryLogByTenant(ctx, tenantID, store.DeliveryLogQuery{Status: "delivered", Limit: 50})
+	if err != nil {
+		t.Fatalf("ListDeliveryLogByTenant status filter: %v", err)
+	}
+	for _, e := range byStatus {
+		if e.Status != "delivered" {
+			t.Fatalf("expected status 'delivered', got %q", e.Status)
+		}
+	}
+	_ = tx5.Rollback()
+
+	// --- ErrDeliveryLogEntryNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetDeliveryLogEntry(ctx, tenantID, "nlog_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrDeliveryLogEntryNotFound) {
+		t.Fatalf("expected ErrDeliveryLogEntryNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Tenant Notification Config
+// ---------------------------------------------------------------------------
+
+func TestTenantNotificationConfig(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin setup: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "notif-config-tenant", Name: "Notif Config Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Get before upsert (should return defaults) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	defaults, err := tx1.GetTenantNotificationConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTenantNotificationConfig (pre-upsert): %v", err)
+	}
+	if !defaults.Enabled {
+		t.Fatal("expected default Enabled=true")
+	}
+	if defaults.MaxRetries != 3 {
+		t.Fatalf("expected default MaxRetries=3, got %d", defaults.MaxRetries)
+	}
+	_ = tx1.Rollback()
+
+	// --- Upsert ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertTenantNotificationConfig(ctx, &store.TenantNotificationConfig{
+		TenantID:            tenantID,
+		Enabled:             false,
+		OptInMode:           "opt-out",
+		MaxRetries:          5,
+		RetryBackoffSeconds: 60,
+		ChannelPriority:     `["email","slack"]`,
+	})
+	if err != nil {
+		t.Fatalf("UpsertTenantNotificationConfig: %v", err)
+	}
+	if upserted.Enabled {
+		t.Fatal("expected Enabled=false after upsert")
+	}
+	if upserted.MaxRetries != 5 {
+		t.Fatalf("expected MaxRetries=5, got %d", upserted.MaxRetries)
+	}
+	if upserted.OptInMode != "opt-out" {
+		t.Fatalf("expected OptInMode='opt-out', got %q", upserted.OptInMode)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Verify persisted ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetTenantNotificationConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTenantNotificationConfig after upsert: %v", err)
+	}
+	if got.Enabled {
+		t.Fatal("expected Enabled=false persisted")
+	}
+	if got.RetryBackoffSeconds != 60 {
+		t.Fatalf("expected RetryBackoffSeconds=60, got %d", got.RetryBackoffSeconds)
+	}
+	_ = tx3.Rollback()
+
+	// --- Second upsert overwrites ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted2, err := tx4.UpsertTenantNotificationConfig(ctx, &store.TenantNotificationConfig{
+		TenantID:            tenantID,
+		Enabled:             true,
+		OptInMode:           "opt-in",
+		MaxRetries:          2,
+		RetryBackoffSeconds: 15,
+		ChannelPriority:     `["slack"]`,
+	})
+	if err != nil {
+		t.Fatalf("UpsertTenantNotificationConfig second: %v", err)
+	}
+	if !upserted2.Enabled {
+		t.Fatal("expected Enabled=true after second upsert")
+	}
+	if upserted2.MaxRetries != 2 {
+		t.Fatalf("expected MaxRetries=2, got %d", upserted2.MaxRetries)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Plugins
+// ---------------------------------------------------------------------------
+
+func TestPlugin_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Global-scope plugins (tenantID = "" → tenant_scope IS NULL).
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreatePlugin(ctx, &store.Plugin{
+		Slug:       "my-plugin",
+		Name:       "My Plugin",
+		Version:    "1.0.0",
+		Enabled:    true,
+		BuildState: "stable",
+	})
+	if err != nil {
+		t.Fatalf("CreatePlugin: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Slug != "my-plugin" {
+		t.Fatalf("expected slug 'my-plugin', got %q", created.Slug)
+	}
+	if !created.Enabled {
+		t.Fatal("expected enabled=true")
+	}
+	if created.TenantScope != nil {
+		t.Fatal("expected TenantScope=nil for global plugin")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	pluginID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetPlugin(ctx, "", pluginID)
+	if err != nil {
+		t.Fatalf("GetPlugin: %v", err)
+	}
+	if got.Name != "My Plugin" {
+		t.Fatalf("expected name 'My Plugin', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByScope (global) ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListPluginsByScope(ctx, "")
+	if err != nil {
+		t.Fatalf("ListPluginsByScope: %v", err)
+	}
+	found := false
+	for _, p := range list {
+		if p.ID == pluginID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("plugin not found in global list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newName := "My Plugin v2"
+	newVersion := "2.0.0"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdatePlugin(ctx, "", pluginID, store.UpdatePluginParams{
+		Name:    &newName,
+		Version: &newVersion,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePlugin: %v", err)
+	}
+	if upd.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, upd.Name)
+	}
+	if upd.Version != newVersion {
+		t.Fatalf("expected version %q, got %q", newVersion, upd.Version)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Tenant-scoped plugin ---
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin setup: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "plugin-tenant", Name: "Plugin Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	scopedPlugin, err := tx5.CreatePlugin(ctx, &store.Plugin{
+		TenantScope: &tenantID,
+		Slug:        "tenant-plugin",
+		Name:        "Tenant Plugin",
+		Version:     "1.0.0",
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("CreatePlugin (tenant-scoped): %v", err)
+	}
+	if scopedPlugin.TenantScope == nil || *scopedPlugin.TenantScope != tenantID {
+		t.Fatal("expected TenantScope to match tenant ID")
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	scopedPluginID := scopedPlugin.ID
+
+	// ListByScope for the specific tenant should find the scoped plugin but not the global one.
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenantList, err := tx6.ListPluginsByScope(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListPluginsByScope(tenantID): %v", err)
+	}
+	foundScoped := false
+	for _, p := range tenantList {
+		if p.ID == scopedPluginID {
+			foundScoped = true
+		}
+		// Global plugin should NOT appear in tenant-scoped list
+		if p.ID == pluginID {
+			t.Fatal("global plugin should not appear in tenant-scoped ListByScope")
+		}
+	}
+	if !foundScoped {
+		t.Fatal("scoped plugin not found in tenant list")
+	}
+	_ = tx6.Rollback()
+
+	// --- Delete ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.DeletePlugin(ctx, "", pluginID); err != nil {
+		t.Fatalf("DeletePlugin: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify gone.
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetPlugin(ctx, "", pluginID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrPluginNotFound) {
+		t.Fatalf("expected ErrPluginNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Plugin Signers
+// ---------------------------------------------------------------------------
+
+func TestPluginSigner_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// --- Create signer (global scope) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	signer, err := tx1.CreatePluginSigner(ctx, &store.PluginSigner{
+		Name:        "Test Signer",
+		Fingerprint: "sha256:abcdef1234567890abcdef1234567890abcdef12",
+		Status:      "verified",
+		Notes:       "Main signing key",
+	})
+	if err != nil {
+		t.Fatalf("CreatePluginSigner: %v", err)
+	}
+	if signer.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if signer.Status != "verified" {
+		t.Fatalf("expected status 'verified', got %q", signer.Status)
+	}
+	if signer.TenantScope != nil {
+		t.Fatal("expected global signer TenantScope=nil")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	signerID := signer.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetPluginSigner(ctx, "", signerID)
+	if err != nil {
+		t.Fatalf("GetPluginSigner: %v", err)
+	}
+	if got.Fingerprint != "sha256:abcdef1234567890abcdef1234567890abcdef12" {
+		t.Fatalf("fingerprint mismatch: %q", got.Fingerprint)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByScope ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListPluginSignersByScope(ctx, "")
+	if err != nil {
+		t.Fatalf("ListPluginSignersByScope: %v", err)
+	}
+	found := false
+	for _, s := range list {
+		if s.ID == signerID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("signer not found in global list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newStatus := "revoked"
+	newNotes := "Key compromised"
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdatePluginSigner(ctx, "", signerID, store.UpdatePluginSignerParams{
+		Status: &newStatus,
+		Notes:  &newNotes,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePluginSigner: %v", err)
+	}
+	if upd.Status != newStatus {
+		t.Fatalf("expected status %q, got %q", newStatus, upd.Status)
+	}
+	if upd.Notes != newNotes {
+		t.Fatalf("expected notes %q, got %q", newNotes, upd.Notes)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create plugin linked to signer (for ListPluginsBySigner) ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	signedPlugin, err := tx5.CreatePlugin(ctx, &store.Plugin{
+		Slug:           "signed-plugin",
+		Name:           "Signed Plugin",
+		Version:        "1.0.0",
+		SignerID:       &signerID,
+		CosignVerified: true,
+	})
+	if err != nil {
+		t.Fatalf("CreatePlugin with signer: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ListPluginsBySigner ---
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	bySignerList, err := tx6.ListPluginsBySigner(ctx, signerID)
+	if err != nil {
+		t.Fatalf("ListPluginsBySigner: %v", err)
+	}
+	foundSigned := false
+	for _, p := range bySignerList {
+		if p.ID == signedPlugin.ID {
+			foundSigned = true
+		}
+	}
+	if !foundSigned {
+		t.Fatal("signed plugin not found in ListPluginsBySigner result")
+	}
+	_ = tx6.Rollback()
+
+	// --- Delete ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.DeletePluginSigner(ctx, "", signerID); err != nil {
+		t.Fatalf("DeletePluginSigner: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify gone.
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetPluginSigner(ctx, "", signerID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrPluginSignerNotFound) {
+		t.Fatalf("expected ErrPluginSignerNotFound, got %v", nfErr)
+	}
+}
