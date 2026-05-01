@@ -49,6 +49,29 @@ func openPGTestDB(t *testing.T) store.Driver {
 	return d
 }
 
+// createTestUser creates a user with the given username for FK satisfaction
+// in tests that need to reference users(id). Returns the persisted user.
+func createTestUser(t *testing.T, d store.Driver, ctx context.Context, username string) *store.User {
+	t.Helper()
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	user, err := tx.CreateUser(ctx, &store.User{
+		Username:     username,
+		PasswordHash: "$2a$10$dummy.hash.for.testing.purposes.only.x",
+		Status:       "active",
+	})
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("CreateUser %q: %v", username, err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	return user
+}
+
 // TestRoute_CRUD exercises Create → Get → List → Update → Delete for routes,
 // covering both Route_ServiceId and Route_Upstream target variants.
 func TestRoute_CRUD(t *testing.T) {
@@ -635,6 +658,10 @@ func TestAPIKey_CRUD(t *testing.T) {
 	d := openPGTestDB(t)
 	ctx := context.Background()
 
+	// FK setup: api_keys.owner_id references users(id)
+	ownerUser := createTestUser(t, d, ctx, "api-key-owner-user")
+	ownerID := ownerUser.ID
+
 	expiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Millisecond)
 
 	// --- Create ---
@@ -642,7 +669,7 @@ func TestAPIKey_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc123", []string{"read", "write"}, &expiry, "owner-user-1")
+	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc123", []string{"read", "write"}, &expiry, ownerID)
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}
@@ -671,8 +698,8 @@ func TestAPIKey_CRUD(t *testing.T) {
 	if len(key.Scopes) != 2 {
 		t.Fatalf("expected 2 scopes, got %d", len(key.Scopes))
 	}
-	if key.OwnerID != "owner-user-1" {
-		t.Fatalf("expected owner 'owner-user-1', got %q", key.OwnerID)
+	if key.OwnerID != ownerID {
+		t.Fatalf("expected owner %q, got %q", ownerID, key.OwnerID)
 	}
 	if key.ExpiresAt == nil {
 		t.Fatal("expected non-nil ExpiresAt")
@@ -715,7 +742,7 @@ func TestAPIKey_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	ownerKeys, err := tx4b.ListAPIKeysByOwner(ctx, "owner-user-1")
+	ownerKeys, err := tx4b.ListAPIKeysByOwner(ctx, ownerID)
 	if err != nil {
 		t.Fatalf("ListAPIKeysByOwner: %v", err)
 	}
@@ -1083,6 +1110,10 @@ func TestSession_CRUD(t *testing.T) {
 	d := openPGTestDB(t)
 	ctx := context.Background()
 
+	// FK setup: sessions.user_id references users(id)
+	sessionUser := createTestUser(t, d, ctx, "session-test-user")
+	testUserID := sessionUser.ID
+
 	now := time.Now().UTC().Truncate(time.Millisecond)
 
 	// --- Create ---
@@ -1090,7 +1121,7 @@ func TestSession_CRUD(t *testing.T) {
 	ua := "test-agent/1.0"
 	sess := &store.Session{
 		ID:          "sess-test-001",
-		UserID:      "user-abc",
+		UserID:      testUserID,
 		Fingerprint: "fp-xyz",
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(time.Hour),
@@ -1110,8 +1141,8 @@ func TestSession_CRUD(t *testing.T) {
 	if created.ID != "sess-test-001" {
 		t.Fatalf("expected id='sess-test-001', got %q", created.ID)
 	}
-	if created.UserID != "user-abc" {
-		t.Fatalf("expected user_id='user-abc', got %q", created.UserID)
+	if created.UserID != testUserID {
+		t.Fatalf("expected user_id=%q, got %q", testUserID, created.UserID)
 	}
 	if created.IPAddress == nil || *created.IPAddress != "127.0.0.1" {
 		t.Fatalf("expected ip='127.0.0.1', got %v", created.IPAddress)
@@ -1137,7 +1168,7 @@ func TestSession_CRUD(t *testing.T) {
 	// --- Create a second session for the same user ---
 	sess2 := &store.Session{
 		ID:          "sess-test-002",
-		UserID:      "user-abc",
+		UserID:      testUserID,
 		Fingerprint: "fp-zzz",
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(time.Hour),
@@ -1159,7 +1190,7 @@ func TestSession_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	sessions, err := tx3.ListSessionsByUser(ctx, "user-abc")
+	sessions, err := tx3.ListSessionsByUser(ctx, testUserID)
 	if err != nil {
 		t.Fatalf("ListSessionsByUser: %v", err)
 	}
@@ -1199,7 +1230,7 @@ func TestSession_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	if err := tx5.DeleteSessionsByUserExcept(ctx, "user-abc", "sess-test-001"); err != nil {
+	if err := tx5.DeleteSessionsByUserExcept(ctx, testUserID, "sess-test-001"); err != nil {
 		t.Fatalf("DeleteSessionsByUserExcept: %v", err)
 	}
 	if err := tx5.Commit(); err != nil {
@@ -1210,7 +1241,7 @@ func TestSession_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	sessions, err = tx5b.ListSessionsByUser(ctx, "user-abc")
+	sessions, err = tx5b.ListSessionsByUser(ctx, testUserID)
 	if err != nil {
 		t.Fatalf("ListSessionsByUser after DeleteExcept: %v", err)
 	}
@@ -1235,8 +1266,8 @@ func TestSession_CRUD(t *testing.T) {
 	}
 
 	// Create two more to test DeleteSessionsByUser + DeleteExpired.
-	sess3 := &store.Session{ID: "sess-test-003", UserID: "user-abc", Fingerprint: "fp-3", CreatedAt: now, ExpiresAt: now.Add(time.Hour), LastActive: now}
-	sess4 := &store.Session{ID: "sess-test-004", UserID: "user-abc", Fingerprint: "fp-4", CreatedAt: now, ExpiresAt: now.Add(-2 * time.Hour), LastActive: now.Add(-25 * time.Hour)} // already expired
+	sess3 := &store.Session{ID: "sess-test-003", UserID: testUserID, Fingerprint: "fp-3", CreatedAt: now, ExpiresAt: now.Add(time.Hour), LastActive: now}
+	sess4 := &store.Session{ID: "sess-test-004", UserID: testUserID, Fingerprint: "fp-4", CreatedAt: now, ExpiresAt: now.Add(-2 * time.Hour), LastActive: now.Add(-25 * time.Hour)} // already expired
 	for _, s := range []*store.Session{sess3, sess4} {
 		txC, err := d.Begin(ctx, store.TxOptions{})
 		if err != nil {
@@ -1271,7 +1302,7 @@ func TestSession_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	if err := txD.DeleteSessionsByUser(ctx, "user-abc"); err != nil {
+	if err := txD.DeleteSessionsByUser(ctx, testUserID); err != nil {
 		t.Fatalf("DeleteSessionsByUser: %v", err)
 	}
 	if err := txD.Commit(); err != nil {
@@ -1282,7 +1313,7 @@ func TestSession_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	sessions, err = txFinal.ListSessionsByUser(ctx, "user-abc")
+	sessions, err = txFinal.ListSessionsByUser(ctx, testUserID)
 	if err != nil {
 		t.Fatalf("ListSessionsByUser after DeleteByUser: %v", err)
 	}
@@ -1816,8 +1847,11 @@ func TestUserRoles(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	userID := "user-roles-test-user-001"
-	grantor := "admin-user-001"
+	// FK setup: user_roles.user_id and user_roles.granted_by reference users(id)
+	roleUser := createTestUser(t, d, ctx, "user-roles-test-user-001")
+	grantorUser := createTestUser(t, d, ctx, "admin-user-001")
+	userID := roleUser.ID
+	grantor := grantorUser.ID
 
 	// --- Assign ---
 	tx1, err := d.Begin(ctx, store.TxOptions{})
@@ -1943,7 +1977,9 @@ func TestGetUserScopes(t *testing.T) {
 		t.Fatalf("Commit (roles): %v", err)
 	}
 
-	userID := "user-scopes-test-001"
+	// FK setup: user_roles.user_id references users(id)
+	scopesUser := createTestUser(t, d, ctx, "user-scopes-test-001")
+	userID := scopesUser.ID
 
 	// Assign both roles to the user.
 	txA, err := d.Begin(ctx, store.TxOptions{})
@@ -1994,7 +2030,9 @@ func TestTOTPBackupCodes(t *testing.T) {
 	d := openPGTestDB(t)
 	ctx := context.Background()
 
-	userID := "user-totp-test-001"
+	// FK setup: totp_backup_codes.user_id references users(id)
+	totpUser := createTestUser(t, d, ctx, "user-totp-test-001")
+	userID := totpUser.ID
 
 	// --- Create first batch ---
 	tx1, err := d.Begin(ctx, store.TxOptions{})
