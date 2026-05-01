@@ -940,6 +940,7 @@ func TestJWT_WithClaims_RoundTrip(t *testing.T) {
 
 	if retrieved == nil {
 		t.Fatal("ClaimsFromContext returned nil")
+		return
 	}
 	if retrieved.Subject != original.Subject {
 		t.Errorf("subject = %q, want %q", retrieved.Subject, original.Subject)

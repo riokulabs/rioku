@@ -122,4 +122,6 @@ func errIsNoOp(err error) bool {
 
 // errSyncNoOp — sentinel a future Service impl can return for a benign
 // "nothing changed, no action needed" outcome.
+//
+//nolint:unused // future use, paired with errIsNoOp above
 var errSyncNoOp = errors.New("cluster: sync no-op")

@@ -43,12 +43,10 @@ func (t *tx) CreateSite(ctx context.Context, in *store.Site) (*store.Site, error
 	if redirects == "" {
 		redirects = "[]"
 	}
-	enabled := 1
-	if !in.Enabled && in.Name != "" {
-		// Default enabled=true unless caller explicitly disabled. We
-		// distinguish "default zero value" from "explicit false" by
-		// checking that other required fields are populated.
-	}
+	// Default enabled=true unless caller explicitly disabled. We
+	// distinguish "default zero value" from "explicit false" by
+	// checking that other required fields are populated.
+	var enabled int
 	if !in.Enabled {
 		enabled = 0
 	} else {

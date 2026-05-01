@@ -7,14 +7,6 @@ import (
 	"testing"
 )
 
-// createTestDashboard helper.
-func createTestDashboard(t *testing.T, mux *http.ServeMux, st any, name string) dashboardResponse {
-	t.Helper()
-	drv := st.(interface{ Begin(any, any) any })
-	_ = drv
-	return dashboardResponse{}
-}
-
 func TestDashboards_CreateListGetUpdateDelete(t *testing.T) {
 	drv := openTenantTestStore(t)
 	mux := http.NewServeMux()

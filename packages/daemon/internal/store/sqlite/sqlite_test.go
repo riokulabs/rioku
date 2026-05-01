@@ -2304,6 +2304,7 @@ func TestUnmarshalLabelsJSON_Empty(t *testing.T) {
 		}
 		if got == nil {
 			t.Fatalf("unmarshalLabelsJSON(%q): expected non-nil Labels, got nil", s)
+			return
 		}
 		if got.Labels == nil {
 			t.Fatalf("unmarshalLabelsJSON(%q): expected non-nil Labels.Labels map, got nil", s)
@@ -3068,7 +3069,7 @@ func TestAccessPolicyListOrdering(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 
 	list, err := tx2.ListAccessPolicies(ctx)
 	if err != nil {
@@ -3089,7 +3090,7 @@ func TestAccessPolicyUpdateNotFound(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDB(t)
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	name := "x"
 	_, err := tx.UpdateAccessPolicy(ctx, "nonexistent", store.UpdateAccessPolicyParams{Name: &name})
@@ -3102,7 +3103,7 @@ func TestAccessPolicyDeleteNotFound(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDB(t)
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if err := tx.DeleteAccessPolicy(ctx, "nonexistent"); err != store.ErrAccessPolicyNotFound {
 		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
@@ -3141,7 +3142,7 @@ func TestPassiveHealthCheck_RoundTrip(t *testing.T) {
 	}
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	got, err := tx2.GetService(ctx, created.GetId())
 	if err != nil {
 		t.Fatalf("GetService: %v", err)
@@ -3188,7 +3189,7 @@ func TestCountAuditLog_FiltersAndIgnoresPagination(t *testing.T) {
 	_ = tx1.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 
 	// Total
 	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{}); c != 8 {
@@ -3241,7 +3242,7 @@ func TestUpstreamTLS_RoundTrip(t *testing.T) {
 	_ = tx1.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	got, _ := tx2.GetService(ctx, created.GetId())
 	ut := got.GetUpstreamTls()
 	if ut == nil {
@@ -3276,7 +3277,7 @@ func TestConnectionPool_RoundTrip(t *testing.T) {
 	_ = tx1.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	got, _ := tx2.GetService(ctx, created.GetId())
 	cp := got.GetConnectionPool()
 	if cp == nil {
@@ -3313,7 +3314,7 @@ func TestRetryPolicy_RoundTrip(t *testing.T) {
 	_ = tx1.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	got, err := tx2.GetService(ctx, created.GetId())
 	if err != nil {
 		t.Fatalf("GetService: %v", err)
@@ -3346,7 +3347,7 @@ func TestRetryPolicy_NilPersistsAsNil(t *testing.T) {
 	_ = tx1.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	got, _ := tx2.GetService(ctx, created.GetId())
 	if got.GetRetryPolicy() != nil {
 		t.Errorf("expected nil RetryPolicy, got %+v", got.GetRetryPolicy())
@@ -3369,7 +3370,7 @@ func TestPassiveHealthCheck_NilPersistsAsNil(t *testing.T) {
 	_ = tx1.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	got, err := tx2.GetService(ctx, created.GetId())
 	if err != nil {
 		t.Fatalf("GetService: %v", err)
@@ -3416,7 +3417,7 @@ func TestRecordAPIKeyUse_BumpsCounterAndTimestamp(t *testing.T) {
 	}
 
 	tx3, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx3.Rollback()
+	defer func() { _ = tx3.Rollback() }()
 	k, _ = tx3.GetAPIKey(ctx, id)
 	if k.UsageCount != 3 {
 		t.Errorf("usage_count = %d, want 3", k.UsageCount)
@@ -3431,7 +3432,7 @@ func TestRecordAPIKeyUse_UnknownIDIsNoop(t *testing.T) {
 	d := openTestDB(t)
 
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Should not error even though the id doesn't exist — the auth
 	// path is the caller and a missing row already means the request
@@ -3449,7 +3450,7 @@ func TestTenants_DefaultSeeded(t *testing.T) {
 	d := openTestDB(t)
 
 	tx, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	tn, err := tx.GetTenantBySlug(ctx, "default")
 	if err != nil {
 		t.Fatalf("GetTenantBySlug(default): %v", err)
@@ -3474,7 +3475,7 @@ func TestTenants_CreateGetUpdate(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 
 	// Slug uniqueness
 	if _, err := tx2.CreateTenant(ctx, &store.Tenant{Slug: "acme", Name: "Other"}); err != store.ErrTenantSlugTaken {
@@ -3512,7 +3513,7 @@ func TestTenants_List(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	all, err := tx2.ListTenants(ctx)
 	if err != nil {
 		t.Fatalf("ListTenants: %v", err)
@@ -3559,7 +3560,7 @@ func TestMemberships_BackfilledForExistingUsers(t *testing.T) {
 
 	// Look up by tenant+user
 	tx3, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx3.Rollback()
+	defer func() { _ = tx3.Rollback() }()
 	got, err := tx3.GetMembershipByTenantUser(ctx, "tenant_default", user.ID)
 	if err != nil {
 		t.Fatalf("GetMembershipByTenantUser: %v", err)
@@ -3579,7 +3580,7 @@ func TestMemberships_DuplicateRejected(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	if _, err := tx2.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"}); err != store.ErrMembershipExists {
 		t.Errorf("expected ErrMembershipExists, got %v", err)
 	}
@@ -3638,7 +3639,7 @@ func TestMemberships_ListByTenantAndUser(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 
 	byUser, _ := tx2.ListMembershipsByUser(ctx, user.ID)
 	if len(byUser) != 2 {
@@ -3669,7 +3670,7 @@ func TestMembershipRoles_AssignAndList(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	roles, err := tx2.ListMembershipRoles(ctx, m.ID)
 	if err != nil {
 		t.Fatalf("ListMembershipRoles: %v", err)
@@ -3727,7 +3728,7 @@ func TestMembershipRoles_BackfilledFromUserRoles(t *testing.T) {
 	_ = tx.Commit()
 
 	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 	roles, _ := tx2.ListMembershipRoles(ctx, m.ID)
 	if len(roles) == 0 {
 		t.Error("expected role_viewer to be present on membership")

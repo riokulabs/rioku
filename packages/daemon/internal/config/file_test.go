@@ -43,6 +43,7 @@ func TestConfig_Default(t *testing.T) {
 	cfg := config.Default()
 	if cfg == nil {
 		t.Fatal("Default() returned nil")
+		return
 	}
 
 	// Store
@@ -112,6 +113,7 @@ func TestConfig_Load_ValidFile(t *testing.T) {
 	}
 	if cfg == nil {
 		t.Fatal("Load() returned nil config")
+		return
 	}
 	if cfg.Store.Driver != "sqlite" {
 		t.Errorf("Store.Driver = %q, want %q", cfg.Store.Driver, "sqlite")

@@ -56,7 +56,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, Shutdown, error) {
 	case "both":
 		f, err := openLogFile(cfg.File.Path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: could not open log file %s: %v (using stderr only)\n", cfg.File.Path, err)
+			_, _ = fmt.Fprintf(os.Stderr, "WARNING: could not open log file %s: %v (using stderr only)\n", cfg.File.Path, err)
 			w = os.Stderr
 		} else {
 			w = &resilientMultiWriter{primary: os.Stderr, secondary: f}
@@ -93,7 +93,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, Shutdown, error) {
 		otlp, otlpShutdown, err := NewOTLPHandler(context.Background(), cfg.OTLP, level)
 		if err != nil {
 			// OTLP is best-effort: warn but continue with local output only.
-			fmt.Fprintf(os.Stderr, "WARNING: OTLP log shipping unavailable: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "WARNING: OTLP log shipping unavailable: %v\n", err)
 		} else {
 			handler = NewMultiHandler(handler, otlp)
 			shutdown = otlpShutdown
@@ -122,7 +122,7 @@ func (w *resilientMultiWriter) Write(p []byte) (n int, err error) {
 	n, err = w.primary.Write(p)
 	if _, secErr := w.secondary.Write(p); secErr != nil {
 		if w.failCount.Add(1)%1000 == 1 {
-			fmt.Fprintf(w.primary, "WARNING: log file write failed: %v (suppressing further warnings)\n", secErr)
+			_, _ = fmt.Fprintf(w.primary, "WARNING: log file write failed: %v (suppressing further warnings)\n", secErr)
 		}
 	}
 	return n, err

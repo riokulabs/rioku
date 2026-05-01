@@ -866,6 +866,7 @@ log_level: info
 	cfg, dataDir := resolveDataDir()
 	if cfg == nil {
 		t.Fatal("expected non-nil config")
+		return
 	}
 	if dataDir != dir {
 		t.Errorf("dataDir = %q, want %q", dataDir, dir)

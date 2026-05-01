@@ -51,13 +51,13 @@ func TestContext_NilContextSafe(t *testing.T) {
 	// All getters must tolerate a nil context (defensive — slog itself
 	// can pass context.TODO but we want to avoid a panic if anyone
 	// hands us literal nil).
-	if RequestIDFromContext(nil) != "" {
+	if RequestIDFromContext(nil) != "" { //nolint:staticcheck // intentionally testing the nil-guard branch
 		t.Error("RequestIDFromContext(nil) should return empty")
 	}
-	if TraceIDFromContext(nil) != "" {
+	if TraceIDFromContext(nil) != "" { //nolint:staticcheck // intentionally testing the nil-guard branch
 		t.Error("TraceIDFromContext(nil) should return empty")
 	}
-	if ComponentFromContext(nil) != "" {
+	if ComponentFromContext(nil) != "" { //nolint:staticcheck // intentionally testing the nil-guard branch
 		t.Error("ComponentFromContext(nil) should return empty")
 	}
 }

@@ -878,7 +878,7 @@ func TestTxBatch_MultiOpCommitsAtomically(t *testing.T) {
 
 	// All three writes must be visible after Commit.
 	rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer rtx2.Rollback()
+	defer func() { _ = rtx2.Rollback() }()
 	if _, err := rtx2.GetRoute(ctx, r1.GetId()); err != nil {
 		t.Errorf("r1 not visible after commit: %v", err)
 	}
@@ -909,7 +909,7 @@ func TestTxBatch_RollbackDiscardsBuffer(t *testing.T) {
 
 	// Route must NOT exist in the FSM.
 	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer rtx.Rollback()
+	defer func() { _ = rtx.Rollback() }()
 	if _, err := rtx.GetRoute(ctx, r.GetId()); err == nil {
 		t.Errorf("rolled-back route %q should not be visible", r.GetId())
 	}
@@ -945,7 +945,7 @@ func TestTxBatch_FailedSubcommandRollsBackAll(t *testing.T) {
 
 	// The earlier CreateRoute must NOT have persisted (atomicity).
 	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer rtx.Rollback()
+	defer func() { _ = rtx.Rollback() }()
 	if _, err := rtx.GetRoute(ctx, r.GetId()); err == nil {
 		t.Errorf("route from failed batch %q should not be visible", r.GetId())
 	}
@@ -992,7 +992,7 @@ func TestTxBatch_WriteOnReadOnlyFails(t *testing.T) {
 	ctx := context.Background()
 
 	rtx, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer rtx.Rollback()
+	defer func() { _ = rtx.Rollback() }()
 	if _, err := rtx.CreateRoute(ctx, &riokuv1.Route{Name: "ro-write", Enabled: true}); err == nil {
 		t.Error("expected error writing to read-only tx")
 	}
@@ -1062,7 +1062,7 @@ func TestTxBatch_SaveConfigVersionAutoFlushes(t *testing.T) {
 
 	// The version should be readable.
 	rtx2, _ := node.Begin(ctx, store.TxOptions{ReadOnly: true})
-	defer rtx2.Rollback()
+	defer func() { _ = rtx2.Rollback() }()
 	cv, err := rtx2.GetConfigVersion(ctx, v)
 	if err != nil {
 		t.Errorf("GetConfigVersion(%d): %v", v, err)

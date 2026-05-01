@@ -3,44 +3,14 @@ package logging_test
 import (
 	"context"
 	"log/slog"
-	"sync"
 	"testing"
 	"time"
 
 	otellog "go.opentelemetry.io/otel/log"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
 
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/logging"
 )
-
-// ─── in-memory exporter for testing ────────────────────────────────────────
-
-// memExporter captures exported records in memory without a real collector.
-type memExporter struct {
-	mu      sync.Mutex
-	records []sdklog.Record
-}
-
-func (e *memExporter) Export(_ context.Context, records []sdklog.Record) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	for _, r := range records {
-		e.records = append(e.records, r.Clone())
-	}
-	return nil
-}
-
-func (e *memExporter) Shutdown(_ context.Context) error   { return nil }
-func (e *memExporter) ForceFlush(_ context.Context) error { return nil }
-
-func (e *memExporter) Records() []sdklog.Record {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	out := make([]sdklog.Record, len(e.records))
-	copy(out, e.records)
-	return out
-}
 
 // ─── NewOTLPHandler disabled path ───────────────────────────────────────────
 

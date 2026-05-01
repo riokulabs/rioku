@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"os"
@@ -198,11 +199,11 @@ func TestSetupRuntimeLevelChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slog.Default().Enabled(nil, slog.LevelInfo) {
+	if slog.Default().Enabled(context.Background(), slog.LevelInfo) {
 		t.Error("INFO should be disabled at ERROR level")
 	}
 	lv.Set(slog.LevelDebug)
-	if !slog.Default().Enabled(nil, slog.LevelInfo) {
+	if !slog.Default().Enabled(context.Background(), slog.LevelInfo) {
 		t.Error("INFO should be enabled after changing to DEBUG")
 	}
 }

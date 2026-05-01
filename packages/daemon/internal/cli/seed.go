@@ -480,7 +480,7 @@ func runSeed(seedFile, targetAddr, username, password string, direct bool) error
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return fmt.Errorf("login failed: HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -492,8 +492,8 @@ func runSeed(seedFile, targetAddr, username, password string, direct bool) error
 			break
 		}
 	}
-	io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
 
 	if sessionCookie == "" {
 		return fmt.Errorf("login succeeded but no rioku_sid cookie in response")
@@ -663,10 +663,11 @@ func runSeed(seedFile, targetAddr, username, password string, direct bool) error
 					assignUserRoles(client, sessionCookie, base, uid, user.Roles, logger)
 
 					// Handle locked/suspended status.
-					if status == "locked" {
+					switch status {
+					case "locked":
 						s, _ := apiCall(client, sessionCookie, "POST", base+"/api/v1/users/"+uid+"/lock", []byte("{}"))
 						logger.Info("user locked", "username", user.Username, "status", s)
-					} else if status == "suspended" {
+					case "suspended":
 						s, _ := apiCall(client, sessionCookie, "POST", base+"/api/v1/users/"+uid+"/suspend", []byte("{}"))
 						logger.Info("user suspended", "username", user.Username, "status", s)
 					}
@@ -1292,7 +1293,7 @@ func apiCall(client *http.Client, sessionCookie, method, endpoint string, body [
 	if err != nil {
 		return 0, nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, respBody
 }

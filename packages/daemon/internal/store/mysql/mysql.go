@@ -459,7 +459,7 @@ func (d *driver) Health(ctx context.Context) store.DriverHealth {
 		}
 	}
 
-	mode := store.ModePrimary
+	var mode store.DriverMode
 	switch value {
 	case "Synced":
 		mode = store.ModePrimary

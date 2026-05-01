@@ -1,10 +1,8 @@
 package gateway
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/config"
@@ -15,37 +13,10 @@ import (
 // returns static or config-derived data so the admin panel can render
 // without hitting 404s or error boundaries.
 //
-// Note: GET /api/v1/cluster moved to RegisterClusterRoutes (#83). The
-// handleStubCluster helper below is kept for any older test that still
-// imports it, but it is no longer registered automatically.
+// Note: GET /api/v1/cluster moved to RegisterClusterRoutes (#83).
 func RegisterStubRoutes(mux *http.ServeMux, _ *config.Config) {
 	mux.HandleFunc("GET /api/v1/plugins", handleStubEmptyArray())
 	mux.HandleFunc("GET /api/v1/plugins/manifest", handleStubEmptyArray())
-}
-
-func handleStubCluster(cfg *config.Config) http.HandlerFunc {
-	hostname, _ := os.Hostname()
-	if hostname == "" {
-		hostname = "node-0"
-	}
-
-	return func(w http.ResponseWriter, _ *http.Request) {
-		resp := map[string]interface{}{
-			"nodes": []map[string]interface{}{
-				{
-					"name":           hostname,
-					"role":           "bootstrap",
-					"health":         "healthy",
-					"daemon_version": "0.1.0-dev",
-					"caddy_version":  "2.9.1",
-					"store_mode":     cfg.Store.Driver,
-					"last_seen":      time.Now().UTC().Format(time.RFC3339),
-				},
-			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}
 }
 
 func handleStubEmptyArray() http.HandlerFunc {

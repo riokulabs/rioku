@@ -182,7 +182,7 @@ func parseTraceparent(h string) string {
 	tid := h[traceIDStart : traceIDStart+traceIDLen]
 	for i := 0; i < traceIDLen; i++ {
 		c := tid[i]
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 			return ""
 		}
 	}

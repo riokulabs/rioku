@@ -39,6 +39,7 @@ func TestUpstreamHealthPoller_InitialSnapshotIsEmpty(t *testing.T) {
 	snap := p.Snapshot()
 	if snap == nil {
 		t.Fatal("Snapshot must never return nil")
+		return
 	}
 	if len(snap.Upstreams) != 0 {
 		t.Errorf("expected empty Upstreams before first poll, got %d", len(snap.Upstreams))
