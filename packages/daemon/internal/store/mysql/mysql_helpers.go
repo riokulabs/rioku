@@ -24,6 +24,15 @@ import (
 // reference this constant.
 const defaultTenantID = "tenant_default"
 
+// boolToInt converts a bool to int (1 or 0) for storage in MySQL TINYINT(1)
+// columns. Mirrors the SQLite package helper of the same name.
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // isUniqueViolation returns true if err is a MySQL duplicate-entry error
 // (Error 1062). Mirrors the isPgUniqueViolation pattern.
 func isUniqueViolation(err error) bool {

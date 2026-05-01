@@ -3219,3 +3219,915 @@ func TestMySQL_RbacPolicy_CRUD(t *testing.T) {
 	}
 	_ = tx6.Rollback()
 }
+
+// ---------------------------------------------------------------------------
+// AI subsystem tests
+// ---------------------------------------------------------------------------
+
+func TestMySQL_AIProvider_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant.
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "ai-prov-tenant", Name: "AI Provider Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	enabled := true
+	prov, err := tx1.CreateAIProvider(ctx, &store.AIProvider{
+		TenantID: tenant.ID,
+		Name:     "openai-main",
+		Kind:     "openai",
+		BaseURL:  "https://api.openai.com",
+		Enabled:  enabled,
+		Metadata: `{"region":"us"}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIProvider: %v", err)
+	}
+	if prov.ID == "" {
+		t.Fatal("expected non-empty provider ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIProvider(ctx, tenant.ID, prov.ID)
+	if err != nil {
+		t.Fatalf("GetAIProvider: %v", err)
+	}
+	if got.Name != "openai-main" {
+		t.Fatalf("expected name 'openai-main', got %q", got.Name)
+	}
+	if !got.Enabled {
+		t.Fatal("expected provider to be enabled")
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIProvidersByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListAIProvidersByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one provider")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newName := "openai-updated"
+	updated, err := tx4.UpdateAIProvider(ctx, tenant.ID, prov.ID, store.UpdateAIProviderParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateAIProvider: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, updated.Name)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIProvider(ctx, tenant.ID, prov.ID); err != nil {
+		t.Fatalf("DeleteAIProvider: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetAIProvider(ctx, tenant.ID, prov.ID); err != store.ErrAIProviderNotFound {
+		t.Fatalf("expected ErrAIProviderNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+func TestMySQL_ProviderModel_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant + provider (FK dependency).
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "ai-model-tenant", Name: "AI Model Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	prov, err := txT.CreateAIProvider(ctx, &store.AIProvider{
+		TenantID: tenant.ID,
+		Name:     "openai-for-models",
+		Kind:     "openai",
+		BaseURL:  "https://api.openai.com",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIProvider: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Add ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	model, err := tx1.AddProviderModel(ctx, &store.AIProviderModel{
+		ProviderID:       prov.ID,
+		UpstreamModelID:  "gpt-4o",
+		Alias:            "gpt4o",
+		RateLimitRPM:     60,
+		DailyQuotaTokens: 1000000,
+		Enabled:          true,
+	})
+	if err != nil {
+		t.Fatalf("AddProviderModel: %v", err)
+	}
+	if model.ID == "" {
+		t.Fatal("expected non-empty model ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- List ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx2.ListProviderModels(ctx, prov.ID)
+	if err != nil {
+		t.Fatalf("ListProviderModels: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one model")
+	}
+	_ = tx2.Rollback()
+
+	// --- Update ---
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newAlias := "gpt4o-v2"
+	updated, err := tx3.UpdateProviderModel(ctx, prov.ID, model.ID, store.UpdateAIProviderModelParams{Alias: &newAlias})
+	if err != nil {
+		t.Fatalf("UpdateProviderModel: %v", err)
+	}
+	if updated.Alias != newAlias {
+		t.Fatalf("expected alias %q, got %q", newAlias, updated.Alias)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Remove ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.RemoveProviderModel(ctx, prov.ID, model.ID); err != nil {
+		t.Fatalf("RemoveProviderModel: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+func TestMySQL_MCPServer_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "mcp-tenant", Name: "MCP Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	srv, err := tx1.CreateMCPServer(ctx, &store.AIMCPServer{
+		TenantID: tenant.ID,
+		Name:     "mcp-server-1",
+		URL:      "https://mcp.example.com",
+		AuthKind: "bearer",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateMCPServer: %v", err)
+	}
+	if srv.ID == "" {
+		t.Fatal("expected non-empty server ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetMCPServer(ctx, tenant.ID, srv.ID)
+	if err != nil {
+		t.Fatalf("GetMCPServer: %v", err)
+	}
+	if got.Name != "mcp-server-1" {
+		t.Fatalf("expected name 'mcp-server-1', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListMCPServersByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListMCPServersByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one server")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newURL := "https://mcp2.example.com"
+	updated, err := tx4.UpdateMCPServer(ctx, tenant.ID, srv.ID, store.UpdateAIMCPServerParams{URL: &newURL})
+	if err != nil {
+		t.Fatalf("UpdateMCPServer: %v", err)
+	}
+	if updated.URL != newURL {
+		t.Fatalf("expected URL %q, got %q", newURL, updated.URL)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteMCPServer(ctx, tenant.ID, srv.ID); err != nil {
+		t.Fatalf("DeleteMCPServer: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetMCPServer(ctx, tenant.ID, srv.ID); err != store.ErrMCPServerNotFound {
+		t.Fatalf("expected ErrMCPServerNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+func TestMySQL_AITool_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "ai-tool-tenant", Name: "AI Tool Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tool, err := tx1.CreateAITool(ctx, &store.AITool{
+		TenantID:    tenant.ID,
+		Name:        "web-search",
+		Kind:        "http",
+		Description: "Search the web",
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAITool: %v", err)
+	}
+	if tool.ID == "" {
+		t.Fatal("expected non-empty tool ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAITool(ctx, tenant.ID, tool.ID)
+	if err != nil {
+		t.Fatalf("GetAITool: %v", err)
+	}
+	if got.Name != "web-search" {
+		t.Fatalf("expected name 'web-search', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIToolsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListAIToolsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one tool")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newDesc := "Search the web v2"
+	updated, err := tx4.UpdateAITool(ctx, tenant.ID, tool.ID, store.UpdateAIToolParams{Description: &newDesc})
+	if err != nil {
+		t.Fatalf("UpdateAITool: %v", err)
+	}
+	if updated.Description != newDesc {
+		t.Fatalf("expected description %q, got %q", newDesc, updated.Description)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAITool(ctx, tenant.ID, tool.ID); err != nil {
+		t.Fatalf("DeleteAITool: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetAITool(ctx, tenant.ID, tool.ID); err != store.ErrAIToolNotFound {
+		t.Fatalf("expected ErrAIToolNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+func TestMySQL_AIAgent_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "ai-agent-tenant", Name: "AI Agent Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	agent, err := tx1.CreateAIAgent(ctx, &store.AIAgent{
+		TenantID:     tenant.ID,
+		Name:         "support-bot",
+		Description:  "Customer support agent",
+		Model:        "gpt-4o",
+		SystemPrompt: "You are a helpful support agent.",
+		Enabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	if agent.ID == "" {
+		t.Fatal("expected non-empty agent ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIAgent(ctx, tenant.ID, agent.ID)
+	if err != nil {
+		t.Fatalf("GetAIAgent: %v", err)
+	}
+	if got.Name != "support-bot" {
+		t.Fatalf("expected name 'support-bot', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIAgentsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListAIAgentsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one agent")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newModel := "gpt-4o-mini"
+	updated, err := tx4.UpdateAIAgent(ctx, tenant.ID, agent.ID, store.UpdateAIAgentParams{Model: &newModel})
+	if err != nil {
+		t.Fatalf("UpdateAIAgent: %v", err)
+	}
+	if updated.Model != newModel {
+		t.Fatalf("expected model %q, got %q", newModel, updated.Model)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIAgent(ctx, tenant.ID, agent.ID); err != nil {
+		t.Fatalf("DeleteAIAgent: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetAIAgent(ctx, tenant.ID, agent.ID); err != store.ErrAIAgentNotFound {
+		t.Fatalf("expected ErrAIAgentNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+func TestMySQL_AIToolBinding_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant + agent + tool (FK dependencies).
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "binding-tenant", Name: "Binding Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	agent, err := txT.CreateAIAgent(ctx, &store.AIAgent{
+		TenantID: tenant.ID,
+		Name:     "binding-agent",
+		Model:    "gpt-4o",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	tool, err := txT.CreateAITool(ctx, &store.AITool{
+		TenantID: tenant.ID,
+		Name:     "binding-tool",
+		Kind:     "http",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAITool: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	binding, err := tx1.CreateAIToolBinding(ctx, &store.AIToolBinding{
+		TenantID:  tenant.ID,
+		AgentID:   agent.ID,
+		ToolID:    tool.ID,
+		Condition: "always",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIToolBinding: %v", err)
+	}
+	if binding.ID == "" {
+		t.Fatal("expected non-empty binding ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIToolBinding(ctx, tenant.ID, binding.ID)
+	if err != nil {
+		t.Fatalf("GetAIToolBinding: %v", err)
+	}
+	if got.Condition != "always" {
+		t.Fatalf("expected condition 'always', got %q", got.Condition)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIToolBindingsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListAIToolBindingsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one binding")
+	}
+	_ = tx3.Rollback()
+
+	// --- ListByAgent ---
+	tx3b, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byAgent, err := tx3b.ListAIToolBindingsByAgent(ctx, agent.ID)
+	if err != nil {
+		t.Fatalf("ListAIToolBindingsByAgent: %v", err)
+	}
+	if len(byAgent) < 1 {
+		t.Fatal("expected at least one binding by agent")
+	}
+	_ = tx3b.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newCond := "on-demand"
+	updated, err := tx4.UpdateAIToolBinding(ctx, tenant.ID, binding.ID, store.UpdateAIToolBindingParams{Condition: &newCond})
+	if err != nil {
+		t.Fatalf("UpdateAIToolBinding: %v", err)
+	}
+	if updated.Condition != newCond {
+		t.Fatalf("expected condition %q, got %q", newCond, updated.Condition)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIToolBinding(ctx, tenant.ID, binding.ID); err != nil {
+		t.Fatalf("DeleteAIToolBinding: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetAIToolBinding(ctx, tenant.ID, binding.ID); err != store.ErrAIBindingNotFound {
+		t.Fatalf("expected ErrAIBindingNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+func TestMySQL_AIRateLimit_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "rl-tenant", Name: "Rate Limit Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	rl, err := tx1.CreateAIRateLimit(ctx, &store.AISemanticRateLimit{
+		TenantID:            tenant.ID,
+		Name:                "no-spam",
+		Scope:               "tenant",
+		Exemplars:           `["buy now","click here"]`,
+		SimilarityThreshold: 0.85,
+		WindowSeconds:       60,
+		Threshold:           10,
+		Action:              "block",
+		Enabled:             true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIRateLimit: %v", err)
+	}
+	if rl.ID == "" {
+		t.Fatal("expected non-empty rate limit ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIRateLimit(ctx, tenant.ID, rl.ID)
+	if err != nil {
+		t.Fatalf("GetAIRateLimit: %v", err)
+	}
+	if got.Name != "no-spam" {
+		t.Fatalf("expected name 'no-spam', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIRateLimitsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListAIRateLimitsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one rate limit")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newAction := "throttle"
+	updated, err := tx4.UpdateAIRateLimit(ctx, tenant.ID, rl.ID, store.UpdateAIRateLimitParams{Action: &newAction})
+	if err != nil {
+		t.Fatalf("UpdateAIRateLimit: %v", err)
+	}
+	if updated.Action != newAction {
+		t.Fatalf("expected action %q, got %q", newAction, updated.Action)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIRateLimit(ctx, tenant.ID, rl.ID); err != nil {
+		t.Fatalf("DeleteAIRateLimit: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetAIRateLimit(ctx, tenant.ID, rl.ID); err != store.ErrAIRateLimitNotFound {
+		t.Fatalf("expected ErrAIRateLimitNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+func TestMySQL_AITrace(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant + provider + agent (FK dependencies for traces).
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "trace-tenant", Name: "Trace Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	prov, err := txT.CreateAIProvider(ctx, &store.AIProvider{
+		TenantID: tenant.ID,
+		Name:     "trace-provider",
+		Kind:     "openai",
+		BaseURL:  "https://api.openai.com",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIProvider: %v", err)
+	}
+	agent, err := txT.CreateAIAgent(ctx, &store.AIAgent{
+		TenantID: tenant.ID,
+		Name:     "trace-agent",
+		Model:    "gpt-4o",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Append ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	prompt := "Hello world"
+	completion := "Hi there"
+	tr, err := tx1.AppendAITrace(ctx, &store.AITrace{
+		TenantID:     tenant.ID,
+		AgentID:      &agent.ID,
+		ProviderID:   &prov.ID,
+		Model:        "gpt-4o",
+		Status:       "success",
+		InputTokens:  10,
+		OutputTokens: 5,
+		DurationMS:   200,
+		Prompt:       &prompt,
+		Completion:   &completion,
+		OccurredAt:   time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("AppendAITrace: %v", err)
+	}
+	if tr.ID == "" {
+		t.Fatal("expected non-empty trace ID")
+	}
+	if tr.Status != "success" {
+		t.Fatalf("expected status 'success', got %q", tr.Status)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAITrace(ctx, tenant.ID, tr.ID)
+	if err != nil {
+		t.Fatalf("GetAITrace: %v", err)
+	}
+	if got.Model != "gpt-4o" {
+		t.Fatalf("expected model 'gpt-4o', got %q", got.Model)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byTenant, err := tx3.ListAITracesByTenant(ctx, tenant.ID, store.AITraceQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAITracesByTenant: %v", err)
+	}
+	if len(byTenant) < 1 {
+		t.Fatal("expected at least one trace by tenant")
+	}
+	_ = tx3.Rollback()
+
+	// --- ListByAgent ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byAgent, err := tx4.ListAITracesByAgent(ctx, agent.ID, store.AITraceQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAITracesByAgent: %v", err)
+	}
+	if len(byAgent) < 1 {
+		t.Fatal("expected at least one trace by agent")
+	}
+	_ = tx4.Rollback()
+
+	// --- ListByTenant with status filter ---
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	status := "success"
+	filtered, err := tx5.ListAITracesByTenant(ctx, tenant.ID, store.AITraceQuery{
+		Limit:  10,
+		Status: &status,
+	})
+	if err != nil {
+		t.Fatalf("ListAITracesByTenant (filtered): %v", err)
+	}
+	if len(filtered) < 1 {
+		t.Fatal("expected at least one filtered trace")
+	}
+	_ = tx5.Rollback()
+
+	// --- GetAITrace not found ---
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetAITrace(ctx, tenant.ID, "nonexistent-id"); err != store.ErrAITraceNotFound {
+		t.Fatalf("expected ErrAITraceNotFound, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
