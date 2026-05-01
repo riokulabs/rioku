@@ -3728,3 +3728,1170 @@ func TestRbacPolicy_CRUD(t *testing.T) {
 		t.Fatalf("expected ErrRbacPolicyNotFound after delete, got %v", delErr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// AI — Providers
+// ---------------------------------------------------------------------------
+
+func TestAIProvider_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create a tenant.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "aiprov-tenant", Name: "AI Provider Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateAIProvider(ctx, &store.AIProvider{
+		TenantID: tenantID,
+		Name:     "openai-main",
+		Kind:     "openai",
+		BaseURL:  "https://api.openai.com",
+		Enabled:  true,
+		Metadata: `{"org":"test"}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIProvider: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Kind != "openai" {
+		t.Fatalf("expected kind 'openai', got %q", created.Kind)
+	}
+	if !created.Enabled {
+		t.Fatal("expected enabled=true")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	providerID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIProvider(ctx, tenantID, providerID)
+	if err != nil {
+		t.Fatalf("GetAIProvider: %v", err)
+	}
+	if got.Name != "openai-main" {
+		t.Fatalf("expected name 'openai-main', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIProvidersByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListAIProvidersByTenant: %v", err)
+	}
+	found := false
+	for _, p := range list {
+		if p.ID == providerID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created provider not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newName := "openai-v2"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateAIProvider(ctx, tenantID, providerID, store.UpdateAIProviderParams{
+		Name:    &newName,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAIProvider: %v", err)
+	}
+	if upd.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, upd.Name)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAIProviderNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAIProvider(ctx, tenantID, "aiprov_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAIProviderNotFound) {
+		t.Fatalf("expected ErrAIProviderNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIProvider(ctx, tenantID, providerID); err != nil {
+		t.Fatalf("DeleteAIProvider: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetAIProvider(ctx, tenantID, providerID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrAIProviderNotFound) {
+		t.Fatalf("expected ErrAIProviderNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — Provider Models
+// ---------------------------------------------------------------------------
+
+func TestProviderModel_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant + provider.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "aimodel-tenant", Name: "AI Model Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	provider, err := txSetup.CreateAIProvider(ctx, &store.AIProvider{
+		TenantID: tenant.ID, Name: "openai-for-models", Kind: "openai", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIProvider: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	providerID := provider.ID
+
+	// --- Add ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.AddProviderModel(ctx, &store.AIProviderModel{
+		ProviderID:      providerID,
+		UpstreamModelID: "gpt-4-turbo",
+		Alias:           "gpt4",
+		RateLimitRPM:    60,
+		Enabled:         true,
+	})
+	if err != nil {
+		t.Fatalf("AddProviderModel: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Alias != "gpt4" {
+		t.Fatalf("expected alias 'gpt4', got %q", created.Alias)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	modelID := created.ID
+
+	// --- List ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx2.ListProviderModels(ctx, providerID)
+	if err != nil {
+		t.Fatalf("ListProviderModels: %v", err)
+	}
+	found := false
+	for _, m := range list {
+		if m.ID == modelID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created model not in list")
+	}
+	_ = tx2.Rollback()
+
+	// --- Update ---
+	newAlias := "gpt4-v2"
+	newEnabled := false
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx3.UpdateProviderModel(ctx, providerID, modelID, store.UpdateAIProviderModelParams{
+		Alias:   &newAlias,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateProviderModel: %v", err)
+	}
+	if upd.Alias != newAlias {
+		t.Fatalf("expected alias %q, got %q", newAlias, upd.Alias)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Remove ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.RemoveProviderModel(ctx, providerID, modelID); err != nil {
+		t.Fatalf("RemoveProviderModel: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAIProviderModelNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.UpdateProviderModel(ctx, providerID, modelID, store.UpdateAIProviderModelParams{})
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAIProviderModelNotFound) {
+		t.Fatalf("expected ErrAIProviderModelNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — MCP Servers
+// ---------------------------------------------------------------------------
+
+func TestMCPServer_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "mcp-tenant", Name: "MCP Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateMCPServer(ctx, &store.AIMCPServer{
+		TenantID: tenantID,
+		Name:     "my-mcp",
+		URL:      "https://mcp.example.com",
+		AuthKind: "none",
+		Health:   "disabled",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateMCPServer: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.URL != "https://mcp.example.com" {
+		t.Fatalf("expected URL 'https://mcp.example.com', got %q", created.URL)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	serverID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetMCPServer(ctx, tenantID, serverID)
+	if err != nil {
+		t.Fatalf("GetMCPServer: %v", err)
+	}
+	if got.Name != "my-mcp" {
+		t.Fatalf("expected name 'my-mcp', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListMCPServersByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListMCPServersByTenant: %v", err)
+	}
+	found := false
+	for _, s := range list {
+		if s.ID == serverID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created mcp server not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newHealth := "healthy"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateMCPServer(ctx, tenantID, serverID, store.UpdateAIMCPServerParams{
+		Health:  &newHealth,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateMCPServer: %v", err)
+	}
+	if upd.Health != newHealth {
+		t.Fatalf("expected health %q, got %q", newHealth, upd.Health)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrMCPServerNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetMCPServer(ctx, tenantID, "mcp_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrMCPServerNotFound) {
+		t.Fatalf("expected ErrMCPServerNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteMCPServer(ctx, tenantID, serverID); err != nil {
+		t.Fatalf("DeleteMCPServer: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetMCPServer(ctx, tenantID, serverID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrMCPServerNotFound) {
+		t.Fatalf("expected ErrMCPServerNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — Tools
+// ---------------------------------------------------------------------------
+
+func TestAITool_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "aitool-tenant", Name: "AI Tool Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateAITool(ctx, &store.AITool{
+		TenantID:    tenantID,
+		Name:        "web-search",
+		Kind:        "native",
+		Description: "Searches the web",
+		SchemaJSON:  `{"type":"object"}`,
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAITool: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Kind != "native" {
+		t.Fatalf("expected kind 'native', got %q", created.Kind)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	toolID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAITool(ctx, tenantID, toolID)
+	if err != nil {
+		t.Fatalf("GetAITool: %v", err)
+	}
+	if got.Name != "web-search" {
+		t.Fatalf("expected name 'web-search', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIToolsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListAIToolsByTenant: %v", err)
+	}
+	found := false
+	for _, x := range list {
+		if x.ID == toolID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created ai tool not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newDesc := "Searches the web v2"
+	newDangerous := true
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateAITool(ctx, tenantID, toolID, store.UpdateAIToolParams{
+		Description: &newDesc,
+		Dangerous:   &newDangerous,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAITool: %v", err)
+	}
+	if upd.Description != newDesc {
+		t.Fatalf("expected description %q, got %q", newDesc, upd.Description)
+	}
+	if !upd.Dangerous {
+		t.Fatal("expected dangerous=true after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAIToolNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAITool(ctx, tenantID, "aitool_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAIToolNotFound) {
+		t.Fatalf("expected ErrAIToolNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAITool(ctx, tenantID, toolID); err != nil {
+		t.Fatalf("DeleteAITool: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetAITool(ctx, tenantID, toolID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrAIToolNotFound) {
+		t.Fatalf("expected ErrAIToolNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — Agents
+// ---------------------------------------------------------------------------
+
+func TestAIAgent_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "aiagent-tenant", Name: "AI Agent Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateAIAgent(ctx, &store.AIAgent{
+		TenantID:    tenantID,
+		Name:        "support-agent",
+		Description: "Customer support agent",
+		Model:       "gpt-4",
+		Enabled:     true,
+		Guardrails:  `{"max_tokens":4096}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Model != "gpt-4" {
+		t.Fatalf("expected model 'gpt-4', got %q", created.Model)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	agentID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIAgent(ctx, tenantID, agentID)
+	if err != nil {
+		t.Fatalf("GetAIAgent: %v", err)
+	}
+	if got.Name != "support-agent" {
+		t.Fatalf("expected name 'support-agent', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIAgentsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListAIAgentsByTenant: %v", err)
+	}
+	found := false
+	for _, a := range list {
+		if a.ID == agentID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created agent not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newModel := "gpt-4o"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateAIAgent(ctx, tenantID, agentID, store.UpdateAIAgentParams{
+		Model:   &newModel,
+		Enabled: &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAIAgent: %v", err)
+	}
+	if upd.Model != newModel {
+		t.Fatalf("expected model %q, got %q", newModel, upd.Model)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAIAgentNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAIAgent(ctx, tenantID, "aiagent_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAIAgentNotFound) {
+		t.Fatalf("expected ErrAIAgentNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIAgent(ctx, tenantID, agentID); err != nil {
+		t.Fatalf("DeleteAIAgent: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetAIAgent(ctx, tenantID, agentID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrAIAgentNotFound) {
+		t.Fatalf("expected ErrAIAgentNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — Tool Bindings
+// ---------------------------------------------------------------------------
+
+func TestAIToolBinding_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant, agent, and tool.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "aibind-tenant", Name: "AI Binding Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	agent, err := txSetup.CreateAIAgent(ctx, &store.AIAgent{
+		TenantID: tenant.ID, Name: "bind-agent", Model: "gpt-4", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	tool, err := txSetup.CreateAITool(ctx, &store.AITool{
+		TenantID: tenant.ID, Name: "bind-tool", Kind: "native", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAITool: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID, agentID, toolID := tenant.ID, agent.ID, tool.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateAIToolBinding(ctx, &store.AIToolBinding{
+		TenantID:  tenantID,
+		AgentID:   agentID,
+		ToolID:    toolID,
+		Condition: "",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIToolBinding: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.AgentID != agentID {
+		t.Fatalf("expected agent_id %q, got %q", agentID, created.AgentID)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	bindingID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIToolBinding(ctx, tenantID, bindingID)
+	if err != nil {
+		t.Fatalf("GetAIToolBinding: %v", err)
+	}
+	if got.ToolID != toolID {
+		t.Fatalf("expected tool_id %q, got %q", toolID, got.ToolID)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byTenant, err := tx3.ListAIToolBindingsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListAIToolBindingsByTenant: %v", err)
+	}
+	found := false
+	for _, b := range byTenant {
+		if b.ID == bindingID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created binding not in tenant list")
+	}
+	_ = tx3.Rollback()
+
+	// --- ListByAgent ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byAgent, err := tx4.ListAIToolBindingsByAgent(ctx, agentID)
+	if err != nil {
+		t.Fatalf("ListAIToolBindingsByAgent: %v", err)
+	}
+	if len(byAgent) == 0 || byAgent[0].ID != bindingID {
+		t.Fatalf("expected binding %q in agent list, got %d results", bindingID, len(byAgent))
+	}
+	_ = tx4.Rollback()
+
+	// --- Update ---
+	newCond := "request.method == 'GET'"
+	newEnabled := false
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx5.UpdateAIToolBinding(ctx, tenantID, bindingID, store.UpdateAIToolBindingParams{
+		Condition: &newCond,
+		Enabled:   &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAIToolBinding: %v", err)
+	}
+	if upd.Condition != newCond {
+		t.Fatalf("expected condition %q, got %q", newCond, upd.Condition)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAIBindingNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAIToolBinding(ctx, tenantID, "aibind_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAIBindingNotFound) {
+		t.Fatalf("expected ErrAIBindingNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteAIToolBinding(ctx, tenantID, bindingID); err != nil {
+		t.Fatalf("DeleteAIToolBinding: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetAIToolBinding(ctx, tenantID, bindingID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrAIBindingNotFound) {
+		t.Fatalf("expected ErrAIBindingNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — Rate Limits
+// ---------------------------------------------------------------------------
+
+func TestAIRateLimit_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "airl-tenant", Name: "AI RL Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateAIRateLimit(ctx, &store.AISemanticRateLimit{
+		TenantID:            tenantID,
+		Name:                "jailbreak-rl",
+		Scope:               "tenant",
+		Exemplars:           `["ignore your instructions"]`,
+		SimilarityThreshold: 0.85,
+		WindowSeconds:       60,
+		Threshold:           5,
+		Action:              "block",
+		Enabled:             true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIRateLimit: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Scope != "tenant" {
+		t.Fatalf("expected scope 'tenant', got %q", created.Scope)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	rlID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAIRateLimit(ctx, tenantID, rlID)
+	if err != nil {
+		t.Fatalf("GetAIRateLimit: %v", err)
+	}
+	if got.Action != "block" {
+		t.Fatalf("expected action 'block', got %q", got.Action)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAIRateLimitsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListAIRateLimitsByTenant: %v", err)
+	}
+	found := false
+	for _, r := range list {
+		if r.ID == rlID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created rate limit not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newAction := "log"
+	newThreshold := int32(10)
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateAIRateLimit(ctx, tenantID, rlID, store.UpdateAIRateLimitParams{
+		Action:    &newAction,
+		Threshold: &newThreshold,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAIRateLimit: %v", err)
+	}
+	if upd.Action != newAction {
+		t.Fatalf("expected action %q, got %q", newAction, upd.Action)
+	}
+	if upd.Threshold != newThreshold {
+		t.Fatalf("expected threshold %d, got %d", newThreshold, upd.Threshold)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAIRateLimitNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAIRateLimit(ctx, tenantID, "airl_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAIRateLimitNotFound) {
+		t.Fatalf("expected ErrAIRateLimitNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAIRateLimit(ctx, tenantID, rlID); err != nil {
+		t.Fatalf("DeleteAIRateLimit: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetAIRateLimit(ctx, tenantID, rlID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrAIRateLimitNotFound) {
+		t.Fatalf("expected ErrAIRateLimitNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AI — Traces
+// ---------------------------------------------------------------------------
+
+func TestAITrace(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant and agent (optional agent FK for traces).
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "aitrace-tenant", Name: "AI Trace Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	agent, err := txSetup.CreateAIAgent(ctx, &store.AIAgent{
+		TenantID: tenant.ID, Name: "trace-agent", Model: "gpt-4", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID, agentID := tenant.ID, agent.ID
+
+	now := time.Now().UTC()
+	prompt := "Hello, world"
+	completion := "Hi there!"
+
+	// --- AppendAITrace ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	appended, err := tx1.AppendAITrace(ctx, &store.AITrace{
+		TenantID:     tenantID,
+		AgentID:      &agentID,
+		Model:        "gpt-4",
+		Status:       "success",
+		InputTokens:  100,
+		OutputTokens: 200,
+		DurationMS:   500,
+		Prompt:       &prompt,
+		Completion:   &completion,
+		OccurredAt:   now,
+	})
+	if err != nil {
+		t.Fatalf("AppendAITrace: %v", err)
+	}
+	if appended.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if appended.Status != "success" {
+		t.Fatalf("expected status 'success', got %q", appended.Status)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	traceID := appended.ID
+
+	// --- GetAITrace ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAITrace(ctx, tenantID, traceID)
+	if err != nil {
+		t.Fatalf("GetAITrace: %v", err)
+	}
+	if got.InputTokens != 100 {
+		t.Fatalf("expected input_tokens 100, got %d", got.InputTokens)
+	}
+	if got.AgentID == nil || *got.AgentID != agentID {
+		t.Fatalf("expected agent_id %q", agentID)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListAITracesByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byTenant, err := tx3.ListAITracesByTenant(ctx, tenantID, store.AITraceQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAITracesByTenant: %v", err)
+	}
+	found := false
+	for _, tr := range byTenant {
+		if tr.ID == traceID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("appended trace not in tenant list")
+	}
+	_ = tx3.Rollback()
+
+	// --- ListAITracesByAgent ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byAgent, err := tx4.ListAITracesByAgent(ctx, agentID, store.AITraceQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAITracesByAgent: %v", err)
+	}
+	found = false
+	for _, tr := range byAgent {
+		if tr.ID == traceID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("appended trace not in agent list")
+	}
+	_ = tx4.Rollback()
+
+	// --- Filter by status ---
+	statusFilter := "success"
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byStatus, err := tx5.ListAITracesByTenant(ctx, tenantID, store.AITraceQuery{
+		Status: &statusFilter,
+		Limit:  10,
+	})
+	if err != nil {
+		t.Fatalf("ListAITracesByTenant with status filter: %v", err)
+	}
+	for _, tr := range byStatus {
+		if tr.Status != "success" {
+			t.Fatalf("expected all traces to have status 'success', got %q", tr.Status)
+		}
+	}
+	_ = tx5.Rollback()
+
+	// --- Filter by time window ---
+	past := now.Add(-time.Hour)
+	future := now.Add(time.Hour)
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byWindow, err := tx6.ListAITracesByTenant(ctx, tenantID, store.AITraceQuery{
+		Since: &past,
+		Until: &future,
+		Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("ListAITracesByTenant with time window: %v", err)
+	}
+	found = false
+	for _, tr := range byWindow {
+		if tr.ID == traceID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("trace not found within expected time window")
+	}
+	_ = tx6.Rollback()
+
+	// --- ErrAITraceNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAITrace(ctx, tenantID, "aitrace_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAITraceNotFound) {
+		t.Fatalf("expected ErrAITraceNotFound, got %v", nfErr)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -17,6 +18,12 @@ import (
 
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// newID generates a prefixed, hyphen-free UUID string in the form
+// "<prefix>_<uuid32>". The same format is used by the SQLite driver.
+func newID(prefix string) string {
+	return prefix + "_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+}
 
 // nowUTC returns the current time in UTC. PostgreSQL TIMESTAMPTZ columns
 // accept time.Time directly — no string formatting is required.
