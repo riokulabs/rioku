@@ -426,6 +426,165 @@ func unmarshalConnectionPoolJSON(s string) (*riokuv1.ConnectionPool, error) {
 	return cp, nil
 }
 
+// formatNullableTime formats a *time.Time as a *string for nullable timestamp
+// columns. Returns nil when t is nil.
+func formatNullableTime(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.UTC().Format(timeFormat)
+	return &s
+}
+
+// ---------------------------------------------------------------------------
+// User / Session / APIKey scanners
+// ---------------------------------------------------------------------------
+
+func scanUser(s scanner) (*store.User, error) {
+	var (
+		id                  string
+		username            string
+		email               sql.NullString
+		displayName         sql.NullString
+		passwordHash        string
+		status              string
+		totpSecret          sql.NullString
+		totpEnabled         int
+		forcePasswordChange int
+		failedAttempts      int
+		lockedUntil         sql.NullString
+		lastLogin           sql.NullString
+		passwordChangedAt   string
+		createdAt           string
+		updatedAt           string
+	)
+
+	if err := s.Scan(&id, &username, &email, &displayName, &passwordHash, &status,
+		&totpSecret, &totpEnabled, &forcePasswordChange,
+		&failedAttempts, &lockedUntil, &lastLogin,
+		&passwordChangedAt, &createdAt, &updatedAt); err != nil {
+		return nil, fmt.Errorf("mysql: scan user: %w", err)
+	}
+
+	u := &store.User{
+		ID:                  id,
+		Username:            username,
+		PasswordHash:        passwordHash,
+		Status:              status,
+		TOTPEnabled:         totpEnabled != 0,
+		ForcePasswordChange: forcePasswordChange != 0,
+		FailedAttempts:      failedAttempts,
+		PasswordChangedAt:   parseTime(passwordChangedAt),
+		CreatedAt:           parseTime(createdAt),
+		UpdatedAt:           parseTime(updatedAt),
+	}
+	if email.Valid {
+		u.Email = &email.String
+	}
+	if displayName.Valid {
+		u.DisplayName = &displayName.String
+	}
+	if totpSecret.Valid {
+		u.TOTPSecret = &totpSecret.String
+	}
+	if lockedUntil.Valid {
+		t := parseTime(lockedUntil.String)
+		u.LockedUntil = &t
+	}
+	if lastLogin.Valid {
+		t := parseTime(lastLogin.String)
+		u.LastLogin = &t
+	}
+	return u, nil
+}
+
+func scanSession(s scanner) (*store.Session, error) {
+	var (
+		id          string
+		userID      string
+		fingerprint string
+		createdAt   string
+		expiresAt   string
+		lastActive  string
+		ipAddress   sql.NullString
+		userAgent   sql.NullString
+	)
+
+	if err := s.Scan(&id, &userID, &fingerprint, &createdAt, &expiresAt, &lastActive, &ipAddress, &userAgent); err != nil {
+		return nil, fmt.Errorf("mysql: scan session: %w", err)
+	}
+
+	sess := &store.Session{
+		ID:          id,
+		UserID:      userID,
+		Fingerprint: fingerprint,
+		CreatedAt:   parseTime(createdAt),
+		ExpiresAt:   parseTime(expiresAt),
+		LastActive:  parseTime(lastActive),
+	}
+	if ipAddress.Valid {
+		sess.IPAddress = &ipAddress.String
+	}
+	if userAgent.Valid {
+		sess.UserAgent = &userAgent.String
+	}
+	return sess, nil
+}
+
+func scanAPIKey(s scanner) (*store.APIKey, error) {
+	var (
+		id         string
+		tenantID   string
+		name       string
+		keyHash    string
+		scopesJSON string
+		expiresAt  *string
+		createdAt  string
+		revokedAt  *string
+		ownerID    *string
+		lastUsedAt *string
+		usageCount int64
+	)
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
+		return nil, fmt.Errorf("mysql: scan api_key: %w", err)
+	}
+
+	var scopes []string
+	if err := json.Unmarshal([]byte(scopesJSON), &scopes); err != nil {
+		return nil, fmt.Errorf("mysql: unmarshal scopes: %w", err)
+	}
+
+	key := &store.APIKey{
+		ID:         id,
+		TenantID:   tenantID,
+		Name:       name,
+		KeyHash:    keyHash,
+		Scopes:     scopes,
+		CreatedAt:  parseTime(createdAt),
+		UsageCount: usageCount,
+	}
+	if ownerID != nil {
+		key.OwnerID = *ownerID
+	}
+	if expiresAt != nil {
+		t := parseTime(*expiresAt)
+		key.ExpiresAt = &t
+	}
+	if revokedAt != nil {
+		t := parseTime(*revokedAt)
+		key.RevokedAt = &t
+	}
+	if lastUsedAt != nil {
+		t := parseTime(*lastUsedAt)
+		key.LastUsedAt = &t
+	}
+	return key, nil
+}
+
+func scanAPIKeyRows(rows *sql.Rows) (*store.APIKey, error) {
+	return scanAPIKey(rows)
+}
+
 func marshalStructJSON(st *structpb.Struct) (string, error) {
 	if st == nil {
 		return "{}", nil
