@@ -2306,184 +2306,24 @@ func scanDashboardShare(s scanner) (*store.DashboardShare, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Webhooks
+// Webhooks — implemented in postgres_webhooks_cluster_impersonation.go
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateWebhookEndpoint(_ context.Context, _ *store.WebhookEndpoint) (*store.WebhookEndpoint, error) {
-	return nil, errors.New("postgres: CreateWebhookEndpoint not implemented")
-}
-
-func (t *tx) GetWebhookEndpoint(_ context.Context, _, _ string) (*store.WebhookEndpoint, error) {
-	return nil, errors.New("postgres: GetWebhookEndpoint not implemented")
-}
-
-func (t *tx) ListWebhookEndpointsByTenant(_ context.Context, _ string) ([]*store.WebhookEndpoint, error) {
-	return nil, errors.New("postgres: ListWebhookEndpointsByTenant not implemented")
-}
-
-func (t *tx) UpdateWebhookEndpoint(_ context.Context, _, _ string, _ store.UpdateWebhookEndpointParams) (*store.WebhookEndpoint, error) {
-	return nil, errors.New("postgres: UpdateWebhookEndpoint not implemented")
-}
-
-func (t *tx) DeleteWebhookEndpoint(_ context.Context, _, _ string) error {
-	return errors.New("postgres: DeleteWebhookEndpoint not implemented")
-}
-
 // ---------------------------------------------------------------------------
-// Cluster Enrollment Tokens
+// Cluster Enrollment Tokens — implemented in postgres_webhooks_cluster_impersonation.go
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateEnrollmentToken(_ context.Context, _ *store.ClusterEnrollmentToken) (*store.ClusterEnrollmentToken, error) {
-	return nil, errors.New("postgres: CreateEnrollmentToken not implemented")
-}
-
-func (t *tx) GetEnrollmentTokenByHash(_ context.Context, _ string) (*store.ClusterEnrollmentToken, error) {
-	return nil, errors.New("postgres: GetEnrollmentTokenByHash not implemented")
-}
-
-func (t *tx) ListActiveEnrollmentTokens(_ context.Context) ([]*store.ClusterEnrollmentToken, error) {
-	return nil, errors.New("postgres: ListActiveEnrollmentTokens not implemented")
-}
-
-func (t *tx) ConsumeEnrollmentToken(_ context.Context, _, _ string) (*store.ClusterEnrollmentToken, error) {
-	return nil, errors.New("postgres: ConsumeEnrollmentToken not implemented")
-}
-
-func (t *tx) RevokeEnrollmentToken(_ context.Context, _ string) error {
-	return errors.New("postgres: RevokeEnrollmentToken not implemented")
-}
-
 // ---------------------------------------------------------------------------
-// Impersonation Sessions
+// Impersonation Sessions — implemented in postgres_webhooks_cluster_impersonation.go
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateImpersonationSession(_ context.Context, _ *store.ImpersonationSession) (*store.ImpersonationSession, error) {
-	return nil, errors.New("postgres: CreateImpersonationSession not implemented")
-}
-
-func (t *tx) GetImpersonationSession(_ context.Context, _ string) (*store.ImpersonationSession, error) {
-	return nil, errors.New("postgres: GetImpersonationSession not implemented")
-}
-
-func (t *tx) ListActiveImpersonationSessions(_ context.Context) ([]*store.ImpersonationSession, error) {
-	return nil, errors.New("postgres: ListActiveImpersonationSessions not implemented")
-}
-
-func (t *tx) EndImpersonationSession(_ context.Context, _, _ string) (*store.ImpersonationSession, error) {
-	return nil, errors.New("postgres: EndImpersonationSession not implemented")
-}
-
-func (t *tx) TouchImpersonationSession(_ context.Context, _ string) error {
-	return errors.New("postgres: TouchImpersonationSession not implemented")
-}
-
 // ---------------------------------------------------------------------------
-// Settings configs (singleton per tenant)
+// Settings configs (singleton per tenant) — implemented in postgres_settings_configs.go
 // ---------------------------------------------------------------------------
 
-func (t *tx) GetNetworkConfig(_ context.Context, _ string) (*store.NetworkConfig, error) {
-	return nil, errors.New("postgres: GetNetworkConfig not implemented")
-}
-
-func (t *tx) UpsertNetworkConfig(_ context.Context, _ *store.NetworkConfig) (*store.NetworkConfig, error) {
-	return nil, errors.New("postgres: UpsertNetworkConfig not implemented")
-}
-
-func (t *tx) GetTenantAuthPolicy(_ context.Context, _ string) (*store.TenantAuthPolicy, error) {
-	return nil, errors.New("postgres: GetTenantAuthPolicy not implemented")
-}
-
-func (t *tx) UpsertTenantAuthPolicy(_ context.Context, _ *store.TenantAuthPolicy) (*store.TenantAuthPolicy, error) {
-	return nil, errors.New("postgres: UpsertTenantAuthPolicy not implemented")
-}
-
-func (t *tx) GetObservabilityConfig(_ context.Context, _ string) (*store.ObservabilityConfig, error) {
-	return nil, errors.New("postgres: GetObservabilityConfig not implemented")
-}
-
-func (t *tx) UpsertObservabilityConfig(_ context.Context, _ *store.ObservabilityConfig) (*store.ObservabilityConfig, error) {
-	return nil, errors.New("postgres: UpsertObservabilityConfig not implemented")
-}
-
-func (t *tx) GetAuditRetentionConfig(_ context.Context, _ string) (*store.AuditRetentionConfig, error) {
-	return nil, errors.New("postgres: GetAuditRetentionConfig not implemented")
-}
-
-func (t *tx) UpsertAuditRetentionConfig(_ context.Context, _ *store.AuditRetentionConfig) (*store.AuditRetentionConfig, error) {
-	return nil, errors.New("postgres: UpsertAuditRetentionConfig not implemented")
-}
-
 // ---------------------------------------------------------------------------
-// PKI / TLS
+// PKI / TLS — implemented in postgres_pki.go
 // ---------------------------------------------------------------------------
-
-func (t *tx) CreateCertAuthority(_ context.Context, _ *store.CertAuthority) (*store.CertAuthority, error) {
-	return nil, errors.New("postgres: CreateCertAuthority not implemented")
-}
-
-func (t *tx) GetCertAuthority(_ context.Context, _, _ string) (*store.CertAuthority, error) {
-	return nil, errors.New("postgres: GetCertAuthority not implemented")
-}
-
-func (t *tx) ListCertAuthoritiesByTenant(_ context.Context, _ string) ([]*store.CertAuthority, error) {
-	return nil, errors.New("postgres: ListCertAuthoritiesByTenant not implemented")
-}
-
-func (t *tx) UpdateCertAuthority(_ context.Context, _, _ string, _ store.UpdateCertAuthorityParams) (*store.CertAuthority, error) {
-	return nil, errors.New("postgres: UpdateCertAuthority not implemented")
-}
-
-func (t *tx) DeleteCertAuthority(_ context.Context, _, _ string) error {
-	return errors.New("postgres: DeleteCertAuthority not implemented")
-}
-
-func (t *tx) CreateCertEnrollment(_ context.Context, _ *store.CertEnrollment) (*store.CertEnrollment, error) {
-	return nil, errors.New("postgres: CreateCertEnrollment not implemented")
-}
-
-func (t *tx) GetCertEnrollment(_ context.Context, _, _ string) (*store.CertEnrollment, error) {
-	return nil, errors.New("postgres: GetCertEnrollment not implemented")
-}
-
-func (t *tx) ListCertEnrollmentsByTenant(_ context.Context, _ string) ([]*store.CertEnrollment, error) {
-	return nil, errors.New("postgres: ListCertEnrollmentsByTenant not implemented")
-}
-
-func (t *tx) UpdateCertEnrollment(_ context.Context, _, _ string, _ store.UpdateCertEnrollmentParams) (*store.CertEnrollment, error) {
-	return nil, errors.New("postgres: UpdateCertEnrollment not implemented")
-}
-
-func (t *tx) RevokeCertEnrollmentRow(_ context.Context, _, _, _ string) (*store.CertEnrollment, error) {
-	return nil, errors.New("postgres: RevokeCertEnrollmentRow not implemented")
-}
-
-func (t *tx) CreateTLSCertificate(_ context.Context, _ *store.TLSCertificate) (*store.TLSCertificate, error) {
-	return nil, errors.New("postgres: CreateTLSCertificate not implemented")
-}
-
-func (t *tx) GetTLSCertificate(_ context.Context, _, _ string) (*store.TLSCertificate, error) {
-	return nil, errors.New("postgres: GetTLSCertificate not implemented")
-}
-
-func (t *tx) ListTLSCertificatesByTenant(_ context.Context, _ string) ([]*store.TLSCertificate, error) {
-	return nil, errors.New("postgres: ListTLSCertificatesByTenant not implemented")
-}
-
-func (t *tx) UpdateTLSCertificate(_ context.Context, _, _ string, _ store.UpdateTLSCertificateParams) (*store.TLSCertificate, error) {
-	return nil, errors.New("postgres: UpdateTLSCertificate not implemented")
-}
-
-func (t *tx) DeleteTLSCertificate(_ context.Context, _, _ string) error {
-	return errors.New("postgres: DeleteTLSCertificate not implemented")
-}
-
-func (t *tx) GetTLSConfig(_ context.Context, _ string) (*store.TLSConfig, error) {
-	return nil, errors.New("postgres: GetTLSConfig not implemented")
-}
-
-func (t *tx) UpsertTLSConfig(_ context.Context, _ *store.TLSConfig) (*store.TLSConfig, error) {
-	return nil, errors.New("postgres: UpsertTLSConfig not implemented")
-}
 
 // ---------------------------------------------------------------------------
 // Plugins — implemented in postgres_plugins.go

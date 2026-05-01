@@ -6109,3 +6109,1215 @@ func TestPluginSigner_CRUD(t *testing.T) {
 		t.Fatalf("expected ErrPluginSignerNotFound, got %v", nfErr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// PKI / TLS tests
+// ---------------------------------------------------------------------------
+
+func TestCertAuthority_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Create tenant.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "ca-tenant", Name: "CA Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Create.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ca, err := tx1.CreateCertAuthority(ctx, &store.CertAuthority{
+		TenantID:       tenantID,
+		Name:           "test-ca",
+		Kind:           "internal",
+		Subject:        "CN=Test CA",
+		CertificatePEM: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+	})
+	if err != nil {
+		t.Fatalf("CreateCertAuthority: %v", err)
+	}
+	if ca.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if ca.Name != "test-ca" {
+		t.Fatalf("expected name test-ca, got %q", ca.Name)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	caID := ca.ID
+
+	// Get.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetCertAuthority(ctx, tenantID, caID)
+	if err != nil {
+		t.Fatalf("GetCertAuthority: %v", err)
+	}
+	if got.Kind != "internal" {
+		t.Fatalf("expected kind internal, got %q", got.Kind)
+	}
+	_ = tx2.Rollback()
+
+	// List.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListCertAuthoritiesByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListCertAuthoritiesByTenant: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 CA, got %d", len(list))
+	}
+	_ = tx3.Rollback()
+
+	// Update.
+	newKind := "external"
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateCertAuthority(ctx, tenantID, caID, store.UpdateCertAuthorityParams{Kind: &newKind})
+	if err != nil {
+		t.Fatalf("UpdateCertAuthority: %v", err)
+	}
+	if updated.Kind != "external" {
+		t.Fatalf("expected kind external, got %q", updated.Kind)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Duplicate name error.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx5.CreateCertAuthority(ctx, &store.CertAuthority{
+		TenantID: tenantID, Name: "test-ca", Kind: "internal", Subject: "CN=Dup",
+		CertificatePEM: "x",
+	})
+	_ = tx5.Rollback()
+	if !errors.Is(dupErr, store.ErrCertAuthorityNameTaken) {
+		t.Fatalf("expected ErrCertAuthorityNameTaken, got %v", dupErr)
+	}
+
+	// Delete.
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteCertAuthority(ctx, tenantID, caID); err != nil {
+		t.Fatalf("DeleteCertAuthority: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Not found.
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetCertAuthority(ctx, tenantID, caID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrCertAuthorityNotFound) {
+		t.Fatalf("expected ErrCertAuthorityNotFound, got %v", nfErr)
+	}
+}
+
+func TestCertEnrollment_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Create tenant + CA.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "enroll-tenant", Name: "Enroll Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	ca, err := txSetup.CreateCertAuthority(ctx, &store.CertAuthority{
+		TenantID: tenant.ID, Name: "enroll-ca", Kind: "internal", Subject: "CN=Enroll CA",
+		CertificatePEM: "x",
+	})
+	if err != nil {
+		t.Fatalf("CreateCertAuthority: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+	caID := ca.ID
+
+	// Create enrollment.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	enroll, err := tx1.CreateCertEnrollment(ctx, &store.CertEnrollment{
+		TenantID: tenantID,
+		CAID:     &caID,
+		Subject:  "CN=test.example.com",
+		DNSSANs:  `["test.example.com"]`,
+	})
+	if err != nil {
+		t.Fatalf("CreateCertEnrollment: %v", err)
+	}
+	if enroll.State != "pending" {
+		t.Fatalf("expected state pending, got %q", enroll.State)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	enrollID := enroll.ID
+
+	// Get.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetCertEnrollment(ctx, tenantID, enrollID)
+	if err != nil {
+		t.Fatalf("GetCertEnrollment: %v", err)
+	}
+	if got.Subject != "CN=test.example.com" {
+		t.Fatalf("unexpected subject: %q", got.Subject)
+	}
+	_ = tx2.Rollback()
+
+	// List.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListCertEnrollmentsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListCertEnrollmentsByTenant: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 enrollment, got %d", len(list))
+	}
+	_ = tx3.Rollback()
+
+	// Update.
+	newState := "issued"
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateCertEnrollment(ctx, tenantID, enrollID, store.UpdateCertEnrollmentParams{State: &newState})
+	if err != nil {
+		t.Fatalf("UpdateCertEnrollment: %v", err)
+	}
+	if updated.State != "issued" {
+		t.Fatalf("expected state issued, got %q", updated.State)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Revoke.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	revoked, err := tx5.RevokeCertEnrollmentRow(ctx, tenantID, enrollID, "test-revocation")
+	if err != nil {
+		t.Fatalf("RevokeCertEnrollmentRow: %v", err)
+	}
+	if revoked.State != "revoked" {
+		t.Fatalf("expected state revoked, got %q", revoked.State)
+	}
+	if revoked.RevokedAt == nil {
+		t.Fatal("expected RevokedAt to be set")
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+func TestTLSCertificate_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "tlscert-tenant", Name: "TLS Cert Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Create.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	cert, err := tx1.CreateTLSCertificate(ctx, &store.TLSCertificate{
+		TenantID:       tenantID,
+		Domain:         "example.com",
+		Issuer:         "Let's Encrypt",
+		Source:         "acme",
+		AutoRenew:      true,
+		CertificatePEM: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+	})
+	if err != nil {
+		t.Fatalf("CreateTLSCertificate: %v", err)
+	}
+	if cert.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if !cert.AutoRenew {
+		t.Fatal("expected AutoRenew=true")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	certID := cert.ID
+
+	// Get.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetTLSCertificate(ctx, tenantID, certID)
+	if err != nil {
+		t.Fatalf("GetTLSCertificate: %v", err)
+	}
+	if got.Domain != "example.com" {
+		t.Fatalf("expected domain example.com, got %q", got.Domain)
+	}
+	_ = tx2.Rollback()
+
+	// List.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListTLSCertificatesByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListTLSCertificatesByTenant: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 cert, got %d", len(list))
+	}
+	_ = tx3.Rollback()
+
+	// Update (flip AutoRenew).
+	autoRenewOff := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateTLSCertificate(ctx, tenantID, certID, store.UpdateTLSCertificateParams{AutoRenew: &autoRenewOff})
+	if err != nil {
+		t.Fatalf("UpdateTLSCertificate: %v", err)
+	}
+	if updated.AutoRenew {
+		t.Fatal("expected AutoRenew=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Duplicate domain.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx5.CreateTLSCertificate(ctx, &store.TLSCertificate{
+		TenantID: tenantID, Domain: "example.com", Issuer: "x", CertificatePEM: "x",
+	})
+	_ = tx5.Rollback()
+	if !errors.Is(dupErr, store.ErrTLSCertificateTaken) {
+		t.Fatalf("expected ErrTLSCertificateTaken, got %v", dupErr)
+	}
+
+	// Delete.
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteTLSCertificate(ctx, tenantID, certID); err != nil {
+		t.Fatalf("DeleteTLSCertificate: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetTLSCertificate(ctx, tenantID, certID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrTLSCertificateNotFound) {
+		t.Fatalf("expected ErrTLSCertificateNotFound, got %v", nfErr)
+	}
+}
+
+func TestTLSConfig(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "tlscfg-tenant", Name: "TLS Config Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Get default (no row).
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetTLSConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTLSConfig (default): %v", err)
+	}
+	if def.ACMEProvider != "lets-encrypt" {
+		t.Fatalf("expected default provider lets-encrypt, got %q", def.ACMEProvider)
+	}
+	if def.MinProtocol != "1.2" {
+		t.Fatalf("expected default min_protocol 1.2, got %q", def.MinProtocol)
+	}
+	_ = tx1.Rollback()
+
+	// Upsert.
+	email := "admin@example.com"
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertTLSConfig(ctx, &store.TLSConfig{
+		TenantID:       tenantID,
+		ACMEProvider:   "zerossl",
+		ACMEEmail:      email,
+		MinProtocol:    "1.3",
+		AllowedCiphers: `["TLS_AES_256_GCM_SHA384"]`,
+	})
+	if err != nil {
+		t.Fatalf("UpsertTLSConfig: %v", err)
+	}
+	if upserted.ACMEProvider != "zerossl" {
+		t.Fatalf("expected provider zerossl, got %q", upserted.ACMEProvider)
+	}
+	if upserted.MinProtocol != "1.3" {
+		t.Fatalf("expected min_protocol 1.3, got %q", upserted.MinProtocol)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Get after upsert.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetTLSConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTLSConfig: %v", err)
+	}
+	if got.ACMEProvider != "zerossl" {
+		t.Fatalf("expected provider zerossl after upsert, got %q", got.ACMEProvider)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Settings config singleton tests
+// ---------------------------------------------------------------------------
+
+func TestNetworkConfig(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "netcfg-tenant", Name: "NetCfg Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Get default.
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetNetworkConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetNetworkConfig (default): %v", err)
+	}
+	if def.ReadTimeoutSeconds != 60 {
+		t.Fatalf("expected read_timeout=60, got %d", def.ReadTimeoutSeconds)
+	}
+	if def.HTTP3Enabled {
+		t.Fatal("expected HTTP3Enabled=false by default")
+	}
+	_ = tx1.Rollback()
+
+	// Upsert.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	up, err := tx2.UpsertNetworkConfig(ctx, &store.NetworkConfig{
+		TenantID:             tenantID,
+		ListenAddresses:      `[":443"]`,
+		HTTP3Enabled:         true,
+		CaddyConfigOverrides: `{}`,
+		ReadTimeoutSeconds:   30,
+		WriteTimeoutSeconds:  30,
+		IdleTimeoutSeconds:   60,
+	})
+	if err != nil {
+		t.Fatalf("UpsertNetworkConfig: %v", err)
+	}
+	if !up.HTTP3Enabled {
+		t.Fatal("expected HTTP3Enabled=true after upsert")
+	}
+	if up.ReadTimeoutSeconds != 30 {
+		t.Fatalf("expected read_timeout=30, got %d", up.ReadTimeoutSeconds)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Get after upsert.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetNetworkConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetNetworkConfig: %v", err)
+	}
+	if !got.HTTP3Enabled {
+		t.Fatal("expected HTTP3Enabled=true after upsert+get")
+	}
+	_ = tx3.Rollback()
+}
+
+func TestTenantAuthPolicy(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "authpol-tenant", Name: "AuthPol Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Get default.
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetTenantAuthPolicy(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTenantAuthPolicy (default): %v", err)
+	}
+	if def.TOTPPolicy != "optional" {
+		t.Fatalf("expected totp_policy=optional, got %q", def.TOTPPolicy)
+	}
+	if def.MinLength != 12 {
+		t.Fatalf("expected min_length=12, got %d", def.MinLength)
+	}
+	_ = tx1.Rollback()
+
+	// Upsert.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	up, err := tx2.UpsertTenantAuthPolicy(ctx, &store.TenantAuthPolicy{
+		TenantID:          tenantID,
+		TOTPPolicy:        "all",
+		MinLength:         16,
+		RequireUppercase:  true,
+		RequireDigit:      true,
+		IdleHours:         8,
+		AbsoluteHours:     72,
+		MaxFailedAttempts: 3,
+		LockoutMinutes:    30,
+	})
+	if err != nil {
+		t.Fatalf("UpsertTenantAuthPolicy: %v", err)
+	}
+	if up.TOTPPolicy != "all" {
+		t.Fatalf("expected totp_policy=all, got %q", up.TOTPPolicy)
+	}
+	if !up.RequireUppercase {
+		t.Fatal("expected RequireUppercase=true")
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Get after upsert.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetTenantAuthPolicy(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTenantAuthPolicy: %v", err)
+	}
+	if got.MinLength != 16 {
+		t.Fatalf("expected min_length=16 after upsert, got %d", got.MinLength)
+	}
+	_ = tx3.Rollback()
+}
+
+func TestObservabilityConfig(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "obscfg-tenant", Name: "ObsCfg Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Get default.
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetObservabilityConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetObservabilityConfig (default): %v", err)
+	}
+	if def.TracesSampleRate != 1.0 {
+		t.Fatalf("expected sample_rate=1.0, got %f", def.TracesSampleRate)
+	}
+	if def.LogFormat != "json" {
+		t.Fatalf("expected log_format=json, got %q", def.LogFormat)
+	}
+	_ = tx1.Rollback()
+
+	// Upsert.
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	up, err := tx2.UpsertObservabilityConfig(ctx, &store.ObservabilityConfig{
+		TenantID:             tenantID,
+		MetricsScrapeAuth:    `{}`,
+		MetricsRetentionDays: 14,
+		LogLevels:            `{}`,
+		LogFormat:            "text",
+		LogRotation:          `{}`,
+		TracesRetentionDays:  3,
+		TracesSampleRate:     0.5,
+	})
+	if err != nil {
+		t.Fatalf("UpsertObservabilityConfig: %v", err)
+	}
+	if up.TracesSampleRate != 0.5 {
+		t.Fatalf("expected sample_rate=0.5, got %f", up.TracesSampleRate)
+	}
+	if up.LogFormat != "text" {
+		t.Fatalf("expected log_format=text, got %q", up.LogFormat)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Get after upsert.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetObservabilityConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetObservabilityConfig: %v", err)
+	}
+	if got.MetricsRetentionDays != 14 {
+		t.Fatalf("expected retention=14, got %d", got.MetricsRetentionDays)
+	}
+	_ = tx3.Rollback()
+}
+
+func TestAuditRetentionConfig(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "audret-tenant", Name: "AuditRet Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Get default.
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetAuditRetentionConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetAuditRetentionConfig (default): %v", err)
+	}
+	if def.RetentionDaysRead != 30 {
+		t.Fatalf("expected read=30, got %d", def.RetentionDaysRead)
+	}
+	if def.AutoExport != "never" {
+		t.Fatalf("expected auto_export=never, got %q", def.AutoExport)
+	}
+	_ = tx1.Rollback()
+
+	// Upsert.
+	dest := "s3://my-bucket/audit"
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	up, err := tx2.UpsertAuditRetentionConfig(ctx, &store.AuditRetentionConfig{
+		TenantID:                 tenantID,
+		RetentionDaysRead:        60,
+		RetentionDaysWrite:       180,
+		RetentionDaysDestructive: 730,
+		AutoExport:               "weekly",
+		AutoExportFormat:         "csv",
+		AutoExportDestination:    &dest,
+	})
+	if err != nil {
+		t.Fatalf("UpsertAuditRetentionConfig: %v", err)
+	}
+	if up.AutoExport != "weekly" {
+		t.Fatalf("expected auto_export=weekly, got %q", up.AutoExport)
+	}
+	if up.AutoExportDestination == nil || *up.AutoExportDestination != dest {
+		t.Fatalf("unexpected destination: %v", up.AutoExportDestination)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Get after upsert.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetAuditRetentionConfig(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetAuditRetentionConfig: %v", err)
+	}
+	if got.RetentionDaysRead != 60 {
+		t.Fatalf("expected read=60, got %d", got.RetentionDaysRead)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Webhook endpoint tests
+// ---------------------------------------------------------------------------
+
+func TestWebhookEndpoint_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "hook-tenant", Name: "Hook Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// Create.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ep, err := tx1.CreateWebhookEndpoint(ctx, &store.WebhookEndpoint{
+		TenantID: tenantID,
+		Name:     "my-hook",
+		URL:      "https://example.com/hook",
+		Enabled:  true,
+		Events:   `["route.created"]`,
+	})
+	if err != nil {
+		t.Fatalf("CreateWebhookEndpoint: %v", err)
+	}
+	if ep.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if !ep.Enabled {
+		t.Fatal("expected Enabled=true")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	epID := ep.ID
+
+	// Get.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetWebhookEndpoint(ctx, tenantID, epID)
+	if err != nil {
+		t.Fatalf("GetWebhookEndpoint: %v", err)
+	}
+	if got.URL != "https://example.com/hook" {
+		t.Fatalf("unexpected URL: %q", got.URL)
+	}
+	_ = tx2.Rollback()
+
+	// List.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListWebhookEndpointsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListWebhookEndpointsByTenant: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 webhook, got %d", len(list))
+	}
+	_ = tx3.Rollback()
+
+	// Update.
+	newURL := "https://example.com/hook-v2"
+	enabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateWebhookEndpoint(ctx, tenantID, epID, store.UpdateWebhookEndpointParams{
+		URL:     &newURL,
+		Enabled: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateWebhookEndpoint: %v", err)
+	}
+	if updated.URL != newURL {
+		t.Fatalf("expected URL %q, got %q", newURL, updated.URL)
+	}
+	if updated.Enabled {
+		t.Fatal("expected Enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Duplicate name.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx5.CreateWebhookEndpoint(ctx, &store.WebhookEndpoint{
+		TenantID: tenantID, Name: "my-hook", URL: "https://other.com/hook",
+	})
+	_ = tx5.Rollback()
+	if !errors.Is(dupErr, store.ErrWebhookEndpointNameTaken) {
+		t.Fatalf("expected ErrWebhookEndpointNameTaken, got %v", dupErr)
+	}
+
+	// Delete.
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteWebhookEndpoint(ctx, tenantID, epID); err != nil {
+		t.Fatalf("DeleteWebhookEndpoint: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetWebhookEndpoint(ctx, tenantID, epID)
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrWebhookEndpointNotFound) {
+		t.Fatalf("expected ErrWebhookEndpointNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Cluster enrollment token tests
+// ---------------------------------------------------------------------------
+
+func TestEnrollmentToken(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	expiry := time.Now().UTC().Add(24 * time.Hour)
+
+	// Create.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tok, err := tx1.CreateEnrollmentToken(ctx, &store.ClusterEnrollmentToken{
+		TokenHash: "sha256-abc123",
+		ExpiresAt: expiry,
+		Notes:     "test token",
+	})
+	if err != nil {
+		t.Fatalf("CreateEnrollmentToken: %v", err)
+	}
+	if tok.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if tok.ConsumedAt != nil {
+		t.Fatal("expected ConsumedAt=nil")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// GetByHash.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byHash, err := tx2.GetEnrollmentTokenByHash(ctx, "sha256-abc123")
+	if err != nil {
+		t.Fatalf("GetEnrollmentTokenByHash: %v", err)
+	}
+	if byHash.ID != tok.ID {
+		t.Fatalf("ID mismatch: %q vs %q", byHash.ID, tok.ID)
+	}
+	_ = tx2.Rollback()
+
+	// ListActive — should have 1.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	active, err := tx3.ListActiveEnrollmentTokens(ctx)
+	if err != nil {
+		t.Fatalf("ListActiveEnrollmentTokens: %v", err)
+	}
+	found := false
+	for _, at := range active {
+		if at.ID == tok.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected token in active list")
+	}
+	_ = tx3.Rollback()
+
+	// Consume.
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	consumed, err := tx4.ConsumeEnrollmentToken(ctx, "sha256-abc123", "node-001")
+	if err != nil {
+		t.Fatalf("ConsumeEnrollmentToken: %v", err)
+	}
+	if consumed.ConsumedAt == nil {
+		t.Fatal("expected ConsumedAt to be set")
+	}
+	if consumed.ConsumedByNodeID == nil || *consumed.ConsumedByNodeID != "node-001" {
+		t.Fatalf("unexpected ConsumedByNodeID: %v", consumed.ConsumedByNodeID)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Consume again — should fail with AlreadyUsed.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, alreadyErr := tx5.ConsumeEnrollmentToken(ctx, "sha256-abc123", "node-002")
+	_ = tx5.Rollback()
+	if !errors.Is(alreadyErr, store.ErrEnrollmentTokenAlreadyUsed) {
+		t.Fatalf("expected ErrEnrollmentTokenAlreadyUsed, got %v", alreadyErr)
+	}
+
+	// Create a second token and revoke it.
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tok2, err := tx6.CreateEnrollmentToken(ctx, &store.ClusterEnrollmentToken{
+		TokenHash: "sha256-def456",
+		ExpiresAt: expiry,
+		Notes:     "revoke me",
+	})
+	if err != nil {
+		t.Fatalf("CreateEnrollmentToken (tok2): %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.RevokeEnrollmentToken(ctx, tok2.ID); err != nil {
+		t.Fatalf("RevokeEnrollmentToken: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Revoke again — should fail AlreadyUsed.
+	tx8, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	revokeAgainErr := tx8.RevokeEnrollmentToken(ctx, tok2.ID)
+	_ = tx8.Rollback()
+	if !errors.Is(revokeAgainErr, store.ErrEnrollmentTokenAlreadyUsed) {
+		t.Fatalf("expected ErrEnrollmentTokenAlreadyUsed on re-revoke, got %v", revokeAgainErr)
+	}
+
+	// ListActive after revoke — tok2 should not appear.
+	tx9, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	active2, err := tx9.ListActiveEnrollmentTokens(ctx)
+	if err != nil {
+		t.Fatalf("ListActiveEnrollmentTokens: %v", err)
+	}
+	for _, at := range active2 {
+		if at.ID == tok2.ID {
+			t.Fatal("revoked token should not appear in active list")
+		}
+	}
+	_ = tx9.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Impersonation session tests
+// ---------------------------------------------------------------------------
+
+func TestImpersonationSession(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Create a user to act as super admin.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	email := "superadmin@example.com"
+	superAdmin, err := txSetup.CreateUser(ctx, &store.User{
+		Username: "superadmin", Email: &email, PasswordHash: "x", Status: "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	superAdminID := superAdmin.ID
+
+	expiry := time.Now().UTC().Add(2 * time.Hour)
+
+	// Create session.
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	sess, err := tx1.CreateImpersonationSession(ctx, &store.ImpersonationSession{
+		SuperAdminID: superAdminID,
+		Reason:       "support ticket #1234",
+		ExpiresAt:    expiry,
+	})
+	if err != nil {
+		t.Fatalf("CreateImpersonationSession: %v", err)
+	}
+	if sess.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if sess.EndedAt != nil {
+		t.Fatal("expected EndedAt=nil")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	sessID := sess.ID
+
+	// Get.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetImpersonationSession(ctx, sessID)
+	if err != nil {
+		t.Fatalf("GetImpersonationSession: %v", err)
+	}
+	if got.Reason != "support ticket #1234" {
+		t.Fatalf("unexpected reason: %q", got.Reason)
+	}
+	_ = tx2.Rollback()
+
+	// ListActive — should contain session.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	active, err := tx3.ListActiveImpersonationSessions(ctx)
+	if err != nil {
+		t.Fatalf("ListActiveImpersonationSessions: %v", err)
+	}
+	found := false
+	for _, s := range active {
+		if s.ID == sessID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected session in active list")
+	}
+	_ = tx3.Rollback()
+
+	// Touch — verify last_active_at advances.
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.TouchImpersonationSession(ctx, sessID); err != nil {
+		t.Fatalf("TouchImpersonationSession: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx4b, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterTouch, err := tx4b.GetImpersonationSession(ctx, sessID)
+	if err != nil {
+		t.Fatalf("GetImpersonationSession after Touch: %v", err)
+	}
+	if afterTouch.LastActiveAt == nil {
+		t.Fatal("expected LastActiveAt to be set after Touch")
+	}
+	_ = tx4b.Rollback()
+
+	// End session.
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ended, err := tx5.EndImpersonationSession(ctx, sessID, "explicit_exit")
+	if err != nil {
+		t.Fatalf("EndImpersonationSession: %v", err)
+	}
+	if ended.EndedAt == nil {
+		t.Fatal("expected EndedAt to be set")
+	}
+	if ended.EndReason == nil || *ended.EndReason != "explicit_exit" {
+		t.Fatalf("unexpected end_reason: %v", ended.EndReason)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// End again — should fail with SessionEnded.
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, endAgainErr := tx6.EndImpersonationSession(ctx, sessID, "other")
+	_ = tx6.Rollback()
+	if !errors.Is(endAgainErr, store.ErrImpersonationSessionEnded) {
+		t.Fatalf("expected ErrImpersonationSessionEnded, got %v", endAgainErr)
+	}
+
+	// ListActive after End — should not contain session.
+	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	active2, err := tx7.ListActiveImpersonationSessions(ctx)
+	if err != nil {
+		t.Fatalf("ListActiveImpersonationSessions: %v", err)
+	}
+	for _, s := range active2 {
+		if s.ID == sessID {
+			t.Fatal("ended session should not appear in active list")
+		}
+	}
+	_ = tx7.Rollback()
+
+	// Touch on ended session — should fail.
+	tx8, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	touchEndedErr := tx8.TouchImpersonationSession(ctx, sessID)
+	_ = tx8.Rollback()
+	if !errors.Is(touchEndedErr, store.ErrImpersonationSessionNotFound) {
+		t.Fatalf("expected ErrImpersonationSessionNotFound on Touch of ended session, got %v", touchEndedErr)
+	}
+}
