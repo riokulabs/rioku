@@ -66,6 +66,22 @@ make dev              # Build + run daemon in dev mode
 - **CI**: All checks must pass before merge.
 - **Planning**: All work tracked in GitHub Projects/Issues. Bugs, features, and roadmap items managed in the open at the `riokulabs` org level.
 
+## Test execution contract
+
+**Tests run in PR CI, not in git hooks.** This is deliberate; see `contrib-docs/docs/decisions/2026-04-30-test-execution-and-sandbox-cadence.md`.
+
+| Layer | Runs | Authoritative? |
+| --- | --- | --- |
+| `pre-commit` | gofmt + goimports auto-fix on staged Go; per-touched-module `go vet`; `buf lint` on staged proto; `eslint --fix` on staged TS in `packages/web` and `packages/ui`. < 5s typical | No — advisory |
+| `pre-push` | `go vet ./...` smoke on `packages/daemon` + `packages/build-service`. < 3s typical | No — advisory |
+| **PR CI** | Full `go test -race`, `store-matrix-*` (5 required), `golangci-lint`, gofmt/goimports drift check, `buf lint`, `cspell`, full web (lint + typecheck + format + Vitest + Playwright + bundle/ABI), `test-e2e` (sandbox smoke + Playwright) | **Yes — blocks merge** |
+
+Hooks are opt-in via `make hooks`. Full reference: `contrib-docs/docs/development/hooks.md`.
+
+## Sandbox refresh cadence
+
+Per the same decision doc: sandbox seed + smoke harness must be refreshed **at every sprint tie-off**, **on every schema migration**, and **on every new Caddy primitive**. The PR author owns the matching sandbox update; reviewers reject schema/primitive changes that don't include it.
+
 ## Coding Conventions
 
 - **Go**: Standard library preferred. No ORM (raw SQL per-dialect). No external test libraries.

@@ -86,6 +86,8 @@ geolocation
 githooks
 gitignore
 goarch
+gofmt
+goimports
 golangci
 gomod
 gomodule
@@ -170,6 +172,8 @@ ollama
 openai
 openapiv
 opentelemetry
+otelhttp
+otlp
 otpauth
 otter
 owasp

@@ -11,8 +11,10 @@ if [ -z "$MSG" ]; then
   exit 1
 fi
 
-# If argument is a file, read the first line
-if [ -f "$MSG" ]; then
+# If argument is a file or readable special path (e.g. /dev/fd/N from
+# process substitution), read the first line. Otherwise treat as a
+# literal commit message string.
+if [ -e "$MSG" ] && [ -r "$MSG" ]; then
   MSG=$(head -1 "$MSG")
 fi
 

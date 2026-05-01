@@ -79,6 +79,7 @@ check_tool "Node.js"        node      --version
 check_tool "npm"            npm       --version
 check_tool "buf"            buf       --version
 check_tool "golangci-lint"  golangci-lint --version
+check_tool "goimports"      goimports     -h
 check_tool "cspell"         cspell    --version
 check_tool "git-cliff"      git-cliff --version
 check_tool "git"            git       --version

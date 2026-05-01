@@ -51,6 +51,26 @@ jobs:
             packages/build-service/go.sum
             packages/proto/gen/go/go.sum
 
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: gofmt + goimports drift check
+        run: |
+          set -euo pipefail
+          GO_FILES=$(find packages -type f -name '*.go' -not -path '*/gen/*' -not -path '*/node_modules/*')
+          GOFMT_BAD=$(gofmt -l $GO_FILES || true)
+          if [ -n "$GOFMT_BAD" ]; then
+            echo "gofmt drift in:"
+            echo "$GOFMT_BAD"
+            exit 1
+          fi
+          GOIMPORTS_BAD=$(goimports -l $GO_FILES || true)
+          if [ -n "$GOIMPORTS_BAD" ]; then
+            echo "goimports drift in:"
+            echo "$GOIMPORTS_BAD"
+            exit 1
+          fi
+
       - name: golangci-lint (daemon)
         uses: golangci/golangci-lint-action@v9
         with:
@@ -65,6 +85,9 @@ jobs:
   proto:
     name: Proto Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
 
@@ -73,6 +96,7 @@ jobs:
           input: packages/proto
           lint: true
           breaking: false
+          format: false
 
   spell:
     name: Spell Check
