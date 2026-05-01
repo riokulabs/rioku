@@ -28,7 +28,7 @@ func (t *tx) CreatePlugin(ctx context.Context, in *store.Plugin) (*store.Plugin,
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("plug")
 	}
 	cfg := in.Config
 	if cfg == "" {
@@ -201,7 +201,7 @@ func (t *tx) CreatePluginSigner(ctx context.Context, in *store.PluginSigner) (*s
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("psign")
 	}
 	status := in.Status
 	if status == "" {

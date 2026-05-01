@@ -21,7 +21,7 @@ func (t *tx) CreateWebhookEndpoint(ctx context.Context, in *store.WebhookEndpoin
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("hook")
 	}
 	events := in.Events
 	if events == "" {
@@ -144,7 +144,7 @@ func (t *tx) CreateEnrollmentToken(ctx context.Context, in *store.ClusterEnrollm
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("etok")
 	}
 	now := nowUTC()
 	_, err := t.sqlTx.ExecContext(ctx,
@@ -285,7 +285,7 @@ func (t *tx) CreateImpersonationSession(ctx context.Context, in *store.Impersona
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("imp")
 	}
 	now := nowUTC()
 	startedAt := now

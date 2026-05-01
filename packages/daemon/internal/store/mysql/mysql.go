@@ -35,36 +35,14 @@ func init() {
 // ---------------------------------------------------------------------------
 
 type driver struct {
-	db     *sql.DB
-	notify chan store.ChangeEvent
-	mu     sync.RWMutex
-	closed bool
+	db        *sql.DB   // primary (Synced) node connection
+	fallbacks []*sql.DB // remaining node connections (Phase 3e: failover)
+	notify    chan store.ChangeEvent
+	mu        sync.RWMutex
+	closed    bool
 }
 
 func (d *driver) Open(_ context.Context, cfg store.DriverConfig) error {
-	dsn := cfg.DSN
-
-	// Multi-node (Galera) support: if Nodes is set, use the first node's DSN.
-	// Full connection-routing (picking the Synced node, round-robin fallback,
-	// re-election on wsrep state change) is a future enhancement. For MVP
-	// we open a single connection and rely on Health() for state reporting.
-	//
-	// TODO(phase-3d): implement multi-node connection routing — iterate
-	// cfg.Nodes, query wsrep_local_state_comment on each candidate, pick the
-	// first Synced node, and fall back to the next on failure.
-	if len(cfg.Nodes) > 0 {
-		dsn = cfg.Nodes[0].DSN
-	}
-
-	if dsn == "" {
-		return fmt.Errorf("mysql: DSN is required")
-	}
-
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return fmt.Errorf("mysql: open: %w", err)
-	}
-
 	maxOpen := cfg.MaxOpenConns
 	if maxOpen <= 0 {
 		maxOpen = 25
@@ -78,16 +56,99 @@ func (d *driver) Open(_ context.Context, cfg store.DriverConfig) error {
 		lifetime = 5 * time.Minute
 	}
 
-	db.SetMaxOpenConns(maxOpen)
-	db.SetMaxIdleConns(maxIdle)
-	db.SetConnMaxLifetime(lifetime)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	pingCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return fmt.Errorf("mysql: ping: %w", err)
+	// openNode opens a single database connection pool and verifies it is reachable.
+	openNode := func(dsn string) (*sql.DB, error) {
+		db, err := sql.Open("mysql", dsn)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: open: %w", err)
+		}
+		db.SetMaxOpenConns(maxOpen)
+		db.SetMaxIdleConns(maxIdle)
+		db.SetConnMaxLifetime(lifetime)
+		if err := db.PingContext(pingCtx); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("mysql: ping: %w", err)
+		}
+		return db, nil
+	}
+
+	// wsrepState queries wsrep_local_state_comment on db, returning the value
+	// ("Synced", "Donor/Desynced", etc.) or an empty string for non-Galera MySQL.
+	wsrepState := func(db *sql.DB) string {
+		var name, value string
+		err := db.QueryRowContext(pingCtx, `SHOW STATUS LIKE 'wsrep_local_state_comment'`).Scan(&name, &value)
+		if err != nil {
+			return ""
+		}
+		return value
+	}
+
+	if len(cfg.Nodes) > 0 {
+		// Multi-node (Galera) path: open every node, pick the first Synced one
+		// as the primary db handle. All others are kept as fallbacks for future
+		// failover routing (Phase 3e). If no node reports "Synced", return an
+		// error — this prevents the daemon from starting against a split-brained
+		// or fully-desynced cluster.
+		//
+		// TODO(phase-3e): implement automatic primary re-election when the
+		// current primary becomes unavailable.
+		var pools []*sql.DB
+		for i, node := range cfg.Nodes {
+			if node.DSN == "" {
+				return fmt.Errorf("mysql: node %d has empty DSN", i)
+			}
+			db, err := openNode(node.DSN)
+			if err != nil {
+				// Close any already-opened pools before returning.
+				for _, p := range pools {
+					_ = p.Close()
+				}
+				return fmt.Errorf("mysql: open node %d (%s): %w", i, node.DSN, err)
+			}
+			pools = append(pools, db)
+		}
+
+		// Find the first Synced node (or the first node if none report Synced,
+		// which handles plain MySQL with no wsrep variables).
+		primaryIdx := -1
+		for i, db := range pools {
+			state := wsrepState(db)
+			if state == "Synced" || state == "" {
+				// "Synced" → confirmed Galera primary member.
+				// ""       → non-Galera MySQL; treat first responding node as primary.
+				primaryIdx = i
+				break
+			}
+		}
+		if primaryIdx == -1 {
+			for _, p := range pools {
+				_ = p.Close()
+			}
+			return fmt.Errorf("mysql: no Synced node found in Galera cluster — manual intervention required")
+		}
+
+		d.db = pools[primaryIdx]
+		for i, p := range pools {
+			if i != primaryIdx {
+				d.fallbacks = append(d.fallbacks, p)
+			}
+		}
+		d.notify = make(chan store.ChangeEvent, 256)
+		return nil
+	}
+
+	// Single-node path (cfg.Nodes is empty).
+	dsn := cfg.DSN
+	if dsn == "" {
+		return fmt.Errorf("mysql: DSN is required (set cfg.DSN or cfg.Nodes)")
+	}
+
+	db, err := openNode(dsn)
+	if err != nil {
+		return err
 	}
 
 	d.db = db
@@ -102,10 +163,21 @@ func (d *driver) Close() error {
 	if d.notify != nil {
 		close(d.notify)
 	}
-	if d.db != nil {
-		return d.db.Close()
+	// Close fallback node pools first; they are non-primary so failures here
+	// are collected but do not prevent the primary from closing.
+	var firstErr error
+	for _, fb := range d.fallbacks {
+		if err := fb.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	return nil
+	d.fallbacks = nil
+	if d.db != nil {
+		if err := d.db.Close(); err != nil {
+			return err
+		}
+	}
+	return firstErr
 }
 
 func (d *driver) Ping(ctx context.Context) error {

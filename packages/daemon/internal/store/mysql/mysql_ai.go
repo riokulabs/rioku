@@ -8,18 +8,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
-
-	"github.com/google/uuid"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
-
-// newAIID generates a prefixed ID for AI subsystem entities, mirroring the
-// SQLite pattern. MySQL uses the same prefix_uuid style.
-func newAIID(prefix string) string {
-	return prefix + "_" + strings.ReplaceAll(uuid.New().String(), "-", "")
-}
 
 // ---------------------------------------------------------------------------
 // AI Providers
@@ -31,7 +22,7 @@ func (t *tx) CreateAIProvider(ctx context.Context, in *store.AIProvider) (*store
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("aiprov")
+		id = newID("aiprov")
 	}
 	meta := in.Metadata
 	if meta == "" {
@@ -159,7 +150,7 @@ func (t *tx) AddProviderModel(ctx context.Context, in *store.AIProviderModel) (*
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("aimodel")
+		id = newID("aimodel")
 	}
 	now := nowUTC()
 	_, err := t.sqlTx.ExecContext(ctx,
@@ -277,7 +268,7 @@ func (t *tx) CreateMCPServer(ctx context.Context, in *store.AIMCPServer) (*store
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("mcp")
+		id = newID("mcp")
 	}
 	authKind := in.AuthKind
 	if authKind == "" {
@@ -430,7 +421,7 @@ func (t *tx) CreateAITool(ctx context.Context, in *store.AITool) (*store.AITool,
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("aitool")
+		id = newID("aitool")
 	}
 	schemaJSON := in.SchemaJSON
 	if schemaJSON == "" {
@@ -570,7 +561,7 @@ func (t *tx) CreateAIAgent(ctx context.Context, in *store.AIAgent) (*store.AIAge
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("aiagent")
+		id = newID("aiagent")
 	}
 	guard := in.Guardrails
 	if guard == "" {
@@ -710,7 +701,7 @@ func (t *tx) CreateAIToolBinding(ctx context.Context, in *store.AIToolBinding) (
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("aibind")
+		id = newID("aibind")
 	}
 	now := nowUTC()
 	_, err := t.sqlTx.ExecContext(ctx,
@@ -834,7 +825,7 @@ func (t *tx) CreateAIRateLimit(ctx context.Context, in *store.AISemanticRateLimi
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("airl")
+		id = newID("airl")
 	}
 	exemplars := in.Exemplars
 	if exemplars == "" {
@@ -987,7 +978,7 @@ func (t *tx) AppendAITrace(ctx context.Context, in *store.AITrace) (*store.AITra
 	}
 	id := in.ID
 	if id == "" {
-		id = newAIID("aitrace")
+		id = newID("aitrace")
 	}
 	calls := in.ToolCallsJSON
 	if calls == "" {

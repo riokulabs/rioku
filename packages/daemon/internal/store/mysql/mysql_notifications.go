@@ -23,7 +23,7 @@ func (t *tx) AppendNotificationItem(ctx context.Context, in *store.NotificationI
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("notif")
 	}
 	severity := in.Severity
 	if severity == "" {
@@ -227,7 +227,7 @@ func (t *tx) CreateNotificationChannel(ctx context.Context, in *store.Notificati
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("nchan")
 	}
 	cfg := in.Config
 	if cfg == "" {
@@ -345,7 +345,7 @@ func (t *tx) CreateRoutingRule(ctx context.Context, in *store.NotificationRoutin
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("nrule")
 	}
 	filter := in.EventFilter
 	if filter == "" {
@@ -485,7 +485,7 @@ func (t *tx) AppendDeliveryLogEntry(ctx context.Context, in *store.NotificationD
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("nlog")
 	}
 	meta := in.Metadata
 	if meta == "" {

@@ -1,0 +1,100 @@
+name: Store - MySQL Integration
+
+on:
+  pull_request:
+    paths:
+      - 'packages/daemon/internal/store/**'
+      - '.github/workflows/store-mysql.yml'
+  push:
+    branches: [main, plan/daemon-fundamentals]
+    paths:
+      - 'packages/daemon/internal/store/**'
+      - '.github/workflows/store-mysql.yml'
+
+jobs:
+  mysql-8-4:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_USER: rioku
+          MYSQL_PASSWORD: rioku_test
+          MYSQL_DATABASE: rioku_test
+          MYSQL_ROOT_PASSWORD: rioku_root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -u root -prioku_root"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Run MySQL integration tests
+        env:
+          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false
+        run: |
+          cd packages/daemon
+          go test -race -count=1 ./internal/store/mysql/...
+
+  mariadb-11-4:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_USER: rioku
+          MARIADB_PASSWORD: rioku_test
+          MARIADB_DATABASE: rioku_test
+          MARIADB_ROOT_PASSWORD: rioku_root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mariadb-admin ping -h localhost -u root -prioku_root"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Run MariaDB integration tests
+        env:
+          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false
+        run: |
+          cd packages/daemon
+          go test -race -count=1 ./internal/store/mysql/...
+
+  mariadb-11-8:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_USER: rioku
+          MARIADB_PASSWORD: rioku_test
+          MARIADB_DATABASE: rioku_test
+          MARIADB_ROOT_PASSWORD: rioku_root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mariadb-admin ping -h localhost -u root -prioku_root"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Run MariaDB integration tests
+        env:
+          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false
+        run: |
+          cd packages/daemon
+          go test -race -count=1 ./internal/store/mysql/...

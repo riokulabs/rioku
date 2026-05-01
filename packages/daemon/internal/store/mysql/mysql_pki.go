@@ -20,7 +20,7 @@ func (t *tx) CreateCertAuthority(ctx context.Context, in *store.CertAuthority) (
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("ca")
 	}
 	now := nowUTC()
 	_, err := t.sqlTx.ExecContext(ctx,
@@ -164,7 +164,7 @@ func (t *tx) CreateCertEnrollment(ctx context.Context, in *store.CertEnrollment)
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("enroll")
 	}
 	state := in.State
 	if state == "" {
@@ -314,7 +314,7 @@ func (t *tx) CreateTLSCertificate(ctx context.Context, in *store.TLSCertificate)
 	}
 	id := in.ID
 	if id == "" {
-		id = newID()
+		id = newID("tlscert")
 	}
 	source := in.Source
 	if source == "" {

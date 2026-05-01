@@ -65,9 +65,12 @@ func orEmptyConditions(c []store.AccessPolicyCondition) []store.AccessPolicyCond
 
 const timeFormat = "2006-01-02T15:04:05.000Z"
 
-// newID generates a UUID string for use as a primary key.
-func newID() string {
-	return uuid.New().String()
+// newID generates a prefixed, hyphen-free UUID string in the form
+// "<prefix>_<uuid32>". Mirrors the postgres helper of the same name.
+// Pass a short, lower-case prefix that identifies the entity type
+// (e.g. "notif", "plug", "hook").
+func newID(prefix string) string {
+	return prefix + "_" + strings.ReplaceAll(uuid.New().String(), "-", "")
 }
 
 // nowUTC returns the current time in UTC formatted as a string.
