@@ -186,7 +186,7 @@ Branch protection should require all five jobs. The sixth is non-blocking.
 | `store-matrix-mariadb-11-4` | Yes |
 | `store-matrix-mariadb-11-8` | Optional (non-blocking) |
 
-See `contrib-docs/docs/store-test-matrix.md` for the full env-var contract.
+See `contrib-docs/docs/development/store-test-matrix.md` for the full env-var contract.
 
 ## Ports (configurable)
 

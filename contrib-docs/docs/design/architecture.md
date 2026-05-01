@@ -27,11 +27,18 @@
 └─────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│  Caddy process   │    │  SQLite/PG/      │    │  Valkey          │
-│  (child, mgd)    │    │  MariaDB         │    │  (optional       │
-│                  │    │  (config         │    │  module)         │
-│                  │    │  store)          │    │                  │
+│  Caddy process   │    │  SQLite /        │    │  Valkey          │
+│  (child, mgd)    │    │  Postgres /      │    │  (optional       │
+│                  │    │  MySQL+MariaDB   │    │  module)         │
+│                  │    │  (config store,  │    │                  │
+│                  │    │  3 first-class)  │    │                  │
 └──────────────────┘    └──────────────────┘    └──────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  OTLP exporter (logs)  →  external collector            │
+│  Optional; configured via observability section in      │
+│  rioku.yaml. Direct otel/sdk/log dep, no plugin shim.   │
+└─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
 │  Admin SPA (React 19 + TanStack, go:embed into daemon)  │
