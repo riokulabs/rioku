@@ -2,7 +2,6 @@
 -- Reverse the initial schema migration.
 -- Tables are dropped in reverse dependency order to respect foreign keys.
 
-DROP TABLE IF EXISTS schema_versions;
 DROP TABLE IF EXISTS audit_log;
 DROP TABLE IF EXISTS config_versions;
 DROP TABLE IF EXISTS api_keys;

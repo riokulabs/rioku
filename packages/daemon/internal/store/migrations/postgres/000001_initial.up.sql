@@ -105,7 +105,7 @@ CREATE INDEX idx_api_keys_name     ON api_keys (name);
 -- Ops: config_versions (full config snapshots for rollback)
 --------------------------------------------------------------------------------
 CREATE TABLE config_versions (
-    version    SERIAL PRIMARY KEY,
+    version    BIGSERIAL PRIMARY KEY,
     snapshot   TEXT NOT NULL,                                             -- JSON-encoded ConfigSnapshot
     actor      TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
