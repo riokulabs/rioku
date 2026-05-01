@@ -324,6 +324,35 @@ func TestStartupWithActionableErrors(t *testing.T) {
 	})
 
 	t.Run("migrate_without_open", func(t *testing.T) {
-		t.Skip("known issue: migrate on unopened driver panics instead of returning error")
+		drv, err := store.New("sqlite")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Calling Migrate before Open must return an actionable error rather
+		// than panicking on a nil *sql.DB deref.
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("Migrate on unopened driver panicked instead of returning error: %v", r)
+			}
+		}()
+
+		err = drv.Migrate(ctx, store.MigrateUp)
+		if err == nil {
+			t.Fatal("expected error when calling Migrate before Open")
+		}
+
+		errStr := err.Error()
+		if errStr == "" {
+			t.Error("expected non-empty error message")
+		}
+		t.Logf("error message: %s", errStr)
+
+		// The error should not contain a raw stack trace.
+		for _, badStr := range []string{"goroutine", "runtime.go", "panic("} {
+			if bytes.Contains([]byte(errStr), []byte(badStr)) {
+				t.Errorf("error message contains stack trace indicator %q: %s", badStr, errStr)
+			}
+		}
 	})
 }

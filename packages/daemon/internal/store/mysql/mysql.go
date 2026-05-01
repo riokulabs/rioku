@@ -188,6 +188,9 @@ func (d *driver) Ping(ctx context.Context) error {
 }
 
 func (d *driver) Migrate(ctx context.Context, direction store.MigrateDirection) error {
+	if d.db == nil {
+		return errors.New("mysql: driver not open")
+	}
 	switch direction {
 	case store.MigrateUp:
 		return d.migrateUp(ctx)

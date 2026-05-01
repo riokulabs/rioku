@@ -3403,3 +3403,735 @@ func TestCompile_TrustedProxies_EmptyOmitted(t *testing.T) {
 		t.Errorf("buildTrustedProxiesBlock({}) = %v, want nil", block)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3e — round-trip coverage for Sprint-1 Caddy primitives (#161, #162,
+// #159 residual). The primitive-level integration tests above (added in
+// commits c931015 / fa85704) assert combined behavior; the cases below
+// cover per-operation isolation, default values, and omission semantics
+// flagged by the Phase 4a sandbox audit and Phase 3a test categorization.
+// ---------------------------------------------------------------------------
+
+// findHandler walks a route's handler chain and returns the first handler
+// matching the given handler name, or nil if not found. Used to assert
+// presence/absence of `headers`, `encode`, etc. before reverse_proxy.
+func findHandler(chain []map[string]any, name string) map[string]any {
+	for _, h := range chain {
+		if h["handler"] == name {
+			return h
+		}
+	}
+	return nil
+}
+
+// TestCompile_RequestHeaders_AddOnly verifies that a RequestHeaders proto with
+// only `add` populated produces a request block containing add and no set/delete.
+func TestCompile_RequestHeaders_AddOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Add: map[string]string{"X-Trace": "trace-id"},
+		},
+	})
+	h := findHandler(chain, "headers")
+	if h == nil {
+		t.Fatal("headers handler missing from chain")
+	}
+	req, ok := h["request"].(map[string]any)
+	if !ok {
+		t.Fatalf("headers.request missing or wrong type")
+	}
+	if _, has := req["set"]; has {
+		t.Error("request.set must not be present when only add is configured")
+	}
+	if _, has := req["delete"]; has {
+		t.Error("request.delete must not be present when only add is configured")
+	}
+	addM, ok := req["add"].(map[string]any)
+	if !ok {
+		t.Fatalf("request.add missing or wrong type")
+	}
+	vals := addM["X-Trace"].([]any)
+	if len(vals) != 1 || vals[0].(string) != "trace-id" {
+		t.Errorf("request.add[X-Trace] = %v, want [trace-id]", vals)
+	}
+}
+
+// TestCompile_RequestHeaders_SetOnly verifies that a RequestHeaders proto with
+// only `set` populated produces a request block containing set and no add/delete.
+func TestCompile_RequestHeaders_SetOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Set: map[string]string{"Host": "internal.example.com"},
+		},
+	})
+	h := findHandler(chain, "headers")
+	if h == nil {
+		t.Fatal("headers handler missing from chain")
+	}
+	req := h["request"].(map[string]any)
+	if _, has := req["add"]; has {
+		t.Error("request.add must not be present when only set is configured")
+	}
+	if _, has := req["delete"]; has {
+		t.Error("request.delete must not be present when only set is configured")
+	}
+	setM := req["set"].(map[string]any)
+	vals := setM["Host"].([]any)
+	if len(vals) != 1 || vals[0].(string) != "internal.example.com" {
+		t.Errorf("request.set[Host] = %v, want [internal.example.com]", vals)
+	}
+}
+
+// TestCompile_RequestHeaders_DeleteOnly verifies that a RequestHeaders proto with
+// only `delete` populated produces a request block containing delete and no set/add.
+func TestCompile_RequestHeaders_DeleteOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Delete: []string{"X-Internal-Token", "X-Debug"},
+		},
+	})
+	h := findHandler(chain, "headers")
+	if h == nil {
+		t.Fatal("headers handler missing from chain")
+	}
+	req := h["request"].(map[string]any)
+	if _, has := req["add"]; has {
+		t.Error("request.add must not be present when only delete is configured")
+	}
+	if _, has := req["set"]; has {
+		t.Error("request.set must not be present when only delete is configured")
+	}
+	delList := req["delete"].([]any)
+	if len(delList) != 2 {
+		t.Fatalf("request.delete len = %d, want 2", len(delList))
+	}
+}
+
+// TestCompile_RequestHeaders_NilOmitsHandler verifies that a Service with
+// RequestHeaders=nil produces no `headers` handler in the chain (only the
+// reverse_proxy handler should be present).
+func TestCompile_RequestHeaders_NilOmitsHandler(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:             "svc1",
+		Upstreams:      []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		RequestHeaders: nil,
+	})
+	if h := findHandler(chain, "headers"); h != nil {
+		t.Errorf("headers handler must not appear when RequestHeaders is nil; got %v", h)
+	}
+}
+
+// TestCompile_RequestHeaders_AllEmptyOmitsHandler verifies that a non-nil
+// RequestHeaders proto with all maps/slices empty produces no `headers`
+// handler (the builder returns nil when there's nothing to do).
+func TestCompile_RequestHeaders_AllEmptyOmitsHandler(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:             "svc1",
+		Upstreams:      []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		RequestHeaders: &riokuv1.RequestHeaders{},
+	})
+	if h := findHandler(chain, "headers"); h != nil {
+		t.Errorf("headers handler must not appear when RequestHeaders is empty; got %v", h)
+	}
+}
+
+// TestCompile_ResponseHeaders_AddOnly verifies that ResponseHeaders with only
+// `add` populated emits a reverse_proxy.headers.response block containing
+// only add (no set, no delete).
+func TestCompile_ResponseHeaders_AddOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Add: map[string]string{"Set-Cookie": "session=xyz"},
+		},
+	})
+	rp := chain[len(chain)-1]
+	headers := rp["headers"].(map[string]any)
+	resp := headers["response"].(map[string]any)
+	if _, has := resp["set"]; has {
+		t.Error("response.set must not appear when only add configured")
+	}
+	if _, has := resp["delete"]; has {
+		t.Error("response.delete must not appear when only add configured")
+	}
+	addM := resp["add"].(map[string]any)
+	vals := addM["Set-Cookie"].([]any)
+	if len(vals) != 1 || vals[0].(string) != "session=xyz" {
+		t.Errorf("response.add[Set-Cookie] = %v, want [session=xyz]", vals)
+	}
+}
+
+// TestCompile_ResponseHeaders_SetOnly verifies ResponseHeaders with only `set`.
+func TestCompile_ResponseHeaders_SetOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Set: map[string]string{"X-Frame-Options": "DENY"},
+		},
+	})
+	rp := chain[len(chain)-1]
+	headers := rp["headers"].(map[string]any)
+	resp := headers["response"].(map[string]any)
+	if _, has := resp["add"]; has {
+		t.Error("response.add must not appear when only set configured")
+	}
+	if _, has := resp["delete"]; has {
+		t.Error("response.delete must not appear when only set configured")
+	}
+	setM := resp["set"].(map[string]any)
+	vals := setM["X-Frame-Options"].([]any)
+	if len(vals) != 1 || vals[0].(string) != "DENY" {
+		t.Errorf("response.set[X-Frame-Options] = %v, want [DENY]", vals)
+	}
+}
+
+// TestCompile_ResponseHeaders_DeleteOnly verifies ResponseHeaders with only `delete`.
+func TestCompile_ResponseHeaders_DeleteOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Delete: []string{"Server", "X-Powered-By"},
+		},
+	})
+	rp := chain[len(chain)-1]
+	headers := rp["headers"].(map[string]any)
+	resp := headers["response"].(map[string]any)
+	if _, has := resp["add"]; has {
+		t.Error("response.add must not appear when only delete configured")
+	}
+	if _, has := resp["set"]; has {
+		t.Error("response.set must not appear when only delete configured")
+	}
+	delList := resp["delete"].([]any)
+	if len(delList) != 2 {
+		t.Fatalf("response.delete len = %d, want 2", len(delList))
+	}
+}
+
+// TestCompile_ResponseHeaders_NilOmitsBlock verifies that a Service with
+// ResponseHeaders=nil produces no `headers` key inside the reverse_proxy
+// handler.
+func TestCompile_ResponseHeaders_NilOmitsBlock(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:              "svc1",
+		Upstreams:       []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseHeaders: nil,
+	})
+	rp := chain[len(chain)-1]
+	if _, has := rp["headers"]; has {
+		t.Error("reverse_proxy.headers must not appear when ResponseHeaders is nil")
+	}
+}
+
+// TestCompile_ResponseHeaders_AllEmptyOmitsBlock verifies that a non-nil
+// ResponseHeaders proto with every field empty produces no headers block.
+func TestCompile_ResponseHeaders_AllEmptyOmitsBlock(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:              "svc1",
+		Upstreams:       []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseHeaders: &riokuv1.ResponseHeaders{},
+	})
+	rp := chain[len(chain)-1]
+	if _, has := rp["headers"]; has {
+		t.Error("reverse_proxy.headers must not appear when ResponseHeaders is empty")
+	}
+}
+
+// TestCompile_Compression_GzipOnly verifies that Compression with only gzip
+// produces an `encode` handler whose `encodings` map contains exactly gzip.
+func TestCompile_Compression_GzipOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"gzip"},
+		},
+	})
+	enc := findHandler(chain, "encode")
+	if enc == nil {
+		t.Fatal("encode handler missing from chain")
+	}
+	encs := enc["encodings"].(map[string]any)
+	if _, ok := encs["gzip"]; !ok {
+		t.Error("encodings missing gzip")
+	}
+	if _, ok := encs["zstd"]; ok {
+		t.Error("encodings should not contain zstd when only gzip configured")
+	}
+}
+
+// TestCompile_Compression_ZstdOnly verifies that Compression with only zstd
+// produces an `encode` handler whose `encodings` map contains exactly zstd.
+func TestCompile_Compression_ZstdOnly(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"zstd"},
+		},
+	})
+	enc := findHandler(chain, "encode")
+	if enc == nil {
+		t.Fatal("encode handler missing from chain")
+	}
+	encs := enc["encodings"].(map[string]any)
+	if _, ok := encs["zstd"]; !ok {
+		t.Error("encodings missing zstd")
+	}
+	if _, ok := encs["gzip"]; ok {
+		t.Error("encodings should not contain gzip when only zstd configured")
+	}
+}
+
+// TestCompile_Compression_DefaultMinLength verifies that Compression with
+// MinLength=0 falls back to the documented default of 1024 bytes.
+func TestCompile_Compression_DefaultMinLength(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"gzip"},
+			MinLength: 0,
+		},
+	})
+	enc := findHandler(chain, "encode")
+	if enc == nil {
+		t.Fatal("encode handler missing from chain")
+	}
+	if enc["minimum_length"].(float64) != 1024 {
+		t.Errorf("minimum_length = %v, want 1024 (default)", enc["minimum_length"])
+	}
+}
+
+// TestCompile_Compression_NilOmits verifies that a Service with
+// Compression=nil produces no `encode` handler.
+func TestCompile_Compression_NilOmits(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:          "svc1",
+		Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: nil,
+	})
+	if h := findHandler(chain, "encode"); h != nil {
+		t.Errorf("encode handler must not appear when Compression is nil; got %v", h)
+	}
+}
+
+// TestCompile_Compression_EnabledNoEncodingsOmits verifies that Compression
+// with Enabled=true but an empty Encodings list produces no `encode`
+// handler — there is nothing to compress with.
+func TestCompile_Compression_EnabledNoEncodingsOmits(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: nil,
+		},
+	})
+	if h := findHandler(chain, "encode"); h != nil {
+		t.Errorf("encode handler must not appear when Encodings is empty; got %v", h)
+	}
+}
+
+// TestCompile_ResponseRules_RouteTo verifies that a ResponseRule with a
+// RouteTo action emits a `vars` handler carrying the rioku_route_to_id
+// dispatch hint for the daemon.
+func TestCompile_ResponseRules_RouteTo(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"401"},
+				Action:           &riokuv1.ResponseRule_RouteTo{RouteTo: "auth-route"},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hrArr := rp["handle_response"].([]any)
+	hr := hrArr[0].(map[string]any)
+
+	routes := hr["routes"].([]any)
+	handle := routes[0].(map[string]any)["handle"].([]any)
+	vh := handle[0].(map[string]any)
+	if vh["handler"] != "vars" {
+		t.Errorf("handler = %v, want vars", vh["handler"])
+	}
+	if vh["rioku_route_to_id"] != "auth-route" {
+		t.Errorf("rioku_route_to_id = %v, want auth-route", vh["rioku_route_to_id"])
+	}
+}
+
+// TestCompile_ResponseRules_4xxWildcard verifies that "4xx" expands to all
+// 100 codes in the 400-499 range and is routed through the configured rewrite.
+func TestCompile_ResponseRules_4xxWildcard(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"4xx"},
+				Action: &riokuv1.ResponseRule_Rewrite{
+					Rewrite: &riokuv1.ResponseRewrite{Uri: "/notfound"},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hr := rp["handle_response"].([]any)[0].(map[string]any)
+	codes := hr["match"].(map[string]any)["status_code"].([]any)
+	if len(codes) != 100 {
+		t.Fatalf("expanded 4xx should produce 100 codes, got %d", len(codes))
+	}
+	if int(codes[0].(float64)) != 400 {
+		t.Errorf("codes[0] = %v, want 400", codes[0])
+	}
+	if int(codes[99].(float64)) != 499 {
+		t.Errorf("codes[99] = %v, want 499", codes[99])
+	}
+}
+
+// TestCompile_ResponseRules_Multiple verifies that two ResponseRules produce
+// two entries in the handle_response array, in order.
+func TestCompile_ResponseRules_Multiple(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"502"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{StatusCode: 502, Body: "bad gateway"},
+				},
+			},
+			{
+				MatchStatusCodes: []string{"503"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{StatusCode: 503, Body: "unavailable"},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hrArr := rp["handle_response"].([]any)
+	if len(hrArr) != 2 {
+		t.Fatalf("handle_response len = %d, want 2", len(hrArr))
+	}
+	first := hrArr[0].(map[string]any)
+	firstCodes := first["match"].(map[string]any)["status_code"].([]any)
+	if int(firstCodes[0].(float64)) != 502 {
+		t.Errorf("first rule code = %v, want 502", firstCodes[0])
+	}
+	second := hrArr[1].(map[string]any)
+	secondCodes := second["match"].(map[string]any)["status_code"].([]any)
+	if int(secondCodes[0].(float64)) != 503 {
+		t.Errorf("second rule code = %v, want 503", secondCodes[0])
+	}
+}
+
+// TestCompile_ResponseRules_EmptyMatchSkipped verifies that a ResponseRule
+// with no match_status_codes is silently dropped (not emitted into
+// handle_response). The remaining rule must still appear.
+func TestCompile_ResponseRules_EmptyMatchSkipped(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: nil, // skipped
+				Action: &riokuv1.ResponseRule_Rewrite{
+					Rewrite: &riokuv1.ResponseRewrite{Uri: "/never"},
+				},
+			},
+			{
+				MatchStatusCodes: []string{"500"},
+				Action: &riokuv1.ResponseRule_Rewrite{
+					Rewrite: &riokuv1.ResponseRewrite{Uri: "/error"},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hrArr := rp["handle_response"].([]any)
+	if len(hrArr) != 1 {
+		t.Fatalf("handle_response len = %d, want 1 (empty-match rule dropped)", len(hrArr))
+	}
+	hr := hrArr[0].(map[string]any)
+	codes := hr["match"].(map[string]any)["status_code"].([]any)
+	if int(codes[0].(float64)) != 500 {
+		t.Errorf("code = %v, want 500", codes[0])
+	}
+}
+
+// TestCompile_ResponseRules_NoActionSkipped verifies that a ResponseRule with
+// no action variant set is silently dropped (the oneof is unset, so the
+// switch in buildHandleResponse falls through default).
+func TestCompile_ResponseRules_NoActionSkipped(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"500"},
+				Action:           nil, // dropped
+			},
+			{
+				MatchStatusCodes: []string{"502"},
+				Action: &riokuv1.ResponseRule_Rewrite{
+					Rewrite: &riokuv1.ResponseRewrite{Uri: "/recover"},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hrArr := rp["handle_response"].([]any)
+	if len(hrArr) != 1 {
+		t.Fatalf("handle_response len = %d, want 1 (no-action rule dropped)", len(hrArr))
+	}
+	hr := hrArr[0].(map[string]any)
+	codes := hr["match"].(map[string]any)["status_code"].([]any)
+	if int(codes[0].(float64)) != 502 {
+		t.Errorf("code = %v, want 502", codes[0])
+	}
+}
+
+// TestCompile_ResponseRules_RewriteWithMethod verifies that a Rewrite action
+// carrying both method and uri emits both fields on the rewrite handler.
+func TestCompile_ResponseRules_RewriteWithMethod(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"503"},
+				Action: &riokuv1.ResponseRule_Rewrite{
+					Rewrite: &riokuv1.ResponseRewrite{Method: "GET", Uri: "/maintenance"},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hr := rp["handle_response"].([]any)[0].(map[string]any)
+	rw := hr["routes"].([]any)[0].(map[string]any)["handle"].([]any)[0].(map[string]any)
+	if rw["method"] != "GET" {
+		t.Errorf("rewrite.method = %v, want GET", rw["method"])
+	}
+	if rw["uri"] != "/maintenance" {
+		t.Errorf("rewrite.uri = %v, want /maintenance", rw["uri"])
+	}
+}
+
+// TestCompile_ResponseRules_ServeErrorPageDefaults verifies that a
+// ServeErrorPage with status_code=0 and content_type="" falls back to
+// the documented defaults (502, text/html; charset=utf-8).
+func TestCompile_ResponseRules_ServeErrorPageDefaults(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"500"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{
+						Body: "oops",
+					},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	hr := rp["handle_response"].([]any)[0].(map[string]any)
+	sr := hr["routes"].([]any)[0].(map[string]any)["handle"].([]any)[0].(map[string]any)
+	if int(sr["status_code"].(float64)) != 502 {
+		t.Errorf("status_code = %v, want 502 (default)", sr["status_code"])
+	}
+	hdrs := sr["headers"].(map[string]any)
+	ct := hdrs["Content-Type"].([]any)
+	if len(ct) != 1 || ct[0].(string) != "text/html; charset=utf-8" {
+		t.Errorf("Content-Type = %v, want default text/html; charset=utf-8", ct)
+	}
+}
+
+// TestCompile_DynamicUpstream_A_DefaultRefresh verifies that a zero
+// RefreshSeconds on ALookup falls back to the 60s default.
+func TestCompile_DynamicUpstream_A_DefaultRefresh(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id: "svc1",
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Source: &riokuv1.Upstream_ALookup{
+					ALookup: &riokuv1.ALookup{
+						Name:           "api.example.com",
+						Port:           443,
+						RefreshSeconds: 0, // → default 60s
+					},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	dyn := rp["dynamic_upstreams"].(map[string]any)
+	wantRefresh := float64(60 * 1_000_000_000)
+	if dyn["refresh"] != wantRefresh {
+		t.Errorf("dynamic_upstreams.refresh = %v, want %v (default 60s)", dyn["refresh"], wantRefresh)
+	}
+	if dyn["port"] != "443" {
+		t.Errorf("dynamic_upstreams.port = %v, want \"443\" (string)", dyn["port"])
+	}
+}
+
+// TestCompile_TrustedProxies_CloudflareDefaultRefresh verifies that a
+// dynamic Cloudflare entry with RefreshSeconds=0 falls back to 3600s, formatted
+// as a Caddy duration string ("3600s").
+func TestCompile_TrustedProxies_CloudflareDefaultRefresh(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "cloudflare", RefreshSeconds: 0},
+		},
+	}
+	block, ok := buildTrustedProxiesBlock(tp).(map[string]any)
+	if !ok {
+		t.Fatal("expected non-nil map block for cloudflare-only dynamic config")
+	}
+	if block["source"] != "cloudflare" {
+		t.Errorf("source = %v, want cloudflare", block["source"])
+	}
+	if block["refresh"] != "3600s" {
+		t.Errorf("refresh = %v, want \"3600s\" (default)", block["refresh"])
+	}
+}
+
+// TestCompile_TrustedProxies_CloudflareCustomRefresh verifies that a
+// cloudflare entry with RefreshSeconds set emits the custom value in
+// "<n>s" form.
+func TestCompile_TrustedProxies_CloudflareCustomRefresh(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "cloudflare", RefreshSeconds: 1800},
+		},
+	}
+	block := buildTrustedProxiesBlock(tp).(map[string]any)
+	if block["refresh"] != "1800s" {
+		t.Errorf("refresh = %v, want \"1800s\"", block["refresh"])
+	}
+}
+
+// TestCompile_TrustedProxies_StaticURLStrategy verifies that the "static"
+// (URL-refresh) dynamic strategy emits a static block plus the informational
+// _strategy_url and _strategy_refresh keys for future module support.
+func TestCompile_TrustedProxies_StaticURLStrategy(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Ranges: []string{"10.0.0.0/8"},
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{
+				Strategy:       "static",
+				URL:            "https://example.com/cidrs.json",
+				RefreshSeconds: 600,
+			},
+		},
+	}
+	block := buildTrustedProxiesBlock(tp).(map[string]any)
+	if block["source"] != "static" {
+		t.Errorf("source = %v, want static", block["source"])
+	}
+	if block["_strategy_url"] != "https://example.com/cidrs.json" {
+		t.Errorf("_strategy_url = %v, want example.com URL", block["_strategy_url"])
+	}
+	if block["_strategy_refresh"] != "600s" {
+		t.Errorf("_strategy_refresh = %v, want \"600s\"", block["_strategy_refresh"])
+	}
+	ranges := block["ranges"].([]string)
+	if len(ranges) != 1 || ranges[0] != "10.0.0.0/8" {
+		t.Errorf("ranges = %v, want [10.0.0.0/8]", ranges)
+	}
+}
+
+// TestCompile_TrustedProxies_StaticURLStrategy_DefaultRefresh verifies that
+// the "static" URL-refresh strategy with RefreshSeconds=0 falls back to 3600s.
+func TestCompile_TrustedProxies_StaticURLStrategy_DefaultRefresh(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "static", URL: "https://example.com/cidrs.json", RefreshSeconds: 0},
+		},
+	}
+	block := buildTrustedProxiesBlock(tp).(map[string]any)
+	if block["_strategy_refresh"] != "3600s" {
+		t.Errorf("_strategy_refresh = %v, want \"3600s\" (default)", block["_strategy_refresh"])
+	}
+}
+
+// TestCompile_TrustedProxies_DynamicOnlyNoStaticRanges verifies that a
+// dynamic-only config (no Ranges) with cloudflare strategy emits the
+// cloudflare block without a static-ranges fallback.
+func TestCompile_TrustedProxies_DynamicOnlyNoStaticRanges(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "cloudflare", RefreshSeconds: 7200},
+		},
+	}
+	block := buildTrustedProxiesBlock(tp).(map[string]any)
+	if block["source"] != "cloudflare" {
+		t.Errorf("source = %v, want cloudflare", block["source"])
+	}
+	// Cloudflare module manages its own list — no `ranges` should be forwarded.
+	if _, has := block["ranges"]; has {
+		t.Error("cloudflare block must not carry a ranges field")
+	}
+}
+
+// TestCompile_TrustedProxies_MultipleDynamicEmitsFirst verifies that when
+// multiple dynamic strategies are configured, only the first is emitted
+// (Caddy accepts a single IP-source module per server). This documents the
+// best-effort mapping noted in compiler_upstreams.go.
+func TestCompile_TrustedProxies_MultipleDynamicEmitsFirst(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "cloudflare", RefreshSeconds: 1800},
+			{Strategy: "static", URL: "https://other.example.com/cidrs.json", RefreshSeconds: 600},
+		},
+	}
+	block := buildTrustedProxiesBlock(tp).(map[string]any)
+	if block["source"] != "cloudflare" {
+		t.Errorf("source = %v, want cloudflare (first dynamic entry); got %v", block["source"], block)
+	}
+	// The second strategy's URL must NOT appear in the emitted block.
+	if v, has := block["_strategy_url"]; has {
+		t.Errorf("_strategy_url = %v, want absent (second dynamic ignored)", v)
+	}
+}
+
+// TestCompile_TrustedProxies_UnknownStrategyFallsBackToStatic verifies that
+// an unknown dynamic strategy name (one Caddy doesn't have a module for)
+// falls through the switch default and emits a "static" block with the
+// known ranges plus informational fields.
+func TestCompile_TrustedProxies_UnknownStrategyFallsBackToStatic(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Ranges: []string{"172.16.0.0/12"},
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "fastly", URL: "https://api.fastly.com/public-ip-list", RefreshSeconds: 900},
+		},
+	}
+	block := buildTrustedProxiesBlock(tp).(map[string]any)
+	if block["source"] != "static" {
+		t.Errorf("source = %v, want static (unknown strategy falls back)", block["source"])
+	}
+	ranges := block["ranges"].([]string)
+	if len(ranges) != 1 || ranges[0] != "172.16.0.0/12" {
+		t.Errorf("ranges = %v, want [172.16.0.0/12]", ranges)
+	}
+	if block["_strategy_url"] != "https://api.fastly.com/public-ip-list" {
+		t.Errorf("_strategy_url = %v, want fastly URL", block["_strategy_url"])
+	}
+}
