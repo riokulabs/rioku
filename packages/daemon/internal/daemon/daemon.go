@@ -34,25 +34,26 @@ import (
 
 // Daemon orchestrates all subsystems.
 type Daemon struct {
-	cfg            *config.Config
-	cfgPath        string
-	store          store.Driver
-	caddy          *caddy.Manager
-	engine         *config.Engine
-	auth           *auth.Auth
-	sessions       *auth.SessionManager
-	grpc           *riokugrpc.Server
-	gateway        *gateway.Gateway
-	syncAgent      *riokusync.Agent
-	tlsAsk         *tlsask.Server
-	upstreamHealth *caddy.UpstreamHealthPoller
-	traceStore     tracestore.Driver
-	ringBuffer     *tracestore.RingBuffer
-	ingester       *tracestore.Ingester
-	aggregator     *tracestore.Aggregator
-	logLevel       *slog.LevelVar
-	pidFile        string
-	startedAt      time.Time
+	cfg             *config.Config
+	cfgPath         string
+	store           store.Driver
+	caddy           *caddy.Manager
+	engine          *config.Engine
+	auth            *auth.Auth
+	sessions        *auth.SessionManager
+	grpc            *riokugrpc.Server
+	gateway         *gateway.Gateway
+	syncAgent       *riokusync.Agent
+	tlsAsk          *tlsask.Server
+	upstreamHealth  *caddy.UpstreamHealthPoller
+	traceStore      tracestore.Driver
+	ringBuffer      *tracestore.RingBuffer
+	ingester        *tracestore.Ingester
+	aggregator      *tracestore.Aggregator
+	logLevel        *slog.LevelVar
+	loggingShutdown logging.Shutdown
+	pidFile         string
+	startedAt       time.Time
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -79,11 +80,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.startedAt = time.Now()
 
 	// 0. Initialize structured logging.
-	lv, err := logging.Setup(d.cfg.Logging)
+	lv, loggingShutdown, err := logging.Setup(d.cfg.Logging)
 	if err != nil {
 		return fmt.Errorf("logging setup: %w", err)
 	}
 	d.logLevel = lv
+	d.loggingShutdown = loggingShutdown
 
 	// Create component loggers.
 	storeLog := slog.Default().With("component", "store")
@@ -421,6 +423,14 @@ func (d *Daemon) Stop(ctx context.Context) error {
 
 	// Remove PID file.
 	_ = RemovePIDFile(d.pidFile)
+
+	// Flush and close the OTLP log exporter last so any shutdown log
+	// messages above are still shipped before the connection is torn down.
+	if d.loggingShutdown != nil {
+		if err := d.loggingShutdown(ctx); err != nil {
+			slog.Error("logging shutdown error", "component", "logging", "error", err)
+		}
+	}
 
 	slog.Info("stopped")
 	return nil

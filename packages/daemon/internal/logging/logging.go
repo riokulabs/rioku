@@ -2,6 +2,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,9 +14,18 @@ import (
 	"github.com/riokulabs/rioku/internal/config"
 )
 
+// Shutdown is a function that flushes and closes log exporter resources.
+// It is returned by Setup and should be called on daemon shutdown.
+type Shutdown func(context.Context) error
+
+// noopShutdown is a no-op Shutdown used when OTLP is disabled.
+func noopShutdown(_ context.Context) error { return nil }
+
 // Setup initializes structured logging based on the provided config.
-// Returns a LevelVar that can be used to change log level at runtime.
-func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
+// Returns a LevelVar that can be used to change log level at runtime,
+// and a Shutdown function that must be called during daemon teardown to
+// flush any pending OTLP records and release exporter resources.
+func Setup(cfg config.LoggingConfig) (*slog.LevelVar, Shutdown, error) {
 	var level slog.Level
 	switch cfg.Level {
 	case "debug":
@@ -27,7 +37,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	case "error":
 		level = slog.LevelError
 	default:
-		return nil, fmt.Errorf("invalid log level: %q", cfg.Level)
+		return nil, noopShutdown, fmt.Errorf("invalid log level: %q", cfg.Level)
 	}
 
 	var lv slog.LevelVar
@@ -40,7 +50,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	case "file":
 		f, err := openLogFile(cfg.File.Path)
 		if err != nil {
-			return nil, fmt.Errorf("open log file: %w", err)
+			return nil, noopShutdown, fmt.Errorf("open log file: %w", err)
 		}
 		w = f
 	case "both":
@@ -52,7 +62,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 			w = &resilientMultiWriter{primary: os.Stderr, secondary: f}
 		}
 	default:
-		return nil, fmt.Errorf("invalid log output: %q", cfg.Output)
+		return nil, noopShutdown, fmt.Errorf("invalid log output: %q", cfg.Output)
 	}
 
 	opts := &slog.HandlerOptions{Level: &lv}
@@ -69,7 +79,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	case "text":
 		handler = newConsoleHandler(w, opts)
 	default:
-		return nil, fmt.Errorf("invalid log format: %q", cfg.Format)
+		return nil, noopShutdown, fmt.Errorf("invalid log format: %q", cfg.Format)
 	}
 
 	// Wrap with the context handler so that any *Context logging call
@@ -77,8 +87,21 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	// active request context.
 	handler = NewContextHandler(handler)
 
+	// Optionally attach the OTLP handler as a second destination.
+	shutdown := Shutdown(noopShutdown)
+	if cfg.OTLP.Enabled {
+		otlp, otlpShutdown, err := NewOTLPHandler(context.Background(), cfg.OTLP, level)
+		if err != nil {
+			// OTLP is best-effort: warn but continue with local output only.
+			fmt.Fprintf(os.Stderr, "WARNING: OTLP log shipping unavailable: %v\n", err)
+		} else {
+			handler = NewMultiHandler(handler, otlp)
+			shutdown = otlpShutdown
+		}
+	}
+
 	slog.SetDefault(slog.New(handler))
-	return &lv, nil
+	return &lv, shutdown, nil
 }
 
 func openLogFile(path string) (*os.File, error) {

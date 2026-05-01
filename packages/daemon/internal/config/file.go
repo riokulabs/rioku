@@ -47,11 +47,32 @@ type LoggingConfig struct {
 	Format string        `yaml:"format"`
 	Output string        `yaml:"output"`
 	File   LogFileConfig `yaml:"file"`
+	OTLP   LogOTLPConfig `yaml:"otlp"`
 }
 
 // LogFileConfig controls file-based log output.
 type LogFileConfig struct {
 	Path string `yaml:"path"`
+}
+
+// LogOTLPConfig controls OTLP log shipping. When Enabled is false,
+// no OTLP exporter is attached and logs flow only to the configured
+// Output (stderr/file/both).
+type LogOTLPConfig struct {
+	// Enabled toggles OTLP log shipping. Default: false.
+	Enabled bool `yaml:"enabled"`
+	// Endpoint is the collector endpoint, e.g. "https://otel.example.com:4318"
+	// for HTTP or "otel.example.com:4317" for gRPC.
+	Endpoint string `yaml:"endpoint"`
+	// Protocol is "http/protobuf" (default) or "grpc".
+	Protocol string `yaml:"protocol"`
+	// Headers is a map of HTTP/gRPC headers (e.g., authorization tokens).
+	Headers map[string]string `yaml:"headers"`
+	// Insecure disables TLS verification (use only for local collectors).
+	Insecure bool `yaml:"insecure"`
+	// ServiceName overrides the OTel resource service.name. Default:
+	// "rioku-daemon".
+	ServiceName string `yaml:"service_name"`
 }
 
 // --------------------------------------------------------------------------
@@ -733,6 +754,18 @@ func validate(cfg *Config) error {
 	}
 	if (cfg.Logging.Output == "file" || cfg.Logging.Output == "both") && cfg.Logging.File.Path == "" {
 		errs = append(errs, fmt.Errorf("logging.file.path: required when output is %q", cfg.Logging.Output))
+	}
+	// OTLP logging validation (only when enabled).
+	if cfg.Logging.OTLP.Enabled {
+		if cfg.Logging.OTLP.Endpoint == "" {
+			errs = append(errs, fmt.Errorf("logging.otlp.endpoint: required when otlp is enabled"))
+		}
+		switch cfg.Logging.OTLP.Protocol {
+		case "", "http/protobuf", "grpc":
+			// valid
+		default:
+			errs = append(errs, fmt.Errorf("logging.otlp.protocol: must be http/protobuf or grpc (got %q)", cfg.Logging.OTLP.Protocol))
+		}
 	}
 
 	// traces.store
