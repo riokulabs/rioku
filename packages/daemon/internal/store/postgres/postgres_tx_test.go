@@ -2103,3 +2103,742 @@ func TestTOTPBackupCodes(t *testing.T) {
 	}
 	_ = tx7.Rollback()
 }
+
+// ---------------------------------------------------------------------------
+// Tenant CRUD (phase 2c4)
+// ---------------------------------------------------------------------------
+
+func TestTenant_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateTenant(ctx, &store.Tenant{
+		Slug: "acme",
+		Name: "Acme Corp",
+		Plan: "pro",
+	})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Slug != "acme" {
+		t.Fatalf("expected slug 'acme', got %q", created.Slug)
+	}
+	if created.Plan != "pro" {
+		t.Fatalf("expected plan 'pro', got %q", created.Plan)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tenantID := created.ID
+
+	// --- GetTenant ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("GetTenant: %v", err)
+	}
+	if got.Name != "Acme Corp" {
+		t.Fatalf("expected name 'Acme Corp', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- GetTenantBySlug ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	bySlug, err := tx3.GetTenantBySlug(ctx, "acme")
+	if err != nil {
+		t.Fatalf("GetTenantBySlug: %v", err)
+	}
+	if bySlug.ID != tenantID {
+		t.Fatalf("expected ID %q, got %q", tenantID, bySlug.ID)
+	}
+	_ = tx3.Rollback()
+
+	// --- ListTenants (includes seed tenant_default) ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx4.ListTenants(ctx)
+	if err != nil {
+		t.Fatalf("ListTenants: %v", err)
+	}
+	found := false
+	for _, tn := range list {
+		if tn.ID == tenantID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("ListTenants: created tenant not in list")
+	}
+	_ = tx4.Rollback()
+
+	// --- UpdateTenant ---
+	newName := "Acme Updated"
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx5.UpdateTenant(ctx, tenantID, store.UpdateTenantParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateTenant: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, updated.Name)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrTenantSlugTaken on duplicate slug ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx6.CreateTenant(ctx, &store.Tenant{Slug: "acme", Name: "Dup"})
+	_ = tx6.Rollback()
+	if !errors.Is(dupErr, store.ErrTenantSlugTaken) {
+		t.Fatalf("expected ErrTenantSlugTaken, got %v", dupErr)
+	}
+
+	// --- ErrTenantImmutable on deleting tenant_default ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	immErr := tx7.DeleteTenant(ctx, "tenant_default")
+	_ = tx7.Rollback()
+	if !errors.Is(immErr, store.ErrTenantImmutable) {
+		t.Fatalf("expected ErrTenantImmutable, got %v", immErr)
+	}
+
+	// --- DeleteTenant ---
+	tx8, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx8.DeleteTenant(ctx, tenantID); err != nil {
+		t.Fatalf("DeleteTenant: %v", err)
+	}
+	if err := tx8.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// GetTenant after delete must return ErrTenantNotFound.
+	tx9, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := tx9.GetTenant(ctx, tenantID)
+	_ = tx9.Rollback()
+	if !errors.Is(nfErr, store.ErrTenantNotFound) {
+		t.Fatalf("expected ErrTenantNotFound after delete, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Membership CRUD (phase 2c4)
+// ---------------------------------------------------------------------------
+
+func TestMembership_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Create a tenant and a user to attach the membership to.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "mb-tenant", Name: "Membership Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	email := "mbuser@example.com"
+	user, err := txSetup.CreateUser(ctx, &store.User{
+		Username: "mbuser", Email: &email, PasswordHash: "x", Status: "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+
+	tenantID := tenant.ID
+	userID := user.ID
+
+	// --- Create pending membership ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateMembership(ctx, &store.Membership{
+		TenantID: tenantID,
+		UserID:   userID,
+		State:    "pending",
+	})
+	if err != nil {
+		t.Fatalf("CreateMembership: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.State != "pending" {
+		t.Fatalf("expected state 'pending', got %q", created.State)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	mID := created.ID
+
+	// --- GetMembership ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetMembership(ctx, mID)
+	if err != nil {
+		t.Fatalf("GetMembership: %v", err)
+	}
+	if got.TenantID != tenantID {
+		t.Fatalf("expected TenantID %q, got %q", tenantID, got.TenantID)
+	}
+	_ = tx2.Rollback()
+
+	// --- GetMembershipByTenantUser ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byPair, err := tx3.GetMembershipByTenantUser(ctx, tenantID, userID)
+	if err != nil {
+		t.Fatalf("GetMembershipByTenantUser: %v", err)
+	}
+	if byPair.ID != mID {
+		t.Fatalf("expected ID %q, got %q", mID, byPair.ID)
+	}
+	_ = tx3.Rollback()
+
+	// --- ListMembershipsByTenant ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byTenant, err := tx4.ListMembershipsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListMembershipsByTenant: %v", err)
+	}
+	if len(byTenant) != 1 || byTenant[0].ID != mID {
+		t.Fatalf("expected 1 membership with ID %q, got %d results", mID, len(byTenant))
+	}
+	_ = tx4.Rollback()
+
+	// --- ListMembershipsByUser ---
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	byUser, err := tx5.ListMembershipsByUser(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListMembershipsByUser: %v", err)
+	}
+	if len(byUser) != 1 || byUser[0].ID != mID {
+		t.Fatalf("expected 1 membership by user, got %d", len(byUser))
+	}
+	_ = tx5.Rollback()
+
+	// --- UpdateMembershipState: pending -> active ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	activated, err := tx6.UpdateMembershipState(ctx, mID, "active")
+	if err != nil {
+		t.Fatalf("UpdateMembershipState (active): %v", err)
+	}
+	if activated.State != "active" {
+		t.Fatalf("expected state 'active', got %q", activated.State)
+	}
+	if activated.JoinedAt == nil {
+		t.Fatal("expected JoinedAt set after activation")
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrMembershipInvalidState: removed -> active is forbidden ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	// First move to removed (active -> removed is valid).
+	if _, err := tx7.UpdateMembershipState(ctx, mID, "removed"); err != nil {
+		t.Fatalf("UpdateMembershipState (removed): %v", err)
+	}
+	// Now try invalid transition removed -> active.
+	_, invErr := tx7.UpdateMembershipState(ctx, mID, "active")
+	_ = tx7.Rollback()
+	if !errors.Is(invErr, store.ErrMembershipInvalidState) {
+		t.Fatalf("expected ErrMembershipInvalidState, got %v", invErr)
+	}
+
+	// --- ErrMembershipExists on duplicate (tenant_id, user_id) ---
+	tx8, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx8.CreateMembership(ctx, &store.Membership{
+		TenantID: tenantID,
+		UserID:   userID,
+	})
+	_ = tx8.Rollback()
+	if !errors.Is(dupErr, store.ErrMembershipExists) {
+		t.Fatalf("expected ErrMembershipExists, got %v", dupErr)
+	}
+
+	// --- DeleteMembership ---
+	tx9, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx9.DeleteMembership(ctx, mID); err != nil {
+		t.Fatalf("DeleteMembership: %v", err)
+	}
+	if err := tx9.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx10, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := tx10.GetMembership(ctx, mID)
+	_ = tx10.Rollback()
+	if !errors.Is(nfErr, store.ErrMembershipNotFound) {
+		t.Fatalf("expected ErrMembershipNotFound after delete, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// MembershipRoles (phase 2c4)
+// ---------------------------------------------------------------------------
+
+func TestMembershipRoles(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Setup: tenant + user + membership.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "mr-tenant", Name: "MR Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	email := "mruser@example.com"
+	user, err := txSetup.CreateUser(ctx, &store.User{
+		Username: "mruser", Email: &email, PasswordHash: "x", Status: "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	m, err := txSetup.CreateMembership(ctx, &store.Membership{
+		TenantID: tenant.ID,
+		UserID:   user.ID,
+		State:    "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateMembership: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	mID := m.ID
+
+	// Find the built-in viewer role to attach.
+	txR, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	roles, err := txR.ListRoles(ctx)
+	if err != nil {
+		t.Fatalf("ListRoles: %v", err)
+	}
+	_ = txR.Rollback()
+	if len(roles) == 0 {
+		t.Skip("no roles seeded — skipping MembershipRoles test")
+	}
+	roleID := roles[0].ID
+
+	// --- AssignMembershipRole ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx1.AssignMembershipRole(ctx, mID, roleID, ""); err != nil {
+		t.Fatalf("AssignMembershipRole: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ListMembershipRoles ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	assigned, err := tx2.ListMembershipRoles(ctx, mID)
+	if err != nil {
+		t.Fatalf("ListMembershipRoles: %v", err)
+	}
+	if len(assigned) != 1 || assigned[0].ID != roleID {
+		t.Fatalf("expected 1 role %q, got %d results", roleID, len(assigned))
+	}
+	_ = tx2.Rollback()
+
+	// --- Assign-twice is idempotent ---
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx3.AssignMembershipRole(ctx, mID, roleID, "admin"); err != nil {
+		t.Fatalf("AssignMembershipRole (dup): %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit (dup): %v", err)
+	}
+
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterDup, err := tx4.ListMembershipRoles(ctx, mID)
+	if err != nil {
+		t.Fatalf("ListMembershipRoles after dup: %v", err)
+	}
+	if len(afterDup) != 1 {
+		t.Fatalf("expected exactly 1 role after idempotent assign, got %d", len(afterDup))
+	}
+	_ = tx4.Rollback()
+
+	// --- RevokeMembershipRole ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.RevokeMembershipRole(ctx, mID, roleID); err != nil {
+		t.Fatalf("RevokeMembershipRole: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit revoke: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterRevoke, err := tx6.ListMembershipRoles(ctx, mID)
+	if err != nil {
+		t.Fatalf("ListMembershipRoles after revoke: %v", err)
+	}
+	if len(afterRevoke) != 0 {
+		t.Fatalf("expected 0 roles after revoke, got %d", len(afterRevoke))
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Site CRUD (phase 2c4)
+// ---------------------------------------------------------------------------
+
+func TestSite_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Setup: create a tenant to own the sites.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "site-tenant", Name: "Site Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- CreateSite ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	site, err := tx1.CreateSite(ctx, &store.Site{
+		TenantID: tenantID,
+		Name:     "Main Site",
+		Domain:   "main.example.com",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateSite: %v", err)
+	}
+	if site.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if site.TLSMode != "auto" {
+		t.Fatalf("expected default TLSMode 'auto', got %q", site.TLSMode)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	siteID := site.ID
+
+	// --- GetSite ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetSite(ctx, tenantID, siteID)
+	if err != nil {
+		t.Fatalf("GetSite: %v", err)
+	}
+	if got.Domain != "main.example.com" {
+		t.Fatalf("expected domain 'main.example.com', got %q", got.Domain)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListSitesByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListSitesByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListSitesByTenant: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != siteID {
+		t.Fatalf("expected 1 site %q, got %d results", siteID, len(list))
+	}
+	_ = tx3.Rollback()
+
+	// --- UpdateSite ---
+	newName := "Updated Site"
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateSite(ctx, tenantID, siteID, store.UpdateSiteParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateSite: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, updated.Name)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ToggleSite (disable) ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	toggled, err := tx5.ToggleSite(ctx, tenantID, siteID, false)
+	if err != nil {
+		t.Fatalf("ToggleSite: %v", err)
+	}
+	if toggled.Enabled {
+		t.Fatal("expected enabled=false after toggle")
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrSiteDomainTaken on duplicate domain ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx6.CreateSite(ctx, &store.Site{
+		TenantID: tenantID,
+		Name:     "Dup",
+		Domain:   "main.example.com",
+	})
+	_ = tx6.Rollback()
+	if !errors.Is(dupErr, store.ErrSiteDomainTaken) {
+		t.Fatalf("expected ErrSiteDomainTaken, got %v", dupErr)
+	}
+
+	// --- DeleteSite ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.DeleteSite(ctx, tenantID, siteID); err != nil {
+		t.Fatalf("DeleteSite: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx8, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := tx8.GetSite(ctx, tenantID, siteID)
+	_ = tx8.Rollback()
+	if !errors.Is(nfErr, store.ErrSiteNotFound) {
+		t.Fatalf("expected ErrSiteNotFound after delete, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Middleware CRUD (phase 2c4)
+// ---------------------------------------------------------------------------
+
+func TestMiddleware_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Setup: create a tenant.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txSetup.CreateTenant(ctx, &store.Tenant{Slug: "mw-tenant", Name: "MW Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	tenantID := tenant.ID
+
+	// --- CreateMiddleware ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	mw, err := tx1.CreateMiddleware(ctx, &store.Middleware{
+		TenantID:  tenantID,
+		Name:      "rate-limiter",
+		Kind:      "rate-limit",
+		Enabled:   true,
+		OrderHint: 10,
+	})
+	if err != nil {
+		t.Fatalf("CreateMiddleware: %v", err)
+	}
+	if mw.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if mw.Config != "{}" {
+		t.Fatalf("expected default config '{}', got %q", mw.Config)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	mwID := mw.ID
+
+	// --- GetMiddleware ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetMiddleware(ctx, tenantID, mwID)
+	if err != nil {
+		t.Fatalf("GetMiddleware: %v", err)
+	}
+	if got.Kind != "rate-limit" {
+		t.Fatalf("expected kind 'rate-limit', got %q", got.Kind)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListMiddlewaresByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListMiddlewaresByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListMiddlewaresByTenant: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != mwID {
+		t.Fatalf("expected 1 middleware %q, got %d results", mwID, len(list))
+	}
+	_ = tx3.Rollback()
+
+	// --- UpdateMiddleware ---
+	newName := "rate-limiter-v2"
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateMiddleware(ctx, tenantID, mwID, store.UpdateMiddlewareParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateMiddleware: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, updated.Name)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrMiddlewareNameTaken on duplicate (tenant_id, name) ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := tx5.CreateMiddleware(ctx, &store.Middleware{
+		TenantID: tenantID,
+		Name:     "rate-limiter-v2", // same name as updated mw
+		Kind:     "rate-limit",
+	})
+	_ = tx5.Rollback()
+	if !errors.Is(dupErr, store.ErrMiddlewareNameTaken) {
+		t.Fatalf("expected ErrMiddlewareNameTaken, got %v", dupErr)
+	}
+
+	// --- DeleteMiddleware ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteMiddleware(ctx, tenantID, mwID); err != nil {
+		t.Fatalf("DeleteMiddleware: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := tx7.GetMiddleware(ctx, tenantID, mwID)
+	_ = tx7.Rollback()
+	if !errors.Is(nfErr, store.ErrMiddlewareNotFound) {
+		t.Fatalf("expected ErrMiddlewareNotFound after delete, got %v", nfErr)
+	}
+}

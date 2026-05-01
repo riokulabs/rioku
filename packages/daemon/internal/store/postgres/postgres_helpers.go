@@ -3,10 +3,13 @@ package postgres
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -18,6 +21,24 @@ import (
 // nowUTC returns the current time in UTC. PostgreSQL TIMESTAMPTZ columns
 // accept time.Time directly — no string formatting is required.
 func nowUTC() time.Time { return time.Now().UTC() }
+
+// isPgUniqueViolation returns true if err is a PostgreSQL unique-constraint
+// violation (SQLSTATE 23505). When constraintHint is non-empty, it must also
+// appear in the constraint name for true to be returned. Pass an empty string
+// to match any unique violation.
+func isPgUniqueViolation(err error, constraintHint string) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	if pgErr.Code != "23505" {
+		return false
+	}
+	if constraintHint == "" {
+		return true
+	}
+	return strings.Contains(pgErr.ConstraintName, constraintHint)
+}
 
 // emit sends a non-blocking change event on the driver notification channel.
 // If the channel is full the event is dropped and a warning is logged.
