@@ -2842,3 +2842,889 @@ func TestMiddleware_CRUD(t *testing.T) {
 		t.Fatalf("expected ErrMiddlewareNotFound after delete, got %v", nfErr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard CRUD (phase 2c5)
+// ---------------------------------------------------------------------------
+
+func TestDashboard_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tenantID := "tenant_default"
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateDashboard(ctx, &store.Dashboard{
+		TenantID:    tenantID,
+		Name:        "Test Dashboard",
+		Description: "desc",
+		Mode:        "metabase",
+		Scope:       "tenant",
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboard: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Name != "Test Dashboard" {
+		t.Fatalf("expected name 'Test Dashboard', got %q", created.Name)
+	}
+	if created.IsDefault {
+		t.Fatal("expected is_default=false on creation")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	dashID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetDashboard(ctx, tenantID, dashID)
+	if err != nil {
+		t.Fatalf("GetDashboard: %v", err)
+	}
+	if got.Name != "Test Dashboard" {
+		t.Fatalf("expected 'Test Dashboard', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListDashboardsByTenant(ctx, tenantID)
+	if err != nil {
+		t.Fatalf("ListDashboardsByTenant: %v", err)
+	}
+	found := false
+	for _, item := range list {
+		if item.ID == dashID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created dashboard not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newName := "Updated Dashboard"
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx4.UpdateDashboard(ctx, tenantID, dashID, store.UpdateDashboardParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateDashboard: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, updated.Name)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- SetDefaultDashboard ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx5.SetDefaultDashboard(ctx, tenantID, dashID)
+	if err != nil {
+		t.Fatalf("SetDefaultDashboard: %v", err)
+	}
+	if !def.IsDefault {
+		t.Fatal("expected is_default=true after SetDefaultDashboard")
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- SetDashboardHomeForUser (uniqueness invariant) ---
+	// Create a second dashboard to verify the userID is removed from it when
+	// the first dashboard becomes the home.
+	txSetup2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	dash2, err := txSetup2.CreateDashboard(ctx, &store.Dashboard{
+		TenantID: tenantID,
+		Name:     "Second Dashboard",
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboard (second): %v", err)
+	}
+	if err := txSetup2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	dash2ID := dash2.ID
+
+	// Set userID as home on dash2 first.
+	testUserID := "user-home-test-001"
+	txH1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := txH1.SetDashboardHomeForUser(ctx, tenantID, dash2ID, testUserID); err != nil {
+		t.Fatalf("SetDashboardHomeForUser (dash2): %v", err)
+	}
+	if err := txH1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Now move the home to dashID — dash2 must no longer have the user.
+	txH2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	homeResult, err := txH2.SetDashboardHomeForUser(ctx, tenantID, dashID, testUserID)
+	if err != nil {
+		t.Fatalf("SetDashboardHomeForUser (dashID): %v", err)
+	}
+	if err := txH2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	// homeResult is dashID; it should contain the user.
+	if !strings.Contains(homeResult.HomeForUsers, testUserID) {
+		t.Fatalf("expected testUserID in home_for_users of dashID, got %q", homeResult.HomeForUsers)
+	}
+
+	// Verify dash2 no longer has the user.
+	txH3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	dash2After, err := txH3.GetDashboard(ctx, tenantID, dash2ID)
+	if err != nil {
+		t.Fatalf("GetDashboard (dash2 after): %v", err)
+	}
+	_ = txH3.Rollback()
+	if strings.Contains(dash2After.HomeForUsers, testUserID) {
+		t.Fatalf("expected testUserID removed from dash2, still present in %q", dash2After.HomeForUsers)
+	}
+
+	// --- ErrDashboardNotFound on missing ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetDashboard(ctx, tenantID, "dash_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrDashboardNotFound) {
+		t.Fatalf("expected ErrDashboardNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteDashboard(ctx, tenantID, dashID); err != nil {
+		t.Fatalf("DeleteDashboard: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetDashboard(ctx, tenantID, dashID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrDashboardNotFound) {
+		t.Fatalf("expected ErrDashboardNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Widget CRUD (phase 2c5)
+// ---------------------------------------------------------------------------
+
+func TestWidget_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tenantID := "tenant_default"
+
+	// Pre-create parent dashboard.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	dash, err := txSetup.CreateDashboard(ctx, &store.Dashboard{
+		TenantID: tenantID,
+		Name:     "Widget Test Dashboard",
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboard: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	dashID := dash.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateWidget(ctx, &store.Widget{
+		DashboardID: dashID,
+		Kind:        "stat",
+		Title:       "Test Widget",
+		DataSource:  "prometheus",
+	})
+	if err != nil {
+		t.Fatalf("CreateWidget: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Kind != "stat" {
+		t.Fatalf("expected kind 'stat', got %q", created.Kind)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	widgetID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetWidget(ctx, widgetID)
+	if err != nil {
+		t.Fatalf("GetWidget: %v", err)
+	}
+	if got.Title != "Test Widget" {
+		t.Fatalf("expected 'Test Widget', got %q", got.Title)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListByDashboard ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListWidgetsByDashboard(ctx, dashID)
+	if err != nil {
+		t.Fatalf("ListWidgetsByDashboard: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != widgetID {
+		t.Fatalf("expected 1 widget %q, got %d results", widgetID, len(list))
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newTitle := "Updated Widget"
+	lockedAdv := true
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateWidget(ctx, widgetID, store.UpdateWidgetParams{
+		Title:          &newTitle,
+		LockedAdvanced: &lockedAdv,
+	})
+	if err != nil {
+		t.Fatalf("UpdateWidget: %v", err)
+	}
+	if upd.Title != newTitle {
+		t.Fatalf("expected title %q, got %q", newTitle, upd.Title)
+	}
+	if !upd.LockedAdvanced {
+		t.Fatal("expected locked_advanced=true")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- UpdateDashboardLayout ---
+	txL, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newLayout := `{"x":1,"y":2,"w":6,"h":4}`
+	if err := txL.UpdateDashboardLayout(ctx, dashID, map[string]string{widgetID: newLayout}); err != nil {
+		t.Fatalf("UpdateDashboardLayout: %v", err)
+	}
+	if err := txL.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	txLR, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	wAfter, err := txLR.GetWidget(ctx, widgetID)
+	if err != nil {
+		t.Fatalf("GetWidget after layout update: %v", err)
+	}
+	_ = txLR.Rollback()
+	if wAfter.Layout != newLayout {
+		t.Fatalf("expected layout %q, got %q", newLayout, wAfter.Layout)
+	}
+
+	// --- ErrWidgetNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetWidget(ctx, "widget_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrWidgetNotFound) {
+		t.Fatalf("expected ErrWidgetNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteWidget(ctx, dashID, widgetID); err != nil {
+		t.Fatalf("DeleteWidget: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetWidget(ctx, widgetID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrWidgetNotFound) {
+		t.Fatalf("expected ErrWidgetNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DashboardVersion (phase 2c5)
+// ---------------------------------------------------------------------------
+
+func TestDashboardVersion(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tenantID := "tenant_default"
+
+	// Pre-create parent dashboard.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	dash, err := txSetup.CreateDashboard(ctx, &store.Dashboard{
+		TenantID: tenantID,
+		Name:     "Version Test Dashboard",
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboard: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	dashID := dash.ID
+
+	// --- Create v1 ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	v1, err := tx1.CreateDashboardVersion(ctx, &store.DashboardVersion{
+		DashboardID:  dashID,
+		Note:         "initial version",
+		SnapshotJSON: `{"widgets":[]}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboardVersion v1: %v", err)
+	}
+	if v1.Version != 1 {
+		t.Fatalf("expected version=1, got %d", v1.Version)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create v2 ---
+	tx1b, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	v2, err := tx1b.CreateDashboardVersion(ctx, &store.DashboardVersion{
+		DashboardID:  dashID,
+		Note:         "second version",
+		SnapshotJSON: `{"widgets":[{"id":"w1"}]}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboardVersion v2: %v", err)
+	}
+	if v2.Version != 2 {
+		t.Fatalf("expected version=2, got %d", v2.Version)
+	}
+	if err := tx1b.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetDashboardVersion(ctx, v1.ID)
+	if err != nil {
+		t.Fatalf("GetDashboardVersion: %v", err)
+	}
+	if got.Note != "initial version" {
+		t.Fatalf("expected note 'initial version', got %q", got.Note)
+	}
+	_ = tx2.Rollback()
+
+	// --- List (ordered DESC) ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	versions, err := tx3.ListDashboardVersions(ctx, dashID)
+	if err != nil {
+		t.Fatalf("ListDashboardVersions: %v", err)
+	}
+	if len(versions) != 2 {
+		t.Fatalf("expected 2 versions, got %d", len(versions))
+	}
+	// First result should be highest version (DESC order).
+	if versions[0].Version != 2 {
+		t.Fatalf("expected first version=2 (DESC), got %d", versions[0].Version)
+	}
+	_ = tx3.Rollback()
+
+	// --- ErrVersionNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetDashboardVersion(ctx, "ver_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrVersionNotFound) {
+		t.Fatalf("expected ErrVersionNotFound, got %v", nfErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DashboardShare CRUD (phase 2c5)
+// ---------------------------------------------------------------------------
+
+func TestDashboardShare_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tenantID := "tenant_default"
+	tCtx := store.WithTenantID(ctx, tenantID)
+
+	// Pre-create parent dashboard.
+	txSetup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	dash, err := txSetup.CreateDashboard(ctx, &store.Dashboard{
+		TenantID: tenantID,
+		Name:     "Share Test Dashboard",
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboard: %v", err)
+	}
+	if err := txSetup.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+	dashID := dash.ID
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	createdBy := "user-share-test-001"
+	share, err := tx1.CreateDashboardShare(tCtx, &store.DashboardShare{
+		DashboardID: dashID,
+		RoleID:      "role-viewer",
+		CreatedBy:   &createdBy,
+	})
+	if err != nil {
+		t.Fatalf("CreateDashboardShare: %v", err)
+	}
+	if share.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if share.RoleID != "role-viewer" {
+		t.Fatalf("expected role 'role-viewer', got %q", share.RoleID)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	shareID := share.ID
+
+	// --- List ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	shares, err := tx2.ListDashboardShares(tCtx, dashID)
+	if err != nil {
+		t.Fatalf("ListDashboardShares: %v", err)
+	}
+	if len(shares) != 1 || shares[0].ID != shareID {
+		t.Fatalf("expected 1 share %q, got %d results", shareID, len(shares))
+	}
+	_ = tx2.Rollback()
+
+	// --- Delete ---
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx3.DeleteDashboardShare(tCtx, shareID); err != nil {
+		t.Fatalf("DeleteDashboardShare: %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterDel, err := tx4.ListDashboardShares(tCtx, dashID)
+	if err != nil {
+		t.Fatalf("ListDashboardShares after delete: %v", err)
+	}
+	_ = tx4.Rollback()
+	if len(afterDel) != 0 {
+		t.Fatalf("expected 0 shares after delete, got %d", len(afterDel))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AccessPolicy CRUD (phase 2c5)
+// ---------------------------------------------------------------------------
+
+func TestAccessPolicy_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tenantID := "tenant_default"
+	tCtx := store.WithTenantID(ctx, tenantID)
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateAccessPolicy(tCtx, &store.AccessPolicy{
+		Name:        "block-guests",
+		Description: "Blocks guest users",
+		Effect:      store.AccessPolicyDeny,
+		TargetType:  store.AccessPolicyTargetRoles,
+		TargetIDs:   []string{"role-guest"},
+		Priority:    10,
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("CreateAccessPolicy: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.Effect != store.AccessPolicyDeny {
+		t.Fatalf("expected effect 'deny', got %q", created.Effect)
+	}
+	if len(created.TargetIDs) != 1 || created.TargetIDs[0] != "role-guest" {
+		t.Fatalf("expected target_ids=[role-guest], got %v", created.TargetIDs)
+	}
+	if !created.Enabled {
+		t.Fatal("expected enabled=true")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	policyID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetAccessPolicy(tCtx, policyID)
+	if err != nil {
+		t.Fatalf("GetAccessPolicy: %v", err)
+	}
+	if got.Name != "block-guests" {
+		t.Fatalf("expected name 'block-guests', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListAccessPolicies(tCtx)
+	if err != nil {
+		t.Fatalf("ListAccessPolicies: %v", err)
+	}
+	found := false
+	for _, p := range list {
+		if p.ID == policyID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created policy not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update (each field) ---
+	newName := "block-guests-v2"
+	newDesc := "Updated description"
+	newEffect := store.AccessPolicyAllow
+	newTargetType := store.AccessPolicyTargetUsers
+	newTargetIDs := []string{"user-001", "user-002"}
+	newConditions := []store.AccessPolicyCondition{{Type: "ip", Config: map[string]any{"range": "10.0.0.0/8"}}}
+	newPriority := 5
+	newEnabled := false
+
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateAccessPolicy(tCtx, policyID, store.UpdateAccessPolicyParams{
+		Name:        &newName,
+		Description: &newDesc,
+		Effect:      &newEffect,
+		TargetType:  &newTargetType,
+		TargetIDs:   &newTargetIDs,
+		Conditions:  &newConditions,
+		Priority:    &newPriority,
+		Enabled:     &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAccessPolicy: %v", err)
+	}
+	if upd.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, upd.Name)
+	}
+	if upd.Effect != store.AccessPolicyAllow {
+		t.Fatalf("expected effect 'allow', got %q", upd.Effect)
+	}
+	if len(upd.TargetIDs) != 2 {
+		t.Fatalf("expected 2 target_ids, got %d", len(upd.TargetIDs))
+	}
+	if len(upd.Conditions) != 1 || upd.Conditions[0].Type != "ip" {
+		t.Fatalf("expected 1 condition with type 'ip', got %v", upd.Conditions)
+	}
+	if upd.Priority != 5 {
+		t.Fatalf("expected priority 5, got %d", upd.Priority)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrAccessPolicyDuplicate on duplicate name ---
+	txDup, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, dupErr := txDup.CreateAccessPolicy(tCtx, &store.AccessPolicy{
+		Name:       "block-guests-v2", // same name as updated policy
+		Effect:     store.AccessPolicyDeny,
+		TargetType: store.AccessPolicyTargetAll,
+		Enabled:    true,
+	})
+	_ = txDup.Rollback()
+	if !errors.Is(dupErr, store.ErrAccessPolicyDuplicate) {
+		t.Fatalf("expected ErrAccessPolicyDuplicate, got %v", dupErr)
+	}
+
+	// --- ErrAccessPolicyNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetAccessPolicy(tCtx, "ap_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrAccessPolicyNotFound) {
+		t.Fatalf("expected ErrAccessPolicyNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteAccessPolicy(tCtx, policyID); err != nil {
+		t.Fatalf("DeleteAccessPolicy: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetAccessPolicy(tCtx, policyID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrAccessPolicyNotFound) {
+		t.Fatalf("expected ErrAccessPolicyNotFound after delete, got %v", delErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RbacPolicy CRUD (phase 2c5)
+// ---------------------------------------------------------------------------
+
+func TestRbacPolicy_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tenantID := "tenant_default"
+	tCtx := store.WithTenantID(ctx, tenantID)
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateRbacPolicy(tCtx, &store.RbacPolicy{
+		Name:        "assign-admin",
+		Description: "Grants admin to user-001",
+		SubjectType: "user",
+		SubjectID:   "user-001",
+		RoleID:      "role-admin",
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("CreateRbacPolicy: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("expected non-empty ID")
+	}
+	if created.SubjectType != "user" {
+		t.Fatalf("expected subject_type 'user', got %q", created.SubjectType)
+	}
+	if !created.Enabled {
+		t.Fatal("expected enabled=true")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	policyID := created.ID
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetRbacPolicy(tCtx, policyID)
+	if err != nil {
+		t.Fatalf("GetRbacPolicy: %v", err)
+	}
+	if got.RoleID != "role-admin" {
+		t.Fatalf("expected role_id 'role-admin', got %q", got.RoleID)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListRbacPolicies(tCtx)
+	if err != nil {
+		t.Fatalf("ListRbacPolicies: %v", err)
+	}
+	found := false
+	for _, p := range list {
+		if p.ID == policyID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created rbac policy not in list")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	newName := "assign-admin-v2"
+	newSubjectID := "user-002"
+	newEnabled := false
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upd, err := tx4.UpdateRbacPolicy(tCtx, policyID, store.UpdateRbacPolicyParams{
+		Name:      &newName,
+		SubjectID: &newSubjectID,
+		Enabled:   &newEnabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateRbacPolicy: %v", err)
+	}
+	if upd.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, upd.Name)
+	}
+	if upd.SubjectID != newSubjectID {
+		t.Fatalf("expected subject_id %q, got %q", newSubjectID, upd.SubjectID)
+	}
+	if upd.Enabled {
+		t.Fatal("expected enabled=false after update")
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrRbacPolicyNotFound ---
+	txNF, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, nfErr := txNF.GetRbacPolicy(tCtx, "rp_nonexistent")
+	_ = txNF.Rollback()
+	if !errors.Is(nfErr, store.ErrRbacPolicyNotFound) {
+		t.Fatalf("expected ErrRbacPolicyNotFound, got %v", nfErr)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteRbacPolicy(tCtx, policyID); err != nil {
+		t.Fatalf("DeleteRbacPolicy: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	txDel, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, delErr := txDel.GetRbacPolicy(tCtx, policyID)
+	_ = txDel.Rollback()
+	if !errors.Is(delErr, store.ErrRbacPolicyNotFound) {
+		t.Fatalf("expected ErrRbacPolicyNotFound after delete, got %v", delErr)
+	}
+}

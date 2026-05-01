@@ -608,3 +608,24 @@ func unmarshalStructJSON(s string) (*structpb.Struct, error) {
 	}
 	return st, nil
 }
+
+// ---------------------------------------------------------------------------
+// JSON array helpers (mirrors sqlite package — used by access/rbac policies)
+// ---------------------------------------------------------------------------
+
+// orEmpty returns an initialised empty slice when s is nil. This prevents
+// json.Marshal from producing a JSON null instead of [].
+func orEmpty(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+// orEmptyConditions returns an initialised empty slice when c is nil.
+func orEmptyConditions(c []store.AccessPolicyCondition) []store.AccessPolicyCondition {
+	if c == nil {
+		return []store.AccessPolicyCondition{}
+	}
+	return c
+}
