@@ -254,13 +254,30 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 		"rioku_route_id":   route.GetId(),
 		"rioku_service_id": serviceID,
 	}
-	// Build handler chain: tracing -> [security headers] -> vars -> reverse_proxy.
+	// Build handler chain:
+	//   tracing -> [security headers] -> vars
+	//   -> [encode / compression] -> [request headers] -> reverse_proxy
 	// Security headers are only added to traffic routes (CompileRoute), not admin.
 	handleChain := []map[string]any{tracingHandler}
 	if secHandler := c.buildSecurityHeadersHandler(); secHandler != nil {
 		handleChain = append(handleChain, secHandler)
 	}
-	handleChain = append(handleChain, varsHandler, handler)
+	handleChain = append(handleChain, varsHandler)
+
+	// Resolve the service for service-level handlers (compression, request
+	// headers). DirectUpstream routes have neither, so we skip safely.
+	if svcID, ok := route.GetTarget().(*riokuv1.Route_ServiceId); ok {
+		if svc, exists := services[svcID.ServiceId]; exists {
+			if compHandler := buildCompressionHandler(svc.GetCompression()); compHandler != nil {
+				handleChain = append(handleChain, compHandler)
+			}
+			if reqHHandler := buildRequestHeadersHandler(svc.GetRequestHeaders()); reqHHandler != nil {
+				handleChain = append(handleChain, reqHHandler)
+			}
+		}
+	}
+
+	handleChain = append(handleChain, handler)
 	caddyRoute["handle"] = handleChain
 
 	return caddyRoute, nil
@@ -638,6 +655,18 @@ func applyService(handler map[string]any, svc *riokuv1.Service) {
 		transport["protocol"] = "http"
 		handler["transport"] = transport
 	}
+
+	// Response headers (#161): embedded into reverse_proxy.headers.response.
+	if respHBlock := buildResponseHeadersBlock(svc.GetResponseHeaders()); respHBlock != nil {
+		handler["headers"] = map[string]any{
+			"response": respHBlock,
+		}
+	}
+
+	// Response rules (#161): reverse_proxy.handle_response array.
+	if rules := buildHandleResponse(svc.GetResponseRules()); len(rules) > 0 {
+		handler["handle_response"] = rules
+	}
 }
 
 // buildPassiveHealthCheck returns the Caddy `health_checks.passive`
@@ -822,6 +851,201 @@ func (c *Compiler) hasStandardPorts() bool {
 		}
 	}
 	return false
+}
+
+// buildRequestHeadersHandler returns a Caddy `headers` handler that mutates
+// request headers before they are forwarded to the upstream. Returns nil when
+// the RequestHeaders proto is nil or all fields are empty (nothing to do).
+func buildRequestHeadersHandler(rh *riokuv1.RequestHeaders) map[string]any {
+	if rh == nil {
+		return nil
+	}
+	request := map[string]any{}
+	if m := rh.GetSet(); len(m) > 0 {
+		set := make(map[string][]string, len(m))
+		for k, v := range m {
+			set[k] = []string{v}
+		}
+		request["set"] = set
+	}
+	if m := rh.GetAdd(); len(m) > 0 {
+		add := make(map[string][]string, len(m))
+		for k, v := range m {
+			add[k] = []string{v}
+		}
+		request["add"] = add
+	}
+	if del := rh.GetDelete(); len(del) > 0 {
+		request["delete"] = del
+	}
+	if len(request) == 0 {
+		return nil
+	}
+	return map[string]any{
+		"handler": "headers",
+		"request": request,
+	}
+}
+
+// buildResponseHeadersBlock returns the Caddy reverse_proxy
+// `headers.response` sub-object for embedding into the reverse_proxy handler.
+// Returns nil when the ResponseHeaders proto is nil or all fields are empty.
+func buildResponseHeadersBlock(rh *riokuv1.ResponseHeaders) map[string]any {
+	if rh == nil {
+		return nil
+	}
+	resp := map[string]any{}
+	if m := rh.GetSet(); len(m) > 0 {
+		set := make(map[string][]string, len(m))
+		for k, v := range m {
+			set[k] = []string{v}
+		}
+		resp["set"] = set
+	}
+	if m := rh.GetAdd(); len(m) > 0 {
+		add := make(map[string][]string, len(m))
+		for k, v := range m {
+			add[k] = []string{v}
+		}
+		resp["add"] = add
+	}
+	if del := rh.GetDelete(); len(del) > 0 {
+		resp["delete"] = del
+	}
+	if len(resp) == 0 {
+		return nil
+	}
+	return resp
+}
+
+// buildHandleResponse converts a slice of ResponseRule protos into a Caddy
+// reverse_proxy `handle_response` array. Rules with no match status codes or
+// no action are silently skipped.
+func buildHandleResponse(rules []*riokuv1.ResponseRule) []map[string]any {
+	if len(rules) == 0 {
+		return nil
+	}
+	var out []map[string]any
+	for _, rule := range rules {
+		if len(rule.GetMatchStatusCodes()) == 0 {
+			continue
+		}
+
+		// Expand wildcard codes (e.g. "5xx") into explicit integer ranges.
+		codes := expandStatusCodes(rule.GetMatchStatusCodes())
+
+		var handlers []map[string]any
+		switch a := rule.GetAction().(type) {
+		case *riokuv1.ResponseRule_Rewrite:
+			rw := map[string]any{"handler": "rewrite"}
+			if v := a.Rewrite.GetMethod(); v != "" {
+				rw["method"] = v
+			}
+			if v := a.Rewrite.GetUri(); v != "" {
+				rw["uri"] = v
+			}
+			handlers = []map[string]any{rw}
+		case *riokuv1.ResponseRule_ServeErrorPage:
+			ep := a.ServeErrorPage
+			staticResp := map[string]any{"handler": "static_response"}
+			if sc := ep.GetStatusCode(); sc > 0 {
+				staticResp["status_code"] = sc
+			} else {
+				staticResp["status_code"] = 502
+			}
+			if b := ep.GetBody(); b != "" {
+				staticResp["body"] = b
+			}
+			ct := ep.GetContentType()
+			if ct == "" {
+				ct = "text/html; charset=utf-8"
+			}
+			staticResp["headers"] = map[string][]string{
+				"Content-Type": {ct},
+			}
+			handlers = []map[string]any{staticResp}
+		case *riokuv1.ResponseRule_RouteTo:
+			// Emit a rewrite to the named route's path (best-effort: just
+			// set a vars handler with the target route ID so the daemon can
+			// handle dispatching).
+			handlers = []map[string]any{
+				{
+					"handler":           "vars",
+					"rioku_route_to_id": a.RouteTo,
+				},
+			}
+		default:
+			continue
+		}
+
+		entry := map[string]any{
+			"match": map[string]any{
+				"status_code": codes,
+			},
+			"routes": []map[string]any{
+				{"handle": handlers},
+			},
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// expandStatusCodes converts a mixed list of explicit status codes and wildcard
+// patterns (e.g. "5xx", "4xx") into a flat slice of integers. Explicit numeric
+// strings (e.g. "502") are parsed directly; invalid entries are skipped.
+func expandStatusCodes(codes []string) []int {
+	var out []int
+	for _, c := range codes {
+		if strings.HasSuffix(c, "xx") && len(c) == 3 {
+			prefix := c[0]
+			base := int(prefix-'0') * 100
+			for i := 0; i <= 99; i++ {
+				out = append(out, base+i)
+			}
+			continue
+		}
+		// Try to parse as an integer.
+		n := 0
+		valid := len(c) > 0
+		for _, ch := range c {
+			if ch < '0' || ch > '9' {
+				valid = false
+				break
+			}
+			n = n*10 + int(ch-'0')
+		}
+		if valid && n > 0 {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// buildCompressionHandler returns a Caddy `encode` handler for gzip/zstd
+// compression of upstream responses. Returns nil when Compression is nil,
+// disabled, or has no encodings configured.
+func buildCompressionHandler(comp *riokuv1.Compression) map[string]any {
+	if comp == nil || !comp.GetEnabled() {
+		return nil
+	}
+	encodings := comp.GetEncodings()
+	if len(encodings) == 0 {
+		return nil
+	}
+	encMap := make(map[string]any, len(encodings))
+	for _, enc := range encodings {
+		encMap[enc] = map[string]any{}
+	}
+	minLen := comp.GetMinLength()
+	if minLen <= 0 {
+		minLen = 1024
+	}
+	return map[string]any{
+		"handler":        "encode",
+		"encodings":      encMap,
+		"minimum_length": minLen,
+	}
 }
 
 // lbPolicyString maps a proto LoadBalancingPolicy enum to the Caddy

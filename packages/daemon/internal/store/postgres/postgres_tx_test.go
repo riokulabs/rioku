@@ -7359,3 +7359,113 @@ func TestImpersonationSession(t *testing.T) {
 		t.Fatalf("expected ErrImpersonationSessionNotFound on Touch of ended session, got %v", touchEndedErr)
 	}
 }
+
+// TestPostgres_Service_CaddyPrimitives_RoundTrip verifies that Phase 7a / #161
+// service-level Caddy primitive fields persist and round-trip through the
+// Postgres driver. Skipped when POSTGRES_TEST_DSN is unset.
+func TestPostgres_Service_CaddyPrimitives_RoundTrip(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	created, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "pg-prim-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080", Weight: 1, Healthy: true},
+		},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Set:    map[string]string{"X-Custom": "v1"},
+			Delete: []string{"X-Internal"},
+		},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Set: map[string]string{"X-Frame-Options": "DENY"},
+		},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"5xx"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{
+						StatusCode: 503,
+						Body:       "<h1>Down</h1>",
+					},
+				},
+			},
+		},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"gzip"},
+			MinLength: 1024,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Retrieve via GetService.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	// RequestHeaders
+	rh := got.GetRequestHeaders()
+	if rh == nil {
+		t.Fatal("request_headers is nil after round-trip")
+	}
+	if rh.GetSet()["X-Custom"] != "v1" {
+		t.Errorf("request_headers.set[X-Custom] = %q, want v1", rh.GetSet()["X-Custom"])
+	}
+	if len(rh.GetDelete()) != 1 || rh.GetDelete()[0] != "X-Internal" {
+		t.Errorf("request_headers.delete = %v, want [X-Internal]", rh.GetDelete())
+	}
+
+	// ResponseHeaders
+	respH := got.GetResponseHeaders()
+	if respH == nil {
+		t.Fatal("response_headers is nil after round-trip")
+	}
+	if respH.GetSet()["X-Frame-Options"] != "DENY" {
+		t.Errorf("response_headers.set[X-Frame-Options] = %q, want DENY", respH.GetSet()["X-Frame-Options"])
+	}
+
+	// ResponseRules
+	rules := got.GetResponseRules()
+	if len(rules) != 1 {
+		t.Fatalf("response_rules len = %d, want 1", len(rules))
+	}
+	if rules[0].GetMatchStatusCodes()[0] != "5xx" {
+		t.Errorf("response_rules[0].match_status_codes = %v, want [5xx]", rules[0].GetMatchStatusCodes())
+	}
+	ep, ok := rules[0].GetAction().(*riokuv1.ResponseRule_ServeErrorPage)
+	if !ok {
+		t.Fatalf("response_rules[0].action is %T, want ServeErrorPage", rules[0].GetAction())
+	}
+	if ep.ServeErrorPage.GetStatusCode() != 503 {
+		t.Errorf("serve_error_page.status_code = %d, want 503", ep.ServeErrorPage.GetStatusCode())
+	}
+
+	// Compression
+	comp := got.GetCompression()
+	if comp == nil {
+		t.Fatal("compression is nil after round-trip")
+	}
+	if !comp.GetEnabled() {
+		t.Error("compression.enabled = false, want true")
+	}
+	if comp.GetMinLength() != 1024 {
+		t.Errorf("compression.min_length = %d, want 1024", comp.GetMinLength())
+	}
+}

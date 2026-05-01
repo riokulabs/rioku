@@ -115,6 +115,114 @@ message Service {
   // to pick an upstream (consistent hash on the header value). Required
   // when lb_policy = LB_POLICY_HEADER; ignored otherwise.
   string lb_header_name = 17;
+
+  // request_headers mutates request headers before proxying to the
+  // upstream. Compiles into a Caddy headers handler positioned before
+  // reverse_proxy in the route's handler chain.
+  RequestHeaders request_headers = 18;
+
+  // response_headers mutates response headers after receiving from the
+  // upstream. Compiled into reverse_proxy.headers.response.
+  ResponseHeaders response_headers = 19;
+
+  // response_rules is a list of status-code-conditional rules that
+  // determine how the gateway handles specific upstream responses.
+  // Compiled into reverse_proxy.handle_response.
+  repeated ResponseRule response_rules = 20;
+
+  // compression configures gzip/zstd encoding of upstream responses.
+  // Compiles into Caddy's encode handler positioned before reverse_proxy.
+  // When unset or disabled, no encoding handler is emitted.
+  Compression compression = 21;
+}
+
+// RequestHeaders mutates request headers BEFORE the request is proxied
+// to the upstream. Compiles into a Caddy headers handler positioned
+// before reverse_proxy.
+message RequestHeaders {
+  // set replaces the value of any matching header (or creates it if
+  // absent). Map of header name -> value.
+  map<string, string> set = 1;
+
+  // add appends a value to the named header (multi-value). Map of
+  // header name -> additional value.
+  map<string, string> add = 2;
+
+  // delete removes the named headers entirely. List of header names to
+  // delete.
+  repeated string delete = 3;
+}
+
+// ResponseHeaders mutates response headers AFTER the response is
+// received from the upstream. Same set/add/delete semantics as
+// RequestHeaders. Compiled into reverse_proxy.headers.response.
+message ResponseHeaders {
+  map<string, string> set = 1;
+  map<string, string> add = 2;
+  repeated string delete = 3;
+}
+
+// ResponseRule conditionally rewrites or replaces an upstream response
+// based on its status code. Compiles into Caddy's
+// reverse_proxy.handle_response array.
+message ResponseRule {
+  // match_status_codes is the list of HTTP status codes this rule
+  // matches. Use specific codes (404, 502) or wildcard ranges: "5xx"
+  // matches 500-599; "4xx" matches 400-499.
+  repeated string match_status_codes = 1;
+
+  // action specifies what to do when the rule matches.
+  oneof action {
+    // rewrite changes the URL/method and replays the request through
+    // the gateway's route stack.
+    ResponseRewrite rewrite = 2;
+
+    // serve_error_page returns a custom error response without
+    // re-proxying. Useful for static fallbacks.
+    ResponseErrorPage serve_error_page = 3;
+
+    // route_to specifies an alternate route to dispatch to (by
+    // route_id) when the upstream returns the matched status.
+    string route_to = 4;
+  }
+}
+
+// ResponseRewrite overrides the request method and/or URI when an
+// upstream response matches a ResponseRule.
+message ResponseRewrite {
+  // method overrides the request method (e.g. "GET").
+  string method = 1;
+  // uri rewrites the request URI (e.g. "/maintenance.html").
+  string uri = 2;
+}
+
+// ResponseErrorPage returns a custom static response when an upstream
+// response matches a ResponseRule.
+message ResponseErrorPage {
+  // status_code is the response status code to send. Default 502.
+  int32 status_code = 1;
+  // body is the response body (HTML or JSON).
+  string body = 2;
+  // content_type is the Content-Type header value.
+  // Default "text/html; charset=utf-8".
+  string content_type = 3;
+}
+
+// Compression configures gzip/zstd encoding of upstream responses.
+// Compiles into Caddy's encode handler positioned before reverse_proxy.
+// When Compression is unset or disabled, no encoding handler is emitted.
+message Compression {
+  // enabled gates the entire block.
+  bool enabled = 1;
+
+  // encodings is the ordered list of encodings to advertise (e.g.
+  // ["zstd", "gzip"]). Caddy picks the first one the client accepts.
+  repeated string encodings = 2;
+
+  // min_length is the minimum response body length (in bytes) to
+  // compress. Default 1024. Bodies smaller than this are passed
+  // through uncompressed.
+  int32 min_length = 3;
 }
 
 message Upstream {

@@ -146,10 +146,15 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		cpJSON                       *string
 		lbCookieName                 string
 		lbHeaderName                 string
+		reqHJSON                     string
+		respHJSON                    string
+		respRulesJSON                string
+		compJSON                     string
 	)
 	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt,
 		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds,
-		&phcJSON, &rpJSON, &utJSON, &cpJSON, &lbCookieName, &lbHeaderName); err != nil {
+		&phcJSON, &rpJSON, &utJSON, &cpJSON, &lbCookieName, &lbHeaderName,
+		&reqHJSON, &respHJSON, &respRulesJSON, &compJSON); err != nil {
 		return nil, fmt.Errorf("postgres: scan service: %w", err)
 	}
 
@@ -211,6 +216,30 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		}
 		svc.ConnectionPool = cp
 	}
+
+	rh, err := unmarshalRequestHeadersJSON(reqHJSON)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: unmarshal request_headers: %w", err)
+	}
+	svc.RequestHeaders = rh
+
+	respH, err := unmarshalResponseHeadersJSON(respHJSON)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: unmarshal response_headers: %w", err)
+	}
+	svc.ResponseHeaders = respH
+
+	rules, err := unmarshalResponseRulesJSON(respRulesJSON)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: unmarshal response_rules: %w", err)
+	}
+	svc.ResponseRules = rules
+
+	comp, err := unmarshalCompressionJSON(compJSON)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: unmarshal compression: %w", err)
+	}
+	svc.Compression = comp
 
 	return svc, nil
 }
@@ -434,6 +463,114 @@ func unmarshalConnectionPoolJSON(s string) (*riokuv1.ConnectionPool, error) {
 		return nil, err
 	}
 	return cp, nil
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7a / #161: caddy primitives marshal/unmarshal helpers
+// ---------------------------------------------------------------------------
+
+func marshalRequestHeadersJSON(rh *riokuv1.RequestHeaders) (string, error) {
+	if rh == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(rh)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalRequestHeadersJSON(s string) (*riokuv1.RequestHeaders, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	rh := &riokuv1.RequestHeaders{}
+	if err := protojson.Unmarshal([]byte(s), rh); err != nil {
+		return nil, err
+	}
+	return rh, nil
+}
+
+func marshalResponseHeadersJSON(rh *riokuv1.ResponseHeaders) (string, error) {
+	if rh == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(rh)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalResponseHeadersJSON(s string) (*riokuv1.ResponseHeaders, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	rh := &riokuv1.ResponseHeaders{}
+	if err := protojson.Unmarshal([]byte(s), rh); err != nil {
+		return nil, err
+	}
+	return rh, nil
+}
+
+func marshalCompressionJSON(comp *riokuv1.Compression) (string, error) {
+	if comp == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(comp)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalCompressionJSON(s string) (*riokuv1.Compression, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	comp := &riokuv1.Compression{}
+	if err := protojson.Unmarshal([]byte(s), comp); err != nil {
+		return nil, err
+	}
+	return comp, nil
+}
+
+func marshalResponseRulesJSON(rules []*riokuv1.ResponseRule) (string, error) {
+	if len(rules) == 0 {
+		return "[]", nil
+	}
+	var arr []json.RawMessage
+	for _, r := range rules {
+		b, err := protojson.Marshal(r)
+		if err != nil {
+			return "", err
+		}
+		arr = append(arr, b)
+	}
+	out, err := json.Marshal(arr)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+func unmarshalResponseRulesJSON(s string) ([]*riokuv1.ResponseRule, error) {
+	if s == "" || s == "[]" {
+		return nil, nil
+	}
+	var arr []json.RawMessage
+	if err := json.Unmarshal([]byte(s), &arr); err != nil {
+		return nil, err
+	}
+	rules := make([]*riokuv1.ResponseRule, 0, len(arr))
+	for _, b := range arr {
+		r := &riokuv1.ResponseRule{}
+		if err := protojson.Unmarshal(b, r); err != nil {
+			return nil, err
+		}
+		rules = append(rules, r)
+	}
+	return rules, nil
 }
 
 // ---------------------------------------------------------------------------

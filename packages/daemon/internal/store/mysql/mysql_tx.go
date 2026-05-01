@@ -212,15 +212,32 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
 	}
+	reqHJSON, err := marshalRequestHeadersJSON(svc.GetRequestHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal request_headers: %w", err)
+	}
+	respHJSON, err := marshalResponseHeadersJSON(svc.GetResponseHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal response_headers: %w", err)
+	}
+	respRulesJSON, err := marshalResponseRulesJSON(svc.GetResponseRules())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal response_rules: %w", err)
+	}
+	compJSON, err := marshalCompressionJSON(svc.GetCompression())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal compression: %w", err)
+	}
 
 	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name, request_headers, response_headers, response_rules, compression)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, tenantID, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
 		svc.GetLbCookieName(), svc.GetLbHeaderName(),
+		reqHJSON, respHJSON, respRulesJSON, compJSON,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: insert service: %w", err)
@@ -251,7 +268,7 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name, request_headers, response_headers, response_rules, compression
 		 FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
 
 	svc, err := scanService(row)
@@ -270,7 +287,7 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name, request_headers, response_headers, response_rules, compression FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: list services: %w", err)
 	}
@@ -361,15 +378,32 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
 	}
+	reqHJSON, err := marshalRequestHeadersJSON(svc.GetRequestHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal request_headers: %w", err)
+	}
+	respHJSON, err := marshalResponseHeadersJSON(svc.GetResponseHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal response_headers: %w", err)
+	}
+	respRulesJSON, err := marshalResponseRulesJSON(svc.GetResponseRules())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal response_rules: %w", err)
+	}
+	compJSON, err := marshalCompressionJSON(svc.GetCompression())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal compression: %w", err)
+	}
 
 	tenantID := store.TenantIDFromContext(ctx)
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?, lb_cookie_name=?, lb_header_name=?
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?, lb_cookie_name=?, lb_header_name=?, request_headers=?, response_headers=?, response_rules=?, compression=?
 		 WHERE id=? AND tenant_id=?`,
 		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
 		svc.GetLbCookieName(), svc.GetLbHeaderName(),
+		reqHJSON, respHJSON, respRulesJSON, compJSON,
 		svc.GetId(), tenantID,
 	)
 	if err != nil {

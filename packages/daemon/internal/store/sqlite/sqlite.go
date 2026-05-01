@@ -479,11 +479,39 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 26: service-level Caddy primitives (request_headers, response_headers,
+	// response_rules, compression) — Phase 7a / #161.
+	if current < 26 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000026_caddy_primitives.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 26: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 26: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (26, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 26: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 26 down: drop caddy primitive columns.
+	if current >= 26 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000026_caddy_primitives.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 26: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 26: %w", err)
+		}
+	}
 
 	// Migration 25 down: drop dashboard_shares.
 	if current >= 25 {
@@ -995,15 +1023,32 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
+	reqHJSON, err := marshalRequestHeadersJSON(svc.GetRequestHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal request_headers: %w", err)
+	}
+	respHJSON, err := marshalResponseHeadersJSON(svc.GetResponseHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal response_headers: %w", err)
+	}
+	respRulesJSON, err := marshalResponseRulesJSON(svc.GetResponseRules())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal response_rules: %w", err)
+	}
+	compJSON, err := marshalCompressionJSON(svc.GetCompression())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal compression: %w", err)
+	}
 
 	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx,
-		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name, request_headers, response_headers, response_rules, compression)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, tenantID, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
 		svc.GetLbCookieName(), svc.GetLbHeaderName(),
+		reqHJSON, respHJSON, respRulesJSON, compJSON,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: insert service: %w", err)
@@ -1034,7 +1079,7 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name, request_headers, response_headers, response_rules, compression
 		 FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
 
 	svc, err := scanService(row)
@@ -1053,7 +1098,7 @@ func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error
 func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name, request_headers, response_headers, response_rules, compression FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list services: %w", err)
 	}
@@ -1144,15 +1189,32 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: marshal labels: %w", err)
 	}
+	reqHJSON, err := marshalRequestHeadersJSON(svc.GetRequestHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal request_headers: %w", err)
+	}
+	respHJSON, err := marshalResponseHeadersJSON(svc.GetResponseHeaders())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal response_headers: %w", err)
+	}
+	respRulesJSON, err := marshalResponseRulesJSON(svc.GetResponseRules())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal response_rules: %w", err)
+	}
+	compJSON, err := marshalCompressionJSON(svc.GetCompression())
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: marshal compression: %w", err)
+	}
 
 	tenantID := store.TenantIDFromContext(ctx)
 	res, err := t.sqlTx.ExecContext(ctx,
-		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?, lb_cookie_name=?, lb_header_name=?
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?, lb_cookie_name=?, lb_header_name=?, request_headers=?, response_headers=?, response_rules=?, compression=?
 		 WHERE id=? AND tenant_id=?`,
 		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
 		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
 		phcJSON, rpJSON, utJSON, cpJSON,
 		svc.GetLbCookieName(), svc.GetLbHeaderName(),
+		reqHJSON, respHJSON, respRulesJSON, compJSON,
 		svc.GetId(), tenantID,
 	)
 	if err != nil {
@@ -2688,10 +2750,15 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		cpJSON                       *string
 		lbCookieName                 string
 		lbHeaderName                 string
+		reqHJSON                     string
+		respHJSON                    string
+		respRulesJSON                string
+		compJSON                     string
 	)
 	if err := s.Scan(&id, &name, &lbPolicy, &hcJSON, &labelsJSON, &createdAt, &updatedAt,
 		&dialTimeoutSeconds, &responseHeaderTimeoutSeconds, &idleTimeoutSeconds,
-		&phcJSON, &rpJSON, &utJSON, &cpJSON, &lbCookieName, &lbHeaderName); err != nil {
+		&phcJSON, &rpJSON, &utJSON, &cpJSON, &lbCookieName, &lbHeaderName,
+		&reqHJSON, &respHJSON, &respRulesJSON, &compJSON); err != nil {
 		return nil, fmt.Errorf("sqlite: scan service: %w", err)
 	}
 
@@ -2753,6 +2820,30 @@ func scanService(s scanner) (*riokuv1.Service, error) {
 		}
 		svc.ConnectionPool = cp
 	}
+
+	rh, err := unmarshalRequestHeadersJSON(reqHJSON)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: unmarshal request_headers: %w", err)
+	}
+	svc.RequestHeaders = rh
+
+	respH, err := unmarshalResponseHeadersJSON(respHJSON)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: unmarshal response_headers: %w", err)
+	}
+	svc.ResponseHeaders = respH
+
+	rules, err := unmarshalResponseRulesJSON(respRulesJSON)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: unmarshal response_rules: %w", err)
+	}
+	svc.ResponseRules = rules
+
+	comp, err := unmarshalCompressionJSON(compJSON)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: unmarshal compression: %w", err)
+	}
+	svc.Compression = comp
 
 	return svc, nil
 }
@@ -3116,6 +3207,114 @@ func unmarshalConnectionPoolJSON(s string) (*riokuv1.ConnectionPool, error) {
 		return nil, err
 	}
 	return cp, nil
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7a / #161: caddy primitives marshal/unmarshal helpers
+// ---------------------------------------------------------------------------
+
+func marshalRequestHeadersJSON(rh *riokuv1.RequestHeaders) (string, error) {
+	if rh == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(rh)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalRequestHeadersJSON(s string) (*riokuv1.RequestHeaders, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	rh := &riokuv1.RequestHeaders{}
+	if err := protojson.Unmarshal([]byte(s), rh); err != nil {
+		return nil, err
+	}
+	return rh, nil
+}
+
+func marshalResponseHeadersJSON(rh *riokuv1.ResponseHeaders) (string, error) {
+	if rh == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(rh)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalResponseHeadersJSON(s string) (*riokuv1.ResponseHeaders, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	rh := &riokuv1.ResponseHeaders{}
+	if err := protojson.Unmarshal([]byte(s), rh); err != nil {
+		return nil, err
+	}
+	return rh, nil
+}
+
+func marshalCompressionJSON(comp *riokuv1.Compression) (string, error) {
+	if comp == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(comp)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalCompressionJSON(s string) (*riokuv1.Compression, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	comp := &riokuv1.Compression{}
+	if err := protojson.Unmarshal([]byte(s), comp); err != nil {
+		return nil, err
+	}
+	return comp, nil
+}
+
+func marshalResponseRulesJSON(rules []*riokuv1.ResponseRule) (string, error) {
+	if len(rules) == 0 {
+		return "[]", nil
+	}
+	var arr []json.RawMessage
+	for _, r := range rules {
+		b, err := protojson.Marshal(r)
+		if err != nil {
+			return "", err
+		}
+		arr = append(arr, b)
+	}
+	out, err := json.Marshal(arr)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+func unmarshalResponseRulesJSON(s string) ([]*riokuv1.ResponseRule, error) {
+	if s == "" || s == "[]" {
+		return nil, nil
+	}
+	var arr []json.RawMessage
+	if err := json.Unmarshal([]byte(s), &arr); err != nil {
+		return nil, err
+	}
+	rules := make([]*riokuv1.ResponseRule, 0, len(arr))
+	for _, b := range arr {
+		r := &riokuv1.ResponseRule{}
+		if err := protojson.Unmarshal(b, r); err != nil {
+			return nil, err
+		}
+		rules = append(rules, r)
+	}
+	return rules, nil
 }
 
 func marshalStructJSON(st *structpb.Struct) (string, error) {

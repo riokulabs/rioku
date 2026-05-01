@@ -259,7 +259,7 @@ func (x RouteOp_Action) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RouteOp_Action.Descriptor instead.
 func (RouteOp_Action) EnumDescriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{17, 0}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{23, 0}
 }
 
 type ServiceOp_Action int32
@@ -308,7 +308,7 @@ func (x ServiceOp_Action) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ServiceOp_Action.Descriptor instead.
 func (ServiceOp_Action) EnumDescriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{18, 0}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{24, 0}
 }
 
 type PolicyOp_Action int32
@@ -357,7 +357,7 @@ func (x PolicyOp_Action) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PolicyOp_Action.Descriptor instead.
 func (PolicyOp_Action) EnumDescriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{19, 0}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{25, 0}
 }
 
 type ConfigEvent_Type int32
@@ -421,7 +421,7 @@ func (x ConfigEvent_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ConfigEvent_Type.Descriptor instead.
 func (ConfigEvent_Type) EnumDescriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{22, 0}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{28, 0}
 }
 
 type Route struct {
@@ -931,7 +931,22 @@ type Service struct {
 	// lb_header_name is the request header consulted by LB_POLICY_HEADER
 	// to pick an upstream (consistent hash on the header value). Required
 	// when lb_policy = LB_POLICY_HEADER; ignored otherwise.
-	LbHeaderName  string `protobuf:"bytes,17,opt,name=lb_header_name,json=lbHeaderName,proto3" json:"lb_header_name,omitempty"`
+	LbHeaderName string `protobuf:"bytes,17,opt,name=lb_header_name,json=lbHeaderName,proto3" json:"lb_header_name,omitempty"`
+	// request_headers mutates request headers before proxying to the
+	// upstream. Compiles into a Caddy headers handler positioned before
+	// reverse_proxy in the route's handler chain.
+	RequestHeaders *RequestHeaders `protobuf:"bytes,18,opt,name=request_headers,json=requestHeaders,proto3" json:"request_headers,omitempty"`
+	// response_headers mutates response headers after receiving from the
+	// upstream. Compiled into reverse_proxy.headers.response.
+	ResponseHeaders *ResponseHeaders `protobuf:"bytes,19,opt,name=response_headers,json=responseHeaders,proto3" json:"response_headers,omitempty"`
+	// response_rules is a list of status-code-conditional rules that
+	// determine how the gateway handles specific upstream responses.
+	// Compiled into reverse_proxy.handle_response.
+	ResponseRules []*ResponseRule `protobuf:"bytes,20,rep,name=response_rules,json=responseRules,proto3" json:"response_rules,omitempty"`
+	// compression configures gzip/zstd encoding of upstream responses.
+	// Compiles into Caddy's encode handler positioned before reverse_proxy.
+	// When unset or disabled, no encoding handler is emitted.
+	Compression   *Compression `protobuf:"bytes,21,opt,name=compression,proto3" json:"compression,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1085,6 +1100,477 @@ func (x *Service) GetLbHeaderName() string {
 	return ""
 }
 
+func (x *Service) GetRequestHeaders() *RequestHeaders {
+	if x != nil {
+		return x.RequestHeaders
+	}
+	return nil
+}
+
+func (x *Service) GetResponseHeaders() *ResponseHeaders {
+	if x != nil {
+		return x.ResponseHeaders
+	}
+	return nil
+}
+
+func (x *Service) GetResponseRules() []*ResponseRule {
+	if x != nil {
+		return x.ResponseRules
+	}
+	return nil
+}
+
+func (x *Service) GetCompression() *Compression {
+	if x != nil {
+		return x.Compression
+	}
+	return nil
+}
+
+// RequestHeaders mutates request headers BEFORE the request is proxied
+// to the upstream. Compiles into a Caddy headers handler positioned
+// before reverse_proxy.
+type RequestHeaders struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// set replaces the value of any matching header (or creates it if
+	// absent). Map of header name -> value.
+	Set map[string]string `protobuf:"bytes,1,rep,name=set,proto3" json:"set,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// add appends a value to the named header (multi-value). Map of
+	// header name -> additional value.
+	Add map[string]string `protobuf:"bytes,2,rep,name=add,proto3" json:"add,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// delete removes the named headers entirely. List of header names to
+	// delete.
+	Delete        []string `protobuf:"bytes,3,rep,name=delete,proto3" json:"delete,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestHeaders) Reset() {
+	*x = RequestHeaders{}
+	mi := &file_rioku_v1_config_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestHeaders) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestHeaders) ProtoMessage() {}
+
+func (x *RequestHeaders) ProtoReflect() protoreflect.Message {
+	mi := &file_rioku_v1_config_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestHeaders.ProtoReflect.Descriptor instead.
+func (*RequestHeaders) Descriptor() ([]byte, []int) {
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RequestHeaders) GetSet() map[string]string {
+	if x != nil {
+		return x.Set
+	}
+	return nil
+}
+
+func (x *RequestHeaders) GetAdd() map[string]string {
+	if x != nil {
+		return x.Add
+	}
+	return nil
+}
+
+func (x *RequestHeaders) GetDelete() []string {
+	if x != nil {
+		return x.Delete
+	}
+	return nil
+}
+
+// ResponseHeaders mutates response headers AFTER the response is
+// received from the upstream. Same set/add/delete semantics as
+// RequestHeaders. Compiled into reverse_proxy.headers.response.
+type ResponseHeaders struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Set           map[string]string      `protobuf:"bytes,1,rep,name=set,proto3" json:"set,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Add           map[string]string      `protobuf:"bytes,2,rep,name=add,proto3" json:"add,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Delete        []string               `protobuf:"bytes,3,rep,name=delete,proto3" json:"delete,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResponseHeaders) Reset() {
+	*x = ResponseHeaders{}
+	mi := &file_rioku_v1_config_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseHeaders) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseHeaders) ProtoMessage() {}
+
+func (x *ResponseHeaders) ProtoReflect() protoreflect.Message {
+	mi := &file_rioku_v1_config_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseHeaders.ProtoReflect.Descriptor instead.
+func (*ResponseHeaders) Descriptor() ([]byte, []int) {
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ResponseHeaders) GetSet() map[string]string {
+	if x != nil {
+		return x.Set
+	}
+	return nil
+}
+
+func (x *ResponseHeaders) GetAdd() map[string]string {
+	if x != nil {
+		return x.Add
+	}
+	return nil
+}
+
+func (x *ResponseHeaders) GetDelete() []string {
+	if x != nil {
+		return x.Delete
+	}
+	return nil
+}
+
+// ResponseRule conditionally rewrites or replaces an upstream response
+// based on its status code. Compiles into Caddy's
+// reverse_proxy.handle_response array.
+type ResponseRule struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// match_status_codes is the list of HTTP status codes this rule
+	// matches. Use specific codes (404, 502) or wildcard ranges: "5xx"
+	// matches 500-599; "4xx" matches 400-499.
+	MatchStatusCodes []string `protobuf:"bytes,1,rep,name=match_status_codes,json=matchStatusCodes,proto3" json:"match_status_codes,omitempty"`
+	// action specifies what to do when the rule matches.
+	//
+	// Types that are valid to be assigned to Action:
+	//
+	//	*ResponseRule_Rewrite
+	//	*ResponseRule_ServeErrorPage
+	//	*ResponseRule_RouteTo
+	Action        isResponseRule_Action `protobuf_oneof:"action"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResponseRule) Reset() {
+	*x = ResponseRule{}
+	mi := &file_rioku_v1_config_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseRule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseRule) ProtoMessage() {}
+
+func (x *ResponseRule) ProtoReflect() protoreflect.Message {
+	mi := &file_rioku_v1_config_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseRule.ProtoReflect.Descriptor instead.
+func (*ResponseRule) Descriptor() ([]byte, []int) {
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ResponseRule) GetMatchStatusCodes() []string {
+	if x != nil {
+		return x.MatchStatusCodes
+	}
+	return nil
+}
+
+func (x *ResponseRule) GetAction() isResponseRule_Action {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+func (x *ResponseRule) GetRewrite() *ResponseRewrite {
+	if x != nil {
+		if x, ok := x.Action.(*ResponseRule_Rewrite); ok {
+			return x.Rewrite
+		}
+	}
+	return nil
+}
+
+func (x *ResponseRule) GetServeErrorPage() *ResponseErrorPage {
+	if x != nil {
+		if x, ok := x.Action.(*ResponseRule_ServeErrorPage); ok {
+			return x.ServeErrorPage
+		}
+	}
+	return nil
+}
+
+func (x *ResponseRule) GetRouteTo() string {
+	if x != nil {
+		if x, ok := x.Action.(*ResponseRule_RouteTo); ok {
+			return x.RouteTo
+		}
+	}
+	return ""
+}
+
+type isResponseRule_Action interface {
+	isResponseRule_Action()
+}
+
+type ResponseRule_Rewrite struct {
+	// rewrite changes the URL/method and replays the request through
+	// the gateway's route stack.
+	Rewrite *ResponseRewrite `protobuf:"bytes,2,opt,name=rewrite,proto3,oneof"`
+}
+
+type ResponseRule_ServeErrorPage struct {
+	// serve_error_page returns a custom error response without
+	// re-proxying. Useful for static fallbacks.
+	ServeErrorPage *ResponseErrorPage `protobuf:"bytes,3,opt,name=serve_error_page,json=serveErrorPage,proto3,oneof"`
+}
+
+type ResponseRule_RouteTo struct {
+	// route_to specifies an alternate route to dispatch to (by
+	// route_id) when the upstream returns the matched status.
+	RouteTo string `protobuf:"bytes,4,opt,name=route_to,json=routeTo,proto3,oneof"`
+}
+
+func (*ResponseRule_Rewrite) isResponseRule_Action() {}
+
+func (*ResponseRule_ServeErrorPage) isResponseRule_Action() {}
+
+func (*ResponseRule_RouteTo) isResponseRule_Action() {}
+
+// ResponseRewrite overrides the request method and/or URI when an
+// upstream response matches a ResponseRule.
+type ResponseRewrite struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// method overrides the request method (e.g. "GET").
+	Method string `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	// uri rewrites the request URI (e.g. "/maintenance.html").
+	Uri           string `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResponseRewrite) Reset() {
+	*x = ResponseRewrite{}
+	mi := &file_rioku_v1_config_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseRewrite) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseRewrite) ProtoMessage() {}
+
+func (x *ResponseRewrite) ProtoReflect() protoreflect.Message {
+	mi := &file_rioku_v1_config_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseRewrite.ProtoReflect.Descriptor instead.
+func (*ResponseRewrite) Descriptor() ([]byte, []int) {
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ResponseRewrite) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *ResponseRewrite) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+// ResponseErrorPage returns a custom static response when an upstream
+// response matches a ResponseRule.
+type ResponseErrorPage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// status_code is the response status code to send. Default 502.
+	StatusCode int32 `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	// body is the response body (HTML or JSON).
+	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	// content_type is the Content-Type header value.
+	// Default "text/html; charset=utf-8".
+	ContentType   string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResponseErrorPage) Reset() {
+	*x = ResponseErrorPage{}
+	mi := &file_rioku_v1_config_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseErrorPage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseErrorPage) ProtoMessage() {}
+
+func (x *ResponseErrorPage) ProtoReflect() protoreflect.Message {
+	mi := &file_rioku_v1_config_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseErrorPage.ProtoReflect.Descriptor instead.
+func (*ResponseErrorPage) Descriptor() ([]byte, []int) {
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ResponseErrorPage) GetStatusCode() int32 {
+	if x != nil {
+		return x.StatusCode
+	}
+	return 0
+}
+
+func (x *ResponseErrorPage) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *ResponseErrorPage) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+// Compression configures gzip/zstd encoding of upstream responses.
+// Compiles into Caddy's encode handler positioned before reverse_proxy.
+// When Compression is unset or disabled, no encoding handler is emitted.
+type Compression struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// enabled gates the entire block.
+	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// encodings is the ordered list of encodings to advertise (e.g.
+	// ["zstd", "gzip"]). Caddy picks the first one the client accepts.
+	Encodings []string `protobuf:"bytes,2,rep,name=encodings,proto3" json:"encodings,omitempty"`
+	// min_length is the minimum response body length (in bytes) to
+	// compress. Default 1024. Bodies smaller than this are passed
+	// through uncompressed.
+	MinLength     int32 `protobuf:"varint,3,opt,name=min_length,json=minLength,proto3" json:"min_length,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Compression) Reset() {
+	*x = Compression{}
+	mi := &file_rioku_v1_config_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Compression) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Compression) ProtoMessage() {}
+
+func (x *Compression) ProtoReflect() protoreflect.Message {
+	mi := &file_rioku_v1_config_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Compression.ProtoReflect.Descriptor instead.
+func (*Compression) Descriptor() ([]byte, []int) {
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Compression) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *Compression) GetEncodings() []string {
+	if x != nil {
+		return x.Encodings
+	}
+	return nil
+}
+
+func (x *Compression) GetMinLength() int32 {
+	if x != nil {
+		return x.MinLength
+	}
+	return 0
+}
+
 type Upstream struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1099,7 +1585,7 @@ type Upstream struct {
 
 func (x *Upstream) Reset() {
 	*x = Upstream{}
-	mi := &file_rioku_v1_config_proto_msgTypes[7]
+	mi := &file_rioku_v1_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1111,7 +1597,7 @@ func (x *Upstream) String() string {
 func (*Upstream) ProtoMessage() {}
 
 func (x *Upstream) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[7]
+	mi := &file_rioku_v1_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1124,7 +1610,7 @@ func (x *Upstream) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Upstream.ProtoReflect.Descriptor instead.
 func (*Upstream) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{7}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Upstream) GetId() string {
@@ -1184,7 +1670,7 @@ type HealthCheck struct {
 
 func (x *HealthCheck) Reset() {
 	*x = HealthCheck{}
-	mi := &file_rioku_v1_config_proto_msgTypes[8]
+	mi := &file_rioku_v1_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1196,7 +1682,7 @@ func (x *HealthCheck) String() string {
 func (*HealthCheck) ProtoMessage() {}
 
 func (x *HealthCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[8]
+	mi := &file_rioku_v1_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1209,7 +1695,7 @@ func (x *HealthCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheck.ProtoReflect.Descriptor instead.
 func (*HealthCheck) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{8}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HealthCheck) GetEnabled() bool {
@@ -1308,7 +1794,7 @@ type UpstreamTLS struct {
 
 func (x *UpstreamTLS) Reset() {
 	*x = UpstreamTLS{}
-	mi := &file_rioku_v1_config_proto_msgTypes[9]
+	mi := &file_rioku_v1_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1320,7 +1806,7 @@ func (x *UpstreamTLS) String() string {
 func (*UpstreamTLS) ProtoMessage() {}
 
 func (x *UpstreamTLS) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[9]
+	mi := &file_rioku_v1_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1333,7 +1819,7 @@ func (x *UpstreamTLS) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpstreamTLS.ProtoReflect.Descriptor instead.
 func (*UpstreamTLS) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{9}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpstreamTLS) GetEnabled() bool {
@@ -1426,7 +1912,7 @@ type ConnectionPool struct {
 
 func (x *ConnectionPool) Reset() {
 	*x = ConnectionPool{}
-	mi := &file_rioku_v1_config_proto_msgTypes[10]
+	mi := &file_rioku_v1_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1438,7 +1924,7 @@ func (x *ConnectionPool) String() string {
 func (*ConnectionPool) ProtoMessage() {}
 
 func (x *ConnectionPool) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[10]
+	mi := &file_rioku_v1_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1451,7 +1937,7 @@ func (x *ConnectionPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionPool.ProtoReflect.Descriptor instead.
 func (*ConnectionPool) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{10}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ConnectionPool) GetMaxConnsPerUpstream() int32 {
@@ -1530,7 +2016,7 @@ type RetryPolicy struct {
 
 func (x *RetryPolicy) Reset() {
 	*x = RetryPolicy{}
-	mi := &file_rioku_v1_config_proto_msgTypes[11]
+	mi := &file_rioku_v1_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1542,7 +2028,7 @@ func (x *RetryPolicy) String() string {
 func (*RetryPolicy) ProtoMessage() {}
 
 func (x *RetryPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[11]
+	mi := &file_rioku_v1_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1555,7 +2041,7 @@ func (x *RetryPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryPolicy.ProtoReflect.Descriptor instead.
 func (*RetryPolicy) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{11}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RetryPolicy) GetEnabled() bool {
@@ -1632,7 +2118,7 @@ type PassiveHealthCheck struct {
 
 func (x *PassiveHealthCheck) Reset() {
 	*x = PassiveHealthCheck{}
-	mi := &file_rioku_v1_config_proto_msgTypes[12]
+	mi := &file_rioku_v1_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1644,7 +2130,7 @@ func (x *PassiveHealthCheck) String() string {
 func (*PassiveHealthCheck) ProtoMessage() {}
 
 func (x *PassiveHealthCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[12]
+	mi := &file_rioku_v1_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1657,7 +2143,7 @@ func (x *PassiveHealthCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PassiveHealthCheck.ProtoReflect.Descriptor instead.
 func (*PassiveHealthCheck) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{12}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PassiveHealthCheck) GetEnabled() bool {
@@ -1717,7 +2203,7 @@ type Policy struct {
 
 func (x *Policy) Reset() {
 	*x = Policy{}
-	mi := &file_rioku_v1_config_proto_msgTypes[13]
+	mi := &file_rioku_v1_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1729,7 +2215,7 @@ func (x *Policy) String() string {
 func (*Policy) ProtoMessage() {}
 
 func (x *Policy) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[13]
+	mi := &file_rioku_v1_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1742,7 +2228,7 @@ func (x *Policy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Policy.ProtoReflect.Descriptor instead.
 func (*Policy) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{13}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Policy) GetId() string {
@@ -1807,7 +2293,7 @@ type ConfigSnapshot struct {
 
 func (x *ConfigSnapshot) Reset() {
 	*x = ConfigSnapshot{}
-	mi := &file_rioku_v1_config_proto_msgTypes[14]
+	mi := &file_rioku_v1_config_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1819,7 +2305,7 @@ func (x *ConfigSnapshot) String() string {
 func (*ConfigSnapshot) ProtoMessage() {}
 
 func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[14]
+	mi := &file_rioku_v1_config_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1832,7 +2318,7 @@ func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSnapshot.ProtoReflect.Descriptor instead.
 func (*ConfigSnapshot) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{14}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ConfigSnapshot) GetVersion() int64 {
@@ -1879,7 +2365,7 @@ type GetConfigRequest struct {
 
 func (x *GetConfigRequest) Reset() {
 	*x = GetConfigRequest{}
-	mi := &file_rioku_v1_config_proto_msgTypes[15]
+	mi := &file_rioku_v1_config_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1891,7 +2377,7 @@ func (x *GetConfigRequest) String() string {
 func (*GetConfigRequest) ProtoMessage() {}
 
 func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[15]
+	mi := &file_rioku_v1_config_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1904,7 +2390,7 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{15}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetConfigRequest) GetVersion() int64 {
@@ -1929,7 +2415,7 @@ type ConfigChange struct {
 
 func (x *ConfigChange) Reset() {
 	*x = ConfigChange{}
-	mi := &file_rioku_v1_config_proto_msgTypes[16]
+	mi := &file_rioku_v1_config_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1941,7 +2427,7 @@ func (x *ConfigChange) String() string {
 func (*ConfigChange) ProtoMessage() {}
 
 func (x *ConfigChange) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[16]
+	mi := &file_rioku_v1_config_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1954,7 +2440,7 @@ func (x *ConfigChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigChange.ProtoReflect.Descriptor instead.
 func (*ConfigChange) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{16}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ConfigChange) GetOperation() isConfigChange_Operation {
@@ -2031,7 +2517,7 @@ type RouteOp struct {
 
 func (x *RouteOp) Reset() {
 	*x = RouteOp{}
-	mi := &file_rioku_v1_config_proto_msgTypes[17]
+	mi := &file_rioku_v1_config_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2043,7 +2529,7 @@ func (x *RouteOp) String() string {
 func (*RouteOp) ProtoMessage() {}
 
 func (x *RouteOp) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[17]
+	mi := &file_rioku_v1_config_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2056,7 +2542,7 @@ func (x *RouteOp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteOp.ProtoReflect.Descriptor instead.
 func (*RouteOp) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{17}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RouteOp) GetAction() RouteOp_Action {
@@ -2091,7 +2577,7 @@ type ServiceOp struct {
 
 func (x *ServiceOp) Reset() {
 	*x = ServiceOp{}
-	mi := &file_rioku_v1_config_proto_msgTypes[18]
+	mi := &file_rioku_v1_config_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2103,7 +2589,7 @@ func (x *ServiceOp) String() string {
 func (*ServiceOp) ProtoMessage() {}
 
 func (x *ServiceOp) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[18]
+	mi := &file_rioku_v1_config_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2116,7 +2602,7 @@ func (x *ServiceOp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceOp.ProtoReflect.Descriptor instead.
 func (*ServiceOp) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{18}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ServiceOp) GetAction() ServiceOp_Action {
@@ -2151,7 +2637,7 @@ type PolicyOp struct {
 
 func (x *PolicyOp) Reset() {
 	*x = PolicyOp{}
-	mi := &file_rioku_v1_config_proto_msgTypes[19]
+	mi := &file_rioku_v1_config_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2163,7 +2649,7 @@ func (x *PolicyOp) String() string {
 func (*PolicyOp) ProtoMessage() {}
 
 func (x *PolicyOp) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[19]
+	mi := &file_rioku_v1_config_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2176,7 +2662,7 @@ func (x *PolicyOp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyOp.ProtoReflect.Descriptor instead.
 func (*PolicyOp) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{19}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PolicyOp) GetAction() PolicyOp_Action {
@@ -2210,7 +2696,7 @@ type ApplyResult struct {
 
 func (x *ApplyResult) Reset() {
 	*x = ApplyResult{}
-	mi := &file_rioku_v1_config_proto_msgTypes[20]
+	mi := &file_rioku_v1_config_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2222,7 +2708,7 @@ func (x *ApplyResult) String() string {
 func (*ApplyResult) ProtoMessage() {}
 
 func (x *ApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[20]
+	mi := &file_rioku_v1_config_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2235,7 +2721,7 @@ func (x *ApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyResult.ProtoReflect.Descriptor instead.
 func (*ApplyResult) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{20}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ApplyResult) GetMeta() *MutationMeta {
@@ -2261,7 +2747,7 @@ type WatchRequest struct {
 
 func (x *WatchRequest) Reset() {
 	*x = WatchRequest{}
-	mi := &file_rioku_v1_config_proto_msgTypes[21]
+	mi := &file_rioku_v1_config_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2273,7 +2759,7 @@ func (x *WatchRequest) String() string {
 func (*WatchRequest) ProtoMessage() {}
 
 func (x *WatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[21]
+	mi := &file_rioku_v1_config_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2286,7 +2772,7 @@ func (x *WatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRequest.ProtoReflect.Descriptor instead.
 func (*WatchRequest) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{21}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *WatchRequest) GetSinceVersion() int64 {
@@ -2315,7 +2801,7 @@ type ConfigEvent struct {
 
 func (x *ConfigEvent) Reset() {
 	*x = ConfigEvent{}
-	mi := &file_rioku_v1_config_proto_msgTypes[22]
+	mi := &file_rioku_v1_config_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2327,7 +2813,7 @@ func (x *ConfigEvent) String() string {
 func (*ConfigEvent) ProtoMessage() {}
 
 func (x *ConfigEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[22]
+	mi := &file_rioku_v1_config_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2340,7 +2826,7 @@ func (x *ConfigEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigEvent.ProtoReflect.Descriptor instead.
 func (*ConfigEvent) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{22}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ConfigEvent) GetType() ConfigEvent_Type {
@@ -2448,7 +2934,7 @@ type AuditQuery struct {
 
 func (x *AuditQuery) Reset() {
 	*x = AuditQuery{}
-	mi := &file_rioku_v1_config_proto_msgTypes[23]
+	mi := &file_rioku_v1_config_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2460,7 +2946,7 @@ func (x *AuditQuery) String() string {
 func (*AuditQuery) ProtoMessage() {}
 
 func (x *AuditQuery) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[23]
+	mi := &file_rioku_v1_config_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2473,7 +2959,7 @@ func (x *AuditQuery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditQuery.ProtoReflect.Descriptor instead.
 func (*AuditQuery) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{23}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AuditQuery) GetActor() string {
@@ -2534,7 +3020,7 @@ type AuditEntry struct {
 
 func (x *AuditEntry) Reset() {
 	*x = AuditEntry{}
-	mi := &file_rioku_v1_config_proto_msgTypes[24]
+	mi := &file_rioku_v1_config_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2546,7 +3032,7 @@ func (x *AuditEntry) String() string {
 func (*AuditEntry) ProtoMessage() {}
 
 func (x *AuditEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[24]
+	mi := &file_rioku_v1_config_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2559,7 +3045,7 @@ func (x *AuditEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditEntry.ProtoReflect.Descriptor instead.
 func (*AuditEntry) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{24}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AuditEntry) GetId() string {
@@ -2628,7 +3114,7 @@ type ExportRequest struct {
 
 func (x *ExportRequest) Reset() {
 	*x = ExportRequest{}
-	mi := &file_rioku_v1_config_proto_msgTypes[25]
+	mi := &file_rioku_v1_config_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2640,7 +3126,7 @@ func (x *ExportRequest) String() string {
 func (*ExportRequest) ProtoMessage() {}
 
 func (x *ExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[25]
+	mi := &file_rioku_v1_config_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2653,7 +3139,7 @@ func (x *ExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportRequest.ProtoReflect.Descriptor instead.
 func (*ExportRequest) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{25}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ExportRequest) GetVersion() int64 {
@@ -2681,7 +3167,7 @@ type ConfigChunk struct {
 
 func (x *ConfigChunk) Reset() {
 	*x = ConfigChunk{}
-	mi := &file_rioku_v1_config_proto_msgTypes[26]
+	mi := &file_rioku_v1_config_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2693,7 +3179,7 @@ func (x *ConfigChunk) String() string {
 func (*ConfigChunk) ProtoMessage() {}
 
 func (x *ConfigChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[26]
+	mi := &file_rioku_v1_config_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2706,7 +3192,7 @@ func (x *ConfigChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigChunk.ProtoReflect.Descriptor instead.
 func (*ConfigChunk) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{26}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ConfigChunk) GetSequence() int32 {
@@ -2743,7 +3229,7 @@ type ImportResult struct {
 
 func (x *ImportResult) Reset() {
 	*x = ImportResult{}
-	mi := &file_rioku_v1_config_proto_msgTypes[27]
+	mi := &file_rioku_v1_config_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2755,7 +3241,7 @@ func (x *ImportResult) String() string {
 func (*ImportResult) ProtoMessage() {}
 
 func (x *ImportResult) ProtoReflect() protoreflect.Message {
-	mi := &file_rioku_v1_config_proto_msgTypes[27]
+	mi := &file_rioku_v1_config_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2768,7 +3254,7 @@ func (x *ImportResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportResult.ProtoReflect.Descriptor instead.
 func (*ImportResult) Descriptor() ([]byte, []int) {
-	return file_rioku_v1_config_proto_rawDescGZIP(), []int{27}
+	return file_rioku_v1_config_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ImportResult) GetMeta() *MutationMeta {
@@ -2857,7 +3343,7 @@ const file_rioku_v1_config_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value\"O\n" +
 	"\x0eDirectUpstream\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12#\n" +
-	"\x03tls\x18\x02 \x01(\x0e2\x11.rioku.v1.TLSModeR\x03tls\"\xf3\x06\n" +
+	"\x03tls\x18\x02 \x01(\x0e2\x11.rioku.v1.TLSModeR\x03tls\"\xf4\b\n" +
 	"\aService\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x120\n" +
@@ -2878,7 +3364,50 @@ const file_rioku_v1_config_proto_rawDesc = "" +
 	"\fupstream_tls\x18\x0e \x01(\v2\x15.rioku.v1.UpstreamTLSR\vupstreamTls\x12A\n" +
 	"\x0fconnection_pool\x18\x0f \x01(\v2\x18.rioku.v1.ConnectionPoolR\x0econnectionPool\x12$\n" +
 	"\x0elb_cookie_name\x18\x10 \x01(\tR\flbCookieName\x12$\n" +
-	"\x0elb_header_name\x18\x11 \x01(\tR\flbHeaderName\"\xa6\x01\n" +
+	"\x0elb_header_name\x18\x11 \x01(\tR\flbHeaderName\x12A\n" +
+	"\x0frequest_headers\x18\x12 \x01(\v2\x18.rioku.v1.RequestHeadersR\x0erequestHeaders\x12D\n" +
+	"\x10response_headers\x18\x13 \x01(\v2\x19.rioku.v1.ResponseHeadersR\x0fresponseHeaders\x12=\n" +
+	"\x0eresponse_rules\x18\x14 \x03(\v2\x16.rioku.v1.ResponseRuleR\rresponseRules\x127\n" +
+	"\vcompression\x18\x15 \x01(\v2\x15.rioku.v1.CompressionR\vcompression\"\x82\x02\n" +
+	"\x0eRequestHeaders\x123\n" +
+	"\x03set\x18\x01 \x03(\v2!.rioku.v1.RequestHeaders.SetEntryR\x03set\x123\n" +
+	"\x03add\x18\x02 \x03(\v2!.rioku.v1.RequestHeaders.AddEntryR\x03add\x12\x16\n" +
+	"\x06delete\x18\x03 \x03(\tR\x06delete\x1a6\n" +
+	"\bSetEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a6\n" +
+	"\bAddEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x85\x02\n" +
+	"\x0fResponseHeaders\x124\n" +
+	"\x03set\x18\x01 \x03(\v2\".rioku.v1.ResponseHeaders.SetEntryR\x03set\x124\n" +
+	"\x03add\x18\x02 \x03(\v2\".rioku.v1.ResponseHeaders.AddEntryR\x03add\x12\x16\n" +
+	"\x06delete\x18\x03 \x03(\tR\x06delete\x1a6\n" +
+	"\bSetEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a6\n" +
+	"\bAddEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe3\x01\n" +
+	"\fResponseRule\x12,\n" +
+	"\x12match_status_codes\x18\x01 \x03(\tR\x10matchStatusCodes\x125\n" +
+	"\arewrite\x18\x02 \x01(\v2\x19.rioku.v1.ResponseRewriteH\x00R\arewrite\x12G\n" +
+	"\x10serve_error_page\x18\x03 \x01(\v2\x1b.rioku.v1.ResponseErrorPageH\x00R\x0eserveErrorPage\x12\x1b\n" +
+	"\broute_to\x18\x04 \x01(\tH\x00R\arouteToB\b\n" +
+	"\x06action\";\n" +
+	"\x0fResponseRewrite\x12\x16\n" +
+	"\x06method\x18\x01 \x01(\tR\x06method\x12\x10\n" +
+	"\x03uri\x18\x02 \x01(\tR\x03uri\"k\n" +
+	"\x11ResponseErrorPage\x12\x1f\n" +
+	"\vstatus_code\x18\x01 \x01(\x05R\n" +
+	"statusCode\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"d\n" +
+	"\vCompression\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1c\n" +
+	"\tencodings\x18\x02 \x03(\tR\tencodings\x12\x1d\n" +
+	"\n" +
+	"min_length\x18\x03 \x01(\x05R\tminLength\"\xa6\x01\n" +
 	"\bUpstream\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x16\n" +
@@ -3081,7 +3610,7 @@ func file_rioku_v1_config_proto_rawDescGZIP() []byte {
 }
 
 var file_rioku_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_rioku_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_rioku_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_rioku_v1_config_proto_goTypes = []any{
 	(LoadBalancingPolicy)(0),      // 0: rioku.v1.LoadBalancingPolicy
 	(PolicyType)(0),               // 1: rioku.v1.PolicyType
@@ -3097,104 +3626,124 @@ var file_rioku_v1_config_proto_goTypes = []any{
 	(*QueryMatcher)(nil),          // 11: rioku.v1.QueryMatcher
 	(*DirectUpstream)(nil),        // 12: rioku.v1.DirectUpstream
 	(*Service)(nil),               // 13: rioku.v1.Service
-	(*Upstream)(nil),              // 14: rioku.v1.Upstream
-	(*HealthCheck)(nil),           // 15: rioku.v1.HealthCheck
-	(*UpstreamTLS)(nil),           // 16: rioku.v1.UpstreamTLS
-	(*ConnectionPool)(nil),        // 17: rioku.v1.ConnectionPool
-	(*RetryPolicy)(nil),           // 18: rioku.v1.RetryPolicy
-	(*PassiveHealthCheck)(nil),    // 19: rioku.v1.PassiveHealthCheck
-	(*Policy)(nil),                // 20: rioku.v1.Policy
-	(*ConfigSnapshot)(nil),        // 21: rioku.v1.ConfigSnapshot
-	(*GetConfigRequest)(nil),      // 22: rioku.v1.GetConfigRequest
-	(*ConfigChange)(nil),          // 23: rioku.v1.ConfigChange
-	(*RouteOp)(nil),               // 24: rioku.v1.RouteOp
-	(*ServiceOp)(nil),             // 25: rioku.v1.ServiceOp
-	(*PolicyOp)(nil),              // 26: rioku.v1.PolicyOp
-	(*ApplyResult)(nil),           // 27: rioku.v1.ApplyResult
-	(*WatchRequest)(nil),          // 28: rioku.v1.WatchRequest
-	(*ConfigEvent)(nil),           // 29: rioku.v1.ConfigEvent
-	(*AuditQuery)(nil),            // 30: rioku.v1.AuditQuery
-	(*AuditEntry)(nil),            // 31: rioku.v1.AuditEntry
-	(*ExportRequest)(nil),         // 32: rioku.v1.ExportRequest
-	(*ConfigChunk)(nil),           // 33: rioku.v1.ConfigChunk
-	(*ImportResult)(nil),          // 34: rioku.v1.ImportResult
-	(*Labels)(nil),                // 35: rioku.v1.Labels
-	(*timestamppb.Timestamp)(nil), // 36: google.protobuf.Timestamp
-	(TLSMode)(0),                  // 37: rioku.v1.TLSMode
-	(*structpb.Struct)(nil),       // 38: google.protobuf.Struct
-	(*MutationMeta)(nil),          // 39: rioku.v1.MutationMeta
-	(*PageRequest)(nil),           // 40: rioku.v1.PageRequest
+	(*RequestHeaders)(nil),        // 14: rioku.v1.RequestHeaders
+	(*ResponseHeaders)(nil),       // 15: rioku.v1.ResponseHeaders
+	(*ResponseRule)(nil),          // 16: rioku.v1.ResponseRule
+	(*ResponseRewrite)(nil),       // 17: rioku.v1.ResponseRewrite
+	(*ResponseErrorPage)(nil),     // 18: rioku.v1.ResponseErrorPage
+	(*Compression)(nil),           // 19: rioku.v1.Compression
+	(*Upstream)(nil),              // 20: rioku.v1.Upstream
+	(*HealthCheck)(nil),           // 21: rioku.v1.HealthCheck
+	(*UpstreamTLS)(nil),           // 22: rioku.v1.UpstreamTLS
+	(*ConnectionPool)(nil),        // 23: rioku.v1.ConnectionPool
+	(*RetryPolicy)(nil),           // 24: rioku.v1.RetryPolicy
+	(*PassiveHealthCheck)(nil),    // 25: rioku.v1.PassiveHealthCheck
+	(*Policy)(nil),                // 26: rioku.v1.Policy
+	(*ConfigSnapshot)(nil),        // 27: rioku.v1.ConfigSnapshot
+	(*GetConfigRequest)(nil),      // 28: rioku.v1.GetConfigRequest
+	(*ConfigChange)(nil),          // 29: rioku.v1.ConfigChange
+	(*RouteOp)(nil),               // 30: rioku.v1.RouteOp
+	(*ServiceOp)(nil),             // 31: rioku.v1.ServiceOp
+	(*PolicyOp)(nil),              // 32: rioku.v1.PolicyOp
+	(*ApplyResult)(nil),           // 33: rioku.v1.ApplyResult
+	(*WatchRequest)(nil),          // 34: rioku.v1.WatchRequest
+	(*ConfigEvent)(nil),           // 35: rioku.v1.ConfigEvent
+	(*AuditQuery)(nil),            // 36: rioku.v1.AuditQuery
+	(*AuditEntry)(nil),            // 37: rioku.v1.AuditEntry
+	(*ExportRequest)(nil),         // 38: rioku.v1.ExportRequest
+	(*ConfigChunk)(nil),           // 39: rioku.v1.ConfigChunk
+	(*ImportResult)(nil),          // 40: rioku.v1.ImportResult
+	nil,                           // 41: rioku.v1.RequestHeaders.SetEntry
+	nil,                           // 42: rioku.v1.RequestHeaders.AddEntry
+	nil,                           // 43: rioku.v1.ResponseHeaders.SetEntry
+	nil,                           // 44: rioku.v1.ResponseHeaders.AddEntry
+	(*Labels)(nil),                // 45: rioku.v1.Labels
+	(*timestamppb.Timestamp)(nil), // 46: google.protobuf.Timestamp
+	(TLSMode)(0),                  // 47: rioku.v1.TLSMode
+	(*structpb.Struct)(nil),       // 48: google.protobuf.Struct
+	(*MutationMeta)(nil),          // 49: rioku.v1.MutationMeta
+	(*PageRequest)(nil),           // 50: rioku.v1.PageRequest
 }
 var file_rioku_v1_config_proto_depIdxs = []int32{
 	8,  // 0: rioku.v1.Route.matchers:type_name -> rioku.v1.Matcher
 	12, // 1: rioku.v1.Route.upstream:type_name -> rioku.v1.DirectUpstream
-	35, // 2: rioku.v1.Route.labels:type_name -> rioku.v1.Labels
-	36, // 3: rioku.v1.Route.created_at:type_name -> google.protobuf.Timestamp
-	36, // 4: rioku.v1.Route.updated_at:type_name -> google.protobuf.Timestamp
+	45, // 2: rioku.v1.Route.labels:type_name -> rioku.v1.Labels
+	46, // 3: rioku.v1.Route.created_at:type_name -> google.protobuf.Timestamp
+	46, // 4: rioku.v1.Route.updated_at:type_name -> google.protobuf.Timestamp
 	9,  // 5: rioku.v1.Matcher.paths:type_name -> rioku.v1.PathMatcher
 	10, // 6: rioku.v1.Matcher.headers:type_name -> rioku.v1.HeaderMatcher
 	11, // 7: rioku.v1.Matcher.queries:type_name -> rioku.v1.QueryMatcher
 	8,  // 8: rioku.v1.Matcher.not:type_name -> rioku.v1.Matcher
 	2,  // 9: rioku.v1.PathMatcher.type:type_name -> rioku.v1.PathMatcher.Type
-	37, // 10: rioku.v1.DirectUpstream.tls:type_name -> rioku.v1.TLSMode
-	14, // 11: rioku.v1.Service.upstreams:type_name -> rioku.v1.Upstream
+	47, // 10: rioku.v1.DirectUpstream.tls:type_name -> rioku.v1.TLSMode
+	20, // 11: rioku.v1.Service.upstreams:type_name -> rioku.v1.Upstream
 	0,  // 12: rioku.v1.Service.lb_policy:type_name -> rioku.v1.LoadBalancingPolicy
-	15, // 13: rioku.v1.Service.health_check:type_name -> rioku.v1.HealthCheck
-	35, // 14: rioku.v1.Service.labels:type_name -> rioku.v1.Labels
-	36, // 15: rioku.v1.Service.created_at:type_name -> google.protobuf.Timestamp
-	36, // 16: rioku.v1.Service.updated_at:type_name -> google.protobuf.Timestamp
-	19, // 17: rioku.v1.Service.passive_health_check:type_name -> rioku.v1.PassiveHealthCheck
-	18, // 18: rioku.v1.Service.retry_policy:type_name -> rioku.v1.RetryPolicy
-	16, // 19: rioku.v1.Service.upstream_tls:type_name -> rioku.v1.UpstreamTLS
-	17, // 20: rioku.v1.Service.connection_pool:type_name -> rioku.v1.ConnectionPool
-	37, // 21: rioku.v1.Upstream.tls:type_name -> rioku.v1.TLSMode
-	1,  // 22: rioku.v1.Policy.type:type_name -> rioku.v1.PolicyType
-	38, // 23: rioku.v1.Policy.config:type_name -> google.protobuf.Struct
-	35, // 24: rioku.v1.Policy.labels:type_name -> rioku.v1.Labels
-	36, // 25: rioku.v1.Policy.created_at:type_name -> google.protobuf.Timestamp
-	36, // 26: rioku.v1.Policy.updated_at:type_name -> google.protobuf.Timestamp
-	7,  // 27: rioku.v1.ConfigSnapshot.routes:type_name -> rioku.v1.Route
-	13, // 28: rioku.v1.ConfigSnapshot.services:type_name -> rioku.v1.Service
-	20, // 29: rioku.v1.ConfigSnapshot.policies:type_name -> rioku.v1.Policy
-	36, // 30: rioku.v1.ConfigSnapshot.snapshot_at:type_name -> google.protobuf.Timestamp
-	24, // 31: rioku.v1.ConfigChange.route:type_name -> rioku.v1.RouteOp
-	25, // 32: rioku.v1.ConfigChange.service:type_name -> rioku.v1.ServiceOp
-	26, // 33: rioku.v1.ConfigChange.policy:type_name -> rioku.v1.PolicyOp
-	3,  // 34: rioku.v1.RouteOp.action:type_name -> rioku.v1.RouteOp.Action
-	7,  // 35: rioku.v1.RouteOp.route:type_name -> rioku.v1.Route
-	4,  // 36: rioku.v1.ServiceOp.action:type_name -> rioku.v1.ServiceOp.Action
-	13, // 37: rioku.v1.ServiceOp.service:type_name -> rioku.v1.Service
-	5,  // 38: rioku.v1.PolicyOp.action:type_name -> rioku.v1.PolicyOp.Action
-	20, // 39: rioku.v1.PolicyOp.policy:type_name -> rioku.v1.Policy
-	39, // 40: rioku.v1.ApplyResult.meta:type_name -> rioku.v1.MutationMeta
-	6,  // 41: rioku.v1.ConfigEvent.type:type_name -> rioku.v1.ConfigEvent.Type
-	36, // 42: rioku.v1.ConfigEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	21, // 43: rioku.v1.ConfigEvent.snapshot:type_name -> rioku.v1.ConfigSnapshot
-	7,  // 44: rioku.v1.ConfigEvent.route:type_name -> rioku.v1.Route
-	13, // 45: rioku.v1.ConfigEvent.service:type_name -> rioku.v1.Service
-	20, // 46: rioku.v1.ConfigEvent.policy:type_name -> rioku.v1.Policy
-	36, // 47: rioku.v1.AuditQuery.since:type_name -> google.protobuf.Timestamp
-	36, // 48: rioku.v1.AuditQuery.until:type_name -> google.protobuf.Timestamp
-	40, // 49: rioku.v1.AuditQuery.page:type_name -> rioku.v1.PageRequest
-	36, // 50: rioku.v1.AuditEntry.occurred_at:type_name -> google.protobuf.Timestamp
-	39, // 51: rioku.v1.ImportResult.meta:type_name -> rioku.v1.MutationMeta
-	22, // 52: rioku.v1.ConfigService.GetConfig:input_type -> rioku.v1.GetConfigRequest
-	23, // 53: rioku.v1.ConfigService.ApplyChange:input_type -> rioku.v1.ConfigChange
-	28, // 54: rioku.v1.ConfigService.WatchChanges:input_type -> rioku.v1.WatchRequest
-	30, // 55: rioku.v1.ConfigService.GetAuditLog:input_type -> rioku.v1.AuditQuery
-	32, // 56: rioku.v1.ConfigService.ExportConfig:input_type -> rioku.v1.ExportRequest
-	33, // 57: rioku.v1.ConfigService.ImportConfig:input_type -> rioku.v1.ConfigChunk
-	21, // 58: rioku.v1.ConfigService.GetConfig:output_type -> rioku.v1.ConfigSnapshot
-	27, // 59: rioku.v1.ConfigService.ApplyChange:output_type -> rioku.v1.ApplyResult
-	29, // 60: rioku.v1.ConfigService.WatchChanges:output_type -> rioku.v1.ConfigEvent
-	31, // 61: rioku.v1.ConfigService.GetAuditLog:output_type -> rioku.v1.AuditEntry
-	33, // 62: rioku.v1.ConfigService.ExportConfig:output_type -> rioku.v1.ConfigChunk
-	34, // 63: rioku.v1.ConfigService.ImportConfig:output_type -> rioku.v1.ImportResult
-	58, // [58:64] is the sub-list for method output_type
-	52, // [52:58] is the sub-list for method input_type
-	52, // [52:52] is the sub-list for extension type_name
-	52, // [52:52] is the sub-list for extension extendee
-	0,  // [0:52] is the sub-list for field type_name
+	21, // 13: rioku.v1.Service.health_check:type_name -> rioku.v1.HealthCheck
+	45, // 14: rioku.v1.Service.labels:type_name -> rioku.v1.Labels
+	46, // 15: rioku.v1.Service.created_at:type_name -> google.protobuf.Timestamp
+	46, // 16: rioku.v1.Service.updated_at:type_name -> google.protobuf.Timestamp
+	25, // 17: rioku.v1.Service.passive_health_check:type_name -> rioku.v1.PassiveHealthCheck
+	24, // 18: rioku.v1.Service.retry_policy:type_name -> rioku.v1.RetryPolicy
+	22, // 19: rioku.v1.Service.upstream_tls:type_name -> rioku.v1.UpstreamTLS
+	23, // 20: rioku.v1.Service.connection_pool:type_name -> rioku.v1.ConnectionPool
+	14, // 21: rioku.v1.Service.request_headers:type_name -> rioku.v1.RequestHeaders
+	15, // 22: rioku.v1.Service.response_headers:type_name -> rioku.v1.ResponseHeaders
+	16, // 23: rioku.v1.Service.response_rules:type_name -> rioku.v1.ResponseRule
+	19, // 24: rioku.v1.Service.compression:type_name -> rioku.v1.Compression
+	41, // 25: rioku.v1.RequestHeaders.set:type_name -> rioku.v1.RequestHeaders.SetEntry
+	42, // 26: rioku.v1.RequestHeaders.add:type_name -> rioku.v1.RequestHeaders.AddEntry
+	43, // 27: rioku.v1.ResponseHeaders.set:type_name -> rioku.v1.ResponseHeaders.SetEntry
+	44, // 28: rioku.v1.ResponseHeaders.add:type_name -> rioku.v1.ResponseHeaders.AddEntry
+	17, // 29: rioku.v1.ResponseRule.rewrite:type_name -> rioku.v1.ResponseRewrite
+	18, // 30: rioku.v1.ResponseRule.serve_error_page:type_name -> rioku.v1.ResponseErrorPage
+	47, // 31: rioku.v1.Upstream.tls:type_name -> rioku.v1.TLSMode
+	1,  // 32: rioku.v1.Policy.type:type_name -> rioku.v1.PolicyType
+	48, // 33: rioku.v1.Policy.config:type_name -> google.protobuf.Struct
+	45, // 34: rioku.v1.Policy.labels:type_name -> rioku.v1.Labels
+	46, // 35: rioku.v1.Policy.created_at:type_name -> google.protobuf.Timestamp
+	46, // 36: rioku.v1.Policy.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 37: rioku.v1.ConfigSnapshot.routes:type_name -> rioku.v1.Route
+	13, // 38: rioku.v1.ConfigSnapshot.services:type_name -> rioku.v1.Service
+	26, // 39: rioku.v1.ConfigSnapshot.policies:type_name -> rioku.v1.Policy
+	46, // 40: rioku.v1.ConfigSnapshot.snapshot_at:type_name -> google.protobuf.Timestamp
+	30, // 41: rioku.v1.ConfigChange.route:type_name -> rioku.v1.RouteOp
+	31, // 42: rioku.v1.ConfigChange.service:type_name -> rioku.v1.ServiceOp
+	32, // 43: rioku.v1.ConfigChange.policy:type_name -> rioku.v1.PolicyOp
+	3,  // 44: rioku.v1.RouteOp.action:type_name -> rioku.v1.RouteOp.Action
+	7,  // 45: rioku.v1.RouteOp.route:type_name -> rioku.v1.Route
+	4,  // 46: rioku.v1.ServiceOp.action:type_name -> rioku.v1.ServiceOp.Action
+	13, // 47: rioku.v1.ServiceOp.service:type_name -> rioku.v1.Service
+	5,  // 48: rioku.v1.PolicyOp.action:type_name -> rioku.v1.PolicyOp.Action
+	26, // 49: rioku.v1.PolicyOp.policy:type_name -> rioku.v1.Policy
+	49, // 50: rioku.v1.ApplyResult.meta:type_name -> rioku.v1.MutationMeta
+	6,  // 51: rioku.v1.ConfigEvent.type:type_name -> rioku.v1.ConfigEvent.Type
+	46, // 52: rioku.v1.ConfigEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	27, // 53: rioku.v1.ConfigEvent.snapshot:type_name -> rioku.v1.ConfigSnapshot
+	7,  // 54: rioku.v1.ConfigEvent.route:type_name -> rioku.v1.Route
+	13, // 55: rioku.v1.ConfigEvent.service:type_name -> rioku.v1.Service
+	26, // 56: rioku.v1.ConfigEvent.policy:type_name -> rioku.v1.Policy
+	46, // 57: rioku.v1.AuditQuery.since:type_name -> google.protobuf.Timestamp
+	46, // 58: rioku.v1.AuditQuery.until:type_name -> google.protobuf.Timestamp
+	50, // 59: rioku.v1.AuditQuery.page:type_name -> rioku.v1.PageRequest
+	46, // 60: rioku.v1.AuditEntry.occurred_at:type_name -> google.protobuf.Timestamp
+	49, // 61: rioku.v1.ImportResult.meta:type_name -> rioku.v1.MutationMeta
+	28, // 62: rioku.v1.ConfigService.GetConfig:input_type -> rioku.v1.GetConfigRequest
+	29, // 63: rioku.v1.ConfigService.ApplyChange:input_type -> rioku.v1.ConfigChange
+	34, // 64: rioku.v1.ConfigService.WatchChanges:input_type -> rioku.v1.WatchRequest
+	36, // 65: rioku.v1.ConfigService.GetAuditLog:input_type -> rioku.v1.AuditQuery
+	38, // 66: rioku.v1.ConfigService.ExportConfig:input_type -> rioku.v1.ExportRequest
+	39, // 67: rioku.v1.ConfigService.ImportConfig:input_type -> rioku.v1.ConfigChunk
+	27, // 68: rioku.v1.ConfigService.GetConfig:output_type -> rioku.v1.ConfigSnapshot
+	33, // 69: rioku.v1.ConfigService.ApplyChange:output_type -> rioku.v1.ApplyResult
+	35, // 70: rioku.v1.ConfigService.WatchChanges:output_type -> rioku.v1.ConfigEvent
+	37, // 71: rioku.v1.ConfigService.GetAuditLog:output_type -> rioku.v1.AuditEntry
+	39, // 72: rioku.v1.ConfigService.ExportConfig:output_type -> rioku.v1.ConfigChunk
+	40, // 73: rioku.v1.ConfigService.ImportConfig:output_type -> rioku.v1.ImportResult
+	68, // [68:74] is the sub-list for method output_type
+	62, // [62:68] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_rioku_v1_config_proto_init() }
@@ -3207,12 +3756,17 @@ func file_rioku_v1_config_proto_init() {
 		(*Route_ServiceId)(nil),
 		(*Route_Upstream)(nil),
 	}
-	file_rioku_v1_config_proto_msgTypes[16].OneofWrappers = []any{
+	file_rioku_v1_config_proto_msgTypes[9].OneofWrappers = []any{
+		(*ResponseRule_Rewrite)(nil),
+		(*ResponseRule_ServeErrorPage)(nil),
+		(*ResponseRule_RouteTo)(nil),
+	}
+	file_rioku_v1_config_proto_msgTypes[22].OneofWrappers = []any{
 		(*ConfigChange_Route)(nil),
 		(*ConfigChange_Service)(nil),
 		(*ConfigChange_Policy)(nil),
 	}
-	file_rioku_v1_config_proto_msgTypes[22].OneofWrappers = []any{
+	file_rioku_v1_config_proto_msgTypes[28].OneofWrappers = []any{
 		(*ConfigEvent_Route)(nil),
 		(*ConfigEvent_Service)(nil),
 		(*ConfigEvent_Policy)(nil),
@@ -3223,7 +3777,7 @@ func file_rioku_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rioku_v1_config_proto_rawDesc), len(file_rioku_v1_config_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   28,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

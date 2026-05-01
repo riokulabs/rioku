@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 25 {
-		t.Fatalf("expected version 25, got %d", v)
+	if v != 26 {
+		t.Fatalf("expected version 26, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3881,5 +3881,151 @@ func TestRouteMatcherExtensions(t *testing.T) {
 	}
 	if len(m.GetHeaders()) != 1 || !m.GetHeaders()[0].GetRegexp() {
 		t.Errorf("headers regexp lost in round-trip")
+	}
+}
+
+// TestSQLite_Service_CaddyPrimitives_RoundTrip verifies that the Phase 7a /
+// #161 service-level Caddy primitive fields (request_headers, response_headers,
+// response_rules, compression) persist and round-trip correctly through the
+// SQLite driver.
+func TestSQLite_Service_CaddyPrimitives_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	created, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "prim-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080", Weight: 1, Healthy: true},
+		},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Set:    map[string]string{"X-Custom": "v1"},
+			Add:    map[string]string{"X-Trace": "id"},
+			Delete: []string{"X-Internal"},
+		},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Set:    map[string]string{"X-Frame-Options": "DENY"},
+			Delete: []string{"X-Powered-By"},
+		},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"5xx"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{
+						StatusCode: 503,
+						Body:       "<h1>Down</h1>",
+					},
+				},
+			},
+		},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"gzip"},
+			MinLength: 1024,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Retrieve via GetService.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	// RequestHeaders
+	rh := got.GetRequestHeaders()
+	if rh == nil {
+		t.Fatal("request_headers is nil after round-trip")
+	}
+	if rh.GetSet()["X-Custom"] != "v1" {
+		t.Errorf("request_headers.set[X-Custom] = %q, want v1", rh.GetSet()["X-Custom"])
+	}
+	if rh.GetAdd()["X-Trace"] != "id" {
+		t.Errorf("request_headers.add[X-Trace] = %q, want id", rh.GetAdd()["X-Trace"])
+	}
+	if len(rh.GetDelete()) != 1 || rh.GetDelete()[0] != "X-Internal" {
+		t.Errorf("request_headers.delete = %v, want [X-Internal]", rh.GetDelete())
+	}
+
+	// ResponseHeaders
+	respH := got.GetResponseHeaders()
+	if respH == nil {
+		t.Fatal("response_headers is nil after round-trip")
+	}
+	if respH.GetSet()["X-Frame-Options"] != "DENY" {
+		t.Errorf("response_headers.set[X-Frame-Options] = %q, want DENY", respH.GetSet()["X-Frame-Options"])
+	}
+	if len(respH.GetDelete()) != 1 || respH.GetDelete()[0] != "X-Powered-By" {
+		t.Errorf("response_headers.delete = %v, want [X-Powered-By]", respH.GetDelete())
+	}
+
+	// ResponseRules
+	rules := got.GetResponseRules()
+	if len(rules) != 1 {
+		t.Fatalf("response_rules len = %d, want 1", len(rules))
+	}
+	rule := rules[0]
+	if len(rule.GetMatchStatusCodes()) != 1 || rule.GetMatchStatusCodes()[0] != "5xx" {
+		t.Errorf("response_rules[0].match_status_codes = %v, want [5xx]", rule.GetMatchStatusCodes())
+	}
+	ep, ok := rule.GetAction().(*riokuv1.ResponseRule_ServeErrorPage)
+	if !ok {
+		t.Fatalf("response_rules[0].action is %T, want ServeErrorPage", rule.GetAction())
+	}
+	if ep.ServeErrorPage.GetStatusCode() != 503 {
+		t.Errorf("serve_error_page.status_code = %d, want 503", ep.ServeErrorPage.GetStatusCode())
+	}
+	if ep.ServeErrorPage.GetBody() != "<h1>Down</h1>" {
+		t.Errorf("serve_error_page.body = %q, want <h1>Down</h1>", ep.ServeErrorPage.GetBody())
+	}
+
+	// Compression
+	comp := got.GetCompression()
+	if comp == nil {
+		t.Fatal("compression is nil after round-trip")
+	}
+	if !comp.GetEnabled() {
+		t.Error("compression.enabled = false, want true")
+	}
+	if len(comp.GetEncodings()) != 1 || comp.GetEncodings()[0] != "gzip" {
+		t.Errorf("compression.encodings = %v, want [gzip]", comp.GetEncodings())
+	}
+	if comp.GetMinLength() != 1024 {
+		t.Errorf("compression.min_length = %d, want 1024", comp.GetMinLength())
+	}
+
+	// Verify via ListServices as well.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx3: %v", err)
+	}
+	defer func() { _ = tx3.Rollback() }()
+	services, err := tx3.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	if len(services) != 1 {
+		t.Fatalf("ListServices len = %d, want 1", len(services))
+	}
+	if services[0].GetCompression().GetEnabled() != true {
+		t.Error("ListServices: compression.enabled lost")
+	}
+	if services[0].GetRequestHeaders().GetSet()["X-Custom"] != "v1" {
+		t.Error("ListServices: request_headers.set[X-Custom] lost")
 	}
 }

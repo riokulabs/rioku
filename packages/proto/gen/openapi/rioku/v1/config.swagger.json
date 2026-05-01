@@ -312,6 +312,28 @@
         }
       }
     },
+    "v1Compression": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire block."
+        },
+        "encodings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "encodings is the ordered list of encodings to advertise (e.g.\n[\"zstd\", \"gzip\"]). Caddy picks the first one the client accepts."
+        },
+        "minLength": {
+          "type": "integer",
+          "format": "int32",
+          "description": "min_length is the minimum response body length (in bytes) to\ncompress. Default 1024. Bodies smaller than this are passed\nthrough uncompressed."
+        }
+      },
+      "description": "Compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen Compression is unset or disabled, no encoding handler is emitted."
+    },
     "v1ConfigChange": {
       "type": "object",
       "properties": {
@@ -752,6 +774,115 @@
       },
       "description": "QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy."
     },
+    "v1RequestHeaders": {
+      "type": "object",
+      "properties": {
+        "set": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "set replaces the value of any matching header (or creates it if\nabsent). Map of header name -\u003e value."
+        },
+        "add": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "add appends a value to the named header (multi-value). Map of\nheader name -\u003e additional value."
+        },
+        "delete": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "delete removes the named headers entirely. List of header names to\ndelete."
+        }
+      },
+      "description": "RequestHeaders mutates request headers BEFORE the request is proxied\nto the upstream. Compiles into a Caddy headers handler positioned\nbefore reverse_proxy."
+    },
+    "v1ResponseErrorPage": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "type": "integer",
+          "format": "int32",
+          "description": "status_code is the response status code to send. Default 502."
+        },
+        "body": {
+          "type": "string",
+          "description": "body is the response body (HTML or JSON)."
+        },
+        "contentType": {
+          "type": "string",
+          "description": "content_type is the Content-Type header value.\nDefault \"text/html; charset=utf-8\"."
+        }
+      },
+      "description": "ResponseErrorPage returns a custom static response when an upstream\nresponse matches a ResponseRule."
+    },
+    "v1ResponseHeaders": {
+      "type": "object",
+      "properties": {
+        "set": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "add": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "delete": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "ResponseHeaders mutates response headers AFTER the response is\nreceived from the upstream. Same set/add/delete semantics as\nRequestHeaders. Compiled into reverse_proxy.headers.response."
+    },
+    "v1ResponseRewrite": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "method overrides the request method (e.g. \"GET\")."
+        },
+        "uri": {
+          "type": "string",
+          "description": "uri rewrites the request URI (e.g. \"/maintenance.html\")."
+        }
+      },
+      "description": "ResponseRewrite overrides the request method and/or URI when an\nupstream response matches a ResponseRule."
+    },
+    "v1ResponseRule": {
+      "type": "object",
+      "properties": {
+        "matchStatusCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "match_status_codes is the list of HTTP status codes this rule\nmatches. Use specific codes (404, 502) or wildcard ranges: \"5xx\"\nmatches 500-599; \"4xx\" matches 400-499."
+        },
+        "rewrite": {
+          "$ref": "#/definitions/v1ResponseRewrite",
+          "description": "rewrite changes the URL/method and replays the request through\nthe gateway's route stack."
+        },
+        "serveErrorPage": {
+          "$ref": "#/definitions/v1ResponseErrorPage",
+          "description": "serve_error_page returns a custom error response without\nre-proxying. Useful for static fallbacks."
+        },
+        "routeTo": {
+          "type": "string",
+          "description": "route_to specifies an alternate route to dispatch to (by\nroute_id) when the upstream returns the matched status."
+        }
+      },
+      "description": "ResponseRule conditionally rewrites or replaces an upstream response\nbased on its status code. Compiles into Caddy's\nreverse_proxy.handle_response array."
+    },
     "v1RetryPolicy": {
       "type": "object",
       "properties": {
@@ -916,6 +1047,26 @@
         "lbHeaderName": {
           "type": "string",
           "description": "lb_header_name is the request header consulted by LB_POLICY_HEADER\nto pick an upstream (consistent hash on the header value). Required\nwhen lb_policy = LB_POLICY_HEADER; ignored otherwise."
+        },
+        "requestHeaders": {
+          "$ref": "#/definitions/v1RequestHeaders",
+          "description": "request_headers mutates request headers before proxying to the\nupstream. Compiles into a Caddy headers handler positioned before\nreverse_proxy in the route's handler chain."
+        },
+        "responseHeaders": {
+          "$ref": "#/definitions/v1ResponseHeaders",
+          "description": "response_headers mutates response headers after receiving from the\nupstream. Compiled into reverse_proxy.headers.response."
+        },
+        "responseRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ResponseRule"
+          },
+          "description": "response_rules is a list of status-code-conditional rules that\ndetermine how the gateway handles specific upstream responses.\nCompiled into reverse_proxy.handle_response."
+        },
+        "compression": {
+          "$ref": "#/definitions/v1Compression",
+          "description": "compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen unset or disabled, no encoding handler is emitted."
         }
       }
     },

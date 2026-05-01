@@ -2780,3 +2780,320 @@ func TestCompile_OnDemandTLS_EnabledWithoutAskURLSkips(t *testing.T) {
 		t.Error("apps.tls must NOT be emitted when AskURL is empty")
 	}
 }
+
+// ─── Phase 7a / #161: service-level Caddy primitives ────────────────────────
+
+// compileServiceSnap is a test helper that compiles a snapshot with a single
+// route targeting svc and returns the route's handler chain as a []map[string]any.
+func compileServiceSnap(t *testing.T, svc *riokuv1.Service) []map[string]any {
+	t.Helper()
+	if svc.Id == "" {
+		svc.Id = "svc1"
+	}
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id:      "r1",
+			Enabled: true,
+			Matchers: []*riokuv1.Matcher{
+				{Hosts: []string{"api.example.com"}},
+			},
+			Target: &riokuv1.Route_ServiceId{ServiceId: svc.Id},
+		}},
+		Services: []*riokuv1.Service{svc},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	server := dig(t, cfg, "apps", "http", "servers", "traffic")
+	route := server["routes"].([]any)[0].(map[string]any)
+	raw := route["handle"].([]any)
+	chain := make([]map[string]any, len(raw))
+	for i, h := range raw {
+		chain[i] = h.(map[string]any)
+	}
+	return chain
+}
+
+// TestCompile_RequestHeaders verifies that a RequestHeaders proto produces a
+// dedicated `headers` handler placed BEFORE the reverse_proxy, with the
+// expected request.set/add/delete structure.
+func TestCompile_RequestHeaders(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Set:    map[string]string{"X-Custom": "v1"},
+			Add:    map[string]string{"X-Trace": "id"},
+			Delete: []string{"X-Internal"},
+		},
+	})
+
+	// Last handler must be reverse_proxy.
+	last := chain[len(chain)-1]
+	if last["handler"] != "reverse_proxy" {
+		t.Fatalf("last handler = %v, want reverse_proxy", last["handler"])
+	}
+
+	// Second-to-last must be the headers handler.
+	headersH := chain[len(chain)-2]
+	if headersH["handler"] != "headers" {
+		t.Fatalf("handler before reverse_proxy = %v, want headers", headersH["handler"])
+	}
+
+	req, ok := headersH["request"].(map[string]any)
+	if !ok {
+		t.Fatalf("headers handler missing request block")
+	}
+
+	setM, ok := req["set"].(map[string]any)
+	if !ok {
+		t.Fatalf("request.set missing or wrong type")
+	}
+	setVals := setM["X-Custom"].([]any)
+	if len(setVals) != 1 || setVals[0].(string) != "v1" {
+		t.Errorf("request.set[X-Custom] = %v, want [v1]", setVals)
+	}
+
+	addM, ok := req["add"].(map[string]any)
+	if !ok {
+		t.Fatalf("request.add missing or wrong type")
+	}
+	addVals := addM["X-Trace"].([]any)
+	if len(addVals) != 1 || addVals[0].(string) != "id" {
+		t.Errorf("request.add[X-Trace] = %v, want [id]", addVals)
+	}
+
+	delList := req["delete"].([]any)
+	if len(delList) != 1 || delList[0].(string) != "X-Internal" {
+		t.Errorf("request.delete = %v, want [X-Internal]", delList)
+	}
+}
+
+// TestCompile_ResponseHeaders verifies that a ResponseHeaders proto embeds a
+// headers.response block into the reverse_proxy handler.
+func TestCompile_ResponseHeaders(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Set:    map[string]string{"X-Frame-Options": "DENY"},
+			Add:    map[string]string{"X-Request-ID": "trace"},
+			Delete: []string{"X-Powered-By"},
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	if rp["handler"] != "reverse_proxy" {
+		t.Fatalf("last handler = %v, want reverse_proxy", rp["handler"])
+	}
+
+	headers, ok := rp["headers"].(map[string]any)
+	if !ok {
+		t.Fatalf("reverse_proxy.headers missing")
+	}
+	resp, ok := headers["response"].(map[string]any)
+	if !ok {
+		t.Fatalf("reverse_proxy.headers.response missing")
+	}
+
+	setM := resp["set"].(map[string]any)
+	setVals := setM["X-Frame-Options"].([]any)
+	if len(setVals) != 1 || setVals[0].(string) != "DENY" {
+		t.Errorf("response.set[X-Frame-Options] = %v, want [DENY]", setVals)
+	}
+
+	delList := resp["delete"].([]any)
+	if len(delList) != 1 || delList[0].(string) != "X-Powered-By" {
+		t.Errorf("response.delete = %v, want [X-Powered-By]", delList)
+	}
+}
+
+// TestCompile_ResponseRules_Rewrite verifies that a ResponseRule with a Rewrite
+// action produces a reverse_proxy.handle_response entry with a rewrite handler.
+func TestCompile_ResponseRules_Rewrite(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"502"},
+				Action: &riokuv1.ResponseRule_Rewrite{
+					Rewrite: &riokuv1.ResponseRewrite{Uri: "/error"},
+				},
+			},
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	if rp["handler"] != "reverse_proxy" {
+		t.Fatalf("last handler = %v, want reverse_proxy", rp["handler"])
+	}
+
+	hrArr, ok := rp["handle_response"].([]any)
+	if !ok || len(hrArr) == 0 {
+		t.Fatalf("handle_response missing or empty")
+	}
+	hr := hrArr[0].(map[string]any)
+
+	match := hr["match"].(map[string]any)
+	codes := match["status_code"].([]any)
+	if len(codes) != 1 || int(codes[0].(float64)) != 502 {
+		t.Errorf("match.status_code = %v, want [502]", codes)
+	}
+
+	routes := hr["routes"].([]any)
+	handle := routes[0].(map[string]any)["handle"].([]any)
+	rwHandler := handle[0].(map[string]any)
+	if rwHandler["handler"] != "rewrite" {
+		t.Errorf("handler = %v, want rewrite", rwHandler["handler"])
+	}
+	if rwHandler["uri"] != "/error" {
+		t.Errorf("uri = %v, want /error", rwHandler["uri"])
+	}
+}
+
+// TestCompile_ResponseRules_ServeErrorPage verifies that a ResponseRule with a
+// ServeErrorPage action produces a static_response handler with the expected
+// status_code, body, and Content-Type header.
+func TestCompile_ResponseRules_ServeErrorPage(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"503"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{
+						StatusCode:  503,
+						Body:        "<h1>Down</h1>",
+						ContentType: "text/html; charset=utf-8",
+					},
+				},
+			},
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	hrArr := rp["handle_response"].([]any)
+	hr := hrArr[0].(map[string]any)
+
+	match := hr["match"].(map[string]any)
+	codes := match["status_code"].([]any)
+	if len(codes) != 1 || int(codes[0].(float64)) != 503 {
+		t.Errorf("match.status_code = %v, want [503]", codes)
+	}
+
+	routes := hr["routes"].([]any)
+	handle := routes[0].(map[string]any)["handle"].([]any)
+	sr := handle[0].(map[string]any)
+	if sr["handler"] != "static_response" {
+		t.Errorf("handler = %v, want static_response", sr["handler"])
+	}
+	if int(sr["status_code"].(float64)) != 503 {
+		t.Errorf("status_code = %v, want 503", sr["status_code"])
+	}
+	if sr["body"] != "<h1>Down</h1>" {
+		t.Errorf("body = %v, want <h1>Down</h1>", sr["body"])
+	}
+	hdrs := sr["headers"].(map[string]any)
+	ct := hdrs["Content-Type"].([]any)
+	if len(ct) != 1 || ct[0].(string) != "text/html; charset=utf-8" {
+		t.Errorf("Content-Type = %v, want [text/html; charset=utf-8]", ct)
+	}
+}
+
+// TestCompile_ResponseRules_Wildcard verifies that a "5xx" wildcard in
+// match_status_codes expands to all 100 codes in the 500-599 range.
+func TestCompile_ResponseRules_Wildcard(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"5xx"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{Body: "error"},
+				},
+			},
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	hrArr := rp["handle_response"].([]any)
+	hr := hrArr[0].(map[string]any)
+
+	match := hr["match"].(map[string]any)
+	codes := match["status_code"].([]any)
+	if len(codes) != 100 {
+		t.Errorf("expanded 5xx should produce 100 codes, got %d", len(codes))
+	}
+	// Verify first and last entries are 500 and 599.
+	if int(codes[0].(float64)) != 500 {
+		t.Errorf("codes[0] = %v, want 500", codes[0])
+	}
+	if int(codes[99].(float64)) != 599 {
+		t.Errorf("codes[99] = %v, want 599", codes[99])
+	}
+}
+
+// TestCompile_Compression_Enabled verifies that a Compression proto with
+// Enabled=true produces a dedicated `encode` handler before the reverse_proxy.
+func TestCompile_Compression_Enabled(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"zstd", "gzip"},
+			MinLength: 2048,
+		},
+	})
+
+	// Last handler is reverse_proxy; second-to-last should be encode.
+	last := chain[len(chain)-1]
+	if last["handler"] != "reverse_proxy" {
+		t.Fatalf("last handler = %v, want reverse_proxy", last["handler"])
+	}
+
+	encHandler := chain[len(chain)-2]
+	if encHandler["handler"] != "encode" {
+		t.Fatalf("handler before reverse_proxy = %v, want encode", encHandler["handler"])
+	}
+
+	encs := encHandler["encodings"].(map[string]any)
+	if _, ok := encs["gzip"]; !ok {
+		t.Error("encodings missing gzip")
+	}
+	if _, ok := encs["zstd"]; !ok {
+		t.Error("encodings missing zstd")
+	}
+
+	if encHandler["minimum_length"].(float64) != 2048 {
+		t.Errorf("minimum_length = %v, want 2048", encHandler["minimum_length"])
+	}
+}
+
+// TestCompile_Compression_Disabled verifies that Compression{Enabled:false}
+// does NOT produce an encode handler in the route's handler chain.
+func TestCompile_Compression_Disabled(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		Compression: &riokuv1.Compression{
+			Enabled:   false,
+			Encodings: []string{"gzip"},
+		},
+	})
+
+	for _, h := range chain {
+		if h["handler"] == "encode" {
+			t.Error("encode handler must NOT appear when Compression.Enabled is false")
+		}
+	}
+}
