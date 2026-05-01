@@ -3356,7 +3356,7 @@ func TestDashboardShare_CRUD(t *testing.T) {
 	createdBy := "user-share-test-001"
 	share, err := tx1.CreateDashboardShare(tCtx, &store.DashboardShare{
 		DashboardID: dashID,
-		RoleID:      "role-viewer",
+		RoleID:      "role_viewer",
 		CreatedBy:   &createdBy,
 	})
 	if err != nil {
@@ -3365,8 +3365,8 @@ func TestDashboardShare_CRUD(t *testing.T) {
 	if share.ID == "" {
 		t.Fatal("expected non-empty ID")
 	}
-	if share.RoleID != "role-viewer" {
-		t.Fatalf("expected role 'role-viewer', got %q", share.RoleID)
+	if share.RoleID != "role_viewer" {
+		t.Fatalf("expected role 'role_viewer', got %q", share.RoleID)
 	}
 	if err := tx1.Commit(); err != nil {
 		t.Fatalf("Commit: %v", err)
@@ -3612,7 +3612,7 @@ func TestRbacPolicy_CRUD(t *testing.T) {
 		Description: "Grants admin to user-001",
 		SubjectType: "user",
 		SubjectID:   "user-001",
-		RoleID:      "role-admin",
+		RoleID:      "role_admin",
 		Enabled:     true,
 	})
 	if err != nil {
@@ -3641,8 +3641,8 @@ func TestRbacPolicy_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRbacPolicy: %v", err)
 	}
-	if got.RoleID != "role-admin" {
-		t.Fatalf("expected role_id 'role-admin', got %q", got.RoleID)
+	if got.RoleID != "role_admin" {
+		t.Fatalf("expected role_id 'role_admin', got %q", got.RoleID)
 	}
 	_ = tx2.Rollback()
 
