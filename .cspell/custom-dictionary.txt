@@ -86,6 +86,8 @@ geolocation
 githooks
 gitignore
 goarch
+gofmt
+goimports
 golangci
 gomod
 gomodule

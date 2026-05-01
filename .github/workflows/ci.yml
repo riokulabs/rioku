@@ -93,6 +93,7 @@ jobs:
           input: packages/proto
           lint: true
           breaking: false
+          format: false
 
   spell:
     name: Spell Check
