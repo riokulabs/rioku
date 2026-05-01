@@ -1025,12 +1025,7 @@ func (t *tx) AppendAITrace(ctx context.Context, in *store.AITrace) (*store.AITra
 		return nil, fmt.Errorf("postgres: insert trace: %w", err)
 	}
 	t.emit("ai_traces", id, "INSERT")
-	// Append-only: return a populated struct without a round-trip Get.
-	out := *in
-	out.ID = id
-	out.OccurredAt = occurredAt
-	out.ToolCallsJSON = calls
-	return &out, nil
+	return t.GetAITrace(ctx, in.TenantID, id)
 }
 
 func (t *tx) GetAITrace(ctx context.Context, tenantID, id string) (*store.AITrace, error) {
