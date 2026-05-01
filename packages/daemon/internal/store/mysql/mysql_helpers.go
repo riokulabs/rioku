@@ -3,10 +3,13 @@ package mysql
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -15,6 +18,41 @@ import (
 
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// defaultTenantID is the immutable id of the seed tenant created by migrations.
+// Operations that target the default tenant by id (e.g. blocking deletion)
+// reference this constant.
+const defaultTenantID = "tenant_default"
+
+// isUniqueViolation returns true if err is a MySQL duplicate-entry error
+// (Error 1062). Mirrors the isPgUniqueViolation pattern.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	var mErr *mysql.MySQLError
+	if errors.As(err, &mErr) {
+		return mErr.Number == 1062
+	}
+	// Fallback: substring match for resilience.
+	return strings.Contains(err.Error(), "Error 1062") || strings.Contains(err.Error(), "Duplicate entry")
+}
+
+// orEmpty returns s, or an empty non-nil slice if s is nil.
+func orEmpty[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
+}
+
+// orEmptyConditions returns c, or an empty non-nil slice if c is nil.
+func orEmptyConditions(c []store.AccessPolicyCondition) []store.AccessPolicyCondition {
+	if c == nil {
+		return []store.AccessPolicyCondition{}
+	}
+	return c
+}
 
 const timeFormat = "2006-01-02T15:04:05.000Z"
 

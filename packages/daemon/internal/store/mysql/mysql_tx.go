@@ -1827,168 +1827,506 @@ func (t *tx) DeleteTOTPBackupCodes(ctx context.Context, userID string) error {
 // Tenants
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateTenant(_ context.Context, _ *store.Tenant) (*store.Tenant, error) {
-	return nil, errors.New("mysql: CreateTenant not implemented")
+func (t *tx) CreateTenant(ctx context.Context, in *store.Tenant) (*store.Tenant, error) {
+	if in == nil {
+		return nil, fmt.Errorf("mysql: nil tenant")
+	}
+	if in.Slug == "" || in.Name == "" {
+		return nil, fmt.Errorf("mysql: tenant requires slug and name")
+	}
+	id := in.ID
+	if id == "" {
+		id = "tenant_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	}
+	plan := in.Plan
+	if plan == "" {
+		plan = "community"
+	}
+	urlMode := in.URLMode
+	if urlMode == "" {
+		urlMode = "path"
+	}
+	now := nowUTC()
+
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO tenants (id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, in.Slug, in.Name, plan, urlMode, in.Accent, in.LogoURL, in.DefaultDashboardID, now, now,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrTenantSlugTaken
+		}
+		return nil, fmt.Errorf("mysql: insert tenant: %w", err)
+	}
+
+	t.emit("tenants", id, "INSERT")
+	return t.GetTenant(ctx, id)
 }
 
-func (t *tx) GetTenant(_ context.Context, _ string) (*store.Tenant, error) {
-	return nil, errors.New("mysql: GetTenant not implemented")
+func (t *tx) GetTenant(ctx context.Context, id string) (*store.Tenant, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at
+		 FROM tenants WHERE id = ?`, id)
+	tenant, err := scanTenant(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrTenantNotFound
+	}
+	return tenant, err
 }
 
-func (t *tx) GetTenantBySlug(_ context.Context, _ string) (*store.Tenant, error) {
-	return nil, errors.New("mysql: GetTenantBySlug not implemented")
+func (t *tx) GetTenantBySlug(ctx context.Context, slug string) (*store.Tenant, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at
+		 FROM tenants WHERE slug = ?`, slug)
+	tenant, err := scanTenant(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrTenantNotFound
+	}
+	return tenant, err
 }
 
-func (t *tx) ListTenants(_ context.Context) ([]*store.Tenant, error) {
-	return nil, errors.New("mysql: ListTenants not implemented")
+func (t *tx) ListTenants(ctx context.Context) ([]*store.Tenant, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at
+		 FROM tenants ORDER BY created_at ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list tenants: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var tenants []*store.Tenant
+	for rows.Next() {
+		tn, err := scanTenant(rows)
+		if err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, tn)
+	}
+	return tenants, rows.Err()
 }
 
-func (t *tx) UpdateTenant(_ context.Context, _ string, _ store.UpdateTenantParams) (*store.Tenant, error) {
-	return nil, errors.New("mysql: UpdateTenant not implemented")
+func (t *tx) UpdateTenant(ctx context.Context, id string, params store.UpdateTenantParams) (*store.Tenant, error) {
+	current, err := t.GetTenant(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if params.Name != nil {
+		current.Name = *params.Name
+	}
+	if params.Plan != nil {
+		current.Plan = *params.Plan
+	}
+	if params.URLMode != nil {
+		current.URLMode = *params.URLMode
+	}
+	if params.Accent != nil {
+		current.Accent = params.Accent
+	}
+	if params.LogoURL != nil {
+		current.LogoURL = params.LogoURL
+	}
+	if params.DefaultDashboardID != nil {
+		current.DefaultDashboardID = params.DefaultDashboardID
+	}
+
+	now := nowUTC()
+	_, err = t.sqlTx.ExecContext(ctx,
+		`UPDATE tenants SET name=?, plan=?, url_mode=?, accent=?, logo_url=?, default_dashboard_id=?, updated_at=?
+		 WHERE id=?`,
+		current.Name, current.Plan, current.URLMode, current.Accent, current.LogoURL, current.DefaultDashboardID, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: update tenant: %w", err)
+	}
+	t.emit("tenants", id, "UPDATE")
+	return t.GetTenant(ctx, id)
 }
 
-func (t *tx) DeleteTenant(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteTenant not implemented")
+func (t *tx) DeleteTenant(ctx context.Context, id string) error {
+	if id == defaultTenantID {
+		return store.ErrTenantImmutable
+	}
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM tenants WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("mysql: delete tenant: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrTenantNotFound
+	}
+	t.emit("tenants", id, "DELETE")
+	return nil
+}
+
+func scanTenant(s scanner) (*store.Tenant, error) {
+	var (
+		id, slug, name, plan, urlMode string
+		accent, logoURL, defDashID    *string
+		createdAt, updatedAt          string
+	)
+	if err := s.Scan(&id, &slug, &name, &plan, &urlMode, &accent, &logoURL, &defDashID, &createdAt, &updatedAt); err != nil {
+		return nil, err
+	}
+	return &store.Tenant{
+		ID:                 id,
+		Slug:               slug,
+		Name:               name,
+		Plan:               plan,
+		URLMode:            urlMode,
+		Accent:             accent,
+		LogoURL:            logoURL,
+		DefaultDashboardID: defDashID,
+		CreatedAt:          parseTime(createdAt),
+		UpdatedAt:          parseTime(updatedAt),
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
 // Memberships
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateMembership(_ context.Context, _ *store.Membership) (*store.Membership, error) {
-	return nil, errors.New("mysql: CreateMembership not implemented")
+func (t *tx) CreateMembership(ctx context.Context, in *store.Membership) (*store.Membership, error) {
+	if in == nil {
+		return nil, fmt.Errorf("mysql: nil membership")
+	}
+	if in.TenantID == "" || in.UserID == "" {
+		return nil, fmt.Errorf("mysql: membership requires tenant_id and user_id")
+	}
+	id := in.ID
+	if id == "" {
+		id = "m_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	}
+	state := in.State
+	if state == "" {
+		state = "active"
+	}
+	now := nowUTC()
+	joinedAt := in.JoinedAt
+	if joinedAt == nil && state == "active" {
+		nowT := time.Now().UTC()
+		joinedAt = &nowT
+	}
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO memberships (id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, in.TenantID, in.UserID, state,
+		in.InvitedBy, formatNullableTime(in.InvitedAt), formatNullableTime(joinedAt),
+		in.InviteTokenHash, now, now,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrMembershipExists
+		}
+		return nil, fmt.Errorf("mysql: insert membership: %w", err)
+	}
+	t.emit("memberships", id, "INSERT")
+	return t.GetMembership(ctx, id)
 }
 
-func (t *tx) GetMembership(_ context.Context, _ string) (*store.Membership, error) {
-	return nil, errors.New("mysql: GetMembership not implemented")
+func (t *tx) GetMembership(ctx context.Context, id string) (*store.Membership, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
+		 FROM memberships WHERE id = ?`, id)
+	m, err := scanMembership(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrMembershipNotFound
+	}
+	return m, err
 }
 
-func (t *tx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*store.Membership, error) {
-	return nil, errors.New("mysql: GetMembershipByTenantUser not implemented")
+func (t *tx) GetMembershipByTenantUser(ctx context.Context, tenantID, userID string) (*store.Membership, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
+		 FROM memberships WHERE tenant_id = ? AND user_id = ?`, tenantID, userID)
+	m, err := scanMembership(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrMembershipNotFound
+	}
+	return m, err
 }
 
-func (t *tx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {
-	return nil, errors.New("mysql: ListMembershipsByTenant not implemented")
+func (t *tx) ListMembershipsByTenant(ctx context.Context, tenantID string) ([]*store.Membership, error) {
+	return t.queryMemberships(ctx,
+		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
+		 FROM memberships WHERE tenant_id = ? ORDER BY created_at ASC`,
+		tenantID)
 }
 
-func (t *tx) ListMembershipsByUser(_ context.Context, _ string) ([]*store.Membership, error) {
-	return nil, errors.New("mysql: ListMembershipsByUser not implemented")
+func (t *tx) ListMembershipsByUser(ctx context.Context, userID string) ([]*store.Membership, error) {
+	return t.queryMemberships(ctx,
+		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
+		 FROM memberships WHERE user_id = ? ORDER BY created_at ASC`,
+		userID)
 }
 
-func (t *tx) UpdateMembershipState(_ context.Context, _, _ string) (*store.Membership, error) {
-	return nil, errors.New("mysql: UpdateMembershipState not implemented")
+func (t *tx) queryMemberships(ctx context.Context, q string, args ...any) ([]*store.Membership, error) {
+	rows, err := t.sqlTx.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list memberships: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.Membership
+	for rows.Next() {
+		m, err := scanMembership(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }
 
-func (t *tx) DeleteMembership(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteMembership not implemented")
+func (t *tx) UpdateMembershipState(ctx context.Context, id, state string) (*store.Membership, error) {
+	current, err := t.GetMembership(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !validMembershipTransition(current.State, state) {
+		return nil, store.ErrMembershipInvalidState
+	}
+
+	now := nowUTC()
+	args := []any{state, now}
+	q := `UPDATE memberships SET state=?, updated_at=?`
+	if state == "active" && current.JoinedAt == nil {
+		q += `, joined_at=?`
+		args = append(args, now)
+	}
+	q += ` WHERE id=?`
+	args = append(args, id)
+
+	if _, err := t.sqlTx.ExecContext(ctx, q, args...); err != nil {
+		return nil, fmt.Errorf("mysql: update membership state: %w", err)
+	}
+	t.emit("memberships", id, "UPDATE")
+	return t.GetMembership(ctx, id)
+}
+
+func (t *tx) DeleteMembership(ctx context.Context, id string) error {
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM memberships WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("mysql: delete membership: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrMembershipNotFound
+	}
+	t.emit("memberships", id, "DELETE")
+	return nil
+}
+
+// validMembershipTransition allows: pending->active, pending->removed,
+// active->deactivated, active->removed, deactivated->active,
+// deactivated->removed. Removed is terminal. Same-state is a no-op
+// allowed so callers can be idempotent.
+func validMembershipTransition(from, to string) bool {
+	if from == to {
+		return true
+	}
+	switch from {
+	case "pending":
+		return to == "active" || to == "removed"
+	case "active":
+		return to == "deactivated" || to == "removed"
+	case "deactivated":
+		return to == "active" || to == "removed"
+	case "removed":
+		return false
+	}
+	return false
+}
+
+func scanMembership(s scanner) (*store.Membership, error) {
+	var (
+		id, tenantID, userID, state string
+		invitedBy, inviteTokenHash  *string
+		invitedAt, joinedAt         *string
+		createdAt, updatedAt        string
+	)
+	if err := s.Scan(&id, &tenantID, &userID, &state, &invitedBy, &invitedAt, &joinedAt, &inviteTokenHash, &createdAt, &updatedAt); err != nil {
+		return nil, err
+	}
+	m := &store.Membership{
+		ID:              id,
+		TenantID:        tenantID,
+		UserID:          userID,
+		State:           state,
+		InvitedBy:       invitedBy,
+		InviteTokenHash: inviteTokenHash,
+		CreatedAt:       parseTime(createdAt),
+		UpdatedAt:       parseTime(updatedAt),
+	}
+	if invitedAt != nil {
+		ts := parseTime(*invitedAt)
+		m.InvitedAt = &ts
+	}
+	if joinedAt != nil {
+		ts := parseTime(*joinedAt)
+		m.JoinedAt = &ts
+	}
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------
 // Membership Roles
 // ---------------------------------------------------------------------------
 
-func (t *tx) AssignMembershipRole(_ context.Context, _, _, _ string) error {
-	return errors.New("mysql: AssignMembershipRole not implemented")
+func (t *tx) AssignMembershipRole(ctx context.Context, membershipID, roleID, grantedBy string) error {
+	now := nowUTC()
+	var grantedByVal *string
+	if grantedBy != "" {
+		grantedByVal = &grantedBy
+	}
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT IGNORE INTO membership_roles (membership_id, role_id, granted_at, granted_by)
+		 VALUES (?, ?, ?, ?)`,
+		membershipID, roleID, now, grantedByVal,
+	)
+	if err != nil {
+		return fmt.Errorf("mysql: assign membership role: %w", err)
+	}
+	return nil
 }
 
-func (t *tx) RevokeMembershipRole(_ context.Context, _, _ string) error {
-	return errors.New("mysql: RevokeMembershipRole not implemented")
+func (t *tx) RevokeMembershipRole(ctx context.Context, membershipID, roleID string) error {
+	if _, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM membership_roles WHERE membership_id = ? AND role_id = ?`,
+		membershipID, roleID); err != nil {
+		return fmt.Errorf("mysql: revoke membership role: %w", err)
+	}
+	return nil
 }
 
-func (t *tx) ListMembershipRoles(_ context.Context, _ string) ([]store.Role, error) {
-	return nil, errors.New("mysql: ListMembershipRoles not implemented")
-}
+func (t *tx) ListMembershipRoles(ctx context.Context, membershipID string) ([]store.Role, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT r.id, r.name, r.description, r.is_builtin, r.created_at, r.updated_at
+		 FROM roles r
+		 JOIN membership_roles mr ON mr.role_id = r.id
+		 WHERE mr.membership_id = ?
+		 ORDER BY r.name ASC`, membershipID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list membership roles: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
 
-// ---------------------------------------------------------------------------
-// Dashboards
-// ---------------------------------------------------------------------------
-
-func (t *tx) CreateDashboard(_ context.Context, _ *store.Dashboard) (*store.Dashboard, error) {
-	return nil, errors.New("mysql: CreateDashboard not implemented")
-}
-
-func (t *tx) GetDashboard(_ context.Context, _, _ string) (*store.Dashboard, error) {
-	return nil, errors.New("mysql: GetDashboard not implemented")
-}
-
-func (t *tx) ListDashboardsByTenant(_ context.Context, _ string) ([]*store.Dashboard, error) {
-	return nil, errors.New("mysql: ListDashboardsByTenant not implemented")
-}
-
-func (t *tx) UpdateDashboard(_ context.Context, _, _ string, _ store.UpdateDashboardParams) (*store.Dashboard, error) {
-	return nil, errors.New("mysql: UpdateDashboard not implemented")
-}
-
-func (t *tx) DeleteDashboard(_ context.Context, _, _ string) error {
-	return errors.New("mysql: DeleteDashboard not implemented")
-}
-
-func (t *tx) SetDefaultDashboard(_ context.Context, _, _ string) (*store.Dashboard, error) {
-	return nil, errors.New("mysql: SetDefaultDashboard not implemented")
-}
-
-func (t *tx) SetDashboardHomeForUser(_ context.Context, _, _, _ string) (*store.Dashboard, error) {
-	return nil, errors.New("mysql: SetDashboardHomeForUser not implemented")
-}
-
-// ---------------------------------------------------------------------------
-// Widgets
-// ---------------------------------------------------------------------------
-
-func (t *tx) CreateWidget(_ context.Context, _ *store.Widget) (*store.Widget, error) {
-	return nil, errors.New("mysql: CreateWidget not implemented")
-}
-
-func (t *tx) GetWidget(_ context.Context, _ string) (*store.Widget, error) {
-	return nil, errors.New("mysql: GetWidget not implemented")
-}
-
-func (t *tx) ListWidgetsByDashboard(_ context.Context, _ string) ([]*store.Widget, error) {
-	return nil, errors.New("mysql: ListWidgetsByDashboard not implemented")
-}
-
-func (t *tx) UpdateWidget(_ context.Context, _ string, _ store.UpdateWidgetParams) (*store.Widget, error) {
-	return nil, errors.New("mysql: UpdateWidget not implemented")
-}
-
-func (t *tx) DeleteWidget(_ context.Context, _, _ string) error {
-	return errors.New("mysql: DeleteWidget not implemented")
-}
-
-func (t *tx) UpdateDashboardLayout(_ context.Context, _ string, _ map[string]string) error {
-	return errors.New("mysql: UpdateDashboardLayout not implemented")
-}
-
-// ---------------------------------------------------------------------------
-// Dashboard Versions
-// ---------------------------------------------------------------------------
-
-func (t *tx) CreateDashboardVersion(_ context.Context, _ *store.DashboardVersion) (*store.DashboardVersion, error) {
-	return nil, errors.New("mysql: CreateDashboardVersion not implemented")
-}
-
-func (t *tx) GetDashboardVersion(_ context.Context, _ string) (*store.DashboardVersion, error) {
-	return nil, errors.New("mysql: GetDashboardVersion not implemented")
-}
-
-func (t *tx) ListDashboardVersions(_ context.Context, _ string) ([]*store.DashboardVersion, error) {
-	return nil, errors.New("mysql: ListDashboardVersions not implemented")
+	var roles []store.Role
+	for rows.Next() {
+		var r store.Role
+		var desc sql.NullString
+		var createdAt, updatedAt string
+		var isBuiltin int
+		if err := rows.Scan(&r.ID, &r.Name, &desc, &isBuiltin, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+		if desc.Valid {
+			r.Description = desc.String
+		}
+		r.IsBuiltin = isBuiltin == 1
+		r.CreatedAt = parseTime(createdAt)
+		r.UpdatedAt = parseTime(updatedAt)
+		roles = append(roles, r)
+	}
+	return roles, rows.Err()
 }
 
 // ---------------------------------------------------------------------------
 // Dashboard Shares
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateDashboardShare(_ context.Context, _ *store.DashboardShare) (*store.DashboardShare, error) {
-	return nil, errors.New("mysql: CreateDashboardShare not implemented")
+func (t *tx) CreateDashboardShare(ctx context.Context, s *store.DashboardShare) (*store.DashboardShare, error) {
+	if s.ID == "" {
+		s.ID = uuid.New().String()
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	now := nowUTC()
+	var expires *string
+	if s.ExpiresAt != nil {
+		v := s.ExpiresAt.UTC().Format(timeFormat)
+		expires = &v
+	}
+	var createdBy *string
+	if s.CreatedBy != nil && *s.CreatedBy != "" {
+		v := *s.CreatedBy
+		createdBy = &v
+	}
+	_, err := t.sqlTx.ExecContext(ctx, `
+		INSERT INTO dashboard_shares (id, tenant_id, dashboard_id, role_id, created_by, expires_at, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, s.ID, tenantID, s.DashboardID, s.RoleID, createdBy, expires, now)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: create dashboard_share: %w", err)
+	}
+	t.emit("dashboard_shares", s.ID, "INSERT")
+	return t.getDashboardShareByID(ctx, s.ID, tenantID)
 }
 
-func (t *tx) ListDashboardShares(_ context.Context, _ string) ([]*store.DashboardShare, error) {
-	return nil, errors.New("mysql: ListDashboardShares not implemented")
+func (t *tx) ListDashboardShares(ctx context.Context, dashboardID string) ([]*store.DashboardShare, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx, `
+		SELECT id, tenant_id, dashboard_id, role_id, created_by, expires_at, created_at
+		FROM dashboard_shares
+		WHERE tenant_id = ? AND dashboard_id = ?
+		ORDER BY created_at, id
+	`, tenantID, dashboardID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list dashboard_shares: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.DashboardShare
+	for rows.Next() {
+		sh, err := scanDashboardShare(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sh)
+	}
+	return out, rows.Err()
 }
 
-func (t *tx) DeleteDashboardShare(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteDashboardShare not implemented")
+func (t *tx) DeleteDashboardShare(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM dashboard_shares WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete dashboard_share: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mysql: dashboard_share %q not found", id)
+	}
+	t.emit("dashboard_shares", id, "DELETE")
+	return nil
+}
+
+func (t *tx) getDashboardShareByID(ctx context.Context, id, tenantID string) (*store.DashboardShare, error) {
+	row := t.sqlTx.QueryRowContext(ctx, `
+		SELECT id, tenant_id, dashboard_id, role_id, created_by, expires_at, created_at
+		FROM dashboard_shares WHERE id = ? AND tenant_id = ?
+	`, id, tenantID)
+	return scanDashboardShare(row)
+}
+
+func scanDashboardShare(s scanner) (*store.DashboardShare, error) {
+	var (
+		ds         store.DashboardShare
+		createdBy  *string
+		expiresAt  *string
+		createdStr string
+	)
+	if err := s.Scan(&ds.ID, &ds.TenantID, &ds.DashboardID, &ds.RoleID, &createdBy, &expiresAt, &createdStr); err != nil {
+		return nil, err
+	}
+	ds.CreatedAt = parseTime(createdStr)
+	if createdBy != nil {
+		v := *createdBy
+		ds.CreatedBy = &v
+	}
+	if expiresAt != nil {
+		t := parseTime(*expiresAt)
+		ds.ExpiresAt = &t
+	}
+	return &ds, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2519,102 +2857,356 @@ func (t *tx) ListAITracesByAgent(_ context.Context, _ string, _ store.AITraceQue
 	return nil, errors.New("mysql: ListAITracesByAgent not implemented")
 }
 
-// ---------------------------------------------------------------------------
-// Sites
-// ---------------------------------------------------------------------------
-
-func (t *tx) CreateSite(_ context.Context, _ *store.Site) (*store.Site, error) {
-	return nil, errors.New("mysql: CreateSite not implemented")
-}
-
-func (t *tx) GetSite(_ context.Context, _, _ string) (*store.Site, error) {
-	return nil, errors.New("mysql: GetSite not implemented")
-}
-
-func (t *tx) ListSitesByTenant(_ context.Context, _ string) ([]*store.Site, error) {
-	return nil, errors.New("mysql: ListSitesByTenant not implemented")
-}
-
-func (t *tx) UpdateSite(_ context.Context, _, _ string, _ store.UpdateSiteParams) (*store.Site, error) {
-	return nil, errors.New("mysql: UpdateSite not implemented")
-}
-
-func (t *tx) ToggleSite(_ context.Context, _, _ string, _ bool) (*store.Site, error) {
-	return nil, errors.New("mysql: ToggleSite not implemented")
-}
-
-func (t *tx) DeleteSite(_ context.Context, _, _ string) error {
-	return errors.New("mysql: DeleteSite not implemented")
-}
-
-// ---------------------------------------------------------------------------
-// Middlewares
-// ---------------------------------------------------------------------------
-
-func (t *tx) CreateMiddleware(_ context.Context, _ *store.Middleware) (*store.Middleware, error) {
-	return nil, errors.New("mysql: CreateMiddleware not implemented")
-}
-
-func (t *tx) GetMiddleware(_ context.Context, _, _ string) (*store.Middleware, error) {
-	return nil, errors.New("mysql: GetMiddleware not implemented")
-}
-
-func (t *tx) ListMiddlewaresByTenant(_ context.Context, _ string) ([]*store.Middleware, error) {
-	return nil, errors.New("mysql: ListMiddlewaresByTenant not implemented")
-}
-
-func (t *tx) UpdateMiddleware(_ context.Context, _, _ string, _ store.UpdateMiddlewareParams) (*store.Middleware, error) {
-	return nil, errors.New("mysql: UpdateMiddleware not implemented")
-}
-
-func (t *tx) DeleteMiddleware(_ context.Context, _, _ string) error {
-	return errors.New("mysql: DeleteMiddleware not implemented")
-}
+// Sites and Middlewares are implemented in mysql_sites.go.
 
 // ---------------------------------------------------------------------------
 // RBAC Policies
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateRbacPolicy(_ context.Context, _ *store.RbacPolicy) (*store.RbacPolicy, error) {
-	return nil, errors.New("mysql: CreateRbacPolicy not implemented")
+func (t *tx) CreateRbacPolicy(ctx context.Context, p *store.RbacPolicy) (*store.RbacPolicy, error) {
+	if p.ID == "" {
+		p.ID = uuid.New().String()
+	}
+	now := nowUTC()
+	tenantID := store.TenantIDFromContext(ctx)
+	enabled := 1
+	if !p.Enabled {
+		enabled = 0
+	}
+	_, err := t.sqlTx.ExecContext(ctx, `
+		INSERT INTO rbac_policies (id, tenant_id, name, description, subject_type, subject_id, role_id, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, p.ID, tenantID, p.Name, p.Description, p.SubjectType, p.SubjectID, p.RoleID, enabled, now, now)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrRbacPolicyDuplicate
+		}
+		return nil, fmt.Errorf("mysql: create rbac_policy: %w", err)
+	}
+	t.emit("rbac_policies", p.ID, "INSERT")
+	return t.GetRbacPolicy(ctx, p.ID)
 }
 
-func (t *tx) GetRbacPolicy(_ context.Context, _ string) (*store.RbacPolicy, error) {
-	return nil, errors.New("mysql: GetRbacPolicy not implemented")
+func (t *tx) GetRbacPolicy(ctx context.Context, id string) (*store.RbacPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, `
+		SELECT id, tenant_id, name, description, subject_type, subject_id, role_id, enabled, created_at, updated_at
+		FROM rbac_policies WHERE id = ? AND tenant_id = ?
+	`, id, tenantID)
+	p, err := scanRbacPolicy(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrRbacPolicyNotFound
+	}
+	return p, err
 }
 
-func (t *tx) ListRbacPolicies(_ context.Context) ([]*store.RbacPolicy, error) {
-	return nil, errors.New("mysql: ListRbacPolicies not implemented")
+func (t *tx) ListRbacPolicies(ctx context.Context) ([]*store.RbacPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx, `
+		SELECT id, tenant_id, name, description, subject_type, subject_id, role_id, enabled, created_at, updated_at
+		FROM rbac_policies WHERE tenant_id = ? ORDER BY created_at, id
+	`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list rbac_policies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.RbacPolicy
+	for rows.Next() {
+		p, err := scanRbacPolicy(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }
 
-func (t *tx) UpdateRbacPolicy(_ context.Context, _ string, _ store.UpdateRbacPolicyParams) (*store.RbacPolicy, error) {
-	return nil, errors.New("mysql: UpdateRbacPolicy not implemented")
+func (t *tx) UpdateRbacPolicy(ctx context.Context, id string, params store.UpdateRbacPolicyParams) (*store.RbacPolicy, error) {
+	if _, err := t.GetRbacPolicy(ctx, id); err != nil {
+		return nil, err
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	now := nowUTC()
+	var setClauses []string
+	var args []any
+	if params.Name != nil {
+		setClauses = append(setClauses, "name = ?")
+		args = append(args, *params.Name)
+	}
+	if params.Description != nil {
+		setClauses = append(setClauses, "description = ?")
+		args = append(args, *params.Description)
+	}
+	if params.SubjectType != nil {
+		setClauses = append(setClauses, "subject_type = ?")
+		args = append(args, *params.SubjectType)
+	}
+	if params.SubjectID != nil {
+		setClauses = append(setClauses, "subject_id = ?")
+		args = append(args, *params.SubjectID)
+	}
+	if params.RoleID != nil {
+		setClauses = append(setClauses, "role_id = ?")
+		args = append(args, *params.RoleID)
+	}
+	if params.Enabled != nil {
+		v := 0
+		if *params.Enabled {
+			v = 1
+		}
+		setClauses = append(setClauses, "enabled = ?")
+		args = append(args, v)
+	}
+	if len(setClauses) > 0 {
+		setClauses = append(setClauses, "updated_at = ?")
+		args = append(args, now, id, tenantID)
+		query := "UPDATE rbac_policies SET " + strings.Join(setClauses, ", ") +
+			" WHERE id = ? AND tenant_id = ?"
+		if _, err := t.sqlTx.ExecContext(ctx, query, args...); err != nil {
+			if isUniqueViolation(err) {
+				return nil, store.ErrRbacPolicyDuplicate
+			}
+			return nil, fmt.Errorf("mysql: update rbac_policy: %w", err)
+		}
+		t.emit("rbac_policies", id, "UPDATE")
+	}
+	return t.GetRbacPolicy(ctx, id)
 }
 
-func (t *tx) DeleteRbacPolicy(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteRbacPolicy not implemented")
+func (t *tx) DeleteRbacPolicy(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM rbac_policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete rbac_policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrRbacPolicyNotFound
+	}
+	t.emit("rbac_policies", id, "DELETE")
+	return nil
+}
+
+func scanRbacPolicy(s scanner) (*store.RbacPolicy, error) {
+	var (
+		p          store.RbacPolicy
+		enabledInt int
+		createdStr string
+		updatedStr string
+	)
+	if err := s.Scan(&p.ID, &p.TenantID, &p.Name, &p.Description, &p.SubjectType, &p.SubjectID, &p.RoleID, &enabledInt, &createdStr, &updatedStr); err != nil {
+		return nil, err
+	}
+	p.Enabled = enabledInt == 1
+	p.CreatedAt = parseTime(createdStr)
+	p.UpdatedAt = parseTime(updatedStr)
+	return &p, nil
 }
 
 // ---------------------------------------------------------------------------
 // Access Policies
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateAccessPolicy(_ context.Context, _ *store.AccessPolicy) (*store.AccessPolicy, error) {
-	return nil, errors.New("mysql: CreateAccessPolicy not implemented")
+func (t *tx) CreateAccessPolicy(ctx context.Context, p *store.AccessPolicy) (*store.AccessPolicy, error) {
+	if p.ID == "" {
+		p.ID = uuid.New().String()
+	}
+	now := nowUTC()
+	targetIDs, err := json.Marshal(orEmpty(p.TargetIDs))
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal target_ids: %w", err)
+	}
+	conditions, err := json.Marshal(orEmptyConditions(p.Conditions))
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal conditions: %w", err)
+	}
+	enabled := 0
+	if p.Enabled {
+		enabled = 1
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err = t.sqlTx.ExecContext(ctx, `
+		INSERT INTO access_policies
+			(id, tenant_id, name, description, effect, target_type, target_ids_json, conditions_json, priority, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, p.ID, tenantID, p.Name, p.Description, string(p.Effect), string(p.TargetType),
+		string(targetIDs), string(conditions), p.Priority, enabled, now, now)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrAccessPolicyDuplicate
+		}
+		return nil, fmt.Errorf("mysql: create access_policy: %w", err)
+	}
+	t.emit("access_policies", p.ID, "INSERT")
+	return t.GetAccessPolicy(ctx, p.ID)
 }
 
-func (t *tx) GetAccessPolicy(_ context.Context, _ string) (*store.AccessPolicy, error) {
-	return nil, errors.New("mysql: GetAccessPolicy not implemented")
+func (t *tx) GetAccessPolicy(ctx context.Context, id string) (*store.AccessPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, `
+		SELECT id, name, description, effect, target_type, target_ids_json,
+		       conditions_json, priority, enabled, created_at, updated_at
+		  FROM access_policies WHERE id = ? AND tenant_id = ?
+	`, id, tenantID)
+	p, err := scanAccessPolicy(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrAccessPolicyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("mysql: get access_policy: %w", err)
+	}
+	return p, nil
 }
 
-func (t *tx) ListAccessPolicies(_ context.Context) ([]*store.AccessPolicy, error) {
-	return nil, errors.New("mysql: ListAccessPolicies not implemented")
+func (t *tx) ListAccessPolicies(ctx context.Context) ([]*store.AccessPolicy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx, `
+		SELECT id, name, description, effect, target_type, target_ids_json,
+		       conditions_json, priority, enabled, created_at, updated_at
+		  FROM access_policies
+		 WHERE tenant_id = ?
+		 ORDER BY priority ASC, created_at ASC
+	`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list access_policies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.AccessPolicy
+	for rows.Next() {
+		p, err := scanAccessPolicy(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }
 
-func (t *tx) UpdateAccessPolicy(_ context.Context, _ string, _ store.UpdateAccessPolicyParams) (*store.AccessPolicy, error) {
-	return nil, errors.New("mysql: UpdateAccessPolicy not implemented")
+func (t *tx) UpdateAccessPolicy(ctx context.Context, id string, params store.UpdateAccessPolicyParams) (*store.AccessPolicy, error) {
+	if _, err := t.GetAccessPolicy(ctx, id); err != nil {
+		return nil, err
+	}
+	now := nowUTC()
+	if params.Name != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET name = ?, updated_at = ? WHERE id = ?`,
+			*params.Name, now, id); err != nil {
+			if isUniqueViolation(err) {
+				return nil, store.ErrAccessPolicyDuplicate
+			}
+			return nil, fmt.Errorf("mysql: update access_policy name: %w", err)
+		}
+	}
+	if params.Description != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET description = ?, updated_at = ? WHERE id = ?`,
+			*params.Description, now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy description: %w", err)
+		}
+	}
+	if params.Effect != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET effect = ?, updated_at = ? WHERE id = ?`,
+			string(*params.Effect), now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy effect: %w", err)
+		}
+	}
+	if params.TargetType != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET target_type = ?, updated_at = ? WHERE id = ?`,
+			string(*params.TargetType), now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy target_type: %w", err)
+		}
+	}
+	if params.TargetIDs != nil {
+		raw, err := json.Marshal(orEmpty(*params.TargetIDs))
+		if err != nil {
+			return nil, fmt.Errorf("mysql: marshal target_ids: %w", err)
+		}
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET target_ids_json = ?, updated_at = ? WHERE id = ?`,
+			string(raw), now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy target_ids: %w", err)
+		}
+	}
+	if params.Conditions != nil {
+		raw, err := json.Marshal(orEmptyConditions(*params.Conditions))
+		if err != nil {
+			return nil, fmt.Errorf("mysql: marshal conditions: %w", err)
+		}
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET conditions_json = ?, updated_at = ? WHERE id = ?`,
+			string(raw), now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy conditions: %w", err)
+		}
+	}
+	if params.Priority != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET priority = ?, updated_at = ? WHERE id = ?`,
+			*params.Priority, now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy priority: %w", err)
+		}
+	}
+	if params.Enabled != nil {
+		v := 0
+		if *params.Enabled {
+			v = 1
+		}
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE access_policies SET enabled = ?, updated_at = ? WHERE id = ?`,
+			v, now, id); err != nil {
+			return nil, fmt.Errorf("mysql: update access_policy enabled: %w", err)
+		}
+	}
+	t.emit("access_policies", id, "UPDATE")
+	return t.GetAccessPolicy(ctx, id)
 }
 
-func (t *tx) DeleteAccessPolicy(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteAccessPolicy not implemented")
+func (t *tx) DeleteAccessPolicy(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM access_policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete access_policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrAccessPolicyNotFound
+	}
+	t.emit("access_policies", id, "DELETE")
+	return nil
+}
+
+func scanAccessPolicy(s scanner) (*store.AccessPolicy, error) {
+	var (
+		p             store.AccessPolicy
+		effect        string
+		targetType    string
+		targetIDsRaw  string
+		conditionsRaw string
+		enabledInt    int
+		createdStr    string
+		updatedStr    string
+	)
+	if err := s.Scan(&p.ID, &p.Name, &p.Description, &effect, &targetType,
+		&targetIDsRaw, &conditionsRaw, &p.Priority, &enabledInt, &createdStr, &updatedStr); err != nil {
+		return nil, err
+	}
+	p.Effect = store.AccessPolicyEffect(effect)
+	p.TargetType = store.AccessPolicyTargetType(targetType)
+	p.Enabled = enabledInt == 1
+	p.CreatedAt = parseTime(createdStr)
+	p.UpdatedAt = parseTime(updatedStr)
+	if err := json.Unmarshal([]byte(targetIDsRaw), &p.TargetIDs); err != nil {
+		return nil, fmt.Errorf("mysql: parse target_ids JSON: %w", err)
+	}
+	if p.TargetIDs == nil {
+		p.TargetIDs = []string{}
+	}
+	if err := json.Unmarshal([]byte(conditionsRaw), &p.Conditions); err != nil {
+		return nil, fmt.Errorf("mysql: parse conditions JSON: %w", err)
+	}
+	if p.Conditions == nil {
+		p.Conditions = []store.AccessPolicyCondition{}
+	}
+	return &p, nil
 }
