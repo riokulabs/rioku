@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 
 	"github.com/riokulabs/rioku/internal/store"
@@ -29,88 +31,594 @@ func (t *tx) Rollback() error { return t.sqlTx.Rollback() }
 // Routes
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateRoute(_ context.Context, _ *riokuv1.Route) (*riokuv1.Route, error) {
-	return nil, errors.New("mysql: CreateRoute not implemented")
+func (t *tx) CreateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Route, error) {
+	id := uuid.New().String()
+	now := nowUTC()
+
+	matchersJSON, err := marshalMatchersJSON(route.GetMatchers())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal matchers: %w", err)
+	}
+	labelsJSON, err := marshalLabelsJSON(route.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
+	}
+
+	var targetServiceID *string
+	var targetUpstreamJSON *string
+	switch tgt := route.Target.(type) {
+	case *riokuv1.Route_ServiceId:
+		s := tgt.ServiceId
+		targetServiceID = &s
+	case *riokuv1.Route_Upstream:
+		j, err := marshalDirectUpstreamJSON(tgt.Upstream)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: marshal upstream: %w", err)
+		}
+		targetUpstreamJSON = &j
+	}
+
+	enabled := 1
+	if !route.GetEnabled() {
+		enabled = 0
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err = t.sqlTx.ExecContext(ctx,
+		`INSERT INTO routes (id, tenant_id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, route.GetName(), matchersJSON, targetServiceID, targetUpstreamJSON, enabled, labelsJSON, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: insert route: %w", err)
+	}
+
+	t.emit("routes", id, "INSERT")
+
+	return t.GetRoute(ctx, id)
 }
 
-func (t *tx) GetRoute(_ context.Context, _ string) (*riokuv1.Route, error) {
-	return nil, errors.New("mysql: GetRoute not implemented")
+func (t *tx) GetRoute(ctx context.Context, id string) (*riokuv1.Route, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at
+		 FROM routes WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	return scanRoute(row)
 }
 
-func (t *tx) ListRoutes(_ context.Context) ([]*riokuv1.Route, error) {
-	return nil, errors.New("mysql: ListRoutes not implemented")
+func (t *tx) ListRoutes(ctx context.Context) ([]*riokuv1.Route, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, name, matchers, target_service_id, target_upstream, enabled, labels, created_at, updated_at
+		 FROM routes WHERE tenant_id = ? ORDER BY id`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list routes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var routes []*riokuv1.Route
+	for rows.Next() {
+		r, err := scanRouteRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+	}
+	return routes, rows.Err()
 }
 
-func (t *tx) UpdateRoute(_ context.Context, _ *riokuv1.Route) (*riokuv1.Route, error) {
-	return nil, errors.New("mysql: UpdateRoute not implemented")
+func (t *tx) UpdateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Route, error) {
+	now := nowUTC()
+
+	matchersJSON, err := marshalMatchersJSON(route.GetMatchers())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal matchers: %w", err)
+	}
+	labelsJSON, err := marshalLabelsJSON(route.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
+	}
+
+	var targetServiceID *string
+	var targetUpstreamJSON *string
+	switch tgt := route.Target.(type) {
+	case *riokuv1.Route_ServiceId:
+		s := tgt.ServiceId
+		targetServiceID = &s
+	case *riokuv1.Route_Upstream:
+		j, err := marshalDirectUpstreamJSON(tgt.Upstream)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: marshal upstream: %w", err)
+		}
+		targetUpstreamJSON = &j
+	}
+
+	enabled := 1
+	if !route.GetEnabled() {
+		enabled = 0
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE routes SET name=?, matchers=?, target_service_id=?, target_upstream=?, enabled=?, labels=?, updated_at=?
+		 WHERE id=? AND tenant_id=?`,
+		route.GetName(), matchersJSON, targetServiceID, targetUpstreamJSON, enabled, labelsJSON, now, route.GetId(), tenantID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: update route: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, fmt.Errorf("mysql: route %q not found", route.GetId())
+	}
+
+	t.emit("routes", route.GetId(), "UPDATE")
+
+	return t.GetRoute(ctx, route.GetId())
 }
 
-func (t *tx) DeleteRoute(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteRoute not implemented")
+func (t *tx) DeleteRoute(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM routes WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete route: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mysql: route %q not found", id)
+	}
+	// Clean up orphaned policy bindings for this route.
+	if _, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM policy_bindings WHERE target_type = 'route' AND target_id = ?`, id,
+	); err != nil {
+		return fmt.Errorf("mysql: cleanup route policy_bindings: %w", err)
+	}
+	t.emit("routes", id, "DELETE")
+	return nil
 }
 
 // ---------------------------------------------------------------------------
 // Services
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateService(_ context.Context, _ *riokuv1.Service) (*riokuv1.Service, error) {
-	return nil, errors.New("mysql: CreateService not implemented")
+func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.Service, error) {
+	id := uuid.New().String()
+	now := nowUTC()
+
+	hcJSON, err := marshalHealthCheckJSON(svc.GetHealthCheck())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal health_check: %w", err)
+	}
+	phcJSON, err := marshalPassiveHealthCheckJSON(svc.GetPassiveHealthCheck())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal passive_health_check: %w", err)
+	}
+	rpJSON, err := marshalRetryPolicyJSON(svc.GetRetryPolicy())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal retry_policy: %w", err)
+	}
+	utJSON, err := marshalUpstreamTLSJSON(svc.GetUpstreamTls())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal upstream_tls: %w", err)
+	}
+	cpJSON, err := marshalConnectionPoolJSON(svc.GetConnectionPool())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal connection_pool: %w", err)
+	}
+	labelsJSON, err := marshalLabelsJSON(svc.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err = t.sqlTx.ExecContext(ctx,
+		`INSERT INTO services (id, tenant_id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now, now,
+		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
+		phcJSON, rpJSON, utJSON, cpJSON,
+		svc.GetLbCookieName(), svc.GetLbHeaderName(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: insert service: %w", err)
+	}
+
+	// Insert upstreams.
+	for _, u := range svc.GetUpstreams() {
+		uid := uuid.New().String()
+		healthy := 1
+		if !u.GetHealthy() {
+			healthy = 0
+		}
+		_, err = t.sqlTx.ExecContext(ctx,
+			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			uid, id, u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: insert upstream: %w", err)
+		}
+	}
+
+	t.emit("services", id, "INSERT")
+
+	return t.GetService(ctx, id)
 }
 
-func (t *tx) GetService(_ context.Context, _ string) (*riokuv1.Service, error) {
-	return nil, errors.New("mysql: GetService not implemented")
+func (t *tx) GetService(ctx context.Context, id string) (*riokuv1.Service, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name
+		 FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
+
+	svc, err := scanService(row)
+	if err != nil {
+		return nil, err
+	}
+
+	upstreams, err := t.fetchUpstreams(ctx, svc.GetId())
+	if err != nil {
+		return nil, err
+	}
+	svc.Upstreams = upstreams
+	return svc, nil
 }
 
-func (t *tx) ListServices(_ context.Context) ([]*riokuv1.Service, error) {
-	return nil, errors.New("mysql: ListServices not implemented")
+func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, name, lb_policy, health_check, labels, created_at, updated_at, dial_timeout_seconds, response_header_timeout_seconds, idle_timeout_seconds, passive_health_check, retry_policy, upstream_tls, connection_pool, lb_cookie_name, lb_header_name FROM services WHERE tenant_id = ? ORDER BY id`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list services: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var services []*riokuv1.Service
+	serviceIndex := make(map[string]*riokuv1.Service)
+	for rows.Next() {
+		svc, err := scanServiceRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, svc)
+		serviceIndex[svc.GetId()] = svc
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Batch-fetch all upstreams in a single query (fixes N+1).
+	// Upstreams are scoped through their parent service's tenant.
+	if len(services) > 0 {
+		uRows, err := t.sqlTx.QueryContext(ctx,
+			`SELECT u.id, u.service_id, u.address, u.weight, u.tls_mode, u.healthy, u.dial_err
+			 FROM upstreams u JOIN services s ON s.id = u.service_id
+			 WHERE s.tenant_id = ? ORDER BY u.service_id, u.id`, tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: fetch all upstreams: %w", err)
+		}
+		defer func() { _ = uRows.Close() }()
+
+		for uRows.Next() {
+			var (
+				uid       string
+				serviceID string
+				address   string
+				weight    int32
+				tlsMode   int32
+				healthy   int
+				dialErr   string
+			)
+			if err := uRows.Scan(&uid, &serviceID, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+				return nil, fmt.Errorf("mysql: scan upstream: %w", err)
+			}
+			if svc, ok := serviceIndex[serviceID]; ok {
+				svc.Upstreams = append(svc.Upstreams, &riokuv1.Upstream{
+					Id:      uid,
+					Address: address,
+					Weight:  weight,
+					Tls:     riokuv1.TLSMode(tlsMode),
+					Healthy: healthy != 0,
+					DialErr: dialErr,
+				})
+			}
+		}
+		if err := uRows.Err(); err != nil {
+			return nil, err
+		}
+	}
+
+	return services, nil
 }
 
-func (t *tx) UpdateService(_ context.Context, _ *riokuv1.Service) (*riokuv1.Service, error) {
-	return nil, errors.New("mysql: UpdateService not implemented")
+func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.Service, error) {
+	now := nowUTC()
+
+	hcJSON, err := marshalHealthCheckJSON(svc.GetHealthCheck())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal health_check: %w", err)
+	}
+	phcJSON, err := marshalPassiveHealthCheckJSON(svc.GetPassiveHealthCheck())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal passive_health_check: %w", err)
+	}
+	rpJSON, err := marshalRetryPolicyJSON(svc.GetRetryPolicy())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal retry_policy: %w", err)
+	}
+	utJSON, err := marshalUpstreamTLSJSON(svc.GetUpstreamTls())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal upstream_tls: %w", err)
+	}
+	cpJSON, err := marshalConnectionPoolJSON(svc.GetConnectionPool())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal connection_pool: %w", err)
+	}
+	labelsJSON, err := marshalLabelsJSON(svc.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE services SET name=?, lb_policy=?, health_check=?, labels=?, updated_at=?, dial_timeout_seconds=?, response_header_timeout_seconds=?, idle_timeout_seconds=?, passive_health_check=?, retry_policy=?, upstream_tls=?, connection_pool=?, lb_cookie_name=?, lb_header_name=?
+		 WHERE id=? AND tenant_id=?`,
+		svc.GetName(), int32(svc.GetLbPolicy()), hcJSON, labelsJSON, now,
+		svc.GetDialTimeoutSeconds(), svc.GetResponseHeaderTimeoutSeconds(), svc.GetIdleTimeoutSeconds(),
+		phcJSON, rpJSON, utJSON, cpJSON,
+		svc.GetLbCookieName(), svc.GetLbHeaderName(),
+		svc.GetId(), tenantID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: update service: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, fmt.Errorf("mysql: service %q not found", svc.GetId())
+	}
+
+	// Replace upstreams: delete existing, insert new.
+	if _, err := t.sqlTx.ExecContext(ctx, `DELETE FROM upstreams WHERE service_id = ?`, svc.GetId()); err != nil {
+		return nil, fmt.Errorf("mysql: delete old upstreams: %w", err)
+	}
+	for _, u := range svc.GetUpstreams() {
+		uid := u.GetId()
+		if uid == "" {
+			uid = uuid.New().String()
+		}
+		healthy := 1
+		if !u.GetHealthy() {
+			healthy = 0
+		}
+		_, err = t.sqlTx.ExecContext(ctx,
+			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			uid, svc.GetId(), u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: insert upstream: %w", err)
+		}
+	}
+
+	t.emit("services", svc.GetId(), "UPDATE")
+
+	return t.GetService(ctx, svc.GetId())
 }
 
-func (t *tx) DeleteService(_ context.Context, _ string) error {
-	return errors.New("mysql: DeleteService not implemented")
+func (t *tx) DeleteService(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM services WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete service: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mysql: service %q not found", id)
+	}
+	// Clean up orphaned policy bindings for this service.
+	if _, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM policy_bindings WHERE target_type = 'service' AND target_id = ?`, id,
+	); err != nil {
+		return fmt.Errorf("mysql: cleanup service policy_bindings: %w", err)
+	}
+	t.emit("services", id, "DELETE")
+	return nil
+}
+
+func (t *tx) fetchUpstreams(ctx context.Context, serviceID string) ([]*riokuv1.Upstream, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, address, weight, tls_mode, healthy, dial_err
+		 FROM upstreams WHERE service_id = ?`, serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: fetch upstreams: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var upstreams []*riokuv1.Upstream
+	for rows.Next() {
+		var (
+			id      string
+			address string
+			weight  int32
+			tlsMode int32
+			healthy int
+			dialErr string
+		)
+		if err := rows.Scan(&id, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+			return nil, fmt.Errorf("mysql: scan upstream: %w", err)
+		}
+		upstreams = append(upstreams, &riokuv1.Upstream{
+			Id:      id,
+			Address: address,
+			Weight:  weight,
+			Tls:     riokuv1.TLSMode(tlsMode),
+			Healthy: healthy != 0,
+			DialErr: dialErr,
+		})
+	}
+	return upstreams, rows.Err()
 }
 
 // ---------------------------------------------------------------------------
 // Policies (proto)
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreatePolicy(_ context.Context, _ *riokuv1.Policy) (*riokuv1.Policy, error) {
-	return nil, errors.New("mysql: CreatePolicy not implemented")
+func (t *tx) CreatePolicy(ctx context.Context, pol *riokuv1.Policy) (*riokuv1.Policy, error) {
+	id := uuid.New().String()
+	now := nowUTC()
+
+	configJSON, err := marshalStructJSON(pol.GetConfig())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal policy config: %w", err)
+	}
+	labelsJSON, err := marshalLabelsJSON(pol.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err = t.sqlTx.ExecContext(ctx,
+		`INSERT INTO policies (id, tenant_id, name, type, config, labels, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, tenantID, pol.GetName(), int32(pol.GetType()), configJSON, labelsJSON, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: insert policy: %w", err)
+	}
+
+	t.emit("policies", id, "INSERT")
+
+	return t.GetPolicy(ctx, id)
 }
 
-func (t *tx) GetPolicy(_ context.Context, _ string) (*riokuv1.Policy, error) {
-	return nil, errors.New("mysql: GetPolicy not implemented")
+func (t *tx) GetPolicy(ctx context.Context, id string) (*riokuv1.Policy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, name, type, config, labels, created_at, updated_at
+		 FROM policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	return scanPolicy(row)
 }
 
-func (t *tx) ListPolicies(_ context.Context) ([]*riokuv1.Policy, error) {
-	return nil, errors.New("mysql: ListPolicies not implemented")
+func (t *tx) ListPolicies(ctx context.Context) ([]*riokuv1.Policy, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, name, type, config, labels, created_at, updated_at FROM policies WHERE tenant_id = ? ORDER BY id`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list policies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var policies []*riokuv1.Policy
+	for rows.Next() {
+		p, err := scanPolicyRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, p)
+	}
+	return policies, rows.Err()
 }
 
-func (t *tx) UpdatePolicy(_ context.Context, _ *riokuv1.Policy) (*riokuv1.Policy, error) {
-	return nil, errors.New("mysql: UpdatePolicy not implemented")
+func (t *tx) UpdatePolicy(ctx context.Context, pol *riokuv1.Policy) (*riokuv1.Policy, error) {
+	now := nowUTC()
+
+	configJSON, err := marshalStructJSON(pol.GetConfig())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal policy config: %w", err)
+	}
+	labelsJSON, err := marshalLabelsJSON(pol.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("mysql: marshal labels: %w", err)
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE policies SET name=?, type=?, config=?, labels=?, updated_at=? WHERE id=? AND tenant_id=?`,
+		pol.GetName(), int32(pol.GetType()), configJSON, labelsJSON, now, pol.GetId(), tenantID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: update policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, fmt.Errorf("mysql: policy %q not found", pol.GetId())
+	}
+
+	t.emit("policies", pol.GetId(), "UPDATE")
+
+	return t.GetPolicy(ctx, pol.GetId())
 }
 
-func (t *tx) DeletePolicy(_ context.Context, _ string) error {
-	return errors.New("mysql: DeletePolicy not implemented")
+func (t *tx) DeletePolicy(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, `DELETE FROM policies WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mysql: policy %q not found", id)
+	}
+	t.emit("policies", id, "DELETE")
+	return nil
 }
 
 // ---------------------------------------------------------------------------
 // Policy bindings
 // ---------------------------------------------------------------------------
 
-func (t *tx) AttachPolicy(_ context.Context, _, _, _ string) error {
-	return errors.New("mysql: AttachPolicy not implemented")
+var validTargetTypes = map[string]bool{"route": true, "service": true}
+
+func (t *tx) AttachPolicy(ctx context.Context, policyID, targetType, targetID string) error {
+	if !validTargetTypes[targetType] {
+		return fmt.Errorf("mysql: invalid target_type %q (must be 'route' or 'service')", targetType)
+	}
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO policy_bindings (policy_id, target_type, target_id) VALUES (?, ?, ?)`,
+		policyID, targetType, targetID,
+	)
+	if err != nil {
+		return fmt.Errorf("mysql: attach policy: %w", err)
+	}
+	t.emit("policy_bindings", policyID, "INSERT")
+	return nil
 }
 
-func (t *tx) DetachPolicy(_ context.Context, _, _, _ string) error {
-	return errors.New("mysql: DetachPolicy not implemented")
+func (t *tx) DetachPolicy(ctx context.Context, policyID, targetType, targetID string) error {
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM policy_bindings WHERE policy_id=? AND target_type=? AND target_id=?`,
+		policyID, targetType, targetID,
+	)
+	if err != nil {
+		return fmt.Errorf("mysql: detach policy: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mysql: policy binding not found")
+	}
+	t.emit("policy_bindings", policyID, "DELETE")
+	return nil
 }
 
-func (t *tx) ListPoliciesByTarget(_ context.Context, _, _ string) ([]string, error) {
-	return nil, errors.New("mysql: ListPoliciesByTarget not implemented")
+func (t *tx) ListPoliciesByTarget(ctx context.Context, targetType, targetID string) ([]string, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT policy_id FROM policy_bindings WHERE target_type=? AND target_id=?`,
+		targetType, targetID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list policies by target: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("mysql: scan policy_id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // ---------------------------------------------------------------------------
