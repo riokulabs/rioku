@@ -4131,3 +4131,1797 @@ func TestMySQL_AITrace(t *testing.T) {
 	}
 	_ = tx6.Rollback()
 }
+
+// ---------------------------------------------------------------------------
+// Notification Items
+// ---------------------------------------------------------------------------
+
+func TestMySQL_NotificationItem(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "notif-item-tenant", Name: "Notif Item Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	notifEmail := "notif-user@example.com"
+	user, err := txT.CreateUser(ctx, &store.User{
+		Email:        &notifEmail,
+		PasswordHash: "hash",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- AppendNotificationItem ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	item, err := tx1.AppendNotificationItem(ctx, &store.NotificationItem{
+		TenantID:   &tenant.ID,
+		UserID:     user.ID,
+		Category:   "alert",
+		Severity:   "warning",
+		Title:      "Test Alert",
+		Body:       "Something happened",
+		OccurredAt: time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("AppendNotificationItem: %v", err)
+	}
+	if item.ID == "" {
+		t.Fatal("expected non-empty item ID")
+	}
+	if item.Title != "Test Alert" {
+		t.Fatalf("expected title 'Test Alert', got %q", item.Title)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetNotificationItem ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetNotificationItem(ctx, item.ID)
+	if err != nil {
+		t.Fatalf("GetNotificationItem: %v", err)
+	}
+	if got.UserID != user.ID {
+		t.Fatalf("expected user_id %q, got %q", user.ID, got.UserID)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListNotificationItemsByUser ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListNotificationItemsByUser(ctx, tenant.ID, user.ID, store.NotificationItemQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListNotificationItemsByUser: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one notification item")
+	}
+	_ = tx3.Rollback()
+
+	// --- CountUnreadNotifications ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	count, err := tx4.CountUnreadNotifications(ctx, tenant.ID, user.ID)
+	if err != nil {
+		t.Fatalf("CountUnreadNotifications: %v", err)
+	}
+	if count < 1 {
+		t.Fatal("expected at least 1 unread notification")
+	}
+	_ = tx4.Rollback()
+
+	// --- MarkNotificationRead ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.MarkNotificationRead(ctx, item.ID); err != nil {
+		t.Fatalf("MarkNotificationRead: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- MarkAllNotificationsRead ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.MarkAllNotificationsRead(ctx, tenant.ID, user.ID); err != nil {
+		t.Fatalf("MarkAllNotificationsRead: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ArchiveNotification ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.ArchiveNotification(ctx, item.ID, true); err != nil {
+		t.Fatalf("ArchiveNotification: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- not found ---
+	tx8, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx8.GetNotificationItem(ctx, "nonexistent"); err != store.ErrNotificationItemNotFound {
+		t.Fatalf("expected ErrNotificationItemNotFound, got %v", err)
+	}
+	_ = tx8.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Notification Channel CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_NotificationChannel_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "nchan-tenant", Name: "NChannel Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ch, err := tx1.CreateNotificationChannel(ctx, &store.NotificationChannel{
+		TenantID: tenant.ID,
+		Name:     "slack-alerts",
+		Kind:     "slack",
+		Config:   `{"webhook":"https://hooks.slack.com/test"}`,
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateNotificationChannel: %v", err)
+	}
+	if ch.ID == "" {
+		t.Fatal("expected non-empty channel ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetNotificationChannel(ctx, tenant.ID, ch.ID)
+	if err != nil {
+		t.Fatalf("GetNotificationChannel: %v", err)
+	}
+	if got.Name != "slack-alerts" {
+		t.Fatalf("expected name 'slack-alerts', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListNotificationChannelsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListNotificationChannelsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one channel")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newName := "slack-alerts-v2"
+	updated, err := tx4.UpdateNotificationChannel(ctx, tenant.ID, ch.ID, store.UpdateNotificationChannelParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateNotificationChannel: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected name %q, got %q", newName, updated.Name)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteNotificationChannel(ctx, tenant.ID, ch.ID); err != nil {
+		t.Fatalf("DeleteNotificationChannel: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetNotificationChannel(ctx, tenant.ID, ch.ID); err != store.ErrNotificationChannelNotFound {
+		t.Fatalf("expected ErrNotificationChannelNotFound, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Routing Rule CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_RoutingRule_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "rrule-tenant", Name: "RRule Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	rule, err := tx1.CreateRoutingRule(ctx, &store.NotificationRoutingRule{
+		TenantID:    tenant.ID,
+		Name:        "critical-rule",
+		EventFilter: `{"severity":"critical"}`,
+		ChannelIDs:  `[]`,
+		Enabled:     true,
+		OrderHint:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateRoutingRule: %v", err)
+	}
+	if rule.ID == "" {
+		t.Fatal("expected non-empty rule ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetRoutingRule(ctx, tenant.ID, rule.ID)
+	if err != nil {
+		t.Fatalf("GetRoutingRule: %v", err)
+	}
+	if got.Name != "critical-rule" {
+		t.Fatalf("expected 'critical-rule', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListRoutingRulesByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListRoutingRulesByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one rule")
+	}
+	_ = tx3.Rollback()
+
+	// --- Reorder ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.ReorderRoutingRules(ctx, tenant.ID, []string{rule.ID}); err != nil {
+		t.Fatalf("ReorderRoutingRules: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Update ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newName := "critical-rule-v2"
+	updated, err := tx5.UpdateRoutingRule(ctx, tenant.ID, rule.ID, store.UpdateRoutingRuleParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateRoutingRule: %v", err)
+	}
+	if updated.Name != newName {
+		t.Fatalf("expected %q, got %q", newName, updated.Name)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteRoutingRule(ctx, tenant.ID, rule.ID); err != nil {
+		t.Fatalf("DeleteRoutingRule: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx7.GetRoutingRule(ctx, tenant.ID, rule.ID); err != store.ErrRoutingRuleNotFound {
+		t.Fatalf("expected ErrRoutingRuleNotFound, got %v", err)
+	}
+	_ = tx7.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Delivery Log
+// ---------------------------------------------------------------------------
+
+func TestMySQL_DeliveryLog(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "dlog-tenant", Name: "DLog Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- AppendDeliveryLogEntry ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	now := time.Now().UTC()
+	entry, err := tx1.AppendDeliveryLogEntry(ctx, &store.NotificationDeliveryLogEntry{
+		TenantID:         tenant.ID,
+		Status:           "delivered",
+		Attempts:         1,
+		FirstAttemptedAt: &now,
+		LastAttemptedAt:  &now,
+	})
+	if err != nil {
+		t.Fatalf("AppendDeliveryLogEntry: %v", err)
+	}
+	if entry.ID == "" {
+		t.Fatal("expected non-empty log entry ID")
+	}
+	if entry.Status != "delivered" {
+		t.Fatalf("expected status 'delivered', got %q", entry.Status)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetDeliveryLogEntry ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetDeliveryLogEntry(ctx, tenant.ID, entry.ID)
+	if err != nil {
+		t.Fatalf("GetDeliveryLogEntry: %v", err)
+	}
+	if got.TenantID != tenant.ID {
+		t.Fatalf("expected tenant_id %q, got %q", tenant.ID, got.TenantID)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListDeliveryLogByTenant ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListDeliveryLogByTenant(ctx, tenant.ID, store.DeliveryLogQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListDeliveryLogByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one delivery log entry")
+	}
+	_ = tx3.Rollback()
+
+	// --- not found ---
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx4.GetDeliveryLogEntry(ctx, tenant.ID, "nonexistent"); err != store.ErrDeliveryLogEntryNotFound {
+		t.Fatalf("expected ErrDeliveryLogEntryNotFound, got %v", err)
+	}
+	_ = tx4.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Tenant Notification Config
+// ---------------------------------------------------------------------------
+
+func TestMySQL_TenantNotificationConfig(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "tnc-tenant", Name: "TNC Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetTenantNotificationConfig (default on no row) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetTenantNotificationConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTenantNotificationConfig (default): %v", err)
+	}
+	if !def.Enabled {
+		t.Fatal("expected default enabled=true")
+	}
+	_ = tx1.Rollback()
+
+	// --- UpsertTenantNotificationConfig ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertTenantNotificationConfig(ctx, &store.TenantNotificationConfig{
+		TenantID:            tenant.ID,
+		Enabled:             true,
+		OptInMode:           "opt-out",
+		MaxRetries:          5,
+		RetryBackoffSeconds: 60,
+		ChannelPriority:     `["email"]`,
+	})
+	if err != nil {
+		t.Fatalf("UpsertTenantNotificationConfig: %v", err)
+	}
+	if upserted.OptInMode != "opt-out" {
+		t.Fatalf("expected opt_in_mode 'opt-out', got %q", upserted.OptInMode)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get after upsert ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetTenantNotificationConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTenantNotificationConfig: %v", err)
+	}
+	if got.MaxRetries != 5 {
+		t.Fatalf("expected max_retries 5, got %d", got.MaxRetries)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Plugin CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_Plugin_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// --- Create global plugin (tenant_scope = nil) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	plug, err := tx1.CreatePlugin(ctx, &store.Plugin{
+		Slug:    "rate-limiter",
+		Name:    "Rate Limiter",
+		Version: "1.0.0",
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreatePlugin: %v", err)
+	}
+	if plug.ID == "" {
+		t.Fatal("expected non-empty plugin ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get (global scope) ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetPlugin(ctx, "", plug.ID)
+	if err != nil {
+		t.Fatalf("GetPlugin: %v", err)
+	}
+	if got.Slug != "rate-limiter" {
+		t.Fatalf("expected slug 'rate-limiter', got %q", got.Slug)
+	}
+	_ = tx2.Rollback()
+
+	// --- List by scope ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListPluginsByScope(ctx, "")
+	if err != nil {
+		t.Fatalf("ListPluginsByScope: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one global plugin")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newVer := "1.1.0"
+	updated, err := tx4.UpdatePlugin(ctx, "", plug.ID, store.UpdatePluginParams{Version: &newVer})
+	if err != nil {
+		t.Fatalf("UpdatePlugin: %v", err)
+	}
+	if updated.Version != newVer {
+		t.Fatalf("expected version %q, got %q", newVer, updated.Version)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ListPluginsBySigner (empty, just verify no error) ---
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	_, err = tx5.ListPluginsBySigner(ctx, "nonexistent-signer")
+	if err != nil {
+		t.Fatalf("ListPluginsBySigner: %v", err)
+	}
+	_ = tx5.Rollback()
+
+	// --- Delete ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeletePlugin(ctx, "", plug.ID); err != nil {
+		t.Fatalf("DeletePlugin: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx7.GetPlugin(ctx, "", plug.ID); err != store.ErrPluginNotFound {
+		t.Fatalf("expected ErrPluginNotFound, got %v", err)
+	}
+	_ = tx7.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// PluginSigner CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_PluginSigner_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	signer, err := tx1.CreatePluginSigner(ctx, &store.PluginSigner{
+		Name:        "Rioku Official",
+		Fingerprint: "SHA256:abc123def456",
+		Status:      "trusted",
+	})
+	if err != nil {
+		t.Fatalf("CreatePluginSigner: %v", err)
+	}
+	if signer.ID == "" {
+		t.Fatal("expected non-empty signer ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetPluginSigner(ctx, "", signer.ID)
+	if err != nil {
+		t.Fatalf("GetPluginSigner: %v", err)
+	}
+	if got.Fingerprint != "SHA256:abc123def456" {
+		t.Fatalf("expected fingerprint, got %q", got.Fingerprint)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListPluginSignersByScope(ctx, "")
+	if err != nil {
+		t.Fatalf("ListPluginSignersByScope: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one signer")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newStatus := "revoked"
+	updated, err := tx4.UpdatePluginSigner(ctx, "", signer.ID, store.UpdatePluginSignerParams{Status: &newStatus})
+	if err != nil {
+		t.Fatalf("UpdatePluginSigner: %v", err)
+	}
+	if updated.Status != newStatus {
+		t.Fatalf("expected status %q, got %q", newStatus, updated.Status)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeletePluginSigner(ctx, "", signer.ID); err != nil {
+		t.Fatalf("DeletePluginSigner: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetPluginSigner(ctx, "", signer.ID); err != store.ErrPluginSignerNotFound {
+		t.Fatalf("expected ErrPluginSignerNotFound, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// CertAuthority CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_CertAuthority_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "ca-tenant", Name: "CA Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ca, err := tx1.CreateCertAuthority(ctx, &store.CertAuthority{
+		TenantID:       tenant.ID,
+		Name:           "Test CA",
+		Kind:           "internal",
+		Subject:        "CN=Test CA,O=Rioku",
+		CertificatePEM: "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----",
+	})
+	if err != nil {
+		t.Fatalf("CreateCertAuthority: %v", err)
+	}
+	if ca.ID == "" {
+		t.Fatal("expected non-empty CA ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetCertAuthority(ctx, tenant.ID, ca.ID)
+	if err != nil {
+		t.Fatalf("GetCertAuthority: %v", err)
+	}
+	if got.Name != "Test CA" {
+		t.Fatalf("expected name 'Test CA', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListCertAuthoritiesByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListCertAuthoritiesByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one CA")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newKind := "external"
+	updated, err := tx4.UpdateCertAuthority(ctx, tenant.ID, ca.ID, store.UpdateCertAuthorityParams{Kind: &newKind})
+	if err != nil {
+		t.Fatalf("UpdateCertAuthority: %v", err)
+	}
+	if updated.Kind != newKind {
+		t.Fatalf("expected kind %q, got %q", newKind, updated.Kind)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteCertAuthority(ctx, tenant.ID, ca.ID); err != nil {
+		t.Fatalf("DeleteCertAuthority: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetCertAuthority(ctx, tenant.ID, ca.ID); err != store.ErrCertAuthorityNotFound {
+		t.Fatalf("expected ErrCertAuthorityNotFound, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// CertEnrollment CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_CertEnrollment_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create tenant + CA (FK dependency for enrollments).
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "ce-tenant", Name: "CE Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	ca, err := txT.CreateCertAuthority(ctx, &store.CertAuthority{
+		TenantID:       tenant.ID,
+		Name:           "Enroll CA",
+		Kind:           "internal",
+		Subject:        "CN=Enroll CA,O=Rioku",
+		CertificatePEM: "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----",
+	})
+	if err != nil {
+		t.Fatalf("CreateCertAuthority: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	enroll, err := tx1.CreateCertEnrollment(ctx, &store.CertEnrollment{
+		TenantID: tenant.ID,
+		CAID:     &ca.ID,
+		Subject:  "CN=node1.example.com",
+		DNSSANs:  `["node1.example.com"]`,
+		State:    "pending",
+	})
+	if err != nil {
+		t.Fatalf("CreateCertEnrollment: %v", err)
+	}
+	if enroll.ID == "" {
+		t.Fatal("expected non-empty enrollment ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetCertEnrollment(ctx, tenant.ID, enroll.ID)
+	if err != nil {
+		t.Fatalf("GetCertEnrollment: %v", err)
+	}
+	if got.State != "pending" {
+		t.Fatalf("expected state 'pending', got %q", got.State)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListCertEnrollmentsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListCertEnrollmentsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one enrollment")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newState := "issued"
+	issuedAt := time.Now().UTC()
+	certPEM := "-----BEGIN CERTIFICATE-----\nfake-issued\n-----END CERTIFICATE-----"
+	updated, err := tx4.UpdateCertEnrollment(ctx, tenant.ID, enroll.ID, store.UpdateCertEnrollmentParams{
+		State:          &newState,
+		IssuedAt:       &issuedAt,
+		CertificatePEM: &certPEM,
+	})
+	if err != nil {
+		t.Fatalf("UpdateCertEnrollment: %v", err)
+	}
+	if updated.State != newState {
+		t.Fatalf("expected state %q, got %q", newState, updated.State)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- RevokeCertEnrollmentRow (returns *CertEnrollment) ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	revoked, err := tx5.RevokeCertEnrollmentRow(ctx, tenant.ID, enroll.ID, "key-compromise")
+	if err != nil {
+		t.Fatalf("RevokeCertEnrollmentRow: %v", err)
+	}
+	if revoked.State != "revoked" {
+		t.Fatalf("expected state 'revoked', got %q", revoked.State)
+	}
+	if revoked.RevocationReason == nil || *revoked.RevocationReason != "key-compromise" {
+		t.Fatalf("expected revocation_reason 'key-compromise', got %v", revoked.RevocationReason)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TLSCertificate CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_TLSCertificate_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "tlscert-tenant", Name: "TLSCert Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	cert, err := tx1.CreateTLSCertificate(ctx, &store.TLSCertificate{
+		TenantID:       tenant.ID,
+		Domain:         "api.example.com",
+		Issuer:         "Let's Encrypt",
+		Source:         "acme",
+		AutoRenew:      true,
+		CertificatePEM: "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----",
+	})
+	if err != nil {
+		t.Fatalf("CreateTLSCertificate: %v", err)
+	}
+	if cert.ID == "" {
+		t.Fatal("expected non-empty cert ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetTLSCertificate(ctx, tenant.ID, cert.ID)
+	if err != nil {
+		t.Fatalf("GetTLSCertificate: %v", err)
+	}
+	if got.Domain != "api.example.com" {
+		t.Fatalf("expected domain 'api.example.com', got %q", got.Domain)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListTLSCertificatesByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListTLSCertificatesByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one TLS certificate")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newIssuer := "ZeroSSL"
+	updated, err := tx4.UpdateTLSCertificate(ctx, tenant.ID, cert.ID, store.UpdateTLSCertificateParams{Issuer: &newIssuer})
+	if err != nil {
+		t.Fatalf("UpdateTLSCertificate: %v", err)
+	}
+	if updated.Issuer != newIssuer {
+		t.Fatalf("expected issuer %q, got %q", newIssuer, updated.Issuer)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteTLSCertificate(ctx, tenant.ID, cert.ID); err != nil {
+		t.Fatalf("DeleteTLSCertificate: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetTLSCertificate(ctx, tenant.ID, cert.ID); err != store.ErrTLSCertificateNotFound {
+		t.Fatalf("expected ErrTLSCertificateNotFound, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// TLSConfig singleton
+// ---------------------------------------------------------------------------
+
+func TestMySQL_TLSConfig(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "tlsconf-tenant", Name: "TLSConf Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetTLSConfig (default on no row) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetTLSConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTLSConfig (default): %v", err)
+	}
+	if def.ACMEProvider != "lets-encrypt" {
+		t.Fatalf("expected default provider 'lets-encrypt', got %q", def.ACMEProvider)
+	}
+	_ = tx1.Rollback()
+
+	// --- UpsertTLSConfig ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertTLSConfig(ctx, &store.TLSConfig{
+		TenantID:       tenant.ID,
+		ACMEProvider:   "zerossl",
+		ACMEEmail:      "admin@example.com",
+		AllowedCiphers: `["TLS_AES_256_GCM_SHA384"]`,
+		MinProtocol:    "1.3",
+	})
+	if err != nil {
+		t.Fatalf("UpsertTLSConfig: %v", err)
+	}
+	if upserted.ACMEProvider != "zerossl" {
+		t.Fatalf("expected provider 'zerossl', got %q", upserted.ACMEProvider)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get after upsert ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetTLSConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTLSConfig: %v", err)
+	}
+	if got.MinProtocol != "1.3" {
+		t.Fatalf("expected min_protocol '1.3', got %q", got.MinProtocol)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// NetworkConfig singleton
+// ---------------------------------------------------------------------------
+
+func TestMySQL_NetworkConfig(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "netconf-tenant", Name: "NetConf Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetNetworkConfig (default on no row) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetNetworkConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetNetworkConfig (default): %v", err)
+	}
+	if def.ReadTimeoutSeconds != 60 {
+		t.Fatalf("expected default read_timeout 60, got %d", def.ReadTimeoutSeconds)
+	}
+	_ = tx1.Rollback()
+
+	// --- Upsert ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertNetworkConfig(ctx, &store.NetworkConfig{
+		TenantID:             tenant.ID,
+		ListenAddresses:      `[":7778"]`,
+		HTTP3Enabled:         true,
+		CaddyConfigOverrides: `{}`,
+		ReadTimeoutSeconds:   30,
+		WriteTimeoutSeconds:  30,
+		IdleTimeoutSeconds:   90,
+	})
+	if err != nil {
+		t.Fatalf("UpsertNetworkConfig: %v", err)
+	}
+	if !upserted.HTTP3Enabled {
+		t.Fatal("expected http3_enabled=true")
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get after upsert ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetNetworkConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetNetworkConfig: %v", err)
+	}
+	if got.ReadTimeoutSeconds != 30 {
+		t.Fatalf("expected read_timeout 30, got %d", got.ReadTimeoutSeconds)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// TenantAuthPolicy singleton
+// ---------------------------------------------------------------------------
+
+func TestMySQL_TenantAuthPolicy(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "authpol-tenant", Name: "AuthPol Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetTenantAuthPolicy (default) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetTenantAuthPolicy(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTenantAuthPolicy (default): %v", err)
+	}
+	if def.TOTPPolicy != "optional" {
+		t.Fatalf("expected default totp_policy 'optional', got %q", def.TOTPPolicy)
+	}
+	_ = tx1.Rollback()
+
+	// --- Upsert ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertTenantAuthPolicy(ctx, &store.TenantAuthPolicy{
+		TenantID:          tenant.ID,
+		TOTPPolicy:        "required",
+		MinLength:         16,
+		RequireUppercase:  true,
+		RequireDigit:      true,
+		IdleHours:         12,
+		AbsoluteHours:     72,
+		MaxFailedAttempts: 3,
+		LockoutMinutes:    30,
+	})
+	if err != nil {
+		t.Fatalf("UpsertTenantAuthPolicy: %v", err)
+	}
+	if upserted.TOTPPolicy != "required" {
+		t.Fatalf("expected totp_policy 'required', got %q", upserted.TOTPPolicy)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get after upsert ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetTenantAuthPolicy(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTenantAuthPolicy: %v", err)
+	}
+	if got.MinLength != 16 {
+		t.Fatalf("expected min_length 16, got %d", got.MinLength)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// ObservabilityConfig singleton
+// ---------------------------------------------------------------------------
+
+func TestMySQL_ObservabilityConfig(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "obsconf-tenant", Name: "ObsConf Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetObservabilityConfig (default) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetObservabilityConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetObservabilityConfig (default): %v", err)
+	}
+	if def.LogFormat != "json" {
+		t.Fatalf("expected default log_format 'json', got %q", def.LogFormat)
+	}
+	_ = tx1.Rollback()
+
+	// --- Upsert ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertObservabilityConfig(ctx, &store.ObservabilityConfig{
+		TenantID:             tenant.ID,
+		MetricsScrapeAuth:    "{}",
+		MetricsRetentionDays: 14,
+		LogLevels:            "{}",
+		LogFormat:            "logfmt",
+		LogRotation:          "{}",
+		TracesRetentionDays:  3,
+		TracesSampleRate:     0.5,
+	})
+	if err != nil {
+		t.Fatalf("UpsertObservabilityConfig: %v", err)
+	}
+	if upserted.LogFormat != "logfmt" {
+		t.Fatalf("expected log_format 'logfmt', got %q", upserted.LogFormat)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get after upsert ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetObservabilityConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetObservabilityConfig: %v", err)
+	}
+	if got.TracesSampleRate != 0.5 {
+		t.Fatalf("expected sample_rate 0.5, got %f", got.TracesSampleRate)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// AuditRetentionConfig singleton
+// ---------------------------------------------------------------------------
+
+func TestMySQL_AuditRetentionConfig(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "arc-tenant", Name: "ARC Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetAuditRetentionConfig (default) ---
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	def, err := tx1.GetAuditRetentionConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetAuditRetentionConfig (default): %v", err)
+	}
+	if def.AutoExport != "never" {
+		t.Fatalf("expected default auto_export 'never', got %q", def.AutoExport)
+	}
+	_ = tx1.Rollback()
+
+	// --- Upsert ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	upserted, err := tx2.UpsertAuditRetentionConfig(ctx, &store.AuditRetentionConfig{
+		TenantID:                 tenant.ID,
+		RetentionDaysRead:        7,
+		RetentionDaysWrite:       30,
+		RetentionDaysDestructive: 180,
+		AutoExport:               "weekly",
+		AutoExportFormat:         "csv",
+	})
+	if err != nil {
+		t.Fatalf("UpsertAuditRetentionConfig: %v", err)
+	}
+	if upserted.AutoExport != "weekly" {
+		t.Fatalf("expected auto_export 'weekly', got %q", upserted.AutoExport)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get after upsert ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx3.GetAuditRetentionConfig(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetAuditRetentionConfig: %v", err)
+	}
+	if got.RetentionDaysRead != 7 {
+		t.Fatalf("expected retention_days_read 7, got %d", got.RetentionDaysRead)
+	}
+	_ = tx3.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// WebhookEndpoint CRUD
+// ---------------------------------------------------------------------------
+
+func TestMySQL_WebhookEndpoint_CRUD(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tenant, err := txT.CreateTenant(ctx, &store.Tenant{Slug: "webhook-tenant", Name: "Webhook Tenant"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	hook, err := tx1.CreateWebhookEndpoint(ctx, &store.WebhookEndpoint{
+		TenantID: tenant.ID,
+		Name:     "deploy-hook",
+		URL:      "https://webhook.example.com/deploy",
+		Events:   `["deploy.success","deploy.failure"]`,
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateWebhookEndpoint: %v", err)
+	}
+	if hook.ID == "" {
+		t.Fatal("expected non-empty webhook ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetWebhookEndpoint(ctx, tenant.ID, hook.ID)
+	if err != nil {
+		t.Fatalf("GetWebhookEndpoint: %v", err)
+	}
+	if got.Name != "deploy-hook" {
+		t.Fatalf("expected name 'deploy-hook', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	list, err := tx3.ListWebhookEndpointsByTenant(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("ListWebhookEndpointsByTenant: %v", err)
+	}
+	if len(list) < 1 {
+		t.Fatal("expected at least one webhook endpoint")
+	}
+	_ = tx3.Rollback()
+
+	// --- Update ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newURL := "https://webhook.example.com/deploy-v2"
+	updated, err := tx4.UpdateWebhookEndpoint(ctx, tenant.ID, hook.ID, store.UpdateWebhookEndpointParams{URL: &newURL})
+	if err != nil {
+		t.Fatalf("UpdateWebhookEndpoint: %v", err)
+	}
+	if updated.URL != newURL {
+		t.Fatalf("expected url %q, got %q", newURL, updated.URL)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteWebhookEndpoint(ctx, tenant.ID, hook.ID); err != nil {
+		t.Fatalf("DeleteWebhookEndpoint: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetWebhookEndpoint(ctx, tenant.ID, hook.ID); err != store.ErrWebhookEndpointNotFound {
+		t.Fatalf("expected ErrWebhookEndpointNotFound, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Enrollment Token
+// ---------------------------------------------------------------------------
+
+func TestMySQL_EnrollmentToken(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// --- CreateEnrollmentToken ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	expires := time.Now().UTC().Add(24 * time.Hour)
+	tok, err := tx1.CreateEnrollmentToken(ctx, &store.ClusterEnrollmentToken{
+		TokenHash: "sha256-test-hash-for-enrollment",
+		ExpiresAt: expires,
+		Notes:     "test token",
+	})
+	if err != nil {
+		t.Fatalf("CreateEnrollmentToken: %v", err)
+	}
+	if tok.ID == "" {
+		t.Fatal("expected non-empty token ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetEnrollmentTokenByHash ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetEnrollmentTokenByHash(ctx, "sha256-test-hash-for-enrollment")
+	if err != nil {
+		t.Fatalf("GetEnrollmentTokenByHash: %v", err)
+	}
+	if got.ID != tok.ID {
+		t.Fatalf("expected id %q, got %q", tok.ID, got.ID)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListActiveEnrollmentTokens ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	active, err := tx3.ListActiveEnrollmentTokens(ctx)
+	if err != nil {
+		t.Fatalf("ListActiveEnrollmentTokens: %v", err)
+	}
+	if len(active) < 1 {
+		t.Fatal("expected at least one active token")
+	}
+	_ = tx3.Rollback()
+
+	// --- ConsumeEnrollmentToken (returns *ClusterEnrollmentToken) ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	consumed, err := tx4.ConsumeEnrollmentToken(ctx, "sha256-test-hash-for-enrollment", "node-abc")
+	if err != nil {
+		t.Fatalf("ConsumeEnrollmentToken: %v", err)
+	}
+	if consumed.ConsumedAt == nil {
+		t.Fatal("expected consumed_at to be set")
+	}
+	if consumed.ConsumedByNodeID == nil || *consumed.ConsumedByNodeID != "node-abc" {
+		t.Fatalf("expected consumed_by_node_id 'node-abc', got %v", consumed.ConsumedByNodeID)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ConsumeEnrollmentToken again → already used ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx5.ConsumeEnrollmentToken(ctx, "sha256-test-hash-for-enrollment", "node-xyz"); err != store.ErrEnrollmentTokenAlreadyUsed {
+		t.Fatalf("expected ErrEnrollmentTokenAlreadyUsed, got %v", err)
+	}
+	_ = tx5.Rollback()
+
+	// --- RevokeEnrollmentToken (new token) ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	tok2, err := tx6.CreateEnrollmentToken(ctx, &store.ClusterEnrollmentToken{
+		TokenHash: "sha256-test-hash-to-revoke",
+		ExpiresAt: time.Now().UTC().Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("CreateEnrollmentToken (revoke test): %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.RevokeEnrollmentToken(ctx, tok2.ID); err != nil {
+		t.Fatalf("RevokeEnrollmentToken: %v", err)
+	}
+	if err := tx7.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Impersonation Session
+// ---------------------------------------------------------------------------
+
+func TestMySQL_ImpersonationSession(t *testing.T) {
+	d := openMySQLTestDB(t)
+	ctx := context.Background()
+
+	// Pre-create a user to act as super_admin_id.
+	txT, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	impEmail := "impersonation-admin@example.com"
+	admin, err := txT.CreateUser(ctx, &store.User{
+		Email:        &impEmail,
+		PasswordHash: "hash",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := txT.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- CreateImpersonationSession ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	expires := time.Now().UTC().Add(1 * time.Hour)
+	sess, err := tx1.CreateImpersonationSession(ctx, &store.ImpersonationSession{
+		SuperAdminID: admin.ID,
+		Reason:       "support investigation",
+		StartedAt:    time.Now().UTC(),
+		ExpiresAt:    expires,
+	})
+	if err != nil {
+		t.Fatalf("CreateImpersonationSession: %v", err)
+	}
+	if sess.ID == "" {
+		t.Fatal("expected non-empty session ID")
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- GetImpersonationSession ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetImpersonationSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("GetImpersonationSession: %v", err)
+	}
+	if got.Reason != "support investigation" {
+		t.Fatalf("expected reason 'support investigation', got %q", got.Reason)
+	}
+	_ = tx2.Rollback()
+
+	// --- ListActiveImpersonationSessions ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	active, err := tx3.ListActiveImpersonationSessions(ctx)
+	if err != nil {
+		t.Fatalf("ListActiveImpersonationSessions: %v", err)
+	}
+	if len(active) < 1 {
+		t.Fatal("expected at least one active session")
+	}
+	_ = tx3.Rollback()
+
+	// --- TouchImpersonationSession ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.TouchImpersonationSession(ctx, sess.ID); err != nil {
+		t.Fatalf("TouchImpersonationSession: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- EndImpersonationSession (returns *ImpersonationSession) ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	ended, err := tx5.EndImpersonationSession(ctx, sess.ID, "explicit_exit")
+	if err != nil {
+		t.Fatalf("EndImpersonationSession: %v", err)
+	}
+	if ended.EndedAt == nil {
+		t.Fatal("expected ended_at to be set")
+	}
+	if ended.EndReason == nil || *ended.EndReason != "explicit_exit" {
+		t.Fatalf("expected end_reason 'explicit_exit', got %v", ended.EndReason)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- EndImpersonationSession again → already ended ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.EndImpersonationSession(ctx, sess.ID, "repeat"); err != store.ErrImpersonationSessionEnded {
+		t.Fatalf("expected ErrImpersonationSessionEnded, got %v", err)
+	}
+	_ = tx6.Rollback()
+
+	// --- TouchImpersonationSession on ended session → not found ---
+	tx7, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx7.TouchImpersonationSession(ctx, sess.ID); err != store.ErrImpersonationSessionNotFound {
+		t.Fatalf("expected ErrImpersonationSessionNotFound on ended session, got %v", err)
+	}
+	_ = tx7.Rollback()
+}
