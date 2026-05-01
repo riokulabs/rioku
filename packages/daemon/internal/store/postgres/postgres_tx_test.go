@@ -2,7 +2,9 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -1593,4 +1595,511 @@ func TestAuditLog(t *testing.T) {
 		t.Fatalf("expected 1 ID matching prefix 'route-', got %d", len(routePrefixIDs))
 	}
 	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Roles
+// ---------------------------------------------------------------------------
+
+// TestRole_CRUD exercises Create → Get → List → Update (name, desc, perms) →
+// Delete. Also verifies ErrRoleImmutable on role_superadmin and
+// ErrRoleNotFound on a missing ID.
+func TestRole_CRUD(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	roleID := "role-test-001"
+
+	// --- Create ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx1.CreateRole(ctx, store.CreateRoleParams{
+		ID:          roleID,
+		Name:        "Test Role",
+		Description: "A test role",
+		Permissions: []string{"routes:read"},
+	})
+	if err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+	if created.ID != roleID {
+		t.Fatalf("expected id=%q, got %q", roleID, created.ID)
+	}
+	if created.Name != "Test Role" {
+		t.Fatalf("expected name='Test Role', got %q", created.Name)
+	}
+	if created.IsBuiltin {
+		t.Fatal("expected is_builtin=false for a custom role")
+	}
+	if len(created.Permissions) != 1 || created.Permissions[0] != "routes:read" {
+		t.Fatalf("expected permissions=['routes:read'], got %v", created.Permissions)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Get ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	got, err := tx2.GetRole(ctx, roleID)
+	if err != nil {
+		t.Fatalf("GetRole: %v", err)
+	}
+	if got.Name != "Test Role" {
+		t.Fatalf("GetRole: expected name='Test Role', got %q", got.Name)
+	}
+	_ = tx2.Rollback()
+
+	// --- List ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	roles, err := tx3.ListRoles(ctx)
+	if err != nil {
+		t.Fatalf("ListRoles: %v", err)
+	}
+	found := false
+	for _, r := range roles {
+		if r.ID == roleID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected role %q in ListRoles result", roleID)
+	}
+	_ = tx3.Rollback()
+
+	// --- Update: name + add/remove perms ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	newName := "Updated Role"
+	newDesc := "Updated description"
+	updated, err := tx4.UpdateRole(ctx, roleID, store.UpdateRoleParams{
+		Name:        &newName,
+		Description: &newDesc,
+		AddPerms:    []string{"routes:write"},
+		RemovePerms: []string{"routes:read"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateRole: %v", err)
+	}
+	if updated.Name != "Updated Role" {
+		t.Fatalf("expected name='Updated Role', got %q", updated.Name)
+	}
+	if updated.Description != "Updated description" {
+		t.Fatalf("expected desc='Updated description', got %q", updated.Description)
+	}
+	// Should have routes:write, not routes:read.
+	if len(updated.Permissions) != 1 || updated.Permissions[0] != "routes:write" {
+		t.Fatalf("expected permissions=['routes:write'], got %v", updated.Permissions)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- ErrRoleImmutable on UpdateRole ---
+	tx4b, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx4b.UpdateRole(ctx, "role_superadmin", store.UpdateRoleParams{}); !errors.Is(err, store.ErrRoleImmutable) {
+		t.Fatalf("expected ErrRoleImmutable, got %v", err)
+	}
+	_ = tx4b.Rollback()
+
+	// --- ErrRoleNotFound on GetRole ---
+	tx4c, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx4c.GetRole(ctx, "role-does-not-exist"); !errors.Is(err, store.ErrRoleNotFound) {
+		t.Fatalf("expected ErrRoleNotFound, got %v", err)
+	}
+	_ = tx4c.Rollback()
+
+	// --- Delete ---
+	tx5, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5.DeleteRole(ctx, roleID); err != nil {
+		t.Fatalf("DeleteRole: %v", err)
+	}
+	if err := tx5.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// ErrRoleImmutable on DeleteRole.
+	tx5b, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx5b.DeleteRole(ctx, "role_superadmin"); !errors.Is(err, store.ErrRoleImmutable) {
+		t.Fatalf("expected ErrRoleImmutable on DeleteRole, got %v", err)
+	}
+	_ = tx5b.Rollback()
+
+	// After delete — ErrRoleNotFound.
+	tx6, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx6.GetRole(ctx, roleID); !errors.Is(err, store.ErrRoleNotFound) {
+		t.Fatalf("expected ErrRoleNotFound after delete, got %v", err)
+	}
+	_ = tx6.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// Permissions
+// ---------------------------------------------------------------------------
+
+// TestPermissions_List verifies that at least one permission is returned from
+// the seed data and that wildcard entries are excluded.
+func TestPermissions_List(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	tx1, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	perms, err := tx1.ListPermissions(ctx)
+	if err != nil {
+		t.Fatalf("ListPermissions: %v", err)
+	}
+	if len(perms) == 0 {
+		t.Fatal("expected at least one permission from seed data")
+	}
+	// Verify wildcard IDs are excluded.
+	for _, p := range perms {
+		if p.ID == "*" || strings.HasSuffix(p.ID, ":*") {
+			t.Fatalf("unexpected wildcard permission in list: %q", p.ID)
+		}
+		if p.ID == "" {
+			t.Fatal("expected non-empty permission ID")
+		}
+	}
+	_ = tx1.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// User Roles
+// ---------------------------------------------------------------------------
+
+// TestUserRoles exercises Assign → ListUserRoles → ListUsersWithRole → Revoke
+// and verifies that AssignRole is idempotent (double-assign does not error).
+func TestUserRoles(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Create a custom role to use in this test.
+	roleID := "role-user-roles-test"
+	txR, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := txR.CreateRole(ctx, store.CreateRoleParams{
+		ID:   roleID,
+		Name: "UserRoles Test Role",
+	}); err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+	if err := txR.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	userID := "user-roles-test-user-001"
+	grantor := "admin-user-001"
+
+	// --- Assign ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx1.AssignRole(ctx, userID, roleID, grantor); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Assign again (idempotent — must not error) ---
+	tx1b, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx1b.AssignRole(ctx, userID, roleID, grantor); err != nil {
+		t.Fatalf("AssignRole (idempotent): %v", err)
+	}
+	if err := tx1b.Commit(); err != nil {
+		t.Fatalf("Commit (idempotent): %v", err)
+	}
+
+	// --- ListUserRoles ---
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	userRoles, err := tx2.ListUserRoles(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListUserRoles: %v", err)
+	}
+	if len(userRoles) != 1 {
+		t.Fatalf("expected 1 user role, got %d", len(userRoles))
+	}
+	if userRoles[0].RoleID != roleID {
+		t.Fatalf("expected role_id=%q, got %q", roleID, userRoles[0].RoleID)
+	}
+	if userRoles[0].GrantedBy != grantor {
+		t.Fatalf("expected granted_by=%q, got %q", grantor, userRoles[0].GrantedBy)
+	}
+	if userRoles[0].GrantedAt.IsZero() {
+		t.Fatal("expected non-zero granted_at")
+	}
+	_ = tx2.Rollback()
+
+	// --- ListUsersWithRole ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	users, err := tx3.ListUsersWithRole(ctx, roleID)
+	if err != nil {
+		t.Fatalf("ListUsersWithRole: %v", err)
+	}
+	if len(users) != 1 || users[0] != userID {
+		t.Fatalf("expected [%q], got %v", userID, users)
+	}
+	_ = tx3.Rollback()
+
+	// --- Revoke ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.RevokeRole(ctx, userID, roleID); err != nil {
+		t.Fatalf("RevokeRole: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify empty after revoke.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterRevoke, err := tx5.ListUserRoles(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListUserRoles after revoke: %v", err)
+	}
+	if len(afterRevoke) != 0 {
+		t.Fatalf("expected 0 roles after revoke, got %d", len(afterRevoke))
+	}
+	_ = tx5.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// GetUserScopes
+// ---------------------------------------------------------------------------
+
+// TestGetUserScopes assigns two roles with distinct permissions to a user and
+// verifies that GetUserScopes returns the union via the JOIN.
+func TestGetUserScopes(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	// Create two roles with different permissions.
+	roleAID := "role-scopes-a"
+	roleBID := "role-scopes-b"
+
+	txR, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := txR.CreateRole(ctx, store.CreateRoleParams{
+		ID:          roleAID,
+		Name:        "Scopes Role A",
+		Permissions: []string{"routes:read"},
+	}); err != nil {
+		t.Fatalf("CreateRole A: %v", err)
+	}
+	if _, err := txR.CreateRole(ctx, store.CreateRoleParams{
+		ID:          roleBID,
+		Name:        "Scopes Role B",
+		Permissions: []string{"services:read", "services:write"},
+	}); err != nil {
+		t.Fatalf("CreateRole B: %v", err)
+	}
+	if err := txR.Commit(); err != nil {
+		t.Fatalf("Commit (roles): %v", err)
+	}
+
+	userID := "user-scopes-test-001"
+
+	// Assign both roles to the user.
+	txA, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := txA.AssignRole(ctx, userID, roleAID, ""); err != nil {
+		t.Fatalf("AssignRole A: %v", err)
+	}
+	if err := txA.AssignRole(ctx, userID, roleBID, ""); err != nil {
+		t.Fatalf("AssignRole B: %v", err)
+	}
+	if err := txA.Commit(); err != nil {
+		t.Fatalf("Commit (assign): %v", err)
+	}
+
+	// Verify aggregated scopes.
+	txS, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	scopes, err := txS.GetUserScopes(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserScopes: %v", err)
+	}
+	if len(scopes) != 3 {
+		t.Fatalf("expected 3 scopes, got %d: %v", len(scopes), scopes)
+	}
+	scopeSet := make(map[string]bool, len(scopes))
+	for _, s := range scopes {
+		scopeSet[s] = true
+	}
+	for _, want := range []string{"routes:read", "services:read", "services:write"} {
+		if !scopeSet[want] {
+			t.Fatalf("expected scope %q in result, got %v", want, scopes)
+		}
+	}
+	_ = txS.Rollback()
+}
+
+// ---------------------------------------------------------------------------
+// TOTP Backup Codes
+// ---------------------------------------------------------------------------
+
+// TestTOTPBackupCodes exercises Create (verifies previous codes replaced) →
+// ListUnused → MarkUsed → ListUnused (excludes marked) → Delete.
+func TestTOTPBackupCodes(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	userID := "user-totp-test-001"
+
+	// --- Create first batch ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx1.CreateTOTPBackupCodes(ctx, userID, []string{"hash1", "hash2", "hash3"}); err != nil {
+		t.Fatalf("CreateTOTPBackupCodes: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Verify 3 unused codes.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	codes, err := tx2.ListUnusedTOTPBackupCodes(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes: %v", err)
+	}
+	if len(codes) != 3 {
+		t.Fatalf("expected 3 unused codes, got %d", len(codes))
+	}
+	_ = tx2.Rollback()
+
+	// --- Create replaces previous codes ---
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx3.CreateTOTPBackupCodes(ctx, userID, []string{"hash4", "hash5"}); err != nil {
+		t.Fatalf("CreateTOTPBackupCodes (replace): %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit (replace): %v", err)
+	}
+
+	tx3b, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterReplace, err := tx3b.ListUnusedTOTPBackupCodes(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes after replace: %v", err)
+	}
+	if len(afterReplace) != 2 {
+		t.Fatalf("expected 2 unused codes after replace, got %d", len(afterReplace))
+	}
+	firstCodeID := afterReplace[0].ID
+	_ = tx3b.Rollback()
+
+	// --- MarkUsed ---
+	tx4, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx4.MarkTOTPBackupCodeUsed(ctx, firstCodeID); err != nil {
+		t.Fatalf("MarkTOTPBackupCodeUsed: %v", err)
+	}
+	if err := tx4.Commit(); err != nil {
+		t.Fatalf("Commit (mark used): %v", err)
+	}
+
+	// ListUnused should now return only 1.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	afterMark, err := tx5.ListUnusedTOTPBackupCodes(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes after mark: %v", err)
+	}
+	if len(afterMark) != 1 {
+		t.Fatalf("expected 1 unused code after marking one used, got %d", len(afterMark))
+	}
+	if afterMark[0].ID == firstCodeID {
+		t.Fatal("expected marked code to be excluded from unused list")
+	}
+	_ = tx5.Rollback()
+
+	// --- DeleteTOTPBackupCodes ---
+	tx6, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if err := tx6.DeleteTOTPBackupCodes(ctx, userID); err != nil {
+		t.Fatalf("DeleteTOTPBackupCodes: %v", err)
+	}
+	if err := tx6.Commit(); err != nil {
+		t.Fatalf("Commit (delete): %v", err)
+	}
+
+	// Verify all codes gone.
+	tx7, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	final, err := tx7.ListUnusedTOTPBackupCodes(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListUnusedTOTPBackupCodes after delete: %v", err)
+	}
+	if len(final) != 0 {
+		t.Fatalf("expected 0 codes after delete, got %d", len(final))
+	}
+	_ = tx7.Rollback()
 }
