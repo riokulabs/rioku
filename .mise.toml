@@ -3,6 +3,7 @@ go = "1.26"
 node = "22"
 "go:github.com/golangci/golangci-lint/cmd/golangci-lint" = "latest"
 "go:github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen" = "latest"
+"go:golang.org/x/tools/cmd/goimports" = "latest"
 "npm:cspell" = "latest"
 "npm:git-cliff" = "latest"
 
