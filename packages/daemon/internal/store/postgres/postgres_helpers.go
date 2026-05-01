@@ -408,6 +408,167 @@ func unmarshalConnectionPoolJSON(s string) (*riokuv1.ConnectionPool, error) {
 	return cp, nil
 }
 
+// ---------------------------------------------------------------------------
+// APIKey scanner
+// ---------------------------------------------------------------------------
+
+func scanAPIKey(s scanner) (*store.APIKey, error) {
+	var (
+		id         string
+		tenantID   string
+		name       string
+		keyHash    string
+		scopesJSON string
+		expiresAt  sql.NullTime
+		createdAt  time.Time
+		revokedAt  sql.NullTime
+		ownerID    sql.NullString
+		lastUsedAt sql.NullTime
+		usageCount int64
+	)
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
+		return nil, fmt.Errorf("postgres: scan api_key: %w", err)
+	}
+
+	var scopes []string
+	if err := json.Unmarshal([]byte(scopesJSON), &scopes); err != nil {
+		return nil, fmt.Errorf("postgres: unmarshal scopes: %w", err)
+	}
+
+	key := &store.APIKey{
+		ID:         id,
+		TenantID:   tenantID,
+		Name:       name,
+		KeyHash:    keyHash,
+		Scopes:     scopes,
+		CreatedAt:  createdAt,
+		UsageCount: usageCount,
+	}
+	if ownerID.Valid {
+		key.OwnerID = ownerID.String
+	}
+	if expiresAt.Valid {
+		t := expiresAt.Time.UTC()
+		key.ExpiresAt = &t
+	}
+	if revokedAt.Valid {
+		t := revokedAt.Time.UTC()
+		key.RevokedAt = &t
+	}
+	if lastUsedAt.Valid {
+		t := lastUsedAt.Time.UTC()
+		key.LastUsedAt = &t
+	}
+	return key, nil
+}
+
+func scanAPIKeyRows(rows *sql.Rows) (*store.APIKey, error) {
+	return scanAPIKey(rows)
+}
+
+// ---------------------------------------------------------------------------
+// User scanner
+// ---------------------------------------------------------------------------
+
+func scanUser(s scanner) (*store.User, error) {
+	var (
+		id                  string
+		username            string
+		email               sql.NullString
+		displayName         sql.NullString
+		passwordHash        string
+		status              string
+		totpSecret          sql.NullString
+		totpEnabled         bool
+		forcePasswordChange bool
+		failedAttempts      int
+		lockedUntil         sql.NullTime
+		lastLogin           sql.NullTime
+		passwordChangedAt   time.Time
+		createdAt           time.Time
+		updatedAt           time.Time
+	)
+
+	if err := s.Scan(&id, &username, &email, &displayName, &passwordHash, &status,
+		&totpSecret, &totpEnabled, &forcePasswordChange,
+		&failedAttempts, &lockedUntil, &lastLogin,
+		&passwordChangedAt, &createdAt, &updatedAt); err != nil {
+		return nil, fmt.Errorf("postgres: scan user: %w", err)
+	}
+
+	u := &store.User{
+		ID:                  id,
+		Username:            username,
+		PasswordHash:        passwordHash,
+		Status:              status,
+		TOTPEnabled:         totpEnabled,
+		ForcePasswordChange: forcePasswordChange,
+		FailedAttempts:      failedAttempts,
+		PasswordChangedAt:   passwordChangedAt.UTC(),
+		CreatedAt:           createdAt.UTC(),
+		UpdatedAt:           updatedAt.UTC(),
+	}
+	if email.Valid {
+		u.Email = &email.String
+	}
+	if displayName.Valid {
+		u.DisplayName = &displayName.String
+	}
+	if totpSecret.Valid {
+		u.TOTPSecret = &totpSecret.String
+	}
+	if lockedUntil.Valid {
+		t := lockedUntil.Time.UTC()
+		u.LockedUntil = &t
+	}
+	if lastLogin.Valid {
+		t := lastLogin.Time.UTC()
+		u.LastLogin = &t
+	}
+	return u, nil
+}
+
+// ---------------------------------------------------------------------------
+// Session scanner
+// ---------------------------------------------------------------------------
+
+func scanSession(s scanner) (*store.Session, error) {
+	var (
+		id          string
+		userID      string
+		fingerprint string
+		createdAt   time.Time
+		expiresAt   time.Time
+		lastActive  time.Time
+		ipAddress   sql.NullString
+		userAgent   sql.NullString
+	)
+
+	if err := s.Scan(&id, &userID, &fingerprint, &createdAt, &expiresAt, &lastActive, &ipAddress, &userAgent); err != nil {
+		return nil, fmt.Errorf("postgres: scan session: %w", err)
+	}
+
+	sess := &store.Session{
+		ID:          id,
+		UserID:      userID,
+		Fingerprint: fingerprint,
+		CreatedAt:   createdAt.UTC(),
+		ExpiresAt:   expiresAt.UTC(),
+		LastActive:  lastActive.UTC(),
+	}
+	if ipAddress.Valid {
+		sess.IPAddress = &ipAddress.String
+	}
+	if userAgent.Valid {
+		sess.UserAgent = &userAgent.String
+	}
+	return sess, nil
+}
+
+// ---------------------------------------------------------------------------
+// Struct JSON helpers
+// ---------------------------------------------------------------------------
+
 func marshalStructJSON(st *structpb.Struct) (string, error) {
 	if st == nil {
 		return "{}", nil

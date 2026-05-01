@@ -3,12 +3,15 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -619,160 +622,811 @@ func (t *tx) ListPoliciesByTarget(ctx context.Context, targetType, targetID stri
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateAPIKey(_ context.Context, _, _ string, _ []string, _ *time.Time, _ string) (string, error) {
-	return "", errors.New("postgres: CreateAPIKey not implemented")
+func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
+	id := uuid.New().String()
+	now := nowUTC()
+
+	scopesJSON, err := json.Marshal(scopes)
+	if err != nil {
+		return "", fmt.Errorf("postgres: marshal scopes: %w", err)
+	}
+
+	var ownerIDVal *string
+	if ownerID != "" {
+		ownerIDVal = &ownerID
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err = t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`INSERT INTO api_keys (id, tenant_id, name, key_hash, scopes, expires_at, created_at, owner_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`),
+		id, tenantID, name, keyHash, string(scopesJSON), expiresAt, now, ownerIDVal,
+	)
+	if err != nil {
+		return "", fmt.Errorf("postgres: insert api_key: %w", err)
+	}
+
+	t.emit("api_keys", id, "INSERT")
+
+	return id, nil
 }
 
-func (t *tx) GetAPIKey(_ context.Context, _ string) (*store.APIKey, error) {
-	return nil, errors.New("postgres: GetAPIKey not implemented")
+func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE id = ? AND tenant_id = ?`), id, tenantID)
+	return scanAPIKey(row)
 }
 
-func (t *tx) GetAPIKeyByHash(_ context.Context, _ string) (*store.APIKey, error) {
-	return nil, errors.New("postgres: GetAPIKeyByHash not implemented")
+// GetAPIKeyByHash is invoked by the auth middleware before any tenant
+// context exists. The hash is unique system-wide; the resolved key
+// carries its tenant_id so the caller can attach it to the request
+// context for downstream tenant filtering.
+func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey, error) {
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE key_hash = ?`), keyHash)
+	return scanAPIKey(row)
 }
 
-func (t *tx) ListAPIKeys(_ context.Context) ([]*store.APIKey, error) {
-	return nil, errors.New("postgres: ListAPIKeys not implemented")
+func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE revoked_at IS NULL AND tenant_id = ?`), tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list api_keys: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var keys []*store.APIKey
+	for rows.Next() {
+		k, err := scanAPIKeyRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+	return keys, rows.Err()
 }
 
-func (t *tx) ListAPIKeysByOwner(_ context.Context, _ string) ([]*store.APIKey, error) {
-	return nil, errors.New("postgres: ListAPIKeysByOwner not implemented")
+func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count
+		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ? AND tenant_id = ?`), ownerID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list api_keys by owner: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var keys []*store.APIKey
+	for rows.Next() {
+		k, err := scanAPIKeyRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+	return keys, rows.Err()
 }
 
-func (t *tx) RevokeAPIKey(_ context.Context, _ string) error {
-	return errors.New("postgres: RevokeAPIKey not implemented")
+func (t *tx) RevokeAPIKey(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	now := nowUTC()
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`UPDATE api_keys SET revoked_at = ? WHERE id = ? AND tenant_id = ? AND revoked_at IS NULL`),
+		now, id, tenantID,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: revoke api_key: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: api_key %q not found or already revoked", id)
+	}
+	t.emit("api_keys", id, "UPDATE")
+	return nil
 }
 
-func (t *tx) UpdateAPIKey(_ context.Context, _ string, _ store.UpdateAPIKeyParams) (*store.APIKey, error) {
-	return nil, errors.New("postgres: UpdateAPIKey not implemented")
+// UpdateAPIKey applies partial changes to a key's metadata.
+func (t *tx) UpdateAPIKey(ctx context.Context, id string, params store.UpdateAPIKeyParams) (*store.APIKey, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	// Build the SET clause from the supplied fields. Skip the UPDATE
+	// entirely when nothing was supplied so we don't bump anything for
+	// a no-op call.
+	var (
+		setClauses []string
+		args       []any
+	)
+	if params.Name != nil {
+		setClauses = append(setClauses, "name = ?")
+		args = append(args, *params.Name)
+	}
+	if params.Scopes != nil {
+		raw, err := json.Marshal(*params.Scopes)
+		if err != nil {
+			return nil, fmt.Errorf("postgres: marshal scopes: %w", err)
+		}
+		setClauses = append(setClauses, "scopes = ?")
+		args = append(args, string(raw))
+	}
+	if params.ExpiresAt != nil {
+		if *params.ExpiresAt == nil {
+			setClauses = append(setClauses, "expires_at = NULL")
+		} else {
+			setClauses = append(setClauses, "expires_at = ?")
+			args = append(args, (*params.ExpiresAt).UTC())
+		}
+	}
+	if len(setClauses) > 0 {
+		args = append(args, id, tenantID)
+		query := rewritePlaceholders("UPDATE api_keys SET " + strings.Join(setClauses, ", ") +
+			" WHERE id = ? AND tenant_id = ? AND revoked_at IS NULL")
+		res, err := t.sqlTx.ExecContext(ctx, query, args...)
+		if err != nil {
+			return nil, fmt.Errorf("postgres: update api_key: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return nil, fmt.Errorf("postgres: api_key %q not found", id)
+		}
+		t.emit("api_keys", id, "UPDATE")
+	}
+	return t.GetAPIKey(ctx, id)
 }
 
-func (t *tx) RecordAPIKeyUse(_ context.Context, _ string, _ time.Time) error {
-	return errors.New("postgres: RecordAPIKeyUse not implemented")
+// RecordAPIKeyUse atomically bumps usage_count and overwrites
+// last_used_at. No-op (no error) when the key id doesn't exist —
+// the caller is the auth path and a missing row at this point is
+// already an authentication failure handled upstream.
+func (t *tx) RecordAPIKeyUse(ctx context.Context, id string, at time.Time) error {
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`UPDATE api_keys SET last_used_at = ?, usage_count = usage_count + 1 WHERE id = ?`),
+		at.UTC(), id,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: record api_key use: %w", err)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
 // Config Versions
 // ---------------------------------------------------------------------------
 
-func (t *tx) SaveConfigVersion(_ context.Context, _ []byte, _ string) (int64, error) {
-	return 0, errors.New("postgres: SaveConfigVersion not implemented")
+const maxConfigVersions = 100
+
+func (t *tx) SaveConfigVersion(ctx context.Context, snapshot []byte, actor string) (int64, error) {
+	now := nowUTC()
+	const q = `INSERT INTO config_versions (snapshot, actor, created_at) VALUES (?, ?, ?) RETURNING version`
+	var version int64
+	if err := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(q), string(snapshot), actor, now).Scan(&version); err != nil {
+		return 0, fmt.Errorf("postgres: insert config_version: %w", err)
+	}
+	t.emit("config_versions", fmt.Sprintf("%d", version), "INSERT")
+
+	// Prune old versions beyond the max retention.
+	_, _ = t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM config_versions WHERE version NOT IN (
+			SELECT version FROM config_versions ORDER BY version DESC LIMIT ?
+		)`), maxConfigVersions)
+
+	return version, nil
 }
 
-func (t *tx) GetConfigVersion(_ context.Context, _ int64) (*store.ConfigVersion, error) {
-	return nil, errors.New("postgres: GetConfigVersion not implemented")
+func (t *tx) GetConfigVersion(ctx context.Context, version int64) (*store.ConfigVersion, error) {
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT version, snapshot, actor, created_at FROM config_versions WHERE version = ?`), version)
+
+	var cv store.ConfigVersion
+	var createdAt time.Time
+	if err := row.Scan(&cv.Version, &cv.Snapshot, &cv.Actor, &createdAt); err != nil {
+		return nil, fmt.Errorf("postgres: get config_version: %w", err)
+	}
+	cv.CreatedAt = createdAt.UTC()
+	return &cv, nil
 }
 
-func (t *tx) ListConfigVersions(_ context.Context, _ int) ([]*store.ConfigVersion, error) {
-	return nil, errors.New("postgres: ListConfigVersions not implemented")
+func (t *tx) ListConfigVersions(ctx context.Context, limit int) ([]*store.ConfigVersion, error) {
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
+		`SELECT version, snapshot, actor, created_at FROM config_versions ORDER BY version DESC LIMIT ?`), limit)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list config_versions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var versions []*store.ConfigVersion
+	for rows.Next() {
+		var cv store.ConfigVersion
+		var createdAt time.Time
+		if err := rows.Scan(&cv.Version, &cv.Snapshot, &cv.Actor, &createdAt); err != nil {
+			return nil, fmt.Errorf("postgres: scan config_version: %w", err)
+		}
+		cv.CreatedAt = createdAt.UTC()
+		versions = append(versions, &cv)
+	}
+	return versions, rows.Err()
 }
 
-func (t *tx) LatestConfigVersion(_ context.Context) (int64, error) {
-	return 0, errors.New("postgres: LatestConfigVersion not implemented")
+func (t *tx) LatestConfigVersion(ctx context.Context) (int64, error) {
+	var version int64
+	err := t.sqlTx.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(version), 0) FROM config_versions`).Scan(&version)
+	if err != nil {
+		return 0, fmt.Errorf("postgres: latest config version: %w", err)
+	}
+	return version, nil
 }
 
 // ---------------------------------------------------------------------------
 // Audit Log
 // ---------------------------------------------------------------------------
 
-func (t *tx) AppendAuditEntry(_ context.Context, _ *riokuv1.AuditEntry) error {
-	return errors.New("postgres: AppendAuditEntry not implemented")
+func (t *tx) AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) error {
+	id := entry.GetId()
+	if id == "" {
+		id = uuid.New().String()
+	}
+	now := nowUTC()
+	if entry.GetOccurredAt() != nil {
+		now = entry.GetOccurredAt().AsTime().UTC()
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`INSERT INTO audit_log (id, tenant_id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		id, tenantID, entry.GetActor(), entry.GetEntityType(), entry.GetEntityId(),
+		entry.GetOperation(), entry.GetDiff(), entry.GetConfigVersion(), now,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: append audit entry: %w", err)
+	}
+	t.emit("audit_log", id, "INSERT")
+	return nil
 }
 
-func (t *tx) QueryAuditLog(_ context.Context, _ store.AuditQuery) ([]*riokuv1.AuditEntry, error) {
-	return nil, errors.New("postgres: QueryAuditLog not implemented")
+func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riokuv1.AuditEntry, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	q := `SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
+
+	if query.Actor != "" {
+		q += ` AND actor = ?`
+		args = append(args, query.Actor)
+	}
+	if query.EntityType != "" {
+		q += ` AND entity_type = ?`
+		args = append(args, query.EntityType)
+	}
+	if query.EntityID != "" {
+		q += ` AND entity_id = ?`
+		args = append(args, query.EntityID)
+	}
+	if query.Since != nil {
+		q += ` AND occurred_at >= ?`
+		args = append(args, query.Since.UTC())
+	}
+	if query.Until != nil {
+		q += ` AND occurred_at <= ?`
+		args = append(args, query.Until.UTC())
+	}
+
+	q += ` ORDER BY occurred_at DESC`
+
+	limit := query.Limit
+	if limit <= 0 || limit > 1000 {
+		limit = 1000
+	}
+	q += ` LIMIT ?`
+	args = append(args, limit)
+
+	if query.Offset > 0 {
+		q += ` OFFSET ?`
+		args = append(args, query.Offset)
+	}
+
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(q), args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: query audit log: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var entries []*riokuv1.AuditEntry
+	for rows.Next() {
+		var (
+			id            string
+			actor         string
+			entityType    string
+			entityID      string
+			operation     string
+			diff          string
+			configVersion int64
+			occurredAt    time.Time
+		)
+		if err := rows.Scan(&id, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt); err != nil {
+			return nil, fmt.Errorf("postgres: scan audit entry: %w", err)
+		}
+		entries = append(entries, &riokuv1.AuditEntry{
+			Id:            id,
+			Actor:         actor,
+			EntityType:    entityType,
+			EntityId:      entityID,
+			Operation:     operation,
+			Diff:          diff,
+			ConfigVersion: configVersion,
+			OccurredAt:    timestamppb.New(occurredAt.UTC()),
+		})
+	}
+	return entries, rows.Err()
 }
 
-func (t *tx) CountAuditLog(_ context.Context, _ store.AuditQuery) (int, error) {
-	return 0, errors.New("postgres: CountAuditLog not implemented")
+// CountAuditLog mirrors QueryAuditLog's WHERE clause but returns
+// COUNT(*) so the REST layer can expose total counts for paginated UIs.
+// Limit/Offset are intentionally ignored.
+func (t *tx) CountAuditLog(ctx context.Context, query store.AuditQuery) (int, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	q := `SELECT COUNT(*) FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
+
+	if query.Actor != "" {
+		q += ` AND actor = ?`
+		args = append(args, query.Actor)
+	}
+	if query.EntityType != "" {
+		q += ` AND entity_type = ?`
+		args = append(args, query.EntityType)
+	}
+	if query.EntityID != "" {
+		q += ` AND entity_id = ?`
+		args = append(args, query.EntityID)
+	}
+	if query.Since != nil {
+		q += ` AND occurred_at >= ?`
+		args = append(args, query.Since.UTC())
+	}
+	if query.Until != nil {
+		q += ` AND occurred_at <= ?`
+		args = append(args, query.Until.UTC())
+	}
+
+	var count int
+	if err := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(q), args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: count audit log: %w", err)
+	}
+	return count, nil
 }
 
-func (t *tx) GetAuditEntry(_ context.Context, _ string) (*riokuv1.AuditEntry, error) {
-	return nil, errors.New("postgres: GetAuditEntry not implemented")
+// GetAuditEntry returns a single audit entry by id, scoped to the active tenant.
+func (t *tx) GetAuditEntry(ctx context.Context, id string) (*riokuv1.AuditEntry, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at
+		 FROM audit_log WHERE id = ? AND tenant_id = ?`), id, tenantID)
+	var (
+		gotID         string
+		actor         string
+		entityType    string
+		entityID      string
+		operation     string
+		diff          string
+		configVersion int64
+		occurredAt    time.Time
+	)
+	if err := row.Scan(&gotID, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("postgres: audit entry %q not found", id)
+		}
+		return nil, fmt.Errorf("postgres: get audit entry: %w", err)
+	}
+	return &riokuv1.AuditEntry{
+		Id:            gotID,
+		Actor:         actor,
+		EntityType:    entityType,
+		EntityId:      entityID,
+		Operation:     operation,
+		Diff:          diff,
+		ConfigVersion: configVersion,
+		OccurredAt:    timestamppb.New(occurredAt.UTC()),
+	}, nil
 }
 
-func (t *tx) ListAuditActors(_ context.Context, _ string, _ int) ([]string, error) {
-	return nil, errors.New("postgres: ListAuditActors not implemented")
+// ListAuditActors returns distinct actors matching `prefix`, capped at
+// `limit` (default 50, max 1000).
+func (t *tx) ListAuditActors(ctx context.Context, prefix string, limit int) ([]string, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if limit <= 0 || limit > 1000 {
+		limit = 50
+	}
+	q := `SELECT DISTINCT actor FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
+	if prefix != "" {
+		q += ` AND actor LIKE ?`
+		args = append(args, prefix+"%")
+	}
+	q += ` ORDER BY actor LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(q), args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list audit actors: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
 }
 
-func (t *tx) ListAuditResourceIDs(_ context.Context, _, _ string, _ int) ([]string, error) {
-	return nil, errors.New("postgres: ListAuditResourceIDs not implemented")
+// ListAuditResourceIDs returns distinct entity_ids matching the
+// optional entity_type filter and `prefix`.
+func (t *tx) ListAuditResourceIDs(ctx context.Context, entityType, prefix string, limit int) ([]string, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if limit <= 0 || limit > 1000 {
+		limit = 50
+	}
+	q := `SELECT DISTINCT entity_id FROM audit_log WHERE tenant_id = ?`
+	args := []any{tenantID}
+	if entityType != "" {
+		q += ` AND entity_type = ?`
+		args = append(args, entityType)
+	}
+	if prefix != "" {
+		q += ` AND entity_id LIKE ?`
+		args = append(args, prefix+"%")
+	}
+	q += ` ORDER BY entity_id LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(q), args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list audit resource_ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
 }
 
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateUser(_ context.Context, _ *store.User) (*store.User, error) {
-	return nil, errors.New("postgres: CreateUser not implemented")
+func (t *tx) CreateUser(ctx context.Context, u *store.User) (*store.User, error) {
+	id := uuid.New().String()
+	now := nowUTC()
+
+	username := strings.ToLower(u.Username)
+
+	var email, displayName, totpSecret sql.NullString
+	if u.Email != nil {
+		email = sql.NullString{String: *u.Email, Valid: true}
+	}
+	if u.DisplayName != nil {
+		displayName = sql.NullString{String: *u.DisplayName, Valid: true}
+	}
+	if u.TOTPSecret != nil {
+		totpSecret = sql.NullString{String: *u.TOTPSecret, Valid: true}
+	}
+
+	passwordChangedAt := now
+	if !u.PasswordChangedAt.IsZero() {
+		passwordChangedAt = u.PasswordChangedAt.UTC()
+	}
+
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`INSERT INTO users (id, username, email, display_name, password_hash, status,
+		                     totp_secret, totp_enabled, force_password_change,
+		                     failed_attempts, locked_until, last_login,
+		                     password_changed_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		id, username, email, displayName, u.PasswordHash, u.Status,
+		totpSecret, u.TOTPEnabled, u.ForcePasswordChange,
+		u.FailedAttempts, u.LockedUntil, u.LastLogin,
+		passwordChangedAt, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: insert user: %w", err)
+	}
+
+	t.emit("users", id, "INSERT")
+
+	return t.GetUser(ctx, id)
 }
 
-func (t *tx) GetUser(_ context.Context, _ string) (*store.User, error) {
-	return nil, errors.New("postgres: GetUser not implemented")
+func (t *tx) GetUser(ctx context.Context, id string) (*store.User, error) {
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT id, username, email, display_name, password_hash, status,
+		        totp_secret, totp_enabled, force_password_change,
+		        failed_attempts, locked_until, last_login,
+		        password_changed_at, created_at, updated_at
+		 FROM users WHERE id = ?`), id)
+	return scanUser(row)
 }
 
-func (t *tx) GetUserByUsername(_ context.Context, _ string) (*store.User, error) {
-	return nil, errors.New("postgres: GetUserByUsername not implemented")
+func (t *tx) GetUserByUsername(ctx context.Context, username string) (*store.User, error) {
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT id, username, email, display_name, password_hash, status,
+		        totp_secret, totp_enabled, force_password_change,
+		        failed_attempts, locked_until, last_login,
+		        password_changed_at, created_at, updated_at
+		 FROM users WHERE LOWER(username) = LOWER(?)`), username)
+	return scanUser(row)
 }
 
-func (t *tx) ListUsers(_ context.Context) ([]*store.User, error) {
-	return nil, errors.New("postgres: ListUsers not implemented")
+func (t *tx) ListUsers(ctx context.Context) ([]*store.User, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, username, email, display_name, password_hash, status,
+		        totp_secret, totp_enabled, force_password_change,
+		        failed_attempts, locked_until, last_login,
+		        password_changed_at, created_at, updated_at
+		 FROM users ORDER BY username`)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list users: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []*store.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
 }
 
-func (t *tx) UpdateUser(_ context.Context, _ *store.User) (*store.User, error) {
-	return nil, errors.New("postgres: UpdateUser not implemented")
+func (t *tx) UpdateUser(ctx context.Context, u *store.User) (*store.User, error) {
+	now := nowUTC()
+
+	var email, displayName, totpSecret sql.NullString
+	if u.Email != nil {
+		email = sql.NullString{String: *u.Email, Valid: true}
+	}
+	if u.DisplayName != nil {
+		displayName = sql.NullString{String: *u.DisplayName, Valid: true}
+	}
+	if u.TOTPSecret != nil {
+		totpSecret = sql.NullString{String: *u.TOTPSecret, Valid: true}
+	}
+
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`UPDATE users SET username=?, email=?, display_name=?, password_hash=?, status=?,
+		                  totp_secret=?, totp_enabled=?, force_password_change=?,
+		                  failed_attempts=?, locked_until=?, last_login=?,
+		                  password_changed_at=?, updated_at=?
+		 WHERE id=?`),
+		strings.ToLower(u.Username), email, displayName, u.PasswordHash, u.Status,
+		totpSecret, u.TOTPEnabled, u.ForcePasswordChange,
+		u.FailedAttempts, u.LockedUntil, u.LastLogin,
+		u.PasswordChangedAt.UTC(), now, u.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: update user: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, fmt.Errorf("postgres: user %q not found", u.ID)
+	}
+
+	t.emit("users", u.ID, "UPDATE")
+
+	return t.GetUser(ctx, u.ID)
 }
 
-func (t *tx) DeleteUser(_ context.Context, _ string) error {
-	return errors.New("postgres: DeleteUser not implemented")
+func (t *tx) DeleteUser(ctx context.Context, id string) error {
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM users WHERE id = ?`), id)
+	if err != nil {
+		return fmt.Errorf("postgres: delete user: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: user %q not found", id)
+	}
+	t.emit("users", id, "DELETE")
+	return nil
 }
 
-func (t *tx) IncrementFailedAttempts(_ context.Context, _ string, _ *time.Time) error {
-	return errors.New("postgres: IncrementFailedAttempts not implemented")
+func (t *tx) IncrementFailedAttempts(ctx context.Context, userID string, lockUntil *time.Time) error {
+	var res sql.Result
+	var err error
+
+	if lockUntil != nil {
+		res, err = t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+			`UPDATE users SET failed_attempts = failed_attempts + 1,
+			                  locked_until = ?, status = 'locked', updated_at = ?
+			 WHERE id = ?`),
+			lockUntil.UTC(), nowUTC(), userID,
+		)
+	} else {
+		res, err = t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+			`UPDATE users SET failed_attempts = failed_attempts + 1, updated_at = ?
+			 WHERE id = ?`),
+			nowUTC(), userID,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("postgres: increment failed_attempts: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: user %q not found", userID)
+	}
+	t.emit("users", userID, "UPDATE")
+	return nil
 }
 
-func (t *tx) ResetFailedAttempts(_ context.Context, _ string) error {
-	return errors.New("postgres: ResetFailedAttempts not implemented")
+func (t *tx) ResetFailedAttempts(ctx context.Context, userID string) error {
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`UPDATE users SET failed_attempts = 0, locked_until = NULL, status = 'active', updated_at = ?
+		 WHERE id = ?`),
+		nowUTC(), userID,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: reset failed_attempts: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: user %q not found", userID)
+	}
+	t.emit("users", userID, "UPDATE")
+	return nil
 }
 
-func (t *tx) UpdateLastLogin(_ context.Context, _ string) error {
-	return errors.New("postgres: UpdateLastLogin not implemented")
+func (t *tx) UpdateLastLogin(ctx context.Context, userID string) error {
+	now := nowUTC()
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`UPDATE users SET last_login = ?, updated_at = ? WHERE id = ?`),
+		now, now, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: update last_login: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: user %q not found", userID)
+	}
+	t.emit("users", userID, "UPDATE")
+	return nil
 }
 
 // ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateSession(_ context.Context, _ *store.Session) (*store.Session, error) {
-	return nil, errors.New("postgres: CreateSession not implemented")
+func (t *tx) CreateSession(ctx context.Context, s *store.Session) (*store.Session, error) {
+	var ipAddress, userAgent sql.NullString
+	if s.IPAddress != nil {
+		ipAddress = sql.NullString{String: *s.IPAddress, Valid: true}
+	}
+	if s.UserAgent != nil {
+		userAgent = sql.NullString{String: *s.UserAgent, Valid: true}
+	}
+
+	tenantID := store.TenantIDFromContext(ctx)
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`INSERT INTO sessions (id, tenant_id, user_id, fingerprint, created_at, expires_at, last_active, ip_address, user_agent)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		s.ID, tenantID, s.UserID, s.Fingerprint,
+		s.CreatedAt.UTC(), s.ExpiresAt.UTC(), s.LastActive.UTC(),
+		ipAddress, userAgent,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: insert session: %w", err)
+	}
+
+	t.emit("sessions", s.ID, "INSERT")
+
+	return t.GetSession(ctx, s.ID)
 }
 
-func (t *tx) GetSession(_ context.Context, _ string) (*store.Session, error) {
-	return nil, errors.New("postgres: GetSession not implemented")
+// GetSession does NOT filter by tenant. Sessions live for the user's
+// active tenant only — but the auth middleware looks up the session
+// before any tenant context exists.
+func (t *tx) GetSession(ctx context.Context, id string) (*store.Session, error) {
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT id, user_id, fingerprint, created_at, expires_at, last_active, ip_address, user_agent
+		 FROM sessions WHERE id = ?`), id)
+	return scanSession(row)
 }
 
-func (t *tx) ListSessionsByUser(_ context.Context, _ string) ([]*store.Session, error) {
-	return nil, errors.New("postgres: ListSessionsByUser not implemented")
+func (t *tx) ListSessionsByUser(ctx context.Context, userID string) ([]*store.Session, error) {
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
+		`SELECT id, user_id, fingerprint, created_at, expires_at, last_active, ip_address, user_agent
+		 FROM sessions WHERE user_id = ? ORDER BY created_at`), userID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list sessions by user: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var sessions []*store.Session
+	for rows.Next() {
+		s, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
+	}
+	return sessions, rows.Err()
 }
 
-func (t *tx) DeleteSession(_ context.Context, _ string) error {
-	return errors.New("postgres: DeleteSession not implemented")
+func (t *tx) DeleteSession(ctx context.Context, id string) error {
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM sessions WHERE id = ?`), id)
+	if err != nil {
+		return fmt.Errorf("postgres: delete session: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: session %q not found", id)
+	}
+	t.emit("sessions", id, "DELETE")
+	return nil
 }
 
-func (t *tx) DeleteSessionsByUser(_ context.Context, _ string) error {
-	return errors.New("postgres: DeleteSessionsByUser not implemented")
+func (t *tx) DeleteSessionsByUser(ctx context.Context, userID string) error {
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM sessions WHERE user_id = ?`), userID)
+	if err != nil {
+		return fmt.Errorf("postgres: delete sessions by user: %w", err)
+	}
+	t.emit("sessions", userID, "DELETE")
+	return nil
 }
 
-func (t *tx) DeleteSessionsByUserExcept(_ context.Context, _, _ string) error {
-	return errors.New("postgres: DeleteSessionsByUserExcept not implemented")
+func (t *tx) DeleteSessionsByUserExcept(ctx context.Context, userID, exceptSessionID string) error {
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM sessions WHERE user_id = ? AND id != ?`), userID, exceptSessionID)
+	if err != nil {
+		return fmt.Errorf("postgres: delete sessions by user except: %w", err)
+	}
+	t.emit("sessions", userID, "DELETE")
+	return nil
 }
 
-func (t *tx) UpdateSessionLastActive(_ context.Context, _ string, _ time.Time) error {
-	return errors.New("postgres: UpdateSessionLastActive not implemented")
+func (t *tx) UpdateSessionLastActive(ctx context.Context, id string, at time.Time) error {
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`UPDATE sessions SET last_active = ? WHERE id = ?`),
+		at.UTC(), id,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: update session last_active: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("postgres: session %q not found", id)
+	}
+	t.emit("sessions", id, "UPDATE")
+	return nil
 }
 
-func (t *tx) DeleteExpiredSessions(_ context.Context) (int64, error) {
-	return 0, errors.New("postgres: DeleteExpiredSessions not implemented")
+func (t *tx) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	now := nowUTC()
+	yesterday := now.Add(-24 * time.Hour)
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM sessions WHERE expires_at < ? OR last_active < ?`),
+		now, yesterday,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres: delete expired sessions: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 // ---------------------------------------------------------------------------
