@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 26 {
-		t.Fatalf("expected version 26, got %d", v)
+	if v != 27 {
+		t.Fatalf("expected version 27, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -3888,6 +3888,252 @@ func TestRouteMatcherExtensions(t *testing.T) {
 // #161 service-level Caddy primitive fields (request_headers, response_headers,
 // response_rules, compression) persist and round-trip correctly through the
 // SQLite driver.
+// ---------------------------------------------------------------------------
+// Phase 7b / #162, #159 residual — dynamic upstreams storage round-trips
+// ---------------------------------------------------------------------------
+
+// TestSQLite_Service_DynamicUpstreams_RoundTrip verifies that both SrvLookup
+// and ALookup upstream variants persist and retrieve correctly through
+// CreateService / GetService / ListServices.
+func TestSQLite_Service_DynamicUpstreams_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	svc, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "dyn-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Source: &riokuv1.Upstream_SrvLookup{
+					SrvLookup: &riokuv1.SrvLookup{
+						Service:        "_http._tcp.api.example.com",
+						Proto:          "tcp",
+						RefreshSeconds: 30,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService (srv): %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, svc.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	if len(got.GetUpstreams()) != 1 {
+		t.Fatalf("upstreams len = %d, want 1", len(got.GetUpstreams()))
+	}
+	u := got.GetUpstreams()[0]
+	srv, ok := u.GetSource().(*riokuv1.Upstream_SrvLookup)
+	if !ok {
+		t.Fatalf("source is %T, want *Upstream_SrvLookup", u.GetSource())
+	}
+	if srv.SrvLookup.GetService() != "_http._tcp.api.example.com" {
+		t.Errorf("srv.service = %q, want _http._tcp.api.example.com", srv.SrvLookup.GetService())
+	}
+	if srv.SrvLookup.GetProto() != "tcp" {
+		t.Errorf("srv.proto = %q, want tcp", srv.SrvLookup.GetProto())
+	}
+	if srv.SrvLookup.GetRefreshSeconds() != 30 {
+		t.Errorf("srv.refresh_seconds = %d, want 30", srv.SrvLookup.GetRefreshSeconds())
+	}
+
+	// Now create a service with ALookup.
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin tx3: %v", err)
+	}
+	svc2, err := tx3.CreateService(ctx, &riokuv1.Service{
+		Name: "dyn-svc-a",
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Source: &riokuv1.Upstream_ALookup{
+					ALookup: &riokuv1.ALookup{
+						Name:           "api.example.com",
+						Port:           8080,
+						RefreshSeconds: 120,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService (a): %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit tx3: %v", err)
+	}
+
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx4: %v", err)
+	}
+	got2, err := tx4.GetService(ctx, svc2.GetId())
+	if err != nil {
+		t.Fatalf("GetService (a): %v", err)
+	}
+	_ = tx4.Rollback()
+
+	u2 := got2.GetUpstreams()[0]
+	al, ok := u2.GetSource().(*riokuv1.Upstream_ALookup)
+	if !ok {
+		t.Fatalf("source is %T, want *Upstream_ALookup", u2.GetSource())
+	}
+	if al.ALookup.GetName() != "api.example.com" {
+		t.Errorf("a.name = %q, want api.example.com", al.ALookup.GetName())
+	}
+	if al.ALookup.GetPort() != 8080 {
+		t.Errorf("a.port = %d, want 8080", al.ALookup.GetPort())
+	}
+	if al.ALookup.GetRefreshSeconds() != 120 {
+		t.Errorf("a.refresh_seconds = %d, want 120", al.ALookup.GetRefreshSeconds())
+	}
+
+	// Verify ListServices includes both services with their dynamic sources.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx5: %v", err)
+	}
+	defer func() { _ = tx5.Rollback() }()
+	all, err := tx5.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	srvFound, aFound := false, false
+	for _, s := range all {
+		for _, up := range s.GetUpstreams() {
+			switch up.GetSource().(type) {
+			case *riokuv1.Upstream_SrvLookup:
+				srvFound = true
+			case *riokuv1.Upstream_ALookup:
+				aFound = true
+			}
+		}
+	}
+	if !srvFound {
+		t.Error("ListServices: SrvLookup upstream not found")
+	}
+	if !aFound {
+		t.Error("ListServices: ALookup upstream not found")
+	}
+}
+
+// TestSQLite_Service_DynamicUpstreams_StaticBackward verifies that static
+// (no source) upstreams still round-trip cleanly after migration 27.
+func TestSQLite_Service_DynamicUpstreams_StaticBackward(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	svc, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name: "static-svc",
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080", Weight: 5, Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, svc.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	if len(got.GetUpstreams()) != 1 {
+		t.Fatalf("upstreams len = %d, want 1", len(got.GetUpstreams()))
+	}
+	u := got.GetUpstreams()[0]
+	if u.GetSource() != nil {
+		t.Errorf("static upstream should have nil source, got %T", u.GetSource())
+	}
+	if u.GetAddress() != "10.0.0.1:8080" {
+		t.Errorf("address = %q, want 10.0.0.1:8080", u.GetAddress())
+	}
+}
+
+// TestSQLite_Service_TrustedProxies_LegacyShape verifies the backward-compat
+// shim in unmarshalTrustedProxiesJSON: a legacy JSON array of CIDR strings is
+// parsed as TrustedProxies{Static: [...]}.
+func TestSQLite_Service_TrustedProxies_LegacyShape(t *testing.T) {
+	legacy := `["10.0.0.0/8","192.168.0.0/16"]`
+	tp, err := unmarshalTrustedProxiesJSON(legacy)
+	if err != nil {
+		t.Fatalf("unmarshalTrustedProxiesJSON (legacy): %v", err)
+	}
+	if tp == nil {
+		t.Fatal("got nil, want TrustedProxies")
+	}
+	if len(tp.GetStatic()) != 2 {
+		t.Fatalf("static len = %d, want 2", len(tp.GetStatic()))
+	}
+	if tp.GetStatic()[0] != "10.0.0.0/8" {
+		t.Errorf("static[0] = %q, want 10.0.0.0/8", tp.GetStatic()[0])
+	}
+	if len(tp.GetDynamic()) != 0 {
+		t.Errorf("dynamic should be empty for legacy shape, got %d", len(tp.GetDynamic()))
+	}
+}
+
+// TestSQLite_Service_TrustedProxies_NewShape verifies that the new object-shape
+// TrustedProxies JSON round-trips cleanly.
+func TestSQLite_Service_TrustedProxies_NewShape(t *testing.T) {
+	original := &riokuv1.TrustedProxies{
+		Static: []string{"10.0.0.0/8"},
+		Dynamic: []*riokuv1.TrustedProxiesDynamic{
+			{Strategy: "cloudflare", RefreshSeconds: 3600},
+		},
+	}
+	s, err := marshalTrustedProxiesJSON(original)
+	if err != nil {
+		t.Fatalf("marshalTrustedProxiesJSON: %v", err)
+	}
+	got, err := unmarshalTrustedProxiesJSON(s)
+	if err != nil {
+		t.Fatalf("unmarshalTrustedProxiesJSON (new shape): %v", err)
+	}
+	if len(got.GetStatic()) != 1 || got.GetStatic()[0] != "10.0.0.0/8" {
+		t.Errorf("static = %v, want [10.0.0.0/8]", got.GetStatic())
+	}
+	if len(got.GetDynamic()) != 1 {
+		t.Fatalf("dynamic len = %d, want 1", len(got.GetDynamic()))
+	}
+	if got.GetDynamic()[0].GetStrategy() != "cloudflare" {
+		t.Errorf("dynamic[0].strategy = %q, want cloudflare", got.GetDynamic()[0].GetStrategy())
+	}
+	if got.GetDynamic()[0].GetRefreshSeconds() != 3600 {
+		t.Errorf("dynamic[0].refresh_seconds = %d, want 3600", got.GetDynamic()[0].GetRefreshSeconds())
+	}
+}
+
+// TestSQLite_Service_CaddyPrimitives_RoundTrip tests phase 7a primitives (unchanged).
 func TestSQLite_Service_CaddyPrimitives_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDB(t)

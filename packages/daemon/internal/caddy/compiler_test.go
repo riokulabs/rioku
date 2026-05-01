@@ -3097,3 +3097,309 @@ func TestCompile_Compression_Disabled(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 7b (#162, #159 residual) — dynamic upstreams, buffers, trusted_proxies
+// ---------------------------------------------------------------------------
+
+// TestCompile_DynamicUpstream_Srv verifies that a Service with a single
+// SrvLookup upstream compiles to reverse_proxy.dynamic_upstreams with
+// source="srv".
+func TestCompile_DynamicUpstream_Srv(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id: "svc1",
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Id: "u1",
+				Source: &riokuv1.Upstream_SrvLookup{
+					SrvLookup: &riokuv1.SrvLookup{
+						Service:        "_http._tcp.api.example.com",
+						Proto:          "tcp",
+						RefreshSeconds: 30,
+					},
+				},
+			},
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	if rp["handler"] != "reverse_proxy" {
+		t.Fatalf("last handler = %v, want reverse_proxy", rp["handler"])
+	}
+	dyn, ok := rp["dynamic_upstreams"].(map[string]any)
+	if !ok {
+		t.Fatal("dynamic_upstreams not set on reverse_proxy")
+	}
+	if dyn["source"] != "srv" {
+		t.Errorf("dynamic_upstreams.source = %v, want srv", dyn["source"])
+	}
+	if dyn["service"] != "_http._tcp.api.example.com" {
+		t.Errorf("dynamic_upstreams.service = %v, want _http._tcp.api.example.com", dyn["service"])
+	}
+	if dyn["proto"] != "tcp" {
+		t.Errorf("dynamic_upstreams.proto = %v, want tcp", dyn["proto"])
+	}
+	// JSON unmarshal converts int64 to float64.
+	wantRefresh := float64(30 * 1_000_000_000)
+	if dyn["refresh"] != wantRefresh {
+		t.Errorf("dynamic_upstreams.refresh = %v, want %v (nanoseconds)", dyn["refresh"], wantRefresh)
+	}
+	// upstreams array must be present (empty) alongside dynamic_upstreams.
+	// JSON unmarshal yields []any, not []map[string]any.
+	ups, ok := rp["upstreams"].([]any)
+	if !ok {
+		t.Fatal("upstreams key missing from reverse_proxy when dynamic source set")
+	}
+	if len(ups) != 0 {
+		t.Errorf("upstreams len = %d, want 0 when using dynamic source", len(ups))
+	}
+}
+
+// TestCompile_DynamicUpstream_A verifies that a Service with an ALookup
+// upstream compiles to reverse_proxy.dynamic_upstreams with source="a".
+func TestCompile_DynamicUpstream_A(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id: "svc1",
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Id: "u1",
+				Source: &riokuv1.Upstream_ALookup{
+					ALookup: &riokuv1.ALookup{
+						Name:           "api.example.com",
+						Port:           8080,
+						RefreshSeconds: 120,
+					},
+				},
+			},
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	dyn, ok := rp["dynamic_upstreams"].(map[string]any)
+	if !ok {
+		t.Fatal("dynamic_upstreams not set on reverse_proxy")
+	}
+	if dyn["source"] != "a" {
+		t.Errorf("dynamic_upstreams.source = %v, want a", dyn["source"])
+	}
+	if dyn["name"] != "api.example.com" {
+		t.Errorf("dynamic_upstreams.name = %v, want api.example.com", dyn["name"])
+	}
+	if dyn["port"] != "8080" {
+		t.Errorf("dynamic_upstreams.port = %v, want 8080", dyn["port"])
+	}
+	wantRefresh := float64(120 * 1_000_000_000)
+	if dyn["refresh"] != wantRefresh {
+		t.Errorf("dynamic_upstreams.refresh = %v, want %v", dyn["refresh"], wantRefresh)
+	}
+}
+
+// TestCompile_DynamicUpstream_DefaultRefresh verifies that a zero
+// RefreshSeconds on SrvLookup falls back to the 60s default.
+func TestCompile_DynamicUpstream_DefaultRefresh(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id: "svc1",
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Source: &riokuv1.Upstream_SrvLookup{
+					SrvLookup: &riokuv1.SrvLookup{
+						Service:        "_grpc._tcp.svc.example.com",
+						RefreshSeconds: 0, // should default to 60s
+					},
+				},
+			},
+		},
+	})
+	rp := chain[len(chain)-1]
+	dyn := rp["dynamic_upstreams"].(map[string]any)
+	wantRefresh := float64(60 * 1_000_000_000)
+	if dyn["refresh"] != wantRefresh {
+		t.Errorf("dynamic_upstreams.refresh = %v, want %v (default 60s)", dyn["refresh"], wantRefresh)
+	}
+	// proto is omitted when empty.
+	if _, has := dyn["proto"]; has {
+		t.Error("proto should be omitted when SrvLookup.Proto is empty")
+	}
+}
+
+// TestCompile_DynamicUpstream_MixedError verifies that mixing static and
+// dynamic upstreams in a single Service is rejected at compile time.
+func TestCompile_DynamicUpstream_MixedError(t *testing.T) {
+	c := NewCompiler([]string{":8080"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id: "svc1",
+			Upstreams: []*riokuv1.Upstream{
+				{Id: "u1", Address: "10.0.0.1:8080"}, // static
+				{
+					Id: "u2",
+					Source: &riokuv1.Upstream_SrvLookup{
+						SrvLookup: &riokuv1.SrvLookup{Service: "_http._tcp.api.example.com"},
+					},
+				}, // dynamic
+			},
+		}},
+	}
+	_, err := c.Compile(snap)
+	if err == nil {
+		t.Fatal("expected error for mixed static+dynamic upstreams, got nil")
+	}
+}
+
+// TestCompile_RequestResponseBuffers verifies that non-zero RequestBuffers
+// and ResponseBuffers on UpstreamTLS compile into transport.{request,response}_buffers.
+func TestCompile_RequestResponseBuffers(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:443"}},
+		UpstreamTls: &riokuv1.UpstreamTLS{
+			Enabled:         true,
+			RequestBuffers:  8192,
+			ResponseBuffers: 16384,
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	transport, ok := rp["transport"].(map[string]any)
+	if !ok {
+		t.Fatal("transport block missing from reverse_proxy")
+	}
+	// JSON unmarshal yields float64 for numeric values.
+	if transport["request_buffers"] != float64(8192) {
+		t.Errorf("transport.request_buffers = %v, want 8192", transport["request_buffers"])
+	}
+	if transport["response_buffers"] != float64(16384) {
+		t.Errorf("transport.response_buffers = %v, want 16384", transport["response_buffers"])
+	}
+}
+
+// TestCompile_RequestResponseBuffers_ZeroOmitted verifies that zero-value
+// buffer sizes are not emitted (let Caddy use its defaults).
+func TestCompile_RequestResponseBuffers_ZeroOmitted(t *testing.T) {
+	chain := compileServiceSnap(t, &riokuv1.Service{
+		Id:        "svc1",
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:443"}},
+		UpstreamTls: &riokuv1.UpstreamTLS{
+			Enabled:         true,
+			RequestBuffers:  0,
+			ResponseBuffers: 0,
+		},
+	})
+
+	rp := chain[len(chain)-1]
+	if transport, ok := rp["transport"].(map[string]any); ok {
+		if _, has := transport["request_buffers"]; has {
+			t.Error("request_buffers must not be emitted when zero")
+		}
+		if _, has := transport["response_buffers"]; has {
+			t.Error("response_buffers must not be emitted when zero")
+		}
+	}
+}
+
+// TestCompile_TrustedProxies_StaticOnly verifies that a static-only
+// TrustedProxiesConfig emits the standard static source block.
+func TestCompile_TrustedProxies_StaticOnly(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Ranges: []string{"10.0.0.0/8", "192.168.0.0/16"},
+	}
+	c := NewCompiler([]string{":8080"}, AdminConfig{}, "", tp, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	srv := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)
+	tpBlock, ok := srv["trusted_proxies"].(map[string]any)
+	if !ok {
+		t.Fatal("trusted_proxies block missing from server")
+	}
+	if tpBlock["source"] != "static" {
+		t.Errorf("trusted_proxies.source = %v, want static", tpBlock["source"])
+	}
+	// JSON unmarshal yields []any, not []string.
+	ranges, ok := tpBlock["ranges"].([]any)
+	if !ok {
+		t.Fatalf("trusted_proxies.ranges wrong type: %T", tpBlock["ranges"])
+	}
+	if len(ranges) != 2 {
+		t.Fatalf("trusted_proxies.ranges len = %d, want 2", len(ranges))
+	}
+}
+
+// TestCompile_TrustedProxies_StaticPlusDynamic verifies that a config with
+// both static ranges and a dynamic (cloudflare) strategy emits a dynamic
+// source block.
+func TestCompile_TrustedProxies_StaticPlusDynamic(t *testing.T) {
+	tp := &TrustedProxiesConfig{
+		Ranges: []string{"10.0.0.0/8"},
+		Dynamic: []TrustedProxiesDynamicConfig{
+			{Strategy: "cloudflare", RefreshSeconds: 7200},
+		},
+	}
+	c := NewCompiler([]string{":8080"}, AdminConfig{}, "", tp, SecurityHeadersConfig{})
+	snap := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{{
+			Id: "r1", Enabled: true,
+			Matchers: []*riokuv1.Matcher{{Hosts: []string{"a.com"}}},
+			Target:   &riokuv1.Route_ServiceId{ServiceId: "svc1"},
+		}},
+		Services: []*riokuv1.Service{{
+			Id:        "svc1",
+			Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+		}},
+	}
+	data, err := c.Compile(snap)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	srv := cfg["apps"].(map[string]any)["http"].(map[string]any)["servers"].(map[string]any)["traffic"].(map[string]any)
+	tpBlock, ok := srv["trusted_proxies"].(map[string]any)
+	if !ok {
+		t.Fatal("trusted_proxies block missing from server")
+	}
+	if tpBlock["source"] != "cloudflare" {
+		t.Errorf("trusted_proxies.source = %v, want cloudflare", tpBlock["source"])
+	}
+}
+
+// TestCompile_TrustedProxies_NilOmitted verifies that a nil TrustedProxiesConfig
+// produces no trusted_proxies key in the server block.
+func TestCompile_TrustedProxies_NilOmitted(t *testing.T) {
+	block := buildTrustedProxiesBlock(nil)
+	if block != nil {
+		t.Errorf("buildTrustedProxiesBlock(nil) = %v, want nil", block)
+	}
+}
+
+// TestCompile_TrustedProxies_EmptyOmitted verifies that a TrustedProxiesConfig
+// with no ranges and no dynamic entries produces no block.
+func TestCompile_TrustedProxies_EmptyOmitted(t *testing.T) {
+	block := buildTrustedProxiesBlock(&TrustedProxiesConfig{})
+	if block != nil {
+		t.Errorf("buildTrustedProxiesBlock({}) = %v, want nil", block)
+	}
+}

@@ -227,11 +227,80 @@ message Compression {
 
 message Upstream {
   string  id       = 1;
+  // address is the static dial target (e.g. "10.0.0.1:8080"). Used when
+  // source is unset. For dynamic upstreams, leave address empty and set
+  // one of the source variants below.
   string  address  = 2;
   int32   weight   = 3;
   TLSMode tls      = 4;
   bool    healthy  = 5;
   string  dial_err = 6;
+
+  // source is the optional discriminator for dynamic upstreams. When unset,
+  // the Upstream is treated as a static target via the address field.
+  oneof source {
+    SrvLookup srv_lookup = 7;
+    ALookup   a_lookup   = 8;
+  }
+}
+
+// SrvLookup discovers upstream targets via DNS SRV records. Compiles to
+// Caddy's reverse_proxy `dynamic_upstreams.srv` source.
+message SrvLookup {
+  // service is the SRV service name (e.g. "_http._tcp.api.example.com").
+  string service = 1;
+
+  // proto is the SRV protocol ("tcp" or "udp"). Optional; defaults to "tcp".
+  string proto = 2;
+
+  // refresh_seconds controls how often Caddy re-resolves the SRV record.
+  // Default 60s.
+  int32 refresh_seconds = 3;
+}
+
+// ALookup discovers upstream targets via DNS A/AAAA records. Compiles to
+// Caddy's reverse_proxy `dynamic_upstreams.a` source.
+message ALookup {
+  // name is the hostname to resolve (e.g. "api.example.com").
+  string name = 1;
+
+  // port is the port to dial on each resolved address.
+  int32 port = 2;
+
+  // refresh_seconds controls how often Caddy re-resolves the A/AAAA records.
+  // Default 60s.
+  int32 refresh_seconds = 3;
+}
+
+// TrustedProxies configures which CIDR sources Caddy trusts for
+// X-Forwarded-For / client IP resolution. Replaces the previous
+// repeated string field of the same name, but remains backward-compatible:
+// storage code reads the old array-of-strings shape and wraps it in
+// TrustedProxies{static: [...]}.
+message TrustedProxies {
+  // static is the list of CIDR ranges that are always trusted.
+  repeated string static = 1;
+
+  // dynamic is the list of dynamic-CIDR strategies. Each entry produces
+  // a CIDR list refreshed at the strategy's interval. Compiles to Caddy's
+  // `static` and `cloudflare` IP sources.
+  repeated TrustedProxiesDynamic dynamic = 2;
+}
+
+// TrustedProxiesDynamic describes one entry in the dynamic-strategy list
+// of TrustedProxies.
+message TrustedProxiesDynamic {
+  // strategy is the dynamic-source name. Currently supported: "static"
+  // (re-fetches from a config endpoint), "cloudflare" (fetches CF IP
+  // ranges from cloudflare.com/ips).
+  string strategy = 1;
+
+  // url is the endpoint for the "static" strategy — a JSON or
+  // newline-delimited list of CIDR ranges.
+  string url = 2;
+
+  // refresh_seconds is how often to re-fetch. Default 3600.
+  int32 refresh_seconds = 3;
 }
 
 enum LoadBalancingPolicy {
@@ -310,6 +379,18 @@ message UpstreamTLS {
   // "Caddy default" (1.2 minimum).
   string min_version = 7;
   string max_version = 8;
+
+  // request_buffers is the size in bytes of the buffer for reading
+  // request bodies on their way to the upstream. Zero means Caddy default (4096).
+  // Compiles to reverse_proxy.transport.request_buffers.
+  // Field numbers 100/101 leave room for future TLS sub-fields while
+  // clearly separating from the existing TLS parameters.
+  int32 request_buffers = 100;
+
+  // response_buffers is the size in bytes of the buffer for reading
+  // upstream response bodies. Zero means Caddy default (4096). Compiles to
+  // reverse_proxy.transport.response_buffers.
+  int32 response_buffers = 101;
 }
 
 // ConnectionPool tunes the HTTP transport's connection-pooling

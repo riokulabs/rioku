@@ -267,6 +267,26 @@
         }
       }
     },
+    "v1ALookup": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the hostname to resolve (e.g. \"api.example.com\")."
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "description": "port is the port to dial on each resolved address."
+        },
+        "refreshSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "refresh_seconds controls how often Caddy re-resolves the A/AAAA records.\nDefault 60s."
+        }
+      },
+      "description": "ALookup discovers upstream targets via DNS A/AAAA records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.a` source."
+    },
     "v1ApplyResult": {
       "type": "object",
       "properties": {
@@ -1093,6 +1113,25 @@
       ],
       "default": "ACTION_UNSPECIFIED"
     },
+    "v1SrvLookup": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "service is the SRV service name (e.g. \"_http._tcp.api.example.com\")."
+        },
+        "proto": {
+          "type": "string",
+          "description": "proto is the SRV protocol (\"tcp\" or \"udp\"). Optional; defaults to \"tcp\"."
+        },
+        "refreshSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "refresh_seconds controls how often Caddy re-resolves the SRV record.\nDefault 60s."
+        }
+      },
+      "description": "SrvLookup discovers upstream targets via DNS SRV records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.srv` source."
+    },
     "v1TLSMode": {
       "type": "string",
       "enum": [
@@ -1111,7 +1150,8 @@
           "type": "string"
         },
         "address": {
-          "type": "string"
+          "type": "string",
+          "description": "address is the static dial target (e.g. \"10.0.0.1:8080\"). Used when\nsource is unset. For dynamic upstreams, leave address empty and set\none of the source variants below."
         },
         "weight": {
           "type": "integer",
@@ -1125,6 +1165,12 @@
         },
         "dialErr": {
           "type": "string"
+        },
+        "srvLookup": {
+          "$ref": "#/definitions/v1SrvLookup"
+        },
+        "aLookup": {
+          "$ref": "#/definitions/v1ALookup"
         }
       }
     },
@@ -1160,6 +1206,16 @@
         },
         "maxVersion": {
           "type": "string"
+        },
+        "requestBuffers": {
+          "type": "integer",
+          "format": "int32",
+          "description": "request_buffers is the size in bytes of the buffer for reading\nrequest bodies on their way to the upstream. Zero means Caddy default (4096).\nCompiles to reverse_proxy.transport.request_buffers.\nField numbers 100/101 leave room for future TLS sub-fields while\nclearly separating from the existing TLS parameters."
+        },
+        "responseBuffers": {
+          "type": "integer",
+          "format": "int32",
+          "description": "response_buffers is the size in bytes of the buffer for reading\nupstream response bodies. Zero means Caddy default (4096). Compiles to\nreverse_proxy.transport.response_buffers."
         }
       },
       "description": "UpstreamTLS configures TLS parameters used when the gateway dials\nupstream backends over HTTPS. Compiles into Caddy's\n`reverse_proxy.transport.tls` block.\n\nWhen omitted, Caddy uses default TLS dialing (verify cert against\nsystem roots, ServerName from upstream address). Most production\nconfigurations only need server_name (when fronting an upstream\nwhose cert SAN doesn't match the dial address) and root_ca_pem\n(when the upstream is signed by a private CA).\n\nSECURITY NOTE: insecure_skip_verify=true disables certificate\nverification entirely — it must only be used for development or\nwhen paired with a separate verification mechanism. Production\nconfigs should use root_ca_pem to trust a private CA."

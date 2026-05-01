@@ -250,10 +250,14 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 		if !u.GetHealthy() {
 			healthy = 0
 		}
+		srcType, srcJSON, err := marshalUpstreamSourceJSON(u)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: marshal upstream source: %w", err)
+		}
 		_, err = t.sqlTx.ExecContext(ctx,
-			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			uid, id, u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(),
+			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err, source_type, source_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			uid, id, u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(), srcType, srcJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("mysql: insert upstream: %w", err)
@@ -311,7 +315,7 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	// Upstreams are scoped through their parent service's tenant.
 	if len(services) > 0 {
 		uRows, err := t.sqlTx.QueryContext(ctx,
-			`SELECT u.id, u.service_id, u.address, u.weight, u.tls_mode, u.healthy, u.dial_err
+			`SELECT u.id, u.service_id, u.address, u.weight, u.tls_mode, u.healthy, u.dial_err, u.source_type, u.source_json
 			 FROM upstreams u JOIN services s ON s.id = u.service_id
 			 WHERE s.tenant_id = ? ORDER BY u.service_id, u.id`, tenantID)
 		if err != nil {
@@ -321,26 +325,32 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 
 		for uRows.Next() {
 			var (
-				uid       string
-				serviceID string
-				address   string
-				weight    int32
-				tlsMode   int32
-				healthy   int
-				dialErr   string
+				uid        string
+				serviceID  string
+				address    string
+				weight     int32
+				tlsMode    int32
+				healthy    int
+				dialErr    string
+				sourceType string
+				sourceJSON string
 			)
-			if err := uRows.Scan(&uid, &serviceID, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+			if err := uRows.Scan(&uid, &serviceID, &address, &weight, &tlsMode, &healthy, &dialErr, &sourceType, &sourceJSON); err != nil {
 				return nil, fmt.Errorf("mysql: scan upstream: %w", err)
 			}
 			if svc, ok := serviceIndex[serviceID]; ok {
-				svc.Upstreams = append(svc.Upstreams, &riokuv1.Upstream{
+				u := &riokuv1.Upstream{
 					Id:      uid,
 					Address: address,
 					Weight:  weight,
 					Tls:     riokuv1.TLSMode(tlsMode),
 					Healthy: healthy != 0,
 					DialErr: dialErr,
-				})
+				}
+				if err := unmarshalUpstreamSource(u, sourceType, sourceJSON); err != nil {
+					return nil, fmt.Errorf("mysql: unmarshal upstream source: %w", err)
+				}
+				svc.Upstreams = append(svc.Upstreams, u)
 			}
 		}
 		if err := uRows.Err(); err != nil {
@@ -427,10 +437,14 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 		if !u.GetHealthy() {
 			healthy = 0
 		}
+		srcType, srcJSON, err := marshalUpstreamSourceJSON(u)
+		if err != nil {
+			return nil, fmt.Errorf("mysql: marshal upstream source: %w", err)
+		}
 		_, err = t.sqlTx.ExecContext(ctx,
-			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			uid, svc.GetId(), u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(),
+			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err, source_type, source_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			uid, svc.GetId(), u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(), srcType, srcJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("mysql: insert upstream: %w", err)
@@ -464,7 +478,7 @@ func (t *tx) DeleteService(ctx context.Context, id string) error {
 
 func (t *tx) fetchUpstreams(ctx context.Context, serviceID string) ([]*riokuv1.Upstream, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, address, weight, tls_mode, healthy, dial_err
+		`SELECT id, address, weight, tls_mode, healthy, dial_err, source_type, source_json
 		 FROM upstreams WHERE service_id = ?`, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: fetch upstreams: %w", err)
@@ -474,24 +488,30 @@ func (t *tx) fetchUpstreams(ctx context.Context, serviceID string) ([]*riokuv1.U
 	var upstreams []*riokuv1.Upstream
 	for rows.Next() {
 		var (
-			id      string
-			address string
-			weight  int32
-			tlsMode int32
-			healthy int
-			dialErr string
+			id         string
+			address    string
+			weight     int32
+			tlsMode    int32
+			healthy    int
+			dialErr    string
+			sourceType string
+			sourceJSON string
 		)
-		if err := rows.Scan(&id, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+		if err := rows.Scan(&id, &address, &weight, &tlsMode, &healthy, &dialErr, &sourceType, &sourceJSON); err != nil {
 			return nil, fmt.Errorf("mysql: scan upstream: %w", err)
 		}
-		upstreams = append(upstreams, &riokuv1.Upstream{
+		u := &riokuv1.Upstream{
 			Id:      id,
 			Address: address,
 			Weight:  weight,
 			Tls:     riokuv1.TLSMode(tlsMode),
 			Healthy: healthy != 0,
 			DialErr: dialErr,
-		})
+		}
+		if err := unmarshalUpstreamSource(u, sourceType, sourceJSON); err != nil {
+			return nil, fmt.Errorf("mysql: unmarshal upstream source: %w", err)
+		}
+		upstreams = append(upstreams, u)
 	}
 	return upstreams, rows.Err()
 }

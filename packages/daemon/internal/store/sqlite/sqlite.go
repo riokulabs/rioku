@@ -496,11 +496,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 27: dynamic upstreams (source_type + source_json columns) — Phase 7b / #162.
+	if current < 27 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000027_dynamic_upstreams.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 27: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 27: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (27, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 27: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 27 down: remove dynamic upstream columns from upstreams table.
+	if current >= 27 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000027_dynamic_upstreams.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 27: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 27: %w", err)
+		}
+	}
 
 	// Migration 26 down: drop caddy primitive columns.
 	if current >= 26 {
@@ -1061,10 +1088,14 @@ func (t *tx) CreateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 		if !u.GetHealthy() {
 			healthy = 0
 		}
+		srcType, srcJSON, err := marshalUpstreamSourceJSON(u)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: marshal upstream source: %w", err)
+		}
 		_, err = t.sqlTx.ExecContext(ctx,
-			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			uid, id, u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(),
+			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err, source_type, source_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			uid, id, u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(), srcType, srcJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("sqlite: insert upstream: %w", err)
@@ -1122,7 +1153,7 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 	// Upstreams are scoped through their parent service's tenant.
 	if len(services) > 0 {
 		uRows, err := t.sqlTx.QueryContext(ctx,
-			`SELECT u.id, u.service_id, u.address, u.weight, u.tls_mode, u.healthy, u.dial_err
+			`SELECT u.id, u.service_id, u.address, u.weight, u.tls_mode, u.healthy, u.dial_err, u.source_type, u.source_json
 			 FROM upstreams u JOIN services s ON s.id = u.service_id
 			 WHERE s.tenant_id = ? ORDER BY u.service_id, u.id`, tenantID)
 		if err != nil {
@@ -1132,26 +1163,32 @@ func (t *tx) ListServices(ctx context.Context) ([]*riokuv1.Service, error) {
 
 		for uRows.Next() {
 			var (
-				id        string
-				serviceID string
-				address   string
-				weight    int32
-				tlsMode   int32
-				healthy   int
-				dialErr   string
+				id         string
+				serviceID  string
+				address    string
+				weight     int32
+				tlsMode    int32
+				healthy    int
+				dialErr    string
+				sourceType string
+				sourceJSON string
 			)
-			if err := uRows.Scan(&id, &serviceID, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+			if err := uRows.Scan(&id, &serviceID, &address, &weight, &tlsMode, &healthy, &dialErr, &sourceType, &sourceJSON); err != nil {
 				return nil, fmt.Errorf("sqlite: scan upstream: %w", err)
 			}
 			if svc, ok := serviceIndex[serviceID]; ok {
-				svc.Upstreams = append(svc.Upstreams, &riokuv1.Upstream{
+				u := &riokuv1.Upstream{
 					Id:      id,
 					Address: address,
 					Weight:  weight,
 					Tls:     riokuv1.TLSMode(tlsMode),
 					Healthy: healthy != 0,
 					DialErr: dialErr,
-				})
+				}
+				if err := unmarshalUpstreamSource(u, sourceType, sourceJSON); err != nil {
+					return nil, fmt.Errorf("sqlite: unmarshal upstream source: %w", err)
+				}
+				svc.Upstreams = append(svc.Upstreams, u)
 			}
 		}
 		if err := uRows.Err(); err != nil {
@@ -1238,10 +1275,14 @@ func (t *tx) UpdateService(ctx context.Context, svc *riokuv1.Service) (*riokuv1.
 		if !u.GetHealthy() {
 			healthy = 0
 		}
+		srcType, srcJSON, err := marshalUpstreamSourceJSON(u)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: marshal upstream source: %w", err)
+		}
 		_, err = t.sqlTx.ExecContext(ctx,
-			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			uid, svc.GetId(), u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(),
+			`INSERT INTO upstreams (id, service_id, address, weight, tls_mode, healthy, dial_err, source_type, source_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			uid, svc.GetId(), u.GetAddress(), u.GetWeight(), int32(u.GetTls()), healthy, u.GetDialErr(), srcType, srcJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("sqlite: insert upstream: %w", err)
@@ -1275,7 +1316,7 @@ func (t *tx) DeleteService(ctx context.Context, id string) error {
 
 func (t *tx) fetchUpstreams(ctx context.Context, serviceID string) ([]*riokuv1.Upstream, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, address, weight, tls_mode, healthy, dial_err
+		`SELECT id, address, weight, tls_mode, healthy, dial_err, source_type, source_json
 		 FROM upstreams WHERE service_id = ?`, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: fetch upstreams: %w", err)
@@ -1285,24 +1326,30 @@ func (t *tx) fetchUpstreams(ctx context.Context, serviceID string) ([]*riokuv1.U
 	var upstreams []*riokuv1.Upstream
 	for rows.Next() {
 		var (
-			id      string
-			address string
-			weight  int32
-			tlsMode int32
-			healthy int
-			dialErr string
+			id         string
+			address    string
+			weight     int32
+			tlsMode    int32
+			healthy    int
+			dialErr    string
+			sourceType string
+			sourceJSON string
 		)
-		if err := rows.Scan(&id, &address, &weight, &tlsMode, &healthy, &dialErr); err != nil {
+		if err := rows.Scan(&id, &address, &weight, &tlsMode, &healthy, &dialErr, &sourceType, &sourceJSON); err != nil {
 			return nil, fmt.Errorf("sqlite: scan upstream: %w", err)
 		}
-		upstreams = append(upstreams, &riokuv1.Upstream{
+		u := &riokuv1.Upstream{
 			Id:      id,
 			Address: address,
 			Weight:  weight,
 			Tls:     riokuv1.TLSMode(tlsMode),
 			Healthy: healthy != 0,
 			DialErr: dialErr,
-		})
+		}
+		if err := unmarshalUpstreamSource(u, sourceType, sourceJSON); err != nil {
+			return nil, fmt.Errorf("sqlite: unmarshal upstream source: %w", err)
+		}
+		upstreams = append(upstreams, u)
 	}
 	return upstreams, rows.Err()
 }
@@ -3334,6 +3381,143 @@ func unmarshalStructJSON(s string) (*structpb.Struct, error) {
 		return nil, err
 	}
 	return st, nil
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7b / #162, #159 residual: dynamic-upstream + trusted-proxies helpers
+// ---------------------------------------------------------------------------
+
+// marshalUpstreamSourceJSON returns (sourceType, sourceJSON) for an Upstream.
+// sourceType is "" for static upstreams, "srv" for SrvLookup, "a" for ALookup.
+// sourceJSON is the protojson encoding of the source message, or "{}" when unset.
+func marshalUpstreamSourceJSON(u *riokuv1.Upstream) (string, string, error) {
+	switch src := u.GetSource().(type) {
+	case *riokuv1.Upstream_SrvLookup:
+		j, err := marshalSrvLookupJSON(src.SrvLookup)
+		if err != nil {
+			return "", "", err
+		}
+		return "srv", j, nil
+	case *riokuv1.Upstream_ALookup:
+		j, err := marshalALookupJSON(src.ALookup)
+		if err != nil {
+			return "", "", err
+		}
+		return "a", j, nil
+	default:
+		return "", "{}", nil
+	}
+}
+
+// unmarshalUpstreamSource sets the Source oneof on u from the stored
+// (sourceType, sourceJSON) pair. Unrecognised sourceType values are ignored
+// (treated as static) for forward-compatibility.
+func unmarshalUpstreamSource(u *riokuv1.Upstream, sourceType, sourceJSON string) error {
+	switch sourceType {
+	case "srv":
+		srv, err := unmarshalSrvLookupJSON(sourceJSON)
+		if err != nil {
+			return err
+		}
+		if srv != nil {
+			u.Source = &riokuv1.Upstream_SrvLookup{SrvLookup: srv}
+		}
+	case "a":
+		al, err := unmarshalALookupJSON(sourceJSON)
+		if err != nil {
+			return err
+		}
+		if al != nil {
+			u.Source = &riokuv1.Upstream_ALookup{ALookup: al}
+		}
+	}
+	return nil
+}
+
+// marshalSrvLookupJSON encodes a SrvLookup proto as a JSON string.
+func marshalSrvLookupJSON(srv *riokuv1.SrvLookup) (string, error) {
+	if srv == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(srv)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// unmarshalSrvLookupJSON decodes a JSON string into a SrvLookup proto.
+func unmarshalSrvLookupJSON(s string) (*riokuv1.SrvLookup, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	srv := &riokuv1.SrvLookup{}
+	if err := protojson.Unmarshal([]byte(s), srv); err != nil {
+		return nil, err
+	}
+	return srv, nil
+}
+
+// marshalALookupJSON encodes an ALookup proto as a JSON string.
+func marshalALookupJSON(al *riokuv1.ALookup) (string, error) {
+	if al == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(al)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// unmarshalALookupJSON decodes a JSON string into an ALookup proto.
+func unmarshalALookupJSON(s string) (*riokuv1.ALookup, error) {
+	if s == "" || s == "{}" {
+		return nil, nil
+	}
+	al := &riokuv1.ALookup{}
+	if err := protojson.Unmarshal([]byte(s), al); err != nil {
+		return nil, err
+	}
+	return al, nil
+}
+
+// marshalTrustedProxiesJSON encodes a TrustedProxies proto as a JSON string.
+func marshalTrustedProxiesJSON(tp *riokuv1.TrustedProxies) (string, error) {
+	if tp == nil {
+		return "{}", nil
+	}
+	b, err := protojson.Marshal(tp)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// unmarshalTrustedProxiesJSON decodes a JSON string into a TrustedProxies proto.
+//
+// Backward-compat shim: the legacy storage format was a JSON array of CIDR
+// strings (e.g. ["10.0.0.0/8"]). When the value parses as a JSON array we
+// wrap it as TrustedProxies{Static: [...]} so existing rows continue to work
+// without a data migration.
+func unmarshalTrustedProxiesJSON(s string) (*riokuv1.TrustedProxies, error) {
+	if s == "" || s == "{}" || s == "[]" {
+		return nil, nil
+	}
+	// Try the new object shape first.
+	if len(s) > 0 && s[0] == '{' {
+		tp := &riokuv1.TrustedProxies{}
+		if err := protojson.Unmarshal([]byte(s), tp); err != nil {
+			return nil, err
+		}
+		return tp, nil
+	}
+	// Legacy shape: JSON array of strings → wrap as static CIDRs.
+	var ranges []string
+	if err := json.Unmarshal([]byte(s), &ranges); err != nil {
+		return nil, fmt.Errorf("sqlite: parse trusted_proxies legacy array: %w", err)
+	}
+	return &riokuv1.TrustedProxies{Static: ranges}, nil
 }
 
 // ---------------------------------------------------------------------------

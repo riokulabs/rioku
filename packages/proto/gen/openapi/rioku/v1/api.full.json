@@ -232,6 +232,26 @@
       },
       "type": "object"
     },
+    "v1ALookup": {
+      "description": "ALookup discovers upstream targets via DNS A/AAAA records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.a` source.",
+      "properties": {
+        "name": {
+          "description": "name is the hostname to resolve (e.g. \"api.example.com\").",
+          "type": "string"
+        },
+        "port": {
+          "description": "port is the port to dial on each resolved address.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "refreshSeconds": {
+          "description": "refresh_seconds controls how often Caddy re-resolves the A/AAAA records.\nDefault 60s.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "v1AgentSession": {
       "properties": {
         "active": {
@@ -466,6 +486,28 @@
         },
         "version": {
           "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1Compression": {
+      "description": "Compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen Compression is unset or disabled, no encoding handler is emitted.",
+      "properties": {
+        "enabled": {
+          "description": "enabled gates the entire block.",
+          "type": "boolean"
+        },
+        "encodings": {
+          "description": "encodings is the ordered list of encodings to advertise (e.g.\n[\"zstd\", \"gzip\"]). Caddy picks the first one the client accepts.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "minLength": {
+          "description": "min_length is the minimum response body length (in bytes) to\ncompress. Default 1024. Bodies smaller than this are passed\nthrough uncompressed.",
+          "format": "int32",
+          "type": "integer"
         }
       },
       "type": "object"
@@ -1281,6 +1323,33 @@
       },
       "type": "object"
     },
+    "v1RequestHeaders": {
+      "description": "RequestHeaders mutates request headers BEFORE the request is proxied\nto the upstream. Compiles into a Caddy headers handler positioned\nbefore reverse_proxy.",
+      "properties": {
+        "add": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "add appends a value to the named header (multi-value). Map of\nheader name -\u003e additional value.",
+          "type": "object"
+        },
+        "delete": {
+          "description": "delete removes the named headers entirely. List of header names to\ndelete.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "set": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "set replaces the value of any matching header (or creates it if\nabsent). Map of header name -\u003e value.",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "v1RequestTrace": {
       "properties": {
         "actorId": {
@@ -1357,6 +1426,88 @@
         "upstreamDurationMs": {
           "format": "int64",
           "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1ResponseErrorPage": {
+      "description": "ResponseErrorPage returns a custom static response when an upstream\nresponse matches a ResponseRule.",
+      "properties": {
+        "body": {
+          "description": "body is the response body (HTML or JSON).",
+          "type": "string"
+        },
+        "contentType": {
+          "description": "content_type is the Content-Type header value.\nDefault \"text/html; charset=utf-8\".",
+          "type": "string"
+        },
+        "statusCode": {
+          "description": "status_code is the response status code to send. Default 502.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "v1ResponseHeaders": {
+      "description": "ResponseHeaders mutates response headers AFTER the response is\nreceived from the upstream. Same set/add/delete semantics as\nRequestHeaders. Compiled into reverse_proxy.headers.response.",
+      "properties": {
+        "add": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "delete": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "set": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "v1ResponseRewrite": {
+      "description": "ResponseRewrite overrides the request method and/or URI when an\nupstream response matches a ResponseRule.",
+      "properties": {
+        "method": {
+          "description": "method overrides the request method (e.g. \"GET\").",
+          "type": "string"
+        },
+        "uri": {
+          "description": "uri rewrites the request URI (e.g. \"/maintenance.html\").",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1ResponseRule": {
+      "description": "ResponseRule conditionally rewrites or replaces an upstream response\nbased on its status code. Compiles into Caddy's\nreverse_proxy.handle_response array.",
+      "properties": {
+        "matchStatusCodes": {
+          "description": "match_status_codes is the list of HTTP status codes this rule\nmatches. Use specific codes (404, 502) or wildcard ranges: \"5xx\"\nmatches 500-599; \"4xx\" matches 400-499.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rewrite": {
+          "$ref": "#/definitions/v1ResponseRewrite",
+          "description": "rewrite changes the URL/method and replays the request through\nthe gateway's route stack."
+        },
+        "routeTo": {
+          "description": "route_to specifies an alternate route to dispatch to (by\nroute_id) when the upstream returns the matched status.",
+          "type": "string"
+        },
+        "serveErrorPage": {
+          "$ref": "#/definitions/v1ResponseErrorPage",
+          "description": "serve_error_page returns a custom error response without\nre-proxying. Useful for static fallbacks."
         }
       },
       "type": "object"
@@ -1463,6 +1614,10 @@
     },
     "v1Service": {
       "properties": {
+        "compression": {
+          "$ref": "#/definitions/v1Compression",
+          "description": "compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen unset or disabled, no encoding handler is emitted."
+        },
         "connectionPool": {
           "$ref": "#/definitions/v1ConnectionPool"
         },
@@ -1504,9 +1659,25 @@
         "passiveHealthCheck": {
           "$ref": "#/definitions/v1PassiveHealthCheck"
         },
+        "requestHeaders": {
+          "$ref": "#/definitions/v1RequestHeaders",
+          "description": "request_headers mutates request headers before proxying to the\nupstream. Compiles into a Caddy headers handler positioned before\nreverse_proxy in the route's handler chain."
+        },
         "responseHeaderTimeoutSeconds": {
           "format": "int32",
           "type": "integer"
+        },
+        "responseHeaders": {
+          "$ref": "#/definitions/v1ResponseHeaders",
+          "description": "response_headers mutates response headers after receiving from the\nupstream. Compiled into reverse_proxy.headers.response."
+        },
+        "responseRules": {
+          "description": "response_rules is a list of status-code-conditional rules that\ndetermine how the gateway handles specific upstream responses.\nCompiled into reverse_proxy.handle_response.",
+          "items": {
+            "$ref": "#/definitions/v1ResponseRule",
+            "type": "object"
+          },
+          "type": "array"
         },
         "retryPolicy": {
           "$ref": "#/definitions/v1RetryPolicy"
@@ -1588,6 +1759,25 @@
         },
         "meta": {
           "$ref": "#/definitions/v1MutationMeta"
+        }
+      },
+      "type": "object"
+    },
+    "v1SrvLookup": {
+      "description": "SrvLookup discovers upstream targets via DNS SRV records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.srv` source.",
+      "properties": {
+        "proto": {
+          "description": "proto is the SRV protocol (\"tcp\" or \"udp\"). Optional; defaults to \"tcp\".",
+          "type": "string"
+        },
+        "refreshSeconds": {
+          "description": "refresh_seconds controls how often Caddy re-resolves the SRV record.\nDefault 60s.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "service": {
+          "description": "service is the SRV service name (e.g. \"_http._tcp.api.example.com\").",
+          "type": "string"
         }
       },
       "type": "object"
@@ -1815,7 +2005,11 @@
     },
     "v1Upstream": {
       "properties": {
+        "aLookup": {
+          "$ref": "#/definitions/v1ALookup"
+        },
         "address": {
+          "description": "address is the static dial target (e.g. \"10.0.0.1:8080\"). Used when\nsource is unset. For dynamic upstreams, leave address empty and set\none of the source variants below.",
           "type": "string"
         },
         "dialErr": {
@@ -1826,6 +2020,9 @@
         },
         "id": {
           "type": "string"
+        },
+        "srvLookup": {
+          "$ref": "#/definitions/v1SrvLookup"
         },
         "tls": {
           "$ref": "#/definitions/v1TLSMode"
@@ -1861,6 +2058,16 @@
         "minVersion": {
           "description": "min_version / max_version pin the TLS protocol version range.\nAcceptable values: \"1.0\", \"1.1\", \"1.2\", \"1.3\". Empty means\n\"Caddy default\" (1.2 minimum).",
           "type": "string"
+        },
+        "requestBuffers": {
+          "description": "request_buffers is the size in bytes of the buffer for reading\nrequest bodies on their way to the upstream. Zero means Caddy default (4096).\nCompiles to reverse_proxy.transport.request_buffers.\nField numbers 100/101 leave room for future TLS sub-fields while\nclearly separating from the existing TLS parameters.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "responseBuffers": {
+          "description": "response_buffers is the size in bytes of the buffer for reading\nupstream response bodies. Zero means Caddy default (4096). Compiles to\nreverse_proxy.transport.response_buffers.",
+          "format": "int32",
+          "type": "integer"
         },
         "rootCaPem": {
           "description": "root_ca_pem is one or more PEM-encoded CA certificates the\ngateway will trust when verifying upstream certs. Empty means\n\"use the system trust store\".",

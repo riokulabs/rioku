@@ -790,3 +790,52 @@ func unmarshalStructJSON(s string) (*structpb.Struct, error) {
 	}
 	return st, nil
 }
+
+// ---------------------------------------------------------------------------
+// Phase 7b / #162, #159 residual: dynamic-upstream + trusted-proxies helpers
+// ---------------------------------------------------------------------------
+
+// marshalUpstreamSourceJSON returns (sourceType, sourceJSON) for an Upstream.
+func marshalUpstreamSourceJSON(u *riokuv1.Upstream) (string, string, error) {
+	switch src := u.GetSource().(type) {
+	case *riokuv1.Upstream_SrvLookup:
+		b, err := protojson.Marshal(src.SrvLookup)
+		if err != nil {
+			return "", "", err
+		}
+		return "srv", string(b), nil
+	case *riokuv1.Upstream_ALookup:
+		b, err := protojson.Marshal(src.ALookup)
+		if err != nil {
+			return "", "", err
+		}
+		return "a", string(b), nil
+	default:
+		return "", "{}", nil
+	}
+}
+
+// unmarshalUpstreamSource sets the Source oneof on u from (sourceType, sourceJSON).
+func unmarshalUpstreamSource(u *riokuv1.Upstream, sourceType, sourceJSON string) error {
+	switch sourceType {
+	case "srv":
+		if sourceJSON == "" || sourceJSON == "{}" {
+			return nil
+		}
+		srv := &riokuv1.SrvLookup{}
+		if err := protojson.Unmarshal([]byte(sourceJSON), srv); err != nil {
+			return err
+		}
+		u.Source = &riokuv1.Upstream_SrvLookup{SrvLookup: srv}
+	case "a":
+		if sourceJSON == "" || sourceJSON == "{}" {
+			return nil
+		}
+		al := &riokuv1.ALookup{}
+		if err := protojson.Unmarshal([]byte(sourceJSON), al); err != nil {
+			return err
+		}
+		u.Source = &riokuv1.Upstream_ALookup{ALookup: al}
+	}
+	return nil
+}
