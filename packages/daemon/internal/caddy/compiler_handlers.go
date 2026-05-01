@@ -37,9 +37,10 @@ func compileHandler(route *riokuv1.Route, services map[string]*riokuv1.Service) 
 		return nil, fmt.Errorf("route %q has no target", route.GetId())
 	}
 
-	// TODO: compile policy_ids into Caddy middleware handlers inserted
+	// TODO(#80): compile policy_ids into Caddy middleware handlers inserted
 	// before the reverse_proxy handler. Policies will map to rate limiting,
-	// auth, transforms, and other Caddy handler modules.
+	// auth, transforms, and other Caddy handler modules. See also #76 for
+	// shared-policy named-route optimization.
 
 	return handler, nil
 }

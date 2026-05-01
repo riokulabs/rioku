@@ -108,8 +108,9 @@ func handleGetAITrace(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "get trace")
 			return
 		}
-		// TODO: gate sensitive fields on ai-trace:read-sensitive permission once
-		// the permission catalog supports it; for now, include them.
+		// TODO(#117): gate sensitive fields on ai-trace:read-sensitive permission
+		// once the permission catalog supports finer-grained AI trace perms; for
+		// now, include them.
 		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, true))
 	}
 }
