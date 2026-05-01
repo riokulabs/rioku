@@ -85,9 +85,8 @@ type updateMiddlewareRequest struct {
 
 func handleListMiddlewares(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -111,9 +110,8 @@ func handleListMiddlewares(st store.Driver) http.HandlerFunc {
 
 func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req createMiddlewareRequest
@@ -163,9 +161,8 @@ func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
 
 func handleGetMiddleware(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -191,9 +188,8 @@ func handleGetMiddleware(st store.Driver) http.HandlerFunc {
 
 func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -244,9 +240,8 @@ func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
 
 func handleDeleteMiddleware(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")

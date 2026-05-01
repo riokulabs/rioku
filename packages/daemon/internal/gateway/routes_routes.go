@@ -77,9 +77,8 @@ func routeToDTO(rt *riokuv1.Route, b *links.Builder) routeDTO {
 
 func handleListRoutes(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -108,9 +107,8 @@ func handleListRoutes(st store.Driver) http.HandlerFunc {
 
 func handleCreateRoute(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var rt riokuv1.Route
@@ -143,9 +141,8 @@ func handleCreateRoute(st store.Driver) http.HandlerFunc {
 
 func handleGetRoute(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -167,9 +164,8 @@ func handleGetRoute(st store.Driver) http.HandlerFunc {
 
 func handleUpdateRouteREST(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -266,9 +262,8 @@ func handleDeleteRouteREST(st store.Driver) http.HandlerFunc {
 // route via the policy_bindings table.
 func handleListPoliciesByRoute(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		routeID := r.PathValue("id")
@@ -306,9 +301,8 @@ func handleListPoliciesByRoute(st store.Driver) http.HandlerFunc {
 
 func handleAttachPolicyToRoute(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		routeID := r.PathValue("id")

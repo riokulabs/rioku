@@ -33,6 +33,22 @@ func TenantFromContext(ctx context.Context) *store.Tenant {
 	return v
 }
 
+// tenantOrError resolves the tenant for the current request. When the tenant
+// is missing it writes a 500 problem (matching the long-standing inline
+// `writeInternalError(..., "tenant resolution")` pattern) and returns
+// (nil, false); the caller bails out via `if !ok { return }`.
+//
+// Every tenant-scoped handler shares the same boilerplate; centralising it
+// here keeps individual handlers focused on their specific work.
+func tenantOrError(w http.ResponseWriter, r *http.Request) (*store.Tenant, bool) {
+	tenant := TenantFromContext(r.Context())
+	if tenant == nil {
+		writeInternalError(w, r, "tenant resolution")
+		return nil, false
+	}
+	return tenant, true
+}
+
 // WithTenant attaches a tenant to the context. Used by tests and the
 // middleware itself.
 func WithTenant(ctx context.Context, t *store.Tenant) context.Context {

@@ -81,9 +81,8 @@ func webhookToResponse(e *store.WebhookEndpoint) webhookResponse {
 
 func handleListWebhooks(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -103,9 +102,8 @@ func handleListWebhooks(st store.Driver) http.HandlerFunc {
 
 func handleCreateWebhook(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -147,9 +145,8 @@ func handleCreateWebhook(st store.Driver) http.HandlerFunc {
 
 func handleGetWebhook(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -167,9 +164,8 @@ func handleGetWebhook(st store.Driver) http.HandlerFunc {
 
 func handleUpdateWebhook(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -213,9 +209,8 @@ func handleUpdateWebhook(st store.Driver) http.HandlerFunc {
 
 func handleDeleteWebhook(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")

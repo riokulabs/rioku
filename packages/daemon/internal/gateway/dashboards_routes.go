@@ -122,9 +122,8 @@ func RegisterDashboardRoutes(mux *http.ServeMux, st store.Driver) {
 // (expiresAt optional). Returns the created share with `_links`.
 func handleShareDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -187,9 +186,8 @@ func handleShareDashboard(st store.Driver) http.HandlerFunc {
 
 func handleListDashboardShares(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -377,9 +375,8 @@ type updateDashboardRequest struct {
 
 func handleListDashboards(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -399,9 +396,8 @@ func handleListDashboards(st store.Driver) http.HandlerFunc {
 
 func handleCreateDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req createDashboardRequest
@@ -444,9 +440,8 @@ func handleCreateDashboard(st store.Driver) http.HandlerFunc {
 
 func handleGetDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -468,9 +463,8 @@ func handleGetDashboard(st store.Driver) http.HandlerFunc {
 
 func handleUpdateDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -515,9 +509,8 @@ func handleUpdateDashboard(st store.Driver) http.HandlerFunc {
 
 func handleDeleteDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -542,9 +535,8 @@ func handleDeleteDashboard(st store.Driver) http.HandlerFunc {
 
 func handleSetDefaultDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -570,9 +562,8 @@ func handleSetDefaultDashboard(st store.Driver) http.HandlerFunc {
 
 func handleSetDashboardHome(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -658,9 +649,8 @@ func ensureWidgetOwnership(w http.ResponseWriter, r *http.Request, tx store.Tx, 
 
 func handleListWidgets(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -684,9 +674,8 @@ func handleListWidgets(st store.Driver) http.HandlerFunc {
 
 func handleAddWidget(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -727,9 +716,8 @@ func handleAddWidget(st store.Driver) http.HandlerFunc {
 
 func handleUpdateWidget(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -774,9 +762,8 @@ func handleUpdateWidget(st store.Driver) http.HandlerFunc {
 
 func handleDeleteWidget(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -806,9 +793,8 @@ func handleDeleteWidget(st store.Driver) http.HandlerFunc {
 
 func handleUpdateLayout(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -841,9 +827,8 @@ func handleUpdateLayout(st store.Driver) http.HandlerFunc {
 
 func handleFlipWidget(st store.Driver, locked bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -879,9 +864,8 @@ type exportPayload struct {
 
 func handleListVersions(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -934,9 +918,8 @@ func snapshotDashboardLocked(r *http.Request, tx store.Tx, d *store.Dashboard, n
 
 func handleSnapshotDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -964,9 +947,8 @@ func handleSnapshotDashboard(st store.Driver) http.HandlerFunc {
 
 func handleRestoreDashboardVersion(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		vid := r.PathValue("vid")
@@ -1057,9 +1039,8 @@ func handleRestoreDashboardVersion(st store.Driver) http.HandlerFunc {
 
 func handleExportDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		dashboardID := r.PathValue("id")
@@ -1084,9 +1065,8 @@ func handleExportDashboard(st store.Driver) http.HandlerFunc {
 
 func handleImportDashboard(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var payload exportPayload

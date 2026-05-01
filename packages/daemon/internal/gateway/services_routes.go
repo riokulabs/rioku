@@ -95,9 +95,8 @@ func protoToMap(m proto.Message) map[string]any {
 
 func handleListServices(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -126,9 +125,8 @@ func handleListServices(st store.Driver) http.HandlerFunc {
 
 func handleCreateService(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var svc riokuv1.Service
@@ -161,9 +159,8 @@ func handleCreateService(st store.Driver) http.HandlerFunc {
 
 func handleGetService(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -191,9 +188,8 @@ func handleGetService(st store.Driver) http.HandlerFunc {
 // follow-up.
 func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -289,9 +285,8 @@ func handleDeleteServiceREST(st store.Driver) http.HandlerFunc {
 // audit it, and return.
 func handleForceReloadService(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -322,9 +317,8 @@ func handleForceReloadService(st store.Driver) http.HandlerFunc {
 // is the path's service id.
 func handleListRoutesByService(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		serviceID := r.PathValue("id")

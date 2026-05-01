@@ -91,9 +91,8 @@ func RegisterTenantRoutes(mux *http.ServeMux, st store.Driver) {
 // records are uniform.
 func handleMembershipTransition(st store.Driver, targetState string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -336,9 +335,8 @@ func handleDeleteTenant(st store.Driver) http.HandlerFunc {
 // ─── Tenant-scoped current-tenant settings ──────────────────────────────────
 
 func handleGetCurrentTenant(w http.ResponseWriter, r *http.Request) {
-	tenant := TenantFromContext(r.Context())
-	if tenant == nil {
-		writeInternalError(w, r, "tenant resolution")
+	tenant, ok := tenantOrError(w, r)
+	if !ok {
 		return
 	}
 	writeJSON(w, http.StatusOK, tenantToResponse(tenant))
@@ -346,9 +344,8 @@ func handleGetCurrentTenant(w http.ResponseWriter, r *http.Request) {
 
 func handleUpdateCurrentTenant(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req updateTenantRequest
@@ -432,9 +429,8 @@ type setMembershipRolesRequest struct {
 
 func handleListMemberships(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -458,9 +454,8 @@ func handleListMemberships(st store.Driver) http.HandlerFunc {
 
 func handleCreateMembership(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req createMembershipRequest
@@ -507,9 +502,8 @@ func handleCreateMembership(st store.Driver) http.HandlerFunc {
 
 func handleGetMembership(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -542,9 +536,8 @@ func handleGetMembership(st store.Driver) http.HandlerFunc {
 
 func handleUpdateMembershipState(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -598,9 +591,8 @@ func handleUpdateMembershipState(st store.Driver) http.HandlerFunc {
 
 func handleDeleteMembership(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -641,9 +633,8 @@ func handleDeleteMembership(st store.Driver) http.HandlerFunc {
 // replacement rolls back.
 func handleSetMembershipRoles(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")

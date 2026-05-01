@@ -101,9 +101,8 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 
 func handleListToolAgents(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		toolID := r.PathValue("id")
@@ -138,9 +137,8 @@ func handleListToolAgents(st store.Driver) http.HandlerFunc {
 
 func handleListMCPServerTools(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		mcpID := r.PathValue("id")
@@ -173,9 +171,8 @@ func handleListMCPServerTools(st store.Driver) http.HandlerFunc {
 
 func handleListProviderAgents(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		providerID := r.PathValue("id")
@@ -236,9 +233,8 @@ func handlePreviewToolBinding(_ store.Driver) http.HandlerFunc {
 
 func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -264,9 +260,8 @@ func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 
 func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -367,9 +362,8 @@ func handleAITracesStream(st store.Driver) http.HandlerFunc {
 
 func handleAITracesExportCSV(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})

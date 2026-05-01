@@ -183,7 +183,7 @@ func (t *tx) getProviderModel(ctx context.Context, id string) (*store.AIProvider
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, provider_id, upstream_model_id, alias, rate_limit_rpm, daily_quota_tokens, enabled, created_at, updated_at
 		 FROM ai_provider_models WHERE id = ?`, id)
-	m, err := scanProviderModel(row)
+	m, err := store.ScanAIProviderModel(row)
 	if err == sql.ErrNoRows {
 		return nil, store.ErrAIProviderModelNotFound
 	}
@@ -194,7 +194,7 @@ func (t *tx) UpdateProviderModel(ctx context.Context, providerID, modelID string
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, provider_id, upstream_model_id, alias, rate_limit_rpm, daily_quota_tokens, enabled, created_at, updated_at
 		 FROM ai_provider_models WHERE id = ? AND provider_id = ?`, modelID, providerID)
-	c, err := scanProviderModel(row)
+	c, err := store.ScanAIProviderModel(row)
 	if err == sql.ErrNoRows {
 		return nil, store.ErrAIProviderModelNotFound
 	}
@@ -237,39 +237,7 @@ func (t *tx) RemoveProviderModel(ctx context.Context, providerID, modelID string
 }
 
 func (t *tx) ListProviderModels(ctx context.Context, providerID string) ([]*store.AIProviderModel, error) {
-	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, provider_id, upstream_model_id, alias, rate_limit_rpm, daily_quota_tokens, enabled, created_at, updated_at
-		 FROM ai_provider_models WHERE provider_id = ? ORDER BY alias ASC`, providerID)
-	if err != nil {
-		return nil, fmt.Errorf("sqlite: list provider_models: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	var out []*store.AIProviderModel
-	for rows.Next() {
-		m, err := scanProviderModel(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, m)
-	}
-	return out, rows.Err()
-}
-
-func scanProviderModel(s scanner) (*store.AIProviderModel, error) {
-	var (
-		id, providerID, upstreamID, alias, createdAt, updatedAt string
-		rateLimitRPM                                            int32
-		dailyQuota                                              int64
-		enabled                                                 int
-	)
-	if err := s.Scan(&id, &providerID, &upstreamID, &alias, &rateLimitRPM, &dailyQuota, &enabled, &createdAt, &updatedAt); err != nil {
-		return nil, err
-	}
-	return &store.AIProviderModel{
-		ID: id, ProviderID: providerID, UpstreamModelID: upstreamID, Alias: alias,
-		RateLimitRPM: rateLimitRPM, DailyQuotaTokens: dailyQuota, Enabled: enabled == 1,
-		CreatedAt: parseTime(createdAt), UpdatedAt: parseTime(updatedAt),
-	}, nil
+	return store.ListAIProviderModels(ctx, t.sqlTx, "sqlite", providerID)
 }
 
 // ---------------------------------------------------------------------------
@@ -1022,7 +990,7 @@ func (t *tx) GetAITrace(ctx context.Context, tenantID, id string) (*store.AITrac
 		`SELECT id, tenant_id, agent_id, provider_id, model, status, input_tokens,
 		   output_tokens, duration_ms, prompt, completion, tool_calls_json, error, occurred_at
 		 FROM ai_traces WHERE id = ? AND tenant_id = ?`, id, tenantID)
-	tr, err := scanAITrace(row)
+	tr, err := store.ScanAITrace(row)
 	if err == sql.ErrNoRows {
 		return nil, store.ErrAITraceNotFound
 	}
@@ -1030,72 +998,9 @@ func (t *tx) GetAITrace(ctx context.Context, tenantID, id string) (*store.AITrac
 }
 
 func (t *tx) ListAITracesByTenant(ctx context.Context, tenantID string, q store.AITraceQuery) ([]*store.AITrace, error) {
-	return t.queryAITraces(ctx, q, "tenant_id = ?", tenantID)
+	return store.QueryAITraces(ctx, t.sqlTx, "sqlite", q, "tenant_id = ?", tenantID)
 }
 
 func (t *tx) ListAITracesByAgent(ctx context.Context, agentID string, q store.AITraceQuery) ([]*store.AITrace, error) {
-	return t.queryAITraces(ctx, q, "agent_id = ?", agentID)
-}
-
-func (t *tx) queryAITraces(ctx context.Context, q store.AITraceQuery, whereClause string, whereArg any) ([]*store.AITrace, error) {
-	sqlStr := `SELECT id, tenant_id, agent_id, provider_id, model, status, input_tokens,
-		   output_tokens, duration_ms, prompt, completion, tool_calls_json, error, occurred_at
-		 FROM ai_traces WHERE ` + whereClause
-	args := []any{whereArg}
-	if q.Status != nil && *q.Status != "" {
-		sqlStr += ` AND status = ?`
-		args = append(args, *q.Status)
-	}
-	if q.Since != nil {
-		sqlStr += ` AND occurred_at >= ?`
-		args = append(args, q.Since.UTC().Format(timeFormat))
-	}
-	if q.Until != nil {
-		sqlStr += ` AND occurred_at <= ?`
-		args = append(args, q.Until.UTC().Format(timeFormat))
-	}
-	sqlStr += ` ORDER BY occurred_at DESC, id DESC`
-	limit := q.Limit
-	if limit <= 0 || limit > 1000 {
-		limit = 1000
-	}
-	sqlStr += ` LIMIT ?`
-	args = append(args, limit)
-	if q.Offset > 0 {
-		sqlStr += ` OFFSET ?`
-		args = append(args, q.Offset)
-	}
-
-	rows, err := t.sqlTx.QueryContext(ctx, sqlStr, args...)
-	if err != nil {
-		return nil, fmt.Errorf("sqlite: query traces: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	var out []*store.AITrace
-	for rows.Next() {
-		tr, err := scanAITrace(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, tr)
-	}
-	return out, rows.Err()
-}
-
-func scanAITrace(s scanner) (*store.AITrace, error) {
-	var (
-		id, tenantID, model, status, calls, occurredAt  string
-		agentID, providerID, prompt, completion, errStr *string
-		inputTokens, outputTokens, durationMS           int32
-	)
-	if err := s.Scan(&id, &tenantID, &agentID, &providerID, &model, &status, &inputTokens,
-		&outputTokens, &durationMS, &prompt, &completion, &calls, &errStr, &occurredAt); err != nil {
-		return nil, err
-	}
-	return &store.AITrace{
-		ID: id, TenantID: tenantID, AgentID: agentID, ProviderID: providerID, Model: model,
-		Status: status, InputTokens: inputTokens, OutputTokens: outputTokens, DurationMS: durationMS,
-		Prompt: prompt, Completion: completion, ToolCallsJSON: calls, Error: errStr,
-		OccurredAt: parseTime(occurredAt),
-	}, nil
+	return store.QueryAITraces(ctx, t.sqlTx, "sqlite", q, "agent_id = ?", agentID)
 }

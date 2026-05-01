@@ -38,7 +38,7 @@ func (t *tx) CreateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Ro
 	id := uuid.New().String()
 	now := nowUTC()
 
-	matchersJSON, err := marshalMatchersJSON(route.GetMatchers())
+	matchersJSON, err := store.MarshalMatchersJSON(route.GetMatchers())
 	if err != nil {
 		return nil, fmt.Errorf("mysql: marshal matchers: %w", err)
 	}
@@ -113,7 +113,7 @@ func (t *tx) ListRoutes(ctx context.Context) ([]*riokuv1.Route, error) {
 func (t *tx) UpdateRoute(ctx context.Context, route *riokuv1.Route) (*riokuv1.Route, error) {
 	now := nowUTC()
 
-	matchersJSON, err := marshalMatchersJSON(route.GetMatchers())
+	matchersJSON, err := store.MarshalMatchersJSON(route.GetMatchers())
 	if err != nil {
 		return nil, fmt.Errorf("mysql: marshal matchers: %w", err)
 	}

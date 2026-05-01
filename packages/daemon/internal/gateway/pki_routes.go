@@ -9,6 +9,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -176,9 +177,8 @@ func tlsConfigToResponse(c *store.TLSConfig) tlsConfigResponse {
 
 func handleListCAs(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -198,9 +198,8 @@ func handleListCAs(st store.Driver) http.HandlerFunc {
 
 func handleCreateCA(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -243,9 +242,8 @@ func handleCreateCA(st store.Driver) http.HandlerFunc {
 
 func handleGetCA(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -263,9 +261,8 @@ func handleGetCA(st store.Driver) http.HandlerFunc {
 
 func handleUpdateCA(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -302,9 +299,8 @@ func handleUpdateCA(st store.Driver) http.HandlerFunc {
 
 func handleDeleteCA(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -331,9 +327,8 @@ func handleDeleteCA(st store.Driver) http.HandlerFunc {
 
 func handleListEnrollments(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -353,9 +348,8 @@ func handleListEnrollments(st store.Driver) http.HandlerFunc {
 
 func handleCreateEnrollment(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -391,9 +385,8 @@ func handleCreateEnrollment(st store.Driver) http.HandlerFunc {
 
 func handleGetEnrollment(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -411,9 +404,8 @@ func handleGetEnrollment(st store.Driver) http.HandlerFunc {
 
 func handleRevokeEnrollment(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -445,9 +437,8 @@ func handleRevokeEnrollment(st store.Driver) http.HandlerFunc {
 
 func handleListTLSCerts(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -467,9 +458,8 @@ func handleListTLSCerts(st store.Driver) http.HandlerFunc {
 
 func handleCreateTLSCert(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -511,9 +501,8 @@ func handleCreateTLSCert(st store.Driver) http.HandlerFunc {
 
 func handleGetTLSCert(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -531,9 +520,8 @@ func handleGetTLSCert(st store.Driver) http.HandlerFunc {
 
 func handleToggleAutoRenew(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -566,9 +554,8 @@ func handleToggleAutoRenew(st store.Driver) http.HandlerFunc {
 
 func handleDeleteTLSCert(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -595,90 +582,59 @@ func handleDeleteTLSCert(st store.Driver) http.HandlerFunc {
 
 func handleGetTLSConfig(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
-		defer func() { _ = tx.Rollback() }()
-		c, err := tx.GetTLSConfig(r.Context(), tenant.ID)
-		if err != nil {
-			writeInternalError(w, r, "get tls config")
-			return
-		}
-		writeJSON(w, http.StatusOK, tlsConfigToResponse(c))
+		handleReadConfig(w, r, st, "get tls config",
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				c, err := tx.GetTLSConfig(ctx, tenantID)
+				if err != nil {
+					return nil, err
+				}
+				return tlsConfigToResponse(c), nil
+			})
 	}
 }
 
 func handleUpdateTLSACME(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			Provider  string  `json:"provider"`
 			Email     string  `json:"email,omitempty"`
 			Directory *string `json:"directory,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		current, _ := tx.GetTLSConfig(r.Context(), tenant.ID)
-		current.ACMEProvider = req.Provider
-		current.ACMEEmail = req.Email
-		current.ACMEDirectory = req.Directory
-		current.TenantID = tenant.ID
-		updated, err := tx.UpsertTLSConfig(r.Context(), current)
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update acme")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, tlsConfigToResponse(updated))
+		handleUpsertConfig(w, r, st, "update acme", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				current, _ := tx.GetTLSConfig(ctx, tenantID)
+				current.ACMEProvider = req.Provider
+				current.ACMEEmail = req.Email
+				current.ACMEDirectory = req.Directory
+				current.TenantID = tenantID
+				updated, err := tx.UpsertTLSConfig(ctx, current)
+				if err != nil {
+					return nil, err
+				}
+				return tlsConfigToResponse(updated), nil
+			})
 	}
 }
 
 func handleUpdateTLSCiphers(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			AllowedCiphers json.RawMessage `json:"allowedCiphers"`
 			MinProtocol    string          `json:"minProtocol,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		current, _ := tx.GetTLSConfig(r.Context(), tenant.ID)
-		current.AllowedCiphers = string(req.AllowedCiphers)
-		if req.MinProtocol != "" {
-			current.MinProtocol = req.MinProtocol
-		}
-		current.TenantID = tenant.ID
-		updated, err := tx.UpsertTLSConfig(r.Context(), current)
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update ciphers")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, tlsConfigToResponse(updated))
+		handleUpsertConfig(w, r, st, "update ciphers", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				current, _ := tx.GetTLSConfig(ctx, tenantID)
+				current.AllowedCiphers = string(req.AllowedCiphers)
+				if req.MinProtocol != "" {
+					current.MinProtocol = req.MinProtocol
+				}
+				current.TenantID = tenantID
+				updated, err := tx.UpsertTLSConfig(ctx, current)
+				if err != nil {
+					return nil, err
+				}
+				return tlsConfigToResponse(updated), nil
+			})
 	}
 }

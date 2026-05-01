@@ -16,6 +16,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -241,9 +242,8 @@ func notificationQueryFromRequest(r *http.Request) store.NotificationItemQuery {
 
 func handleListNotifications(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
@@ -269,9 +269,8 @@ func handleListNotifications(st store.Driver) http.HandlerFunc {
 
 func handleUnreadCount(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
@@ -292,9 +291,8 @@ func handleUnreadCount(st store.Driver) http.HandlerFunc {
 
 func handleGetNotification(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
@@ -324,9 +322,7 @@ func handleGetNotification(st store.Driver) http.HandlerFunc {
 
 func handleMarkNotificationRead(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		if _, ok := tenantOrError(w, r); !ok {
 			return
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
@@ -361,9 +357,8 @@ func handleMarkNotificationRead(st store.Driver) http.HandlerFunc {
 
 func handleMarkAllRead(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
@@ -387,9 +382,7 @@ func handleMarkAllRead(st store.Driver) http.HandlerFunc {
 
 func handleArchiveNotification(st store.Driver, archive bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		if _, ok := tenantOrError(w, r); !ok {
 			return
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
@@ -425,9 +418,8 @@ func handleArchiveNotification(st store.Driver, archive bool) http.HandlerFunc {
 
 func handleListChannels(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -447,9 +439,8 @@ func handleListChannels(st store.Driver) http.HandlerFunc {
 
 func handleCreateChannel(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -489,9 +480,8 @@ func handleCreateChannel(st store.Driver) http.HandlerFunc {
 
 func handleGetChannel(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -509,9 +499,8 @@ func handleGetChannel(st store.Driver) http.HandlerFunc {
 
 func handleUpdateChannel(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -554,9 +543,8 @@ func handleUpdateChannel(st store.Driver) http.HandlerFunc {
 
 func handleDeleteChannel(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -593,9 +581,8 @@ func handleTestChannel(st store.Driver) http.HandlerFunc {
 
 func handleListRules(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -615,9 +602,8 @@ func handleListRules(st store.Driver) http.HandlerFunc {
 
 func handleCreateRule(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -659,9 +645,8 @@ func handleCreateRule(st store.Driver) http.HandlerFunc {
 
 func handleGetRule(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -679,9 +664,8 @@ func handleGetRule(st store.Driver) http.HandlerFunc {
 
 func handleUpdateRule(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -729,9 +713,8 @@ func handleUpdateRule(st store.Driver) http.HandlerFunc {
 
 func handleDeleteRule(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -756,9 +739,8 @@ func handleDeleteRule(st store.Driver) http.HandlerFunc {
 
 func handleReorderRules(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {
@@ -786,9 +768,8 @@ func handleReorderRules(st store.Driver) http.HandlerFunc {
 
 func handleListDeliveryLog(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		q := store.DeliveryLogQuery{Status: r.URL.Query().Get("status")}
@@ -819,9 +800,8 @@ func handleListDeliveryLog(st store.Driver) http.HandlerFunc {
 
 func handleGetDeliveryLog(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		id := r.PathValue("id")
@@ -841,27 +821,21 @@ func handleGetDeliveryLog(st store.Driver) http.HandlerFunc {
 
 func handleGetTenantNotifConfig(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
-		defer func() { _ = tx.Rollback() }()
-		c, err := tx.GetTenantNotificationConfig(r.Context(), tenant.ID)
-		if err != nil {
-			writeInternalError(w, r, "get config")
-			return
-		}
-		writeJSON(w, http.StatusOK, tenantNotifConfigToResponse(c))
+		handleReadConfig(w, r, st, "get config",
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				c, err := tx.GetTenantNotificationConfig(ctx, tenantID)
+				if err != nil {
+					return nil, err
+				}
+				return tenantNotifConfigToResponse(c), nil
+			})
 	}
 }
 
 func handleUpdateTenantNotifConfig(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
 			return
 		}
 		var req struct {

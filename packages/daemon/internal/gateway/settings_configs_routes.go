@@ -12,6 +12,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -73,29 +74,19 @@ func networkConfigToResponse(c *store.NetworkConfig) networkConfigResponse {
 
 func handleGetNetworkConfig(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
-		defer func() { _ = tx.Rollback() }()
-		c, err := tx.GetNetworkConfig(r.Context(), tenant.ID)
-		if err != nil {
-			writeInternalError(w, r, "get network_config")
-			return
-		}
-		writeJSON(w, http.StatusOK, networkConfigToResponse(c))
+		handleReadConfig(w, r, st, "get network_config",
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				c, err := tx.GetNetworkConfig(ctx, tenantID)
+				if err != nil {
+					return nil, err
+				}
+				return networkConfigToResponse(c), nil
+			})
 	}
 }
 
 func handleUpsertNetworkConfig(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			ListenAddresses      json.RawMessage `json:"listenAddresses,omitempty"`
 			HTTP3Enabled         bool            `json:"http3Enabled"`
@@ -104,30 +95,22 @@ func handleUpsertNetworkConfig(st store.Driver) http.HandlerFunc {
 			WriteTimeoutSeconds  int32           `json:"writeTimeoutSeconds"`
 			IdleTimeoutSeconds   int32           `json:"idleTimeoutSeconds"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		updated, err := tx.UpsertNetworkConfig(r.Context(), &store.NetworkConfig{
-			TenantID:             tenant.ID,
-			ListenAddresses:      string(req.ListenAddresses),
-			HTTP3Enabled:         req.HTTP3Enabled,
-			CaddyConfigOverrides: string(req.CaddyConfigOverrides),
-			ReadTimeoutSeconds:   req.ReadTimeoutSeconds,
-			WriteTimeoutSeconds:  req.WriteTimeoutSeconds,
-			IdleTimeoutSeconds:   req.IdleTimeoutSeconds,
-		})
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert network_config")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, networkConfigToResponse(updated))
+		handleUpsertConfig(w, r, st, "upsert network_config", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				updated, err := tx.UpsertNetworkConfig(ctx, &store.NetworkConfig{
+					TenantID:             tenantID,
+					ListenAddresses:      string(req.ListenAddresses),
+					HTTP3Enabled:         req.HTTP3Enabled,
+					CaddyConfigOverrides: string(req.CaddyConfigOverrides),
+					ReadTimeoutSeconds:   req.ReadTimeoutSeconds,
+					WriteTimeoutSeconds:  req.WriteTimeoutSeconds,
+					IdleTimeoutSeconds:   req.IdleTimeoutSeconds,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return networkConfigToResponse(updated), nil
+			})
 	}
 }
 
@@ -161,29 +144,19 @@ func authPolicyToResponse(c *store.TenantAuthPolicy) authPolicyResponse {
 
 func handleGetAuthPolicy(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
-		defer func() { _ = tx.Rollback() }()
-		c, err := tx.GetTenantAuthPolicy(r.Context(), tenant.ID)
-		if err != nil {
-			writeInternalError(w, r, "get auth_policy")
-			return
-		}
-		writeJSON(w, http.StatusOK, authPolicyToResponse(c))
+		handleReadConfig(w, r, st, "get auth_policy",
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				c, err := tx.GetTenantAuthPolicy(ctx, tenantID)
+				if err != nil {
+					return nil, err
+				}
+				return authPolicyToResponse(c), nil
+			})
 	}
 }
 
 func handleUpsertAuthPolicy(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			TOTPPolicy        string `json:"totpPolicy"`
 			MinLength         int32  `json:"minLength"`
@@ -196,28 +169,20 @@ func handleUpsertAuthPolicy(st store.Driver) http.HandlerFunc {
 			MaxFailedAttempts int32  `json:"maxFailedAttempts"`
 			LockoutMinutes    int32  `json:"lockoutMinutes"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		updated, err := tx.UpsertTenantAuthPolicy(r.Context(), &store.TenantAuthPolicy{
-			TenantID: tenant.ID, TOTPPolicy: req.TOTPPolicy, MinLength: req.MinLength,
-			RequireUppercase: req.RequireUppercase, RequireLowercase: req.RequireLowercase,
-			RequireDigit: req.RequireDigit, RequireSymbol: req.RequireSymbol,
-			IdleHours: req.IdleHours, AbsoluteHours: req.AbsoluteHours,
-			MaxFailedAttempts: req.MaxFailedAttempts, LockoutMinutes: req.LockoutMinutes,
-		})
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert auth_policy")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, authPolicyToResponse(updated))
+		handleUpsertConfig(w, r, st, "upsert auth_policy", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				updated, err := tx.UpsertTenantAuthPolicy(ctx, &store.TenantAuthPolicy{
+					TenantID: tenantID, TOTPPolicy: req.TOTPPolicy, MinLength: req.MinLength,
+					RequireUppercase: req.RequireUppercase, RequireLowercase: req.RequireLowercase,
+					RequireDigit: req.RequireDigit, RequireSymbol: req.RequireSymbol,
+					IdleHours: req.IdleHours, AbsoluteHours: req.AbsoluteHours,
+					MaxFailedAttempts: req.MaxFailedAttempts, LockoutMinutes: req.LockoutMinutes,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return authPolicyToResponse(updated), nil
+			})
 	}
 }
 
@@ -251,125 +216,81 @@ func observabilityToResponse(c *store.ObservabilityConfig) observabilityResponse
 
 func handleGetObservability(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
-		defer func() { _ = tx.Rollback() }()
-		c, err := tx.GetObservabilityConfig(r.Context(), tenant.ID)
-		if err != nil {
-			writeInternalError(w, r, "get observability_config")
-			return
-		}
-		writeJSON(w, http.StatusOK, observabilityToResponse(c))
+		handleReadConfig(w, r, st, "get observability_config",
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				c, err := tx.GetObservabilityConfig(ctx, tenantID)
+				if err != nil {
+					return nil, err
+				}
+				return observabilityToResponse(c), nil
+			})
 	}
 }
 
 func handleUpsertObservabilityMetrics(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			ScrapeEndpoint string          `json:"scrapeEndpoint"`
 			ScrapeAuth     json.RawMessage `json:"scrapeAuth,omitempty"`
 			RetentionDays  int32           `json:"retentionDays"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		current, _ := tx.GetObservabilityConfig(r.Context(), tenant.ID)
-		current.TenantID = tenant.ID
-		current.MetricsScrapeEndpoint = req.ScrapeEndpoint
-		current.MetricsScrapeAuth = string(req.ScrapeAuth)
-		current.MetricsRetentionDays = req.RetentionDays
-		updated, err := tx.UpsertObservabilityConfig(r.Context(), current)
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert metrics")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, observabilityToResponse(updated))
+		handleUpsertConfig(w, r, st, "upsert metrics", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				current, _ := tx.GetObservabilityConfig(ctx, tenantID)
+				current.TenantID = tenantID
+				current.MetricsScrapeEndpoint = req.ScrapeEndpoint
+				current.MetricsScrapeAuth = string(req.ScrapeAuth)
+				current.MetricsRetentionDays = req.RetentionDays
+				updated, err := tx.UpsertObservabilityConfig(ctx, current)
+				if err != nil {
+					return nil, err
+				}
+				return observabilityToResponse(updated), nil
+			})
 	}
 }
 
 func handleUpsertObservabilityLogs(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			Levels   json.RawMessage `json:"levels,omitempty"`
 			Format   string          `json:"format"`
 			Rotation json.RawMessage `json:"rotation,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		current, _ := tx.GetObservabilityConfig(r.Context(), tenant.ID)
-		current.TenantID = tenant.ID
-		current.LogLevels = string(req.Levels)
-		current.LogFormat = req.Format
-		current.LogRotation = string(req.Rotation)
-		updated, err := tx.UpsertObservabilityConfig(r.Context(), current)
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert logs")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, observabilityToResponse(updated))
+		handleUpsertConfig(w, r, st, "upsert logs", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				current, _ := tx.GetObservabilityConfig(ctx, tenantID)
+				current.TenantID = tenantID
+				current.LogLevels = string(req.Levels)
+				current.LogFormat = req.Format
+				current.LogRotation = string(req.Rotation)
+				updated, err := tx.UpsertObservabilityConfig(ctx, current)
+				if err != nil {
+					return nil, err
+				}
+				return observabilityToResponse(updated), nil
+			})
 	}
 }
 
 func handleUpsertObservabilityTraces(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			RetentionDays int32   `json:"retentionDays"`
 			SampleRate    float64 `json:"sampleRate"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		current, _ := tx.GetObservabilityConfig(r.Context(), tenant.ID)
-		current.TenantID = tenant.ID
-		current.TracesRetentionDays = req.RetentionDays
-		current.TracesSampleRate = req.SampleRate
-		updated, err := tx.UpsertObservabilityConfig(r.Context(), current)
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert traces")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, observabilityToResponse(updated))
+		handleUpsertConfig(w, r, st, "upsert traces", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				current, _ := tx.GetObservabilityConfig(ctx, tenantID)
+				current.TenantID = tenantID
+				current.TracesRetentionDays = req.RetentionDays
+				current.TracesSampleRate = req.SampleRate
+				updated, err := tx.UpsertObservabilityConfig(ctx, current)
+				if err != nil {
+					return nil, err
+				}
+				return observabilityToResponse(updated), nil
+			})
 	}
 }
 
@@ -398,29 +319,19 @@ func auditRetentionToResponse(c *store.AuditRetentionConfig) auditRetentionRespo
 
 func handleGetAuditRetention(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
-		defer func() { _ = tx.Rollback() }()
-		c, err := tx.GetAuditRetentionConfig(r.Context(), tenant.ID)
-		if err != nil {
-			writeInternalError(w, r, "get audit_retention")
-			return
-		}
-		writeJSON(w, http.StatusOK, auditRetentionToResponse(c))
+		handleReadConfig(w, r, st, "get audit_retention",
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				c, err := tx.GetAuditRetentionConfig(ctx, tenantID)
+				if err != nil {
+					return nil, err
+				}
+				return auditRetentionToResponse(c), nil
+			})
 	}
 }
 
 func handleUpsertAuditRetention(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenant := TenantFromContext(r.Context())
-		if tenant == nil {
-			writeInternalError(w, r, "tenant resolution")
-			return
-		}
 		var req struct {
 			RetentionDaysRead        int32   `json:"retentionDaysRead"`
 			RetentionDaysWrite       int32   `json:"retentionDaysWrite"`
@@ -429,28 +340,20 @@ func handleUpsertAuditRetention(st store.Driver) http.HandlerFunc {
 			AutoExportFormat         string  `json:"autoExportFormat"`
 			AutoExportDestination    *string `json:"autoExportDestination,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
-		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		updated, err := tx.UpsertAuditRetentionConfig(r.Context(), &store.AuditRetentionConfig{
-			TenantID:                 tenant.ID,
-			RetentionDaysRead:        req.RetentionDaysRead,
-			RetentionDaysWrite:       req.RetentionDaysWrite,
-			RetentionDaysDestructive: req.RetentionDaysDestructive,
-			AutoExport:               req.AutoExport, AutoExportFormat: req.AutoExportFormat,
-			AutoExportDestination: req.AutoExportDestination,
-		})
-		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert audit_retention")
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
-		}
-		writeJSON(w, http.StatusOK, auditRetentionToResponse(updated))
+		handleUpsertConfig(w, r, st, "upsert audit_retention", &req,
+			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
+				updated, err := tx.UpsertAuditRetentionConfig(ctx, &store.AuditRetentionConfig{
+					TenantID:                 tenantID,
+					RetentionDaysRead:        req.RetentionDaysRead,
+					RetentionDaysWrite:       req.RetentionDaysWrite,
+					RetentionDaysDestructive: req.RetentionDaysDestructive,
+					AutoExport:               req.AutoExport, AutoExportFormat: req.AutoExportFormat,
+					AutoExportDestination: req.AutoExportDestination,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return auditRetentionToResponse(updated), nil
+			})
 	}
 }
