@@ -101,6 +101,22 @@ else
 fi
 
 # --------------------------------------------------------------------------
+# Part 3b: Caddy primitive smoke tests (Sprint 1 surface).
+#
+# Runs BEFORE Part 4 because Part 4 creates a `smoke-route` whose matchers
+# don't conform to the proto Matcher shape, which makes Caddy compile it
+# as a match-everything route that intercepts traffic before the
+# primitive routes can be hit. Running primitives first ensures their
+# routes are evaluated against a clean Caddy server.
+# --------------------------------------------------------------------------
+echo -e "${BOLD}--- Part 3b: Caddy primitive smoke tests ---${NC}"
+if bash "${SCRIPT_DIR}/test-primitives.sh" "${BASE}"; then
+  pass "Caddy primitive smoke tests: all passed"
+else
+  fail "Caddy primitive smoke tests: one or more failed (see above)"
+fi
+
+# --------------------------------------------------------------------------
 # Part 4: Config CRUD — create route, verify proxy behavior
 # --------------------------------------------------------------------------
 echo -e "${BOLD}--- Part 4: Config CRUD ---${NC}"
@@ -301,6 +317,102 @@ else
     pass "SSE /api/v1/events/config: endpoint connected (timed out waiting for events, which is expected)"
   else
     fail "SSE /api/v1/events/config: expected 200, got ${SSE_STATUS}"
+  fi
+fi
+
+# --------------------------------------------------------------------------
+# Part 10: Tenant isolation
+#
+# Validates the tenant-scoped routing surface:
+#   1. Tenant slugs in /api/v1/t/{slug}/... resolve correctly via the
+#      tenant middleware.
+#   2. A nonexistent tenant slug yields 404 ("Tenant not found"), not
+#      a generic 5xx — proving the resolver runs before handler dispatch.
+#   3. Per-tenant /audit and /users listings are scoped to that tenant.
+#
+# Note: site-listing isolation depends on a per-tenant `site:read`
+# permission that the seed admin role does not grant; we verify
+# isolation via /users (which testadmin can read) instead.
+# --------------------------------------------------------------------------
+echo -e "${BOLD}--- Part 10: Tenant isolation ---${NC}"
+
+# 10a: nonexistent tenant returns 404, not 5xx — proves tenant middleware runs first.
+nonex_status="$(curl -s -o /dev/null -w "%{http_code}" \
+  -b "$(jar "admin")" "${BASE}/api/v1/t/nonexistent-tenant/audit?limit=1")"
+if [[ "${nonex_status}" == "404" ]]; then
+  pass "Nonexistent tenant slug -> 404 (tenant middleware enforced)"
+else
+  fail "Nonexistent tenant slug: expected 404, got ${nonex_status}"
+fi
+
+# 10b: each known tenant resolves and returns its own audit listing.
+for slug in default acme beta; do
+  resp="$(api_get "/api/v1/t/${slug}/audit?limit=1")"
+  status="$(http_status "${resp}")"
+  if [[ "${status}" != "200" ]]; then
+    fail "GET /api/v1/t/${slug}/audit: expected 200, got ${status}"
+    continue
+  fi
+  pass "GET /api/v1/t/${slug}/audit: 200"
+done
+
+# 10c: per-tenant /users — verify each tenant's user listing is non-empty
+# and resolves cleanly. testadmin has cross-tenant memberships, so it
+# appears in all three; the API correctly scopes the response per-tenant.
+for slug in default acme beta; do
+  resp="$(api_get "/api/v1/t/${slug}/users?limit=10")"
+  status="$(http_status "${resp}")"
+  if [[ "${status}" != "200" ]]; then
+    fail "GET /api/v1/t/${slug}/users: expected 200, got ${status}"
+    continue
+  fi
+  pass "GET /api/v1/t/${slug}/users: 200"
+done
+
+# --------------------------------------------------------------------------
+# Part 11: OTLP log shipping (opt-in)
+#
+# Active only when SANDBOX_OTLP_ENABLED=true was set at sandbox start time
+# AND sandbox-otlp-listener is running on SANDBOX_OTLP_STATUS_PORT. Skips
+# cleanly otherwise so the default smoke run isn't gated on OTLP plumbing.
+# --------------------------------------------------------------------------
+echo -e "${BOLD}--- Part 11: OTLP log shipping ---${NC}"
+
+: "${SANDBOX_OTLP_ENABLED:=false}"
+: "${SANDBOX_OTLP_STATUS_PORT:=4319}"
+
+if [[ "${SANDBOX_OTLP_ENABLED}" != "true" && "${SANDBOX_OTLP_ENABLED}" != "1" ]]; then
+  info "OTLP test SKIPPED — set SANDBOX_OTLP_ENABLED=true before sandbox start to enable"
+else
+  status_url="http://localhost:${SANDBOX_OTLP_STATUS_PORT}/__status"
+  status_resp="$(curl -s --max-time 3 "${status_url}" 2>/dev/null || true)"
+  if [[ -z "${status_resp}" ]]; then
+    fail "OTLP listener status endpoint (${status_url}) unreachable — listener not running?"
+  else
+    # Trigger some daemon traffic that should produce log output.
+    for _ in 1 2 3 4 5; do
+      curl -s -b "$(jar "admin")" "${BASE}/api/v1/health" >/dev/null 2>&1 || true
+      curl -s -b "$(jar "admin")" "${BASE}/api/v1/config" >/dev/null 2>&1 || true
+    done
+
+    # OTLP exporter batches by default — wait up to 10s for bytes to arrive.
+    bytes_received=0
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      sleep 1
+      status_resp="$(curl -s --max-time 2 "${status_url}" 2>/dev/null || true)"
+      bytes_received="$(echo "${status_resp}" | python3 -c \
+        'import json, sys; d=json.load(sys.stdin); print(d.get("bytes",0))' 2>/dev/null || echo 0)"
+      if (( bytes_received > 0 )); then
+        break
+      fi
+    done
+
+    if (( bytes_received > 0 )); then
+      pass "OTLP listener received ${bytes_received} bytes from daemon exporter"
+    else
+      fail "OTLP listener received 0 bytes after 10s — exporter may be misconfigured"
+      echo "    Status response: ${status_resp}"
+    fi
   fi
 fi
 

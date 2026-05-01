@@ -1,6 +1,19 @@
 # sandbox/config/seed.yaml — Unified sandbox seed data.
 # Applied via: rioku seed --file sandbox/config/seed.yaml
 # Port variables are env-substituted at runtime using ${VAR:-default} syntax.
+#
+# Sprint 1 Caddy primitives (request_headers, response_headers,
+# response_rules / handle_response, encode/compression, dynamic_upstreams,
+# trusted_proxies, buffers) are NOT carried in this file. The current
+# `rioku seed` CLI binds only the legacy Service/Route fields, so adding
+# primitives here would be silently dropped. They are exercised end-to-end
+# by sandbox/scripts/test-primitives.sh, which POSTs services and routes
+# WITH primitives directly through the REST API and then verifies the
+# Caddy traffic plane applies each one (header injection, gzip encoding,
+# handle_response rewrites, dynamic upstream resolution).
+#
+# When the seed CLI grows primitive bindings, move the primitive
+# fixtures from test-primitives.sh into this file.
 
 # Custom roles (beyond built-in admin/operator/viewer)
 roles:
@@ -275,6 +288,15 @@ sites:
     domain: www.acme.test
     tls_mode: auto
     rate_limit_preset: lenient
+
+  # Beta-only site — used by tenant isolation smoke tests. testoperator
+  # has membership in `acme` but NOT `beta`, so a request from
+  # testoperator to /api/v1/t/beta/sites must be rejected.
+  - tenant: beta
+    name: beta-www
+    domain: www.beta.test
+    tls_mode: auto
+    rate_limit_preset: standard
 
 # Per-tenant reusable middleware components
 middlewares:

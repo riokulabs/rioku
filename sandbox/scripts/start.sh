@@ -42,10 +42,20 @@ fi
 : "${SANDBOX_RATE_LIMIT_BURST:=100}"
 : "${SANDBOX_REST_BIND:=0.0.0.0}"
 
+# OTLP smoke-test plumbing (off by default). When SANDBOX_OTLP_ENABLED=true,
+# start.sh also spins up sandbox-otlp-listener on SANDBOX_OTLP_PORT and the
+# rioku.yaml template wires the daemon's OTLP exporter to it. The listener
+# exposes a status JSON on SANDBOX_OTLP_STATUS_PORT for the smoke test.
+: "${SANDBOX_OTLP_ENABLED:=false}"
+: "${SANDBOX_OTLP_PORT:=4318}"
+: "${SANDBOX_OTLP_STATUS_PORT:=4319}"
+: "${SANDBOX_OTLP_ENDPOINT:=localhost:${SANDBOX_OTLP_PORT}}"
+
 # Export all SANDBOX_ vars so envsubst can see them
 export SANDBOX_PORT_REST SANDBOX_PORT_GRPC SANDBOX_PORT_TRAFFIC SANDBOX_PORT_CADDY_ADMIN
 export SANDBOX_PORT_USERS SANDBOX_PORT_PRODUCTS SANDBOX_PORT_WEBHOOKS SANDBOX_PORT_AUTH SANDBOX_PORT_MEDIA
 export SANDBOX_DEV_MODE SANDBOX_RATE_LIMIT_RPM SANDBOX_RATE_LIMIT_BURST SANDBOX_REST_BIND
+export SANDBOX_OTLP_ENABLED SANDBOX_OTLP_PORT SANDBOX_OTLP_STATUS_PORT SANDBOX_OTLP_ENDPOINT
 
 # --------------------------------------------------------------------------
 # Derived paths and addresses
@@ -252,6 +262,26 @@ launch_service "auth"     "${BIN_DIR}/sandbox-auth-service" --port "${SANDBOX_PO
 launch_service "media"    "${BIN_DIR}/sandbox-media"        --port "${SANDBOX_PORT_MEDIA}"
 
 success "Sandbox apps started"
+
+# --------------------------------------------------------------------------
+# Step 4b: Optional OTLP listener (for OTLP smoke test)
+# --------------------------------------------------------------------------
+if [[ "${SANDBOX_OTLP_ENABLED}" == "true" || "${SANDBOX_OTLP_ENABLED}" == "1" ]]; then
+  echo ""
+  echo -e "${BOLD}==> Step 4b: Starting OTLP listener${NC}"
+  OTLP_LISTENER_BIN="${BIN_DIR}/sandbox-otlp-listener"
+  OTLP_SRC_DIR="${SANDBOX_DIR}/tools/otlp-listener"
+  if [[ ! -f "${OTLP_LISTENER_BIN}" ]] || [[ "${OTLP_SRC_DIR}/main.go" -nt "${OTLP_LISTENER_BIN}" ]]; then
+    info "Building OTLP listener..."
+    (cd "${OTLP_SRC_DIR}" && GOWORK=off go build -o "${OTLP_LISTENER_BIN}" .)
+  fi
+  launch_service "otlp" "${OTLP_LISTENER_BIN}" \
+    --port "${SANDBOX_OTLP_PORT}" \
+    --status-port "${SANDBOX_OTLP_STATUS_PORT}"
+  success "OTLP listener on :${SANDBOX_OTLP_PORT} (status :${SANDBOX_OTLP_STATUS_PORT})"
+else
+  info "OTLP listener disabled (set SANDBOX_OTLP_ENABLED=true to enable for OTLP smoke test)"
+fi
 
 # --------------------------------------------------------------------------
 # Step 5: Initialize and start the Rioku daemon

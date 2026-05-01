@@ -93,6 +93,8 @@ echo ""
 # Step 1: Stop all services via PID files (daemon first, then apps)
 # --------------------------------------------------------------------------
 stop_service "daemon"
+# OTLP listener (optional; only present when SANDBOX_OTLP_ENABLED was set at start time)
+stop_service "otlp"
 for app in media auth webhooks products users; do
   stop_service "$app"
 done
