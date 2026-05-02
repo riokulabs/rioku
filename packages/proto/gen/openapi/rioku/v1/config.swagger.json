@@ -329,6 +329,14 @@
         "occurredAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "payloadSchema": {
+          "type": "string",
+          "description": "payload_schema is the audit unification (#182, D6)\ndiscriminator — e.g. \"cert.lifecycle_event.v1\". Empty when\nthis row predates the unification or was emitted via the\nlegacy diff-only path; the admin renderer falls back to the\ndiff renderer in that case."
+        },
+        "payload": {
+          "type": "string",
+          "description": "payload carries the structured audit payload (#182, D6) as\nJSON. The admin renderer dispatches on payload_schema to\npick a typed view. Empty when payload_schema is empty."
         }
       }
     },

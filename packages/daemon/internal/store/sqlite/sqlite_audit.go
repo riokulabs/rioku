@@ -100,12 +100,24 @@ func (t *tx) AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) er
 		now = entry.GetOccurredAt().AsTime().UTC().Format(timeFormat)
 	}
 
+	// Audit unification (#182, D6): payload_schema + payload are
+	// nullable. Empty strings map to NULL so the legacy diff-only
+	// emitters land rows indistinguishable from pre-migration state.
+	var payloadSchema, payload sql.NullString
+	if entry.GetPayloadSchema() != "" {
+		payloadSchema = sql.NullString{String: entry.GetPayloadSchema(), Valid: true}
+	}
+	if entry.GetPayload() != "" {
+		payload = sql.NullString{String: entry.GetPayload(), Valid: true}
+	}
+
 	tenantID := store.TenantIDFromContext(ctx)
 	_, err := t.sqlTx.ExecContext(ctx,
-		`INSERT INTO audit_log (id, tenant_id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO audit_log (id, tenant_id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at, payload_schema, payload)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, tenantID, entry.GetActor(), entry.GetEntityType(), entry.GetEntityId(),
 		entry.GetOperation(), entry.GetDiff(), entry.GetConfigVersion(), now,
+		payloadSchema, payload,
 	)
 	if err != nil {
 		return fmt.Errorf("sqlite: append audit entry: %w", err)
@@ -116,7 +128,7 @@ func (t *tx) AppendAuditEntry(ctx context.Context, entry *riokuv1.AuditEntry) er
 
 func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riokuv1.AuditEntry, error) {
 	tenantID := store.TenantIDFromContext(ctx)
-	q := `SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at FROM audit_log WHERE tenant_id = ?`
+	q := `SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at, payload_schema, payload FROM audit_log WHERE tenant_id = ?`
 	args := []any{tenantID}
 
 	if query.Actor != "" {
@@ -165,16 +177,18 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 	var entries []*riokuv1.AuditEntry
 	for rows.Next() {
 		var (
-			id            string
-			actor         string
-			entityType    string
-			entityID      string
-			operation     string
-			diff          string
-			configVersion int64
-			occurredAt    string
+			id             string
+			actor          string
+			entityType     string
+			entityID       string
+			operation      string
+			diff           string
+			configVersion  int64
+			occurredAt     string
+			payloadSchema  sql.NullString
+			payload        sql.NullString
 		)
-		if err := rows.Scan(&id, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt); err != nil {
+		if err := rows.Scan(&id, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt, &payloadSchema, &payload); err != nil {
 			return nil, fmt.Errorf("sqlite: scan audit entry: %w", err)
 		}
 		entries = append(entries, &riokuv1.AuditEntry{
@@ -186,6 +200,8 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 			Diff:          diff,
 			ConfigVersion: configVersion,
 			OccurredAt:    timestamppb.New(parseTime(occurredAt)),
+			PayloadSchema: payloadSchema.String,
+			Payload:       payload.String,
 		})
 	}
 	return entries, rows.Err()
@@ -233,7 +249,7 @@ func (t *tx) CountAuditLog(ctx context.Context, query store.AuditQuery) (int, er
 func (t *tx) GetAuditEntry(ctx context.Context, id string) (*riokuv1.AuditEntry, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at
+		`SELECT id, actor, entity_type, entity_id, operation, diff, config_version, occurred_at, payload_schema, payload
 		 FROM audit_log WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	var (
 		gotID         string
@@ -244,8 +260,10 @@ func (t *tx) GetAuditEntry(ctx context.Context, id string) (*riokuv1.AuditEntry,
 		diff          string
 		configVersion int64
 		occurredAt    string
+		payloadSchema sql.NullString
+		payload       sql.NullString
 	)
-	if err := row.Scan(&gotID, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt); err != nil {
+	if err := row.Scan(&gotID, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt, &payloadSchema, &payload); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("sqlite: audit entry %q not found", id)
 		}
@@ -260,6 +278,8 @@ func (t *tx) GetAuditEntry(ctx context.Context, id string) (*riokuv1.AuditEntry,
 		Diff:          diff,
 		ConfigVersion: configVersion,
 		OccurredAt:    timestamppb.New(parseTime(occurredAt)),
+		PayloadSchema: payloadSchema.String,
+		Payload:       payload.String,
 	}, nil
 }
 

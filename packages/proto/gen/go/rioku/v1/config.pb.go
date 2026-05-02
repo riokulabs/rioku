@@ -3351,6 +3351,16 @@ type AuditEntry struct {
 	Diff          string                 `protobuf:"bytes,6,opt,name=diff,proto3" json:"diff,omitempty"`
 	ConfigVersion int64                  `protobuf:"varint,7,opt,name=config_version,json=configVersion,proto3" json:"config_version,omitempty"`
 	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	// payload_schema is the audit unification (#182, D6)
+	// discriminator — e.g. "cert.lifecycle_event.v1". Empty when
+	// this row predates the unification or was emitted via the
+	// legacy diff-only path; the admin renderer falls back to the
+	// diff renderer in that case.
+	PayloadSchema string `protobuf:"bytes,9,opt,name=payload_schema,json=payloadSchema,proto3" json:"payload_schema,omitempty"`
+	// payload carries the structured audit payload (#182, D6) as
+	// JSON. The admin renderer dispatches on payload_schema to
+	// pick a typed view. Empty when payload_schema is empty.
+	Payload       string `protobuf:"bytes,10,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3439,6 +3449,20 @@ func (x *AuditEntry) GetOccurredAt() *timestamppb.Timestamp {
 		return x.OccurredAt
 	}
 	return nil
+}
+
+func (x *AuditEntry) GetPayloadSchema() string {
+	if x != nil {
+		return x.PayloadSchema
+	}
+	return ""
+}
+
+func (x *AuditEntry) GetPayload() string {
+	if x != nil {
+		return x.Payload
+	}
+	return ""
 }
 
 type ExportRequest struct {
@@ -3902,7 +3926,7 @@ const file_rioku_v1_config_proto_rawDesc = "" +
 	"\tentity_id\x18\x03 \x01(\tR\bentityId\x120\n" +
 	"\x05since\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12)\n" +
-	"\x04page\x18\x06 \x01(\v2\x15.rioku.v1.PageRequestR\x04page\"\x86\x02\n" +
+	"\x04page\x18\x06 \x01(\v2\x15.rioku.v1.PageRequestR\x04page\"\xc7\x02\n" +
 	"\n" +
 	"AuditEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -3914,7 +3938,10 @@ const file_rioku_v1_config_proto_rawDesc = "" +
 	"\x04diff\x18\x06 \x01(\tR\x04diff\x12%\n" +
 	"\x0econfig_version\x18\a \x01(\x03R\rconfigVersion\x12;\n" +
 	"\voccurred_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\"U\n" +
+	"occurredAt\x12%\n" +
+	"\x0epayload_schema\x18\t \x01(\tR\rpayloadSchema\x12\x18\n" +
+	"\apayload\x18\n" +
+	" \x01(\tR\apayload\"U\n" +
 	"\rExportRequest\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x03R\aversion\x12*\n" +
 	"\x11include_audit_log\x18\x02 \x01(\bR\x0fincludeAuditLog\"Q\n" +

@@ -451,6 +451,22 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 39: audit_log unification — #182, D6.
+	if current < 39 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000039_audit_unification.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 39: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 39: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (39, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 39: %w", err)
+		}
+	}
+
 	// Migration 40: routes.log_sample_rate — #119.
 	if current < 40 {
 		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000040_log_sampling.up.sql")
@@ -481,6 +497,17 @@ func (d *driver) migrateDown(ctx context.Context) error {
 		}
 		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
 			return fmt.Errorf("sqlite: apply down migration 40: %w", err)
+		}
+	}
+
+	// Migration 39 down: drop audit_log payload columns.
+	if current >= 39 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000039_audit_unification.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 39: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 39: %w", err)
 		}
 	}
 
