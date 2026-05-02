@@ -16,7 +16,7 @@ import (
 
 func TestNewOTLPHandler_DisabledReturnsError(t *testing.T) {
 	cfg := config.LogOTLPConfig{Enabled: false}
-	_, _, err := logging.NewOTLPHandler(context.Background(), cfg, slog.LevelInfo)
+	_, _, err := logging.NewOTLPHandler(context.Background(), cfg, slog.LevelInfo, nil)
 	if err == nil {
 		t.Fatal("expected error when OTLP is disabled")
 	}
@@ -24,7 +24,7 @@ func TestNewOTLPHandler_DisabledReturnsError(t *testing.T) {
 
 func TestNewOTLPHandler_MissingEndpointReturnsError(t *testing.T) {
 	cfg := config.LogOTLPConfig{Enabled: true, Endpoint: ""}
-	_, _, err := logging.NewOTLPHandler(context.Background(), cfg, slog.LevelInfo)
+	_, _, err := logging.NewOTLPHandler(context.Background(), cfg, slog.LevelInfo, nil)
 	if err == nil {
 		t.Fatal("expected error when endpoint is empty")
 	}
@@ -95,7 +95,7 @@ func TestMultiHandler_ForwardsToAll(t *testing.T) {
 	}
 	// Setup installs a global JSON handler; we just verify it doesn't blow up
 	// and the LevelVar is returned correctly.
-	lv, shutdown, err := logging.Setup(cfg)
+	lv, shutdown, err := logging.Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -32,15 +32,44 @@ type OTLPHandler struct {
 	provider *sdklog.LoggerProvider // for Shutdown
 }
 
+// SecretResolver is the narrow surface NewOTLPHandler uses to resolve
+// vault references in the OTLP Headers map. *vault.Resolver and
+// *vault.CachingResolver both satisfy this interface; callers that
+// don't need ref resolution may pass nil and the literal Headers
+// values are sent unchanged.
+type SecretResolver interface {
+	ResolveAll(ctx context.Context, values map[string]string) (map[string]string, error)
+}
+
 // NewOTLPHandler builds an OTLP-shipping slog handler from the given
 // config. Returns the handler plus a Shutdown function the caller
 // should defer/run on daemon stop.
-func NewOTLPHandler(ctx context.Context, cfg config.LogOTLPConfig, level slog.Level) (*OTLPHandler, func(context.Context) error, error) {
+//
+// When resolver is non-nil, every value in cfg.Headers is interpreted
+// as a vault reference (when it matches the {vault://...} shape) and
+// resolved before the OTLP exporter sees it. A literal value passes
+// through unchanged. Per D12, the resolved plaintext is held only in
+// the exporter's in-memory option list — it is never logged, audited,
+// or written back to the config file.
+func NewOTLPHandler(ctx context.Context, cfg config.LogOTLPConfig, level slog.Level, resolver SecretResolver) (*OTLPHandler, func(context.Context) error, error) {
 	if !cfg.Enabled {
 		return nil, nil, fmt.Errorf("logging: OTLP not enabled")
 	}
 	if cfg.Endpoint == "" {
 		return nil, nil, fmt.Errorf("logging: OTLP endpoint is required")
+	}
+
+	// Resolve vault refs in Headers if a resolver is wired. All-or-
+	// nothing semantics from vault.Resolver.ResolveAll: a single
+	// missing ref fails the whole OTLP init rather than shipping
+	// half-credentialed traffic.
+	headers := cfg.Headers
+	if resolver != nil && len(headers) > 0 {
+		resolved, err := resolver.ResolveAll(ctx, headers)
+		if err != nil {
+			return nil, nil, fmt.Errorf("logging: resolve OTLP headers: %w", err)
+		}
+		headers = resolved
 	}
 
 	// Build the exporter.
@@ -52,8 +81,8 @@ func NewOTLPHandler(ctx context.Context, cfg config.LogOTLPConfig, level slog.Le
 		if cfg.Insecure {
 			opts = append(opts, otlploghttp.WithInsecure())
 		}
-		if len(cfg.Headers) > 0 {
-			opts = append(opts, otlploghttp.WithHeaders(cfg.Headers))
+		if len(headers) > 0 {
+			opts = append(opts, otlploghttp.WithHeaders(headers))
 		}
 		exporter, err = otlploghttp.New(ctx, opts...)
 	case "grpc":
@@ -61,8 +90,8 @@ func NewOTLPHandler(ctx context.Context, cfg config.LogOTLPConfig, level slog.Le
 		if cfg.Insecure {
 			opts = append(opts, otlploggrpc.WithInsecure())
 		}
-		if len(cfg.Headers) > 0 {
-			opts = append(opts, otlploggrpc.WithHeaders(cfg.Headers))
+		if len(headers) > 0 {
+			opts = append(opts, otlploggrpc.WithHeaders(headers))
 		}
 		exporter, err = otlploggrpc.New(ctx, opts...)
 	default:

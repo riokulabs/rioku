@@ -19,7 +19,7 @@ func TestSetupStderrJSON(t *testing.T) {
 		Format: "json",
 		Output: "stderr",
 	}
-	lv, _, err := Setup(cfg)
+	lv, _, err := Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestSetupLevelFiltering(t *testing.T) {
 		Format: "json",
 		Output: "stderr",
 	}
-	lv, _, err := Setup(cfg)
+	lv, _, err := Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestSetupFileOutput(t *testing.T) {
 		Output: "file",
 		File:   config.LogFileConfig{Path: logPath},
 	}
-	_, _, err := Setup(cfg)
+	_, _, err := Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestSetupInvalidFormat(t *testing.T) {
 		Format: "xml",
 		Output: "stderr",
 	}
-	_, _, err := Setup(cfg)
+	_, _, err := Setup(cfg, nil)
 	if err == nil {
 		t.Error("expected error for invalid format")
 	}
@@ -92,7 +92,7 @@ func TestSetupInvalidLevel(t *testing.T) {
 		Format: "json",
 		Output: "stderr",
 	}
-	_, _, err := Setup(cfg)
+	_, _, err := Setup(cfg, nil)
 	if err == nil {
 		t.Error("expected error for invalid level")
 	}
@@ -104,7 +104,7 @@ func TestSetupInvalidOutput(t *testing.T) {
 		Format: "json",
 		Output: "syslog",
 	}
-	_, _, err := Setup(cfg)
+	_, _, err := Setup(cfg, nil)
 	if err == nil {
 		t.Error("expected error for invalid output")
 	}
@@ -119,7 +119,7 @@ func TestSetupFileCreatesDirectory(t *testing.T) {
 		Output: "file",
 		File:   config.LogFileConfig{Path: logPath},
 	}
-	_, _, err := Setup(cfg)
+	_, _, err := Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestSetupJSONOutputFields(t *testing.T) {
 		Output: "file",
 		File:   config.LogFileConfig{Path: logPath},
 	}
-	_, _, err := Setup(cfg)
+	_, _, err := Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func BenchmarkSlogStructured(b *testing.B) {
 		Output: "file",
 		File:   config.LogFileConfig{Path: logPath},
 	}
-	if _, _, err := Setup(cfg); err != nil {
+	if _, _, err := Setup(cfg, nil); err != nil {
 		b.Fatal(err)
 	}
 	logger := slog.Default().With("component", "gateway")
@@ -195,7 +195,7 @@ func TestSetupRuntimeLevelChange(t *testing.T) {
 		Format: "json",
 		Output: "stderr",
 	}
-	lv, _, err := Setup(cfg)
+	lv, _, err := Setup(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

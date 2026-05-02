@@ -25,7 +25,12 @@ func noopShutdown(_ context.Context) error { return nil }
 // Returns a LevelVar that can be used to change log level at runtime,
 // and a Shutdown function that must be called during daemon teardown to
 // flush any pending OTLP records and release exporter resources.
-func Setup(cfg config.LoggingConfig) (*slog.LevelVar, Shutdown, error) {
+//
+// resolver, when non-nil, resolves vault references in cfg.OTLP.Headers
+// before the OTLP exporter receives them (#169). Passing nil leaves
+// the headers literal — appropriate for setups that don't use vault
+// refs, or for very early bootstrap before the resolver exists.
+func Setup(cfg config.LoggingConfig, resolver SecretResolver) (*slog.LevelVar, Shutdown, error) {
 	var level slog.Level
 	switch cfg.Level {
 	case "debug":
@@ -90,7 +95,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, Shutdown, error) {
 	// Optionally attach the OTLP handler as a second destination.
 	shutdown := Shutdown(noopShutdown)
 	if cfg.OTLP.Enabled {
-		otlp, otlpShutdown, err := NewOTLPHandler(context.Background(), cfg.OTLP, level)
+		otlp, otlpShutdown, err := NewOTLPHandler(context.Background(), cfg.OTLP, level, resolver)
 		if err != nil {
 			// OTLP is best-effort: warn but continue with local output only.
 			_, _ = fmt.Fprintf(os.Stderr, "WARNING: OTLP log shipping unavailable: %v\n", err)

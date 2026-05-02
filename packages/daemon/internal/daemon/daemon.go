@@ -23,6 +23,7 @@ import (
 	riokusync "github.com/riokulabs/rioku/internal/sync"
 	"github.com/riokulabs/rioku/internal/tlsask"
 	"github.com/riokulabs/rioku/internal/tracestore"
+	"github.com/riokulabs/rioku/internal/vault"
 	riokuweb "github.com/riokulabs/rioku/web"
 
 	// Register store drivers.
@@ -54,6 +55,7 @@ type Daemon struct {
 	loggingShutdown logging.Shutdown
 	pidFile         string
 	startedAt       time.Time
+	vaultResolver   *vault.CachingResolver
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -79,8 +81,18 @@ func New(cfg *config.Config, cfgPath string) *Daemon {
 func (d *Daemon) Start(ctx context.Context) error {
 	d.startedAt = time.Now()
 
-	// 0. Initialize structured logging.
-	lv, loggingShutdown, err := logging.Setup(d.cfg.Logging)
+	// 0. Initialize the vault reference resolver before logging so
+	// OTLP Headers can resolve {vault://...} refs at handler build
+	// time. The default registers env, file, and op (1Password CLI)
+	// backends with a 5-minute cache and 15-minute rotation.
+	d.vaultResolver = vault.DefaultCaching(vault.DefaultOptions{
+		CacheTTL:         5 * time.Minute,
+		RotationInterval: 15 * time.Minute,
+	})
+	go d.vaultResolver.RotationLoop(ctx, 15*time.Minute)
+
+	// 0a. Initialize structured logging.
+	lv, loggingShutdown, err := logging.Setup(d.cfg.Logging, d.vaultResolver)
 	if err != nil {
 		return fmt.Errorf("logging setup: %w", err)
 	}
