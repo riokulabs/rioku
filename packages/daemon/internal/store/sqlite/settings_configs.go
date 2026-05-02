@@ -86,19 +86,21 @@ func (t *tx) GetTenantAuthPolicy(ctx context.Context, tenantID string) (*store.T
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT tenant_id, totp_policy, min_length, require_uppercase, require_lowercase,
 		   require_digit, require_symbol, idle_hours, absolute_hours, max_failed_attempts,
-		   lockout_minutes, updated_at
+		   lockout_minutes, password_history_count, updated_at
 		 FROM tenant_auth_policies WHERE tenant_id = ?`, tenantID)
 	var (
 		tID, totpPolicy, updatedAt              string
 		minLen, idleH, absH, maxFail, lockMin   int32
+		histCount                               int32
 		reqUpper, reqLower, reqDigit, reqSymbol int
 	)
 	err := row.Scan(&tID, &totpPolicy, &minLen, &reqUpper, &reqLower, &reqDigit, &reqSymbol,
-		&idleH, &absH, &maxFail, &lockMin, &updatedAt)
+		&idleH, &absH, &maxFail, &lockMin, &histCount, &updatedAt)
 	if err == sql.ErrNoRows {
 		return &store.TenantAuthPolicy{
 			TenantID: tenantID, TOTPPolicy: "optional", MinLength: 12,
 			IdleHours: 24, AbsoluteHours: 168, MaxFailedAttempts: 5, LockoutMinutes: 15,
+			PasswordHistoryCount: 5,
 		}, nil
 	}
 	if err != nil {
@@ -110,7 +112,8 @@ func (t *tx) GetTenantAuthPolicy(ctx context.Context, tenantID string) (*store.T
 		RequireDigit: reqDigit == 1, RequireSymbol: reqSymbol == 1,
 		IdleHours: idleH, AbsoluteHours: absH,
 		MaxFailedAttempts: maxFail, LockoutMinutes: lockMin,
-		UpdatedAt: parseTime(updatedAt),
+		PasswordHistoryCount: histCount,
+		UpdatedAt:            parseTime(updatedAt),
 	}, nil
 }
 
@@ -123,11 +126,20 @@ func (t *tx) UpsertTenantAuthPolicy(ctx context.Context, c *store.TenantAuthPoli
 		policy = "optional"
 	}
 	now := nowUTC()
+	// Caller-supplied PasswordHistoryCount is honoured verbatim,
+	// including zero (= disable reuse policy). Negative values are
+	// clamped to 0. The "default to 5" behaviour lives only on the
+	// migration's column default; once a row exists the operator
+	// owns the value.
+	histCount := c.PasswordHistoryCount
+	if histCount < 0 {
+		histCount = 0
+	}
 	_, err := t.sqlTx.ExecContext(ctx,
 		`INSERT INTO tenant_auth_policies (tenant_id, totp_policy, min_length, require_uppercase,
 		   require_lowercase, require_digit, require_symbol, idle_hours, absolute_hours,
-		   max_failed_attempts, lockout_minutes, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		   max_failed_attempts, lockout_minutes, password_history_count, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (tenant_id) DO UPDATE SET totp_policy=excluded.totp_policy,
 		   min_length=excluded.min_length,
 		   require_uppercase=excluded.require_uppercase,
@@ -136,11 +148,13 @@ func (t *tx) UpsertTenantAuthPolicy(ctx context.Context, c *store.TenantAuthPoli
 		   require_symbol=excluded.require_symbol,
 		   idle_hours=excluded.idle_hours, absolute_hours=excluded.absolute_hours,
 		   max_failed_attempts=excluded.max_failed_attempts,
-		   lockout_minutes=excluded.lockout_minutes, updated_at=excluded.updated_at`,
+		   lockout_minutes=excluded.lockout_minutes,
+		   password_history_count=excluded.password_history_count,
+		   updated_at=excluded.updated_at`,
 		c.TenantID, policy, c.MinLength,
 		boolToInt(c.RequireUppercase), boolToInt(c.RequireLowercase),
 		boolToInt(c.RequireDigit), boolToInt(c.RequireSymbol),
-		c.IdleHours, c.AbsoluteHours, c.MaxFailedAttempts, c.LockoutMinutes, now,
+		c.IdleHours, c.AbsoluteHours, c.MaxFailedAttempts, c.LockoutMinutes, histCount, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: upsert tenant_auth_policy: %w", err)

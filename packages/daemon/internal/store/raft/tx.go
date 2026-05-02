@@ -963,6 +963,14 @@ func (t *raftTx) EffectivePermissions(_ context.Context, _ string) ([]string, er
 	return nil, fmt.Errorf("raft: EffectivePermissions not implemented")
 }
 
+func (t *raftTx) SetUserPassword(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: SetUserPassword not implemented")
+}
+
+func (t *raftTx) AdminResetPassword(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: AdminResetPassword not implemented")
+}
+
 // ---------------------------------------------------------------------------
 // Permissions (stubs)
 // ---------------------------------------------------------------------------

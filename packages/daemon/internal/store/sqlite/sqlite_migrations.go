@@ -435,11 +435,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 29: password_history + tenant_auth_policies.password_history_count — #115.
+	if current < 29 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000029_password_history.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 29: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 29: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (29, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 29: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 29 down: drop password_history table + column.
+	if current >= 29 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000029_password_history.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 29: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 29: %w", err)
+		}
+	}
 
 	// Migration 28 down: drop parent_role_id column.
 	if current >= 28 {

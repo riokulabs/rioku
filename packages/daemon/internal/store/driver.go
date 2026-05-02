@@ -24,6 +24,7 @@ var (
 	ErrNoUnusedBackupCode    = fmt.Errorf("store: no unused backup codes")
 	ErrAccessPolicyNotFound  = fmt.Errorf("store: access policy not found")
 	ErrAccessPolicyDuplicate = fmt.Errorf("store: access policy with that name already exists")
+	ErrPasswordReuse         = fmt.Errorf("store: password matches a recent entry in the user's history")
 )
 
 // RoleInheritanceMaxDepth caps the recursion depth when resolving a
@@ -446,6 +447,23 @@ type Tx interface {
 
 	GetTenantAuthPolicy(ctx context.Context, tenantID string) (*TenantAuthPolicy, error)
 	UpsertTenantAuthPolicy(ctx context.Context, c *TenantAuthPolicy) (*TenantAuthPolicy, error)
+
+	// --- Password history (#115) ---
+
+	// SetUserPassword updates a user's password after enforcing the
+	// reuse policy. The new hash is rejected with ErrPasswordReuse
+	// when it matches any of the user's last
+	// tenant_auth_policies.password_history_count hashes (the
+	// current hash counts as one). On success the previous hash is
+	// rotated into password_history and trimmed to the depth.
+	SetUserPassword(ctx context.Context, userID, newHash string) error
+
+	// AdminResetPassword bypasses the reuse policy. The new hash is
+	// applied unconditionally and rotated into history. Callers are
+	// responsible for emitting the audit entry that names the
+	// admin actor — store-layer audit fan-in is too coarse to
+	// distinguish a normal change from an admin override.
+	AdminResetPassword(ctx context.Context, userID, newHash string) error
 
 	GetObservabilityConfig(ctx context.Context, tenantID string) (*ObservabilityConfig, error)
 	UpsertObservabilityConfig(ctx context.Context, c *ObservabilityConfig) (*ObservabilityConfig, error)
@@ -1341,18 +1359,19 @@ type NetworkConfig struct {
 
 // TenantAuthPolicy is a singleton-per-tenant password/TOTP policy.
 type TenantAuthPolicy struct {
-	TenantID          string
-	TOTPPolicy        string // all | admins | optional
-	MinLength         int32
-	RequireUppercase  bool
-	RequireLowercase  bool
-	RequireDigit      bool
-	RequireSymbol     bool
-	IdleHours         int32
-	AbsoluteHours     int32
-	MaxFailedAttempts int32
-	LockoutMinutes    int32
-	UpdatedAt         time.Time
+	TenantID             string
+	TOTPPolicy           string // all | admins | optional
+	MinLength            int32
+	RequireUppercase     bool
+	RequireLowercase     bool
+	RequireDigit         bool
+	RequireSymbol        bool
+	IdleHours            int32
+	AbsoluteHours        int32
+	MaxFailedAttempts    int32
+	LockoutMinutes       int32
+	PasswordHistoryCount int32 // #115 reuse-prevention depth (last N hashes)
+	UpdatedAt            time.Time
 }
 
 // ObservabilityConfig holds metrics/log/trace settings per tenant.

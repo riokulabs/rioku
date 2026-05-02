@@ -182,7 +182,10 @@ func openTempStore(t *testing.T) (store.Driver, func()) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := d.Open(context.Background(), store.DriverConfig{Path: ":memory:"}); err != nil {
+	// Use a per-test temp file rather than :memory: so transactions
+	// can see committed state across goroutines / connections.
+	dbPath := t.TempDir() + "/test.db"
+	if err := d.Open(context.Background(), store.DriverConfig{Path: dbPath}); err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	if err := d.Migrate(context.Background(), store.MigrateUp); err != nil {
