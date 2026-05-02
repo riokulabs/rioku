@@ -105,6 +105,14 @@ func Setup(cfg config.LoggingConfig, resolver SecretResolver) (*slog.LevelVar, S
 		}
 	}
 
+	// Wrap the entire chain with the redaction handler so PII is
+	// scrubbed before any downstream sink (console, file, OTLP) sees
+	// it. Done last so a single rule applies uniformly to every
+	// destination.
+	if len(cfg.RedactRules) > 0 {
+		handler = NewRedactingHandler(handler, cfg.RedactRules)
+	}
+
 	slog.SetDefault(slog.New(handler))
 	return &lv, shutdown, nil
 }

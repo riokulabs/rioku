@@ -43,11 +43,44 @@ type Config struct {
 
 // LoggingConfig controls daemon log output.
 type LoggingConfig struct {
-	Level  string        `yaml:"level"`
-	Format string        `yaml:"format"`
-	Output string        `yaml:"output"`
-	File   LogFileConfig `yaml:"file"`
-	OTLP   LogOTLPConfig `yaml:"otlp"`
+	Level       string        `yaml:"level"`
+	Format      string        `yaml:"format"`
+	Output      string        `yaml:"output"`
+	File        LogFileConfig `yaml:"file"`
+	OTLP        LogOTLPConfig `yaml:"otlp"`
+	RedactRules []FilterRule  `yaml:"redact_rules"`
+}
+
+// FilterRule describes a single PII redaction rule applied to log
+// records before they are emitted by downstream handlers. The rule
+// type lives in the config package (and not in internal/logging) to
+// avoid an import cycle: internal/logging already imports
+// internal/config.
+//
+// Kind selects the redaction algorithm:
+//
+//   - "ip_mask"       — masks IP-typed or IP-string attribute values.
+//     IPv4: zero the last octet. IPv6: zero the
+//     last 64 bits.
+//   - "hash"          — replaces the value with `sha256:<8-hex-prefix>`
+//     of the original. Deterministic, so the same
+//     input yields the same output across log lines
+//     (correlation-safe).
+//   - "cookie_redact" — when the attribute key matches `cookie` or
+//     `set-cookie` (case-insensitive), parses the
+//     cookie string and replaces VALUE portions with
+//     `[redacted]` while preserving cookie names.
+//
+// Target is the exact attribute key the rule applies to. Glob matching
+// (e.g. `request.headers.*`) is a planned follow-up; v1 honours exact
+// match only.
+//
+// Params is reserved for future-facing rule configuration. v1 does not
+// consume any params (kept for forward compatibility).
+type FilterRule struct {
+	Kind   string            `yaml:"kind"`
+	Target string            `yaml:"target"`
+	Params map[string]string `yaml:"params"`
 }
 
 // LogFileConfig controls file-based log output.
