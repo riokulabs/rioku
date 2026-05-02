@@ -959,6 +959,10 @@ func (t *raftTx) DeleteRole(_ context.Context, _ string) error {
 	return fmt.Errorf("raft: DeleteRole not implemented")
 }
 
+func (t *raftTx) EffectivePermissions(_ context.Context, _ string) ([]string, error) {
+	return nil, fmt.Errorf("raft: EffectivePermissions not implemented")
+}
+
 // ---------------------------------------------------------------------------
 // Permissions (stubs)
 // ---------------------------------------------------------------------------

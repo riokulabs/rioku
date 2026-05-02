@@ -19,10 +19,19 @@ import (
 var (
 	ErrRoleImmutable         = fmt.Errorf("store: superadmin role cannot be modified or deleted")
 	ErrRoleNotFound          = fmt.Errorf("store: role not found")
+	ErrRoleCycle             = fmt.Errorf("store: role inheritance forms a cycle")
+	ErrRoleDepthExceeded     = fmt.Errorf("store: role inheritance depth limit exceeded")
 	ErrNoUnusedBackupCode    = fmt.Errorf("store: no unused backup codes")
 	ErrAccessPolicyNotFound  = fmt.Errorf("store: access policy not found")
 	ErrAccessPolicyDuplicate = fmt.Errorf("store: access policy with that name already exists")
 )
+
+// RoleInheritanceMaxDepth caps the recursion depth when resolving a
+// role's effective permission set. Beyond this depth the resolver
+// fails with ErrRoleDepthExceeded — the limit catches both legitimate
+// over-deep nesting and pathological cycles that the visited-set
+// check somehow misses.
+const RoleInheritanceMaxDepth = 16
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -268,6 +277,15 @@ type Tx interface {
 	UpdateRole(ctx context.Context, id string, params UpdateRoleParams) (*Role, error)
 	// DeleteRole deletes a custom role. Returns ErrRoleImmutable if the role is superadmin.
 	DeleteRole(ctx context.Context, id string) error
+	// EffectivePermissions resolves a role's full permission set
+	// including all inherited permissions from ancestors. Returns
+	// ErrRoleCycle when the inheritance chain forms a cycle and
+	// ErrRoleDepthExceeded when it nests deeper than the policy
+	// limit (RoleInheritanceMaxDepth). Built-in roles never have
+	// parents, so for them this matches the role's own Permissions
+	// list. Implements the #117 escalation-prevention guard. The
+	// returned slice is sorted; duplicates are deduplicated.
+	EffectivePermissions(ctx context.Context, roleID string) ([]string, error)
 
 	// --- Permissions ---
 

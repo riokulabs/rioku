@@ -19,9 +19,9 @@ func (t *tx) CreateRole(ctx context.Context, params store.CreateRoleParams) (*st
 	now := nowUTC()
 	tenantID := store.TenantIDFromContext(ctx)
 	_, err := t.sqlTx.ExecContext(ctx,
-		`INSERT INTO roles (id, tenant_id, name, description, is_builtin, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, 0, ?, ?)`,
-		params.ID, tenantID, params.Name, params.Description, now, now,
+		`INSERT INTO roles (id, tenant_id, name, description, is_builtin, parent_role_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
+		params.ID, tenantID, params.Name, params.Description, params.ParentRoleID, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: create role: %w", err)
@@ -41,17 +41,22 @@ func (t *tx) CreateRole(ctx context.Context, params store.CreateRoleParams) (*st
 func (t *tx) GetRole(ctx context.Context, id string) (*store.Role, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles WHERE id = ? AND (tenant_id IS NULL OR tenant_id = ?)`, id, tenantID)
+		`SELECT id, name, description, is_builtin, parent_role_id, created_at, updated_at FROM roles WHERE id = ? AND (tenant_id IS NULL OR tenant_id = ?)`, id, tenantID)
 	r := &store.Role{}
 	var isBuiltinInt int
+	var parentRoleID sql.NullString
 	var createdStr, updatedStr string
-	if err := row.Scan(&r.ID, &r.Name, &r.Description, &isBuiltinInt, &createdStr, &updatedStr); err != nil {
+	if err := row.Scan(&r.ID, &r.Name, &r.Description, &isBuiltinInt, &parentRoleID, &createdStr, &updatedStr); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrRoleNotFound
 		}
 		return nil, fmt.Errorf("mysql: get role: %w", err)
 	}
 	r.IsBuiltin = isBuiltinInt == 1
+	if parentRoleID.Valid {
+		s := parentRoleID.String
+		r.ParentRoleID = &s
+	}
 	r.CreatedAt = parseTime(createdStr)
 	r.UpdatedAt = parseTime(updatedStr)
 	perms, err := t.getRolePermissions(ctx, id)
@@ -83,7 +88,7 @@ func (t *tx) getRolePermissions(ctx context.Context, roleID string) ([]string, e
 func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, name, description, is_builtin, created_at, updated_at FROM roles WHERE tenant_id IS NULL OR tenant_id = ? ORDER BY name`, tenantID)
+		`SELECT id, name, description, is_builtin, parent_role_id, created_at, updated_at FROM roles WHERE tenant_id IS NULL OR tenant_id = ? ORDER BY name`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: list roles: %w", err)
 	}
@@ -92,11 +97,16 @@ func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
 	for rows.Next() {
 		r := &store.Role{}
 		var isBuiltinInt int
+		var parentRoleID sql.NullString
 		var createdStr, updatedStr string
-		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &isBuiltinInt, &createdStr, &updatedStr); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &isBuiltinInt, &parentRoleID, &createdStr, &updatedStr); err != nil {
 			return nil, err
 		}
 		r.IsBuiltin = isBuiltinInt == 1
+		if parentRoleID.Valid {
+			s := parentRoleID.String
+			r.ParentRoleID = &s
+		}
 		r.CreatedAt = parseTime(createdStr)
 		r.UpdatedAt = parseTime(updatedStr)
 		perms, err := t.getRolePermissions(ctx, r.ID)
@@ -131,6 +141,21 @@ func (t *tx) UpdateRole(ctx context.Context, id string, params store.UpdateRoleP
 			return nil, fmt.Errorf("mysql: update role description: %w", err)
 		}
 	}
+	if params.ClearParent {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE roles SET parent_role_id = NULL, updated_at = ? WHERE id = ? AND tenant_id = ?`,
+			now, id, tenantID,
+		); err != nil {
+			return nil, fmt.Errorf("mysql: clear parent_role_id: %w", err)
+		}
+	} else if params.ParentRoleID != nil {
+		if _, err := t.sqlTx.ExecContext(ctx,
+			`UPDATE roles SET parent_role_id = ?, updated_at = ? WHERE id = ? AND tenant_id = ?`,
+			*params.ParentRoleID, now, id, tenantID,
+		); err != nil {
+			return nil, fmt.Errorf("mysql: set parent_role_id: %w", err)
+		}
+	}
 	for _, permID := range params.AddPerms {
 		if _, err := t.sqlTx.ExecContext(ctx,
 			`INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)`,
@@ -149,6 +174,13 @@ func (t *tx) UpdateRole(ctx context.Context, id string, params store.UpdateRoleP
 	}
 	t.emit("roles", id, "UPDATE")
 	return t.GetRole(ctx, id)
+}
+
+// EffectivePermissions resolves the role's full permission set,
+// walking the parent_role_id chain. Cycle and depth-limit detection
+// per the store's escalation-prevention contract (#117).
+func (t *tx) EffectivePermissions(ctx context.Context, roleID string) ([]string, error) {
+	return store.ComputeEffectivePermissions(ctx, t.GetRole, roleID)
 }
 
 func (t *tx) DeleteRole(ctx context.Context, id string) error {
