@@ -27,6 +27,7 @@ import (
 	_ "github.com/riokulabs/rioku/plugins/mirror"
 	_ "github.com/riokulabs/rioku/plugins/oas-validator"
 	_ "github.com/riokulabs/rioku/plugins/rate-limit"
+	_ "github.com/riokulabs/rioku/plugins/transform"
 )
 
 func main() {
