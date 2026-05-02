@@ -299,9 +299,6 @@ func TestCircuitBreaker_ConcurrentFailures_DontDoubleCount(t *testing.T) {
 	c := &CircuitBreaker{FailureThreshold: threshold, TimeoutSeconds: 30}
 	provisioned(t, c)
 
-	var openedTransitions atomic.Int32
-	// Wrap the upstream handler to observe transitions, so we
-	// can confirm the breaker did open at all.
 	failingHandler := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(500)
 		return nil
@@ -315,12 +312,7 @@ func TestCircuitBreaker_ConcurrentFailures_DontDoubleCount(t *testing.T) {
 			defer wg.Done()
 			<-start
 			req, rec := newReq()
-			beforeState := c.snapshotState()
 			_ = c.ServeHTTP(rec, req, failingHandler)
-			afterState := c.snapshotState()
-			if beforeState == stateClosed && afterState == stateOpen {
-				openedTransitions.Add(1)
-			}
 		}()
 	}
 	close(start)
@@ -329,14 +321,12 @@ func TestCircuitBreaker_ConcurrentFailures_DontDoubleCount(t *testing.T) {
 	if c.curState != stateOpen {
 		t.Fatalf("state = %s, want open after concurrent failures", c.curState)
 	}
-	// Exactly one closed→open transition is required. With the
-	// mutex serialising recordResult, only one goroutine sees
-	// the threshold crossing — additional goroutines either see
-	// the breaker already open (admit returns false, no upstream
-	// call) or see it after the transition (admit lets them
-	// through but recordResult finds state already open and
-	// no-ops on counter math).
-	if got := openedTransitions.Load(); got != 1 {
+	// Exactly one closed→open transition fires inside
+	// recordResult. The breaker's internal counter is the
+	// only race-free witness; observing before/after via
+	// snapshotState across the ServeHTTP call boundary is a
+	// TOCTOU so flaky in practice.
+	if got := c.observedClosedToOpenTransitions(); got != 1 {
 		t.Fatalf("closed->open transitions = %d, want exactly 1", got)
 	}
 }
@@ -346,6 +336,16 @@ func (c *CircuitBreaker) snapshotState() state {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.curState
+}
+
+// observedClosedToOpenTransitions returns the count of closed→open
+// transitions that have actually fired inside recordResult. Read
+// under the same lock that increments it so the test sees a
+// consistent value.
+func (c *CircuitBreaker) observedClosedToOpenTransitions() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closedToOpenTransitions
 }
 
 func TestCircuitBreaker_Provision_RejectsBadConfig(t *testing.T) {

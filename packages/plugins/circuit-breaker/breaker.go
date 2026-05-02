@@ -105,6 +105,16 @@ type CircuitBreaker struct {
 	consecSuccesses  int
 	openedAt         time.Time
 	halfOpenInFlight int
+
+	// closedToOpenTransitions counts how many times the breaker
+	// has crossed from closed → open. Bumped under mu inside
+	// recordResult; surfaced via observedClosedToOpenTransitions
+	// for tests that need to verify the transition fires exactly
+	// once under concurrent load (the snapshot-before / snapshot-
+	// after test pattern is racy because two goroutines can both
+	// observe before=closed and after=open even when only one
+	// of them caused the transition).
+	closedToOpenTransitions int64
 }
 
 // CaddyModule registers the handler under
@@ -229,6 +239,7 @@ func (c *CircuitBreaker) recordResult(failed bool, probe bool, now time.Time) {
 				c.curState = stateOpen
 				c.openedAt = now
 				c.consecSuccesses = 0
+				c.closedToOpenTransitions++
 				if c.logger != nil {
 					c.logger.Warn("circuit breaker open",
 						zap.String("breaker", c.BreakerName),
