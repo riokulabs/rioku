@@ -451,11 +451,38 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migration 40: routes.log_sample_rate — #119.
+	if current < 40 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000040_log_sampling.up.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read up migration 40: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply up migration 40: %w", err)
+		}
+		_, err = d.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (40, 0)`)
+		if err != nil {
+			return fmt.Errorf("sqlite: record schema version 40: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migration 40 down: drop routes.log_sample_rate.
+	if current >= 40 {
+		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000040_log_sampling.down.sql")
+		if err != nil {
+			return fmt.Errorf("sqlite: read down migration 40: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+			return fmt.Errorf("sqlite: apply down migration 40: %w", err)
+		}
+	}
 
 	// Migration 29 down: drop password_history table + column.
 	if current >= 29 {

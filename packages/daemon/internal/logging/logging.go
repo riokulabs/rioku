@@ -113,6 +113,13 @@ func Setup(cfg config.LoggingConfig, resolver SecretResolver) (*slog.LevelVar, S
 		handler = NewRedactingHandler(handler, cfg.RedactRules)
 	}
 
+	// Apply per-route sampling on the OUTERMOST layer so a sampled-out
+	// record skips every downstream handler — including the redactor's
+	// regex work and the OTLP exporter's IO. Records without a
+	// log_sample_rate attribute pass through unchanged, so this is
+	// a no-op for non-route logs.
+	handler = NewSamplingHandler(handler)
+
 	slog.SetDefault(slog.New(handler))
 	return &lv, shutdown, nil
 }
