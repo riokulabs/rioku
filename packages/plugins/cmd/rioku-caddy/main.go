@@ -20,6 +20,7 @@ import (
 	// its init() function, so blank-importing is sufficient.
 	_ "github.com/riokulabs/rioku/plugins/auth-apikey"
 	_ "github.com/riokulabs/rioku/plugins/auth-jwt"
+	_ "github.com/riokulabs/rioku/plugins/auth-oidc"
 	_ "github.com/riokulabs/rioku/plugins/canary"
 	_ "github.com/riokulabs/rioku/plugins/circuit-breaker"
 	_ "github.com/riokulabs/rioku/plugins/cors"
