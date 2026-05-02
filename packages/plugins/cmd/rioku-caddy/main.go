@@ -23,6 +23,7 @@ import (
 	_ "github.com/riokulabs/rioku/plugins/canary"
 	_ "github.com/riokulabs/rioku/plugins/circuit-breaker"
 	_ "github.com/riokulabs/rioku/plugins/cors"
+	_ "github.com/riokulabs/rioku/plugins/mirror"
 	_ "github.com/riokulabs/rioku/plugins/rate-limit"
 )
 
