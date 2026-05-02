@@ -3,5 +3,6 @@ go 1.26.1
 use (
 	./packages/build-service
 	./packages/daemon
+	./packages/plugins
 	./packages/proto/gen/go
 )

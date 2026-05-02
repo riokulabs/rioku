@@ -167,7 +167,11 @@ help:
 all: proto build web-build
 
 ## build: Build daemon and CLI (same binary)
-build: build-daemon
+build: build-daemon build-caddy
+
+## build-caddy: Build the bundled rioku-caddy binary (Caddy + first-party plugins)
+build-caddy:
+	cd $(PKG)/plugins && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-caddy ./cmd/rioku-caddy
 
 ## build-daemon: Build the rioku daemon binary (embeds admin panel)
 build-daemon: web-embed
