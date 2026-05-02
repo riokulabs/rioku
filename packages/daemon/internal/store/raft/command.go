@@ -80,16 +80,46 @@ func encodeCommand(op CommandOp, data any) ([]byte, error) {
 
 // Bucket names in bbolt.
 const (
-	bucketRoutes         = "routes"
-	bucketServices       = "services"
-	bucketUpstreams      = "upstreams"
-	bucketPolicies       = "policies"
-	bucketPolicyBindings = "policy_bindings"
-	bucketAPIKeys        = "api_keys"
-	bucketAPIKeysByHash  = "api_keys_by_hash"
-	bucketConfigVersions = "config_versions"
-	bucketAuditLog       = "audit_log"
-	bucketMeta           = "meta"
+	bucketRoutes             = "routes"
+	bucketServices           = "services"
+	bucketUpstreams          = "upstreams"
+	bucketUpstreamsByService = "upstreams_by_service"
+	bucketPolicies           = "policies"
+	bucketPolicyBindings     = "policy_bindings"
+	bucketAPIKeys            = "api_keys"
+	bucketAPIKeysByHash      = "api_keys_by_hash"
+	bucketConfigVersions     = "config_versions"
+	bucketAuditLog           = "audit_log"
+	bucketMeta               = "meta"
 )
 
 const metaVersionCounter = "version_counter"
+
+// upstreamIndexSep separates serviceID from upstreamID in the
+// bucketUpstreamsByService index key. The character must not appear in
+// UUID-shaped IDs so prefix scans by serviceID are unambiguous.
+const upstreamIndexSep = "/"
+
+// upstreamIndexKey returns the index key used to map a service to one of
+// its upstreams. The key layout is "<serviceID>/<upstreamID>".
+//
+// Listing all upstreams for a service is a prefix-bounded cursor walk
+// using "<serviceID>/" as the seek prefix, which makes ListServices an
+// O(N + total_upstreams_for_those_services) operation instead of
+// O(N * total_upstreams).
+func upstreamIndexKey(serviceID, upstreamID string) []byte {
+	out := make([]byte, 0, len(serviceID)+len(upstreamIndexSep)+len(upstreamID))
+	out = append(out, serviceID...)
+	out = append(out, upstreamIndexSep...)
+	out = append(out, upstreamID...)
+	return out
+}
+
+// upstreamIndexPrefix returns the seek prefix for all upstream-index
+// entries belonging to a single service.
+func upstreamIndexPrefix(serviceID string) []byte {
+	out := make([]byte, 0, len(serviceID)+len(upstreamIndexSep))
+	out = append(out, serviceID...)
+	out = append(out, upstreamIndexSep...)
+	return out
+}

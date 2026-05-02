@@ -2,13 +2,16 @@ package raft
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	bolt "go.etcd.io/bbolt"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -398,6 +401,136 @@ func BenchmarkWriteRoute(b *testing.B) {
 		}
 		_ = tx.Commit()
 	}
+}
+
+// BenchmarkListServices_Index measures ListServices on a corpus sized
+// to mimic the issue-reported pain point: 10k services × 5 upstreams
+// each = 50k upstream payloads. With the upstreams_by_service index in
+// place ListServices is O(N + total_upstreams_for_visited_services);
+// without it (the legacy code path) it was O(N * total_upstreams).
+func BenchmarkListServices_Index(b *testing.B) {
+	d, ctx, _ := benchmarkSeedServices(b, 10000, 5, "127.0.0.1:17797")
+	defer func() { _ = d.Close() }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rtx, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+		svcs, err := rtx.ListServices(ctx)
+		if err != nil {
+			b.Fatalf("list services: %v", err)
+		}
+		_ = rtx.Rollback()
+		if len(svcs) != 10000 {
+			b.Fatalf("got %d services, want 10000", len(svcs))
+		}
+	}
+}
+
+// BenchmarkListServices_Scan reproduces the legacy O(N*M) lookup path
+// against the same corpus so the gap with BenchmarkListServices_Index is
+// directly comparable. The scan reads service rows but resolves their
+// upstreams via a full bucket walk — exactly the pre-index behaviour.
+func BenchmarkListServices_Scan(b *testing.B) {
+	d, ctx, _ := benchmarkSeedServices(b, 10000, 5, "127.0.0.1:17796")
+	defer func() { _ = d.Close() }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rtx, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+		svcs, err := listServicesScan(rtx.(*raftTx))
+		if err != nil {
+			b.Fatalf("scan list services: %v", err)
+		}
+		_ = rtx.Rollback()
+		if len(svcs) != 10000 {
+			b.Fatalf("got %d services, want 10000", len(svcs))
+		}
+	}
+}
+
+// listServicesScan replays the pre-index ListServices implementation:
+// for every service, walk the entire upstreams bucket. Kept here in test
+// scope only so the benchmark can quantify the improvement. Production
+// code uses the index-backed loadUpstreamsForService.
+func listServicesScan(t *raftTx) ([]*riokuv1.Service, error) {
+	var services []*riokuv1.Service
+	err := t.driver.readFSM(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketServices))
+		return b.ForEach(func(k, v []byte) error {
+			var svc riokuv1.Service
+			if err := protojson.Unmarshal(v, &svc); err != nil {
+				return err
+			}
+			ub := tx.Bucket([]byte(bucketUpstreams))
+			_ = ub.ForEach(func(_, uv []byte) error {
+				var entry struct {
+					ServiceID string `json:"service_id"`
+				}
+				if json.Unmarshal(uv, &entry) == nil && entry.ServiceID == string(k) {
+					var u riokuv1.Upstream
+					if upstreamUnmarshaler.Unmarshal(uv, &u) == nil {
+						svc.Upstreams = append(svc.Upstreams, &u)
+					}
+				}
+				return nil
+			})
+			services = append(services, &svc)
+			return nil
+		})
+	})
+	return services, err
+}
+
+// benchmarkSeedServices boots a single-node raft Driver, waits for
+// leadership, then writes nServices × upstreamsEach via CreateService.
+// Returns the live driver, a background context, and the leader-wait
+// deadline used (handy for failure reporting).
+func benchmarkSeedServices(b *testing.B, nServices, upstreamsEach int, addr string) (*Driver, context.Context, time.Time) {
+	b.Helper()
+	dir := b.TempDir()
+	d := &Driver{}
+	d.SetRaftConfig(RaftConfig{
+		NodeID:        "bench-list-svc-node",
+		DataDir:       filepath.Join(dir, "data"),
+		BindAddr:      addr,
+		AdvertiseAddr: addr,
+		Bootstrap:     true,
+	})
+
+	ctx := context.Background()
+	if err := d.Open(ctx, store.DriverConfig{}); err != nil {
+		b.Fatalf("open: %v", err)
+	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	for !d.IsLeader() && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !d.IsLeader() {
+		b.Fatal("not leader")
+	}
+
+	for i := 0; i < nServices; i++ {
+		ups := make([]*riokuv1.Upstream, 0, upstreamsEach)
+		for j := 0; j < upstreamsEach; j++ {
+			ups = append(ups, &riokuv1.Upstream{
+				Address: fmt.Sprintf("10.%d.%d.%d:80", (i>>16)&0xFF, (i>>8)&0xFF, j+1),
+				Weight:  int32(j + 1),
+			})
+		}
+		tx, _ := d.Begin(ctx, store.TxOptions{})
+		_, err := tx.CreateService(ctx, &riokuv1.Service{
+			Name:      fmt.Sprintf("bench-svc-%d", i),
+			Upstreams: ups,
+		})
+		if err != nil {
+			b.Fatalf("create service %d: %v", i, err)
+		}
+		if err := tx.Commit(); err != nil {
+			b.Fatalf("commit %d: %v", i, err)
+		}
+	}
+	return d, ctx, deadline
 }
 
 func BenchmarkReadRoute(b *testing.B) {

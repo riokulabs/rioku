@@ -85,6 +85,14 @@ func (d *Driver) Open(ctx context.Context, cfg store.DriverConfig) error {
 		return fmt.Errorf("raft: init buckets: %w", err)
 	}
 
+	// One-shot migration: ensure the upstreams_by_service index is fully
+	// populated from the upstreams bucket. New installs are no-ops; legacy
+	// dbs that pre-date the index get backfilled exactly once. Idempotent.
+	if err := d.fsm.rebuildUpstreamIndex(); err != nil {
+		_ = fsmDB.Close()
+		return fmt.Errorf("raft: rebuild upstream index: %w", err)
+	}
+
 	// Set up raft log store and stable store (separate bbolt db).
 	raftDBPath := filepath.Join(d.config.DataDir, "raft.db")
 	boltStore, err := raftboltdb.NewBoltStore(raftDBPath)

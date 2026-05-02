@@ -273,27 +273,8 @@ func (t *raftTx) GetService(_ context.Context, id string) (*riokuv1.Service, err
 		if err := protojson.Unmarshal(raw, &svc); err != nil {
 			return err
 		}
-
-		// Fetch upstreams.
-		ub := tx.Bucket([]byte(bucketUpstreams))
-		svc.Upstreams = nil
-		return ub.ForEach(func(k, v []byte) error {
-			var entry struct {
-				ServiceID string `json:"service_id"`
-			}
-			if err := json.Unmarshal(v, &entry); err != nil {
-				return nil // skip malformed entries
-			}
-			if entry.ServiceID != id {
-				return nil
-			}
-			var u riokuv1.Upstream
-			if err := protojson.Unmarshal(v, &u); err != nil {
-				return nil
-			}
-			svc.Upstreams = append(svc.Upstreams, &u)
-			return nil
-		})
+		svc.Upstreams = loadUpstreamsForService(tx, id)
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -310,27 +291,81 @@ func (t *raftTx) ListServices(_ context.Context) ([]*riokuv1.Service, error) {
 			if err := protojson.Unmarshal(v, &svc); err != nil {
 				return err
 			}
-
-			// Fetch upstreams for this service.
-			ub := tx.Bucket([]byte(bucketUpstreams))
-			_ = ub.ForEach(func(uk, uv []byte) error {
-				var entry struct {
-					ServiceID string `json:"service_id"`
-				}
-				if json.Unmarshal(uv, &entry) == nil && entry.ServiceID == string(k) {
-					var u riokuv1.Upstream
-					if protojson.Unmarshal(uv, &u) == nil {
-						svc.Upstreams = append(svc.Upstreams, &u)
-					}
-				}
-				return nil
-			})
-
+			svc.Upstreams = loadUpstreamsForService(tx, string(k))
 			services = append(services, &svc)
 			return nil
 		})
 	})
 	return services, err
+}
+
+// upstreamUnmarshaler tolerates the wrapper "service_id" field that
+// marshalUpstreamWithServiceID emits alongside the proto-shaped fields.
+// Without DiscardUnknown the unmarshal fails outright, leaving callers
+// with empty upstream lists — the long-standing bug noted in
+// TestTxUpdateService that the index work is incidentally fixing.
+var upstreamUnmarshaler = protojson.UnmarshalOptions{DiscardUnknown: true}
+
+// loadUpstreamsForService resolves a service's upstreams via the
+// upstreams_by_service index. The cursor walk is bounded by the
+// "<serviceID>/" prefix, so cost is O(upstreams_for_service) rather
+// than the previous O(total_upstreams) full-bucket scan.
+//
+// Falls back to a full-bucket scan if the index has zero entries for
+// the service — covers the boundary case of a snapshot that lands
+// before the migration shim runs.
+func loadUpstreamsForService(tx *bolt.Tx, serviceID string) []*riokuv1.Upstream {
+	idx := tx.Bucket([]byte(bucketUpstreamsByService))
+	ub := tx.Bucket([]byte(bucketUpstreams))
+	if ub == nil {
+		return nil
+	}
+
+	var out []*riokuv1.Upstream
+
+	if idx != nil {
+		prefix := upstreamIndexPrefix(serviceID)
+		c := idx.Cursor()
+		for k, v := c.Seek(prefix); k != nil && hasPrefix(k, prefix); k, v = c.Next() {
+			raw := ub.Get(v)
+			if raw == nil {
+				// Index points at a deleted upstream — skip; the next
+				// write path will rewrite the index.
+				continue
+			}
+			var u riokuv1.Upstream
+			if err := upstreamUnmarshaler.Unmarshal(raw, &u); err != nil {
+				continue
+			}
+			out = append(out, &u)
+		}
+		if len(out) > 0 {
+			return out
+		}
+	}
+
+	// Index miss — fall back to scanning the upstreams bucket. Should
+	// only happen for a freshly-restored snapshot that pre-dates the
+	// index migration. The Open and Restore paths both run
+	// rebuildUpstreamIndex, so subsequent reads hit the fast path.
+	_ = ub.ForEach(func(_, v []byte) error {
+		var entry struct {
+			ServiceID string `json:"service_id"`
+		}
+		if err := json.Unmarshal(v, &entry); err != nil {
+			return nil
+		}
+		if entry.ServiceID != serviceID {
+			return nil
+		}
+		var u riokuv1.Upstream
+		if err := upstreamUnmarshaler.Unmarshal(v, &u); err != nil {
+			return nil
+		}
+		out = append(out, &u)
+		return nil
+	})
+	return out
 }
 
 func (t *raftTx) UpdateService(_ context.Context, svc *riokuv1.Service) (*riokuv1.Service, error) {
