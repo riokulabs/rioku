@@ -18,6 +18,7 @@ import (
 
 	// First-party Rioku plugins. Each module registers itself in
 	// its init() function, so blank-importing is sufficient.
+	_ "github.com/riokulabs/rioku/plugins/auth-apikey"
 	_ "github.com/riokulabs/rioku/plugins/auth-jwt"
 )
 
