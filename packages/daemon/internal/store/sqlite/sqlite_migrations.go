@@ -451,6 +451,32 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migrations 30-33: API management — Plans / Applications /
+	// Subscriptions / api_keys ↔ subscription FK extension (#164).
+	for _, m := range []struct {
+		ver  int
+		name string
+	}{
+		{30, "plans"},
+		{31, "applications"},
+		{32, "subscriptions"},
+		{33, "api_keys_subscriptions"},
+	} {
+		if current < m.ver {
+			data, err := store.MigrationFS.ReadFile(fmt.Sprintf("migrations/sqlite/%06d_%s.up.sql", m.ver, m.name))
+			if err != nil {
+				return fmt.Errorf("sqlite: read up migration %d: %w", m.ver, err)
+			}
+			if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+				return fmt.Errorf("sqlite: apply up migration %d: %w", m.ver, err)
+			}
+			if _, err := d.db.ExecContext(ctx,
+				`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (?, 0)`, m.ver); err != nil {
+				return fmt.Errorf("sqlite: record schema version %d: %w", m.ver, err)
+			}
+		}
+	}
+
 	// Migration 39: audit_log unification — #182, D6.
 	if current < 39 {
 		data, err := store.MigrationFS.ReadFile("migrations/sqlite/000039_audit_unification.up.sql")
@@ -508,6 +534,27 @@ func (d *driver) migrateDown(ctx context.Context) error {
 		}
 		if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
 			return fmt.Errorf("sqlite: apply down migration 39: %w", err)
+		}
+	}
+
+	// Migrations 33-30 down: drop API-management tables (reverse order).
+	for _, m := range []struct {
+		ver  int
+		name string
+	}{
+		{33, "api_keys_subscriptions"},
+		{32, "subscriptions"},
+		{31, "applications"},
+		{30, "plans"},
+	} {
+		if current >= m.ver {
+			data, err := store.MigrationFS.ReadFile(fmt.Sprintf("migrations/sqlite/%06d_%s.down.sql", m.ver, m.name))
+			if err != nil {
+				return fmt.Errorf("sqlite: read down migration %d: %w", m.ver, err)
+			}
+			if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+				return fmt.Errorf("sqlite: apply down migration %d: %w", m.ver, err)
+			}
 		}
 	}
 

@@ -318,6 +318,56 @@ type Tx interface {
 	// DeleteTOTPBackupCodes removes all backup codes for a user (called on TOTP disable/reset).
 	DeleteTOTPBackupCodes(ctx context.Context, userID string) error
 
+	// --- API management: Plans (#164) ---
+
+	// CreatePlan persists a new plan in the calling tenant. The new
+	// plan starts in PlanStatusStaging. Returns ErrPlanNameTaken if
+	// the (tenant, name) pair already exists.
+	CreatePlan(ctx context.Context, params CreatePlanParams) (*Plan, error)
+	// GetPlan returns a plan by id, scoped to the active tenant.
+	GetPlan(ctx context.Context, id string) (*Plan, error)
+	// ListPlans returns every plan in the active tenant, ordered
+	// by name. Use ListPlansByAPI to filter to a single API.
+	ListPlans(ctx context.Context) ([]*Plan, error)
+	// ListPlansByAPI returns plans for a single API id.
+	ListPlansByAPI(ctx context.Context, apiID string) ([]*Plan, error)
+	// UpdatePlan applies a partial update. Status transitions go
+	// through TransitionPlan, NOT this method.
+	UpdatePlan(ctx context.Context, id string, params UpdatePlanParams) (*Plan, error)
+	// TransitionPlan moves the plan to the target status. Returns
+	// ErrPlanInvalidTransition when ValidPlanTransition rejects the
+	// move.
+	TransitionPlan(ctx context.Context, id string, to PlanStatus) (*Plan, error)
+	// DeletePlan removes a plan. Cascades to subscriptions per the
+	// FK ON DELETE CASCADE. Most operators should TransitionPlan to
+	// archived rather than delete.
+	DeletePlan(ctx context.Context, id string) error
+
+	// --- API management: Applications (#164) ---
+
+	CreateApplication(ctx context.Context, params CreateApplicationParams) (*Application, error)
+	GetApplication(ctx context.Context, id string) (*Application, error)
+	ListApplications(ctx context.Context) ([]*Application, error)
+	UpdateApplication(ctx context.Context, id string, params UpdateApplicationParams) (*Application, error)
+	TransitionApplication(ctx context.Context, id string, to ApplicationStatus) (*Application, error)
+	DeleteApplication(ctx context.Context, id string) error
+
+	// --- API management: Subscriptions (#164) ---
+
+	// CreateSubscription persists a new subscription. The new
+	// subscription starts in SubscriptionStatusPending; the REST
+	// handler is responsible for auto-transitioning to accepted
+	// when the parent plan's Validation is auto. Returns
+	// ErrSubscriptionDuplicate when a live (pending|accepted|paused)
+	// subscription already exists for the (application, plan) pair.
+	CreateSubscription(ctx context.Context, params CreateSubscriptionParams) (*Subscription, error)
+	GetSubscription(ctx context.Context, id string) (*Subscription, error)
+	ListSubscriptions(ctx context.Context) ([]*Subscription, error)
+	ListSubscriptionsByApplication(ctx context.Context, applicationID string) ([]*Subscription, error)
+	ListSubscriptionsByPlan(ctx context.Context, planID string) ([]*Subscription, error)
+	UpdateSubscription(ctx context.Context, id string, params UpdateSubscriptionParams) (*Subscription, error)
+	TransitionSubscription(ctx context.Context, id string, to SubscriptionStatus, reason string) (*Subscription, error)
+
 	// --- Tenants (stage-2) ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have
