@@ -368,6 +368,19 @@ type Tx interface {
 	UpdateSubscription(ctx context.Context, id string, params UpdateSubscriptionParams) (*Subscription, error)
 	TransitionSubscription(ctx context.Context, id string, to SubscriptionStatus, reason string) (*Subscription, error)
 
+	// --- Per-route plugin configs (#171, #172) ---
+
+	GetRouteOASConfig(ctx context.Context, routeID string) (*RouteOASConfig, error)
+	UpsertRouteOASConfig(ctx context.Context, c *RouteOASConfig) (*RouteOASConfig, error)
+	DeleteRouteOASConfig(ctx context.Context, routeID string) error
+
+	GetRouteWAFConfig(ctx context.Context, routeID string) (*RouteWAFConfig, error)
+	UpsertRouteWAFConfig(ctx context.Context, c *RouteWAFConfig) (*RouteWAFConfig, error)
+	DeleteRouteWAFConfig(ctx context.Context, routeID string) error
+
+	AppendWAFDenial(ctx context.Context, d *WAFDenial) error
+	QueryWAFDenials(ctx context.Context, q WAFDenialQuery) ([]*WAFDenial, error)
+
 	// --- Tenants (stage-2) ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have

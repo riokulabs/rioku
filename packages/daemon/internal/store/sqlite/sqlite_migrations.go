@@ -509,11 +509,53 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
+	// Migrations 41-42: per-route plugin configs (#171 OAS, #172 WAF).
+	for _, m := range []struct {
+		ver  int
+		name string
+	}{
+		{41, "route_oas_configs"},
+		{42, "route_waf_configs"},
+	} {
+		if current < m.ver {
+			data, err := store.MigrationFS.ReadFile(fmt.Sprintf("migrations/sqlite/%06d_%s.up.sql", m.ver, m.name))
+			if err != nil {
+				return fmt.Errorf("sqlite: read up migration %d: %w", m.ver, err)
+			}
+			if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+				return fmt.Errorf("sqlite: apply up migration %d: %w", m.ver, err)
+			}
+			if _, err := d.db.ExecContext(ctx,
+				`INSERT OR IGNORE INTO schema_versions (version, dirty) VALUES (?, 0)`, m.ver); err != nil {
+				return fmt.Errorf("sqlite: record schema version %d: %w", m.ver, err)
+			}
+		}
+	}
+
 	return nil
 }
 
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
+
+	// Migrations 42-41 down: drop per-route plugin tables.
+	for _, m := range []struct {
+		ver  int
+		name string
+	}{
+		{42, "route_waf_configs"},
+		{41, "route_oas_configs"},
+	} {
+		if current >= m.ver {
+			data, err := store.MigrationFS.ReadFile(fmt.Sprintf("migrations/sqlite/%06d_%s.down.sql", m.ver, m.name))
+			if err != nil {
+				return fmt.Errorf("sqlite: read down migration %d: %w", m.ver, err)
+			}
+			if _, err := d.db.ExecContext(ctx, string(data)); err != nil {
+				return fmt.Errorf("sqlite: apply down migration %d: %w", m.ver, err)
+			}
+		}
+	}
 
 	// Migration 40 down: drop routes.log_sample_rate.
 	if current >= 40 {
