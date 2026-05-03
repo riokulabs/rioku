@@ -189,6 +189,13 @@ type ListenConfig struct {
 	// disables the endpoint — Caddy plugins that depend on it must
 	// configure their own validator endpoint when this is off.
 	KeyValidatorAddr string `yaml:"key_validator_addr"`
+
+	// AIGatewayAddr is the loopback-only address the daemon-side AI
+	// gateway HTTP server binds to (D7, #168). Caddy reverse-proxies
+	// to this port for AI routes (/v1/chat/completions etc.). MUST be
+	// a loopback host. Default: "127.0.0.1:7792". Empty disables the
+	// AI gateway — operators with no AI routes can leave it off.
+	AIGatewayAddr string `yaml:"ai_gateway_addr"`
 }
 
 // --------------------------------------------------------------------------
@@ -425,6 +432,7 @@ func Default() *Config {
 			InternalPort:     7780,
 			TLSAskAddr:       "127.0.0.1:7790",
 			KeyValidatorAddr: "127.0.0.1:7791",
+			AIGatewayAddr:    "127.0.0.1:7792",
 		},
 		Caddy: CaddyConfig{
 			Binary:       "caddy",

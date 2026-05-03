@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"time"
 
+	airegistry "github.com/riokulabs/rioku/internal/ai/registry"
+	"github.com/riokulabs/rioku/internal/aigateway"
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/config"
@@ -49,6 +51,7 @@ type Daemon struct {
 	syncAgent       *riokusync.Agent
 	tlsAsk          *tlsask.Server
 	keyValidator    *keyvalidator.Server
+	aiGateway       *aigateway.Server
 	notifyDispatch  *notifications.Dispatcher
 	upstreamHealth  *caddy.UpstreamHealthPoller
 	traceStore      tracestore.Driver
@@ -338,6 +341,39 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}
 	}
 
+	// 7b. AI gateway HTTP server (D7, #168). Caddy reverse-proxies
+	// AI routes (/v1/chat/completions etc.) to this loopback port;
+	// the gateway resolves virtual keys, vault-resolves provider
+	// credentials, picks an upstream, counts tokens, calculates cost
+	// (model registry from #166), and writes spend logs (#166 phase 1f).
+	if addr := d.cfg.Listen.AIGatewayAddr; addr != "" {
+		agLog := slog.Default().With("component", "aigateway")
+		// Best-effort registry init — failure means cost stays zero
+		// on spend logs but routing + budget enforcement still work.
+		var modelReg *airegistry.Registry
+		if r, rerr := airegistry.New(); rerr == nil {
+			modelReg = r
+		} else {
+			agLog.Warn("model registry init failed — cost calculation disabled", "error", rerr)
+		}
+		var resolver *vault.Resolver
+		if d.vaultResolver != nil {
+			resolver = d.vaultResolver.Inner()
+		}
+		d.aiGateway = aigateway.New(d.store, resolver, modelReg, agLog)
+		if err := d.aiGateway.Listen(addr); err != nil {
+			agLog.Error("listen failed — AI gateway DISABLED", "addr", addr, "error", err)
+			d.aiGateway = nil
+		} else {
+			agLog.Info("listening", "addr", d.aiGateway.Addr())
+			go func() {
+				if err := d.aiGateway.Serve(); err != nil {
+					agLog.Error("server error", "error", err)
+				}
+			}()
+		}
+	}
+
 	// 8. Update compiler with the real admin config now that we know the gateway port.
 	adminListenAddr := d.cfg.Listen.REST
 	if adminListenAddr == "" {
@@ -461,6 +497,15 @@ func (d *Daemon) Stop(ctx context.Context) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := d.keyValidator.Shutdown(shutdownCtx); err != nil {
 			slog.Error("keyvalidator shutdown error", "component", "keyvalidator", "error", err)
+		}
+		cancel()
+	}
+
+	// Stop AI gateway HTTP server (D7, #168).
+	if d.aiGateway != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := d.aiGateway.Shutdown(shutdownCtx); err != nil {
+			slog.Error("aigateway shutdown error", "component", "aigateway", "error", err)
 		}
 		cancel()
 	}
