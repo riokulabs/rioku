@@ -428,6 +428,10 @@ type Tx interface {
 	CreateMCPRoute(ctx context.Context, params CreateMCPRouteParams) (*MCPRoute, error)
 	GetMCPRoute(ctx context.Context, id string) (*MCPRoute, error)
 	ListMCPRoutes(ctx context.Context) ([]*MCPRoute, error)
+	// ListAllMCPRoutes returns every MCP route across all tenants.
+	// Used by the Caddy compiler (#201) which builds a single
+	// shared traffic server block for the whole daemon.
+	ListAllMCPRoutes(ctx context.Context) ([]*MCPRoute, error)
 	UpdateMCPRoute(ctx context.Context, id string, params UpdateMCPRouteParams) (*MCPRoute, error)
 	DeleteMCPRoute(ctx context.Context, id string) error
 
@@ -1638,6 +1642,10 @@ type APIKey struct {
 	// scoped keys.
 	SubscriptionID *string
 	ApplicationID  *string
+
+	// MCPTeamID binds the key into an mcp_team for the MCP gateway
+	// auth resolution chain (#181, D9). NULL for non-MCP keys.
+	MCPTeamID *string
 }
 
 // UpdateAPIKeyParams is the partial-update payload for UpdateAPIKey.

@@ -408,5 +408,44 @@ func loadPerRoutePlugins(ctx context.Context, tx store.Tx, routes []*riokuv1.Rou
 			return caddy.PerRoutePlugins{}, fmt.Errorf("get waf config for route %q: %w", id, err)
 		}
 	}
+
+	// Load MCP gateway routes (#201). The MCP path doesn't depend
+	// on the snapshot's per-route map — every mcp_route row across
+	// all tenants emerges as its own Caddy route in the shared
+	// traffic server. The auth-passthrough credential resolution
+	// happens here (vault refs are translated to plaintext via the
+	// engine's resolver).
+	mcpRoutes, err := tx.ListAllMCPRoutes(ctx)
+	if err != nil {
+		// Best-effort — a stub-only driver (raft) returns "not
+		// implemented"; fall through with an empty list rather
+		// than failing the compile entirely.
+		mcpRoutes = nil
+	}
+	if len(mcpRoutes) > 0 {
+		out.MCPRoutes = make([]caddy.MCPRouteCompileConfig, 0, len(mcpRoutes))
+		for _, mr := range mcpRoutes {
+			if !mr.Enabled {
+				continue
+			}
+			tenantCtx := store.WithTenantID(ctx, mr.TenantID)
+			srv, gerr := tx.GetMCPServer(tenantCtx, mr.TenantID, mr.MCPServerID)
+			if gerr != nil || srv == nil {
+				continue
+			}
+			compileCfg := caddy.MCPRouteCompileConfig{
+				ID:              mr.ID,
+				TenantID:        mr.TenantID,
+				Hostname:        mr.Hostname,
+				PathPrefix:      mr.PathPrefix,
+				UpstreamURL:     srv.URL,
+				AuthPassthrough: caddy.MCPRouteAuthMode(string(mr.AuthPassthrough)),
+			}
+			if srv.AuthCredential != nil {
+				compileCfg.UpstreamCredential = *srv.AuthCredential
+			}
+			out.MCPRoutes = append(out.MCPRoutes, compileCfg)
+		}
+	}
 	return out, nil
 }

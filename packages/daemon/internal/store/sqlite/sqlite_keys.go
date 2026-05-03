@@ -56,7 +56,7 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE id = ? AND tenant_id = ?`, id, tenantID)
 	return scanAPIKey(row)
 }
@@ -71,7 +71,7 @@ func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
 // 401 instead of an Internal error.
 func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE key_hash = ?`, keyHash)
 	key, err := scanAPIKey(row)
 	if err != nil {
@@ -86,7 +86,7 @@ func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey
 func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE revoked_at IS NULL AND tenant_id = ?`, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys: %w", err)
@@ -107,7 +107,7 @@ func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.APIKey, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id
+		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ? AND tenant_id = ?`, ownerID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: list api_keys by owner: %w", err)

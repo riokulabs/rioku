@@ -178,6 +178,18 @@ func (c *Compiler) compile(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePl
 		caddyRoutes = append(caddyRoutes, compiled)
 	}
 
+	// Append MCP gateway routes (#181, #201) — they live in their
+	// own per-tenant table but share the traffic server block. Each
+	// emits a Caddy route with hostname + path_prefix matchers + a
+	// reverse_proxy chain whose auth_passthrough rule is honoured.
+	for _, mcpr := range perRoute.MCPRoutes {
+		r := buildMCPRoute(mcpr)
+		if r == nil {
+			continue
+		}
+		caddyRoutes = append(caddyRoutes, r)
+	}
+
 	// Ensure routes is an empty array, not null, when there are no routes.
 	if caddyRoutes == nil {
 		caddyRoutes = []map[string]any{}

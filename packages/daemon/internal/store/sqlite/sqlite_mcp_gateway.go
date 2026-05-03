@@ -281,6 +281,27 @@ func (t *tx) ListMCPRoutes(ctx context.Context) ([]*store.MCPRoute, error) {
 	return out, rows.Err()
 }
 
+// ListAllMCPRoutes returns every MCP route across all tenants —
+// used by the Caddy compiler which builds a single shared traffic
+// server block (#201).
+func (t *tx) ListAllMCPRoutes(ctx context.Context) ([]*store.MCPRoute, error) {
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT `+mcpRouteCols+` FROM mcp_routes ORDER BY tenant_id, hostname, path_prefix`)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: list all mcp_routes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.MCPRoute
+	for rows.Next() {
+		r, err := scanMCPRoute(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 func (t *tx) UpdateMCPRoute(ctx context.Context, id string, p store.UpdateMCPRouteParams) (*store.MCPRoute, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	sets := []string{}

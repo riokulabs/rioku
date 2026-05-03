@@ -147,7 +147,10 @@ func TestAIGateway_FallbackDoesNotAdvanceOn4xx(t *testing.T) {
 		strings.NewReader(`{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}`))
 	req.Header.Set("X-Rioku-Tenant-Id", "tenant_default")
 	req.Header.Set("X-Rioku-Virtual-Key", vkID)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -179,7 +182,10 @@ func TestAIGateway_AllUpstreamsFailReturnsLast(t *testing.T) {
 		strings.NewReader(`{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}`))
 	req.Header.Set("X-Rioku-Tenant-Id", "tenant_default")
 	req.Header.Set("X-Rioku-Virtual-Key", vkID)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusServiceUnavailable {

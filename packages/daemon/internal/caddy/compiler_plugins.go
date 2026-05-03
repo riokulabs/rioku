@@ -63,7 +63,164 @@ type PerRoutePlugins struct {
 	// WAFByRoute maps route ID -> WAF config. Only routes with a
 	// non-nil entry whose Enabled is true get a WAF handler emitted.
 	WAFByRoute map[string]*RouteWAFConfig
+
+	// MCPRoutes is the list of standalone MCP gateway routes (#181,
+	// #201). Each entry produces its own Caddy route with hostname +
+	// path_prefix matchers and a reverse_proxy handler to the MCP
+	// server's URL. Optionally chains rioku_mcp_auth in front of the
+	// reverse_proxy for the team-allow-list resolution path.
+	MCPRoutes []MCPRouteCompileConfig
 }
+
+// MCPRouteAuthMode mirrors store.MCPAuthPassthrough but stays
+// compiler-package-local to avoid the store import.
+type MCPRouteAuthMode string
+
+const (
+	MCPAuthForward MCPRouteAuthMode = "forward"
+	MCPAuthReplace MCPRouteAuthMode = "replace"
+	MCPAuthStrip   MCPRouteAuthMode = "strip"
+)
+
+// MCPRouteCompileConfig is one MCP gateway route (#181, #201). The
+// compiler turns each entry into a Caddy route inside the shared
+// traffic server with hostname + path matchers and the right
+// auth-passthrough handler chain.
+type MCPRouteCompileConfig struct {
+	ID                string
+	TenantID          string
+	Hostname          string
+	PathPrefix        string
+	UpstreamURL       string
+	UpstreamCredential string // resolved upstream credential — used for "replace" mode
+	AuthPassthrough   MCPRouteAuthMode
+	// AuthValidatorEndpoint is the daemon-side rioku_mcp_auth
+	// validator URL. Empty disables team-allow-list enforcement
+	// (the route still proxies, but tool calls aren't filtered —
+	// this matches the v1 MCP-route-only opt-in posture).
+	AuthValidatorEndpoint string
+}
+
+// buildMCPRoute returns a Caddy route map for the given MCP gateway
+// route. Returns nil if UpstreamURL is empty (treated as
+// "not configured", same as no row in the table).
+func buildMCPRoute(cfg MCPRouteCompileConfig) map[string]any {
+	if cfg.UpstreamURL == "" {
+		return nil
+	}
+
+	// Matcher: hostname AND path_prefix.
+	pathPrefix := cfg.PathPrefix
+	if pathPrefix == "" {
+		pathPrefix = "/"
+	}
+	match := []map[string]any{{}}
+	if cfg.Hostname != "" {
+		match[0]["host"] = []string{cfg.Hostname}
+	}
+	if pathPrefix != "/" {
+		match[0]["path"] = []string{pathPrefix + "*"}
+	}
+
+	var handlers []map[string]any
+
+	// Optional auth resolver (rioku_mcp_auth) chained before the
+	// reverse_proxy. The handler reads the API key + the JSON-RPC
+	// body, calls the validator endpoint, and rejects with 403 when
+	// the team's allow-list excludes the requested tool.
+	if cfg.AuthValidatorEndpoint != "" {
+		handlers = append(handlers, map[string]any{
+			"handler":             "rioku_mcp_auth",
+			"validator_endpoint":  cfg.AuthValidatorEndpoint,
+			"mcp_server_id":       routeIDOrEmpty(cfg.ID),
+		})
+	}
+
+	// Header transforms keyed off the auth-passthrough mode.
+	headersBlock := map[string]any{}
+	switch cfg.AuthPassthrough {
+	case MCPAuthStrip:
+		headersBlock["request"] = map[string]any{
+			"delete": []string{"Authorization"},
+		}
+	case MCPAuthReplace:
+		if cfg.UpstreamCredential != "" {
+			headersBlock["request"] = map[string]any{
+				"set": map[string]any{
+					"Authorization": []string{"Bearer " + cfg.UpstreamCredential},
+				},
+			}
+		}
+	}
+	if len(headersBlock) > 0 {
+		handlers = append(handlers, map[string]any{
+			"handler": "headers",
+			"request": headersBlock["request"],
+		})
+	}
+
+	// reverse_proxy upstream. Caddy's upstream config takes a host:port
+	// dial address; for an https URL we rely on the transport's TLS
+	// section to negotiate. For v1 we extract the dial target from the
+	// URL — if the operator stored a path-bearing URL, the inbound
+	// path concatenates after the prefix is rewritten.
+	dial, scheme := dialAndScheme(cfg.UpstreamURL)
+	rp := map[string]any{
+		"handler": "reverse_proxy",
+		"upstreams": []map[string]any{
+			{"dial": dial},
+		},
+	}
+	if scheme == "https" {
+		rp["transport"] = map[string]any{
+			"protocol": "http",
+			"tls":      map[string]any{},
+		}
+	}
+	handlers = append(handlers, rp)
+
+	route := map[string]any{
+		"handle": handlers,
+	}
+	if len(match) > 0 && len(match[0]) > 0 {
+		route["match"] = match
+	}
+	return route
+}
+
+// dialAndScheme parses an upstream URL into (host:port, scheme).
+// On any parse error returns (raw input, "") so the caller emits
+// the literal value — Caddy will fail at provision time with a
+// clear error. Defaults the port to 80/443 when unspecified.
+func dialAndScheme(raw string) (string, string) {
+	scheme := ""
+	rest := raw
+	if i := strings.Index(raw, "://"); i > 0 {
+		scheme = raw[:i]
+		rest = raw[i+3:]
+	}
+	// Strip path / query.
+	if j := strings.IndexAny(rest, "/?#"); j > 0 {
+		rest = rest[:j]
+	}
+	host := rest
+	port := ""
+	if k := strings.LastIndex(rest, ":"); k > 0 {
+		host = rest[:k]
+		port = rest[k+1:]
+	}
+	if port == "" {
+		switch scheme {
+		case "https":
+			port = "443"
+		default:
+			port = "80"
+		}
+	}
+	return host + ":" + port, scheme
+}
+
+func routeIDOrEmpty(s string) string { return s }
 
 // buildOASValidatorHandler returns the JSON map for the
 // rioku_oas_validator handler. Returns nil when the config is nil

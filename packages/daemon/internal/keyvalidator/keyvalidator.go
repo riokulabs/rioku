@@ -106,6 +106,7 @@ func (s *Server) Listen(addr string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate-key", s.handleValidateKey)
 	mux.HandleFunc("/quota-exceeded", s.handleQuotaExceeded)
+	mux.HandleFunc("/mcp-validate", s.handleMCPValidate)
 	s.srv = &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -296,4 +297,98 @@ func (s *Server) handleQuotaExceeded(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "fired"})
+}
+
+// handleMCPValidate is the rioku_mcp_auth Caddy module's tool-
+// authorization endpoint (#201, D9). The plugin POSTs:
+//
+//   { "api_key_hash": "<sha256-hex>",
+//     "mcp_server_id": "<server id>",
+//     "tool_name":     "<tool name>" }
+//
+// The endpoint resolves the API key chain, looks up the bound
+// mcp_team's permissions, and reports whether the team is allowed
+// to invoke the requested tool on the named MCP server.
+//
+// Response shape:
+//
+//   { "allow": true|false,
+//     "reason": "...",         // when !allow
+//     "no_team": true,         // key resolved but is not bound to an MCP team
+//     "team_id": "..." }
+//
+// Loopback only; network isolation is the trust boundary.
+func (s *Server) handleMCPValidate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		APIKeyHash  string `json:"api_key_hash"`
+		MCPServerID string `json:"mcp_server_id"`
+		ToolName    string `json:"tool_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.APIKeyHash = strings.TrimSpace(req.APIKeyHash)
+	req.ToolName = strings.TrimSpace(req.ToolName)
+	if req.APIKeyHash == "" || req.ToolName == "" {
+		writeJSON(w, http.StatusOK, map[string]any{"allow": false, "reason": "missing api_key_hash or tool_name"})
+		return
+	}
+
+	tx, err := s.store.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+	if err != nil {
+		s.logErr("begin tx", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	key, err := tx.GetAPIKeyByHash(r.Context(), req.APIKeyHash)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"allow": false, "reason": "api key not found"})
+		return
+	}
+	if key.MCPTeamID == nil || *key.MCPTeamID == "" {
+		// Key resolved but isn't bound to an MCP team. The plugin
+		// rejects this with 403; the daemon surfaces "no_team" so
+		// the operator log is unambiguous.
+		writeJSON(w, http.StatusOK, map[string]any{"allow": false, "no_team": true, "reason": "api key not bound to mcp team"})
+		return
+	}
+	teamID := *key.MCPTeamID
+
+	// Tenant-scoped lookup of the team's permissions.
+	teamCtx := store.WithTenantID(r.Context(), key.TenantID)
+	team, err := tx.GetMCPTeam(teamCtx, teamID)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"allow": false, "team_id": teamID, "reason": "team not found"})
+		return
+	}
+	if team.Status != store.MCPTeamStatusActive {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"allow":   false,
+			"team_id": teamID,
+			"reason":  "team " + string(team.Status),
+		})
+		return
+	}
+	perms, err := tx.ListMCPTeamPermissions(teamCtx, teamID)
+	if err != nil {
+		s.logErr("list mcp team permissions", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	allowed := store.AllowsTool(perms, req.MCPServerID, req.ToolName)
+	out := map[string]any{
+		"allow":   allowed,
+		"team_id": teamID,
+	}
+	if !allowed {
+		out["reason"] = "tool not in team allow-list"
+	}
+	writeJSON(w, http.StatusOK, out)
 }

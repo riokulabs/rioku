@@ -40,6 +40,9 @@ func (t *raftTx) GetMCPRoute(_ context.Context, _ string) (*store.MCPRoute, erro
 func (t *raftTx) ListMCPRoutes(_ context.Context) ([]*store.MCPRoute, error) {
 	return nil, fmt.Errorf("raft: ListMCPRoutes not implemented")
 }
+func (t *raftTx) ListAllMCPRoutes(_ context.Context) ([]*store.MCPRoute, error) {
+	return nil, fmt.Errorf("raft: ListAllMCPRoutes not implemented")
+}
 func (t *raftTx) UpdateMCPRoute(_ context.Context, _ string, _ store.UpdateMCPRouteParams) (*store.MCPRoute, error) {
 	return nil, fmt.Errorf("raft: UpdateMCPRoute not implemented")
 }

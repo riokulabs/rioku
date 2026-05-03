@@ -262,6 +262,24 @@ func (t *tx) GetMCPRoute(ctx context.Context, id string) (*store.MCPRoute, error
 	return r, nil
 }
 
+func (t *tx) ListAllMCPRoutes(ctx context.Context) ([]*store.MCPRoute, error) {
+	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
+		`SELECT `+mcpRouteCols+` FROM mcp_routes ORDER BY tenant_id, hostname, path_prefix`))
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list all mcp_routes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.MCPRoute
+	for rows.Next() {
+		r, err := scanMCPRoute(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 func (t *tx) ListMCPRoutes(ctx context.Context) ([]*store.MCPRoute, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
