@@ -1,13 +1,17 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
+	"github.com/riokulabs/rioku/internal/store/audit"
 )
 
 // RegisterRBACRoutes registers the RBAC management endpoints (roles,
@@ -135,6 +139,27 @@ func handleCreateRole(st store.Driver) http.HandlerFunc {
 		}
 		defer func() { _ = tx.Rollback() }()
 
+		// Role-escalation guard (#117/#187). Reject grants that exceed
+		// the actor's own effective permission set and audit the rejection
+		// in the same tx so the trail commits even though the role does
+		// not.
+		if err := store.ValidateNoEscalation(actorPermissions(r), req.Permissions); err != nil {
+			actorID := resolveActorID(r)
+			offending := offendingPermission(err)
+			if auditErr := emitRoleEscalationAudit(ctx, tx, actorID, "", req.Name, offending, "create"); auditErr != nil {
+				writeInternalError(w, r, "audit role escalation")
+				return
+			}
+			if commitErr := tx.Commit(); commitErr != nil {
+				writeInternalError(w, r, "commit audit")
+				return
+			}
+			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role escalation rejected",
+				"Cannot grant permission '"+offending+"' that exceeds the actor's effective permission set",
+				r.URL.Path, nil)
+			return
+		}
+
 		role, err := tx.CreateRole(ctx, store.CreateRoleParams{
 			ID:          uuid.New().String(),
 			Name:        req.Name,
@@ -228,6 +253,32 @@ func handleUpdateRole(st store.Driver) http.HandlerFunc {
 		}
 		defer func() { _ = tx.Rollback() }()
 
+		// Role-escalation guard (#117/#187). Only AddPerms is checked —
+		// removing permissions doesn't escalate. RemovePerms therefore
+		// passes through unchecked.
+		if len(req.AddPerms) > 0 {
+			if err := store.ValidateNoEscalation(actorPermissions(r), req.AddPerms); err != nil {
+				actorID := resolveActorID(r)
+				offending := offendingPermission(err)
+				targetName := ""
+				if req.Name != nil {
+					targetName = *req.Name
+				}
+				if auditErr := emitRoleEscalationAudit(ctx, tx, actorID, id, targetName, offending, "update"); auditErr != nil {
+					writeInternalError(w, r, "audit role escalation")
+					return
+				}
+				if commitErr := tx.Commit(); commitErr != nil {
+					writeInternalError(w, r, "commit audit")
+					return
+				}
+				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role escalation rejected",
+					"Cannot grant permission '"+offending+"' that exceeds the actor's effective permission set",
+					r.URL.Path, nil)
+				return
+			}
+		}
+
 		role, err := tx.UpdateRole(ctx, id, store.UpdateRoleParams{
 			Name:        req.Name,
 			Description: req.Description,
@@ -235,6 +286,29 @@ func handleUpdateRole(st store.Driver) http.HandlerFunc {
 			RemovePerms: req.RemovePerms,
 		})
 		if err != nil {
+			if errors.Is(err, store.ErrRoleEscalation) {
+				// Defensive: the store can also raise escalation if the
+				// caller bypassed our pre-check (e.g. fields composed
+				// during a follow-on Tx mutation).
+				actorID := resolveActorID(r)
+				offending := offendingPermission(err)
+				targetName := ""
+				if req.Name != nil {
+					targetName = *req.Name
+				}
+				if auditErr := emitRoleEscalationAudit(ctx, tx, actorID, id, targetName, offending, "update"); auditErr != nil {
+					writeInternalError(w, r, "audit role escalation")
+					return
+				}
+				if commitErr := tx.Commit(); commitErr != nil {
+					writeInternalError(w, r, "commit audit")
+					return
+				}
+				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role escalation rejected",
+					"Cannot grant permission '"+offending+"' that exceeds the actor's effective permission set",
+					r.URL.Path, nil)
+				return
+			}
 			if err == store.ErrRoleImmutable {
 				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role immutable",
 					"The superadmin role cannot be modified", r.URL.Path, nil)
@@ -491,6 +565,54 @@ func resolveActorID(r *http.Request) string {
 	}
 	if c := auth.ClaimsFromContext(r.Context()); c != nil {
 		return c.Subject
+	}
+	return ""
+}
+
+// actorPermissions returns the authenticated actor's effective permission
+// set, sourced from SessionClaims.Scopes (populated at session-validation
+// time via auth.ResolvePermissions). Returns an empty slice when no
+// session is present so ValidateNoEscalation rejects every grant.
+func actorPermissions(r *http.Request) []string {
+	if sc := auth.SessionClaimsFromContext(r.Context()); sc != nil {
+		return sc.Scopes
+	}
+	return nil
+}
+
+// emitRoleEscalationAudit appends a typed RoleEscalationRejected audit
+// entry under the active tx. Uses the package-default registry which
+// pre-registers auth.role_escalation_rejected.v1.
+func emitRoleEscalationAudit(ctx context.Context, tx store.Tx, actorID, targetID, targetName, offending, op string) error {
+	entry, err := audit.BuildEntry(
+		audit.DefaultRegistry,
+		actorID,
+		"role",
+		targetID,
+		op,
+		&audit.RoleEscalationRejected{
+			ActorUserID:         actorID,
+			TargetRoleID:        targetID,
+			TargetRoleName:      targetName,
+			OffendingPermission: offending,
+			Operation:           op,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return tx.AppendAuditEntry(ctx, entry)
+}
+
+// offendingPermission extracts the missing permission name from a
+// ValidateNoEscalation error. The store wraps ErrRoleEscalation with
+// "actor lacks <perm>"; we strip the prefix so the audit row carries
+// just the permission identifier.
+func offendingPermission(err error) string {
+	const sentinelSuffix = ": actor lacks "
+	msg := err.Error()
+	if i := strings.Index(msg, sentinelSuffix); i >= 0 {
+		return msg[i+len(sentinelSuffix):]
 	}
 	return ""
 }

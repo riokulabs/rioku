@@ -547,19 +547,22 @@ func unmarshalResponseRulesJSON(s string) ([]*riokuv1.ResponseRule, error) {
 
 func scanAPIKey(s scanner) (*store.APIKey, error) {
 	var (
-		id         string
-		tenantID   string
-		name       string
-		keyHash    string
-		scopesJSON string
-		expiresAt  sql.NullTime
-		createdAt  time.Time
-		revokedAt  sql.NullTime
-		ownerID    sql.NullString
-		lastUsedAt sql.NullTime
-		usageCount int64
+		id             string
+		tenantID       string
+		name           string
+		keyHash        string
+		scopesJSON     string
+		expiresAt      sql.NullTime
+		createdAt      time.Time
+		revokedAt      sql.NullTime
+		ownerID        sql.NullString
+		lastUsedAt     sql.NullTime
+		usageCount     int64
+		subscriptionID sql.NullString
+		applicationID  sql.NullString
+		mcpTeamID      sql.NullString
 	)
-	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount, &subscriptionID, &applicationID, &mcpTeamID); err != nil {
 		return nil, fmt.Errorf("postgres: scan api_key: %w", err)
 	}
 
@@ -591,6 +594,18 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 	if lastUsedAt.Valid {
 		t := lastUsedAt.Time.UTC()
 		key.LastUsedAt = &t
+	}
+	if subscriptionID.Valid {
+		s := subscriptionID.String
+		key.SubscriptionID = &s
+	}
+	if applicationID.Valid {
+		s := applicationID.String
+		key.ApplicationID = &s
+	}
+	if mcpTeamID.Valid {
+		s := mcpTeamID.String
+		key.MCPTeamID = &s
 	}
 	return key, nil
 }
