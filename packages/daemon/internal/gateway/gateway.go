@@ -18,6 +18,7 @@ import (
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/cluster"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/observability"
 	"github.com/riokulabs/rioku/internal/store"
 	"github.com/riokulabs/rioku/internal/tracestore"
 	"github.com/riokulabs/rioku/internal/version"
@@ -61,6 +62,7 @@ func NewGateway(
 	traceBuf *tracestore.RingBuffer,
 	traceStore tracestore.Driver,
 	upstreamHealth UpstreamHealthSource,
+	jwksRegistry *observability.JWKSRegistry,
 	logger *slog.Logger,
 	levelVar *slog.LevelVar,
 ) (*Gateway, error) {
@@ -168,6 +170,11 @@ func NewGateway(
 	// isn't running — the handler returns an "unavailable" payload
 	// rather than 404 so the admin panel can render an empty state.
 	RegisterUpstreamHealthRoutes(topMux, upstreamHealth)
+
+	// JWKS rotation observability (#191). Registry may be nil when
+	// no rioku_jwt route is configured — handler returns an empty
+	// "unavailable" payload in that case.
+	RegisterObservabilityRoutes(topMux, jwksRegistry)
 
 	// Tenant + membership management (stage-2).
 	RegisterTenantRoutes(topMux, st)

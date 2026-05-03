@@ -1,10 +1,14 @@
 package authjwt
 
 import (
+	"bytes"
+	"context"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -28,7 +32,7 @@ type keyResolver struct {
 	logger    *zap.Logger
 }
 
-func newKeyResolver(ctx caddy.Context, sourceLiteral, jwksURL string, refresh time.Duration, logger *zap.Logger) (*keyResolver, error) {
+func newKeyResolver(ctx caddy.Context, sourceLiteral, jwksURL string, refresh time.Duration, observabilityEndpoint string, logger *zap.Logger) (*keyResolver, error) {
 	r := &keyResolver{logger: logger}
 
 	if sourceLiteral != "" {
@@ -44,12 +48,33 @@ func newKeyResolver(ctx caddy.Context, sourceLiteral, jwksURL string, refresh ti
 		// Override struct rather than Options. Default interval is
 		// 1h upstream; we drop to the configured value when caller
 		// supplied refresh > 0.
+		override := keyfunc.Override{}
+		if refresh > 0 {
+			override.RefreshInterval = refresh
+		}
+
+		// Wire the daemon-side observability reporter (#191) when an
+		// endpoint was supplied. RefreshErrorHandlerFunc fires on
+		// every refresh failure; we forward the error to the daemon
+		// so operators can see a stale JWKS without tailing logs.
+		if observabilityEndpoint != "" {
+			client := &http.Client{Timeout: 3 * time.Second}
+			override.RefreshErrorHandlerFunc = func(u string) func(ctx context.Context, err error) {
+				return func(_ context.Context, refreshErr error) {
+					reportJWKSEvent(client, observabilityEndpoint, u, "error", refreshErr.Error(), logger)
+					if logger != nil {
+						logger.Warn("rioku_jwt: JWKS refresh failed", zap.String("url", u), zap.Error(refreshErr))
+					}
+				}
+			}
+		}
+
 		var jw keyfunc.Keyfunc
 		var err error
-		if refresh > 0 {
-			jw, err = keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, keyfunc.Override{
-				RefreshInterval: refresh,
-			})
+		// NewDefaultCtx vs NewDefaultOverrideCtx: keep the original
+		// branch so we don't change the no-override default behavior.
+		if refresh > 0 || observabilityEndpoint != "" {
+			jw, err = keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, override)
 		} else {
 			jw, err = keyfunc.NewDefaultCtx(ctx, []string{jwksURL})
 		}
@@ -57,9 +82,46 @@ func newKeyResolver(ctx caddy.Context, sourceLiteral, jwksURL string, refresh ti
 			return nil, fmt.Errorf("init JWKS from %q: %w", jwksURL, err)
 		}
 		r.jwks = jw
+
+		// Stamp an initial "registered" event so the registry has a
+		// row before the first refresh outcome arrives. Best-effort:
+		// ignore errors so daemon-side observability is never on the
+		// data plane's hot path.
+		if observabilityEndpoint != "" {
+			client := &http.Client{Timeout: 3 * time.Second}
+			go reportJWKSEvent(client, observabilityEndpoint, jwksURL, "registered", "", logger)
+		}
 	}
 
 	return r, nil
+}
+
+// reportJWKSEvent fires-and-forgets a JWKS observability event to
+// the daemon-side ingress. Errors are logged at debug level only —
+// observability gaps must not affect data-plane verification.
+func reportJWKSEvent(client *http.Client, endpoint, url, status, errMsg string, logger *zap.Logger) {
+	body, err := json.Marshal(map[string]any{
+		"url":    url,
+		"status": status,
+		"error":  errMsg,
+		"at":     time.Now().UTC(),
+	})
+	if err != nil {
+		return
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		if logger != nil {
+			logger.Debug("rioku_jwt: observability endpoint unreachable", zap.Error(err))
+		}
+		return
+	}
+	_ = resp.Body.Close()
 }
 
 // Keyfunc is the jwt/v5 jwt.Keyfunc implementation. It dispatches to

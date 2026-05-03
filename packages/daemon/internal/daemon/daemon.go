@@ -22,6 +22,7 @@ import (
 	"github.com/riokulabs/rioku/internal/keyvalidator"
 	"github.com/riokulabs/rioku/internal/logging"
 	"github.com/riokulabs/rioku/internal/notifications"
+	"github.com/riokulabs/rioku/internal/observability"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
@@ -63,6 +64,7 @@ type Daemon struct {
 	pidFile         string
 	startedAt       time.Time
 	vaultResolver   *vault.CachingResolver
+	jwksRegistry    *observability.JWKSRegistry
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -78,9 +80,10 @@ type DaemonHealth struct {
 func New(cfg *config.Config, cfgPath string) *Daemon {
 	pidFile := filepath.Join(cfg.DataDir, "rioku.pid")
 	return &Daemon{
-		cfg:     cfg,
-		cfgPath: cfgPath,
-		pidFile: pidFile,
+		cfg:          cfg,
+		cfgPath:      cfgPath,
+		pidFile:      pidFile,
+		jwksRegistry: observability.NewJWKSRegistry(),
 	}
 }
 
@@ -262,7 +265,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			if d.upstreamHealth != nil {
 				uhSource = d.upstreamHealth
 			}
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, gwLog, d.logLevel)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, d.jwksRegistry, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}
@@ -328,6 +331,10 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if addr := d.cfg.Listen.KeyValidatorAddr; addr != "" {
 		kvLog := slog.Default().With("component", "keyvalidator")
 		d.keyValidator = keyvalidator.New(d.store, kvLog)
+		// Wire the JWKS observability registry (#191) so the rioku_jwt
+		// plugin's POSTs to /jwks-refresh land in the in-memory registry
+		// the admin REST endpoint surfaces.
+		d.keyValidator.JWKS = d.jwksRegistry
 		// Wire the data-plane quota-exceeded webhook (#202). The
 		// rate-limit Caddy plugin POSTs to /quota-exceeded; the
 		// keyvalidator dedupes per (key, plan, day) and fans out

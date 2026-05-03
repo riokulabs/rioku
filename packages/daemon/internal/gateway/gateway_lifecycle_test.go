@@ -65,6 +65,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 		nil, // traceBuf
 		nil, // traceStore
 		nil, // upstreamHealth
+		nil, // jwksRegistry
 		slog.Default(),
 		nil, // levelVar
 	)
@@ -131,6 +132,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 		traceBuf,
 		nil, // traceStore
 		nil, // upstreamHealth
+		nil, // jwksRegistry
 		slog.Default(),
 		nil, // levelVar
 	)

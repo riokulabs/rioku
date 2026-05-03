@@ -61,6 +61,13 @@ type JWT struct {
 	// initial fetch.
 	JWKSRefreshSeconds int `json:"jwks_refresh_seconds,omitempty"`
 
+	// JWKSObservabilityEndpoint is the daemon-side URL the module
+	// POSTs JWKS refresh outcomes to (#191). Empty disables the
+	// reporter — refresh continues, the daemon-side observability
+	// registry just won't see the events. The compiler injects this
+	// value when the daemon's keyvalidator address is known.
+	JWKSObservabilityEndpoint string `json:"jwks_observability_endpoint,omitempty"`
+
 	// Algos is the allow-list of accepted JWT algorithms. Empty
 	// defaults to the asymmetric set [RS256, ES256, EdDSA] — HS256
 	// is excluded by default because shared secrets are leak-prone
@@ -146,7 +153,7 @@ func (j *JWT) Provision(ctx caddy.Context) error {
 		refreshInterval = 5 * time.Minute
 	}
 
-	resolver, err := newKeyResolver(ctx, j.SigningKeySource, j.JWKSURL, refreshInterval, j.logger)
+	resolver, err := newKeyResolver(ctx, j.SigningKeySource, j.JWKSURL, refreshInterval, j.JWKSObservabilityEndpoint, j.logger)
 	if err != nil {
 		return fmt.Errorf("rioku_jwt: build key resolver: %w", err)
 	}

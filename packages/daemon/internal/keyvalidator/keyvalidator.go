@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/observability"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -48,6 +49,13 @@ type Server struct {
 	// quota-exceeded event for an API key bound to a Subscription
 	// (#202). Best-effort: nil disables the data-plane webhook.
 	QuotaWebhook QuotaExceededHook
+
+	// JWKS is the daemon-side observability registry for JWKS
+	// refresh outcomes reported by the rioku_jwt plugin (#191).
+	// Nil disables the /jwks-refresh ingress (the handler still
+	// returns 200 so the plugin's fire-and-forget POSTs don't
+	// generate noisy errors).
+	JWKS *observability.JWKSRegistry
 
 	// quotaCacheMu guards the dedupe cache below.
 	quotaCacheMu sync.Mutex
@@ -107,6 +115,7 @@ func (s *Server) Listen(addr string) error {
 	mux.HandleFunc("/validate-key", s.handleValidateKey)
 	mux.HandleFunc("/quota-exceeded", s.handleQuotaExceeded)
 	mux.HandleFunc("/mcp-validate", s.handleMCPValidate)
+	mux.HandleFunc("/jwks-refresh", s.handleJWKSRefresh)
 	s.srv = &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -391,4 +400,34 @@ func (s *Server) handleMCPValidate(w http.ResponseWriter, r *http.Request) {
 		out["reason"] = "tool not in team allow-list"
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// handleJWKSRefresh is the data-plane ingress for rioku_jwt JWKS
+// refresh outcomes (#191). The plugin POSTs `{url, status, error,
+// at}` after each refresh attempt; the daemon stamps the event into
+// the in-process observability.JWKSRegistry which the admin REST
+// endpoint surfaces. Loopback only — network isolation is the
+// trust boundary, same as the other keyvalidator endpoints.
+func (s *Server) handleJWKSRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var ev observability.JWKSEvent
+	if err := json.NewDecoder(r.Body).Decode(&ev); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	ev.URL = strings.TrimSpace(ev.URL)
+	if ev.URL == "" {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+	if s.JWKS != nil {
+		if ev.At.IsZero() {
+			ev.At = s.Now()
+		}
+		s.JWKS.Record(ev)
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

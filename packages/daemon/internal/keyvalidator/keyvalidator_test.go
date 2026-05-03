@@ -13,10 +13,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/riokulabs/rioku/internal/keyvalidator"
+	"github.com/riokulabs/rioku/internal/observability"
 	"github.com/riokulabs/rioku/internal/store"
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
@@ -285,5 +287,99 @@ func TestQuotaExceeded_SkipsMalformed(t *testing.T) {
 	}
 	if fired != 0 {
 		t.Errorf("fired = %d, want 0 for empty hash", fired)
+	}
+}
+
+func TestJWKSRefresh_RecordsErrorEvent(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	srv.JWKS = observability.NewJWKSRegistry()
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	body := `{"url":"https://idp/.well-known/jwks.json","status":"error","error":"timeout","at":"2026-05-01T00:00:00Z"}`
+	req, err := http.NewRequest(http.MethodPost, "http://"+srv.Addr()+"/jwks-refresh", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	snap := srv.JWKS.Snapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot len = %d, want 1", len(snap))
+	}
+	if snap[0].Status != observability.JWKSStatusError {
+		t.Errorf("Status = %q", snap[0].Status)
+	}
+	if snap[0].LastError != "timeout" {
+		t.Errorf("LastError = %q", snap[0].LastError)
+	}
+}
+
+func TestJWKSRefresh_NilRegistryNoOp(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	// JWKS intentionally nil — handler should still return 200 so the
+	// data-plane plugin's fire-and-forget POSTs don't generate log
+	// noise on misconfigured deployments.
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	body := `{"url":"u","status":"ok","at":"2026-05-01T00:00:00Z"}`
+	req, _ := http.NewRequest(http.MethodPost, "http://"+srv.Addr()+"/jwks-refresh", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestJWKSRefresh_AutoTimestamp(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	srv.JWKS = observability.NewJWKSRegistry()
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	// No At — server must stamp time.Now.
+	body := `{"url":"u","status":"ok"}`
+	req, _ := http.NewRequest(http.MethodPost, "http://"+srv.Addr()+"/jwks-refresh", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+
+	snap := srv.JWKS.Snapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot len = %d", len(snap))
+	}
+	if snap[0].LastRefreshAt.IsZero() {
+		t.Error("LastRefreshAt is zero — server should stamp time.Now when At missing")
+	}
+	if time.Since(snap[0].LastRefreshAt) > time.Minute {
+		t.Errorf("LastRefreshAt %v not recent", snap[0].LastRefreshAt)
 	}
 }
