@@ -19,6 +19,7 @@ import (
 	riokugrpc "github.com/riokulabs/rioku/internal/grpc"
 	"github.com/riokulabs/rioku/internal/keyvalidator"
 	"github.com/riokulabs/rioku/internal/logging"
+	"github.com/riokulabs/rioku/internal/notifications"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
@@ -48,6 +49,7 @@ type Daemon struct {
 	syncAgent       *riokusync.Agent
 	tlsAsk          *tlsask.Server
 	keyValidator    *keyvalidator.Server
+	notifyDispatch  *notifications.Dispatcher
 	upstreamHealth  *caddy.UpstreamHealthPoller
 	traceStore      tracestore.Driver
 	ringBuffer      *tracestore.RingBuffer
@@ -210,6 +212,19 @@ func (d *Daemon) Start(ctx context.Context) error {
 				grpcLog.Error("server error", "error", err)
 			}
 		}()
+
+		// Wire the webhook dispatcher (#164, Sprint 4 Phase 1e) into
+		// the api-management service. The service was constructed
+		// inside NewServer with a nil emitter; we swap it now that
+		// the store is alive and the dispatcher can fire.
+		notifyLog := slog.Default().With("component", "notifications")
+		d.notifyDispatch = notifications.New(d.store, notifyLog)
+		d.notifyDispatch.Start(ctx)
+		if setter, ok := d.grpc.APIManagementService().(interface {
+			SetWebhookEmitter(riokugrpc.WebhookEmitter)
+		}); ok {
+			setter.SetWebhookEmitter(notificationsAdapter{disp: d.notifyDispatch})
+		}
 	}
 
 	// 6a. Start the Caddy upstream-health poller (#122) when the
@@ -391,6 +406,23 @@ func (d *Daemon) Start(ctx context.Context) error {
 	return d.Stop(stopCtx)
 }
 
+// notificationsAdapter bridges the notifications package's Event
+// shape to the gRPC package's WebhookEmitter interface. The two
+// packages can't share the type directly (would create an import
+// cycle), so the daemon owns the conversion.
+type notificationsAdapter struct {
+	disp *notifications.Dispatcher
+}
+
+func (a notificationsAdapter) Emit(ctx context.Context, ev riokugrpc.WebhookEvent) {
+	a.disp.Emit(ctx, notifications.Event{
+		Type:     ev.Type,
+		TenantID: ev.TenantID,
+		Actor:    ev.Actor,
+		Payload:  ev.Payload,
+	})
+}
+
 // Stop shuts down all subsystems in reverse order.
 func (d *Daemon) Stop(ctx context.Context) error {
 	slog.Info("shutting down")
@@ -417,6 +449,11 @@ func (d *Daemon) Stop(ctx context.Context) error {
 		if err := d.tlsAsk.Shutdown(); err != nil {
 			slog.Error("tlsask shutdown error", "component", "tlsask", "error", err)
 		}
+	}
+
+	// Stop webhook dispatcher (#164, Sprint 4 Phase 1e).
+	if d.notifyDispatch != nil {
+		d.notifyDispatch.Stop()
 	}
 
 	// Stop API-key validation endpoint (#179, #189).

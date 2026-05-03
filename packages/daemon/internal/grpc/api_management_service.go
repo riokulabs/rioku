@@ -50,6 +50,21 @@ func newAPIManagementService(st store.Driver, hooks WebhookEmitter) *apiManageme
 	return &apiManagementService{store: st, webhooks: hooks}
 }
 
+// SetWebhookEmitter installs (or replaces) the webhook dispatcher.
+// The daemon constructs the gRPC server early and wires the
+// notifications dispatcher later; this lets the wiring stay loose
+// and avoids a circular import via the daemon package.
+func (s *apiManagementService) SetWebhookEmitter(e WebhookEmitter) {
+	s.webhooks = e
+}
+
+// APIManagementWebhookSetter is the narrow interface daemon.Start
+// uses to plumb the dispatcher into the gRPC server post-
+// construction.
+type APIManagementWebhookSetter interface {
+	SetWebhookEmitter(WebhookEmitter)
+}
+
 // ---- Plans ---------------------------------------------------------------
 
 func (s *apiManagementService) CreatePlan(ctx context.Context, req *riokuv1.CreatePlanRequest) (*riokuv1.Plan, error) {
