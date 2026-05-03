@@ -1097,6 +1097,8 @@ type AIAgent struct {
 	Guardrails       string  // JSON
 	ScopedCredential *string // optional per-agent override
 	Enabled          bool
+	RoutingStrategy  string // simple_shuffle | fallback | latency (Sprint 5 Phase 3 #168)
+	RoutingConfig    string // JSON; consumed by the strategy constructor
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -1110,6 +1112,8 @@ type UpdateAIAgentParams struct {
 	Guardrails       *string
 	ScopedCredential *string
 	Enabled          *bool
+	RoutingStrategy  *string
+	RoutingConfig    *string
 }
 
 // AIToolBinding wires an Agent to a Tool with an optional CEL guard.

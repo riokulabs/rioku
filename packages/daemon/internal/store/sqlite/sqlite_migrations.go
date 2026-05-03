@@ -509,8 +509,9 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		}
 	}
 
-	// Migrations 41-44: per-route plugin configs (#171 OAS,
-	// #172 WAF) + AI spend tables (#166) + virtual keys (#167).
+	// Migrations 41-45: per-route plugin configs (#171 OAS,
+	// #172 WAF) + AI spend tables (#166) + virtual keys (#167)
+	// + per-agent routing strategy slot (#168).
 	for _, m := range []struct {
 		ver  int
 		name string
@@ -519,6 +520,7 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		{42, "route_waf_configs"},
 		{43, "ai_spend"},
 		{44, "virtual_keys"},
+		{45, "ai_agent_strategy"},
 	} {
 		if current < m.ver {
 			data, err := store.MigrationFS.ReadFile(fmt.Sprintf("migrations/sqlite/%06d_%s.up.sql", m.ver, m.name))
@@ -541,11 +543,12 @@ func (d *driver) migrateUp(ctx context.Context) error {
 func (d *driver) migrateDown(ctx context.Context) error {
 	current, _ := d.CurrentVersion(ctx)
 
-	// Migrations 44-41 down: drop virtual keys + AI spend + per-route plugin tables.
+	// Migrations 45-41 down: drop strategy slot + virtual keys + AI spend + per-route plugin tables.
 	for _, m := range []struct {
 		ver  int
 		name string
 	}{
+		{45, "ai_agent_strategy"},
 		{44, "virtual_keys"},
 		{43, "ai_spend"},
 		{42, "route_waf_configs"},
