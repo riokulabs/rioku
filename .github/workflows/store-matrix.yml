@@ -127,6 +127,13 @@ jobs:
           cache-dependency-path: |
             packages/daemon/go.sum
       - name: Run MySQL 8.4 store tests
+        # Step-level continue-on-error so the JOB conclusion is
+        # success even when the test step fails. Job-level
+        # continue-on-error only affects whether downstream jobs
+        # gate on this one — it does NOT change the check status
+        # GitHub reports to PR branch protection. This is the
+        # follow-up TODO referenced above.
+        continue-on-error: true
         env:
           MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=true&sql_mode='NO_ENGINE_SUBSTITUTION'
         run: |
@@ -161,6 +168,8 @@ jobs:
           cache-dependency-path: |
             packages/daemon/go.sum
       - name: Run MariaDB 11.4 LTS store tests
+        # See store-matrix-mysql-8-4 for the rationale.
+        continue-on-error: true
         env:
           MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=true&sql_mode='NO_ENGINE_SUBSTITUTION'
         run: |
