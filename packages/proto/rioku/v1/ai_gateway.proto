@@ -1,0 +1,246 @@
+syntax = "proto3";
+
+// AI gateway surface (Sprint 5):
+//   - virtual keys (#167) — Phase 2
+//   - MCP teams + permissions + routes (#181, D9) — Phase 4
+//
+// The storage + Tx layer for each landed in commits cd7118a and
+// 7f289d3; this file defines the REST + gRPC surface that admin
+// clients (CLI / panel) call against.
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+// ============================================================
+// Virtual keys (#167)
+// ============================================================
+
+message VirtualKey {
+  string id              = 1;
+  string tenant_id       = 2;
+  string name            = 3;
+  string provider_id     = 4;
+  string credential_ref  = 5; // vault://... or empty
+  repeated string allowed_models = 6;
+  int32  rpm_limit       = 7;
+  int32  tpm_limit       = 8;
+  double budget_usd      = 9;
+  string budget_window   = 10; // minute|hour|day|month
+  google.protobuf.Timestamp revoked_at = 11;
+  string created_by      = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message CreateVirtualKeyRequest {
+  string id              = 1;
+  string name            = 2;
+  string provider_id     = 3;
+  string credential_ref  = 4;
+  repeated string allowed_models = 5;
+  int32  rpm_limit       = 6;
+  int32  tpm_limit       = 7;
+  double budget_usd      = 8;
+  string budget_window   = 9;
+}
+
+message UpdateVirtualKeyRequest {
+  string id                       = 1;
+  optional string name            = 2;
+  optional string provider_id     = 3;
+  optional string credential_ref  = 4;
+  // To clear allowed_models replace with an empty list and set
+  // replace_allowed_models = true (clients must be explicit so an
+  // unset list does not accidentally drop the existing filter).
+  repeated string allowed_models  = 5;
+  bool   replace_allowed_models   = 6;
+  optional int32  rpm_limit       = 7;
+  optional int32  tpm_limit       = 8;
+  optional double budget_usd      = 9;
+  optional string budget_window   = 10;
+}
+
+message RotateVirtualKeyRequest {
+  string id                  = 1;
+  string new_credential_ref  = 2;
+}
+
+message GetVirtualKeyRequest    { string id = 1; }
+message DeleteVirtualKeyRequest { string id = 1; }
+message RevokeVirtualKeyRequest { string id = 1; }
+message ListVirtualKeysRequest  {}
+message ListVirtualKeysResponse { repeated VirtualKey virtual_keys = 1; }
+
+// ============================================================
+// MCP teams + permissions (#181, D9)
+// ============================================================
+
+message MCPTeam {
+  string id          = 1;
+  string tenant_id   = 2;
+  string name        = 3;
+  string description = 4;
+  string status      = 5; // active|paused|closed
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message CreateMCPTeamRequest {
+  string id          = 1;
+  string name        = 2;
+  string description = 3;
+  string status      = 4;
+}
+
+message UpdateMCPTeamRequest {
+  string id                   = 1;
+  optional string name        = 2;
+  optional string description = 3;
+  optional string status      = 4;
+}
+
+message GetMCPTeamRequest    { string id = 1; }
+message DeleteMCPTeamRequest { string id = 1; }
+message ListMCPTeamsRequest  {}
+message ListMCPTeamsResponse { repeated MCPTeam teams = 1; }
+
+message MCPTeamPermission {
+  string id            = 1;
+  string tenant_id     = 2;
+  string team_id       = 3;
+  string mcp_server_id = 4;
+  string tool_name     = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message AddMCPTeamPermissionRequest {
+  string id            = 1;
+  string team_id       = 2;
+  string mcp_server_id = 3;
+  string tool_name     = 4;
+}
+
+message RemoveMCPTeamPermissionRequest { string id = 1; }
+message ListMCPTeamPermissionsRequest  { string team_id = 1; }
+message ListMCPTeamPermissionsResponse { repeated MCPTeamPermission permissions = 1; }
+
+// ============================================================
+// MCP routes (#181)
+// ============================================================
+
+message MCPRoute {
+  string id                = 1;
+  string tenant_id         = 2;
+  string name              = 3;
+  string hostname          = 4;
+  string path_prefix       = 5;
+  string mcp_server_id     = 6;
+  string auth_passthrough  = 7; // forward|replace|strip
+  bool   enabled           = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateMCPRouteRequest {
+  string id                = 1;
+  string name              = 2;
+  string hostname          = 3;
+  string path_prefix       = 4;
+  string mcp_server_id     = 5;
+  string auth_passthrough  = 6;
+  bool   enabled           = 7;
+}
+
+message UpdateMCPRouteRequest {
+  string id                          = 1;
+  optional string name               = 2;
+  optional string hostname           = 3;
+  optional string path_prefix        = 4;
+  optional string mcp_server_id      = 5;
+  optional string auth_passthrough   = 6;
+  optional bool   enabled            = 7;
+}
+
+message GetMCPRouteRequest    { string id = 1; }
+message DeleteMCPRouteRequest { string id = 1; }
+message ListMCPRoutesRequest  {}
+message ListMCPRoutesResponse { repeated MCPRoute routes = 1; }
+
+// ============================================================
+// Service
+// ============================================================
+
+service AIGatewayService {
+  // Virtual keys
+  rpc CreateVirtualKey(CreateVirtualKeyRequest) returns (VirtualKey) {
+    option (google.api.http) = { post: "/api/v1/ai/virtual-keys" body: "*" };
+  }
+  rpc GetVirtualKey(GetVirtualKeyRequest) returns (VirtualKey) {
+    option (google.api.http) = { get: "/api/v1/ai/virtual-keys/{id}" };
+  }
+  rpc ListVirtualKeys(ListVirtualKeysRequest) returns (ListVirtualKeysResponse) {
+    option (google.api.http) = { get: "/api/v1/ai/virtual-keys" };
+  }
+  rpc UpdateVirtualKey(UpdateVirtualKeyRequest) returns (VirtualKey) {
+    option (google.api.http) = { patch: "/api/v1/ai/virtual-keys/{id}" body: "*" };
+  }
+  rpc RotateVirtualKey(RotateVirtualKeyRequest) returns (VirtualKey) {
+    option (google.api.http) = { post: "/api/v1/ai/virtual-keys/{id}/rotate" body: "*" };
+  }
+  rpc RevokeVirtualKey(RevokeVirtualKeyRequest) returns (MutationMeta) {
+    option (google.api.http) = { post: "/api/v1/ai/virtual-keys/{id}/revoke" body: "*" };
+  }
+  rpc DeleteVirtualKey(DeleteVirtualKeyRequest) returns (MutationMeta) {
+    option (google.api.http) = { delete: "/api/v1/ai/virtual-keys/{id}" };
+  }
+
+  // MCP teams
+  rpc CreateMCPTeam(CreateMCPTeamRequest) returns (MCPTeam) {
+    option (google.api.http) = { post: "/api/v1/mcp/teams" body: "*" };
+  }
+  rpc GetMCPTeam(GetMCPTeamRequest) returns (MCPTeam) {
+    option (google.api.http) = { get: "/api/v1/mcp/teams/{id}" };
+  }
+  rpc ListMCPTeams(ListMCPTeamsRequest) returns (ListMCPTeamsResponse) {
+    option (google.api.http) = { get: "/api/v1/mcp/teams" };
+  }
+  rpc UpdateMCPTeam(UpdateMCPTeamRequest) returns (MCPTeam) {
+    option (google.api.http) = { patch: "/api/v1/mcp/teams/{id}" body: "*" };
+  }
+  rpc DeleteMCPTeam(DeleteMCPTeamRequest) returns (MutationMeta) {
+    option (google.api.http) = { delete: "/api/v1/mcp/teams/{id}" };
+  }
+
+  // MCP team permissions
+  rpc AddMCPTeamPermission(AddMCPTeamPermissionRequest) returns (MCPTeamPermission) {
+    option (google.api.http) = { post: "/api/v1/mcp/teams/{team_id}/permissions" body: "*" };
+  }
+  rpc ListMCPTeamPermissions(ListMCPTeamPermissionsRequest) returns (ListMCPTeamPermissionsResponse) {
+    option (google.api.http) = { get: "/api/v1/mcp/teams/{team_id}/permissions" };
+  }
+  rpc RemoveMCPTeamPermission(RemoveMCPTeamPermissionRequest) returns (MutationMeta) {
+    option (google.api.http) = { delete: "/api/v1/mcp/permissions/{id}" };
+  }
+
+  // MCP routes
+  rpc CreateMCPRoute(CreateMCPRouteRequest) returns (MCPRoute) {
+    option (google.api.http) = { post: "/api/v1/mcp/routes" body: "*" };
+  }
+  rpc GetMCPRoute(GetMCPRouteRequest) returns (MCPRoute) {
+    option (google.api.http) = { get: "/api/v1/mcp/routes/{id}" };
+  }
+  rpc ListMCPRoutes(ListMCPRoutesRequest) returns (ListMCPRoutesResponse) {
+    option (google.api.http) = { get: "/api/v1/mcp/routes" };
+  }
+  rpc UpdateMCPRoute(UpdateMCPRouteRequest) returns (MCPRoute) {
+    option (google.api.http) = { patch: "/api/v1/mcp/routes/{id}" body: "*" };
+  }
+  rpc DeleteMCPRoute(DeleteMCPRouteRequest) returns (MutationMeta) {
+    option (google.api.http) = { delete: "/api/v1/mcp/routes/{id}" };
+  }
+}

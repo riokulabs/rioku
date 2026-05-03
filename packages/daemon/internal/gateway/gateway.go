@@ -50,6 +50,7 @@ func NewGateway(
 	healthSvc riokuv1.HealthServiceServer,
 	trafficSvc riokuv1.TrafficServiceServer,
 	apiMgmtSvc riokuv1.APIManagementServiceServer,
+	aiGatewaySvc riokuv1.AIGatewayServiceServer,
 	a *auth.Auth,
 	sm *auth.SessionManager,
 	engine *config.Engine,
@@ -84,6 +85,11 @@ func NewGateway(
 	if apiMgmtSvc != nil {
 		if err := riokuv1.RegisterAPIManagementServiceHandlerServer(ctx, gwMux, apiMgmtSvc); err != nil {
 			return nil, fmt.Errorf("register api-management service: %w", err)
+		}
+	}
+	if aiGatewaySvc != nil {
+		if err := riokuv1.RegisterAIGatewayServiceHandlerServer(ctx, gwMux, aiGatewaySvc); err != nil {
+			return nil, fmt.Errorf("register ai-gateway service: %w", err)
 		}
 	}
 

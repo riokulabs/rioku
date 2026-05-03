@@ -28,6 +28,7 @@ type Server struct {
 	healthSvc     riokuv1.HealthServiceServer
 	trafficSvc    riokuv1.TrafficServiceServer
 	apiMgmtSvc    riokuv1.APIManagementServiceServer
+	aiGatewaySvc  riokuv1.AIGatewayServiceServer
 	log           *slog.Logger
 }
 
@@ -56,10 +57,12 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 	cfgSvc := newConfigService(engine)
 	healthSvc := newHealthService(st, caddyMgr)
 	apiMgmtSvc := newAPIManagementService(st, nil) // webhook emitter wired post-Sprint-4 Phase 1e
+	aiGatewaySvc := newAIGatewayService(st)
 
 	riokuv1.RegisterConfigServiceServer(gs, cfgSvc)
 	riokuv1.RegisterHealthServiceServer(gs, healthSvc)
 	riokuv1.RegisterAPIManagementServiceServer(gs, apiMgmtSvc)
+	riokuv1.RegisterAIGatewayServiceServer(gs, aiGatewaySvc)
 
 	var trafficSvc riokuv1.TrafficServiceServer
 	if traceBuf != nil && traceStore != nil {
@@ -74,12 +77,19 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		grpcServer: gs,
 		listener:   lis,
 		addr:       addr,
-		configSvc:  cfgSvc,
-		healthSvc:  healthSvc,
-		trafficSvc: trafficSvc,
-		apiMgmtSvc: apiMgmtSvc,
-		log:        logger,
+		configSvc:    cfgSvc,
+		healthSvc:    healthSvc,
+		trafficSvc:   trafficSvc,
+		apiMgmtSvc:   apiMgmtSvc,
+		aiGatewaySvc: aiGatewaySvc,
+		log:          logger,
 	}, nil
+}
+
+// AIGatewayService returns the registered AIGatewayService server
+// implementation (Sprint 5: virtual keys + MCP gateway).
+func (s *Server) AIGatewayService() riokuv1.AIGatewayServiceServer {
+	return s.aiGatewaySvc
 }
 
 // Start begins serving gRPC requests. Blocks until Stop is called.

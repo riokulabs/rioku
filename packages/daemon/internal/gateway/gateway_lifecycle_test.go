@@ -54,6 +54,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 		&stubHealthService{},
 		nil, // trafficSvc
 		nil, // apiMgmtSvc
+		nil, // aiGatewaySvc
 		a,
 		sm,
 		engine,
@@ -118,6 +119,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 		&stubHealthService{},
 		&stubTrafficService{},
 		nil, // apiMgmtSvc
+		nil, // aiGatewaySvc
 		a,
 		sm,
 		engine,
