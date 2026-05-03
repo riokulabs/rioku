@@ -9,7 +9,7 @@ CREATE TABLE services (
     name       TEXT NOT NULL UNIQUE,
     lb_policy  INTEGER NOT NULL DEFAULT 1,                                    -- LoadBalancingPolicy enum (1 = ROUND_ROBIN)
     health_check TEXT,                                                        -- JSON HealthCheck object, nullable
-    labels     TEXT DEFAULT '{}',                                             -- JSON object
+    labels     TEXT,                                             -- JSON object
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
     CONSTRAINT ck_services_created_at CHECK (created_at IS NOT NULL),
@@ -28,7 +28,7 @@ CREATE TABLE routes (
     target_service_id VARCHAR(64) REFERENCES services(id) ON DELETE SET NULL, -- FK, nullable
     target_upstream   TEXT,                                                   -- JSON DirectUpstream object, nullable
     enabled           TINYINT(1) NOT NULL DEFAULT 1,                          -- boolean 0/1
-    labels            TEXT DEFAULT '{}',                                      -- JSON object
+    labels            TEXT,                                      -- JSON object
     created_at        DATETIME(6) NOT NULL,
     updated_at        DATETIME(6) NOT NULL,
 
@@ -53,7 +53,7 @@ CREATE TABLE upstreams (
     weight     INTEGER NOT NULL DEFAULT 1,
     tls_mode   INTEGER NOT NULL DEFAULT 0,                                    -- TLSMode enum
     healthy    TINYINT(1) NOT NULL DEFAULT 1,                                 -- boolean 0/1
-    dial_err   TEXT DEFAULT ''
+    dial_err   TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_upstreams_service_id ON upstreams (service_id);
@@ -66,7 +66,7 @@ CREATE TABLE policies (
     name       TEXT NOT NULL UNIQUE,
     type       INTEGER NOT NULL,                                              -- PolicyType enum
     config     TEXT NOT NULL DEFAULT '{}',                                    -- JSON policy-specific configuration
-    labels     TEXT DEFAULT '{}',                                             -- JSON object
+    labels     TEXT,                                             -- JSON object
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -122,7 +122,7 @@ CREATE TABLE audit_log (
     entity_type    TEXT NOT NULL,
     entity_id      TEXT NOT NULL,
     operation      TEXT NOT NULL,
-    diff           TEXT DEFAULT '{}',                                         -- JSON
+    diff           TEXT,                                         -- JSON
     config_version BIGINT NOT NULL,
     occurred_at    DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

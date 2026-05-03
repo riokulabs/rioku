@@ -61,6 +61,19 @@ func (d *driver) Open(_ context.Context, cfg store.DriverConfig) error {
 
 	// openNode opens a single database connection pool and verifies it is reachable.
 	openNode := func(dsn string) (*sql.DB, error) {
+		// MySQL 5.7+/8.0+/MariaDB 10.x default to STRICT_TRANS_TABLES
+		// which rejects DEFAULT clauses on TEXT/BLOB/JSON columns.
+		// Several legacy migrations rely on those defaults; force a
+		// permissive sql_mode at connection time when the DSN doesn't
+		// already specify one. Operators with stricter requirements
+		// can override by setting sql_mode= explicitly in their DSN.
+		if !strings.Contains(dsn, "sql_mode=") {
+			sep := "?"
+			if strings.Contains(dsn, "?") {
+				sep = "&"
+			}
+			dsn = dsn + sep + "sql_mode='NO_ENGINE_SUBSTITUTION'"
+		}
 		db, err := sql.Open("mysql", dsn)
 		if err != nil {
 			return nil, fmt.Errorf("mysql: open: %w", err)
