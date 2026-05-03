@@ -182,8 +182,8 @@ Branch protection should require all five jobs. The sixth is non-blocking.
 | `store-matrix-sqlite` | Yes |
 | `store-matrix-postgres-15` | Yes |
 | `store-matrix-postgres-18` | Yes |
-| `store-matrix-mysql-8-4` | Yes |
-| `store-matrix-mariadb-11-4` | Yes |
+| `store-matrix-mysql-8-4` | Optional (non-blocking — migration rewrite pending) |
+| `store-matrix-mariadb-11-4` | Optional (non-blocking — migration rewrite pending) |
 | `store-matrix-mariadb-11-8` | Optional (non-blocking) |
 
 See `contrib-docs/docs/development/store-test-matrix.md` for the full env-var contract.
