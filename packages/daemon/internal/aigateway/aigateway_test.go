@@ -88,7 +88,7 @@ func seedProviderAndVK(t *testing.T, d store.Driver, upstreamURL, allowedModel s
 // loopback port. Returns the base URL.
 func startAIGateway(t *testing.T, d store.Driver) string {
 	t.Helper()
-	srv := aigateway.New(d, nil, nil)
+	srv := aigateway.New(d, nil, nil, nil)
 	if err := srv.Listen("127.0.0.1:0"); err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
