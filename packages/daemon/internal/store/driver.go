@@ -407,6 +407,30 @@ type Tx interface {
 	RevokeVirtualKey(ctx context.Context, id string) error
 	DeleteVirtualKey(ctx context.Context, id string) error
 
+	// --- MCP gateway v1 (Sprint 5 Phase 4 #181, D9) ---
+
+	// MCP teams group API keys + define the (server, tool)
+	// allow-list. A team in 'paused' or 'closed' status is rejected
+	// at the MCP gateway resolution step.
+	CreateMCPTeam(ctx context.Context, params CreateMCPTeamParams) (*MCPTeam, error)
+	GetMCPTeam(ctx context.Context, id string) (*MCPTeam, error)
+	ListMCPTeams(ctx context.Context) ([]*MCPTeam, error)
+	UpdateMCPTeam(ctx context.Context, id string, params UpdateMCPTeamParams) (*MCPTeam, error)
+	DeleteMCPTeam(ctx context.Context, id string) error
+
+	// AddMCPTeamPermission grants the team access to a tool on a
+	// specific MCP server. Tool '*' is a wildcard.
+	AddMCPTeamPermission(ctx context.Context, perm *MCPTeamPermission) (*MCPTeamPermission, error)
+	ListMCPTeamPermissions(ctx context.Context, teamID string) ([]*MCPTeamPermission, error)
+	RemoveMCPTeamPermission(ctx context.Context, id string) error
+
+	// MCP routes: HTTP routing in front of the MCP gateway.
+	CreateMCPRoute(ctx context.Context, params CreateMCPRouteParams) (*MCPRoute, error)
+	GetMCPRoute(ctx context.Context, id string) (*MCPRoute, error)
+	ListMCPRoutes(ctx context.Context) ([]*MCPRoute, error)
+	UpdateMCPRoute(ctx context.Context, id string, params UpdateMCPRouteParams) (*MCPRoute, error)
+	DeleteMCPRoute(ctx context.Context, id string) error
+
 	// --- Tenants (stage-2) ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have
