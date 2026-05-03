@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Dashboards: per-tenant analytics surfaces (stage-2).
 --
 -- A Dashboard owns a set of Widgets and a history of Versions
@@ -13,7 +13,7 @@
 -- "default" is a per-tenant flag (only one dashboard at a time);
 -- "home_for_users" is a JSON array of user IDs who picked this
 -- dashboard as their personal home.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE dashboards (
     id VARCHAR(64) PRIMARY KEY,
@@ -35,7 +35,7 @@ CREATE INDEX idx_dashboards_tenant ON dashboards (tenant_id);
 CREATE INDEX idx_dashboards_owner  ON dashboards (owner_user_id);
 CREATE INDEX idx_dashboards_scope  ON dashboards (scope);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Widgets: visualization tiles inside a Dashboard.
 --
 -- Two layered fields cover the wizard/advanced split exposed by the
@@ -49,7 +49,7 @@ CREATE INDEX idx_dashboards_scope  ON dashboards (scope);
 -- Layout is stored as a single JSON object {x, y, w, h} per widget;
 -- bulk reorder happens via PUT /dashboards/:id/layout which rewrites
 -- every widget's position in one transaction.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE widgets (
     id VARCHAR(64) PRIMARY KEY,
@@ -67,13 +67,13 @@ CREATE TABLE widgets (
 
 CREATE INDEX idx_widgets_dashboard ON widgets (dashboard_id);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Dashboard versions: point-in-time snapshots used by the
 -- "version history" page and the restore button.
 --
 -- snapshot_json is the JSON-serialized {dashboard, widgets} blob,
 -- which round-trips through import/export too.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE dashboard_versions (
     id VARCHAR(64) PRIMARY KEY,

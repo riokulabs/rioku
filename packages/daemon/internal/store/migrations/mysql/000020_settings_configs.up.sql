@@ -1,10 +1,10 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Settings configs (stage-2): four singleton-per-tenant tables.
 --
 -- Each is keyed by tenant_id (no separate id PK) and represents a
 -- single configuration document for that tenant. All four use the
 -- same INSERT...ON CONFLICT DO UPDATE upsert pattern.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE network_configs (
     tenant_id              TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,

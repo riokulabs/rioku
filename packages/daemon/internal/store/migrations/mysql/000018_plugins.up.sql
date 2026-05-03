@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Plugins + PluginSigners (stage-2).
 --
 -- tenant_scope is NULLABLE: NULL = global plugin/signer (super-admin
@@ -6,7 +6,7 @@
 --
 -- Plugins represent an installed (or pending-install) plugin instance.
 -- Marketplace listings live separately and aren't kept in this table.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE plugin_signers (
     id VARCHAR(64) PRIMARY KEY,

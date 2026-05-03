@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Tenancy foundation (#stage-2)
 --
 -- Every multi-tenant entity in stage-2 keys off `tenants(id)`. We seed a
@@ -8,7 +8,7 @@
 --
 -- The slug `default` is reserved and used by the URL resolver as a
 -- fallback when no tenant prefix is supplied.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE tenants (
     id VARCHAR(64) PRIMARY KEY,                                          -- UUID or fixed "tenant_default"
@@ -28,7 +28,7 @@ CREATE INDEX idx_tenants_slug ON tenants (slug);
 INSERT INTO tenants (id, slug, name, plan, url_mode)
 VALUES ('tenant_default', 'default', 'Default', 'community', 'path');
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Memberships: users <-> tenants with state machine.
 --
 -- A user may hold memberships in multiple tenants. The `state` column
@@ -40,7 +40,7 @@ VALUES ('tenant_default', 'default', 'Default', 'community', 'path');
 -- Backfill: every existing user gets an `active` membership in the
 -- default tenant via the migration runner (the SQL below does it
 -- inline since user IDs are deterministic at this point).
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE memberships (
     id VARCHAR(64) PRIMARY KEY,
@@ -70,7 +70,7 @@ SELECT
     u.created_at
 FROM users u;
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Membership <-> Role bindings (per-tenant role assignments).
 --
 -- The existing `user_roles` table predates memberships and joins users
@@ -80,7 +80,7 @@ FROM users u;
 -- query "what roles does this user have *in this tenant*?".
 --
 -- Backfill walks user_roles and inserts a matching row per membership.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE membership_roles (
     membership_id VARCHAR(64) NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,

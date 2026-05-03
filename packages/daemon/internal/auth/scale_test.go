@@ -1,3 +1,11 @@
+//go:build scale
+
+// Scale tests are gated behind the `scale` build tag because they
+// take ~3-5 minutes each under -race and routinely exceed the per-
+// package CI timeout. CI runs them via a separate nightly workflow;
+// PR CI defaults to the fast path. Run locally with:
+//
+//	go test -tags scale ./internal/auth/...
 package auth_test
 
 import (

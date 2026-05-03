@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Tenant_id retrofit on existing tables (stage-2 final).
 --
 -- Every tenant-scoped table from migrations 1-12 gets a `tenant_id`
@@ -22,7 +22,7 @@
 -- non-null = tenant-scoped custom role. The seeded built-ins
 -- (role_superadmin, role_admin, role_operator, role_viewer) keep
 -- tenant_id NULL.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 -- Routes
 ALTER TABLE routes ADD COLUMN tenant_id VARCHAR(64) NOT NULL DEFAULT 'tenant_default' REFERENCES tenants(id) ON DELETE CASCADE;

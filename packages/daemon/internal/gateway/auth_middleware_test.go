@@ -36,10 +36,7 @@ func setupAuthMiddlewareTest(t *testing.T) (*auth.Auth, *auth.SessionManager, st
 	}
 
 	// Create root user.
-	hash, err := auth.HashPassword("TestPassword123!")
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, "TestPassword123!")
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)

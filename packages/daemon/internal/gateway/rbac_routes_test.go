@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -65,10 +64,7 @@ func superadminRoleID(t *testing.T, drv store.Driver) string {
 func createTestUserDirect(t *testing.T, drv store.Driver, username, password string) string {
 	t.Helper()
 	ctx := context.Background()
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, password)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)

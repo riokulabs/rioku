@@ -1709,8 +1709,8 @@ func TestAuditLog_PayloadRoundTrip(t *testing.T) {
 			if got := e.GetPayloadSchema(); got != schemaID {
 				t.Fatalf("Query: payload entry payload_schema = %q, want %q", got, schemaID)
 			}
-			if got := e.GetPayload(); got != payload {
-				t.Fatalf("Query: payload entry payload = %q, want %q", got, payload)
+			if got := e.GetPayload(); !jsonEqual(got, payload) {
+				t.Fatalf("Query: payload entry payload = %q, want JSON-equal to %q", got, payload)
 			}
 		case "route-legacy":
 			gotLegacyID = e.GetId()
@@ -1737,8 +1737,8 @@ func TestAuditLog_PayloadRoundTrip(t *testing.T) {
 	if got.GetPayloadSchema() != schemaID {
 		t.Fatalf("Get: payload_schema = %q, want %q", got.GetPayloadSchema(), schemaID)
 	}
-	if got.GetPayload() != payload {
-		t.Fatalf("Get: payload = %q, want %q", got.GetPayload(), payload)
+	if !jsonEqual(got.GetPayload(), payload) {
+		t.Fatalf("Get: payload = %q, want JSON-equal to %q", got.GetPayload(), payload)
 	}
 
 	// --- GetAuditEntry round-trip on the legacy row — NULL columns must
@@ -1777,7 +1777,7 @@ func TestRole_CRUD(t *testing.T) {
 		ID:          roleID,
 		Name:        "Test Role",
 		Description: "A test role",
-		Permissions: []string{"routes:read"},
+		Permissions: []string{"config:read"},
 	})
 	if err != nil {
 		t.Fatalf("CreateRole: %v", err)
@@ -1791,8 +1791,8 @@ func TestRole_CRUD(t *testing.T) {
 	if created.IsBuiltin {
 		t.Fatal("expected is_builtin=false for a custom role")
 	}
-	if len(created.Permissions) != 1 || created.Permissions[0] != "routes:read" {
-		t.Fatalf("expected permissions=['routes:read'], got %v", created.Permissions)
+	if len(created.Permissions) != 1 || created.Permissions[0] != "config:read" {
+		t.Fatalf("expected permissions=['config:read'], got %v", created.Permissions)
 	}
 	if err := tx1.Commit(); err != nil {
 		t.Fatalf("Commit: %v", err)
@@ -1842,8 +1842,8 @@ func TestRole_CRUD(t *testing.T) {
 	updated, err := tx4.UpdateRole(ctx, roleID, store.UpdateRoleParams{
 		Name:        &newName,
 		Description: &newDesc,
-		AddPerms:    []string{"routes:write"},
-		RemovePerms: []string{"routes:read"},
+		AddPerms:    []string{"config:write"},
+		RemovePerms: []string{"config:read"},
 	})
 	if err != nil {
 		t.Fatalf("UpdateRole: %v", err)
@@ -1854,9 +1854,9 @@ func TestRole_CRUD(t *testing.T) {
 	if updated.Description != "Updated description" {
 		t.Fatalf("expected desc='Updated description', got %q", updated.Description)
 	}
-	// Should have routes:write, not routes:read.
-	if len(updated.Permissions) != 1 || updated.Permissions[0] != "routes:write" {
-		t.Fatalf("expected permissions=['routes:write'], got %v", updated.Permissions)
+	// Should have config:write, not config:read.
+	if len(updated.Permissions) != 1 || updated.Permissions[0] != "config:write" {
+		t.Fatalf("expected permissions=['config:write'], got %v", updated.Permissions)
 	}
 	if err := tx4.Commit(); err != nil {
 		t.Fatalf("Commit: %v", err)
@@ -2089,14 +2089,14 @@ func TestGetUserScopes(t *testing.T) {
 	if _, err := txR.CreateRole(ctx, store.CreateRoleParams{
 		ID:          roleAID,
 		Name:        "Scopes Role A",
-		Permissions: []string{"routes:read"},
+		Permissions: []string{"config:read"},
 	}); err != nil {
 		t.Fatalf("CreateRole A: %v", err)
 	}
 	if _, err := txR.CreateRole(ctx, store.CreateRoleParams{
 		ID:          roleBID,
 		Name:        "Scopes Role B",
-		Permissions: []string{"services:read", "services:write"},
+		Permissions: []string{"users:read", "users:manage"},
 	}); err != nil {
 		t.Fatalf("CreateRole B: %v", err)
 	}
@@ -2139,7 +2139,7 @@ func TestGetUserScopes(t *testing.T) {
 	for _, s := range scopes {
 		scopeSet[s] = true
 	}
-	for _, want := range []string{"routes:read", "services:read", "services:write"} {
+	for _, want := range []string{"config:read", "users:read", "users:manage"} {
 		if !scopeSet[want] {
 			t.Fatalf("expected scope %q in result, got %v", want, scopes)
 		}

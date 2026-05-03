@@ -35,10 +35,7 @@ func setupAccessPolicyTestServer(t *testing.T) (*httptest.Server, store.Driver, 
 	}
 
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, _ := drv.Begin(ctx, store.TxOptions{})
 	rootUser, err := tx.CreateUser(ctx, &store.User{
 		Username: "root", PasswordHash: hash, Status: "active",

@@ -42,10 +42,7 @@ func setupKeyTestServer(t *testing.T) (*httptest.Server, store.Driver, string, *
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -639,10 +636,7 @@ func createUserWithRole(t *testing.T, drv store.Driver, serverURL, username, pas
 	t.Helper()
 	ctx := context.Background()
 
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, password)
 
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {

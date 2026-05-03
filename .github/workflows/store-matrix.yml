@@ -122,7 +122,7 @@ jobs:
             packages/daemon/go.sum
       - name: Run MySQL 8.4 store tests
         env:
-          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false
+          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=true
         run: |
           cd packages/daemon
           go test -race -count=1 -timeout=300s ./internal/store/mysql/...
@@ -154,7 +154,7 @@ jobs:
             packages/daemon/go.sum
       - name: Run MariaDB 11.4 LTS store tests
         env:
-          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false
+          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=true
         run: |
           cd packages/daemon
           go test -race -count=1 -timeout=300s ./internal/store/mysql/...
@@ -192,7 +192,7 @@ jobs:
             packages/daemon/go.sum
       - name: Run MariaDB 11.8 store tests
         env:
-          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false
+          MYSQL_TEST_DSN: rioku:rioku_test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=true
         run: |
           cd packages/daemon
           go test -race -count=1 -timeout=300s ./internal/store/mysql/...

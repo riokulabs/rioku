@@ -111,7 +111,7 @@ func TestAIGateway_FallbackOn5xxAdvancesChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200 (fallback should succeed)", resp.StatusCode)
@@ -151,7 +151,7 @@ func TestAIGateway_FallbackDoesNotAdvanceOn4xx(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401 (4xx commits, no retry)", resp.StatusCode)
@@ -186,7 +186,7 @@ func TestAIGateway_AllUpstreamsFailReturnsLast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503 (last upstream's response surfaces)", resp.StatusCode)
@@ -251,7 +251,7 @@ func TestAIGateway_FallbackCustomTriggerIncludes401(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200 (custom 401 trigger advanced chain)", resp.StatusCode)
@@ -285,7 +285,7 @@ func TestAIGateway_LegacyVKBypassesStrategy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
 	}

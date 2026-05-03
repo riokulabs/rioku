@@ -10,7 +10,7 @@ three databases installed can still run the parts they care about.
 | Var | Format | Used by |
 |---|---|---|
 | `POSTGRES_TEST_DSN` | `postgres://user:pass@host:port/db?sslmode=disable` | `internal/store/postgres/...` integration tests |
-| `MYSQL_TEST_DSN` | `user:pass@tcp(host:port)/db?parseTime=true&loc=UTC&multiStatements=false` | `internal/store/mysql/...` integration tests |
+| `MYSQL_TEST_DSN` | `user:pass@tcp(host:port)/db?parseTime=true&loc=UTC&multiStatements=true` | `internal/store/mysql/...` integration tests |
 | `GALERA_TEST_DSNS` | comma-separated list of MySQL DSNs | `internal/store/mysql/galera_test.go` only |
 
 When an env var is unset, the corresponding tests skip cleanly via `t.Skip(...)`.
@@ -48,7 +48,7 @@ docker run -d --name rioku-mysql \
     -e MYSQL_ROOT_PASSWORD=test \
     -p 3306:3306 mysql:8.4
 sleep 30  # mysql:8.4 takes longer to initialize
-MYSQL_TEST_DSN="rioku:test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=false" \
+MYSQL_TEST_DSN="rioku:test@tcp(localhost:3306)/rioku_test?parseTime=true&loc=UTC&multiStatements=true" \
     go test ./packages/daemon/internal/store/mysql/...
 ```
 

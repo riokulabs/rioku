@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Webhooks + ClusterEnrollmentTokens + ImpersonationSessions (stage-2).
 --
 -- - webhook_endpoints: per-tenant outbound HTTP webhooks for
@@ -9,7 +9,7 @@
 --   tracks redemption. NOT tenant-scoped (cluster is global).
 -- - impersonation_sessions: super-admin impersonation audit trail
 --   with TOTP gating and idle/absolute session deadlines.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE webhook_endpoints (
     id VARCHAR(64) PRIMARY KEY,

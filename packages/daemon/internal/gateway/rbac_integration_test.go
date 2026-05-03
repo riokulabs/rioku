@@ -41,10 +41,7 @@ func setupRBACTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -206,10 +203,7 @@ func TestRBACIntegration(t *testing.T) {
 	newUserPassword := "EditorPass123!!"
 	var newUserID string
 	func() {
-		hash, err := auth.HashPassword(newUserPassword)
-		if err != nil {
-			t.Fatal(err)
-		}
+		hash := cachedHashPassword(t, newUserPassword)
 		tx, err := drv.Begin(ctx, store.TxOptions{})
 		if err != nil {
 			t.Fatal(err)

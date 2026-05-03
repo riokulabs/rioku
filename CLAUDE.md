@@ -170,7 +170,7 @@ Integration tests for the config store require a live database. All three variab
 | Variable | Format | Purpose |
 | --- | --- | --- |
 | `POSTGRES_TEST_DSN` | `postgres://user:pass@host:port/db?sslmode=disable` | Postgres integration tests |
-| `MYSQL_TEST_DSN` | `user:pass@tcp(host:port)/db?parseTime=true&loc=UTC&multiStatements=false` | MySQL / MariaDB integration tests |
+| `MYSQL_TEST_DSN` | `user:pass@tcp(host:port)/db?parseTime=true&loc=UTC&multiStatements=true` | MySQL / MariaDB integration tests |
 | `GALERA_TEST_DSNS` | comma-separated list of the above format | Multi-node Galera tests (3+ DSNs recommended) |
 
 ### CI job names

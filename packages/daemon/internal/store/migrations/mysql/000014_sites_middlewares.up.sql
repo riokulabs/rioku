@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Sites: per-tenant gateway entries (domain + TLS mode + redirect rules).
 --
 -- The admin panel renders one row per "Site" — a customer-facing domain
@@ -10,7 +10,7 @@
 -- (TLS automation, automatic_https) is computed from these rows during
 -- compile, but the Sites table itself is the source of truth in the
 -- admin's mental model.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE sites (
     id VARCHAR(64) PRIMARY KEY,
@@ -32,7 +32,7 @@ CREATE TABLE sites (
 CREATE INDEX idx_sites_tenant ON sites (tenant_id);
 CREATE INDEX idx_sites_domain ON sites (domain);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Middlewares: per-tenant reusable handler-stack components.
 --
 -- A Middleware is a named, configured handler (rate-limit, auth,
@@ -44,7 +44,7 @@ CREATE INDEX idx_sites_domain ON sites (domain);
 -- order_hint is a soft sort key used when the admin renders the
 -- catalog; route-level ordering is per-route and lives in the route's
 -- middleware_ids JSON column (handled separately).
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE middlewares (
     id VARCHAR(64) PRIMARY KEY,

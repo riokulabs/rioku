@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- AI subsystem (stage-2): 7 tables.
 --
 -- Provider -> Agent -> ToolBinding <- Tool -> McpServer
@@ -9,7 +9,7 @@
 -- Every entity is tenant-scoped. The Trace table is append-only (no
 -- updates) and is the largest by row count — pagination is by
 -- (occurred_at DESC, id DESC) covered by a composite index.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE ai_providers (
     id VARCHAR(64) PRIMARY KEY,

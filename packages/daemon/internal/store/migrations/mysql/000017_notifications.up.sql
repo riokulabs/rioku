@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Notifications subsystem (stage-2): 5 tables.
 --
 -- NotificationItem: per-user inbox entries (append-mostly, mutate
@@ -10,7 +10,7 @@
 -- NotificationDeliveryLogEntry: audit trail for each delivery attempt.
 -- TenantNotificationConfig: singleton-per-tenant master switch +
 --   retry policy.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE notification_items (
     id VARCHAR(64) PRIMARY KEY,

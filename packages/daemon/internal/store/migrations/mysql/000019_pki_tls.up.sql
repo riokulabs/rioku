@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- PKI + TLS subsystem (stage-2): 4 tables.
 --
 -- CertAuthority: per-tenant root/intermediate CA (internal/external).
@@ -6,7 +6,7 @@
 -- TlsCertificate: an actual TLS cert managed by the daemon (acme or
 --   manual upload), used by the auto-TLS pipeline.
 -- TlsConfig: singleton-per-tenant ACME provider + cipher policy.
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 
 CREATE TABLE cert_authorities (
     id VARCHAR(64) PRIMARY KEY,

@@ -1,9 +1,9 @@
 -- 000001_initial.up.sql
 -- Initial schema for the Rioku API Gateway config store (MySQL).
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Core: services
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE services (
     id         VARCHAR(64) PRIMARY KEY,                                       -- UUID
     name       TEXT NOT NULL UNIQUE,
@@ -18,9 +18,9 @@ CREATE TABLE services (
 
 CREATE INDEX idx_services_name ON services (name);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Core: routes
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE routes (
     id                VARCHAR(64) PRIMARY KEY,                                -- UUID
     name              TEXT NOT NULL UNIQUE,
@@ -43,9 +43,9 @@ CREATE TABLE routes (
 CREATE INDEX idx_routes_name    ON routes (name);
 CREATE INDEX idx_routes_enabled ON routes (enabled);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Core: upstreams (targets belonging to a service)
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE upstreams (
     id         VARCHAR(64) PRIMARY KEY,                                       -- UUID
     service_id VARCHAR(64) NOT NULL REFERENCES services(id) ON DELETE CASCADE,
@@ -58,9 +58,9 @@ CREATE TABLE upstreams (
 
 CREATE INDEX idx_upstreams_service_id ON upstreams (service_id);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Core: policies (rate limit, auth, transform, etc.)
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE policies (
     id         VARCHAR(64) PRIMARY KEY,                                       -- UUID
     name       TEXT NOT NULL UNIQUE,
@@ -74,9 +74,9 @@ CREATE TABLE policies (
 CREATE INDEX idx_policies_name ON policies (name);
 CREATE INDEX idx_policies_type ON policies (type);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Core: policy_bindings (many-to-many between policies and routes/services)
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE policy_bindings (
     policy_id   VARCHAR(64) NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
     target_type TEXT NOT NULL CHECK (target_type IN ('route', 'service')),
@@ -87,9 +87,9 @@ CREATE TABLE policy_bindings (
 
 CREATE INDEX idx_policy_bindings_target ON policy_bindings (target_type, target_id);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Identity: api_keys
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE api_keys (
     id         VARCHAR(64) PRIMARY KEY,                                       -- UUID
     name       TEXT NOT NULL,
@@ -103,9 +103,9 @@ CREATE TABLE api_keys (
 CREATE INDEX idx_api_keys_key_hash ON api_keys (key_hash);
 CREATE INDEX idx_api_keys_name     ON api_keys (name);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Ops: config_versions (full config snapshots for rollback)
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE config_versions (
     version    BIGINT AUTO_INCREMENT PRIMARY KEY,
     snapshot   LONGTEXT NOT NULL,                                             -- JSON-encoded ConfigSnapshot
@@ -113,9 +113,9 @@ CREATE TABLE config_versions (
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Ops: audit_log (append-only mutation log)
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE audit_log (
     id             VARCHAR(64) PRIMARY KEY,                                   -- UUID
     actor          TEXT NOT NULL,
@@ -131,9 +131,9 @@ CREATE INDEX idx_audit_log_entity      ON audit_log (entity_type, entity_id);
 CREATE INDEX idx_audit_log_actor       ON audit_log (actor);
 CREATE INDEX idx_audit_log_occurred_at ON audit_log (occurred_at);
 
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 -- Migrations: schema_versions (pre-created by driver but included here for completeness)
---------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS schema_versions (
     version    INTEGER PRIMARY KEY,
     dirty      TINYINT(1) NOT NULL DEFAULT 0,

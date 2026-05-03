@@ -41,10 +41,7 @@ func TestKeyRotationDuringSessions(t *testing.T) {
 
 	// Create root user.
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
