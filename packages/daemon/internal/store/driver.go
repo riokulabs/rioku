@@ -381,6 +381,15 @@ type Tx interface {
 	AppendWAFDenial(ctx context.Context, d *WAFDenial) error
 	QueryWAFDenials(ctx context.Context, q WAFDenialQuery) ([]*WAFDenial, error)
 
+	// --- AI spend (#166, Sprint 5 Phase 1e + 1f) ---
+
+	AppendAISpendLog(ctx context.Context, log *AISpendLog) error
+	GetAISpendLog(ctx context.Context, id string) (*AISpendLog, error)
+	QueryAISpendLogs(ctx context.Context, q AISpendQuery) ([]*AISpendLog, error)
+	PruneAISpendLogs(ctx context.Context, before time.Time) (int64, error)
+	AggregateAISpendDay(ctx context.Context, day time.Time) (int64, error)
+	QueryAISpendRollups(ctx context.Context, q AISpendRollupQuery) ([]*AISpendRollup, error)
+
 	// --- Tenants (stage-2) ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have
