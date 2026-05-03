@@ -314,9 +314,9 @@ func (s *Server) handleQuotaExceeded(w http.ResponseWriter, r *http.Request) {
 // handleMCPValidate is the rioku_mcp_auth Caddy module's tool-
 // authorization endpoint (#201, D9). The plugin POSTs:
 //
-//   { "api_key_hash": "<sha256-hex>",
-//     "mcp_server_id": "<server id>",
-//     "tool_name":     "<tool name>" }
+//	{ "api_key_hash": "<sha256-hex>",
+//	  "mcp_server_id": "<server id>",
+//	  "tool_name":     "<tool name>" }
 //
 // The endpoint resolves the API key chain, looks up the bound
 // mcp_team's permissions, and reports whether the team is allowed
@@ -324,10 +324,10 @@ func (s *Server) handleQuotaExceeded(w http.ResponseWriter, r *http.Request) {
 //
 // Response shape:
 //
-//   { "allow": true|false,
-//     "reason": "...",         // when !allow
-//     "no_team": true,         // key resolved but is not bound to an MCP team
-//     "team_id": "..." }
+//	{ "allow": true|false,
+//	  "reason": "...",         // when !allow
+//	  "no_team": true,         // key resolved but is not bound to an MCP team
+//	  "team_id": "..." }
 //
 // Loopback only; network isolation is the trust boundary.
 func (s *Server) handleMCPValidate(w http.ResponseWriter, r *http.Request) {

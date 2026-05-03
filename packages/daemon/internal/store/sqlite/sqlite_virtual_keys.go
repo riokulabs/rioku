@@ -225,11 +225,11 @@ func (t *tx) DeleteVirtualKey(ctx context.Context, id string) error {
 
 func scanVirtualKey(s scanner) (*store.VirtualKey, error) {
 	var (
-		k                                                  store.VirtualKey
-		allowedJSON, upstreamsJSON                         string
-		budgetWindow, routingStrategy, routingConfig       string
-		createdAt, updated                                 string
-		revokedAt, createdBy                               sql.NullString
+		k                                            store.VirtualKey
+		allowedJSON, upstreamsJSON                   string
+		budgetWindow, routingStrategy, routingConfig string
+		createdAt, updated                           string
+		revokedAt, createdBy                         sql.NullString
 	)
 	if err := s.Scan(
 		&k.ID, &k.TenantID, &k.Name, &k.ProviderID, &k.CredentialRef,

@@ -293,15 +293,15 @@ func ValidSubscriptionTransition(from, to SubscriptionStatus) bool {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrPlanNotFound         = fmt.Errorf("store: plan not found")
-	ErrPlanNameTaken        = fmt.Errorf("store: plan name already exists in tenant")
+	ErrPlanNotFound          = fmt.Errorf("store: plan not found")
+	ErrPlanNameTaken         = fmt.Errorf("store: plan name already exists in tenant")
 	ErrPlanInvalidTransition = fmt.Errorf("store: plan state transition not allowed")
 
-	ErrApplicationNotFound         = fmt.Errorf("store: application not found")
-	ErrApplicationNameTaken        = fmt.Errorf("store: application name already exists in tenant")
+	ErrApplicationNotFound          = fmt.Errorf("store: application not found")
+	ErrApplicationNameTaken         = fmt.Errorf("store: application name already exists in tenant")
 	ErrApplicationInvalidTransition = fmt.Errorf("store: application state transition not allowed")
 
-	ErrSubscriptionNotFound         = fmt.Errorf("store: subscription not found")
-	ErrSubscriptionDuplicate        = fmt.Errorf("store: live subscription already exists for application+plan")
+	ErrSubscriptionNotFound          = fmt.Errorf("store: subscription not found")
+	ErrSubscriptionDuplicate         = fmt.Errorf("store: live subscription already exists for application+plan")
 	ErrSubscriptionInvalidTransition = fmt.Errorf("store: subscription state transition not allowed")
 )

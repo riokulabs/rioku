@@ -18,7 +18,7 @@ import (
 )
 
 type jwksObservabilityResponse struct {
-	Available bool                     `json:"available"`
+	Available bool                      `json:"available"`
 	Entries   []observability.JWKSEntry `json:"entries"`
 }
 

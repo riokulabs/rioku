@@ -12,7 +12,7 @@ func TestHeuristic_EstimateText(t *testing.T) {
 		{"abcd", 1},        // 4/4 = 1
 		{"abcde", 2},       // ceil(5/4) = 2
 		{"hello world", 3}, // 11 chars => ceil(11/4) = 3
-		{"日本語", 1},        // 3 runes => ceil(3/4) = 1
+		{"日本語", 1},         // 3 runes => ceil(3/4) = 1
 	}
 	for _, c := range cases {
 		if got := h.EstimateText(c.in, "any"); got != c.want {

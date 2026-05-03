@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	bolt "go.etcd.io/bbolt"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
+	bolt "go.etcd.io/bbolt"
 
 	"github.com/riokulabs/rioku/internal/store"
 )

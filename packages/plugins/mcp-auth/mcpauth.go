@@ -6,13 +6,13 @@
 //
 // Wire model:
 //
-//   client -> Caddy (rioku_apikey -> rioku_mcp_auth -> reverse_proxy)
-//                                         |
-//                                         v
-//                                  daemon /mcp-validate
-//                                         |
-//                                         v
-//                              mcp_team -> permissions allow-list
+//	client -> Caddy (rioku_apikey -> rioku_mcp_auth -> reverse_proxy)
+//	                                      |
+//	                                      v
+//	                               daemon /mcp-validate
+//	                                      |
+//	                                      v
+//	                           mcp_team -> permissions allow-list
 //
 // rioku_apikey stamps X-Rioku-API-Key-Hash on the upstream-bound
 // request when the resolved key has a Plan binding. rioku_mcp_auth
@@ -97,10 +97,10 @@ type toolsCallParams struct {
 // enforcement to apply). When team is set and allowed_tools is
 // present (possibly with "*"), enforcement runs.
 type allowResponse struct {
-	Allow      bool     `json:"allow"`
-	Reason     string   `json:"reason,omitempty"`
-	NoTeam     bool     `json:"no_team,omitempty"`
-	TeamID     string   `json:"team_id,omitempty"`
+	Allow  bool   `json:"allow"`
+	Reason string `json:"reason,omitempty"`
+	NoTeam bool   `json:"no_team,omitempty"`
+	TeamID string `json:"team_id,omitempty"`
 }
 
 // ServeHTTP runs the auth check.
@@ -225,10 +225,10 @@ func extractToolCall(body []byte) (string, string) {
 
 // UnmarshalCaddyfile parses the Caddyfile directive. Shape:
 //
-//   rioku_mcp_auth {
-//       validator_endpoint http://127.0.0.1:7791/mcp-validate
-//       mcp_server_id      mcp_srv_xyz
-//   }
+//	rioku_mcp_auth {
+//	    validator_endpoint http://127.0.0.1:7791/mcp-validate
+//	    mcp_server_id      mcp_srv_xyz
+//	}
 func (m *MCPAuth) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for d.NextBlock(0) {

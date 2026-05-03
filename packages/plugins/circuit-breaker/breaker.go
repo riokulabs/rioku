@@ -7,15 +7,15 @@
 // State machine:
 //
 //   - closed     — all traffic flows through. Track consecutive
-//                  upstream failures; when count >= FailureThreshold,
-//                  trip to open.
+//     upstream failures; when count >= FailureThreshold,
+//     trip to open.
 //   - open       — every request short-circuits with 503 + Retry-After.
-//                  After TimeoutSeconds elapses, the next request
-//                  promotes the breaker to half-open.
+//     After TimeoutSeconds elapses, the next request
+//     promotes the breaker to half-open.
 //   - half-open  — admit up to HalfOpenRequests concurrent probe
-//                  requests. After SuccessThreshold consecutive
-//                  successes, close. Any failure re-opens. Excess
-//                  probes get 503 immediately.
+//     requests. After SuccessThreshold consecutive
+//     successes, close. Any failure re-opens. Excess
+//     probes get 503 immediately.
 //
 // Failure signal: ServeHTTP wraps the response writer with a recorder
 // that captures the upstream's status code. A request counts as a

@@ -177,16 +177,16 @@ func (t *tx) QueryAuditLog(ctx context.Context, query store.AuditQuery) ([]*riok
 	var entries []*riokuv1.AuditEntry
 	for rows.Next() {
 		var (
-			id             string
-			actor          string
-			entityType     string
-			entityID       string
-			operation      string
-			diff           string
-			configVersion  int64
-			occurredAt     string
-			payloadSchema  sql.NullString
-			payload        sql.NullString
+			id            string
+			actor         string
+			entityType    string
+			entityID      string
+			operation     string
+			diff          string
+			configVersion int64
+			occurredAt    string
+			payloadSchema sql.NullString
+			payload       sql.NullString
 		)
 		if err := rows.Scan(&id, &actor, &entityType, &entityID, &operation, &diff, &configVersion, &occurredAt, &payloadSchema, &payload); err != nil {
 			return nil, fmt.Errorf("sqlite: scan audit entry: %w", err)

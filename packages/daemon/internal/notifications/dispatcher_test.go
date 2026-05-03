@@ -70,8 +70,8 @@ func registerEndpoint(t *testing.T, d store.Driver, url, events string, secret s
 // receiver is a tiny httptest receiver that records every body
 // + header set it sees. Tests dispatch and then assert on calls.
 type receiver struct {
-	mu      sync.Mutex
-	calls   []recorded
+	mu         sync.Mutex
+	calls      []recorded
 	failNTimes atomic.Int32
 }
 

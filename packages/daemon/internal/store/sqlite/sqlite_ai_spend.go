@@ -164,10 +164,10 @@ func (t *tx) AggregateAISpendDay(ctx context.Context, day time.Time) (int64, err
 	now := nowUTC()
 	for rows.Next() {
 		var (
-			vkID, modelID                                  string
-			reqCount, errCount                             int32
-			inTokensSum, outTokensSum, totalTokensSum      int64
-			costSum                                        float64
+			vkID, modelID                             string
+			reqCount, errCount                        int32
+			inTokensSum, outTokensSum, totalTokensSum int64
+			costSum                                   float64
 		)
 		if err := rows.Scan(&vkID, &modelID, &reqCount, &errCount,
 			&inTokensSum, &outTokensSum, &totalTokensSum, &costSum); err != nil {
@@ -238,9 +238,9 @@ func (t *tx) QueryAISpendRollups(ctx context.Context, q store.AISpendRollupQuery
 	var out []*store.AISpendRollup
 	for rows.Next() {
 		var (
-			r            store.AISpendRollup
-			rollupDate   string
-			updatedAt    string
+			r          store.AISpendRollup
+			rollupDate string
+			updatedAt  string
 		)
 		if err := rows.Scan(&r.TenantID, &r.VirtualKeyID, &r.ModelID, &rollupDate,
 			&r.RequestCount, &r.ErrorCount, &r.InputTokensTotal, &r.OutputTokensTotal,
@@ -258,10 +258,10 @@ func (t *tx) QueryAISpendRollups(ctx context.Context, q store.AISpendRollupQuery
 
 func scanAISpendLog(s scanner) (*store.AISpendLog, error) {
 	var (
-		log                                       store.AISpendLog
-		virtualKeyID, applicationID, planID       sql.NullString
-		providerID, messages, response            sql.NullString
-		createdAt                                 string
+		log                                 store.AISpendLog
+		virtualKeyID, applicationID, planID sql.NullString
+		providerID, messages, response      sql.NullString
+		createdAt                           string
 	)
 	if err := s.Scan(
 		&log.ID, &log.TenantID, &virtualKeyID, &applicationID, &planID, &providerID,

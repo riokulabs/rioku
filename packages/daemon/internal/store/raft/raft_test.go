@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	bolt "go.etcd.io/bbolt"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/riokulabs/rioku/internal/store"

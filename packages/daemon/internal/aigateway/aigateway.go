@@ -141,7 +141,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 // array) and to surface routing/cost; the rest stays opaque and
 // streams to the upstream verbatim.
 type proxyRequest struct {
-	Model    string              `json:"model"`
+	Model    string               `json:"model"`
 	Messages []tokens.ChatMessage `json:"messages"`
 	// /v1/completions style — single prompt string.
 	Prompt any `json:"prompt"`
@@ -618,14 +618,14 @@ func writeBudgetExceeded(w http.ResponseWriter, vk *store.VirtualKey, spent floa
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusForbidden)
 	body := map[string]any{
-		"type":            "https://rioku.dev/errors/budget-exceeded",
-		"title":           "Budget exceeded",
-		"status":          http.StatusForbidden,
-		"detail":          "virtual key budget exceeded for current window",
-		"virtual_key_id":  vk.ID,
-		"budget_usd":      vk.BudgetUSD,
-		"spent_usd":       spent,
-		"budget_window":   string(vk.BudgetWindow),
+		"type":           "https://rioku.dev/errors/budget-exceeded",
+		"title":          "Budget exceeded",
+		"status":         http.StatusForbidden,
+		"detail":         "virtual key budget exceeded for current window",
+		"virtual_key_id": vk.ID,
+		"budget_usd":     vk.BudgetUSD,
+		"spent_usd":      spent,
+		"budget_window":  string(vk.BudgetWindow),
 	}
 	_ = json.NewEncoder(w).Encode(body)
 }

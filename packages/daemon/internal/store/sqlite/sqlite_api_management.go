@@ -49,8 +49,8 @@ func scanPlan(row interface {
 	Scan(dest ...any) error
 }) (*store.Plan, error) {
 	var (
-		p                                                                store.Plan
-		securityType, validation, status, createdAt, updatedAt           string
+		p                                                      store.Plan
+		securityType, validation, status, createdAt, updatedAt string
 	)
 	if err := row.Scan(
 		&p.ID, &p.TenantID, &p.APIID, &p.Name, &p.Description,
@@ -431,9 +431,9 @@ func scanSubscription(row interface {
 	Scan(dest ...any) error
 }) (*store.Subscription, error) {
 	var (
-		s                                       store.Subscription
-		status, createdAt, updatedAt            string
-		startingAt, endingAt                    sql.NullString
+		s                            store.Subscription
+		status, createdAt, updatedAt string
+		startingAt, endingAt         sql.NullString
 	)
 	if err := row.Scan(
 		&s.ID, &s.TenantID, &s.PlanID, &s.ApplicationID, &s.APIID,
@@ -608,4 +608,3 @@ func (t *tx) TransitionSubscription(ctx context.Context, id string, to store.Sub
 	t.emit("subscriptions", id, "UPDATE")
 	return t.GetSubscription(ctx, id)
 }
-

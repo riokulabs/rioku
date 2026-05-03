@@ -16,16 +16,16 @@ import (
 // ---------------------------------------------------------------------------
 
 type RouteOASConfig struct {
-	RouteID                 string
-	TenantID                string
-	OASURL                  string
-	OASInline               string
-	RefreshIntervalSeconds  int32
-	ValidateRequestBody     bool
-	ValidateRequestParams   bool
-	RejectUnknown           bool
-	CreatedAt               time.Time
-	UpdatedAt               time.Time
+	RouteID                string
+	TenantID               string
+	OASURL                 string
+	OASInline              string
+	RefreshIntervalSeconds int32
+	ValidateRequestBody    bool
+	ValidateRequestParams  bool
+	RejectUnknown          bool
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 // ---------------------------------------------------------------------------
@@ -47,8 +47,8 @@ type RouteWAFConfig struct {
 	TenantID         string
 	Enabled          bool
 	Mode             WAFMode
-	RuleSet          string  // "crs" by default; alternates land as new rule sets ship
-	ParanoiaLevel    int32   // 1-4
+	RuleSet          string // "crs" by default; alternates land as new rule sets ship
+	ParanoiaLevel    int32  // 1-4
 	ExcludedRuleIDs  []string
 	RequestBodyLimit int32
 	CreatedAt        time.Time

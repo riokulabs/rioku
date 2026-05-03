@@ -70,8 +70,8 @@ func TestAIGateway_VirtualKey_CreateGetListUpdateRotateRevokeDelete(t *testing.T
 	}
 
 	rotated, err := svc.RotateVirtualKey(ctx, &riokuv1.RotateVirtualKeyRequest{
-		Id:                created.GetId(),
-		NewCredentialRef:  "vault://kv/openai-v2",
+		Id:               created.GetId(),
+		NewCredentialRef: "vault://kv/openai-v2",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -83,10 +83,10 @@ func TestAIGateway_VirtualKey_CreateGetListUpdateRotateRevokeDelete(t *testing.T
 	newName := "renamed"
 	newAllow := []string{"gpt-4o", "gpt-4o-mini"}
 	upd, err := svc.UpdateVirtualKey(ctx, &riokuv1.UpdateVirtualKeyRequest{
-		Id:                    created.GetId(),
-		Name:                  &newName,
-		AllowedModels:         newAllow,
-		ReplaceAllowedModels:  true,
+		Id:                   created.GetId(),
+		Name:                 &newName,
+		AllowedModels:        newAllow,
+		ReplaceAllowedModels: true,
 	})
 	if err != nil {
 		t.Fatal(err)

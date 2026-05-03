@@ -165,10 +165,10 @@ func (t *tx) AggregateAISpendDay(ctx context.Context, day time.Time) (int64, err
 	now := nowUTC()
 	for rows.Next() {
 		var (
-			vkID, modelID                            string
-			reqCount, errCount                       int32
+			vkID, modelID                             string
+			reqCount, errCount                        int32
 			inTokensSum, outTokensSum, totalTokensSum int64
-			costSum                                  float64
+			costSum                                   float64
 		)
 		if err := rows.Scan(&vkID, &modelID, &reqCount, &errCount,
 			&inTokensSum, &outTokensSum, &totalTokensSum, &costSum); err != nil {

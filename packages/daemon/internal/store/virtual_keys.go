@@ -27,26 +27,26 @@ const (
 // VirtualKey is the Rioku-side wrapper around an upstream
 // provider credential.
 type VirtualKey struct {
-	ID             string
-	TenantID       string
-	Name           string
-	ProviderID     string
-	CredentialRef  string  // vault://... reference; resolved by daemon at request time
-	AllowedModels  []string // empty = all models (use with care)
-	RPMLimit       int32   // 0 = unlimited
-	TPMLimit       int32   // 0 = unlimited
-	BudgetUSD      float64 // 0 = unlimited
-	BudgetWindow   BudgetWindow
+	ID            string
+	TenantID      string
+	Name          string
+	ProviderID    string
+	CredentialRef string   // vault://... reference; resolved by daemon at request time
+	AllowedModels []string // empty = all models (use with care)
+	RPMLimit      int32    // 0 = unlimited
+	TPMLimit      int32    // 0 = unlimited
+	BudgetUSD     float64  // 0 = unlimited
+	BudgetWindow  BudgetWindow
 	// Upstreams is the optional explicit list the AI gateway routes
 	// across (Sprint 5 Phase 3 #200). Empty list means single-
 	// upstream behavior — the gateway falls back to ProviderID.
 	Upstreams       []VirtualKeyUpstream
 	RoutingStrategy string // simple_shuffle | fallback | latency
 	RoutingConfig   string // JSON; consumed by the strategy constructor
-	RevokedAt      *time.Time
-	CreatedBy      *string // user id; SET NULL on user delete
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	RevokedAt       *time.Time
+	CreatedBy       *string // user id; SET NULL on user delete
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // VirtualKeyUpstream is one entry on a VK's routing list. Mirrors

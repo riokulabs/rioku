@@ -21,16 +21,16 @@ import (
 
 // Server wraps a gRPC server with registered Rioku services.
 type Server struct {
-	grpcServer    *grpc.Server
-	listener      net.Listener
-	addr          string
-	configSvc     riokuv1.ConfigServiceServer
-	healthSvc     riokuv1.HealthServiceServer
-	trafficSvc    riokuv1.TrafficServiceServer
-	apiMgmtSvc    riokuv1.APIManagementServiceServer
-	aiGatewaySvc  riokuv1.AIGatewayServiceServer
-	wafSvc        riokuv1.WAFServiceServer
-	log           *slog.Logger
+	grpcServer   *grpc.Server
+	listener     net.Listener
+	addr         string
+	configSvc    riokuv1.ConfigServiceServer
+	healthSvc    riokuv1.HealthServiceServer
+	trafficSvc   riokuv1.TrafficServiceServer
+	apiMgmtSvc   riokuv1.APIManagementServiceServer
+	aiGatewaySvc riokuv1.AIGatewayServiceServer
+	wafSvc       riokuv1.WAFServiceServer
+	log          *slog.Logger
 }
 
 // NewServer creates a gRPC server with ConfigService, HealthService, and
@@ -77,9 +77,9 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 	reflection.Register(gs)
 
 	return &Server{
-		grpcServer: gs,
-		listener:   lis,
-		addr:       addr,
+		grpcServer:   gs,
+		listener:     lis,
+		addr:         addr,
 		configSvc:    cfgSvc,
 		healthSvc:    healthSvc,
 		trafficSvc:   trafficSvc,

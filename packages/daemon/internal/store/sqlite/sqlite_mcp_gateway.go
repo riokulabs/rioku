@@ -128,9 +128,9 @@ func (t *tx) DeleteMCPTeam(ctx context.Context, id string) error {
 
 func scanMCPTeam(s scanner) (*store.MCPTeam, error) {
 	var (
-		team                    store.MCPTeam
-		status                  string
-		createdAt, updatedAt    string
+		team                 store.MCPTeam
+		status               string
+		createdAt, updatedAt string
 	)
 	if err := s.Scan(&team.ID, &team.TenantID, &team.Name, &team.Description,
 		&status, &createdAt, &updatedAt); err != nil {

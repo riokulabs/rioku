@@ -9,7 +9,7 @@ import (
 // APIKeyChain is the result of resolving an API key through the
 // Sprint 4 Phase 1 (#164) chain:
 //
-//   Key → Subscription → Plan → security_type + rate_limit + quota
+//	Key → Subscription → Plan → security_type + rate_limit + quota
 //
 // Pre-Sprint-4 standalone scoped keys (no subscription_id) resolve
 // to a Reason="" + Valid=true result with Plan=nil; the caller
@@ -19,10 +19,10 @@ import (
 // Reason values (when Valid=false) match the rioku_apikey plugin's
 // status-code mapping (Sprint 3 #179):
 //
-//   "missing"  → 401  key not found
-//   "revoked"  → 403  key was once valid, deliberately removed
-//   "expired"  → 401  key past its expires_at
-//   "invalid"  → 401  subscription rejected/closed/paused etc.
+//	"missing"  → 401  key not found
+//	"revoked"  → 403  key was once valid, deliberately removed
+//	"expired"  → 401  key past its expires_at
+//	"invalid"  → 401  subscription rejected/closed/paused etc.
 //
 // PrincipalID is the user identity the data plane stamps on
 // X-Rioku-Principal. For subscription-bound keys it's the

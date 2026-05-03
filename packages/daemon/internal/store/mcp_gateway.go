@@ -79,16 +79,16 @@ const (
 
 // MCPRoute is the HTTP routing config in front of the MCP gateway.
 type MCPRoute struct {
-	ID               string
-	TenantID         string
-	Name             string
-	Hostname         string
-	PathPrefix       string
-	MCPServerID      string
-	AuthPassthrough  MCPAuthPassthrough
-	Enabled          bool
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID              string
+	TenantID        string
+	Name            string
+	Hostname        string
+	PathPrefix      string
+	MCPServerID     string
+	AuthPassthrough MCPAuthPassthrough
+	Enabled         bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type CreateMCPRouteParams struct {

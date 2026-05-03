@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	primaryURL = "http://primary.test:8080"
-	canaryURL  = "http://canary.test:8081"
+	primaryURL  = "http://primary.test:8080"
+	canaryURL   = "http://canary.test:8081"
 	primaryHost = "primary.test:8080"
 	canaryHost  = "canary.test:8081"
 )

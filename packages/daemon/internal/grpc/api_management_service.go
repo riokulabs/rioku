@@ -40,7 +40,7 @@ type WebhookEmitter interface {
 // notifications subsystem; this struct is the gRPC handler's contract
 // to it.
 type WebhookEvent struct {
-	Type     string         // e.g., "subscription.accepted"
+	Type     string // e.g., "subscription.accepted"
 	TenantID string
 	Actor    string
 	Payload  map[string]any

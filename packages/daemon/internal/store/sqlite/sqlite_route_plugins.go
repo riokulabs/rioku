@@ -24,9 +24,9 @@ func (t *tx) GetRouteOASConfig(ctx context.Context, routeID string) (*store.Rout
 		 FROM route_oas_configs WHERE route_id = ? AND tenant_id = ?`,
 		routeID, tenantID)
 	var (
-		c                                                 store.RouteOASConfig
-		validateBody, validateParams, rejectUnknown       int
-		createdAt, updatedAt                              string
+		c                                           store.RouteOASConfig
+		validateBody, validateParams, rejectUnknown int
+		createdAt, updatedAt                        string
 	)
 	if err := row.Scan(
 		&c.RouteID, &c.TenantID, &c.OASURL, &c.OASInline, &c.RefreshIntervalSeconds,
@@ -107,11 +107,11 @@ func (t *tx) GetRouteWAFConfig(ctx context.Context, routeID string) (*store.Rout
 		 FROM route_waf_configs WHERE route_id = ? AND tenant_id = ?`,
 		routeID, tenantID)
 	var (
-		c                          store.RouteWAFConfig
-		enabledInt                 int
-		mode                       string
-		excludedJSON               string
-		createdAt, updatedAt       string
+		c                    store.RouteWAFConfig
+		enabledInt           int
+		mode                 string
+		excludedJSON         string
+		createdAt, updatedAt string
 	)
 	if err := row.Scan(
 		&c.RouteID, &c.TenantID, &enabledInt, &mode, &c.RuleSet, &c.ParanoiaLevel,

@@ -49,10 +49,10 @@ type Model struct {
 	MaxInputTokens  *int `json:"max_input_tokens,omitempty"`
 	MaxOutputTokens *int `json:"max_output_tokens,omitempty"`
 
-	InputCostPerToken            *float64 `json:"input_cost_per_token,omitempty"`
-	OutputCostPerToken           *float64 `json:"output_cost_per_token,omitempty"`
-	CacheCreationInputTokenCost  *float64 `json:"cache_creation_input_token_cost,omitempty"`
-	CacheReadInputTokenCost      *float64 `json:"cache_read_input_token_cost,omitempty"`
+	InputCostPerToken           *float64 `json:"input_cost_per_token,omitempty"`
+	OutputCostPerToken          *float64 `json:"output_cost_per_token,omitempty"`
+	CacheCreationInputTokenCost *float64 `json:"cache_creation_input_token_cost,omitempty"`
+	CacheReadInputTokenCost     *float64 `json:"cache_read_input_token_cost,omitempty"`
 
 	// LiteLLMProvider is the upstream family — "openai",
 	// "anthropic", "vertex_ai", "ollama", "custom", etc. Used by

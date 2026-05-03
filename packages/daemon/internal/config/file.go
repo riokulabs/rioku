@@ -427,8 +427,8 @@ func Default() *Config {
 			},
 		},
 		Listen: ListenConfig{
-			GRPC:         ":7777",
-			REST:         ":7778",
+			GRPC:             ":7777",
+			REST:             ":7778",
 			InternalPort:     7780,
 			TLSAskAddr:       "127.0.0.1:7790",
 			KeyValidatorAddr: "127.0.0.1:7791",

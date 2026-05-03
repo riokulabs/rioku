@@ -210,10 +210,10 @@ func TestCircuitBreaker_HalfOpenSuccess_ClosesAfterSuccessThreshold(t *testing.T
 	// (sequential, not concurrent), so the in-flight counter never
 	// pegs at the limit.
 	c := &CircuitBreaker{
-		FailureThreshold:  1,
-		TimeoutSeconds:    1,
-		SuccessThreshold:  3,
-		HalfOpenRequests:  3,
+		FailureThreshold: 1,
+		TimeoutSeconds:   1,
+		SuccessThreshold: 3,
+		HalfOpenRequests: 3,
 	}
 	provisioned(t, c)
 

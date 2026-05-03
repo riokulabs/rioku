@@ -96,13 +96,13 @@ const (
 // traffic server with hostname + path matchers and the right
 // auth-passthrough handler chain.
 type MCPRouteCompileConfig struct {
-	ID                string
-	TenantID          string
-	Hostname          string
-	PathPrefix        string
-	UpstreamURL       string
+	ID                 string
+	TenantID           string
+	Hostname           string
+	PathPrefix         string
+	UpstreamURL        string
 	UpstreamCredential string // resolved upstream credential — used for "replace" mode
-	AuthPassthrough   MCPRouteAuthMode
+	AuthPassthrough    MCPRouteAuthMode
 	// AuthValidatorEndpoint is the daemon-side rioku_mcp_auth
 	// validator URL. Empty disables team-allow-list enforcement
 	// (the route still proxies, but tool calls aren't filtered —
@@ -139,9 +139,9 @@ func buildMCPRoute(cfg MCPRouteCompileConfig) map[string]any {
 	// the team's allow-list excludes the requested tool.
 	if cfg.AuthValidatorEndpoint != "" {
 		handlers = append(handlers, map[string]any{
-			"handler":             "rioku_mcp_auth",
-			"validator_endpoint":  cfg.AuthValidatorEndpoint,
-			"mcp_server_id":       routeIDOrEmpty(cfg.ID),
+			"handler":            "rioku_mcp_auth",
+			"validator_endpoint": cfg.AuthValidatorEndpoint,
+			"mcp_server_id":      routeIDOrEmpty(cfg.ID),
 		})
 	}
 
