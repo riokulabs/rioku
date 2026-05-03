@@ -154,18 +154,29 @@ func (r *RateLimit) ServeHTTP(w http.ResponseWriter, req *http.Request, next cad
 		return next.ServeHTTP(w, req)
 	}
 
+	// Sprint 4 Phase 1c (#164) — rioku_apikey resolves the API key
+	// chain Key -> Subscription -> Plan and stamps Plan-level RPM
+	// on X-Rioku-Plan-RPM. Use the lower of (configured Limit,
+	// Plan RPM): a route-level cap should never raise above the
+	// Plan-level cap, and a Plan-level cap should never raise
+	// above the route-level operator cap.
+	effectiveLimit := r.Limit
+	if planRPM := planRPMFromHeader(req); planRPM > 0 && planRPM < effectiveLimit {
+		effectiveLimit = planRPM
+	}
+
 	window := time.Duration(r.WindowSeconds) * time.Second
 	count, resetUnix := r.store.Increment(bucket, window)
 
-	remaining := r.Limit - count
+	remaining := effectiveLimit - count
 	if remaining < 0 {
 		remaining = 0
 	}
-	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(r.Limit))
+	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(effectiveLimit))
 	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
 	w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(resetUnix, 10))
 
-	if count > r.Limit {
+	if count > effectiveLimit {
 		if r.Action == "block" {
 			retryAfter := resetUnix - time.Now().Unix()
 			if retryAfter < 1 {
@@ -176,7 +187,7 @@ func (r *RateLimit) ServeHTTP(w http.ResponseWriter, req *http.Request, next cad
 				r.logger.Debug("rate limit blocked",
 					zap.String("bucket", bucket),
 					zap.Int("count", count),
-					zap.Int("limit", r.Limit),
+					zap.Int("limit", effectiveLimit),
 				)
 			}
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -189,7 +200,7 @@ func (r *RateLimit) ServeHTTP(w http.ResponseWriter, req *http.Request, next cad
 			r.logger.Info("rate limit threshold exceeded (action=log)",
 				zap.String("bucket", bucket),
 				zap.Int("count", count),
-				zap.Int("limit", r.Limit),
+				zap.Int("limit", effectiveLimit),
 			)
 		}
 	}
@@ -355,6 +366,22 @@ func (m *MemoryStore) Increment(bucket string, window time.Duration) (int, int64
 // CounterStore interface. Production use is "wait for the window".
 func (m *MemoryStore) Reset(bucket string) {
 	m.buckets.Delete(bucket)
+}
+
+// planRPMFromHeader reads the X-Rioku-Plan-RPM header that
+// rioku_apikey stamps when the API key resolves to a Plan with a
+// non-zero RateLimitPerMinute (Sprint 4 Phase 1c #164). Returns 0
+// when the header is absent or unparseable.
+func planRPMFromHeader(req *http.Request) int {
+	v := req.Header.Get("X-Rioku-Plan-RPM")
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 // Interface guards.

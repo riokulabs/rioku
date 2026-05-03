@@ -360,3 +360,64 @@ func TestLookupCache_TTLExpiry(t *testing.T) {
 		t.Fatal("expected entry to expire")
 	}
 }
+
+func TestAPIKey_PlanChainHeadersStamped(t *testing.T) {
+	a := &APIKey{
+		Header:             "Authorization",
+		ValidationEndpoint: "http://x",
+	}
+	hash := sha256Hex("sk-plan-chain")
+	v := &stubValidator{records: map[string]ValidationResult{
+		hash: {
+			Valid:              true,
+			Principal:          "user-7",
+			Scopes:             []string{"read"},
+			PlanID:             "plan_premium",
+			RateLimitPerMinute: 600,
+			QuotaPerDay:        100000,
+		},
+	}}
+	provisioned(t, a, v)
+
+	req := httptest.NewRequest("GET", "http://x/", nil)
+	req.Header.Set("Authorization", "Bearer sk-plan-chain")
+	rec := httptest.NewRecorder()
+	if err := a.ServeHTTP(rec, req, nextNoOp); err != nil {
+		t.Fatalf("ServeHTTP: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if got := req.Header.Get("X-Rioku-Plan"); got != "plan_premium" {
+		t.Errorf("X-Rioku-Plan = %q, want plan_premium", got)
+	}
+	if got := req.Header.Get("X-Rioku-Plan-RPM"); got != "600" {
+		t.Errorf("X-Rioku-Plan-RPM = %q, want 600", got)
+	}
+	if got := req.Header.Get("X-Rioku-Plan-Quota-Per-Day"); got != "100000" {
+		t.Errorf("X-Rioku-Plan-Quota-Per-Day = %q, want 100000", got)
+	}
+}
+
+func TestAPIKey_NoPlanChainOmitsHeaders(t *testing.T) {
+	a := &APIKey{
+		Header:             "Authorization",
+		ValidationEndpoint: "http://x",
+	}
+	hash := sha256Hex("sk-no-plan")
+	v := &stubValidator{records: map[string]ValidationResult{
+		hash: {Valid: true, Principal: "user-no-plan"},
+	}}
+	provisioned(t, a, v)
+
+	req := httptest.NewRequest("GET", "http://x/", nil)
+	req.Header.Set("Authorization", "Bearer sk-no-plan")
+	rec := httptest.NewRecorder()
+	_ = a.ServeHTTP(rec, req, nextNoOp)
+
+	for _, h := range []string{"X-Rioku-Plan", "X-Rioku-Plan-RPM", "X-Rioku-Plan-Quota-Per-Day"} {
+		if got := req.Header.Get(h); got != "" {
+			t.Errorf("%s = %q, want empty when no plan chain", h, got)
+		}
+	}
+}

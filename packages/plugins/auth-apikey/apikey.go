@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -219,6 +220,23 @@ func (a *APIKey) applyResult(w http.ResponseWriter, r *http.Request, next caddyh
 	if len(res.Scopes) > 0 {
 		r.Header.Set("X-Rioku-Scopes", strings.Join(res.Scopes, ","))
 	}
+	// Sprint 4 Phase 1c — surface the resolved Plan chain so the
+	// downstream rate-limit / quota handlers can apply Plan-level
+	// caps without re-resolving. Only the rioku_ratelimit module
+	// reads these headers today; the contract is documented so
+	// other handlers can consume them too.
+	if res.PlanID != "" {
+		r.Header.Set("X-Rioku-Plan", res.PlanID)
+		if repl, ok := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer); ok && repl != nil {
+			repl.Set("http.auth.plan.id", res.PlanID)
+		}
+	}
+	if res.RateLimitPerMinute > 0 {
+		r.Header.Set("X-Rioku-Plan-RPM", strconv.Itoa(res.RateLimitPerMinute))
+	}
+	if res.QuotaPerDay > 0 {
+		r.Header.Set("X-Rioku-Plan-Quota-Per-Day", strconv.Itoa(res.QuotaPerDay))
+	}
 	return next.ServeHTTP(w, r)
 }
 
@@ -404,11 +422,30 @@ func (c *lookupCache) put(key string, res ValidationResult) {
 // ValidationResult is the shape the validation endpoint returns and
 // the plugin caches. Valid=false carries Reason for status-code
 // mapping (revoked -> 403, others -> 401).
+//
+// Sprint 4 Phase 1c (#164) extended the response with the resolved
+// chain — when the API key is bound to a Subscription, the validator
+// surfaces the parent Plan's PlanID + RateLimitPerMinute + QuotaPerDay
+// so the plugin can stamp them on the request for downstream
+// rate-limit / quota handlers without those handlers having to
+// re-resolve the key chain.
 type ValidationResult struct {
 	Valid     bool     `json:"valid"`
 	Principal string   `json:"principal,omitempty"`
 	Scopes    []string `json:"scopes,omitempty"`
 	Reason    string   `json:"reason,omitempty"` // missing | expired | revoked | invalid
+
+	// PlanID is the Plan resolved through the API key's
+	// Subscription. Empty when the key is not bound to a Plan.
+	PlanID string `json:"plan_id,omitempty"`
+
+	// RateLimitPerMinute is the Plan-level RPM cap surfaced for the
+	// downstream rioku_ratelimit module. 0 means no Plan-level cap.
+	RateLimitPerMinute int `json:"rate_limit_per_minute,omitempty"`
+
+	// QuotaPerDay is the Plan-level daily request quota. 0 means
+	// no Plan-level quota.
+	QuotaPerDay int `json:"quota_per_day,omitempty"`
 }
 
 type validator interface {

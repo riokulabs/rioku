@@ -319,3 +319,64 @@ func TestMemoryStore_IncrementAndReset(t *testing.T) {
 
 // atomicAdd is a tiny indirection so the test reads cleanly.
 func atomicAdd(p *int64) { addInt64(p) }
+
+// Sprint 4 Phase 1c — when rioku_apikey stamps a Plan RPM, the
+// rate-limit module clamps to the lower of (configured Limit,
+// Plan RPM). A Plan RPM lower than the configured Limit overrides
+// it; a Plan RPM higher does not raise the cap.
+func TestRateLimit_PlanRPMHeaderClampsLower(t *testing.T) {
+	r := &RateLimit{Limit: 100, WindowSeconds: 60, Scope: "header", HeaderName: "X-Rioku-Principal"}
+	provisioned(t, r)
+
+	// Plan RPM = 2, well under the configured Limit of 100.
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest("GET", "http://x/", nil)
+		req.Header.Set("X-Rioku-Principal", "user-clamped")
+		req.Header.Set("X-Rioku-Plan-RPM", "2")
+		rec := httptest.NewRecorder()
+		if err := r.ServeHTTP(rec, req, nextNoOp); err != nil {
+			t.Fatalf("iter %d: %v", i, err)
+		}
+		if rec.Code != http.StatusOK {
+			t.Fatalf("iter %d status = %d, want 200", i, rec.Code)
+		}
+		if got := rec.Header().Get("X-RateLimit-Limit"); got != "2" {
+			t.Errorf("iter %d Limit header = %q, want 2 (Plan-clamped)", i, got)
+		}
+	}
+
+	// Third request blocked at the Plan RPM cap, not the route Limit.
+	req := httptest.NewRequest("GET", "http://x/", nil)
+	req.Header.Set("X-Rioku-Principal", "user-clamped")
+	req.Header.Set("X-Rioku-Plan-RPM", "2")
+	rec := httptest.NewRecorder()
+	_ = r.ServeHTTP(rec, req, nextNoOp)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429 (clamped to Plan RPM)", rec.Code)
+	}
+}
+
+func TestRateLimit_PlanRPMHigherDoesNotRaiseCap(t *testing.T) {
+	r := &RateLimit{Limit: 2, WindowSeconds: 60, Scope: "header", HeaderName: "X-Rioku-Principal"}
+	provisioned(t, r)
+
+	// Plan RPM = 1000 must NOT raise the route's hard cap of 2.
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest("GET", "http://x/", nil)
+		req.Header.Set("X-Rioku-Principal", "user-x")
+		req.Header.Set("X-Rioku-Plan-RPM", "1000")
+		rec := httptest.NewRecorder()
+		_ = r.ServeHTTP(rec, req, nextNoOp)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("iter %d status = %d, want 200", i, rec.Code)
+		}
+	}
+	req := httptest.NewRequest("GET", "http://x/", nil)
+	req.Header.Set("X-Rioku-Principal", "user-x")
+	req.Header.Set("X-Rioku-Plan-RPM", "1000")
+	rec := httptest.NewRecorder()
+	_ = r.ServeHTTP(rec, req, nextNoOp)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429 (route cap honored)", rec.Code)
+	}
+}
