@@ -5,6 +5,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -308,14 +309,104 @@ func (e *Engine) ExportConfig(ctx context.Context) (*riokuv1.ConfigSnapshot, err
 
 // CompileCaddyConfig builds a Caddy JSON configuration from the current
 // config snapshot and returns the raw JSON bytes.
+//
+// CompileCaddyConfig performs the snapshot read and per-route plugin
+// (#171 OAS validator, #172 Coraza WAF) load in a single read tx so
+// the compiler sees a consistent view: a route's per-route config row
+// is paired with the route definition that referenced it.
 func (e *Engine) CompileCaddyConfig(ctx context.Context) ([]byte, error) {
-	snap, err := e.GetConfig(ctx)
+	tx, err := e.store.Begin(ctx, store.TxOptions{ReadOnly: true})
 	if err != nil {
-		return nil, fmt.Errorf("config: get snapshot for compile: %w", err)
+		// Store unavailable: fall back to GetConfig's cached-snapshot
+		// path, but without per-route plugins (we have no way to
+		// resurrect them without the store). This matches the
+		// pre-#171/#172 behaviour and keeps Caddy reload working
+		// during a transient store outage.
+		snap, gerr := e.GetConfig(ctx)
+		if gerr != nil {
+			return nil, fmt.Errorf("config: get snapshot for compile: %w", gerr)
+		}
+		data, cerr := e.compiler.Compile(snap)
+		if cerr != nil {
+			return nil, fmt.Errorf("config: compile caddy config: %w", cerr)
+		}
+		return data, nil
 	}
-	data, err := e.compiler.Compile(snap)
+	defer func() { _ = tx.Rollback() }()
+
+	snap, err := buildSnapshot(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
+
+	perRoute, err := loadPerRoutePlugins(ctx, tx, snap.GetRoutes())
+	if err != nil {
+		return nil, fmt.Errorf("config: load per-route plugins: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("config: commit read tx: %w", err)
+	}
+
+	// Refresh the cached snapshot too — same shape as GetConfig.
+	e.mu.Lock()
+	e.cachedSnapshot = snap
+	e.mu.Unlock()
+
+	data, err := e.compiler.CompileWithPlugins(snap, perRoute)
 	if err != nil {
 		return nil, fmt.Errorf("config: compile caddy config: %w", err)
 	}
 	return data, nil
+}
+
+// loadPerRoutePlugins fetches per-route OAS / WAF config rows for
+// every route in the snapshot. Missing rows (the common case for
+// routes that don't enable either plugin) are silently skipped.
+func loadPerRoutePlugins(ctx context.Context, tx store.Tx, routes []*riokuv1.Route) (caddy.PerRoutePlugins, error) {
+	out := caddy.PerRoutePlugins{
+		OASByRoute: make(map[string]*caddy.RouteOASConfig),
+		WAFByRoute: make(map[string]*caddy.RouteWAFConfig),
+	}
+	for _, route := range routes {
+		if !route.GetEnabled() {
+			continue
+		}
+		id := route.GetId()
+
+		oasCfg, err := tx.GetRouteOASConfig(ctx, id)
+		switch {
+		case err == nil:
+			out.OASByRoute[id] = &caddy.RouteOASConfig{
+				OASURL:                 oasCfg.OASURL,
+				OASInline:              oasCfg.OASInline,
+				RefreshIntervalSeconds: oasCfg.RefreshIntervalSeconds,
+				ValidateRequestBody:    oasCfg.ValidateRequestBody,
+				ValidateRequestParams:  oasCfg.ValidateRequestParams,
+				RejectUnknown:          oasCfg.RejectUnknown,
+			}
+		case errors.Is(err, store.ErrRouteOASConfigNotFound):
+			// Common case — route has no OAS config row.
+		default:
+			return caddy.PerRoutePlugins{}, fmt.Errorf("get oas config for route %q: %w", id, err)
+		}
+
+		wafCfg, err := tx.GetRouteWAFConfig(ctx, id)
+		switch {
+		case err == nil:
+			out.WAFByRoute[id] = &caddy.RouteWAFConfig{
+				Enabled:          wafCfg.Enabled,
+				Mode:             caddy.WAFMode(string(wafCfg.Mode)),
+				RuleSet:          wafCfg.RuleSet,
+				ParanoiaLevel:    wafCfg.ParanoiaLevel,
+				ExcludedRuleIDs:  wafCfg.ExcludedRuleIDs,
+				RequestBodyLimit: wafCfg.RequestBodyLimit,
+			}
+		case errors.Is(err, store.ErrRouteWAFConfigNotFound):
+			// Common case — route has no WAF config row.
+		default:
+			return caddy.PerRoutePlugins{}, fmt.Errorf("get waf config for route %q: %w", id, err)
+		}
+	}
+	return out, nil
 }

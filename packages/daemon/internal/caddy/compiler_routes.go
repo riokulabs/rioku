@@ -9,7 +9,29 @@ import (
 // CompileRoute converts a single Rioku route and its resolved service into a
 // Caddy route object. The services map is used to look up the service when the
 // route targets a service_id.
+//
+// CompileRoute is the legacy entry point that does not consult per-route
+// plugin storage (#171 OAS, #172 WAF). It is preserved for tests and any
+// external callers that built against the original signature; production
+// code paths use Compile / CompileWithPlugins which call compileRoute
+// with the loaded per-route plugin maps.
 func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*riokuv1.Service) (map[string]any, error) {
+	return c.compileRoute(route, services, PerRoutePlugins{})
+}
+
+// compileRoute is the per-plugin-aware route compiler. The OAS validator
+// and Coraza WAF handlers are inserted between the request-mutation
+// handlers (vars, request headers) and the reverse_proxy so:
+//
+//  1. tracing/vars run first — every request gets a trace ID and
+//     route/service vars regardless of validation outcome.
+//  2. WAF runs before OAS — request body inspection should reject
+//     attack payloads before the OAS layer parses them. This also
+//     matches the OWASP CRS reference deployment ordering.
+//  3. OAS runs after WAF but before the upstream call — invalid
+//     requests get a 400 from the validator without ever leaving
+//     the gateway.
+func (c *Compiler) compileRoute(route *riokuv1.Route, services map[string]*riokuv1.Service, perRoute PerRoutePlugins) (map[string]any, error) {
 	caddyRoute := make(map[string]any)
 
 	// --- Matchers ---
@@ -49,6 +71,7 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 	}
 	// Build handler chain:
 	//   tracing -> [security headers] -> vars
+	//   -> [WAF] -> [OAS validator]
 	//   -> [encode / compression] -> [request headers] -> reverse_proxy
 	// Security headers are only added to traffic routes (CompileRoute), not admin.
 	handleChain := []map[string]any{tracingHandler}
@@ -56,6 +79,23 @@ func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*rioku
 		handleChain = append(handleChain, secHandler)
 	}
 	handleChain = append(handleChain, varsHandler)
+
+	// Per-route WAF (#172) — runs before OAS so attack payloads do
+	// not reach the spec validator (which would otherwise allocate
+	// request body parsing for content the WAF rejects).
+	if wafCfg := perRoute.WAFByRoute[route.GetId()]; wafCfg != nil {
+		if wafHandler := buildWAFHandler(wafCfg); wafHandler != nil {
+			handleChain = append(handleChain, wafHandler)
+		}
+	}
+
+	// Per-route OAS validator (#171) — runs after WAF, before the
+	// reverse_proxy.
+	if oasCfg := perRoute.OASByRoute[route.GetId()]; oasCfg != nil {
+		if oasHandler := buildOASValidatorHandler(oasCfg); oasHandler != nil {
+			handleChain = append(handleChain, oasHandler)
+		}
+	}
 
 	// Resolve the service for service-level handlers (compression, request
 	// headers). DirectUpstream routes have neither, so we skip safely.

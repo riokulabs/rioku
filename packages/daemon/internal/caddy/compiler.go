@@ -129,9 +129,37 @@ func (c *Compiler) SetOnDemandTLS(cfg OnDemandTLSConfig) {
 	c.onDemandTLS = cfg
 }
 
+// CompileWithPlugins compiles the snapshot with the supplied per-route
+// plugin configuration (#171 OAS validator, #172 Coraza WAF). It is
+// the entry point used by config.Engine when it has loaded the
+// per-route plugin maps inside the same store transaction as the
+// snapshot. Test callers and the bare Compile method use this with
+// an empty PerRoutePlugins value.
+//
+// CompileWithPlugins does not mutate the receiver — the per-route
+// configuration is threaded down to each CompileRoute call, so the
+// compiler remains safe for concurrent use across goroutines.
+func (c *Compiler) CompileWithPlugins(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePlugins) ([]byte, error) {
+	return c.compile(snapshot, perRoute)
+}
+
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
 // The returned bytes are ready to POST to Caddy's /load admin endpoint.
+//
+// Compile is equivalent to CompileWithPlugins with no per-route plugin
+// configuration — every route gets the standard handler chain
+// (tracing -> security headers -> vars -> [compression] ->
+// [request headers] -> reverse_proxy). Callers that need per-route
+// OAS or WAF handlers (#171, #172) must use CompileWithPlugins.
 func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
+	return c.compile(snapshot, PerRoutePlugins{})
+}
+
+// compile is the shared implementation of Compile and CompileWithPlugins.
+// It threads the per-route plugin map through CompileRoute so the
+// receiver stays free of per-call mutable state and Compile remains
+// safe for concurrent use.
+func (c *Compiler) compile(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePlugins) ([]byte, error) {
 	// Build service lookup map keyed by service ID.
 	services := make(map[string]*riokuv1.Service, len(snapshot.GetServices()))
 	for _, svc := range snapshot.GetServices() {
@@ -143,7 +171,7 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		if !route.GetEnabled() {
 			continue
 		}
-		compiled, err := c.CompileRoute(route, services)
+		compiled, err := c.compileRoute(route, services, perRoute)
 		if err != nil {
 			return nil, fmt.Errorf("compiling route %q: %w", route.GetId(), err)
 		}
