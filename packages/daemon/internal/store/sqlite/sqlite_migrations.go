@@ -523,6 +523,7 @@ func (d *driver) migrateUp(ctx context.Context) error {
 		{44, "virtual_keys"},
 		{45, "ai_agent_strategy"},
 		{46, "mcp_gateway"},
+		{47, "virtual_keys_upstreams"},
 	} {
 		if current < m.ver {
 			data, err := store.MigrationFS.ReadFile(fmt.Sprintf("migrations/sqlite/%06d_%s.up.sql", m.ver, m.name))
@@ -550,6 +551,7 @@ func (d *driver) migrateDown(ctx context.Context) error {
 		ver  int
 		name string
 	}{
+		{47, "virtual_keys_upstreams"},
 		{46, "mcp_gateway"},
 		{45, "ai_agent_strategy"},
 		{44, "virtual_keys"},

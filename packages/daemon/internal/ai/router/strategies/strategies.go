@@ -45,6 +45,15 @@ type Strategy interface {
 // ErrNoUpstreams is returned by helpers when given an empty list.
 var ErrNoUpstreams = errors.New("strategies: no upstreams configured")
 
+// TriggerSetter is satisfied by strategies that surface their
+// fallback trigger list. The AI gateway uses this to consult the
+// right trigger set without holding a concrete type — the
+// fallback strategy is the canonical implementation but other
+// strategies (or composites) can carry their own trigger sets.
+type TriggerSetter interface {
+	Triggers() []int
+}
+
 // FallbackTriggers is the default set of HTTP statuses that should
 // advance the fallback chain to the next upstream. Operators can
 // extend per-route via routing_config.

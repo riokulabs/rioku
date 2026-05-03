@@ -59,6 +59,7 @@ func (f *fallback) Observe(_ Outcome) {}
 // re-reading the config).
 func (f *fallback) Triggers() []int { return f.triggers }
 
+
 // toInt accepts the JSON-decoded number forms (json.Number, float64,
 // int) the routing_config map can carry.
 func toInt(v any) (int, bool) {

@@ -37,38 +37,59 @@ type VirtualKey struct {
 	TPMLimit       int32   // 0 = unlimited
 	BudgetUSD      float64 // 0 = unlimited
 	BudgetWindow   BudgetWindow
+	// Upstreams is the optional explicit list the AI gateway routes
+	// across (Sprint 5 Phase 3 #200). Empty list means single-
+	// upstream behavior — the gateway falls back to ProviderID.
+	Upstreams       []VirtualKeyUpstream
+	RoutingStrategy string // simple_shuffle | fallback | latency
+	RoutingConfig   string // JSON; consumed by the strategy constructor
 	RevokedAt      *time.Time
 	CreatedBy      *string // user id; SET NULL on user delete
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
 
+// VirtualKeyUpstream is one entry on a VK's routing list. Mirrors
+// the strategies.Upstream shape; the gateway converts between them
+// at request time.
+type VirtualKeyUpstream struct {
+	ProviderID string `json:"provider_id"`
+	Weight     int    `json:"weight"`
+	Priority   int    `json:"priority"`
+}
+
 // CreateVirtualKeyParams covers the input fields admin REST
 // produces from a create request.
 type CreateVirtualKeyParams struct {
-	ID             string
-	TenantID       string
-	Name           string
-	ProviderID     string
-	CredentialRef  string
-	AllowedModels  []string
-	RPMLimit       int32
-	TPMLimit       int32
-	BudgetUSD      float64
-	BudgetWindow   BudgetWindow
-	CreatedBy      string
+	ID              string
+	TenantID        string
+	Name            string
+	ProviderID      string
+	CredentialRef   string
+	AllowedModels   []string
+	RPMLimit        int32
+	TPMLimit        int32
+	BudgetUSD       float64
+	BudgetWindow    BudgetWindow
+	Upstreams       []VirtualKeyUpstream
+	RoutingStrategy string
+	RoutingConfig   string
+	CreatedBy       string
 }
 
 // UpdateVirtualKeyParams is the partial-update payload.
 type UpdateVirtualKeyParams struct {
-	Name          *string
-	ProviderID    *string
-	CredentialRef *string
-	AllowedModels *[]string
-	RPMLimit      *int32
-	TPMLimit      *int32
-	BudgetUSD     *float64
-	BudgetWindow  *BudgetWindow
+	Name            *string
+	ProviderID      *string
+	CredentialRef   *string
+	AllowedModels   *[]string
+	RPMLimit        *int32
+	TPMLimit        *int32
+	BudgetUSD       *float64
+	BudgetWindow    *BudgetWindow
+	Upstreams       *[]VirtualKeyUpstream
+	RoutingStrategy *string
+	RoutingConfig   *string
 }
 
 // AllowsModel reports whether the virtual key is authorized to

@@ -20,8 +20,19 @@ func (t *tx) CreateVirtualKey(ctx context.Context, p store.CreateVirtualKeyParam
 	if err != nil {
 		return nil, err
 	}
+	upstreamsJSON, err := marshalVKUpstreams(p.Upstreams)
+	if err != nil {
+		return nil, err
+	}
 	if p.BudgetWindow == "" {
 		p.BudgetWindow = store.BudgetWindowMonth
+	}
+	if p.RoutingStrategy == "" {
+		p.RoutingStrategy = "fallback"
+	}
+	routingCfg := p.RoutingConfig
+	if routingCfg == "" {
+		routingCfg = "{}"
 	}
 	now := nowUTC()
 	var createdBy *string
@@ -31,10 +42,12 @@ func (t *tx) CreateVirtualKey(ctx context.Context, p store.CreateVirtualKeyParam
 	_, err = t.sqlTx.ExecContext(ctx,
 		`INSERT INTO virtual_keys (id, tenant_id, name, provider_id, credential_ref,
 		     allowed_models, rpm_limit, tpm_limit, budget_usd, budget_window,
+		     upstreams, routing_strategy, routing_config,
 		     created_by, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, tenantID, p.Name, p.ProviderID, p.CredentialRef,
 		allowedJSON, p.RPMLimit, p.TPMLimit, p.BudgetUSD, string(p.BudgetWindow),
+		upstreamsJSON, p.RoutingStrategy, routingCfg,
 		createdBy, now, now,
 	)
 	if err != nil {
@@ -49,6 +62,7 @@ func (t *tx) CreateVirtualKey(ctx context.Context, p store.CreateVirtualKeyParam
 
 const vkSelectColumns = `id, tenant_id, name, provider_id, credential_ref,
 	allowed_models, rpm_limit, tpm_limit, budget_usd, budget_window,
+	upstreams, routing_strategy, routing_config,
 	revoked_at, created_by, created_at, updated_at`
 
 func (t *tx) GetVirtualKey(ctx context.Context, id string) (*store.VirtualKey, error) {
@@ -126,6 +140,22 @@ func (t *tx) UpdateVirtualKey(ctx context.Context, id string, p store.UpdateVirt
 		sets = append(sets, "budget_window = ?")
 		args = append(args, string(*p.BudgetWindow))
 	}
+	if p.Upstreams != nil {
+		j, err := marshalVKUpstreams(*p.Upstreams)
+		if err != nil {
+			return nil, err
+		}
+		sets = append(sets, "upstreams = ?")
+		args = append(args, j)
+	}
+	if p.RoutingStrategy != nil {
+		sets = append(sets, "routing_strategy = ?")
+		args = append(args, *p.RoutingStrategy)
+	}
+	if p.RoutingConfig != nil {
+		sets = append(sets, "routing_config = ?")
+		args = append(args, *p.RoutingConfig)
+	}
 	if len(sets) == 0 {
 		return t.GetVirtualKey(ctx, id)
 	}
@@ -195,14 +225,16 @@ func (t *tx) DeleteVirtualKey(ctx context.Context, id string) error {
 
 func scanVirtualKey(s scanner) (*store.VirtualKey, error) {
 	var (
-		k                                store.VirtualKey
-		allowedJSON                      string
-		budgetWindow, createdAt, updated string
-		revokedAt, createdBy             sql.NullString
+		k                                                  store.VirtualKey
+		allowedJSON, upstreamsJSON                         string
+		budgetWindow, routingStrategy, routingConfig       string
+		createdAt, updated                                 string
+		revokedAt, createdBy                               sql.NullString
 	)
 	if err := s.Scan(
 		&k.ID, &k.TenantID, &k.Name, &k.ProviderID, &k.CredentialRef,
 		&allowedJSON, &k.RPMLimit, &k.TPMLimit, &k.BudgetUSD, &budgetWindow,
+		&upstreamsJSON, &routingStrategy, &routingConfig,
 		&revokedAt, &createdBy, &createdAt, &updated,
 	); err != nil {
 		return nil, err
@@ -210,7 +242,12 @@ func scanVirtualKey(s scanner) (*store.VirtualKey, error) {
 	if err := json.Unmarshal([]byte(allowedJSON), &k.AllowedModels); err != nil {
 		return nil, fmt.Errorf("sqlite: parse allowed_models: %w", err)
 	}
+	if err := json.Unmarshal([]byte(upstreamsJSON), &k.Upstreams); err != nil {
+		return nil, fmt.Errorf("sqlite: parse upstreams: %w", err)
+	}
 	k.BudgetWindow = store.BudgetWindow(budgetWindow)
+	k.RoutingStrategy = routingStrategy
+	k.RoutingConfig = routingConfig
 	if revokedAt.Valid {
 		t := parseTime(revokedAt.String)
 		k.RevokedAt = &t
@@ -233,6 +270,19 @@ func marshalAllowedModels(models []string) (string, error) {
 	b, err := json.Marshal(models)
 	if err != nil {
 		return "", fmt.Errorf("sqlite: marshal allowed_models: %w", err)
+	}
+	return string(b), nil
+}
+
+// marshalVKUpstreams encodes the per-VK upstream list as JSON. nil
+// list rounds-trips through the column default ('[]').
+func marshalVKUpstreams(ups []store.VirtualKeyUpstream) (string, error) {
+	if ups == nil {
+		ups = []store.VirtualKeyUpstream{}
+	}
+	b, err := json.Marshal(ups)
+	if err != nil {
+		return "", fmt.Errorf("sqlite: marshal vk upstreams: %w", err)
 	}
 	return string(b), nil
 }

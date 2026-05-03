@@ -212,85 +212,76 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// v1: a virtual key maps 1:1 to a provider. Strategy registry is
-	// constructed but not yet driving multi-upstream routing — that
-	// arrives when the AIAgent surface ships an explicit upstream
-	// list per agent. For now the strategy choice on the agent
-	// influences observability only.
-	creds, err := s.resolveCredential(ctx, provider, vk)
+	// Build the upstream try-list. When the VK carries an explicit
+	// list (#200), the configured strategy decides the order; for
+	// single-upstream VKs the list is just the one provider in
+	// declared order.
+	candidates, strat, err := s.resolveCandidates(ctx, vk, provider)
 	if err != nil {
-		s.logErr("resolve credential", err)
-		writeJSONError(w, http.StatusBadGateway, "upstream credential unavailable")
+		s.logErr("resolve candidates", err)
+		writeJSONError(w, http.StatusBadGateway, "no candidate upstreams")
 		return
 	}
 
-	upstreamURL, err := url.Parse(provider.BaseURL)
-	if err != nil || upstreamURL.Scheme == "" {
-		writeJSONError(w, http.StatusBadGateway, "invalid provider base_url")
-		return
-	}
-
-	// Estimate input tokens up-front. Used to seed the spend log
-	// when the upstream's `usage` block isn't available (streaming
-	// without final usage delta, or non-OpenAI-shaped responses).
 	inputTokens := s.estimateInputTokens(&pr)
 
 	startedAt := s.Now()
-	cw := &countingResponseWriter{ResponseWriter: w}
-	// finalTokens captures the per-request usage values that the
-	// ModifyResponse hook resolved (when the upstream is non-
-	// streaming + emits a usage block). Default to the heuristic.
-	final := tokenAccounting{
-		inputTokens:  inputTokens,
-		outputTokens: 0, // computed below from cw.bytesWritten
-	}
-	proxy := s.newReverseProxy(upstreamURL, creds, bodyBytes)
-	proxy.ModifyResponse = func(resp *http.Response) error {
-		// Try to peek at a non-streaming JSON body. Buffered
-		// reads let us parse + restore the body for the writer
-		// without breaking SSE — for SSE this branch falls through
-		// because Content-Type is text/event-stream.
-		if !isJSONResponse(resp.Header.Get("Content-Type")) {
-			return nil
-		}
-		buf, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		if err != nil {
-			return nil
-		}
-		_ = resp.Body.Close()
-		resp.Body = io.NopCloser(bytes.NewReader(buf))
-		resp.ContentLength = int64(len(buf))
-		resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(buf)))
+	final := tokenAccounting{inputTokens: inputTokens}
+	finalStatus := 0
 
-		usage := parseUsageFromJSON(buf)
-		if usage != nil {
-			final.inputTokens = usage.PromptTokens
-			final.outputTokens = usage.CompletionTokens
-		} else {
-			final.outputTokens = tokens.EstimateOutputFromBytes(len(buf))
-		}
-		// Set the cost header on the upstream response so the
-		// reverse-proxy copies it through to the client.
-		if s.models != nil {
-			c, cerr := s.models.CalculateRequestCost(pr.Model, final.inputTokens, final.outputTokens)
-			if cerr == nil {
-				final.costUSD = c
-				resp.Header.Set("X-Rioku-Response-Cost", registry.FormatCost(c))
-			}
-		}
-		return nil
+	triggers := strategies.FallbackTriggers
+	if ts, ok := strat.(strategies.TriggerSetter); ok && ts != nil {
+		triggers = ts.Triggers()
 	}
-	proxy.ServeHTTP(cw, r)
 
-	// Streaming branch: ModifyResponse skipped, output_tokens stays
-	// zero; estimate from the byte stream the response writer saw.
-	if final.outputTokens == 0 {
-		final.outputTokens = tokens.EstimateOutputFromBytes(cw.bytesWritten)
-		if s.models != nil && final.outputTokens > 0 {
-			if c, err := s.models.CalculateRequestCost(pr.Model, final.inputTokens, final.outputTokens); err == nil {
-				final.costUSD = c
+	for i, cand := range candidates {
+		creds, cerr := s.resolveCredential(ctx, cand.provider, vk)
+		if cerr != nil {
+			s.logErr("resolve credential", cerr)
+			if i == len(candidates)-1 {
+				writeJSONError(w, http.StatusBadGateway, "upstream credential unavailable")
+				return
 			}
+			continue
 		}
+		upURL, perr := url.Parse(cand.provider.BaseURL)
+		if perr != nil || upURL.Scheme == "" {
+			if i == len(candidates)-1 {
+				writeJSONError(w, http.StatusBadGateway, "invalid provider base_url")
+				return
+			}
+			continue
+		}
+
+		attemptStart := s.Now()
+		resp, body, transportErr := s.fetchUpstream(r.Context(), upURL, creds, bodyBytes, r)
+		latencyMS := time.Since(attemptStart).Milliseconds()
+		outcome := strategies.Outcome{
+			UpstreamID: cand.upstream.ID,
+			LatencyMS:  latencyMS,
+			Err:        transportErr,
+		}
+		if resp != nil {
+			outcome.Status = resp.StatusCode
+		}
+		if strat != nil {
+			strat.Observe(outcome)
+		}
+
+		// Decide whether to retry. Fallback triggers (or transport
+		// errors) advance the chain; everything else commits.
+		hasMore := i < len(candidates)-1
+		if hasMore && strategies.ShouldFallback(outcome, triggers) {
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
+			continue
+		}
+
+		// Commit to this attempt.
+		finalStatus = outcome.Status
+		s.copyResponse(w, resp, body, &final, pr.Model)
+		break
 	}
 
 	s.recordSpend(context.Background(), &spendInput{
@@ -299,11 +290,209 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		modelID:      pr.Model,
 		requestID:    requestID,
 		latencyMS:    time.Since(startedAt).Milliseconds(),
-		status:       cw.status,
+		status:       finalStatus,
 		inputTokens:  int32(final.inputTokens),
 		outputTokens: int32(final.outputTokens),
 		costUSD:      final.costUSD,
 	})
+}
+
+// candidate is one resolved (upstream, provider) pair from the
+// VK's routing list, in the order the strategy picked.
+type candidate struct {
+	upstream strategies.Upstream
+	provider *store.AIProvider
+}
+
+// resolveCandidates expands the VK's upstream list (or its single
+// provider for legacy VKs) and orders it via the configured
+// strategy. Returns the candidate list + the strategy instance so
+// the caller can call Observe() on each attempt.
+func (s *Server) resolveCandidates(ctx context.Context, vk *store.VirtualKey, fallbackProvider *store.AIProvider) ([]candidate, strategies.Strategy, error) {
+	// Single-upstream legacy path — VK references one provider via
+	// vk.ProviderID and no explicit list. Skip strategy entirely.
+	if len(vk.Upstreams) == 0 {
+		return []candidate{{
+			upstream: strategies.Upstream{ID: vk.ProviderID},
+			provider: fallbackProvider,
+		}}, nil, nil
+	}
+
+	// Multi-upstream path. Build the strategy from VK config; the
+	// strategy registry takes the routing_config JSON blob.
+	strategyName := vk.RoutingStrategy
+	if strategyName == "" {
+		strategyName = "fallback"
+	}
+	cfg := map[string]any{}
+	if vk.RoutingConfig != "" && vk.RoutingConfig != "{}" {
+		_ = json.Unmarshal([]byte(vk.RoutingConfig), &cfg)
+	}
+	strat, err := s.registry.Build(strategyName, cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("strategy build: %w", err)
+	}
+
+	// Convert VK upstreams to the strategy interface shape.
+	stratUps := make([]strategies.Upstream, len(vk.Upstreams))
+	for i, u := range vk.Upstreams {
+		stratUps[i] = strategies.Upstream{
+			ID:       u.ProviderID,
+			Weight:   u.Weight,
+			Priority: u.Priority,
+		}
+	}
+	picked := strat.Pick(stratUps)
+
+	// Resolve providers in the picked order. Drop any upstream
+	// whose provider lookup fails or whose provider is disabled.
+	tx, err := s.store.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	tenantID := store.TenantIDFromContext(ctx)
+	out := make([]candidate, 0, len(picked))
+	for _, u := range picked {
+		p, err := tx.GetAIProvider(ctx, tenantID, u.ID)
+		if err != nil || !p.Enabled {
+			continue
+		}
+		out = append(out, candidate{upstream: u, provider: p})
+	}
+	if len(out) == 0 {
+		return nil, nil, fmt.Errorf("no enabled providers in vk upstream list")
+	}
+	return out, strat, nil
+}
+
+// fetchUpstream issues one upstream call and waits for the
+// response headers. Returns the response (caller closes body),
+// a small body buffer for non-streaming JSON responses, and any
+// transport-level error. The body buffer is empty for streaming
+// responses so the caller knows to copy directly.
+func (s *Server) fetchUpstream(ctx context.Context, upstream *url.URL, creds string, body []byte, src *http.Request) (*http.Response, []byte, error) {
+	target := *upstream
+	if target.Path == "" || target.Path == "/" {
+		target.Path = src.URL.Path
+	} else {
+		target.Path = strings.TrimRight(target.Path, "/") + src.URL.Path
+	}
+	target.RawQuery = src.URL.RawQuery
+
+	req, err := http.NewRequestWithContext(ctx, src.Method, target.String(), bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, err
+	}
+	// Copy inbound headers minus Rioku-internal ones.
+	for k, vs := range src.Header {
+		switch k {
+		case "Authorization", "X-Api-Key", "X-Rioku-Virtual-Key", "X-Rioku-Tenant-Id", "Host":
+			continue
+		}
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
+	}
+	if creds != "" {
+		req.Header.Set("Authorization", "Bearer "+creds)
+	}
+	req.ContentLength = int64(len(body))
+
+	resp, err := s.HTTPClient.Do(req)
+	return resp, nil, err
+}
+
+// copyResponse writes the upstream response to the client. For a
+// non-streaming JSON response we buffer fully so we can parse the
+// usage block + set the cost header before flushing. For SSE /
+// streaming we stream chunks through and use the byte heuristic
+// for output tokens.
+func (s *Server) copyResponse(w http.ResponseWriter, resp *http.Response, _ []byte, final *tokenAccounting, modelID string) {
+	if resp == nil {
+		writeJSONError(w, http.StatusBadGateway, "upstream unreachable")
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	contentType := resp.Header.Get("Content-Type")
+	if isJSONResponse(contentType) {
+		buf, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		if err != nil {
+			writeJSONError(w, http.StatusBadGateway, "read upstream body: "+err.Error())
+			return
+		}
+		usage := parseUsageFromJSON(buf)
+		if usage != nil {
+			final.inputTokens = usage.PromptTokens
+			final.outputTokens = usage.CompletionTokens
+		} else {
+			final.outputTokens = tokens.EstimateOutputFromBytes(len(buf))
+		}
+		if s.models != nil {
+			if c, cerr := s.models.CalculateRequestCost(modelID, final.inputTokens, final.outputTokens); cerr == nil {
+				final.costUSD = c
+				w.Header().Set("X-Rioku-Response-Cost", registry.FormatCost(c))
+			}
+		}
+		copyResponseHeaders(w.Header(), resp.Header)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(buf)))
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(buf)
+		return
+	}
+
+	// Streaming path — copy through with periodic flush.
+	copyResponseHeaders(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
+	flusher, _ := w.(http.Flusher)
+	written, _ := streamCopy(w, resp.Body, flusher)
+	final.outputTokens = tokens.EstimateOutputFromBytes(written)
+	if s.models != nil && final.outputTokens > 0 {
+		if c, cerr := s.models.CalculateRequestCost(modelID, final.inputTokens, final.outputTokens); cerr == nil {
+			final.costUSD = c
+		}
+	}
+}
+
+// streamCopy is io.Copy with a periodic Flush so SSE chunks reach
+// the client as they land.
+func streamCopy(dst io.Writer, src io.Reader, flusher http.Flusher) (int, error) {
+	buf := make([]byte, 32<<10)
+	total := 0
+	for {
+		n, err := src.Read(buf)
+		if n > 0 {
+			if _, werr := dst.Write(buf[:n]); werr != nil {
+				return total, werr
+			}
+			total += n
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				return total, nil
+			}
+			return total, err
+		}
+	}
+}
+
+// copyResponseHeaders copies the upstream response headers to the
+// client response, dropping hop-by-hop entries.
+func copyResponseHeaders(dst, src http.Header) {
+	for k, vs := range src {
+		switch k {
+		case "Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization",
+			"Te", "Trailer", "Transfer-Encoding", "Upgrade", "Content-Length":
+			continue
+		}
+		for _, v := range vs {
+			dst.Add(k, v)
+		}
+	}
 }
 
 // tokenAccounting is the running tally the proxy hook fills in.
