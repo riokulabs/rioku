@@ -1628,6 +1628,133 @@ func TestAuditLog(t *testing.T) {
 	_ = tx6.Rollback()
 }
 
+// TestAuditLog_PayloadRoundTrip verifies that the unified audit payload
+// columns (#182, D6 / #193) round-trip cleanly through Postgres:
+//   - a populated PayloadSchema + Payload survives Append → Get → Query.
+//   - a legacy diff-only entry (no payload) lands with NULL columns and
+//     surfaces as the proto-default empty strings on read.
+func TestAuditLog_PayloadRoundTrip(t *testing.T) {
+	d := openPGTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
+	const (
+		schemaID = "cert.lifecycle_event.v1"
+		payload  = `{"cert_id":"cert-abc","event":"renewed","not_after":"2027-01-01T00:00:00Z"}`
+	)
+
+	// --- Append a payload-bearing entry ---
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	withPayload := &riokuv1.AuditEntry{
+		Actor:         "system",
+		EntityType:    "certificate",
+		EntityId:      "cert-abc",
+		Operation:     "RENEW",
+		Diff:          "{}",
+		PayloadSchema: schemaID,
+		Payload:       payload,
+		OccurredAt:    timestamppb.New(now.Add(-time.Minute)),
+	}
+	if err := tx1.AppendAuditEntry(ctx, withPayload); err != nil {
+		t.Fatalf("AppendAuditEntry (payload): %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Append a legacy diff-only entry (no payload columns) ---
+	tx2, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	legacy := &riokuv1.AuditEntry{
+		Actor:      "alice",
+		EntityType: "route",
+		EntityId:   "route-legacy",
+		Operation:  "UPDATE",
+		Diff:       `{"weight":42}`,
+		OccurredAt: timestamppb.New(now),
+	}
+	if err := tx2.AppendAuditEntry(ctx, legacy); err != nil {
+		t.Fatalf("AppendAuditEntry (legacy): %v", err)
+	}
+	if err := tx2.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// --- Query both back; locate by entity_id since Append assigns IDs. ---
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	defer func() { _ = tx3.Rollback() }()
+
+	entries, err := tx3.QueryAuditLog(ctx, store.AuditQuery{Limit: 100})
+	if err != nil {
+		t.Fatalf("QueryAuditLog: %v", err)
+	}
+
+	var (
+		gotPayloadID string
+		gotLegacyID  string
+	)
+	for _, e := range entries {
+		switch e.GetEntityId() {
+		case "cert-abc":
+			gotPayloadID = e.GetId()
+			if got := e.GetPayloadSchema(); got != schemaID {
+				t.Fatalf("Query: payload entry payload_schema = %q, want %q", got, schemaID)
+			}
+			if got := e.GetPayload(); got != payload {
+				t.Fatalf("Query: payload entry payload = %q, want %q", got, payload)
+			}
+		case "route-legacy":
+			gotLegacyID = e.GetId()
+			if got := e.GetPayloadSchema(); got != "" {
+				t.Fatalf("Query: legacy entry payload_schema = %q, want empty", got)
+			}
+			if got := e.GetPayload(); got != "" {
+				t.Fatalf("Query: legacy entry payload = %q, want empty", got)
+			}
+		}
+	}
+	if gotPayloadID == "" {
+		t.Fatal("did not find payload-bearing audit entry in query results")
+	}
+	if gotLegacyID == "" {
+		t.Fatal("did not find legacy diff-only audit entry in query results")
+	}
+
+	// --- GetAuditEntry round-trip on the payload row ---
+	got, err := tx3.GetAuditEntry(ctx, gotPayloadID)
+	if err != nil {
+		t.Fatalf("GetAuditEntry (payload): %v", err)
+	}
+	if got.GetPayloadSchema() != schemaID {
+		t.Fatalf("Get: payload_schema = %q, want %q", got.GetPayloadSchema(), schemaID)
+	}
+	if got.GetPayload() != payload {
+		t.Fatalf("Get: payload = %q, want %q", got.GetPayload(), payload)
+	}
+
+	// --- GetAuditEntry round-trip on the legacy row — NULL columns must
+	//     surface as the proto-default empty strings. ---
+	gotLegacy, err := tx3.GetAuditEntry(ctx, gotLegacyID)
+	if err != nil {
+		t.Fatalf("GetAuditEntry (legacy): %v", err)
+	}
+	if gotLegacy.GetPayloadSchema() != "" {
+		t.Fatalf("Get: legacy payload_schema = %q, want empty", gotLegacy.GetPayloadSchema())
+	}
+	if gotLegacy.GetPayload() != "" {
+		t.Fatalf("Get: legacy payload = %q, want empty", gotLegacy.GetPayload())
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Roles
 // ---------------------------------------------------------------------------
