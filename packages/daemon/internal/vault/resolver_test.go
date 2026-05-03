@@ -130,3 +130,53 @@ func TestResolver_RegisterNilPanics(t *testing.T) {
 	}()
 	NewResolver().Register(nil)
 }
+
+func TestResolver_Preflight_LiteralPasses(t *testing.T) {
+	r := NewResolver()
+	if err := r.Preflight(context.Background(), "plaintext-secret"); err != nil {
+		t.Errorf("Preflight literal: %v", err)
+	}
+}
+
+func TestResolver_Preflight_ResolvableRefPasses(t *testing.T) {
+	r := NewResolver()
+	r.Register(&fakeBackend{name: "fake", sync: true, data: map[string]string{"k": "v"}})
+
+	if err := r.Preflight(context.Background(), "{vault://fake/k}"); err != nil {
+		t.Errorf("Preflight resolvable: %v", err)
+	}
+}
+
+func TestResolver_Preflight_BadRefRejected(t *testing.T) {
+	r := NewResolver()
+	r.Register(&fakeBackend{name: "fake", sync: true, data: map[string]string{}})
+
+	err := r.Preflight(context.Background(), "{vault://fake/missing}")
+	if err == nil {
+		t.Fatal("Preflight on unresolvable ref returned nil")
+	}
+	if !errors.Is(err, ErrResolveFailed) {
+		t.Errorf("err = %v, want wrap ErrResolveFailed", err)
+	}
+}
+
+func TestResolver_Preflight_NilResolverAcceptsSyntacticOnly(t *testing.T) {
+	var r *Resolver
+	// Literal: pass through.
+	if err := r.Preflight(context.Background(), "literal"); err != nil {
+		t.Errorf("nil Resolver literal: %v", err)
+	}
+	// Well-formed ref: pass through (resolution skipped).
+	if err := r.Preflight(context.Background(), "{vault://env/X}"); err != nil {
+		t.Errorf("nil Resolver well-formed ref: %v", err)
+	}
+}
+
+func TestResolver_Preflight_MalformedRefRejected(t *testing.T) {
+	r := NewResolver()
+	// Looks like a ref ({vault://...}) but missing the resource.
+	err := r.Preflight(context.Background(), "{vault://}")
+	if err == nil {
+		t.Fatal("Preflight on malformed ref returned nil")
+	}
+}

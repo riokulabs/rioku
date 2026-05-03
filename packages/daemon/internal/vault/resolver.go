@@ -101,3 +101,33 @@ func (r *Resolver) ResolveAll(ctx context.Context, values map[string]string) (ma
 	}
 	return out, nil
 }
+
+// Preflight validates a candidate secret value at admin-write time
+// without retaining the resolved plaintext (#190). When s is a
+// vault:// reference, the function parses it and attempts a one-shot
+// resolve; the resolved value is discarded immediately. Plain-text
+// values pass through with err == nil. The point is to surface
+// "secret not configured" / "wrong backend" failures during the
+// admin REST write itself rather than at compile time when the
+// daemon would 500 in a less obvious place.
+//
+// Resolver may be nil — in that case Preflight only validates the
+// reference syntax. This keeps the helper usable in environments
+// where the resolver hasn't been wired (e.g. early test scaffolds).
+func (r *Resolver) Preflight(ctx context.Context, s string) error {
+	if !IsReference(s) {
+		return nil
+	}
+	ref, err := Parse(s)
+	if err != nil {
+		return err
+	}
+	if r == nil {
+		// Resolver not wired — accept the syntactic validation only.
+		return nil
+	}
+	if _, err := r.Resolve(ctx, ref); err != nil {
+		return err
+	}
+	return nil
+}
