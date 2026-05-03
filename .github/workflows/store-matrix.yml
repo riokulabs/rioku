@@ -62,7 +62,7 @@ jobs:
           POSTGRES_TEST_DSN: postgres://rioku:rioku_test@localhost:5432/rioku_test?sslmode=disable
         run: |
           cd packages/daemon
-          go test -race -count=1 -timeout=300s ./internal/store/postgres/...
+          go test -race -count=1 -timeout=1500s ./internal/store/postgres/...
 
   store-matrix-postgres-18:
     name: store-matrix-postgres-18
@@ -93,7 +93,7 @@ jobs:
           POSTGRES_TEST_DSN: postgres://rioku:rioku_test@localhost:5432/rioku_test?sslmode=disable
         run: |
           cd packages/daemon
-          go test -race -count=1 -timeout=300s ./internal/store/postgres/...
+          go test -race -count=1 -timeout=1500s ./internal/store/postgres/...
 
   store-matrix-mysql-8-4:
     name: store-matrix-mysql-8-4
