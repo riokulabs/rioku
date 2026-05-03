@@ -2,47 +2,362 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
 
-func (t *tx) CreateMCPTeam(_ context.Context, _ store.CreateMCPTeamParams) (*store.MCPTeam, error) {
-	return nil, fmt.Errorf("mysql: CreateMCPTeam not implemented")
+// ---------------------------------------------------------------------------
+// MCP teams
+// ---------------------------------------------------------------------------
+
+func (t *tx) CreateMCPTeam(ctx context.Context, p store.CreateMCPTeamParams) (*store.MCPTeam, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if tenantID == "" {
+		tenantID = p.TenantID
+	}
+	if p.Status == "" {
+		p.Status = store.MCPTeamStatusActive
+	}
+	now := nowUTC()
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO mcp_teams (id, tenant_id, name, description, status, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, tenantID, p.Name, p.Description, string(p.Status), now, now,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrMCPTeamNameTaken
+		}
+		return nil, fmt.Errorf("mysql: create mcp_team: %w", err)
+	}
+	t.emit("mcp_teams", p.ID, "INSERT")
+	return t.GetMCPTeam(ctx, p.ID)
 }
-func (t *tx) GetMCPTeam(_ context.Context, _ string) (*store.MCPTeam, error) {
-	return nil, fmt.Errorf("mysql: GetMCPTeam not implemented")
+
+const mcpTeamCols = `id, tenant_id, name, description, status, created_at, updated_at`
+
+func (t *tx) GetMCPTeam(ctx context.Context, id string) (*store.MCPTeam, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT `+mcpTeamCols+` FROM mcp_teams WHERE id = ? AND tenant_id = ?`,
+		id, tenantID)
+	team, err := scanMCPTeam(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, store.ErrMCPTeamNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("mysql: get mcp_team: %w", err)
+	}
+	return team, nil
 }
-func (t *tx) ListMCPTeams(_ context.Context) ([]*store.MCPTeam, error) {
-	return nil, fmt.Errorf("mysql: ListMCPTeams not implemented")
+
+func (t *tx) ListMCPTeams(ctx context.Context) ([]*store.MCPTeam, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT `+mcpTeamCols+` FROM mcp_teams WHERE tenant_id = ? ORDER BY name`,
+		tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list mcp_teams: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.MCPTeam
+	for rows.Next() {
+		team, err := scanMCPTeam(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, team)
+	}
+	return out, rows.Err()
 }
-func (t *tx) UpdateMCPTeam(_ context.Context, _ string, _ store.UpdateMCPTeamParams) (*store.MCPTeam, error) {
-	return nil, fmt.Errorf("mysql: UpdateMCPTeam not implemented")
+
+func (t *tx) UpdateMCPTeam(ctx context.Context, id string, p store.UpdateMCPTeamParams) (*store.MCPTeam, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	sets := []string{}
+	args := []any{}
+	if p.Name != nil {
+		sets = append(sets, "name = ?")
+		args = append(args, *p.Name)
+	}
+	if p.Description != nil {
+		sets = append(sets, "description = ?")
+		args = append(args, *p.Description)
+	}
+	if p.Status != nil {
+		sets = append(sets, "status = ?")
+		args = append(args, string(*p.Status))
+	}
+	if len(sets) == 0 {
+		return t.GetMCPTeam(ctx, id)
+	}
+	sets = append(sets, "updated_at = ?")
+	args = append(args, nowUTC(), id, tenantID)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE mcp_teams SET `+strings.Join(sets, ", ")+` WHERE id = ? AND tenant_id = ?`,
+		args...)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrMCPTeamNameTaken
+		}
+		return nil, fmt.Errorf("mysql: update mcp_team: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, store.ErrMCPTeamNotFound
+	}
+	t.emit("mcp_teams", id, "UPDATE")
+	return t.GetMCPTeam(ctx, id)
 }
-func (t *tx) DeleteMCPTeam(_ context.Context, _ string) error {
-	return fmt.Errorf("mysql: DeleteMCPTeam not implemented")
+
+func (t *tx) DeleteMCPTeam(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM mcp_teams WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete mcp_team: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return store.ErrMCPTeamNotFound
+	}
+	t.emit("mcp_teams", id, "DELETE")
+	return nil
 }
-func (t *tx) AddMCPTeamPermission(_ context.Context, _ *store.MCPTeamPermission) (*store.MCPTeamPermission, error) {
-	return nil, fmt.Errorf("mysql: AddMCPTeamPermission not implemented")
+
+func scanMCPTeam(s scanner) (*store.MCPTeam, error) {
+	var (
+		team                 store.MCPTeam
+		status               string
+		createdAt, updatedAt string
+	)
+	if err := s.Scan(&team.ID, &team.TenantID, &team.Name, &team.Description,
+		&status, &createdAt, &updatedAt); err != nil {
+		return nil, err
+	}
+	team.Status = store.MCPTeamStatus(status)
+	team.CreatedAt = parseTime(createdAt)
+	team.UpdatedAt = parseTime(updatedAt)
+	return &team, nil
 }
-func (t *tx) ListMCPTeamPermissions(_ context.Context, _ string) ([]*store.MCPTeamPermission, error) {
-	return nil, fmt.Errorf("mysql: ListMCPTeamPermissions not implemented")
+
+// ---------------------------------------------------------------------------
+// MCP team permissions
+// ---------------------------------------------------------------------------
+
+func (t *tx) AddMCPTeamPermission(ctx context.Context, perm *store.MCPTeamPermission) (*store.MCPTeamPermission, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if tenantID == "" {
+		tenantID = perm.TenantID
+	}
+	now := nowUTC()
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO mcp_team_permissions (id, tenant_id, team_id, mcp_server_id, tool_name, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		perm.ID, tenantID, perm.TeamID, perm.MCPServerID, perm.ToolName, now,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrMCPTeamPermissionDup
+		}
+		return nil, fmt.Errorf("mysql: add mcp_team_permission: %w", err)
+	}
+	t.emit("mcp_team_permissions", perm.ID, "INSERT")
+	out := *perm
+	out.TenantID = tenantID
+	out.CreatedAt = parseTime(now)
+	return &out, nil
 }
-func (t *tx) RemoveMCPTeamPermission(_ context.Context, _ string) error {
-	return fmt.Errorf("mysql: RemoveMCPTeamPermission not implemented")
+
+func (t *tx) ListMCPTeamPermissions(ctx context.Context, teamID string) ([]*store.MCPTeamPermission, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT id, tenant_id, team_id, mcp_server_id, tool_name, created_at
+		 FROM mcp_team_permissions WHERE tenant_id = ? AND team_id = ?
+		 ORDER BY mcp_server_id, tool_name`,
+		tenantID, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list mcp_team_permissions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.MCPTeamPermission
+	for rows.Next() {
+		var (
+			p         store.MCPTeamPermission
+			createdAt string
+		)
+		if err := rows.Scan(&p.ID, &p.TenantID, &p.TeamID, &p.MCPServerID, &p.ToolName, &createdAt); err != nil {
+			return nil, err
+		}
+		p.CreatedAt = parseTime(createdAt)
+		out = append(out, &p)
+	}
+	return out, rows.Err()
 }
-func (t *tx) CreateMCPRoute(_ context.Context, _ store.CreateMCPRouteParams) (*store.MCPRoute, error) {
-	return nil, fmt.Errorf("mysql: CreateMCPRoute not implemented")
+
+func (t *tx) RemoveMCPTeamPermission(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM mcp_team_permissions WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: remove mcp_team_permission: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return store.ErrMCPTeamNotFound
+	}
+	t.emit("mcp_team_permissions", id, "DELETE")
+	return nil
 }
-func (t *tx) GetMCPRoute(_ context.Context, _ string) (*store.MCPRoute, error) {
-	return nil, fmt.Errorf("mysql: GetMCPRoute not implemented")
+
+// ---------------------------------------------------------------------------
+// MCP routes
+// ---------------------------------------------------------------------------
+
+func (t *tx) CreateMCPRoute(ctx context.Context, p store.CreateMCPRouteParams) (*store.MCPRoute, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	if tenantID == "" {
+		tenantID = p.TenantID
+	}
+	if p.PathPrefix == "" {
+		p.PathPrefix = "/"
+	}
+	if p.AuthPassthrough == "" {
+		p.AuthPassthrough = store.MCPAuthPassthroughForward
+	}
+	now := nowUTC()
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO mcp_routes (id, tenant_id, name, hostname, path_prefix, mcp_server_id,
+		   auth_passthrough, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, tenantID, p.Name, p.Hostname, p.PathPrefix, p.MCPServerID,
+		string(p.AuthPassthrough), boolToInt(p.Enabled), now, now,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrMCPRouteHostPathTaken
+		}
+		return nil, fmt.Errorf("mysql: create mcp_route: %w", err)
+	}
+	t.emit("mcp_routes", p.ID, "INSERT")
+	return t.GetMCPRoute(ctx, p.ID)
 }
-func (t *tx) ListMCPRoutes(_ context.Context) ([]*store.MCPRoute, error) {
-	return nil, fmt.Errorf("mysql: ListMCPRoutes not implemented")
+
+const mcpRouteCols = `id, tenant_id, name, hostname, path_prefix, mcp_server_id,
+	auth_passthrough, enabled, created_at, updated_at`
+
+func (t *tx) GetMCPRoute(ctx context.Context, id string) (*store.MCPRoute, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT `+mcpRouteCols+` FROM mcp_routes WHERE id = ? AND tenant_id = ?`,
+		id, tenantID)
+	r, err := scanMCPRoute(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, store.ErrMCPRouteNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("mysql: get mcp_route: %w", err)
+	}
+	return r, nil
 }
-func (t *tx) UpdateMCPRoute(_ context.Context, _ string, _ store.UpdateMCPRouteParams) (*store.MCPRoute, error) {
-	return nil, fmt.Errorf("mysql: UpdateMCPRoute not implemented")
+
+func (t *tx) ListMCPRoutes(ctx context.Context) ([]*store.MCPRoute, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	rows, err := t.sqlTx.QueryContext(ctx,
+		`SELECT `+mcpRouteCols+` FROM mcp_routes WHERE tenant_id = ? ORDER BY hostname, path_prefix`,
+		tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: list mcp_routes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.MCPRoute
+	for rows.Next() {
+		r, err := scanMCPRoute(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
-func (t *tx) DeleteMCPRoute(_ context.Context, _ string) error {
-	return fmt.Errorf("mysql: DeleteMCPRoute not implemented")
+
+func (t *tx) UpdateMCPRoute(ctx context.Context, id string, p store.UpdateMCPRouteParams) (*store.MCPRoute, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	sets := []string{}
+	args := []any{}
+	if p.Name != nil {
+		sets = append(sets, "name = ?")
+		args = append(args, *p.Name)
+	}
+	if p.Hostname != nil {
+		sets = append(sets, "hostname = ?")
+		args = append(args, *p.Hostname)
+	}
+	if p.PathPrefix != nil {
+		sets = append(sets, "path_prefix = ?")
+		args = append(args, *p.PathPrefix)
+	}
+	if p.MCPServerID != nil {
+		sets = append(sets, "mcp_server_id = ?")
+		args = append(args, *p.MCPServerID)
+	}
+	if p.AuthPassthrough != nil {
+		sets = append(sets, "auth_passthrough = ?")
+		args = append(args, string(*p.AuthPassthrough))
+	}
+	if p.Enabled != nil {
+		sets = append(sets, "enabled = ?")
+		args = append(args, boolToInt(*p.Enabled))
+	}
+	if len(sets) == 0 {
+		return t.GetMCPRoute(ctx, id)
+	}
+	sets = append(sets, "updated_at = ?")
+	args = append(args, nowUTC(), id, tenantID)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE mcp_routes SET `+strings.Join(sets, ", ")+` WHERE id = ? AND tenant_id = ?`,
+		args...)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, store.ErrMCPRouteHostPathTaken
+		}
+		return nil, fmt.Errorf("mysql: update mcp_route: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, store.ErrMCPRouteNotFound
+	}
+	t.emit("mcp_routes", id, "UPDATE")
+	return t.GetMCPRoute(ctx, id)
+}
+
+func (t *tx) DeleteMCPRoute(ctx context.Context, id string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM mcp_routes WHERE id = ? AND tenant_id = ?`, id, tenantID)
+	if err != nil {
+		return fmt.Errorf("mysql: delete mcp_route: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return store.ErrMCPRouteNotFound
+	}
+	t.emit("mcp_routes", id, "DELETE")
+	return nil
+}
+
+func scanMCPRoute(s scanner) (*store.MCPRoute, error) {
+	var (
+		r                    store.MCPRoute
+		auth                 string
+		enabled              int
+		createdAt, updatedAt string
+	)
+	if err := s.Scan(&r.ID, &r.TenantID, &r.Name, &r.Hostname, &r.PathPrefix, &r.MCPServerID,
+		&auth, &enabled, &createdAt, &updatedAt); err != nil {
+		return nil, err
+	}
+	r.AuthPassthrough = store.MCPAuthPassthrough(auth)
+	r.Enabled = enabled == 1
+	r.CreatedAt = parseTime(createdAt)
+	r.UpdatedAt = parseTime(updatedAt)
+	return &r, nil
 }
