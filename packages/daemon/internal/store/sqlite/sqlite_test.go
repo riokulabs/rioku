@@ -871,6 +871,32 @@ func TestNotify(t *testing.T) {
 	}
 }
 
+// TestCollectMigrationFiles verifies the auto-discovery loop walks
+// the embedded migrations dir and returns versions in ascending
+// order. Adding a new migration file should not require a Go-side
+// registration step (#148).
+func TestCollectMigrationFiles(t *testing.T) {
+	ups, err := collectMigrationFiles("up")
+	if err != nil {
+		t.Fatalf("collectMigrationFiles: %v", err)
+	}
+	if len(ups) < 10 {
+		t.Fatalf("expected >= 10 up migrations, got %d", len(ups))
+	}
+	for i := 1; i < len(ups); i++ {
+		if ups[i].version <= ups[i-1].version {
+			t.Errorf("not sorted ascending: %d follows %d", ups[i].version, ups[i-1].version)
+		}
+	}
+	downs, err := collectMigrationFiles("down")
+	if err != nil {
+		t.Fatalf("collectMigrationFiles down: %v", err)
+	}
+	if len(downs) != len(ups) {
+		t.Errorf("up/down count mismatch: up=%d down=%d", len(ups), len(downs))
+	}
+}
+
 func TestMigrateDown(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDB(t)
