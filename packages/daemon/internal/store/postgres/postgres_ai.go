@@ -587,13 +587,21 @@ func (t *tx) CreateAIAgent(ctx context.Context, in *store.AIAgent) (*store.AIAge
 	if guard == "" {
 		guard = "{}"
 	}
+	strategy := in.RoutingStrategy
+	if strategy == "" {
+		strategy = "fallback"
+	}
+	routingCfg := in.RoutingConfig
+	if routingCfg == "" {
+		routingCfg = "{}"
+	}
 	now := nowUTC()
 	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
 		`INSERT INTO ai_agents (id, tenant_id, provider_id, name, description, model, system_prompt, guardrails,
-		   scoped_credential, enabled, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		   scoped_credential, enabled, routing_strategy, routing_config, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 		id, in.TenantID, in.ProviderID, in.Name, in.Description, in.Model, in.SystemPrompt, guard,
-		in.ScopedCredential, in.Enabled, now, now,
+		in.ScopedCredential, in.Enabled, strategy, routingCfg, now, now,
 	)
 	if err != nil {
 		if isPgUniqueViolation(err, "name") {
@@ -608,7 +616,7 @@ func (t *tx) CreateAIAgent(ctx context.Context, in *store.AIAgent) (*store.AIAge
 func (t *tx) GetAIAgent(ctx context.Context, tenantID, id string) (*store.AIAgent, error) {
 	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
 		`SELECT id, tenant_id, provider_id, name, description, model, system_prompt, guardrails,
-		   scoped_credential, enabled, created_at, updated_at
+		   scoped_credential, enabled, routing_strategy, routing_config, created_at, updated_at
 		 FROM ai_agents WHERE id = ? AND tenant_id = ?`), id, tenantID)
 	a, err := scanAIAgent(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -620,7 +628,7 @@ func (t *tx) GetAIAgent(ctx context.Context, tenantID, id string) (*store.AIAgen
 func (t *tx) ListAIAgentsByTenant(ctx context.Context, tenantID string) ([]*store.AIAgent, error) {
 	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
 		`SELECT id, tenant_id, provider_id, name, description, model, system_prompt, guardrails,
-		   scoped_credential, enabled, created_at, updated_at
+		   scoped_credential, enabled, routing_strategy, routing_config, created_at, updated_at
 		 FROM ai_agents WHERE tenant_id = ? ORDER BY name ASC`), tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list ai_agents: %w", err)
@@ -666,12 +674,18 @@ func (t *tx) UpdateAIAgent(ctx context.Context, tenantID, id string, p store.Upd
 	if p.Enabled != nil {
 		c.Enabled = *p.Enabled
 	}
+	if p.RoutingStrategy != nil {
+		c.RoutingStrategy = *p.RoutingStrategy
+	}
+	if p.RoutingConfig != nil {
+		c.RoutingConfig = *p.RoutingConfig
+	}
 	if _, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
 		`UPDATE ai_agents SET provider_id=?, name=?, description=?, model=?, system_prompt=?, guardrails=?,
-		   scoped_credential=?, enabled=?, updated_at=?
+		   scoped_credential=?, enabled=?, routing_strategy=?, routing_config=?, updated_at=?
 		 WHERE id=? AND tenant_id=?`),
 		c.ProviderID, c.Name, c.Description, c.Model, c.SystemPrompt, c.Guardrails,
-		c.ScopedCredential, c.Enabled, nowUTC(), id, tenantID); err != nil {
+		c.ScopedCredential, c.Enabled, c.RoutingStrategy, c.RoutingConfig, nowUTC(), id, tenantID); err != nil {
 		if isPgUniqueViolation(err, "name") {
 			return nil, store.ErrAIAgentNameTaken
 		}
@@ -697,18 +711,20 @@ func (t *tx) DeleteAIAgent(ctx context.Context, tenantID, id string) error {
 func scanAIAgent(s scanner) (*store.AIAgent, error) {
 	var (
 		id, tenantID, name, description, model, systemPrompt, guardrails string
+		routingStrategy, routingConfig                                   string
 		providerID, scopedCred                                           *string
 		enabled                                                          bool
 		createdAt, updatedAt                                             time.Time
 	)
 	if err := s.Scan(&id, &tenantID, &providerID, &name, &description, &model, &systemPrompt, &guardrails,
-		&scopedCred, &enabled, &createdAt, &updatedAt); err != nil {
+		&scopedCred, &enabled, &routingStrategy, &routingConfig, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	return &store.AIAgent{
 		ID: id, TenantID: tenantID, ProviderID: providerID, Name: name, Description: description,
 		Model: model, SystemPrompt: systemPrompt, Guardrails: guardrails,
 		ScopedCredential: scopedCred, Enabled: enabled,
+		RoutingStrategy: routingStrategy, RoutingConfig: routingConfig,
 		CreatedAt: createdAt.UTC(), UpdatedAt: updatedAt.UTC(),
 	}, nil
 }
