@@ -64,6 +64,15 @@ type PerRoutePlugins struct {
 	// non-nil entry whose Enabled is true get a WAF handler emitted.
 	WAFByRoute map[string]*RouteWAFConfig
 
+	// WAFAuditEndpoint is the daemon-side `/waf-record` URL the
+	// Coraza `https` writer POSTs JSON-formatted audit logs to (#203
+	// follow-up). When set, the compiler appends SecAuditEngine,
+	// SecAuditLog, SecAuditLogType, SecAuditLogFormat directives to
+	// every WAF-enabled route so denials produce store rows. Empty
+	// disables the audit ingestion path; rows won't appear in
+	// /api/v1/waf/denials until the endpoint is wired through.
+	WAFAuditEndpoint string
+
 	// MCPRoutes is the list of standalone MCP gateway routes (#181,
 	// #201). Each entry produces its own Caddy route with hostname +
 	// path_prefix matchers and a reverse_proxy handler to the MCP
@@ -271,7 +280,7 @@ func buildOASValidatorHandler(cfg *RouteOASConfig) map[string]any {
 //   - request_body_limit    -> SecRequestBodyLimit / SecRequestBodyAccess On
 //   - paranoia_level        -> tx.paranoia_level via SecAction
 //   - excluded_rule_ids     -> SecRuleRemoveById <id> per entry
-func buildWAFHandler(cfg *RouteWAFConfig) map[string]any {
+func buildWAFHandler(cfg *RouteWAFConfig, auditEndpoint string) map[string]any {
 	if cfg == nil || !cfg.Enabled {
 		return nil
 	}
@@ -321,6 +330,21 @@ func buildWAFHandler(cfg *RouteWAFConfig) map[string]any {
 			continue
 		}
 		directives = append(directives, fmt.Sprintf("SecRuleRemoveById %s", id))
+	}
+
+	// Audit log POST to daemon (#203 follow-up). RelevantOnly only
+	// fires when at least one rule matched, which matches what the
+	// daemon stores — denial rows. The `https` writer is built into
+	// Coraza and accepts http:// targets too, so the loopback URL
+	// the daemon supplies works without extra plugins.
+	if auditEndpoint != "" {
+		directives = append(directives,
+			"SecAuditEngine RelevantOnly",
+			"SecAuditLogType https",
+			"SecAuditLogFormat json",
+			"SecAuditLogParts ABFHKZ",
+			fmt.Sprintf("SecAuditLog %s", auditEndpoint),
+		)
 	}
 
 	h := map[string]any{

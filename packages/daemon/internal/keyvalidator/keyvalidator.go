@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/riokulabs/rioku/internal/observability"
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -116,6 +118,7 @@ func (s *Server) Listen(addr string) error {
 	mux.HandleFunc("/quota-exceeded", s.handleQuotaExceeded)
 	mux.HandleFunc("/mcp-validate", s.handleMCPValidate)
 	mux.HandleFunc("/jwks-refresh", s.handleJWKSRefresh)
+	mux.HandleFunc("/waf-record", s.handleWAFRecord)
 	s.srv = &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -430,4 +433,132 @@ func (s *Server) handleJWKSRefresh(w http.ResponseWriter, r *http.Request) {
 		s.JWKS.Record(ev)
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// corazaAuditLog is the subset of Coraza's JSON audit log shape the
+// daemon-side denial recorder cares about. We hand-roll the struct
+// instead of importing the Coraza internal/auditlog package because
+// the latter is internal and not import-safe; the field tags here
+// must mirror Coraza's serialization (see
+// internal/auditlog/auditlog.go in the coraza/v3 module).
+type corazaAuditLog struct {
+	Transaction struct {
+		Timestamp       string `json:"timestamp"`
+		UnixTimestamp   int64  `json:"unix_timestamp"`
+		ID              string `json:"id"`
+		ClientIP        string `json:"client_ip"`
+		HighestSeverity string `json:"highest_severity"`
+		IsInterrupted   bool   `json:"is_interrupted"`
+		Request         struct {
+			Method string `json:"method"`
+			URI    string `json:"uri"`
+		} `json:"request"`
+		Response struct {
+			Status int `json:"status"`
+		} `json:"response"`
+	} `json:"transaction"`
+	Messages []struct {
+		Actionset string `json:"actionset"`
+		Message   string `json:"message"`
+		Data      *struct {
+			ID       int    `json:"id"`
+			Msg      string `json:"msg"`
+			Severity string `json:"severity"`
+			Data     string `json:"data"`
+		} `json:"data"`
+	} `json:"messages"`
+}
+
+// handleWAFRecord ingests a Coraza JSON audit log payload and writes
+// one WAFDenial row per matched rule. Coraza's built-in `https`
+// writer formats audit logs as JSON and POSTs them here when the
+// compiler emits `SecAuditLog <endpoint>` + `SecAuditLogType https`
+// + `SecAuditLogFormat json` (#203 follow-up).
+//
+// Each Coraza transaction may match multiple rules; we emit one row
+// per message so the admin UI can surface the per-rule breakdown.
+// Loopback only — same trust boundary as the other keyvalidator
+// endpoints.
+func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var al corazaAuditLog
+	if err := json.NewDecoder(r.Body).Decode(&al); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Skip non-blocking transactions in detect-only mode unless the
+	// caller asked us to record them. Coraza honors RelevantOnly via
+	// SecAuditEngine; the daemon only stores rows that actually had
+	// a rule match (Messages non-empty).
+	if len(al.Messages) == 0 {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+
+	matchedAt := time.Unix(al.Transaction.UnixTimestamp, 0).UTC()
+	if matchedAt.IsZero() || al.Transaction.UnixTimestamp == 0 {
+		matchedAt = s.Now()
+	}
+	uri := al.Transaction.Request.URI
+	if uri == "" {
+		uri = "/"
+	}
+	clientIP := al.Transaction.ClientIP
+	action := "block"
+	if !al.Transaction.IsInterrupted {
+		action = "detect"
+	}
+
+	tx, err := s.store.Begin(r.Context(), store.TxOptions{})
+	if err != nil {
+		s.logErr("waf-record begin", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, m := range al.Messages {
+		ruleID := ""
+		severity := al.Transaction.HighestSeverity
+		if m.Data != nil {
+			if m.Data.ID > 0 {
+				ruleID = fmt.Sprintf("%d", m.Data.ID)
+			}
+			if m.Data.Severity != "" {
+				severity = m.Data.Severity
+			}
+		}
+		denial := &store.WAFDenial{
+			ID:         "wd_" + denialID(),
+			TenantID:   store.TenantIDFromContext(r.Context()),
+			RuleID:     ruleID,
+			Severity:   severity,
+			Action:     action,
+			RequestURI: uri,
+			ClientIP:   clientIP,
+			MatchedAt:  matchedAt,
+		}
+		if err := tx.AppendWAFDenial(r.Context(), denial); err != nil {
+			s.logErr("waf-record append", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		s.logErr("waf-record commit", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// denialID generates a short opaque identifier for WAFDenial rows.
+// The column is a free-form string so any unique value works.
+func denialID() string {
+	return uuid.NewString()
 }

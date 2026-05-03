@@ -397,3 +397,73 @@ func TestCompile_BareCallEquivalentToEmptyPlugins(t *testing.T) {
 		t.Errorf("bare Compile and empty-plugin CompileWithPlugins produced different output:\n bare: %s\n with: %s", bareData, withData)
 	}
 }
+
+// TestCompileWithPlugins_WAF_AuditEndpointEmitted verifies the compiler
+// appends the SecAudit* directives (and the SecAuditLog target URL)
+// when the daemon supplies a /waf-record endpoint via
+// SetWAFAuditEndpoint. Without those directives the data plane never
+// reports denials and /api/v1/waf/denials stays empty (#203 follow-up).
+func TestCompileWithPlugins_WAF_AuditEndpointEmitted(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c.SetWAFAuditEndpoint("http://127.0.0.1:7791/waf-record")
+
+	perRoute := PerRoutePlugins{
+		WAFByRoute: map[string]*RouteWAFConfig{
+			"r1": {
+				Enabled:       true,
+				Mode:          WAFModeBlock,
+				RuleSet:       "crs",
+				ParanoiaLevel: 2,
+			},
+		},
+	}
+	data, err := c.CompileWithPlugins(baseSnapshot(), perRoute)
+	if err != nil {
+		t.Fatalf("CompileWithPlugins: %v", err)
+	}
+	handlers := extractRouteHandlers(t, data)
+	waf := findHandler(handlers, "waf")
+	if waf == nil {
+		t.Fatalf("expected waf handler in chain")
+	}
+	directives := waf["directives"].(string)
+	for _, want := range []string{
+		"SecAuditEngine RelevantOnly",
+		"SecAuditLogType https",
+		"SecAuditLogFormat json",
+		"SecAuditLog http://127.0.0.1:7791/waf-record",
+	} {
+		if !strings.Contains(directives, want) {
+			t.Errorf("directives missing %q\nfull:\n%s", want, directives)
+		}
+	}
+}
+
+// TestCompileWithPlugins_WAF_NoAuditEndpointNoDirectives verifies the
+// compiler does NOT emit SecAudit* directives when the endpoint is
+// empty. Hosts running in dev mode without a key-validator address
+// shouldn't get spurious "no such host" errors from Coraza trying to
+// POST audit logs.
+func TestCompileWithPlugins_WAF_NoAuditEndpointNoDirectives(t *testing.T) {
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	// no SetWAFAuditEndpoint call
+
+	perRoute := PerRoutePlugins{
+		WAFByRoute: map[string]*RouteWAFConfig{
+			"r1": {Enabled: true, Mode: WAFModeBlock, RuleSet: "crs", ParanoiaLevel: 1},
+		},
+	}
+	data, err := c.CompileWithPlugins(baseSnapshot(), perRoute)
+	if err != nil {
+		t.Fatalf("CompileWithPlugins: %v", err)
+	}
+	handlers := extractRouteHandlers(t, data)
+	waf := findHandler(handlers, "waf")
+	if waf == nil {
+		t.Fatalf("expected waf handler")
+	}
+	directives := waf["directives"].(string)
+	if strings.Contains(directives, "SecAuditLog") {
+		t.Errorf("SecAuditLog directive emitted without endpoint:\n%s", directives)
+	}
+}

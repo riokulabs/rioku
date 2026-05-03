@@ -84,7 +84,7 @@ func (c *Compiler) compileRoute(route *riokuv1.Route, services map[string]*rioku
 	// not reach the spec validator (which would otherwise allocate
 	// request body parsing for content the WAF rejects).
 	if wafCfg := perRoute.WAFByRoute[route.GetId()]; wafCfg != nil {
-		if wafHandler := buildWAFHandler(wafCfg); wafHandler != nil {
+		if wafHandler := buildWAFHandler(wafCfg, perRoute.WAFAuditEndpoint); wafHandler != nil {
 			handleChain = append(handleChain, wafHandler)
 		}
 	}

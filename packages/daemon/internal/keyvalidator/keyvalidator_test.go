@@ -352,6 +352,103 @@ func TestJWKSRefresh_NilRegistryNoOp(t *testing.T) {
 	}
 }
 
+func TestWAFRecord_WritesDenialPerMessage(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	// Two messages, one transaction — should produce two WAFDenial rows.
+	body := `{
+		"transaction": {
+			"timestamp": "01/May/2026:10:00:00 +0000",
+			"unix_timestamp": 1746091200,
+			"id": "txid-1",
+			"client_ip": "10.0.0.5",
+			"highest_severity": "WARNING",
+			"is_interrupted": true,
+			"request": {"method": "GET", "uri": "/api/test"}
+		},
+		"messages": [
+			{"actionset": "block", "message": "SQL injection attempt", "data": {"id": 942100, "msg": "SQLi", "severity": "CRITICAL"}},
+			{"actionset": "block", "message": "XSS attempt", "data": {"id": 941100, "msg": "XSS", "severity": "WARNING"}}
+		]
+	}`
+
+	req, _ := http.NewRequest(http.MethodPost, "http://"+srv.Addr()+"/waf-record", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	tx, err := d.Begin(store.WithTenantID(context.Background(), "tenant_default"), store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	denials, err := tx.QueryWAFDenials(store.WithTenantID(context.Background(), "tenant_default"), store.WAFDenialQuery{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(denials) != 2 {
+		t.Fatalf("denials len = %d, want 2", len(denials))
+	}
+	wantRules := map[string]bool{"942100": false, "941100": false}
+	for _, d := range denials {
+		if d.RequestURI != "/api/test" {
+			t.Errorf("RequestURI = %q", d.RequestURI)
+		}
+		if d.ClientIP != "10.0.0.5" {
+			t.Errorf("ClientIP = %q", d.ClientIP)
+		}
+		if d.Action != "block" {
+			t.Errorf("Action = %q", d.Action)
+		}
+		if _, ok := wantRules[d.RuleID]; ok {
+			wantRules[d.RuleID] = true
+		}
+	}
+	for r, seen := range wantRules {
+		if !seen {
+			t.Errorf("rule %s not present in denials", r)
+		}
+	}
+}
+
+func TestWAFRecord_NoMessagesNoOp(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	body := `{"transaction":{"id":"x","client_ip":"1.2.3.4","unix_timestamp":1746091200,"is_interrupted":false},"messages":[]}`
+	req, _ := http.NewRequest(http.MethodPost, "http://"+srv.Addr()+"/waf-record", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	tx, _ := d.Begin(store.WithTenantID(context.Background(), "tenant_default"), store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	denials, _ := tx.QueryWAFDenials(store.WithTenantID(context.Background(), "tenant_default"), store.WAFDenialQuery{Limit: 10})
+	if len(denials) != 0 {
+		t.Errorf("denials = %d, want 0 for empty messages", len(denials))
+	}
+}
+
 func TestJWKSRefresh_AutoTimestamp(t *testing.T) {
 	d := openDB(t)
 	srv := keyvalidator.New(d, slog.Default())

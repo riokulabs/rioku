@@ -440,6 +440,9 @@ func (d *Daemon) Start(ctx context.Context) error {
 			AskURL:  "http://" + d.tlsAsk.Addr() + "/tls/ask",
 		})
 	}
+	if d.keyValidator != nil {
+		compiler.SetWAFAuditEndpoint("http://" + d.keyValidator.Addr() + "/waf-record")
+	}
 	d.engine.SetCompiler(compiler)
 	slog.Info("compiler updated with admin config", "component", "config")
 

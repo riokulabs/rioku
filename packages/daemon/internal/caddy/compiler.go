@@ -103,12 +103,13 @@ type OnDemandTLSConfig struct {
 
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
-	trafficAddrs    []string
-	admin           AdminConfig
-	traceSocketPath string
-	trustedProxies  *TrustedProxiesConfig
-	securityHeaders SecurityHeadersConfig
-	onDemandTLS     OnDemandTLSConfig
+	trafficAddrs     []string
+	admin            AdminConfig
+	traceSocketPath  string
+	trustedProxies   *TrustedProxiesConfig
+	securityHeaders  SecurityHeadersConfig
+	onDemandTLS      OnDemandTLSConfig
+	wafAuditEndpoint string
 }
 
 // NewCompiler creates a compiler with the given traffic listen addresses, admin config,
@@ -127,6 +128,15 @@ func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath strin
 // construction once the daemon knows the local AskURL.
 func (c *Compiler) SetOnDemandTLS(cfg OnDemandTLSConfig) {
 	c.onDemandTLS = cfg
+}
+
+// SetWAFAuditEndpoint sets the daemon-side `/waf-record` URL Coraza
+// POSTs JSON-formatted audit logs to (#203 follow-up). Empty disables
+// the audit-log directives. Threaded into every WAF-enabled route's
+// directives at compile time when set; passing PerRoutePlugins also
+// allows per-snapshot overrides via WAFAuditEndpoint.
+func (c *Compiler) SetWAFAuditEndpoint(url string) {
+	c.wafAuditEndpoint = url
 }
 
 // CompileWithPlugins compiles the snapshot with the supplied per-route
@@ -160,6 +170,14 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 // receiver stays free of per-call mutable state and Compile remains
 // safe for concurrent use.
 func (c *Compiler) compile(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePlugins) ([]byte, error) {
+	// Inherit WAFAuditEndpoint from the compiler when the snapshot's
+	// per-route plugin set didn't supply one. The daemon installs the
+	// endpoint on the compiler at startup so every WAF-enabled route
+	// posts to the same /waf-record ingress.
+	if perRoute.WAFAuditEndpoint == "" && c.wafAuditEndpoint != "" {
+		perRoute.WAFAuditEndpoint = c.wafAuditEndpoint
+	}
+
 	// Build service lookup map keyed by service ID.
 	services := make(map[string]*riokuv1.Service, len(snapshot.GetServices()))
 	for _, svc := range snapshot.GetServices() {
