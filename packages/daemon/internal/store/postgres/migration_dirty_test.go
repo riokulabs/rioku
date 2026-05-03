@@ -32,7 +32,14 @@ func TestMigrateUp_DirtyFlagOnFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 	}
-	defer func() { _ = db.Close() }()
+	// Cleanup ordering matters here: t.Cleanup is LIFO and runs AFTER
+	// function-level defers. If we used `defer db.Close()` the DELETE
+	// below would execute against a closed connection (silently — the
+	// errors are dropped — leaving the dirty 9999 row behind to poison
+	// every subsequent test in the shared CI database). Register Close
+	// FIRST so the DELETE registered later runs FIRST under LIFO and
+	// has a live connection.
+	t.Cleanup(func() { _ = db.Close() })
 
 	if err := db.PingContext(ctx); err != nil {
 		t.Fatalf("ping: %v", err)
@@ -49,8 +56,12 @@ func TestMigrateUp_DirtyFlagOnFailure(t *testing.T) {
 		t.Fatalf("create schema_versions: %v", err)
 	}
 	// Clean up after ourselves so repeated runs are idempotent.
+	// Surface DELETE errors via t.Logf so a future regression is
+	// visible in CI even when other tests still pass.
 	t.Cleanup(func() {
-		_, _ = db.ExecContext(ctx, `DELETE FROM schema_versions WHERE version = $1`, 9999)
+		if _, derr := db.ExecContext(ctx, `DELETE FROM schema_versions WHERE version = $1`, 9999); derr != nil {
+			t.Logf("dirty-row cleanup DELETE 9999 failed: %v", derr)
+		}
 	})
 
 	d := &driver{db: db}
@@ -122,7 +133,8 @@ func TestMigrateUp_DirtyFlagClearedOnSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 	}
-	defer func() { _ = db.Close() }()
+	// See TestMigrateUp_DirtyFlagOnFailure for the LIFO ordering rationale.
+	t.Cleanup(func() { _ = db.Close() })
 
 	if err := db.PingContext(ctx); err != nil {
 		t.Fatalf("ping: %v", err)
@@ -138,7 +150,9 @@ func TestMigrateUp_DirtyFlagClearedOnSuccess(t *testing.T) {
 		t.Fatalf("create schema_versions: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = db.ExecContext(ctx, `DELETE FROM schema_versions WHERE version = $1`, 9998)
+		if _, derr := db.ExecContext(ctx, `DELETE FROM schema_versions WHERE version = $1`, 9998); derr != nil {
+			t.Logf("test fixture cleanup DELETE 9998 failed: %v", derr)
+		}
 	})
 
 	d := &driver{db: db}
