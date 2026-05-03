@@ -69,7 +69,7 @@ func invokeValidator(t *testing.T, srv *keyvalidator.Server, body string) *httpt
 	if err != nil {
 		t.Fatalf("client.Do: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	rec := httptest.NewRecorder()
 	rec.Code = resp.StatusCode
 	for k, v := range resp.Header {
@@ -182,7 +182,7 @@ func TestValidator_GETRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want 405", resp.StatusCode)
 	}
@@ -212,7 +212,7 @@ func invokeQuotaExceeded(t *testing.T, srv *keyvalidator.Server, body string) in
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return resp.StatusCode
 }
 

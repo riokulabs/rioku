@@ -81,7 +81,7 @@ func TestRedact_IPMask_IPv6(t *testing.T) {
 	}
 	// And the prefix must be retained.
 	want := net.ParseIP("2001:db8:abcd:12::").To16()
-	if !bytes.Equal(v6, want) {
+	if !net.IP(v6).Equal(want) {
 		t.Errorf("masked = %v, want %v", v6, want)
 	}
 }

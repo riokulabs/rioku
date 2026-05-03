@@ -27,7 +27,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -674,83 +673,6 @@ func (s *Server) resolveCredential(ctx context.Context, p *store.AIProvider, vk 
 		return ref, nil
 	}
 	return s.vault.ResolveString(ctx, ref)
-}
-
-// newReverseProxy builds a single-shot reverse proxy. We do not
-// reuse a global proxy because Director needs the per-request
-// upstream URL + creds.
-func (s *Server) newReverseProxy(upstream *url.URL, creds string, body []byte) *httputil.ReverseProxy {
-	return &httputil.ReverseProxy{
-		Director: func(r *http.Request) {
-			r.URL.Scheme = upstream.Scheme
-			r.URL.Host = upstream.Host
-			// Preserve the inbound path (`/v1/chat/completions` etc.)
-			// — providers' OpenAI-shaped APIs are path-compatible.
-			if upstream.Path != "" && upstream.Path != "/" {
-				r.URL.Path = strings.TrimRight(upstream.Path, "/") + r.URL.Path
-			}
-			r.Host = upstream.Host
-			r.Body = io.NopCloser(bytes.NewReader(body))
-			r.ContentLength = int64(len(body))
-			// Strip any inbound creds; we set fresh ones from vault.
-			r.Header.Del("Authorization")
-			r.Header.Del("X-Api-Key")
-			r.Header.Del("X-Rioku-Virtual-Key")
-			r.Header.Del("X-Rioku-Tenant-Id")
-			if creds != "" {
-				r.Header.Set("Authorization", "Bearer "+creds)
-			}
-		},
-		Transport: s.HTTPClient.Transport,
-		// FlushInterval -1 disables buffering — required for SSE /
-		// streaming chat completions where the upstream emits chunks
-		// over a long-lived connection.
-		FlushInterval: -1,
-	}
-}
-
-// countingResponseWriter captures the response status code, total
-// bytes written, and a small head of the body (for non-streaming
-// JSON usage parsing). The reverse proxy writes via WriteHeader +
-// Write; we intercept both.
-type countingResponseWriter struct {
-	http.ResponseWriter
-	status       int
-	bytesWritten int
-	// bodyBuf caches up to bodyBufCap bytes of the response. We use
-	// it to extract the OpenAI-shape `usage` block on non-streaming
-	// JSON responses. Streaming responses overflow this cap and we
-	// fall back to the byte-based output-token estimate.
-	bodyBuf bytes.Buffer
-}
-
-const bodyBufCap = 64 << 10 // 64 KiB; enough to find {"usage":...} in any sane response
-
-func (c *countingResponseWriter) WriteHeader(code int) {
-	c.status = code
-	c.ResponseWriter.WriteHeader(code)
-}
-
-func (c *countingResponseWriter) Write(p []byte) (int, error) {
-	n, err := c.ResponseWriter.Write(p)
-	c.bytesWritten += n
-	if c.bodyBuf.Len() < bodyBufCap {
-		room := bodyBufCap - c.bodyBuf.Len()
-		if room > n {
-			room = n
-		}
-		c.bodyBuf.Write(p[:room])
-	}
-	return n, err
-}
-
-// Flush is the http.Flusher pass-through used by the reverse-proxy
-// for streaming chunks. Implementing it here ensures wrapping does
-// not break SSE.
-func (c *countingResponseWriter) Flush() {
-	if f, ok := c.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
 }
 
 type spendInput struct {

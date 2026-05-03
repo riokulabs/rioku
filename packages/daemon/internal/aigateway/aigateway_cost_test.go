@@ -59,7 +59,7 @@ func TestAIGateway_CostHeaderEmitted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	costHeader := resp.Header.Get("X-Rioku-Response-Cost")
 	if costHeader == "" {
@@ -110,7 +110,7 @@ func TestAIGateway_TokenHeuristicWhenUsageMissing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	time.Sleep(60 * time.Millisecond)
 	ctx := store.WithTenantID(context.Background(), "tenant_default")
@@ -176,7 +176,7 @@ func TestAIGateway_BudgetExceededReturns7807(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("status = %d, want 403", resp.StatusCode)
 	}
@@ -203,7 +203,7 @@ func TestAIGateway_BudgetZeroDisablesEnforcement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200 (budget=0 disables enforcement)", resp.StatusCode)
 	}

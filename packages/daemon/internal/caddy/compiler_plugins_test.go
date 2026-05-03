@@ -372,7 +372,7 @@ func TestCompileWithPlugins_HandlerOrdering(t *testing.T) {
 	if tracingIdx != 0 {
 		t.Errorf("tracing handler index = %d, want 0", tracingIdx)
 	}
-	if !(tracingIdx < varsIdx && varsIdx < wafIdx && wafIdx < oasIdx && oasIdx < rpIdx) {
+	if tracingIdx >= varsIdx || varsIdx >= wafIdx || wafIdx >= oasIdx || oasIdx >= rpIdx {
 		t.Errorf("unexpected handler order: tracing=%d vars=%d waf=%d oas=%d rp=%d", tracingIdx, varsIdx, wafIdx, oasIdx, rpIdx)
 	}
 }

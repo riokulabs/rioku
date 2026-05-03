@@ -94,10 +94,7 @@ func (b *OnePasswordBackend) Resolve(ctx context.Context, resource string) (stri
 			ErrResolveFailed, uri, err)
 	}
 
-	out := stdout.String()
-	if strings.HasSuffix(out, "\n") {
-		out = out[:len(out)-1]
-	}
+	out := strings.TrimSuffix(stdout.String(), "\n")
 	if out == "" {
 		return "", fmt.Errorf("%w: op read %q returned empty value", ErrResolveFailed, uri)
 	}
