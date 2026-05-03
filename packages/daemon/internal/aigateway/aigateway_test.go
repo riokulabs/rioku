@@ -174,7 +174,10 @@ func TestAIGateway_ProxiesToUpstream(t *testing.T) {
 		t.Errorf("upstream body lost model field: %s", seenBody)
 	}
 
-	// Spend log was recorded.
+	// Spend log was recorded. The write is best-effort and runs
+	// after the response is flushed; under -race the read can
+	// outrun the write, so give it a beat.
+	time.Sleep(50 * time.Millisecond)
 	ctx := store.WithTenantID(context.Background(), "tenant_default")
 	tx, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
 	defer tx.Rollback() //nolint:errcheck
