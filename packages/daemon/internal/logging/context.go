@@ -116,10 +116,16 @@ func (h *ContextHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.inner.Enabled(ctx, level)
 }
 
-// Handle attaches request_id / trace_id / component attributes from ctx to
-// the record before forwarding to the inner handler. Already-present
-// attributes on the record are left untouched (caller's explicit attributes
-// win).
+// Handle attaches request_id / trace_id / component / route_id /
+// log_sample_rate attributes from ctx to the record before forwarding
+// to the inner handler. Already-present attributes on the record are
+// left untouched (caller's explicit attributes win).
+//
+// log_sample_rate is what the SamplingHandler downstream keys off
+// for deterministic sample-by-request-id; phase-2 plumbing (#198)
+// stashes the rate on ctx so the per-route value pulled from the
+// cache surfaces as an attribute without every call site needing to
+// remember it.
 func (h *ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	if rid := RequestIDFromContext(ctx); rid != "" {
 		r.AddAttrs(slog.String("request_id", rid))
@@ -129,6 +135,12 @@ func (h *ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 	if comp := ComponentFromContext(ctx); comp != "" {
 		r.AddAttrs(slog.String("component", comp))
+	}
+	if routeID := RouteIDFromContext(ctx); routeID != "" {
+		r.AddAttrs(slog.String("route_id", routeID))
+	}
+	if rate, ok := LogSampleRateFromContext(ctx); ok {
+		r.AddAttrs(slog.Float64("log_sample_rate", rate))
 	}
 	return h.inner.Handle(ctx, r)
 }
