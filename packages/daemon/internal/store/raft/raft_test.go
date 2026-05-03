@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -409,7 +411,7 @@ func BenchmarkWriteRoute(b *testing.B) {
 // place ListServices is O(N + total_upstreams_for_visited_services);
 // without it (the legacy code path) it was O(N * total_upstreams).
 func BenchmarkListServices_Index(b *testing.B) {
-	d, ctx, _ := benchmarkSeedServices(b, 10000, 5, "127.0.0.1:17797")
+	d, ctx, _ := benchmarkSeedServices(b, 10000, 5, "127.0.0.1:0")
 	defer func() { _ = d.Close() }()
 
 	b.ResetTimer()
@@ -431,7 +433,7 @@ func BenchmarkListServices_Index(b *testing.B) {
 // directly comparable. The scan reads service rows but resolves their
 // upstreams via a full bucket walk — exactly the pre-index behaviour.
 func BenchmarkListServices_Scan(b *testing.B) {
-	d, ctx, _ := benchmarkSeedServices(b, 10000, 5, "127.0.0.1:17796")
+	d, ctx, _ := benchmarkSeedServices(b, 10000, 5, "127.0.0.1:0")
 	defer func() { _ = d.Close() }()
 
 	b.ResetTimer()
@@ -487,6 +489,19 @@ func listServicesScan(t *raftTx) ([]*riokuv1.Service, error) {
 // deadline used (handy for failure reporting).
 func benchmarkSeedServices(b *testing.B, nServices, upstreamsEach int, addr string) (*Driver, context.Context, time.Time) {
 	b.Helper()
+	// When the caller passes a port-0 address, resolve it to a real free
+	// port via the OS so back-to-back bench runs don't collide with each
+	// other's TIME_WAIT sockets. Both BindAddr and AdvertiseAddr need a
+	// concrete port because BootstrapCluster records AdvertiseAddr as the
+	// server identity. (Refs #196, #54.)
+	if strings.HasSuffix(addr, ":0") {
+		l, err := net.Listen("tcp", addr)
+		if err != nil {
+			b.Fatalf("probe free port: %v", err)
+		}
+		addr = l.Addr().String()
+		_ = l.Close()
+	}
 	dir := b.TempDir()
 	d := &Driver{}
 	d.SetRaftConfig(RaftConfig{
