@@ -135,7 +135,12 @@ jobs:
           else
             echo "PR event — running full test suite"
           fi
-          cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=300s ${SHORT_FLAG} ./...
+          # -timeout is per-package. The auth + gateway packages contain
+          # large integration suites (10K-session scale tests, 150+ HTTP
+          # round-trip tests with full sqlite stores) that exceed the
+          # original 300s budget once -race overhead is layered on. 900s
+          # gives them room while still bounding genuinely hung tests.
+          cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=900s ${SHORT_FLAG} ./...
 
       - name: Test build-service (race)
         run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...
