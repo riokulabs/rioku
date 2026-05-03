@@ -390,6 +390,23 @@ type Tx interface {
 	AggregateAISpendDay(ctx context.Context, day time.Time) (int64, error)
 	QueryAISpendRollups(ctx context.Context, q AISpendRollupQuery) ([]*AISpendRollup, error)
 
+	// --- Virtual keys (#167, Sprint 5 Phase 2) ---
+
+	CreateVirtualKey(ctx context.Context, params CreateVirtualKeyParams) (*VirtualKey, error)
+	GetVirtualKey(ctx context.Context, id string) (*VirtualKey, error)
+	ListVirtualKeys(ctx context.Context) ([]*VirtualKey, error)
+	UpdateVirtualKey(ctx context.Context, id string, params UpdateVirtualKeyParams) (*VirtualKey, error)
+	// RotateVirtualKey replaces credential_ref atomically; the
+	// rest of the key (allowed_models, budget, …) is preserved.
+	// The old reference is NOT exposed in the response — only the
+	// new key is returned.
+	RotateVirtualKey(ctx context.Context, id, newCredentialRef string) (*VirtualKey, error)
+	// RevokeVirtualKey sets revoked_at = now. Subsequent
+	// resolution attempts return ErrVirtualKeyRevoked equivalent
+	// (the resolver compares IsActive).
+	RevokeVirtualKey(ctx context.Context, id string) error
+	DeleteVirtualKey(ctx context.Context, id string) error
+
 	// --- Tenants (stage-2) ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have
