@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -30,4 +31,7 @@ func (t *tx) AppendWAFDenial(_ context.Context, _ *store.WAFDenial) error {
 }
 func (t *tx) QueryWAFDenials(_ context.Context, _ store.WAFDenialQuery) ([]*store.WAFDenial, error) {
 	return nil, fmt.Errorf("mysql: QueryWAFDenials not implemented")
+}
+func (t *tx) PruneWAFDenials(_ context.Context, _ time.Time) (int64, error) {
+	return 0, fmt.Errorf("mysql: PruneWAFDenials not implemented")
 }

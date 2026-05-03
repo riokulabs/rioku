@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -30,4 +31,7 @@ func (t *raftTx) AppendWAFDenial(_ context.Context, _ *store.WAFDenial) error {
 }
 func (t *raftTx) QueryWAFDenials(_ context.Context, _ store.WAFDenialQuery) ([]*store.WAFDenial, error) {
 	return nil, fmt.Errorf("raft: QueryWAFDenials not implemented")
+}
+func (t *raftTx) PruneWAFDenials(_ context.Context, _ time.Time) (int64, error) {
+	return 0, fmt.Errorf("raft: PruneWAFDenials not implemented")
 }

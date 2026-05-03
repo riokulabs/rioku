@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -196,6 +197,20 @@ func (t *tx) DeleteRouteWAFConfig(ctx context.Context, routeID string) error {
 	}
 	t.emit("route_waf_configs", routeID, "DELETE")
 	return nil
+}
+
+// PruneWAFDenials drops WAF denial rows older than `before` (#203).
+// Returns the number of rows removed.
+func (t *tx) PruneWAFDenials(ctx context.Context, before time.Time) (int64, error) {
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM waf_denials WHERE matched_at < ?`,
+		before.UTC().Format(timeFormat),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("sqlite: prune waf_denials: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 func (t *tx) AppendWAFDenial(ctx context.Context, d *store.WAFDenial) error {

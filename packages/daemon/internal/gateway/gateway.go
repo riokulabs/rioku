@@ -51,6 +51,7 @@ func NewGateway(
 	trafficSvc riokuv1.TrafficServiceServer,
 	apiMgmtSvc riokuv1.APIManagementServiceServer,
 	aiGatewaySvc riokuv1.AIGatewayServiceServer,
+	wafSvc riokuv1.WAFServiceServer,
 	a *auth.Auth,
 	sm *auth.SessionManager,
 	engine *config.Engine,
@@ -90,6 +91,11 @@ func NewGateway(
 	if aiGatewaySvc != nil {
 		if err := riokuv1.RegisterAIGatewayServiceHandlerServer(ctx, gwMux, aiGatewaySvc); err != nil {
 			return nil, fmt.Errorf("register ai-gateway service: %w", err)
+		}
+	}
+	if wafSvc != nil {
+		if err := riokuv1.RegisterWAFServiceHandlerServer(ctx, gwMux, wafSvc); err != nil {
+			return nil, fmt.Errorf("register waf service: %w", err)
 		}
 	}
 

@@ -29,6 +29,7 @@ type Server struct {
 	trafficSvc    riokuv1.TrafficServiceServer
 	apiMgmtSvc    riokuv1.APIManagementServiceServer
 	aiGatewaySvc  riokuv1.AIGatewayServiceServer
+	wafSvc        riokuv1.WAFServiceServer
 	log           *slog.Logger
 }
 
@@ -58,11 +59,13 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 	healthSvc := newHealthService(st, caddyMgr)
 	apiMgmtSvc := newAPIManagementService(st, nil) // webhook emitter wired post-Sprint-4 Phase 1e
 	aiGatewaySvc := newAIGatewayService(st)
+	wafSvc := newWAFService(st)
 
 	riokuv1.RegisterConfigServiceServer(gs, cfgSvc)
 	riokuv1.RegisterHealthServiceServer(gs, healthSvc)
 	riokuv1.RegisterAPIManagementServiceServer(gs, apiMgmtSvc)
 	riokuv1.RegisterAIGatewayServiceServer(gs, aiGatewaySvc)
+	riokuv1.RegisterWAFServiceServer(gs, wafSvc)
 
 	var trafficSvc riokuv1.TrafficServiceServer
 	if traceBuf != nil && traceStore != nil {
@@ -82,6 +85,7 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		trafficSvc:   trafficSvc,
 		apiMgmtSvc:   apiMgmtSvc,
 		aiGatewaySvc: aiGatewaySvc,
+		wafSvc:       wafSvc,
 		log:          logger,
 	}, nil
 }
@@ -90,6 +94,12 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 // implementation (Sprint 5: virtual keys + MCP gateway).
 func (s *Server) AIGatewayService() riokuv1.AIGatewayServiceServer {
 	return s.aiGatewaySvc
+}
+
+// WAFService returns the registered WAFService server implementation
+// (#172, #203 — denial-list read path).
+func (s *Server) WAFService() riokuv1.WAFServiceServer {
+	return s.wafSvc
 }
 
 // Start begins serving gRPC requests. Blocks until Stop is called.

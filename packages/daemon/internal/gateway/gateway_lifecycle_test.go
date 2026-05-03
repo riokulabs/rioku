@@ -55,6 +55,7 @@ func newTestGateway(t *testing.T, addr string) *Gateway {
 		nil, // trafficSvc
 		nil, // apiMgmtSvc
 		nil, // aiGatewaySvc
+		nil, // wafSvc
 		a,
 		sm,
 		engine,
@@ -120,6 +121,7 @@ func TestNewGateway_WithTrafficService(t *testing.T) {
 		&stubTrafficService{},
 		nil, // apiMgmtSvc
 		nil, // aiGatewaySvc
+		nil, // wafSvc
 		a,
 		sm,
 		engine,

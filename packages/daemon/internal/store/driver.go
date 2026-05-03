@@ -424,6 +424,9 @@ type Tx interface {
 	ListMCPTeamPermissions(ctx context.Context, teamID string) ([]*MCPTeamPermission, error)
 	RemoveMCPTeamPermission(ctx context.Context, id string) error
 
+	// PruneWAFDenials drops WAF denial rows older than `before` (#203).
+	PruneWAFDenials(ctx context.Context, before time.Time) (int64, error)
+
 	// MCP routes: HTTP routing in front of the MCP gateway.
 	CreateMCPRoute(ctx context.Context, params CreateMCPRouteParams) (*MCPRoute, error)
 	GetMCPRoute(ctx context.Context, id string) (*MCPRoute, error)

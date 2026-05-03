@@ -262,7 +262,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			if d.upstreamHealth != nil {
 				uhSource = d.upstreamHealth
 			}
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, gwLog, d.logLevel)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}
