@@ -181,7 +181,7 @@ func (a *APIKey) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	keyHash := sha256Hex(key)
 
 	if entry, ok := a.cache.get(keyHash); ok {
-		return a.applyResult(w, r, next, entry)
+		return a.applyResult(w, r, next, entry, keyHash)
 	}
 
 	res, err := a.validator.Validate(r.Context(), keyHash)
@@ -195,10 +195,10 @@ func (a *APIKey) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return nil
 	}
 	a.cache.put(keyHash, res)
-	return a.applyResult(w, r, next, res)
+	return a.applyResult(w, r, next, res, keyHash)
 }
 
-func (a *APIKey) applyResult(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler, res ValidationResult) error {
+func (a *APIKey) applyResult(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler, res ValidationResult, keyHash string) error {
 	if !res.Valid {
 		switch res.Reason {
 		case "revoked":
@@ -229,6 +229,12 @@ func (a *APIKey) applyResult(w http.ResponseWriter, r *http.Request, next caddyh
 		r.Header.Set("X-Rioku-Plan", res.PlanID)
 		if repl, ok := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer); ok && repl != nil {
 			repl.Set("http.auth.plan.id", res.PlanID)
+		}
+		// Surface the SHA-256 hash so the downstream rate-limit
+		// module can fire `subscription.exceeded_quota` (#202)
+		// keyed by the hash without re-extracting the cleartext.
+		if keyHash != "" {
+			r.Header.Set("X-Rioku-API-Key-Hash", keyHash)
 		}
 	}
 	if res.RateLimitPerMinute > 0 {

@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -193,5 +194,96 @@ func TestValidator_EmptyKeyHashReturnsMissing(t *testing.T) {
 	got := decodeResp(t, rec)
 	if got["valid"] != false || got["reason"] != "missing" {
 		t.Fatalf("empty-hash path failed: %v", got)
+	}
+}
+
+// invokeQuotaExceeded drives the /quota-exceeded handler in-process.
+func invokeQuotaExceeded(t *testing.T, srv *keyvalidator.Server, body string) int {
+	t.Helper()
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	resp, err := http.Post("http://"+srv.Addr()+"/quota-exceeded", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode
+}
+
+func TestQuotaExceeded_FiresHookOnFirstEvent(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	var fired int
+	var mu sync.Mutex
+	var lastEv keyvalidator.QuotaExceededEvent
+	srv.SetQuotaWebhook(func(_ context.Context, ev keyvalidator.QuotaExceededEvent) {
+		mu.Lock()
+		defer mu.Unlock()
+		fired++
+		lastEv = ev
+	})
+	body := `{"api_key_hash":"abc123","plan_id":"plan_pro","tenant_id":"tenant_default","limit":10,"count":11}`
+	if status := invokeQuotaExceeded(t, srv, body); status != http.StatusAccepted {
+		t.Errorf("status = %d, want 202", status)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if fired != 1 {
+		t.Errorf("fired = %d, want 1", fired)
+	}
+	if lastEv.PlanID != "plan_pro" || lastEv.Limit != 10 || lastEv.Count != 11 {
+		t.Errorf("event = %+v", lastEv)
+	}
+}
+
+func TestQuotaExceeded_DedupesWithinDay(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	var fired int
+	var mu sync.Mutex
+	srv.SetQuotaWebhook(func(_ context.Context, _ keyvalidator.QuotaExceededEvent) {
+		mu.Lock()
+		fired++
+		mu.Unlock()
+	})
+
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	body := `{"api_key_hash":"abc","plan_id":"plan_pro","tenant_id":"tenant_default","limit":1,"count":2}`
+	for i := 0; i < 5; i++ {
+		resp, err := http.Post("http://"+srv.Addr()+"/quota-exceeded", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if fired != 1 {
+		t.Errorf("fired = %d, want 1 (dedupe within day)", fired)
+	}
+}
+
+func TestQuotaExceeded_SkipsMalformed(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	var fired int
+	srv.SetQuotaWebhook(func(_ context.Context, _ keyvalidator.QuotaExceededEvent) {
+		fired++
+	})
+	if status := invokeQuotaExceeded(t, srv, `{"api_key_hash":"","plan_id":"x","tenant_id":"y"}`); status != http.StatusAccepted {
+		t.Errorf("status = %d, want 202 (skip but accept)", status)
+	}
+	if fired != 0 {
+		t.Errorf("fired = %d, want 0 for empty hash", fired)
 	}
 }

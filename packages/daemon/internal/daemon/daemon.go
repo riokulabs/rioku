@@ -328,6 +328,27 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if addr := d.cfg.Listen.KeyValidatorAddr; addr != "" {
 		kvLog := slog.Default().With("component", "keyvalidator")
 		d.keyValidator = keyvalidator.New(d.store, kvLog)
+		// Wire the data-plane quota-exceeded webhook (#202). The
+		// rate-limit Caddy plugin POSTs to /quota-exceeded; the
+		// keyvalidator dedupes per (key, plan, day) and fans out
+		// `subscription.exceeded_quota` through the dispatcher.
+		if d.notifyDispatch != nil {
+			disp := d.notifyDispatch
+			d.keyValidator.SetQuotaWebhook(func(ctx context.Context, ev keyvalidator.QuotaExceededEvent) {
+				disp.Emit(ctx, notifications.Event{
+					Type:     "subscription.exceeded_quota",
+					TenantID: ev.TenantID,
+					Actor:    "data-plane",
+					Payload: map[string]any{
+						"plan_id":      ev.PlanID,
+						"api_key_hash": ev.APIKeyHash,
+						"limit":        ev.Limit,
+						"count":        ev.Count,
+						"at":           ev.At.UTC().Format(time.RFC3339Nano),
+					},
+				})
+			})
+		}
 		if err := d.keyValidator.Listen(addr); err != nil {
 			kvLog.Error("listen failed — rioku_apikey validation will be DISABLED", "addr", addr, "error", err)
 			d.keyValidator = nil

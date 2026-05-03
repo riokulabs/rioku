@@ -29,6 +29,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
@@ -43,17 +44,55 @@ type Server struct {
 	store    store.Driver
 	log      *slog.Logger
 
+	// QuotaWebhook is invoked when the data plane reports a
+	// quota-exceeded event for an API key bound to a Subscription
+	// (#202). Best-effort: nil disables the data-plane webhook.
+	QuotaWebhook QuotaExceededHook
+
+	// quotaCacheMu guards the dedupe cache below.
+	quotaCacheMu sync.Mutex
+	// quotaCache deduplicates `subscription.exceeded_quota` events
+	// per (api_key_hash, plan_id, day) bucket so a sustained breach
+	// fires one webhook per day, not one per blocked request.
+	quotaCache map[string]time.Time
+
 	// Now is the clock function. Overridable for tests.
 	Now func() time.Time
+}
+
+// QuotaExceededHook is invoked on a quota-exceeded event. The
+// concrete implementation lives in internal/notifications and is
+// wired post-construction via SetQuotaWebhook so the keyvalidator
+// package stays cycle-free.
+type QuotaExceededHook func(ctx context.Context, ev QuotaExceededEvent)
+
+// QuotaExceededEvent is the shape the data-plane plugin reports.
+// Mirrors the rate-limit module's block-context: which key tripped
+// the cap, what was the limit + the count, and at what time.
+type QuotaExceededEvent struct {
+	APIKeyHash string
+	PlanID     string
+	TenantID   string
+	Limit      int
+	Count      int
+	At         time.Time
 }
 
 // New constructs an unbound Server. Call Listen, then Serve.
 func New(st store.Driver, log *slog.Logger) *Server {
 	return &Server{
-		store: st,
-		log:   log,
-		Now:   time.Now,
+		store:      st,
+		log:        log,
+		Now:        time.Now,
+		quotaCache: map[string]time.Time{},
 	}
+}
+
+// SetQuotaWebhook installs (or replaces) the data-plane quota-
+// exceeded callback. Wired post-construction by daemon.Start so the
+// notifications dispatcher can be created independently.
+func (s *Server) SetQuotaWebhook(h QuotaExceededHook) {
+	s.QuotaWebhook = h
 }
 
 // Listen binds the server to addr.
@@ -66,6 +105,7 @@ func (s *Server) Listen(addr string) error {
 	s.addr = l.Addr().String()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate-key", s.handleValidateKey)
+	mux.HandleFunc("/quota-exceeded", s.handleQuotaExceeded)
 	s.srv = &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -171,4 +211,89 @@ func (s *Server) logErr(msg string, err error) {
 	if s.log != nil {
 		s.log.Error("keyvalidator: "+msg, "error", err)
 	}
+}
+
+// quotaDedupTTL is how long the (api_key_hash, plan_id, day) bucket
+// suppresses repeat webhooks. 24h matches the most common
+// QuotaPerDay window; sub-day windows still suppress within the
+// day, which is the correct trade-off — operators do not want one
+// webhook per blocked request during a sustained breach.
+const quotaDedupTTL = 24 * time.Hour
+
+// handleQuotaExceeded is the data-plane webhook ingress (#202). The
+// rate-limit Caddy module POSTs the block context here when an API
+// key bound to a Subscription trips its Plan-level RPM cap. The
+// daemon then fan-outs `subscription.exceeded_quota` through the
+// notifications dispatcher.
+//
+// Body shape:
+//
+//	{
+//	  "api_key_hash": "<sha256-hex>",
+//	  "plan_id":      "<plan id>",
+//	  "tenant_id":    "<tenant id>",
+//	  "limit":        N,
+//	  "count":        N
+//	}
+//
+// Best-effort: failures here are logged but never block the data
+// plane (the rate-limit module fires-and-forgets). Loopback only;
+// network isolation is the trust boundary.
+func (s *Server) handleQuotaExceeded(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		APIKeyHash string `json:"api_key_hash"`
+		PlanID     string `json:"plan_id"`
+		TenantID   string `json:"tenant_id"`
+		Limit      int    `json:"limit"`
+		Count      int    `json:"count"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.APIKeyHash = strings.TrimSpace(req.APIKeyHash)
+	req.PlanID = strings.TrimSpace(req.PlanID)
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	if req.APIKeyHash == "" || req.PlanID == "" || req.TenantID == "" {
+		// Silently accept-and-skip — the data plane should not be
+		// punished for a malformed event; the daemon won't fan
+		// out the webhook.
+		writeJSON(w, http.StatusAccepted, map[string]string{"status": "skipped"})
+		return
+	}
+
+	now := s.Now().UTC()
+	day := now.Format("2006-01-02")
+	dedupKey := req.APIKeyHash + "|" + req.PlanID + "|" + day
+	s.quotaCacheMu.Lock()
+	last, seen := s.quotaCache[dedupKey]
+	if seen && now.Sub(last) < quotaDedupTTL {
+		s.quotaCacheMu.Unlock()
+		writeJSON(w, http.StatusAccepted, map[string]string{"status": "deduped"})
+		return
+	}
+	s.quotaCache[dedupKey] = now
+	// Bound the cache: drop entries older than the TTL on every write.
+	for k, t := range s.quotaCache {
+		if now.Sub(t) >= quotaDedupTTL {
+			delete(s.quotaCache, k)
+		}
+	}
+	s.quotaCacheMu.Unlock()
+
+	if s.QuotaWebhook != nil {
+		s.QuotaWebhook(r.Context(), QuotaExceededEvent{
+			APIKeyHash: req.APIKeyHash,
+			PlanID:     req.PlanID,
+			TenantID:   req.TenantID,
+			Limit:      req.Limit,
+			Count:      req.Count,
+			At:         now,
+		})
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "fired"})
 }

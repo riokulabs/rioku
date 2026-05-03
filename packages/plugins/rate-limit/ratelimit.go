@@ -9,6 +9,8 @@
 package ratelimit
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -82,9 +84,20 @@ type RateLimit struct {
 	// learn at config time. Default "mem".
 	Storage string `json:"storage,omitempty"`
 
+	// QuotaWebhookEndpoint is the daemon-side URL the module POSTs
+	// to on the FIRST block of every (api_key_hash, plan_id, day)
+	// bucket so the daemon can fan out
+	// `subscription.exceeded_quota` (#202). Empty disables. The
+	// daemon dedupes on its end too; this client-side dedupe just
+	// keeps the wire chatter low under sustained breaches.
+	QuotaWebhookEndpoint string `json:"quota_webhook_endpoint,omitempty"`
+
 	// Computed at Provision.
-	store  CounterStore
-	logger *zap.Logger
+	store          CounterStore
+	logger         *zap.Logger
+	quotaClient    *http.Client
+	quotaSeenMu    sync.Mutex
+	quotaSeenTimes map[string]time.Time
 }
 
 // CaddyModule registers the handler under
@@ -135,6 +148,10 @@ func (r *RateLimit) Provision(ctx caddy.Context) error {
 		return fmt.Errorf("rioku_ratelimit: redis storage not implemented in v1; use mem")
 	default:
 		return fmt.Errorf("rioku_ratelimit: unknown storage %q (valid: mem, redis)", r.Storage)
+	}
+	if r.QuotaWebhookEndpoint != "" {
+		r.quotaClient = &http.Client{Timeout: 2 * time.Second}
+		r.quotaSeenTimes = map[string]time.Time{}
 	}
 
 	return nil
@@ -190,6 +207,7 @@ func (r *RateLimit) ServeHTTP(w http.ResponseWriter, req *http.Request, next cad
 					zap.Int("limit", effectiveLimit),
 				)
 			}
+			r.fireQuotaWebhook(req, count, effectiveLimit)
 			w.WriteHeader(http.StatusTooManyRequests)
 			return nil
 		}
@@ -382,6 +400,73 @@ func planRPMFromHeader(req *http.Request) int {
 		return 0
 	}
 	return n
+}
+
+// quotaDedupTTL is how long the plugin's local cache suppresses
+// repeat quota webhooks for the same (key, plan, day) bucket. The
+// daemon dedupes too, but local suppression keeps the wire chatter
+// low under sustained breaches.
+const quotaDedupTTL = 24 * time.Hour
+
+// fireQuotaWebhook POSTs a `subscription.exceeded_quota` event to
+// the daemon's keyvalidator endpoint (#202). Best-effort: failures
+// are logged but never affect the response. Only fires when the
+// inbound request carried a Plan binding (X-Rioku-Plan + the
+// hashed key in X-Rioku-API-Key-Hash from the apikey plugin); other
+// blocks (IP scope, JWT, no-Plan keys) are out of scope.
+func (r *RateLimit) fireQuotaWebhook(req *http.Request, count, limit int) {
+	if r.quotaClient == nil || r.QuotaWebhookEndpoint == "" {
+		return
+	}
+	planID := strings.TrimSpace(req.Header.Get("X-Rioku-Plan"))
+	keyHash := strings.TrimSpace(req.Header.Get("X-Rioku-API-Key-Hash"))
+	tenantID := strings.TrimSpace(req.Header.Get("X-Rioku-Tenant-Id"))
+	if planID == "" || keyHash == "" {
+		return
+	}
+
+	now := time.Now().UTC()
+	day := now.Format("2006-01-02")
+	dedupKey := keyHash + "|" + planID + "|" + day
+	r.quotaSeenMu.Lock()
+	last, seen := r.quotaSeenTimes[dedupKey]
+	if seen && now.Sub(last) < quotaDedupTTL {
+		r.quotaSeenMu.Unlock()
+		return
+	}
+	r.quotaSeenTimes[dedupKey] = now
+	for k, t := range r.quotaSeenTimes {
+		if now.Sub(t) >= quotaDedupTTL {
+			delete(r.quotaSeenTimes, k)
+		}
+	}
+	r.quotaSeenMu.Unlock()
+
+	body, err := json.Marshal(map[string]any{
+		"api_key_hash": keyHash,
+		"plan_id":      planID,
+		"tenant_id":    tenantID,
+		"limit":        limit,
+		"count":        count,
+	})
+	if err != nil {
+		return
+	}
+	go func() {
+		hreq, herr := http.NewRequest(http.MethodPost, r.QuotaWebhookEndpoint, bytes.NewReader(body))
+		if herr != nil {
+			return
+		}
+		hreq.Header.Set("Content-Type", "application/json")
+		resp, herr := r.quotaClient.Do(hreq)
+		if herr != nil {
+			if r.logger != nil {
+				r.logger.Debug("quota webhook unreachable", zap.Error(herr))
+			}
+			return
+		}
+		_ = resp.Body.Close()
+	}()
 }
 
 // Interface guards.
