@@ -21,13 +21,14 @@ import (
 
 // Server wraps a gRPC server with registered Rioku services.
 type Server struct {
-	grpcServer *grpc.Server
-	listener   net.Listener
-	addr       string
-	configSvc  riokuv1.ConfigServiceServer
-	healthSvc  riokuv1.HealthServiceServer
-	trafficSvc riokuv1.TrafficServiceServer
-	log        *slog.Logger
+	grpcServer    *grpc.Server
+	listener      net.Listener
+	addr          string
+	configSvc     riokuv1.ConfigServiceServer
+	healthSvc     riokuv1.HealthServiceServer
+	trafficSvc    riokuv1.TrafficServiceServer
+	apiMgmtSvc    riokuv1.APIManagementServiceServer
+	log           *slog.Logger
 }
 
 // NewServer creates a gRPC server with ConfigService, HealthService, and
@@ -54,9 +55,11 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 
 	cfgSvc := newConfigService(engine)
 	healthSvc := newHealthService(st, caddyMgr)
+	apiMgmtSvc := newAPIManagementService(st, nil) // webhook emitter wired post-Sprint-4 Phase 1e
 
 	riokuv1.RegisterConfigServiceServer(gs, cfgSvc)
 	riokuv1.RegisterHealthServiceServer(gs, healthSvc)
+	riokuv1.RegisterAPIManagementServiceServer(gs, apiMgmtSvc)
 
 	var trafficSvc riokuv1.TrafficServiceServer
 	if traceBuf != nil && traceStore != nil {
@@ -74,6 +77,7 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		configSvc:  cfgSvc,
 		healthSvc:  healthSvc,
 		trafficSvc: trafficSvc,
+		apiMgmtSvc: apiMgmtSvc,
 		log:        logger,
 	}, nil
 }
@@ -110,3 +114,9 @@ func (s *Server) HealthService() riokuv1.HealthServiceServer { return s.healthSv
 // TrafficService returns the registered TrafficService server implementation,
 // or nil if the tracestore was not configured.
 func (s *Server) TrafficService() riokuv1.TrafficServiceServer { return s.trafficSvc }
+
+// APIManagementService returns the registered APIManagementService
+// server implementation (#164, Sprint 4 Phase 1b).
+func (s *Server) APIManagementService() riokuv1.APIManagementServiceServer {
+	return s.apiMgmtSvc
+}
