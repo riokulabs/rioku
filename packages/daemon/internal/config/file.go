@@ -180,6 +180,15 @@ type ListenConfig struct {
 	// our ACME issuance allowance. MUST be a loopback host (127.x.x.x,
 	// ::1, or localhost). Default: "127.0.0.1:7790".
 	TLSAskAddr string `yaml:"tls_ask_addr"`
+
+	// KeyValidatorAddr is the loopback-only address the API-key
+	// validation endpoint binds to (#179, #189). The rioku_apikey
+	// Caddy module POSTs the SHA-256 hash of inbound keys here and
+	// receives the resolved chain (Key → Subscription → Plan).
+	// MUST be a loopback host. Default: "127.0.0.1:7791". Empty
+	// disables the endpoint — Caddy plugins that depend on it must
+	// configure their own validator endpoint when this is off.
+	KeyValidatorAddr string `yaml:"key_validator_addr"`
 }
 
 // --------------------------------------------------------------------------
@@ -413,8 +422,9 @@ func Default() *Config {
 		Listen: ListenConfig{
 			GRPC:         ":7777",
 			REST:         ":7778",
-			InternalPort: 7780,
-			TLSAskAddr:   "127.0.0.1:7790",
+			InternalPort:     7780,
+			TLSAskAddr:       "127.0.0.1:7790",
+			KeyValidatorAddr: "127.0.0.1:7791",
 		},
 		Caddy: CaddyConfig{
 			Binary:       "caddy",

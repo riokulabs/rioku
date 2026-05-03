@@ -17,6 +17,7 @@ import (
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway"
 	riokugrpc "github.com/riokulabs/rioku/internal/grpc"
+	"github.com/riokulabs/rioku/internal/keyvalidator"
 	"github.com/riokulabs/rioku/internal/logging"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
@@ -46,6 +47,7 @@ type Daemon struct {
 	gateway         *gateway.Gateway
 	syncAgent       *riokusync.Agent
 	tlsAsk          *tlsask.Server
+	keyValidator    *keyvalidator.Server
 	upstreamHealth  *caddy.UpstreamHealthPoller
 	traceStore      tracestore.Driver
 	ringBuffer      *tracestore.RingBuffer
@@ -301,6 +303,26 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}
 	}
 
+	// 7a. API-key validation endpoint (#179, #189). The rioku_apikey
+	// Caddy plugin POSTs key hashes here and receives the resolved
+	// Key → Subscription → Plan chain. Loopback-only; network-level
+	// isolation is the trust boundary.
+	if addr := d.cfg.Listen.KeyValidatorAddr; addr != "" {
+		kvLog := slog.Default().With("component", "keyvalidator")
+		d.keyValidator = keyvalidator.New(d.store, kvLog)
+		if err := d.keyValidator.Listen(addr); err != nil {
+			kvLog.Error("listen failed — rioku_apikey validation will be DISABLED", "addr", addr, "error", err)
+			d.keyValidator = nil
+		} else {
+			kvLog.Info("listening", "addr", d.keyValidator.Addr())
+			go func() {
+				if err := d.keyValidator.Serve(); err != nil {
+					kvLog.Error("server error", "error", err)
+				}
+			}()
+		}
+	}
+
 	// 8. Update compiler with the real admin config now that we know the gateway port.
 	adminListenAddr := d.cfg.Listen.REST
 	if adminListenAddr == "" {
@@ -395,6 +417,15 @@ func (d *Daemon) Stop(ctx context.Context) error {
 		if err := d.tlsAsk.Shutdown(); err != nil {
 			slog.Error("tlsask shutdown error", "component", "tlsask", "error", err)
 		}
+	}
+
+	// Stop API-key validation endpoint (#179, #189).
+	if d.keyValidator != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := d.keyValidator.Shutdown(shutdownCtx); err != nil {
+			slog.Error("keyvalidator shutdown error", "component", "keyvalidator", "error", err)
+		}
+		cancel()
 	}
 
 	// Stop upstream health poller (#122).

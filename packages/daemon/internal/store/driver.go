@@ -1564,6 +1564,13 @@ type APIKey struct {
 	RevokedAt  *time.Time
 	LastUsedAt *time.Time // nil = never used; updated by RecordAPIKeyUse (#85)
 	UsageCount int64      // monotonically increasing counter (#85)
+
+	// SubscriptionID + ApplicationID link the key into the
+	// Sprint 4 Phase 1 (#164) Plan/Subscription/Application chain.
+	// Both nullable for backward-compat with pre-Sprint-4 standalone
+	// scoped keys.
+	SubscriptionID *string
+	ApplicationID  *string
 }
 
 // UpdateAPIKeyParams is the partial-update payload for UpdateAPIKey.

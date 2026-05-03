@@ -323,19 +323,21 @@ func scanSession(s scanner) (*store.Session, error) {
 
 func scanAPIKey(s scanner) (*store.APIKey, error) {
 	var (
-		id         string
-		tenantID   string
-		name       string
-		keyHash    string
-		scopesJSON string
-		expiresAt  *string
-		createdAt  string
-		revokedAt  *string
-		ownerID    *string
-		lastUsedAt *string
-		usageCount int64
+		id             string
+		tenantID       string
+		name           string
+		keyHash        string
+		scopesJSON     string
+		expiresAt      *string
+		createdAt      string
+		revokedAt      *string
+		ownerID        *string
+		lastUsedAt     *string
+		usageCount     int64
+		subscriptionID *string
+		applicationID  *string
 	)
-	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount); err != nil {
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount, &subscriptionID, &applicationID); err != nil {
 		return nil, fmt.Errorf("sqlite: scan api_key: %w", err)
 	}
 
@@ -345,13 +347,15 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 	}
 
 	key := &store.APIKey{
-		ID:         id,
-		TenantID:   tenantID,
-		Name:       name,
-		KeyHash:    keyHash,
-		Scopes:     scopes,
-		CreatedAt:  parseTime(createdAt),
-		UsageCount: usageCount,
+		ID:             id,
+		TenantID:       tenantID,
+		Name:           name,
+		KeyHash:        keyHash,
+		Scopes:         scopes,
+		CreatedAt:      parseTime(createdAt),
+		UsageCount:     usageCount,
+		SubscriptionID: subscriptionID,
+		ApplicationID:  applicationID,
 	}
 	if ownerID != nil {
 		key.OwnerID = *ownerID
