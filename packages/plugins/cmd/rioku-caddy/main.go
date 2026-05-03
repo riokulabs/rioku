@@ -28,6 +28,13 @@ import (
 	_ "github.com/riokulabs/rioku/plugins/oas-validator"
 	_ "github.com/riokulabs/rioku/plugins/rate-limit"
 	_ "github.com/riokulabs/rioku/plugins/transform"
+
+	// Coraza WAF (#172, #204). Registers http.handlers.waf so the
+	// Caddy compiler can emit Coraza directives from per-route WAF
+	// configs. coreruleset is bundled separately so operators can
+	// opt into OWASP CRS without downloading rule files at runtime.
+	_ "github.com/corazawaf/coraza-caddy/v2"
+	_ "github.com/corazawaf/coraza-coreruleset/v4"
 )
 
 func main() {
