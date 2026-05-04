@@ -106,6 +106,237 @@
     "application/json"
   ],
   "definitions": {
+    "AIGatewayServiceAddMCPTeamPermissionBody": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AIGatewayServiceRevokeVirtualKeyBody": {
+      "type": "object"
+    },
+    "AIGatewayServiceRotateVirtualKeyBody": {
+      "properties": {
+        "newCredentialRef": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AIGatewayServiceUpdateMCPRouteBody": {
+      "properties": {
+        "authPassthrough": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pathPrefix": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AIGatewayServiceUpdateMCPTeamBody": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AIGatewayServiceUpdateVirtualKeyBody": {
+      "properties": {
+        "allowedModels": {
+          "description": "To clear allowed_models replace with an empty list and set\nreplace_allowed_models = true (clients must be explicit so an\nunset list does not accidentally drop the existing filter).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "budgetUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "budgetWindow": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "replaceAllowedModels": {
+          "type": "boolean"
+        },
+        "rpmLimit": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "tpmLimit": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceCreatePlanBody": {
+      "properties": {
+        "apiId": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "quotaPerDay": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "rateLimitPerMinute": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "securityType": {
+          "type": "string"
+        },
+        "selectionRule": {
+          "type": "string"
+        },
+        "validation": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceTransitionApplicationBody": {
+      "properties": {
+        "status": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceTransitionPlanBody": {
+      "properties": {
+        "status": {
+          "title": "target status",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceTransitionSubscriptionBody": {
+      "properties": {
+        "reason": {
+          "title": "optional approver/operator note",
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceUpdateApplicationBody": {
+      "properties": {
+        "clearOwner": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "ownerUserId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceUpdatePlanBody": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "quotaPerDay": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "rateLimitPerMinute": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "securityType": {
+          "type": "string"
+        },
+        "selectionRule": {
+          "type": "string"
+        },
+        "validation": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "APIManagementServiceUpdateSubscriptionBody": {
+      "properties": {
+        "clearEndingAt": {
+          "type": "boolean"
+        },
+        "clearStartingAt": {
+          "type": "boolean"
+        },
+        "endingAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "reasonMessage": {
+          "type": "string"
+        },
+        "requestMessage": {
+          "type": "string"
+        },
+        "startingAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "BuildServiceSwapBinaryBody": {
       "properties": {
         "dryRun": {
@@ -295,6 +526,39 @@
       },
       "type": "object"
     },
+    "v1Application": {
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "ownerUserId": {
+          "title": "empty when no owner",
+          "type": "string"
+        },
+        "status": {
+          "title": "active | paused | closed",
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "v1ApplyResult": {
       "properties": {
         "meta": {
@@ -335,6 +599,14 @@
           "type": "string"
         },
         "operation": {
+          "type": "string"
+        },
+        "payload": {
+          "description": "payload carries the structured audit payload (#182, D6) as\nJSON. The admin renderer dispatches on payload_schema to\npick a typed view. Empty when payload_schema is empty.",
+          "type": "string"
+        },
+        "payloadSchema": {
+          "description": "payload_schema is the audit unification (#182, D6)\ndiscriminator — e.g. \"cert.lifecycle_event.v1\". Empty when\nthis row predates the unification or was emitted via the\nlegacy diff-only path; the admin renderer falls back to the\ndiff renderer in that case.",
           "type": "string"
         }
       },
@@ -610,6 +882,158 @@
       },
       "type": "object"
     },
+    "v1CreateApplicationRequest": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "ownerUserId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1CreateMCPRouteRequest": {
+      "properties": {
+        "authPassthrough": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pathPrefix": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1CreateMCPTeamRequest": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1CreatePlanRequest": {
+      "properties": {
+        "apiId": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "quotaPerDay": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "rateLimitPerMinute": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "securityType": {
+          "type": "string"
+        },
+        "selectionRule": {
+          "type": "string"
+        },
+        "validation": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1CreateSubscriptionRequest": {
+      "properties": {
+        "apiId": {
+          "type": "string"
+        },
+        "applicationId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "requestMessage": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1CreateVirtualKeyRequest": {
+      "properties": {
+        "allowedModels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "budgetUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "budgetWindow": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "rpmLimit": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "tpmLimit": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "v1DirectUpstream": {
       "properties": {
         "address": {
@@ -858,6 +1282,105 @@
       },
       "type": "object"
     },
+    "v1ListApplicationsResponse": {
+      "properties": {
+        "applications": {
+          "items": {
+            "$ref": "#/definitions/v1Application",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListMCPRoutesResponse": {
+      "properties": {
+        "routes": {
+          "items": {
+            "$ref": "#/definitions/v1MCPRoute",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListMCPTeamPermissionsResponse": {
+      "properties": {
+        "permissions": {
+          "items": {
+            "$ref": "#/definitions/v1MCPTeamPermission",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListMCPTeamsResponse": {
+      "properties": {
+        "teams": {
+          "items": {
+            "$ref": "#/definitions/v1MCPTeam",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListPlansResponse": {
+      "properties": {
+        "plans": {
+          "items": {
+            "$ref": "#/definitions/v1Plan",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListSubscriptionsResponse": {
+      "properties": {
+        "subscriptions": {
+          "items": {
+            "$ref": "#/definitions/v1Subscription",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListVirtualKeysResponse": {
+      "properties": {
+        "virtualKeys": {
+          "items": {
+            "$ref": "#/definitions/v1VirtualKey",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "v1ListWAFDenialsResponse": {
+      "properties": {
+        "denials": {
+          "items": {
+            "$ref": "#/definitions/v1WAFDenial",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "nextCursor": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "v1LoadBalancingPolicy": {
       "default": "LB_POLICY_UNSPECIFIED",
       "description": " - LB_POLICY_COOKIE: LB_POLICY_COOKIE pins each client to an upstream via a cookie\n(sticky sessions). The cookie name comes from Service.lb_cookie_name\n(defaults to \"lb\").\n - LB_POLICY_URI_HASH: LB_POLICY_URI_HASH selects an upstream by consistent hash of the\nrequest URI — useful for cache-friendly fan-out where the same\npath should land on the same backend.\n - LB_POLICY_HEADER: LB_POLICY_HEADER selects an upstream by consistent hash of a\nrequest header. The header name comes from\nService.lb_header_name (required).",
@@ -873,6 +1396,97 @@
         "LB_POLICY_HEADER"
       ],
       "type": "string"
+    },
+    "v1MCPRoute": {
+      "properties": {
+        "authPassthrough": {
+          "title": "forward|replace|strip",
+          "type": "string"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pathPrefix": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1MCPTeam": {
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "title": "active|paused|closed",
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1MCPTeamPermission": {
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "teamId": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "v1Matcher": {
       "properties": {
@@ -1132,6 +1746,57 @@
         "TYPE_REGEXP"
       ],
       "type": "string"
+    },
+    "v1Plan": {
+      "properties": {
+        "apiId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "quotaPerDay": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "rateLimitPerMinute": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "securityType": {
+          "title": "api_key | jwt | oidc | oauth2 | mtls | none",
+          "type": "string"
+        },
+        "selectionRule": {
+          "type": "string"
+        },
+        "status": {
+          "title": "staging | published | deprecated | archived",
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "validation": {
+          "title": "auto | manual",
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "v1Plugin": {
       "properties": {
@@ -1823,6 +2488,52 @@
       },
       "type": "object"
     },
+    "v1Subscription": {
+      "properties": {
+        "apiId": {
+          "type": "string"
+        },
+        "applicationId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "endingAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "reasonMessage": {
+          "type": "string"
+        },
+        "requestMessage": {
+          "type": "string"
+        },
+        "startingAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "status": {
+          "title": "pending | accepted | rejected | paused | closed",
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "v1SubsystemHealth": {
       "properties": {
         "detail": {
@@ -2079,6 +2790,105 @@
         }
       },
       "type": "object"
+    },
+    "v1VirtualKey": {
+      "properties": {
+        "allowedModels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "budgetUsd": {
+          "format": "double",
+          "type": "number"
+        },
+        "budgetWindow": {
+          "title": "minute|hour|day|month",
+          "type": "string"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "title": "vault://... or empty",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "revokedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "rpmLimit": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "tpmLimit": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "v1WAFDenial": {
+      "description": "WAFDenial is one Coraza-block event captured by the data plane.",
+      "properties": {
+        "action": {
+          "title": "block | log",
+          "type": "string"
+        },
+        "clientIp": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "matchedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "metadata": {
+          "title": "JSON",
+          "type": "string"
+        },
+        "requestUri": {
+          "type": "string"
+        },
+        "routeId": {
+          "title": "empty when route was deleted",
+          "type": "string"
+        },
+        "ruleId": {
+          "type": "string"
+        },
+        "severity": {
+          "title": "NOTICE | WARNING | ERROR | CRITICAL | ALERT | EMERGENCY",
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     }
   },
   "info": {
@@ -2096,6 +2906,414 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/ai/virtual-keys": {
+      "get": {
+        "operationId": "AIGatewayService_ListVirtualKeys",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVirtualKeysResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_CreateVirtualKey",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateVirtualKeyRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "Virtual keys",
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_DeleteVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "get": {
+        "operationId": "AIGatewayService_GetVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceUpdateVirtualKeyBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}/revoke": {
+      "post": {
+        "operationId": "AIGatewayService_RevokeVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceRevokeVirtualKeyBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}/rotate": {
+      "post": {
+        "operationId": "AIGatewayService_RotateVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceRotateVirtualKeyBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/applications": {
+      "get": {
+        "operationId": "APIManagementService_ListApplications",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListApplicationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "post": {
+        "operationId": "APIManagementService_CreateApplication",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateApplicationRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "Applications.",
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/applications/{id}": {
+      "delete": {
+        "operationId": "APIManagementService_DeleteApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "get": {
+        "operationId": "APIManagementService_GetApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "patch": {
+        "operationId": "APIManagementService_UpdateApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceUpdateApplicationBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/applications/{id}/transition": {
+      "post": {
+        "operationId": "APIManagementService_TransitionApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceTransitionApplicationBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "operationId": "ConfigService_GetAuditLog",
@@ -2584,6 +3802,590 @@
         ]
       }
     },
+    "/api/v1/mcp/permissions/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_RemoveMCPTeamPermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/routes": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPRoutes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListMCPRoutesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_CreateMCPRoute",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateMCPRouteRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPRoute"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "MCP routes",
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/routes/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_DeleteMCPRoute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "get": {
+        "operationId": "AIGatewayService_GetMCPRoute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPRoute"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateMCPRoute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceUpdateMCPRouteBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPRoute"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/teams": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPTeams",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListMCPTeamsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_CreateMCPTeam",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateMCPTeamRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeam"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "MCP teams",
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/teams/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_DeleteMCPTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "get": {
+        "operationId": "AIGatewayService_GetMCPTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeam"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateMCPTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceUpdateMCPTeamBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeam"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/teams/{teamId}/permissions": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPTeamPermissions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListMCPTeamPermissionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_AddMCPTeamPermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceAddMCPTeamPermissionBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeamPermission"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "MCP team permissions",
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/plans": {
+      "get": {
+        "operationId": "APIManagementService_ListPlans",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "apiId",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListPlansResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "post": {
+        "operationId": "APIManagementService_CreatePlan2",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreatePlanRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plan"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "Plans.",
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/plans/{id}": {
+      "delete": {
+        "operationId": "APIManagementService_DeletePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "get": {
+        "operationId": "APIManagementService_GetPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plan"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "patch": {
+        "operationId": "APIManagementService_UpdatePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceUpdatePlanBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plan"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/plans/{id}/transition": {
+      "post": {
+        "operationId": "APIManagementService_TransitionPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceTransitionPlanBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plan"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
     "/api/v1/plugins": {
       "get": {
         "operationId": "PluginService_ListPlugins",
@@ -2795,6 +4597,218 @@
         },
         "tags": [
           "PluginService"
+        ]
+      }
+    },
+    "/api/v1/subscriptions": {
+      "get": {
+        "operationId": "APIManagementService_ListSubscriptions",
+        "parameters": [
+          {
+            "description": "Optional filters; only one of these should be set per call,\nbut the server tolerates both being set (ANDs them).",
+            "in": "query",
+            "name": "applicationId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "planId",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSubscriptionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "post": {
+        "operationId": "APIManagementService_CreateSubscription",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateSubscriptionRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Subscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "Subscriptions.",
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/{id}": {
+      "get": {
+        "operationId": "APIManagementService_GetSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Subscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "patch": {
+        "operationId": "APIManagementService_UpdateSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceUpdateSubscriptionBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Subscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/{id}/transition": {
+      "post": {
+        "operationId": "APIManagementService_TransitionSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceTransitionSubscriptionBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Subscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      }
+    },
+    "/api/v1/t/{id}/plans": {
+      "post": {
+        "operationId": "APIManagementService_CreatePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "pattern": "[^/]+",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/APIManagementServiceCreatePlanBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plan"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "Plans.",
+        "tags": [
+          "APIManagementService"
         ]
       }
     },
@@ -4351,6 +6365,64 @@
           "TrafficService"
         ]
       }
+    },
+    "/api/v1/waf/denials": {
+      "get": {
+        "operationId": "WAFService_ListWAFDenials",
+        "parameters": [
+          {
+            "description": "Optional filters; AND-narrowing.",
+            "in": "query",
+            "name": "routeId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "ruleId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "Cursor pagination — empty = first page. The server returns\nnext_cursor in the response when more rows are available.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "Limit caps page size (default 50, max 500).",
+            "format": "int32",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListWAFDenialsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "WAFService"
+        ]
+      }
     }
   },
   "produces": [
@@ -4385,7 +6457,7 @@
   "swagger": "2.0",
   "tags": [
     {
-      "name": "TrafficService"
+      "name": "WAFService"
     }
   ]
 }

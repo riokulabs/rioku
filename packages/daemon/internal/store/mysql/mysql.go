@@ -67,7 +67,10 @@ func (d *driver) Open(_ context.Context, cfg store.DriverConfig) error {
 		// permissive sql_mode at connection time when the DSN doesn't
 		// already specify one. Operators with stricter requirements
 		// can override by setting sql_mode= explicitly in their DSN.
-		if !strings.Contains(dsn, "sql_mode=") {
+		// Case-insensitive check because go-sql-driver/mysql treats
+		// DSN parameter keys case-insensitively (Sql_Mode/SQL_MODE
+		// would otherwise be silently overridden).
+		if !strings.Contains(strings.ToLower(dsn), "sql_mode=") {
 			sep := "?"
 			if strings.Contains(dsn, "?") {
 				sep = "&"

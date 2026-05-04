@@ -141,8 +141,8 @@ jobs:
           # for ~600s minimum. The auth scale tests are gated behind the
           # `scale` build tag so PR CI doesn't run them. 1500s gives the
           # gateway package room to finish while still bounding hung
-          # tests; total job time is bounded by the workflow's 30m
-          # job-level timeout.
+          # tests; total job time is bounded by GitHub's default
+          # 360-minute job timeout (no explicit timeout-minutes set).
           cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=1500s ${SHORT_FLAG} ./...
 
       - name: Test build-service (race)

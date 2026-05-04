@@ -2,11 +2,21 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// OAS + WAF config CRUD on routes is stubbed for mysql until the
+// SQLite v1 implementation soaks. Migrations 41-42 land across all
+// three dialects so the schema is ready; the Go-side queries for the
+// per-route config tables follow as their own commit. The denial
+// surface (Append / Query / Prune) is fully implemented because the
+// data-plane Coraza audit logger writes through this path on every
+// rule match in production.
 
 func (t *tx) GetRouteOASConfig(_ context.Context, _ string) (*store.RouteOASConfig, error) {
 	return nil, fmt.Errorf("mysql: GetRouteOASConfig not implemented")
@@ -26,12 +36,114 @@ func (t *tx) UpsertRouteWAFConfig(_ context.Context, _ *store.RouteWAFConfig) (*
 func (t *tx) DeleteRouteWAFConfig(_ context.Context, _ string) error {
 	return fmt.Errorf("mysql: DeleteRouteWAFConfig not implemented")
 }
-func (t *tx) AppendWAFDenial(_ context.Context, _ *store.WAFDenial) error {
-	return fmt.Errorf("mysql: AppendWAFDenial not implemented")
+
+func (t *tx) AppendWAFDenial(ctx context.Context, d *store.WAFDenial) error {
+	if d == nil || d.ID == "" || d.RuleID == "" {
+		return fmt.Errorf("mysql: waf_denial requires id + rule_id")
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	if tenantID == "" {
+		tenantID = d.TenantID
+	}
+	matchedAt := nowUTC()
+	if !d.MatchedAt.IsZero() {
+		matchedAt = d.MatchedAt.UTC().Format(timeFormat)
+	}
+	metadata := d.Metadata
+	if metadata == "" {
+		metadata = "{}"
+	}
+	var routeID *string
+	if d.RouteID != nil && *d.RouteID != "" {
+		routeID = d.RouteID
+	}
+	_, err := t.sqlTx.ExecContext(ctx,
+		`INSERT INTO waf_denials (id, tenant_id, route_id, rule_id, severity, action,
+		     request_uri, client_ip, matched_at, metadata)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.ID, tenantID, routeID, d.RuleID, d.Severity, d.Action,
+		d.RequestURI, d.ClientIP, matchedAt, metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("mysql: append waf_denial: %w", err)
+	}
+	return nil
 }
-func (t *tx) QueryWAFDenials(_ context.Context, _ store.WAFDenialQuery) ([]*store.WAFDenial, error) {
-	return nil, fmt.Errorf("mysql: QueryWAFDenials not implemented")
+
+func (t *tx) QueryWAFDenials(ctx context.Context, q store.WAFDenialQuery) ([]*store.WAFDenial, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	var b strings.Builder
+	b.WriteString(`SELECT id, tenant_id, route_id, rule_id, severity, action, request_uri,
+	                      client_ip, matched_at, metadata
+	               FROM waf_denials WHERE tenant_id = ?`)
+	args := []any{tenantID}
+	if q.RouteID != "" {
+		b.WriteString(` AND route_id = ?`)
+		args = append(args, q.RouteID)
+	}
+	if q.RuleID != "" {
+		b.WriteString(` AND rule_id = ?`)
+		args = append(args, q.RuleID)
+	}
+	if q.Severity != "" {
+		b.WriteString(` AND severity = ?`)
+		args = append(args, q.Severity)
+	}
+	if q.Since != nil {
+		b.WriteString(` AND matched_at >= ?`)
+		args = append(args, q.Since.UTC().Format(timeFormat))
+	}
+	if q.Until != nil {
+		b.WriteString(` AND matched_at <= ?`)
+		args = append(args, q.Until.UTC().Format(timeFormat))
+	}
+	b.WriteString(` ORDER BY matched_at DESC`)
+	limit := q.Limit
+	if limit <= 0 || limit > 1000 {
+		limit = 200
+	}
+	b.WriteString(` LIMIT ?`)
+	args = append(args, limit)
+	if q.Offset > 0 {
+		b.WriteString(` OFFSET ?`)
+		args = append(args, q.Offset)
+	}
+	rows, err := t.sqlTx.QueryContext(ctx, b.String(), args...)
+	if err != nil {
+		return nil, fmt.Errorf("mysql: query waf_denials: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*store.WAFDenial
+	for rows.Next() {
+		var (
+			d         store.WAFDenial
+			routeID   sql.NullString
+			matchedAt string
+		)
+		if err := rows.Scan(
+			&d.ID, &d.TenantID, &routeID, &d.RuleID, &d.Severity, &d.Action,
+			&d.RequestURI, &d.ClientIP, &matchedAt, &d.Metadata,
+		); err != nil {
+			return nil, fmt.Errorf("mysql: scan waf_denial: %w", err)
+		}
+		if routeID.Valid {
+			s := routeID.String
+			d.RouteID = &s
+		}
+		d.MatchedAt = parseTime(matchedAt)
+		out = append(out, &d)
+	}
+	return out, rows.Err()
 }
-func (t *tx) PruneWAFDenials(_ context.Context, _ time.Time) (int64, error) {
-	return 0, fmt.Errorf("mysql: PruneWAFDenials not implemented")
+
+func (t *tx) PruneWAFDenials(ctx context.Context, before time.Time) (int64, error) {
+	res, err := t.sqlTx.ExecContext(ctx,
+		`DELETE FROM waf_denials WHERE matched_at < ?`,
+		before.UTC().Format(timeFormat),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("mysql: prune waf_denials: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
 }

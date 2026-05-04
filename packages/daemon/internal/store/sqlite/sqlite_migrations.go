@@ -55,6 +55,17 @@ func collectMigrationFiles(direction string) ([]migrationFile, error) {
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].version < files[j].version
 	})
+	// Reject duplicate version numbers — `0001_a.up.sql` and
+	// `00001_b.up.sql` would both parse to version 1, applying both
+	// SQL bodies under one schema_versions row in non-deterministic
+	// order. Better to fail-fast at startup than silently apply the
+	// wrong migration.
+	for i := 1; i < len(files); i++ {
+		if files[i].version == files[i-1].version {
+			return nil, fmt.Errorf("sqlite: duplicate migration version %d in %s and %s",
+				files[i].version, files[i-1].path, files[i].path)
+		}
+	}
 	return files, nil
 }
 
