@@ -580,4 +580,3 @@ func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
-

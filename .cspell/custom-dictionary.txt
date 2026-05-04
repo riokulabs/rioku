@@ -25,6 +25,7 @@ Gravitee
 HJSON
 HSTS
 Hostnames
+INADDR
 Inno
 Isla
 JBSWY
@@ -560,6 +561,7 @@ unprocessable
 unsub
 unsubs
 unvalidated
+upserts
 upstreams
 valkey
 varchar
