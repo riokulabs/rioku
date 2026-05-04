@@ -41,10 +41,7 @@ func setupSecurityTestServer(t *testing.T) (*httptest.Server, store.Driver, stri
 	}
 
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -510,7 +507,7 @@ func TestXSSPayloadStorage(t *testing.T) {
 	// then verify the API returns them literally (relying on JSON encoding + CSP).
 	for _, tt := range xssPayloads {
 		t.Run(tt.name, func(t *testing.T) {
-			hash, _ := auth.HashPassword("ValidPass123!")
+			hash := cachedHashPassword(t, "ValidPass123!")
 			tx, err := drv.Begin(ctx, store.TxOptions{})
 			if err != nil {
 				t.Fatalf("begin: %v", err)

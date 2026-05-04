@@ -59,6 +59,7 @@ packages/ui/storybook-static/
 .serena/
 .superpowers/
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 *.swp
 *.swo
 *~
@@ -82,6 +83,7 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+.claude/worktrees/
 
 # Docusaurus
 docs/build/
@@ -92,3 +94,4 @@ contrib-docs/.docusaurus/
 # Sandbox runtime data
 sandbox/.data/
 sandbox/.env
+openapi-merge

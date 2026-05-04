@@ -1,27 +1,39 @@
 #!/usr/bin/env bash
-# Git pre-commit hook — runs fast checks on staged files.
+# Git pre-commit hook — fast checks on staged files (< 5s typical).
+# Contract: see contrib-docs/docs/development/hooks.md
 # Install with: make hooks
 
 set -euo pipefail
 
+REPO_ROOT=$(git rev-parse --show-toplevel)
 STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 STAGED_PROTO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.proto$' || true)
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$' || true)
 
-# Go formatting — auto-fix and re-stage
+# ── Go: gofmt + goimports auto-fix, then go vet on touched modules ────────────
 if [ -n "$STAGED_GO" ]; then
+  # gofmt — auto-fix + re-stage
   UNFORMATTED=$(gofmt -l $STAGED_GO 2>/dev/null || true)
   if [ -n "$UNFORMATTED" ]; then
-    echo "Formatting Go files..."
+    echo "Formatting Go files (gofmt)..."
     gofmt -w $UNFORMATTED
     git add $UNFORMATTED
     echo "  formatted and re-staged: $UNFORMATTED"
   fi
 
-  # Go vet — only run on modules that have staged files and can be vetted.
-  # Walks up from each staged file to find its go.mod, then vets that module.
-  # Modules in go.work use workspace mode; standalone modules (sandbox) use GOWORK=off.
+  # goimports — auto-fix + re-stage. Skip silently if not installed.
+  if command -v goimports &>/dev/null; then
+    UNIMPORTED=$(goimports -l $STAGED_GO 2>/dev/null || true)
+    if [ -n "$UNIMPORTED" ]; then
+      echo "Fixing imports (goimports)..."
+      goimports -w $UNIMPORTED
+      git add $UNIMPORTED
+      echo "  re-staged: $UNIMPORTED"
+    fi
+  fi
+
+  # go vet — per touched module, workspace-aware via go.work.
   echo "Running go vet..."
-  REPO_ROOT=$(git rev-parse --show-toplevel)
   declare -A VETTED_MODS
   GOWORK_FILE="$REPO_ROOT/go.work"
   for f in $STAGED_GO; do
@@ -30,7 +42,6 @@ if [ -n "$STAGED_GO" ]; then
       if [ -f "$dir/go.mod" ]; then
         if [ -z "${VETTED_MODS[$dir]+x}" ]; then
           VETTED_MODS[$dir]=1
-          # Check if this module is listed in go.work
           REL_DIR="${dir#"$REPO_ROOT/"}"
           if [ -f "$GOWORK_FILE" ] && grep -q "$REL_DIR" "$GOWORK_FILE" 2>/dev/null; then
             echo "  vet: $dir (workspace)"
@@ -47,11 +58,31 @@ if [ -n "$STAGED_GO" ]; then
   done
 fi
 
-# Proto lint
+# ── Proto: buf lint on staged .proto files ────────────────────────────────────
 if [ -n "$STAGED_PROTO" ]; then
   if command -v buf &>/dev/null; then
     echo "Running buf lint..."
-    cd packages/proto && buf lint || exit 1
-    cd ../..
+    (cd "$REPO_ROOT/packages/proto" && buf lint) || exit 1
   fi
+fi
+
+# ── Web/UI TS: eslint --fix on staged files in packages/web and packages/ui ───
+# Changed-files only. Skip silently if pnpm or eslint isn't installed.
+if [ -n "$STAGED_TS" ] && command -v pnpm &>/dev/null; then
+  for pkg in web ui; do
+    PKG_PREFIX="packages/$pkg/"
+    PKG_FILES=$(echo "$STAGED_TS" | grep "^${PKG_PREFIX}" || true)
+    if [ -n "$PKG_FILES" ]; then
+      # Strip the package prefix; eslint runs from the package dir.
+      REL_FILES=$(echo "$PKG_FILES" | sed "s|^${PKG_PREFIX}||")
+      if [ -d "$REPO_ROOT/packages/$pkg/node_modules/eslint" ]; then
+        echo "Running eslint (packages/$pkg, changed files)..."
+        (cd "$REPO_ROOT/packages/$pkg" && pnpm exec eslint --fix --max-warnings=0 $REL_FILES) || exit 1
+        # Re-stage anything --fix touched.
+        for f in $PKG_FILES; do
+          git add "$f" 2>/dev/null || true
+        done
+      fi
+    fi
+  done
 fi

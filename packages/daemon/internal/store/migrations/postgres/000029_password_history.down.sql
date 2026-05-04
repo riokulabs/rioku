@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_password_history_user;
+DROP TABLE IF EXISTS password_history;
+ALTER TABLE tenant_auth_policies DROP COLUMN password_history_count;

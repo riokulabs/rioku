@@ -12,16 +12,23 @@ import (
 	"path/filepath"
 	"time"
 
+	airegistry "github.com/riokulabs/rioku/internal/ai/registry"
+	"github.com/riokulabs/rioku/internal/aigateway"
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/caddy"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway"
 	riokugrpc "github.com/riokulabs/rioku/internal/grpc"
+	"github.com/riokulabs/rioku/internal/keyvalidator"
 	"github.com/riokulabs/rioku/internal/logging"
+	"github.com/riokulabs/rioku/internal/notifications"
+	"github.com/riokulabs/rioku/internal/observability"
 	"github.com/riokulabs/rioku/internal/store"
 	raftstore "github.com/riokulabs/rioku/internal/store/raft"
 	riokusync "github.com/riokulabs/rioku/internal/sync"
+	"github.com/riokulabs/rioku/internal/tlsask"
 	"github.com/riokulabs/rioku/internal/tracestore"
+	"github.com/riokulabs/rioku/internal/vault"
 	riokuweb "github.com/riokulabs/rioku/web"
 
 	// Register store drivers.
@@ -33,23 +40,31 @@ import (
 
 // Daemon orchestrates all subsystems.
 type Daemon struct {
-	cfg        *config.Config
-	cfgPath    string
-	store      store.Driver
-	caddy      *caddy.Manager
-	engine     *config.Engine
-	auth       *auth.Auth
-	sessions   *auth.SessionManager
-	grpc       *riokugrpc.Server
-	gateway    *gateway.Gateway
-	syncAgent  *riokusync.Agent
-	traceStore tracestore.Driver
-	ringBuffer *tracestore.RingBuffer
-	ingester   *tracestore.Ingester
-	aggregator *tracestore.Aggregator
-	logLevel   *slog.LevelVar
-	pidFile    string
-	startedAt  time.Time
+	cfg             *config.Config
+	cfgPath         string
+	store           store.Driver
+	caddy           *caddy.Manager
+	engine          *config.Engine
+	auth            *auth.Auth
+	sessions        *auth.SessionManager
+	grpc            *riokugrpc.Server
+	gateway         *gateway.Gateway
+	syncAgent       *riokusync.Agent
+	tlsAsk          *tlsask.Server
+	keyValidator    *keyvalidator.Server
+	aiGateway       *aigateway.Server
+	notifyDispatch  *notifications.Dispatcher
+	upstreamHealth  *caddy.UpstreamHealthPoller
+	traceStore      tracestore.Driver
+	ringBuffer      *tracestore.RingBuffer
+	ingester        *tracestore.Ingester
+	aggregator      *tracestore.Aggregator
+	logLevel        *slog.LevelVar
+	loggingShutdown logging.Shutdown
+	pidFile         string
+	startedAt       time.Time
+	vaultResolver   *vault.CachingResolver
+	jwksRegistry    *observability.JWKSRegistry
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -65,9 +80,10 @@ type DaemonHealth struct {
 func New(cfg *config.Config, cfgPath string) *Daemon {
 	pidFile := filepath.Join(cfg.DataDir, "rioku.pid")
 	return &Daemon{
-		cfg:     cfg,
-		cfgPath: cfgPath,
-		pidFile: pidFile,
+		cfg:          cfg,
+		cfgPath:      cfgPath,
+		pidFile:      pidFile,
+		jwksRegistry: observability.NewJWKSRegistry(),
 	}
 }
 
@@ -75,12 +91,23 @@ func New(cfg *config.Config, cfgPath string) *Daemon {
 func (d *Daemon) Start(ctx context.Context) error {
 	d.startedAt = time.Now()
 
-	// 0. Initialize structured logging.
-	lv, err := logging.Setup(d.cfg.Logging)
+	// 0. Initialize the vault reference resolver before logging so
+	// OTLP Headers can resolve {vault://...} refs at handler build
+	// time. The default registers env, file, and op (1Password CLI)
+	// backends with a 5-minute cache and 15-minute rotation.
+	d.vaultResolver = vault.DefaultCaching(vault.DefaultOptions{
+		CacheTTL:         5 * time.Minute,
+		RotationInterval: 15 * time.Minute,
+	})
+	go d.vaultResolver.RotationLoop(ctx, 15*time.Minute)
+
+	// 0a. Initialize structured logging.
+	lv, loggingShutdown, err := logging.Setup(d.cfg.Logging, d.vaultResolver)
 	if err != nil {
 		return fmt.Errorf("logging setup: %w", err)
 	}
 	d.logLevel = lv
+	d.loggingShutdown = loggingShutdown
 
 	// Create component loggers.
 	storeLog := slog.Default().With("component", "store")
@@ -191,6 +218,33 @@ func (d *Daemon) Start(ctx context.Context) error {
 				grpcLog.Error("server error", "error", err)
 			}
 		}()
+
+		// Wire the webhook dispatcher (#164, Sprint 4 Phase 1e) into
+		// the api-management service. The service was constructed
+		// inside NewServer with a nil emitter; we swap it now that
+		// the store is alive and the dispatcher can fire.
+		notifyLog := slog.Default().With("component", "notifications")
+		d.notifyDispatch = notifications.New(d.store, notifyLog)
+		d.notifyDispatch.Start(ctx)
+		if setter, ok := d.grpc.APIManagementService().(interface {
+			SetWebhookEmitter(riokugrpc.WebhookEmitter)
+		}); ok {
+			setter.SetWebhookEmitter(notificationsAdapter{disp: d.notifyDispatch})
+		}
+	}
+
+	// 6a. Start the Caddy upstream-health poller (#122) when the
+	// child process is up. The poller queries Caddy's
+	// /reverse_proxy/upstreams admin endpoint on a fixed interval
+	// and caches the snapshot for the gateway to expose. When Caddy
+	// is unavailable we leave d.upstreamHealth nil so the REST
+	// route returns "available: false" and the admin panel can
+	// render a graceful empty state.
+	if d.caddy != nil && d.caddy.IsRunning() {
+		uhLog := slog.Default().With("component", "upstream-health")
+		d.upstreamHealth = caddy.NewUpstreamHealthPoller(d.cfg.Caddy.AdminAddr, 5*time.Second, uhLog)
+		d.upstreamHealth.Start(ctx)
+		uhLog.Info("polling started", "admin_addr", d.cfg.Caddy.AdminAddr, "interval", "5s")
 	}
 
 	// 7. Start REST gateway on loopback (OS-assigned port).
@@ -207,7 +261,11 @@ func (d *Daemon) Start(ctx context.Context) error {
 		var gw *gateway.Gateway
 		for attempt := 0; attempt < 10; attempt++ {
 			addr := fmt.Sprintf("127.0.0.1:%d", basePort+attempt)
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, gwLog)
+			var uhSource gateway.UpstreamHealthSource
+			if d.upstreamHealth != nil {
+				uhSource = d.upstreamHealth
+			}
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, d.jwksRegistry, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}
@@ -223,6 +281,122 @@ func (d *Daemon) Start(ctx context.Context) error {
 			go func() {
 				if err := d.gateway.Start(); err != nil {
 					gwLog.Error("server error", "error", err)
+				}
+			}()
+		}
+	}
+
+	// 7a. Start the on-demand TLS ask endpoint on loopback (#66). The
+	// listener answers Caddy's automation `ask` calls during the TLS
+	// handshake, allowing certificate issuance only for hosts that
+	// match an enabled route. Without this gate an attacker could
+	// drive ACME issuance for arbitrary domains pointed at the
+	// gateway. The server is fail-safe: until SetSnapshot fires, the
+	// matcher denies everything.
+	tlsAskAddr := d.cfg.Listen.TLSAskAddr
+	if tlsAskAddr == "" {
+		tlsAskAddr = "127.0.0.1:7790"
+	}
+	if d.cfg.Caddy.OnDemandTLS {
+		tlsAskLog := slog.Default().With("component", "tlsask")
+		d.tlsAsk = tlsask.New()
+		if err := d.tlsAsk.Listen(tlsAskAddr); err != nil {
+			tlsAskLog.Error("listen failed — on-demand TLS will be DISABLED for safety", "addr", tlsAskAddr, "error", err)
+			d.tlsAsk = nil
+		} else {
+			tlsAskLog.Info("listening", "addr", d.tlsAsk.Addr())
+			// Seed the matcher from the current snapshot before serving so the
+			// gate is correct from the very first handshake.
+			if snap, err := d.engine.GetConfig(ctx); err != nil {
+				tlsAskLog.Warn("initial snapshot fetch failed; deny-all matcher in effect until next change", "error", err)
+			} else {
+				d.tlsAsk.SetSnapshot(snap)
+				exact, wild := d.tlsAsk.CurrentMatcher().Stats()
+				tlsAskLog.Info("matcher seeded", "exact_hosts", exact, "wildcard_hosts", wild)
+			}
+			go func() {
+				if err := d.tlsAsk.Serve(); err != nil && err.Error() != "http: Server closed" {
+					tlsAskLog.Error("server error", "error", err)
+				}
+			}()
+			// Refresh the matcher on every config change.
+			go d.runTLSAskWatcher(ctx, tlsAskLog)
+		}
+	}
+
+	// 7a. API-key validation endpoint (#179, #189). The rioku_apikey
+	// Caddy plugin POSTs key hashes here and receives the resolved
+	// Key → Subscription → Plan chain. Loopback-only; network-level
+	// isolation is the trust boundary.
+	if addr := d.cfg.Listen.KeyValidatorAddr; addr != "" {
+		kvLog := slog.Default().With("component", "keyvalidator")
+		d.keyValidator = keyvalidator.New(d.store, kvLog)
+		// Wire the JWKS observability registry (#191) so the rioku_jwt
+		// plugin's POSTs to /jwks-refresh land in the in-memory registry
+		// the admin REST endpoint surfaces.
+		d.keyValidator.JWKS = d.jwksRegistry
+		// Wire the data-plane quota-exceeded webhook (#202). The
+		// rate-limit Caddy plugin POSTs to /quota-exceeded; the
+		// keyvalidator dedupes per (key, plan, day) and fans out
+		// `subscription.exceeded_quota` through the dispatcher.
+		if d.notifyDispatch != nil {
+			disp := d.notifyDispatch
+			d.keyValidator.SetQuotaWebhook(func(ctx context.Context, ev keyvalidator.QuotaExceededEvent) {
+				disp.Emit(ctx, notifications.Event{
+					Type:     "subscription.exceeded_quota",
+					TenantID: ev.TenantID,
+					Actor:    "data-plane",
+					Payload: map[string]any{
+						"plan_id":      ev.PlanID,
+						"api_key_hash": ev.APIKeyHash,
+						"limit":        ev.Limit,
+						"count":        ev.Count,
+						"at":           ev.At.UTC().Format(time.RFC3339Nano),
+					},
+				})
+			})
+		}
+		if err := d.keyValidator.Listen(addr); err != nil {
+			kvLog.Error("listen failed — rioku_apikey validation will be DISABLED", "addr", addr, "error", err)
+			d.keyValidator = nil
+		} else {
+			kvLog.Info("listening", "addr", d.keyValidator.Addr())
+			go func() {
+				if err := d.keyValidator.Serve(); err != nil {
+					kvLog.Error("server error", "error", err)
+				}
+			}()
+		}
+	}
+
+	// 7b. AI gateway HTTP server (D7, #168). Caddy reverse-proxies
+	// AI routes (/v1/chat/completions etc.) to this loopback port;
+	// the gateway resolves virtual keys, vault-resolves provider
+	// credentials, picks an upstream, counts tokens, calculates cost
+	// (model registry from #166), and writes spend logs (#166 phase 1f).
+	if addr := d.cfg.Listen.AIGatewayAddr; addr != "" {
+		agLog := slog.Default().With("component", "aigateway")
+		// Best-effort registry init — failure means cost stays zero
+		// on spend logs but routing + budget enforcement still work.
+		var modelReg *airegistry.Registry
+		if r, rerr := airegistry.New(); rerr == nil {
+			modelReg = r
+		} else {
+			agLog.Warn("model registry init failed — cost calculation disabled", "error", rerr)
+		}
+		var resolver *vault.Resolver
+		if d.vaultResolver != nil {
+			resolver = d.vaultResolver.Inner()
+		}
+		d.aiGateway = aigateway.New(d.store, resolver, modelReg, agLog)
+		if err := d.aiGateway.Listen(addr); err != nil {
+			agLog.Error("listen failed — AI gateway DISABLED", "addr", addr, "error", err)
+			d.aiGateway = nil
+		} else {
+			agLog.Info("listening", "addr", d.aiGateway.Addr())
+			go func() {
+				if err := d.aiGateway.Serve(); err != nil {
+					agLog.Error("server error", "error", err)
 				}
 			}()
 		}
@@ -260,6 +434,15 @@ func (d *Daemon) Start(ctx context.Context) error {
 			IncludeSubdomains: d.cfg.SecurityHeaders.HSTS.IncludeSubdomains,
 		},
 	})
+	if d.tlsAsk != nil {
+		compiler.SetOnDemandTLS(caddy.OnDemandTLSConfig{
+			Enabled: true,
+			AskURL:  "http://" + d.tlsAsk.Addr() + "/tls/ask",
+		})
+	}
+	if d.keyValidator != nil {
+		compiler.SetWAFAuditEndpoint("http://" + d.keyValidator.Addr() + "/waf-record")
+	}
 	d.engine.SetCompiler(compiler)
 	slog.Info("compiler updated with admin config", "component", "config")
 
@@ -290,6 +473,23 @@ func (d *Daemon) Start(ctx context.Context) error {
 	return d.Stop(stopCtx)
 }
 
+// notificationsAdapter bridges the notifications package's Event
+// shape to the gRPC package's WebhookEmitter interface. The two
+// packages can't share the type directly (would create an import
+// cycle), so the daemon owns the conversion.
+type notificationsAdapter struct {
+	disp *notifications.Dispatcher
+}
+
+func (a notificationsAdapter) Emit(ctx context.Context, ev riokugrpc.WebhookEvent) {
+	a.disp.Emit(ctx, notifications.Event{
+		Type:     ev.Type,
+		TenantID: ev.TenantID,
+		Actor:    ev.Actor,
+		Payload:  ev.Payload,
+	})
+}
+
 // Stop shuts down all subsystems in reverse order.
 func (d *Daemon) Stop(ctx context.Context) error {
 	slog.Info("shutting down")
@@ -309,6 +509,41 @@ func (d *Daemon) Stop(ctx context.Context) error {
 	// Stop sync agent.
 	if d.syncAgent != nil {
 		d.syncAgent.Stop()
+	}
+
+	// Stop tlsask listener (#66).
+	if d.tlsAsk != nil {
+		if err := d.tlsAsk.Shutdown(); err != nil {
+			slog.Error("tlsask shutdown error", "component", "tlsask", "error", err)
+		}
+	}
+
+	// Stop webhook dispatcher (#164, Sprint 4 Phase 1e).
+	if d.notifyDispatch != nil {
+		d.notifyDispatch.Stop()
+	}
+
+	// Stop API-key validation endpoint (#179, #189).
+	if d.keyValidator != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := d.keyValidator.Shutdown(shutdownCtx); err != nil {
+			slog.Error("keyvalidator shutdown error", "component", "keyvalidator", "error", err)
+		}
+		cancel()
+	}
+
+	// Stop AI gateway HTTP server (D7, #168).
+	if d.aiGateway != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := d.aiGateway.Shutdown(shutdownCtx); err != nil {
+			slog.Error("aigateway shutdown error", "component", "aigateway", "error", err)
+		}
+		cancel()
+	}
+
+	// Stop upstream health poller (#122).
+	if d.upstreamHealth != nil {
+		d.upstreamHealth.Stop()
 	}
 
 	// Stop Caddy.
@@ -344,6 +579,14 @@ func (d *Daemon) Stop(ctx context.Context) error {
 
 	// Remove PID file.
 	_ = RemovePIDFile(d.pidFile)
+
+	// Flush and close the OTLP log exporter last so any shutdown log
+	// messages above are still shipped before the connection is torn down.
+	if d.loggingShutdown != nil {
+		if err := d.loggingShutdown(ctx); err != nil {
+			slog.Error("logging shutdown error", "component", "logging", "error", err)
+		}
+	}
 
 	slog.Info("stopped")
 	return nil
@@ -439,6 +682,70 @@ func loadOrCreateSigningKey(path string) ([]byte, error) {
 	}
 
 	return key, nil
+}
+
+// runTLSAskWatcher subscribes to config changes and refreshes the tlsask
+// matcher on every event. The watcher debounces bursty changes (e.g. an
+// import of many routes at once) to avoid rebuilding the matcher per
+// route. The watcher exits when ctx is cancelled or the change channel
+// closes (e.g. on store shutdown). Refresh is best-effort: a transient
+// snapshot fetch failure leaves the previous matcher in place rather
+// than wiping it (which would deny everything).
+func (d *Daemon) runTLSAskWatcher(ctx context.Context, log *slog.Logger) {
+	ch, err := d.engine.WatchChanges(ctx, 0)
+	if err != nil {
+		log.Error("watch changes failed; matcher will not refresh", "error", err)
+		return
+	}
+
+	const debounceDur = 100 * time.Millisecond
+	var debounce *time.Timer
+	debounceC := func() <-chan time.Time {
+		if debounce == nil {
+			return nil
+		}
+		return debounce.C
+	}
+	pending := false
+
+	for {
+		select {
+		case <-ctx.Done():
+			if debounce != nil {
+				debounce.Stop()
+			}
+			return
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+			if debounce == nil {
+				debounce = time.NewTimer(debounceDur)
+			} else {
+				if !debounce.Stop() {
+					select {
+					case <-debounce.C:
+					default:
+					}
+				}
+				debounce.Reset(debounceDur)
+			}
+			pending = true
+		case <-debounceC():
+			if !pending {
+				continue
+			}
+			pending = false
+			snap, err := d.engine.GetConfig(ctx)
+			if err != nil {
+				log.Warn("snapshot fetch failed; matcher unchanged", "error", err)
+				continue
+			}
+			d.tlsAsk.SetSnapshot(snap)
+			exact, wild := d.tlsAsk.CurrentMatcher().Stats()
+			log.Debug("matcher refreshed", "exact_hosts", exact, "wildcard_hosts", wild)
+		}
+	}
 }
 
 // derefFloat64 returns *p if non-nil, otherwise def.

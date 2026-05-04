@@ -41,10 +41,7 @@ func setupAuthTestServer(t *testing.T) (*httptest.Server, store.Driver, *auth.Au
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -391,10 +388,7 @@ func TestAuthRoutes_Login_SuspendedAccount(t *testing.T) {
 
 	// Create a user and suspend them.
 	suspendedPassword := "SuspendedUser123!"
-	hash, err := auth.HashPassword(suspendedPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, suspendedPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -852,10 +846,7 @@ func TestAuthRoutes_RevokeSession_NotOwned(t *testing.T) {
 
 	// Create a second unprivileged user.
 	normalPassword := "NormalUser12345!"
-	hash, err := auth.HashPassword(normalPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, normalPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)

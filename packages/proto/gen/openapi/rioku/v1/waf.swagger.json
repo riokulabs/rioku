@@ -1,0 +1,164 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "rioku/v1/waf.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "WAFService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/waf/denials": {
+      "get": {
+        "operationId": "WAFService_ListWAFDenials",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListWAFDenialsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "routeId",
+            "description": "Optional filters; AND-narrowing.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ruleId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cursor",
+            "description": "Cursor pagination — empty = first page. The server returns\nnext_cursor in the response when more rows are available.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "description": "Limit caps page size (default 50, max 500).",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "WAFService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListWAFDenialsResponse": {
+      "type": "object",
+      "properties": {
+        "denials": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1WAFDenial"
+          }
+        },
+        "nextCursor": {
+          "type": "string"
+        }
+      }
+    },
+    "v1WAFDenial": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "routeId": {
+          "type": "string",
+          "title": "empty when route was deleted"
+        },
+        "ruleId": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "title": "NOTICE | WARNING | ERROR | CRITICAL | ALERT | EMERGENCY"
+        },
+        "action": {
+          "type": "string",
+          "title": "block | log"
+        },
+        "requestUri": {
+          "type": "string"
+        },
+        "clientIp": {
+          "type": "string"
+        },
+        "matchedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "metadata": {
+          "type": "string",
+          "title": "JSON"
+        }
+      },
+      "description": "WAFDenial is one Coraza-block event captured by the data plane."
+    }
+  }
+}

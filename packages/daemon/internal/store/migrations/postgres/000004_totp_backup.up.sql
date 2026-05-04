@@ -7,4 +7,4 @@ CREATE TABLE totp_backup_codes (
 );
 CREATE INDEX idx_totp_backup_user ON totp_backup_codes(user_id);
 
-INSERT INTO schema_versions (version, dirty) VALUES (4, 0) ON CONFLICT DO NOTHING;
+INSERT INTO schema_versions (version, dirty) VALUES (4, FALSE) ON CONFLICT DO NOTHING;

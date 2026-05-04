@@ -109,4 +109,4 @@ INSERT INTO user_roles (user_id, role_id)
     SELECT id, 'role_superadmin' FROM users WHERE username = 'root'
     ON CONFLICT DO NOTHING;
 
-INSERT INTO schema_versions (version, dirty) VALUES (3, 0) ON CONFLICT DO NOTHING;
+INSERT INTO schema_versions (version, dirty) VALUES (3, FALSE) ON CONFLICT DO NOTHING;

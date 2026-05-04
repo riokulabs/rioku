@@ -1,0 +1,98 @@
+name: litellm-sync
+
+# Sprint 5 Phase 1c (#166, #205): weekly cron that pulls the latest
+# LiteLLM model_prices_and_context_window.json and opens a PR if
+# the vendored copy under packages/daemon/internal/ai/registry/upstream/
+# has drifted. CI runs the registry parser tests on the PR so a
+# schema change upstream is caught at PR-time rather than at runtime.
+
+on:
+  schedule:
+    # Mondays at 06:00 UTC. Off-peak for both NA + EU.
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch latest model_prices_and_context_window.json
+        id: fetch
+        run: |
+          set -euo pipefail
+          UPSTREAM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          DEST="packages/daemon/internal/ai/registry/upstream/model_prices_and_context_window.json"
+          mkdir -p .litellm-sync
+          curl -fsSL --retry 3 "$UPSTREAM_URL" -o .litellm-sync/upstream.json
+
+          # Sanity check — must parse as JSON and contain at least
+          # one model entry. Bail loudly otherwise so a 404 / HTML
+          # error page does not silently overwrite the vendored copy.
+          jq -e 'type == "object" and (length > 10)' .litellm-sync/upstream.json > /dev/null
+
+          if cmp -s .litellm-sync/upstream.json "$DEST"; then
+            echo "no_change=true" >> "$GITHUB_OUTPUT"
+            echo "Vendored copy already matches upstream."
+            exit 0
+          fi
+          echo "no_change=false" >> "$GITHUB_OUTPUT"
+
+          # Diff summary for the PR body.
+          OLD_COUNT=$(jq 'length' "$DEST")
+          NEW_COUNT=$(jq 'length' .litellm-sync/upstream.json)
+          OLD_KEYS=$(jq -r 'keys[]' "$DEST" | sort)
+          NEW_KEYS=$(jq -r 'keys[]' .litellm-sync/upstream.json | sort)
+          ADDED=$(comm -13 <(echo "$OLD_KEYS") <(echo "$NEW_KEYS") | wc -l)
+          REMOVED=$(comm -23 <(echo "$OLD_KEYS") <(echo "$NEW_KEYS") | wc -l)
+          {
+            echo "old_count=$OLD_COUNT"
+            echo "new_count=$NEW_COUNT"
+            echo "added=$ADDED"
+            echo "removed=$REMOVED"
+          } >> "$GITHUB_OUTPUT"
+
+          cp .litellm-sync/upstream.json "$DEST"
+
+      - name: Set up Go
+        if: steps.fetch.outputs.no_change == 'false'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Verify parser still loads
+        if: steps.fetch.outputs.no_change == 'false'
+        run: |
+          set -euo pipefail
+          go test -count=1 ./packages/daemon/internal/ai/registry/...
+
+      - name: Open PR with the new file
+        if: steps.fetch.outputs.no_change == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/litellm-sync
+          base: develop
+          delete-branch: true
+          title: "chore(ai): sync LiteLLM model registry (#166)"
+          commit-message: |
+            chore(ai): sync LiteLLM model_prices_and_context_window.json
+
+            Old entries: ${{ steps.fetch.outputs.old_count }}
+            New entries: ${{ steps.fetch.outputs.new_count }}
+            Models added: ${{ steps.fetch.outputs.added }}
+            Models removed: ${{ steps.fetch.outputs.removed }}
+          body: |
+            Automated weekly sync of the vendored LiteLLM model registry.
+
+            | metric | old | new |
+            | --- | ---: | ---: |
+            | total entries | ${{ steps.fetch.outputs.old_count }} | ${{ steps.fetch.outputs.new_count }} |
+            | added | — | ${{ steps.fetch.outputs.added }} |
+            | removed | — | ${{ steps.fetch.outputs.removed }} |
+
+            Parser tests passed on this branch (`go test ./packages/daemon/internal/ai/registry/...`). Review the diff for any field-shape changes; the bootstrap doc lives at `packages/daemon/internal/ai/registry/upstream/model_prices_and_context_window.json`.

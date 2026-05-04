@@ -188,11 +188,34 @@ func (a *Auth) validateAPIKeyOnly(ctx context.Context, key string) (*Claims, err
 		return nil, fmt.Errorf("api key has expired")
 	}
 
+	// Record usage asynchronously so the request hot path doesn't pay
+	// for the write. Detached from the request context so the goroutine
+	// outlives the response — but bounded with a short timeout so a
+	// stuck DB doesn't pile up goroutines (#85).
+	go a.recordKeyUseAsync(apiKey.ID)
+
 	return &Claims{
 		Subject:   "apikey:" + apiKey.ID,
 		Roles:     apiKey.Scopes,
 		TokenType: TokenTypeAccess,
 	}, nil
+}
+
+// recordKeyUseAsync writes the usage timestamp + counter for an API
+// key. Failures are intentionally swallowed — usage tracking is
+// best-effort and must never disrupt a valid request.
+func (a *Auth) recordKeyUseAsync(keyID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	tx, err := a.store.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		return
+	}
+	if err := tx.RecordAPIKeyUse(ctx, keyID, time.Now().UTC()); err != nil {
+		_ = tx.Rollback()
+		return
+	}
+	_ = tx.Commit()
 }
 
 // ValidateAPIKey validates an API key and issues a token pair.

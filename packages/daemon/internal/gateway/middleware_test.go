@@ -130,8 +130,15 @@ func TestCORSMiddleware_DisallowedOrigin(t *testing.T) {
 
 func TestCORSMiddleware_Preflight(t *testing.T) {
 	cfg := newCORSConfig("https://app.rioku.dev")
+	// CORS now sets preflight headers and falls through to the
+	// resource's OPTIONS handler so the resource can advertise its
+	// `Allow` set. We simulate the resource handler returning 204.
 	handler := CORSMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Should never be reached for OPTIONS preflight.
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Allow", "GET, POST, OPTIONS")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -156,6 +163,9 @@ func TestCORSMiddleware_Preflight(t *testing.T) {
 	}
 	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://app.rioku.dev" {
 		t.Errorf("Access-Control-Allow-Origin: got %q, want https://app.rioku.dev", got)
+	}
+	if got := rec.Header().Get("Allow"); got != "GET, POST, OPTIONS" {
+		t.Errorf("Allow: got %q, want resource-supplied", got)
 	}
 }
 

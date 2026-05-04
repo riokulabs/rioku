@@ -11,8 +11,10 @@ if [ -z "$MSG" ]; then
   exit 1
 fi
 
-# If argument is a file, read the first line
-if [ -f "$MSG" ]; then
+# If argument is a file or readable special path (e.g. /dev/fd/N from
+# process substitution), read the first line. Otherwise treat as a
+# literal commit message string.
+if [ -e "$MSG" ] && [ -r "$MSG" ]; then
   MSG=$(head -1 "$MSG")
 fi
 
@@ -30,8 +32,13 @@ if ! echo "$MSG" | grep -qE '^(feat|fix|docs|chore|refactor|test|ci|perf|build|r
   exit 1
 fi
 
-# Check for AI tool references (case-insensitive)
-if echo "$MSG" | grep -qiE '\b(claude|anthropic|copilot|chatgpt|openai|gemini|co-authored-by.*noreply@anthropic)\b'; then
+# Check for AI tool references (case-insensitive). Match the AI tool
+# name as a word, but skip when it appears immediately after a `.` or
+# `/` (path segment markers) so commit subjects that mention paths
+# like `.claude/worktrees/` or `tools/anthropic/` are not flagged.
+# Compound names like `claude-code` are still caught — `-` is
+# treated as a word boundary, not a path separator.
+if echo "$MSG" | grep -qiE '(^|[^a-zA-Z0-9./])(claude|anthropic|copilot|chatgpt|openai|gemini)\b|co-authored-by.*noreply@anthropic'; then
   echo "ERROR: Commit message contains AI tool references."
   echo "  Remove references to AI tools from commit messages."
   echo ""

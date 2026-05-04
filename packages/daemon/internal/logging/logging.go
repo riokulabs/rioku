@@ -2,6 +2,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,9 +14,23 @@ import (
 	"github.com/riokulabs/rioku/internal/config"
 )
 
+// Shutdown is a function that flushes and closes log exporter resources.
+// It is returned by Setup and should be called on daemon shutdown.
+type Shutdown func(context.Context) error
+
+// noopShutdown is a no-op Shutdown used when OTLP is disabled.
+func noopShutdown(_ context.Context) error { return nil }
+
 // Setup initializes structured logging based on the provided config.
-// Returns a LevelVar that can be used to change log level at runtime.
-func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
+// Returns a LevelVar that can be used to change log level at runtime,
+// and a Shutdown function that must be called during daemon teardown to
+// flush any pending OTLP records and release exporter resources.
+//
+// resolver, when non-nil, resolves vault references in cfg.OTLP.Headers
+// before the OTLP exporter receives them (#169). Passing nil leaves
+// the headers literal — appropriate for setups that don't use vault
+// refs, or for very early bootstrap before the resolver exists.
+func Setup(cfg config.LoggingConfig, resolver SecretResolver) (*slog.LevelVar, Shutdown, error) {
 	var level slog.Level
 	switch cfg.Level {
 	case "debug":
@@ -27,7 +42,7 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	case "error":
 		level = slog.LevelError
 	default:
-		return nil, fmt.Errorf("invalid log level: %q", cfg.Level)
+		return nil, noopShutdown, fmt.Errorf("invalid log level: %q", cfg.Level)
 	}
 
 	var lv slog.LevelVar
@@ -40,19 +55,19 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	case "file":
 		f, err := openLogFile(cfg.File.Path)
 		if err != nil {
-			return nil, fmt.Errorf("open log file: %w", err)
+			return nil, noopShutdown, fmt.Errorf("open log file: %w", err)
 		}
 		w = f
 	case "both":
 		f, err := openLogFile(cfg.File.Path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: could not open log file %s: %v (using stderr only)\n", cfg.File.Path, err)
+			_, _ = fmt.Fprintf(os.Stderr, "WARNING: could not open log file %s: %v (using stderr only)\n", cfg.File.Path, err)
 			w = os.Stderr
 		} else {
 			w = &resilientMultiWriter{primary: os.Stderr, secondary: f}
 		}
 	default:
-		return nil, fmt.Errorf("invalid log output: %q", cfg.Output)
+		return nil, noopShutdown, fmt.Errorf("invalid log output: %q", cfg.Output)
 	}
 
 	opts := &slog.HandlerOptions{Level: &lv}
@@ -69,11 +84,44 @@ func Setup(cfg config.LoggingConfig) (*slog.LevelVar, error) {
 	case "text":
 		handler = newConsoleHandler(w, opts)
 	default:
-		return nil, fmt.Errorf("invalid log format: %q", cfg.Format)
+		return nil, noopShutdown, fmt.Errorf("invalid log format: %q", cfg.Format)
 	}
 
+	// Wrap with the context handler so that any *Context logging call
+	// automatically picks up request_id / trace_id / component from the
+	// active request context.
+	handler = NewContextHandler(handler)
+
+	// Optionally attach the OTLP handler as a second destination.
+	shutdown := Shutdown(noopShutdown)
+	if cfg.OTLP.Enabled {
+		otlp, otlpShutdown, err := NewOTLPHandler(context.Background(), cfg.OTLP, level, resolver)
+		if err != nil {
+			// OTLP is best-effort: warn but continue with local output only.
+			_, _ = fmt.Fprintf(os.Stderr, "WARNING: OTLP log shipping unavailable: %v\n", err)
+		} else {
+			handler = NewMultiHandler(handler, otlp)
+			shutdown = otlpShutdown
+		}
+	}
+
+	// Wrap the entire chain with the redaction handler so PII is
+	// scrubbed before any downstream sink (console, file, OTLP) sees
+	// it. Done last so a single rule applies uniformly to every
+	// destination.
+	if len(cfg.RedactRules) > 0 {
+		handler = NewRedactingHandler(handler, cfg.RedactRules)
+	}
+
+	// Apply per-route sampling on the OUTERMOST layer so a sampled-out
+	// record skips every downstream handler — including the redactor's
+	// regex work and the OTLP exporter's IO. Records without a
+	// log_sample_rate attribute pass through unchanged, so this is
+	// a no-op for non-route logs.
+	handler = NewSamplingHandler(handler)
+
 	slog.SetDefault(slog.New(handler))
-	return &lv, nil
+	return &lv, shutdown, nil
 }
 
 func openLogFile(path string) (*os.File, error) {
@@ -94,7 +142,7 @@ func (w *resilientMultiWriter) Write(p []byte) (n int, err error) {
 	n, err = w.primary.Write(p)
 	if _, secErr := w.secondary.Write(p); secErr != nil {
 		if w.failCount.Add(1)%1000 == 1 {
-			fmt.Fprintf(w.primary, "WARNING: log file write failed: %v (suppressing further warnings)\n", secErr)
+			_, _ = fmt.Fprintf(w.primary, "WARNING: log file write failed: %v (suppressing further warnings)\n", secErr)
 		}
 	}
 	return n, err

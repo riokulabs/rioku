@@ -18,22 +18,131 @@ import (
 
 const timeFormat = "2006-01-02T15:04:05.000Z"
 
-// raftTx implements store.Tx. Writes go through raft consensus, reads
-// come from the local bbolt FSM.
+// raftTx implements store.Tx with deferred apply.
+//
+// Writes are *buffered* in `pending` and committed as a single OpBatch in
+// Commit(). The FSM applies all sub-commands inside one bbolt transaction,
+// giving true atomicity — if any sub-command fails, the entire batch rolls
+// back at the bbolt layer and no observable state changes (issue #56).
+//
+// Reads still hit the local bbolt FSM directly and do NOT see uncommitted
+// writes from this Tx. This matches the semantics of Postgres `READ
+// COMMITTED` for cross-Tx visibility — within a Tx, callers must construct
+// expected return values from the input rather than read-after-write.
+//
+// SaveConfigVersion is an exception: it returns a server-assigned version
+// number that the caller needs *immediately*, so it auto-flushes any
+// pending writes (as a batch) and then applies itself in a separate raft
+// log entry. Mixing SaveConfigVersion with other writes therefore costs
+// two raft entries instead of one.
 type raftTx struct {
 	driver   *Driver
 	readOnly bool
 	ctx      context.Context
+
+	// pending holds buffered write commands. nil when the tx is read-only.
+	pending []Command
+
+	// state tracks the tx lifecycle:
+	//   0 = open
+	//   1 = committed
+	//   2 = rolled back
+	state uint8
+}
+
+const (
+	txStateOpen uint8 = iota
+	txStateCommitted
+	txStateRolledBack
+)
+
+// errTxClosed is returned when a write op is attempted after Commit/Rollback.
+var errTxClosed = fmt.Errorf("raft: tx already closed (committed or rolled back)")
+
+// errTxReadOnly is returned when a write op is attempted on a read-only Tx.
+var errTxReadOnly = fmt.Errorf("raft: write op on read-only tx")
+
+// submit enqueues a write command into the Tx buffer. Returns immediately
+// without any raft round-trip — the actual apply happens on Commit().
+//
+// Callers must construct their own return values from the input plus any
+// IDs / timestamps assigned before submit (see CreateRoute for the pattern).
+func (t *raftTx) submit(op CommandOp, data any) error {
+	if t.readOnly {
+		return errTxReadOnly
+	}
+	if t.state != txStateOpen {
+		return errTxClosed
+	}
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("raft: marshal %s data: %w", op, err)
+	}
+	t.pending = append(t.pending, Command{Op: op, Data: raw})
+	return nil
+}
+
+// flushPending applies any buffered writes as a single OpBatch and clears
+// the buffer. Used by Commit() and by SaveConfigVersion's auto-flush.
+//
+// If the buffer is empty this is a cheap no-op (no raft round-trip).
+func (t *raftTx) flushPending() (*batchResult, error) {
+	if len(t.pending) == 0 {
+		return &batchResult{}, nil
+	}
+	pending := t.pending
+	t.pending = nil
+
+	result, err := t.driver.apply(OpBatch, batchData{Commands: pending})
+	if err != nil {
+		// Restore the buffer so the caller can inspect what was attempted.
+		t.pending = pending
+		return nil, err
+	}
+	var br batchResult
+	if len(result.Data) > 0 {
+		if err := json.Unmarshal(result.Data, &br); err != nil {
+			return nil, fmt.Errorf("raft: unmarshal batch result: %w", err)
+		}
+	}
+	return &br, nil
 }
 
 func (t *raftTx) Commit() error {
-	// Raft commits are per-operation (each apply is atomic).
-	// This is a no-op for the raft driver.
+	if t.state == txStateRolledBack {
+		return errTxClosed
+	}
+	if t.state == txStateCommitted {
+		// Idempotent — already committed.
+		return nil
+	}
+	if t.readOnly {
+		t.state = txStateCommitted
+		return nil
+	}
+	if _, err := t.flushPending(); err != nil {
+		// Leave state open so the caller can choose to retry / rollback.
+		return err
+	}
+	t.state = txStateCommitted
 	return nil
 }
 
 func (t *raftTx) Rollback() error {
-	// No rollback support — each operation is individually committed via raft.
+	if t.state == txStateCommitted {
+		// Already committed — rollback is a no-op (matches database/sql
+		// semantics where Rollback after Commit returns sql.ErrTxDone, but
+		// we choose silent no-op to match common defer-pattern usage:
+		//   defer tx.Rollback()
+		//   ...
+		//   tx.Commit()
+		return nil
+	}
+	if t.state == txStateRolledBack {
+		return nil
+	}
+	t.pending = nil
+	t.state = txStateRolledBack
 	return nil
 }
 
@@ -54,11 +163,12 @@ func (t *raftTx) CreateRoute(_ context.Context, route *riokuv1.Route) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal route: %w", err)
 	}
 
-	_, err = t.driver.apply(OpCreateRoute, putData{ID: id, Data: data})
-	if err != nil {
+	if err := t.submit(OpCreateRoute, putData{ID: id, Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetRoute(t.ctx, id)
+	// Return the locally-enriched input — buffered writes aren't visible
+	// via GetRoute until Commit().
+	return route, nil
 }
 
 func (t *raftTx) GetRoute(_ context.Context, id string) (*riokuv1.Route, error) {
@@ -102,16 +212,14 @@ func (t *raftTx) UpdateRoute(_ context.Context, route *riokuv1.Route) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal route: %w", err)
 	}
 
-	_, err = t.driver.apply(OpUpdateRoute, putData{ID: route.GetId(), Data: data})
-	if err != nil {
+	if err := t.submit(OpUpdateRoute, putData{ID: route.GetId(), Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetRoute(t.ctx, route.GetId())
+	return route, nil
 }
 
 func (t *raftTx) DeleteRoute(_ context.Context, id string) error {
-	_, err := t.driver.apply(OpDeleteRoute, deleteData{ID: id})
-	return err
+	return t.submit(OpDeleteRoute, deleteData{ID: id})
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +234,14 @@ func (t *raftTx) CreateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 	svc.CreatedAt = timestamppb.New(now)
 	svc.UpdatedAt = timestamppb.New(now)
 
+	// Assign upstream IDs locally so the returned Service has the same
+	// IDs the FSM will write on commit.
+	for _, u := range svc.GetUpstreams() {
+		if u.GetId() == "" {
+			u.Id = uuid.New().String()
+		}
+	}
+
 	svcData, err := protojson.Marshal(svc)
 	if err != nil {
 		return nil, fmt.Errorf("raft: marshal service: %w", err)
@@ -133,22 +249,17 @@ func (t *raftTx) CreateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 
 	var upstreams []upstreamEntry
 	for _, u := range svc.GetUpstreams() {
-		uid := u.GetId()
-		if uid == "" {
-			uid = uuid.New().String()
-		}
-		uData, err := marshalUpstreamWithServiceID(u, id, uid)
+		uData, err := marshalUpstreamWithServiceID(u, id, u.GetId())
 		if err != nil {
 			return nil, err
 		}
-		upstreams = append(upstreams, upstreamEntry{ID: uid, Data: uData})
+		upstreams = append(upstreams, upstreamEntry{ID: u.GetId(), Data: uData})
 	}
 
-	_, err = t.driver.apply(OpCreateService, serviceData{ID: id, Data: svcData, Upstreams: upstreams})
-	if err != nil {
+	if err := t.submit(OpCreateService, serviceData{ID: id, Data: svcData, Upstreams: upstreams}); err != nil {
 		return nil, err
 	}
-	return t.GetService(t.ctx, id)
+	return svc, nil
 }
 
 func (t *raftTx) GetService(_ context.Context, id string) (*riokuv1.Service, error) {
@@ -162,27 +273,8 @@ func (t *raftTx) GetService(_ context.Context, id string) (*riokuv1.Service, err
 		if err := protojson.Unmarshal(raw, &svc); err != nil {
 			return err
 		}
-
-		// Fetch upstreams.
-		ub := tx.Bucket([]byte(bucketUpstreams))
-		svc.Upstreams = nil
-		return ub.ForEach(func(k, v []byte) error {
-			var entry struct {
-				ServiceID string `json:"service_id"`
-			}
-			if err := json.Unmarshal(v, &entry); err != nil {
-				return nil // skip malformed entries
-			}
-			if entry.ServiceID != id {
-				return nil
-			}
-			var u riokuv1.Upstream
-			if err := protojson.Unmarshal(v, &u); err != nil {
-				return nil
-			}
-			svc.Upstreams = append(svc.Upstreams, &u)
-			return nil
-		})
+		svc.Upstreams = loadUpstreamsForService(tx, id)
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -199,22 +291,7 @@ func (t *raftTx) ListServices(_ context.Context) ([]*riokuv1.Service, error) {
 			if err := protojson.Unmarshal(v, &svc); err != nil {
 				return err
 			}
-
-			// Fetch upstreams for this service.
-			ub := tx.Bucket([]byte(bucketUpstreams))
-			_ = ub.ForEach(func(uk, uv []byte) error {
-				var entry struct {
-					ServiceID string `json:"service_id"`
-				}
-				if json.Unmarshal(uv, &entry) == nil && entry.ServiceID == string(k) {
-					var u riokuv1.Upstream
-					if protojson.Unmarshal(uv, &u) == nil {
-						svc.Upstreams = append(svc.Upstreams, &u)
-					}
-				}
-				return nil
-			})
-
+			svc.Upstreams = loadUpstreamsForService(tx, string(k))
 			services = append(services, &svc)
 			return nil
 		})
@@ -222,9 +299,84 @@ func (t *raftTx) ListServices(_ context.Context) ([]*riokuv1.Service, error) {
 	return services, err
 }
 
+// upstreamUnmarshaler tolerates the wrapper "service_id" field that
+// marshalUpstreamWithServiceID emits alongside the proto-shaped fields.
+// Without DiscardUnknown the unmarshal fails outright, leaving callers
+// with empty upstream lists — the long-standing bug noted in
+// TestTxUpdateService that the index work is incidentally fixing.
+var upstreamUnmarshaler = protojson.UnmarshalOptions{DiscardUnknown: true}
+
+// loadUpstreamsForService resolves a service's upstreams via the
+// upstreams_by_service index. The cursor walk is bounded by the
+// "<serviceID>/" prefix, so cost is O(upstreams_for_service) rather
+// than the previous O(total_upstreams) full-bucket scan.
+//
+// Falls back to a full-bucket scan if the index has zero entries for
+// the service — covers the boundary case of a snapshot that lands
+// before the migration shim runs.
+func loadUpstreamsForService(tx *bolt.Tx, serviceID string) []*riokuv1.Upstream {
+	idx := tx.Bucket([]byte(bucketUpstreamsByService))
+	ub := tx.Bucket([]byte(bucketUpstreams))
+	if ub == nil {
+		return nil
+	}
+
+	var out []*riokuv1.Upstream
+
+	if idx != nil {
+		prefix := upstreamIndexPrefix(serviceID)
+		c := idx.Cursor()
+		for k, v := c.Seek(prefix); k != nil && hasPrefix(k, prefix); k, v = c.Next() {
+			raw := ub.Get(v)
+			if raw == nil {
+				// Index points at a deleted upstream — skip; the next
+				// write path will rewrite the index.
+				continue
+			}
+			var u riokuv1.Upstream
+			if err := upstreamUnmarshaler.Unmarshal(raw, &u); err != nil {
+				continue
+			}
+			out = append(out, &u)
+		}
+		if len(out) > 0 {
+			return out
+		}
+	}
+
+	// Index miss — fall back to scanning the upstreams bucket. Should
+	// only happen for a freshly-restored snapshot that pre-dates the
+	// index migration. The Open and Restore paths both run
+	// rebuildUpstreamIndex, so subsequent reads hit the fast path.
+	_ = ub.ForEach(func(_, v []byte) error {
+		var entry struct {
+			ServiceID string `json:"service_id"`
+		}
+		if err := json.Unmarshal(v, &entry); err != nil {
+			return nil
+		}
+		if entry.ServiceID != serviceID {
+			return nil
+		}
+		var u riokuv1.Upstream
+		if err := upstreamUnmarshaler.Unmarshal(v, &u); err != nil {
+			return nil
+		}
+		out = append(out, &u)
+		return nil
+	})
+	return out
+}
+
 func (t *raftTx) UpdateService(_ context.Context, svc *riokuv1.Service) (*riokuv1.Service, error) {
 	now := nowUTC()
 	svc.UpdatedAt = timestamppb.New(now)
+
+	for _, u := range svc.GetUpstreams() {
+		if u.GetId() == "" {
+			u.Id = uuid.New().String()
+		}
+	}
 
 	svcData, err := protojson.Marshal(svc)
 	if err != nil {
@@ -233,27 +385,21 @@ func (t *raftTx) UpdateService(_ context.Context, svc *riokuv1.Service) (*riokuv
 
 	var upstreams []upstreamEntry
 	for _, u := range svc.GetUpstreams() {
-		uid := u.GetId()
-		if uid == "" {
-			uid = uuid.New().String()
-		}
-		uData, err := marshalUpstreamWithServiceID(u, svc.GetId(), uid)
+		uData, err := marshalUpstreamWithServiceID(u, svc.GetId(), u.GetId())
 		if err != nil {
 			return nil, err
 		}
-		upstreams = append(upstreams, upstreamEntry{ID: uid, Data: uData})
+		upstreams = append(upstreams, upstreamEntry{ID: u.GetId(), Data: uData})
 	}
 
-	_, err = t.driver.apply(OpUpdateService, serviceData{ID: svc.GetId(), Data: svcData, Upstreams: upstreams})
-	if err != nil {
+	if err := t.submit(OpUpdateService, serviceData{ID: svc.GetId(), Data: svcData, Upstreams: upstreams}); err != nil {
 		return nil, err
 	}
-	return t.GetService(t.ctx, svc.GetId())
+	return svc, nil
 }
 
 func (t *raftTx) DeleteService(_ context.Context, id string) error {
-	_, err := t.driver.apply(OpDeleteService, deleteData{ID: id})
-	return err
+	return t.submit(OpDeleteService, deleteData{ID: id})
 }
 
 // ---------------------------------------------------------------------------
@@ -273,11 +419,10 @@ func (t *raftTx) CreatePolicy(_ context.Context, pol *riokuv1.Policy) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal policy: %w", err)
 	}
 
-	_, err = t.driver.apply(OpCreatePolicy, putData{ID: id, Data: data})
-	if err != nil {
+	if err := t.submit(OpCreatePolicy, putData{ID: id, Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetPolicy(t.ctx, id)
+	return pol, nil
 }
 
 func (t *raftTx) GetPolicy(_ context.Context, id string) (*riokuv1.Policy, error) {
@@ -321,16 +466,14 @@ func (t *raftTx) UpdatePolicy(_ context.Context, pol *riokuv1.Policy) (*riokuv1.
 		return nil, fmt.Errorf("raft: marshal policy: %w", err)
 	}
 
-	_, err = t.driver.apply(OpUpdatePolicy, putData{ID: pol.GetId(), Data: data})
-	if err != nil {
+	if err := t.submit(OpUpdatePolicy, putData{ID: pol.GetId(), Data: data}); err != nil {
 		return nil, err
 	}
-	return t.GetPolicy(t.ctx, pol.GetId())
+	return pol, nil
 }
 
 func (t *raftTx) DeletePolicy(_ context.Context, id string) error {
-	_, err := t.driver.apply(OpDeletePolicy, deleteData{ID: id})
-	return err
+	return t.submit(OpDeletePolicy, deleteData{ID: id})
 }
 
 // ---------------------------------------------------------------------------
@@ -338,21 +481,19 @@ func (t *raftTx) DeletePolicy(_ context.Context, id string) error {
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) AttachPolicy(_ context.Context, policyID, targetType, targetID string) error {
-	_, err := t.driver.apply(OpAttachPolicy, policyBindingData{
+	return t.submit(OpAttachPolicy, policyBindingData{
 		PolicyID:   policyID,
 		TargetType: targetType,
 		TargetID:   targetID,
 	})
-	return err
 }
 
 func (t *raftTx) DetachPolicy(_ context.Context, policyID, targetType, targetID string) error {
-	_, err := t.driver.apply(OpDetachPolicy, policyBindingData{
+	return t.submit(OpDetachPolicy, policyBindingData{
 		PolicyID:   policyID,
 		TargetType: targetType,
 		TargetID:   targetID,
 	})
-	return err
 }
 
 func (t *raftTx) ListPoliciesByTarget(_ context.Context, targetType, targetID string) ([]string, error) {
@@ -400,8 +541,7 @@ func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []
 		return "", fmt.Errorf("raft: marshal api_key: %w", err)
 	}
 
-	_, err = t.driver.apply(OpCreateAPIKey, apiKeyData{ID: id, KeyHash: keyHash, Data: data})
-	if err != nil {
+	if err := t.submit(OpCreateAPIKey, apiKeyData{ID: id, KeyHash: keyHash, Data: data}); err != nil {
 		return "", err
 	}
 	return id, nil
@@ -449,11 +589,26 @@ func (t *raftTx) ListAPIKeys(_ context.Context) ([]*store.APIKey, error) {
 
 func (t *raftTx) RevokeAPIKey(_ context.Context, id string) error {
 	now := nowUTC()
-	_, err := t.driver.apply(OpRevokeAPIKey, revokeKeyData{
+	return t.submit(OpRevokeAPIKey, revokeKeyData{
 		ID:        id,
 		RevokedAt: now.Format(timeFormat),
 	})
-	return err
+}
+
+// RecordAPIKeyUse is intentionally a no-op on the raft driver for
+// now: per-request usage telemetry would require a new raft op
+// (and would amplify cluster traffic with a write per request).
+// The sqlite driver implements it directly; raft callers will see
+// usage_count stay at 0 until a dedicated op lands.
+func (t *raftTx) RecordAPIKeyUse(_ context.Context, _ string, _ time.Time) error {
+	return nil
+}
+
+// UpdateAPIKey is not yet implemented on the raft driver — single-tenant
+// raft deployments aren't a stage-2 release target. Returns ErrUnsupported
+// (sentinel) so callers can fall back gracefully.
+func (t *raftTx) UpdateAPIKey(_ context.Context, _ string, _ store.UpdateAPIKeyParams) (*store.APIKey, error) {
+	return nil, fmt.Errorf("raft: UpdateAPIKey not implemented")
 }
 
 func (t *raftTx) ListAPIKeysByOwner(_ context.Context, ownerID string) ([]*store.APIKey, error) {
@@ -493,7 +648,34 @@ func (t *raftTx) readAPIKey(bucket, id string) (*store.APIKey, error) {
 // Config Versions
 // ---------------------------------------------------------------------------
 
+// SaveConfigVersion is a special-case op that needs the FSM-assigned version
+// number returned to the caller *immediately*. To preserve that contract we:
+//
+//  1. Flush any other writes pending in this Tx as a single OpBatch (so they
+//     remain atomic with each other), then
+//  2. Apply this op as a separate raft log entry inline and return the
+//     version it generated.
+//
+// The trade-off: a SaveConfigVersion alongside other writes in the same Tx
+// costs *two* raft entries instead of one, and the two entries are NOT
+// jointly atomic — the version save can succeed even if the earlier batch
+// failed (we'd return the batch error before reaching here). Callers that
+// need a known-version-with-other-writes flow should call SaveConfigVersion
+// in its own Tx.
 func (t *raftTx) SaveConfigVersion(_ context.Context, snapshot []byte, actor string) (int64, error) {
+	if t.readOnly {
+		return 0, errTxReadOnly
+	}
+	if t.state != txStateOpen {
+		return 0, errTxClosed
+	}
+
+	// 1. Flush any prior buffered writes so they don't get silently dropped.
+	if _, err := t.flushPending(); err != nil {
+		return 0, fmt.Errorf("raft: flush pending before SaveConfigVersion: %w", err)
+	}
+
+	// 2. Apply the version save inline so we can return the assigned version.
 	now := nowUTC()
 	result, err := t.driver.apply(OpSaveConfigVersion, configVersionData{
 		Snapshot: string(snapshot),
@@ -571,6 +753,7 @@ func (t *raftTx) AppendAuditEntry(_ context.Context, entry *riokuv1.AuditEntry) 
 	id := entry.GetId()
 	if id == "" {
 		id = uuid.New().String()
+		entry.Id = id
 	}
 
 	data, err := protojson.Marshal(entry)
@@ -578,8 +761,7 @@ func (t *raftTx) AppendAuditEntry(_ context.Context, entry *riokuv1.AuditEntry) 
 		return fmt.Errorf("raft: marshal audit entry: %w", err)
 	}
 
-	_, err = t.driver.apply(OpAppendAuditEntry, auditEntryData{ID: id, Data: data})
-	return err
+	return t.submit(OpAppendAuditEntry, auditEntryData{ID: id, Data: data})
 }
 
 func (t *raftTx) QueryAuditLog(_ context.Context, query store.AuditQuery) ([]*riokuv1.AuditEntry, error) {
@@ -628,6 +810,88 @@ func (t *raftTx) QueryAuditLog(_ context.Context, query store.AuditQuery) ([]*ri
 	}
 
 	return entries, nil
+}
+
+// CountAuditLog mirrors QueryAuditLog's filter logic but returns a
+// count instead of materializing every match. Limit/Offset are
+// intentionally ignored.
+func (t *raftTx) CountAuditLog(_ context.Context, query store.AuditQuery) (int, error) {
+	count := 0
+	err := t.driver.readFSM(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketAuditLog))
+		return b.ForEach(func(k, v []byte) error {
+			var e riokuv1.AuditEntry
+			if err := protojson.Unmarshal(v, &e); err != nil {
+				return nil
+			}
+			if query.Actor != "" && e.GetActor() != query.Actor {
+				return nil
+			}
+			if query.EntityType != "" && e.GetEntityType() != query.EntityType {
+				return nil
+			}
+			if query.EntityID != "" && e.GetEntityId() != query.EntityID {
+				return nil
+			}
+			if query.Since != nil && e.GetOccurredAt().AsTime().Before(*query.Since) {
+				return nil
+			}
+			if query.Until != nil && e.GetOccurredAt().AsTime().After(*query.Until) {
+				return nil
+			}
+			count++
+			return nil
+		})
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetAuditEntry / ListAuditActors / ListAuditResourceIDs — not yet
+// implemented on the raft driver. Single-tenant raft isn't a stage-2
+// release target; these stubs satisfy the Tx interface so the daemon
+// builds against either backend.
+
+func (t *raftTx) GetAuditEntry(_ context.Context, _ string) (*riokuv1.AuditEntry, error) {
+	return nil, fmt.Errorf("raft: GetAuditEntry not implemented")
+}
+
+func (t *raftTx) ListAuditActors(_ context.Context, _ string, _ int) ([]string, error) {
+	return nil, nil
+}
+
+func (t *raftTx) ListAuditResourceIDs(_ context.Context, _, _ string, _ int) ([]string, error) {
+	return nil, nil
+}
+
+// RBAC policies — not implemented on the raft driver yet.
+func (t *raftTx) CreateRbacPolicy(_ context.Context, _ *store.RbacPolicy) (*store.RbacPolicy, error) {
+	return nil, fmt.Errorf("raft: CreateRbacPolicy not implemented")
+}
+func (t *raftTx) GetRbacPolicy(_ context.Context, _ string) (*store.RbacPolicy, error) {
+	return nil, fmt.Errorf("raft: GetRbacPolicy not implemented")
+}
+func (t *raftTx) ListRbacPolicies(_ context.Context) ([]*store.RbacPolicy, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateRbacPolicy(_ context.Context, _ string, _ store.UpdateRbacPolicyParams) (*store.RbacPolicy, error) {
+	return nil, fmt.Errorf("raft: UpdateRbacPolicy not implemented")
+}
+func (t *raftTx) DeleteRbacPolicy(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteRbacPolicy not implemented")
+}
+
+// Dashboard shares — not implemented on the raft driver yet.
+func (t *raftTx) CreateDashboardShare(_ context.Context, _ *store.DashboardShare) (*store.DashboardShare, error) {
+	return nil, fmt.Errorf("raft: CreateDashboardShare not implemented")
+}
+func (t *raftTx) ListDashboardShares(_ context.Context, _ string) ([]*store.DashboardShare, error) {
+	return nil, nil
+}
+func (t *raftTx) DeleteDashboardShare(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteDashboardShare not implemented")
 }
 
 // ---------------------------------------------------------------------------
@@ -730,6 +994,18 @@ func (t *raftTx) DeleteRole(_ context.Context, _ string) error {
 	return fmt.Errorf("raft: DeleteRole not implemented")
 }
 
+func (t *raftTx) EffectivePermissions(_ context.Context, _ string) ([]string, error) {
+	return nil, fmt.Errorf("raft: EffectivePermissions not implemented")
+}
+
+func (t *raftTx) SetUserPassword(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: SetUserPassword not implemented")
+}
+
+func (t *raftTx) AdminResetPassword(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: AdminResetPassword not implemented")
+}
+
 // ---------------------------------------------------------------------------
 // Permissions (stubs)
 // ---------------------------------------------------------------------------
@@ -780,6 +1056,30 @@ func (t *raftTx) MarkTOTPBackupCodeUsed(_ context.Context, _ string) error {
 
 func (t *raftTx) DeleteTOTPBackupCodes(_ context.Context, _ string) error {
 	return fmt.Errorf("raft: DeleteTOTPBackupCodes not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Access Policies (stubs — raft driver hasn't ported these yet)
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateAccessPolicy(_ context.Context, _ *store.AccessPolicy) (*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: CreateAccessPolicy not implemented")
+}
+
+func (t *raftTx) GetAccessPolicy(_ context.Context, _ string) (*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: GetAccessPolicy not implemented")
+}
+
+func (t *raftTx) ListAccessPolicies(_ context.Context) ([]*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: ListAccessPolicies not implemented")
+}
+
+func (t *raftTx) UpdateAccessPolicy(_ context.Context, _ string, _ store.UpdateAccessPolicyParams) (*store.AccessPolicy, error) {
+	return nil, fmt.Errorf("raft: UpdateAccessPolicy not implemented")
+}
+
+func (t *raftTx) DeleteAccessPolicy(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteAccessPolicy not implemented")
 }
 
 // ---------------------------------------------------------------------------
@@ -866,4 +1166,576 @@ func getString(m map[string]interface{}, key string) string {
 		}
 	}
 	return ""
+}
+
+// ---------------------------------------------------------------------------
+// Tenants + Memberships (stage-2) — raft stubs
+//
+// The raft FSM doesn't yet have ops for tenant/membership writes.
+// Callers should use the SQLite driver for tenant work until a
+// dedicated raft op lands. Read methods return empty results so the
+// tenant-resolution middleware can fall back to the default tenant.
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateTenant(_ context.Context, _ *store.Tenant) (*store.Tenant, error) {
+	return nil, fmt.Errorf("raft: CreateTenant not implemented")
+}
+
+func (t *raftTx) GetTenant(_ context.Context, _ string) (*store.Tenant, error) {
+	return nil, store.ErrTenantNotFound
+}
+
+func (t *raftTx) GetTenantBySlug(_ context.Context, _ string) (*store.Tenant, error) {
+	return nil, store.ErrTenantNotFound
+}
+
+func (t *raftTx) ListTenants(_ context.Context) ([]*store.Tenant, error) {
+	return nil, nil
+}
+
+func (t *raftTx) UpdateTenant(_ context.Context, _ string, _ store.UpdateTenantParams) (*store.Tenant, error) {
+	return nil, fmt.Errorf("raft: UpdateTenant not implemented")
+}
+
+func (t *raftTx) DeleteTenant(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteTenant not implemented")
+}
+
+func (t *raftTx) CreateMembership(_ context.Context, _ *store.Membership) (*store.Membership, error) {
+	return nil, fmt.Errorf("raft: CreateMembership not implemented")
+}
+
+func (t *raftTx) GetMembership(_ context.Context, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {
+	return nil, nil
+}
+
+func (t *raftTx) ListMembershipsByUser(_ context.Context, _ string) ([]*store.Membership, error) {
+	return nil, nil
+}
+
+func (t *raftTx) UpdateMembershipState(_ context.Context, _, _ string) (*store.Membership, error) {
+	return nil, fmt.Errorf("raft: UpdateMembershipState not implemented")
+}
+
+func (t *raftTx) DeleteMembership(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: DeleteMembership not implemented")
+}
+
+func (t *raftTx) AssignMembershipRole(_ context.Context, _, _, _ string) error {
+	return fmt.Errorf("raft: AssignMembershipRole not implemented")
+}
+
+func (t *raftTx) RevokeMembershipRole(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: RevokeMembershipRole not implemented")
+}
+
+func (t *raftTx) ListMembershipRoles(_ context.Context, _ string) ([]store.Role, error) {
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// Sites + Middlewares (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateSite(_ context.Context, _ *store.Site) (*store.Site, error) {
+	return nil, fmt.Errorf("raft: CreateSite not implemented")
+}
+func (t *raftTx) GetSite(_ context.Context, _, _ string) (*store.Site, error) {
+	return nil, store.ErrSiteNotFound
+}
+func (t *raftTx) ListSitesByTenant(_ context.Context, _ string) ([]*store.Site, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateSite(_ context.Context, _, _ string, _ store.UpdateSiteParams) (*store.Site, error) {
+	return nil, fmt.Errorf("raft: UpdateSite not implemented")
+}
+func (t *raftTx) ToggleSite(_ context.Context, _, _ string, _ bool) (*store.Site, error) {
+	return nil, fmt.Errorf("raft: ToggleSite not implemented")
+}
+func (t *raftTx) DeleteSite(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteSite not implemented")
+}
+
+func (t *raftTx) CreateMiddleware(_ context.Context, _ *store.Middleware) (*store.Middleware, error) {
+	return nil, fmt.Errorf("raft: CreateMiddleware not implemented")
+}
+func (t *raftTx) GetMiddleware(_ context.Context, _, _ string) (*store.Middleware, error) {
+	return nil, store.ErrMiddlewareNotFound
+}
+func (t *raftTx) ListMiddlewaresByTenant(_ context.Context, _ string) ([]*store.Middleware, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateMiddleware(_ context.Context, _, _ string, _ store.UpdateMiddlewareParams) (*store.Middleware, error) {
+	return nil, fmt.Errorf("raft: UpdateMiddleware not implemented")
+}
+func (t *raftTx) DeleteMiddleware(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteMiddleware not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Dashboards + Widgets + Versions (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateDashboard(_ context.Context, _ *store.Dashboard) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: CreateDashboard not implemented")
+}
+func (t *raftTx) GetDashboard(_ context.Context, _, _ string) (*store.Dashboard, error) {
+	return nil, store.ErrDashboardNotFound
+}
+func (t *raftTx) ListDashboardsByTenant(_ context.Context, _ string) ([]*store.Dashboard, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateDashboard(_ context.Context, _, _ string, _ store.UpdateDashboardParams) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: UpdateDashboard not implemented")
+}
+func (t *raftTx) DeleteDashboard(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteDashboard not implemented")
+}
+func (t *raftTx) SetDefaultDashboard(_ context.Context, _, _ string) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: SetDefaultDashboard not implemented")
+}
+func (t *raftTx) SetDashboardHomeForUser(_ context.Context, _, _, _ string) (*store.Dashboard, error) {
+	return nil, fmt.Errorf("raft: SetDashboardHomeForUser not implemented")
+}
+
+func (t *raftTx) CreateWidget(_ context.Context, _ *store.Widget) (*store.Widget, error) {
+	return nil, fmt.Errorf("raft: CreateWidget not implemented")
+}
+func (t *raftTx) GetWidget(_ context.Context, _ string) (*store.Widget, error) {
+	return nil, store.ErrWidgetNotFound
+}
+func (t *raftTx) ListWidgetsByDashboard(_ context.Context, _ string) ([]*store.Widget, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateWidget(_ context.Context, _ string, _ store.UpdateWidgetParams) (*store.Widget, error) {
+	return nil, fmt.Errorf("raft: UpdateWidget not implemented")
+}
+func (t *raftTx) DeleteWidget(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteWidget not implemented")
+}
+func (t *raftTx) UpdateDashboardLayout(_ context.Context, _ string, _ map[string]string) error {
+	return fmt.Errorf("raft: UpdateDashboardLayout not implemented")
+}
+
+func (t *raftTx) CreateDashboardVersion(_ context.Context, _ *store.DashboardVersion) (*store.DashboardVersion, error) {
+	return nil, fmt.Errorf("raft: CreateDashboardVersion not implemented")
+}
+func (t *raftTx) GetDashboardVersion(_ context.Context, _ string) (*store.DashboardVersion, error) {
+	return nil, store.ErrVersionNotFound
+}
+func (t *raftTx) ListDashboardVersions(_ context.Context, _ string) ([]*store.DashboardVersion, error) {
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// AI subsystem (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateAIProvider(_ context.Context, _ *store.AIProvider) (*store.AIProvider, error) {
+	return nil, fmt.Errorf("raft: CreateAIProvider not implemented")
+}
+func (t *raftTx) GetAIProvider(_ context.Context, _, _ string) (*store.AIProvider, error) {
+	return nil, store.ErrAIProviderNotFound
+}
+func (t *raftTx) ListAIProvidersByTenant(_ context.Context, _ string) ([]*store.AIProvider, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIProvider(_ context.Context, _, _ string, _ store.UpdateAIProviderParams) (*store.AIProvider, error) {
+	return nil, fmt.Errorf("raft: UpdateAIProvider not implemented")
+}
+func (t *raftTx) DeleteAIProvider(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIProvider not implemented")
+}
+
+func (t *raftTx) AddProviderModel(_ context.Context, _ *store.AIProviderModel) (*store.AIProviderModel, error) {
+	return nil, fmt.Errorf("raft: AddProviderModel not implemented")
+}
+func (t *raftTx) UpdateProviderModel(_ context.Context, _, _ string, _ store.UpdateAIProviderModelParams) (*store.AIProviderModel, error) {
+	return nil, fmt.Errorf("raft: UpdateProviderModel not implemented")
+}
+func (t *raftTx) RemoveProviderModel(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: RemoveProviderModel not implemented")
+}
+func (t *raftTx) ListProviderModels(_ context.Context, _ string) ([]*store.AIProviderModel, error) {
+	return nil, nil
+}
+
+func (t *raftTx) CreateMCPServer(_ context.Context, _ *store.AIMCPServer) (*store.AIMCPServer, error) {
+	return nil, fmt.Errorf("raft: CreateMCPServer not implemented")
+}
+func (t *raftTx) GetMCPServer(_ context.Context, _, _ string) (*store.AIMCPServer, error) {
+	return nil, store.ErrMCPServerNotFound
+}
+func (t *raftTx) ListMCPServersByTenant(_ context.Context, _ string) ([]*store.AIMCPServer, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateMCPServer(_ context.Context, _, _ string, _ store.UpdateAIMCPServerParams) (*store.AIMCPServer, error) {
+	return nil, fmt.Errorf("raft: UpdateMCPServer not implemented")
+}
+func (t *raftTx) DeleteMCPServer(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteMCPServer not implemented")
+}
+
+func (t *raftTx) CreateAITool(_ context.Context, _ *store.AITool) (*store.AITool, error) {
+	return nil, fmt.Errorf("raft: CreateAITool not implemented")
+}
+func (t *raftTx) GetAITool(_ context.Context, _, _ string) (*store.AITool, error) {
+	return nil, store.ErrAIToolNotFound
+}
+func (t *raftTx) ListAIToolsByTenant(_ context.Context, _ string) ([]*store.AITool, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAITool(_ context.Context, _, _ string, _ store.UpdateAIToolParams) (*store.AITool, error) {
+	return nil, fmt.Errorf("raft: UpdateAITool not implemented")
+}
+func (t *raftTx) DeleteAITool(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAITool not implemented")
+}
+
+func (t *raftTx) CreateAIAgent(_ context.Context, _ *store.AIAgent) (*store.AIAgent, error) {
+	return nil, fmt.Errorf("raft: CreateAIAgent not implemented")
+}
+func (t *raftTx) GetAIAgent(_ context.Context, _, _ string) (*store.AIAgent, error) {
+	return nil, store.ErrAIAgentNotFound
+}
+func (t *raftTx) ListAIAgentsByTenant(_ context.Context, _ string) ([]*store.AIAgent, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIAgent(_ context.Context, _, _ string, _ store.UpdateAIAgentParams) (*store.AIAgent, error) {
+	return nil, fmt.Errorf("raft: UpdateAIAgent not implemented")
+}
+func (t *raftTx) DeleteAIAgent(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIAgent not implemented")
+}
+
+func (t *raftTx) CreateAIToolBinding(_ context.Context, _ *store.AIToolBinding) (*store.AIToolBinding, error) {
+	return nil, fmt.Errorf("raft: CreateAIToolBinding not implemented")
+}
+func (t *raftTx) GetAIToolBinding(_ context.Context, _, _ string) (*store.AIToolBinding, error) {
+	return nil, store.ErrAIBindingNotFound
+}
+func (t *raftTx) ListAIToolBindingsByTenant(_ context.Context, _ string) ([]*store.AIToolBinding, error) {
+	return nil, nil
+}
+func (t *raftTx) ListAIToolBindingsByAgent(_ context.Context, _ string) ([]*store.AIToolBinding, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIToolBinding(_ context.Context, _, _ string, _ store.UpdateAIToolBindingParams) (*store.AIToolBinding, error) {
+	return nil, fmt.Errorf("raft: UpdateAIToolBinding not implemented")
+}
+func (t *raftTx) DeleteAIToolBinding(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIToolBinding not implemented")
+}
+
+func (t *raftTx) CreateAIRateLimit(_ context.Context, _ *store.AISemanticRateLimit) (*store.AISemanticRateLimit, error) {
+	return nil, fmt.Errorf("raft: CreateAIRateLimit not implemented")
+}
+func (t *raftTx) GetAIRateLimit(_ context.Context, _, _ string) (*store.AISemanticRateLimit, error) {
+	return nil, store.ErrAIRateLimitNotFound
+}
+func (t *raftTx) ListAIRateLimitsByTenant(_ context.Context, _ string) ([]*store.AISemanticRateLimit, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateAIRateLimit(_ context.Context, _, _ string, _ store.UpdateAIRateLimitParams) (*store.AISemanticRateLimit, error) {
+	return nil, fmt.Errorf("raft: UpdateAIRateLimit not implemented")
+}
+func (t *raftTx) DeleteAIRateLimit(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteAIRateLimit not implemented")
+}
+
+func (t *raftTx) AppendAITrace(_ context.Context, _ *store.AITrace) (*store.AITrace, error) {
+	return nil, fmt.Errorf("raft: AppendAITrace not implemented")
+}
+func (t *raftTx) GetAITrace(_ context.Context, _, _ string) (*store.AITrace, error) {
+	return nil, store.ErrAITraceNotFound
+}
+func (t *raftTx) ListAITracesByTenant(_ context.Context, _ string, _ store.AITraceQuery) ([]*store.AITrace, error) {
+	return nil, nil
+}
+func (t *raftTx) ListAITracesByAgent(_ context.Context, _ string, _ store.AITraceQuery) ([]*store.AITrace, error) {
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) AppendNotificationItem(_ context.Context, _ *store.NotificationItem) (*store.NotificationItem, error) {
+	return nil, fmt.Errorf("raft: AppendNotificationItem not implemented")
+}
+func (t *raftTx) GetNotificationItem(_ context.Context, _ string) (*store.NotificationItem, error) {
+	return nil, store.ErrNotificationItemNotFound
+}
+func (t *raftTx) ListNotificationItemsByUser(_ context.Context, _, _ string, _ store.NotificationItemQuery) ([]*store.NotificationItem, error) {
+	return nil, nil
+}
+func (t *raftTx) CountUnreadNotifications(_ context.Context, _, _ string) (int, error) {
+	return 0, nil
+}
+func (t *raftTx) MarkNotificationRead(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: MarkNotificationRead not implemented")
+}
+func (t *raftTx) MarkAllNotificationsRead(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: MarkAllNotificationsRead not implemented")
+}
+func (t *raftTx) ArchiveNotification(_ context.Context, _ string, _ bool) error {
+	return fmt.Errorf("raft: ArchiveNotification not implemented")
+}
+
+func (t *raftTx) CreateNotificationChannel(_ context.Context, _ *store.NotificationChannel) (*store.NotificationChannel, error) {
+	return nil, fmt.Errorf("raft: CreateNotificationChannel not implemented")
+}
+func (t *raftTx) GetNotificationChannel(_ context.Context, _, _ string) (*store.NotificationChannel, error) {
+	return nil, store.ErrNotificationChannelNotFound
+}
+func (t *raftTx) ListNotificationChannelsByTenant(_ context.Context, _ string) ([]*store.NotificationChannel, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateNotificationChannel(_ context.Context, _, _ string, _ store.UpdateNotificationChannelParams) (*store.NotificationChannel, error) {
+	return nil, fmt.Errorf("raft: UpdateNotificationChannel not implemented")
+}
+func (t *raftTx) DeleteNotificationChannel(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteNotificationChannel not implemented")
+}
+
+func (t *raftTx) CreateRoutingRule(_ context.Context, _ *store.NotificationRoutingRule) (*store.NotificationRoutingRule, error) {
+	return nil, fmt.Errorf("raft: CreateRoutingRule not implemented")
+}
+func (t *raftTx) GetRoutingRule(_ context.Context, _, _ string) (*store.NotificationRoutingRule, error) {
+	return nil, store.ErrRoutingRuleNotFound
+}
+func (t *raftTx) ListRoutingRulesByTenant(_ context.Context, _ string) ([]*store.NotificationRoutingRule, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateRoutingRule(_ context.Context, _, _ string, _ store.UpdateRoutingRuleParams) (*store.NotificationRoutingRule, error) {
+	return nil, fmt.Errorf("raft: UpdateRoutingRule not implemented")
+}
+func (t *raftTx) DeleteRoutingRule(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteRoutingRule not implemented")
+}
+func (t *raftTx) ReorderRoutingRules(_ context.Context, _ string, _ []string) error {
+	return fmt.Errorf("raft: ReorderRoutingRules not implemented")
+}
+
+func (t *raftTx) AppendDeliveryLogEntry(_ context.Context, _ *store.NotificationDeliveryLogEntry) (*store.NotificationDeliveryLogEntry, error) {
+	return nil, fmt.Errorf("raft: AppendDeliveryLogEntry not implemented")
+}
+func (t *raftTx) GetDeliveryLogEntry(_ context.Context, _, _ string) (*store.NotificationDeliveryLogEntry, error) {
+	return nil, store.ErrDeliveryLogEntryNotFound
+}
+func (t *raftTx) ListDeliveryLogByTenant(_ context.Context, _ string, _ store.DeliveryLogQuery) ([]*store.NotificationDeliveryLogEntry, error) {
+	return nil, nil
+}
+
+func (t *raftTx) GetTenantNotificationConfig(_ context.Context, tenantID string) (*store.TenantNotificationConfig, error) {
+	return &store.TenantNotificationConfig{
+		TenantID: tenantID, Enabled: true, OptInMode: "opt-in",
+		MaxRetries: 3, RetryBackoffSeconds: 30, ChannelPriority: "[]",
+	}, nil
+}
+func (t *raftTx) UpsertTenantNotificationConfig(_ context.Context, _ *store.TenantNotificationConfig) (*store.TenantNotificationConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertTenantNotificationConfig not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Plugins (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreatePlugin(_ context.Context, _ *store.Plugin) (*store.Plugin, error) {
+	return nil, fmt.Errorf("raft: CreatePlugin not implemented")
+}
+func (t *raftTx) GetPlugin(_ context.Context, _, _ string) (*store.Plugin, error) {
+	return nil, store.ErrPluginNotFound
+}
+func (t *raftTx) ListPluginsByScope(_ context.Context, _ string) ([]*store.Plugin, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdatePlugin(_ context.Context, _, _ string, _ store.UpdatePluginParams) (*store.Plugin, error) {
+	return nil, fmt.Errorf("raft: UpdatePlugin not implemented")
+}
+func (t *raftTx) DeletePlugin(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeletePlugin not implemented")
+}
+
+func (t *raftTx) CreatePluginSigner(_ context.Context, _ *store.PluginSigner) (*store.PluginSigner, error) {
+	return nil, fmt.Errorf("raft: CreatePluginSigner not implemented")
+}
+func (t *raftTx) GetPluginSigner(_ context.Context, _, _ string) (*store.PluginSigner, error) {
+	return nil, store.ErrPluginSignerNotFound
+}
+func (t *raftTx) ListPluginSignersByScope(_ context.Context, _ string) ([]*store.PluginSigner, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdatePluginSigner(_ context.Context, _, _ string, _ store.UpdatePluginSignerParams) (*store.PluginSigner, error) {
+	return nil, fmt.Errorf("raft: UpdatePluginSigner not implemented")
+}
+func (t *raftTx) DeletePluginSigner(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeletePluginSigner not implemented")
+}
+func (t *raftTx) ListPluginsBySigner(_ context.Context, _ string) ([]*store.Plugin, error) {
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// PKI/TLS (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateCertAuthority(_ context.Context, _ *store.CertAuthority) (*store.CertAuthority, error) {
+	return nil, fmt.Errorf("raft: CreateCertAuthority not implemented")
+}
+func (t *raftTx) GetCertAuthority(_ context.Context, _, _ string) (*store.CertAuthority, error) {
+	return nil, store.ErrCertAuthorityNotFound
+}
+func (t *raftTx) ListCertAuthoritiesByTenant(_ context.Context, _ string) ([]*store.CertAuthority, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateCertAuthority(_ context.Context, _, _ string, _ store.UpdateCertAuthorityParams) (*store.CertAuthority, error) {
+	return nil, fmt.Errorf("raft: UpdateCertAuthority not implemented")
+}
+func (t *raftTx) DeleteCertAuthority(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteCertAuthority not implemented")
+}
+
+func (t *raftTx) CreateCertEnrollment(_ context.Context, _ *store.CertEnrollment) (*store.CertEnrollment, error) {
+	return nil, fmt.Errorf("raft: CreateCertEnrollment not implemented")
+}
+func (t *raftTx) GetCertEnrollment(_ context.Context, _, _ string) (*store.CertEnrollment, error) {
+	return nil, store.ErrCertEnrollmentNotFound
+}
+func (t *raftTx) ListCertEnrollmentsByTenant(_ context.Context, _ string) ([]*store.CertEnrollment, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateCertEnrollment(_ context.Context, _, _ string, _ store.UpdateCertEnrollmentParams) (*store.CertEnrollment, error) {
+	return nil, fmt.Errorf("raft: UpdateCertEnrollment not implemented")
+}
+func (t *raftTx) RevokeCertEnrollmentRow(_ context.Context, _, _, _ string) (*store.CertEnrollment, error) {
+	return nil, fmt.Errorf("raft: RevokeCertEnrollmentRow not implemented")
+}
+
+func (t *raftTx) CreateTLSCertificate(_ context.Context, _ *store.TLSCertificate) (*store.TLSCertificate, error) {
+	return nil, fmt.Errorf("raft: CreateTLSCertificate not implemented")
+}
+func (t *raftTx) GetTLSCertificate(_ context.Context, _, _ string) (*store.TLSCertificate, error) {
+	return nil, store.ErrTLSCertificateNotFound
+}
+func (t *raftTx) ListTLSCertificatesByTenant(_ context.Context, _ string) ([]*store.TLSCertificate, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateTLSCertificate(_ context.Context, _, _ string, _ store.UpdateTLSCertificateParams) (*store.TLSCertificate, error) {
+	return nil, fmt.Errorf("raft: UpdateTLSCertificate not implemented")
+}
+func (t *raftTx) DeleteTLSCertificate(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteTLSCertificate not implemented")
+}
+
+func (t *raftTx) GetTLSConfig(_ context.Context, tenantID string) (*store.TLSConfig, error) {
+	return &store.TLSConfig{TenantID: tenantID, ACMEProvider: "lets-encrypt", AllowedCiphers: "[]", MinProtocol: "1.2"}, nil
+}
+func (t *raftTx) UpsertTLSConfig(_ context.Context, _ *store.TLSConfig) (*store.TLSConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertTLSConfig not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Settings configs (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) GetNetworkConfig(_ context.Context, tenantID string) (*store.NetworkConfig, error) {
+	return &store.NetworkConfig{
+		TenantID: tenantID, ListenAddresses: "[]", CaddyConfigOverrides: "{}",
+		ReadTimeoutSeconds: 60, WriteTimeoutSeconds: 60, IdleTimeoutSeconds: 120,
+	}, nil
+}
+func (t *raftTx) UpsertNetworkConfig(_ context.Context, _ *store.NetworkConfig) (*store.NetworkConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertNetworkConfig not implemented")
+}
+
+func (t *raftTx) GetTenantAuthPolicy(_ context.Context, tenantID string) (*store.TenantAuthPolicy, error) {
+	return &store.TenantAuthPolicy{
+		TenantID: tenantID, TOTPPolicy: "optional", MinLength: 12,
+		IdleHours: 24, AbsoluteHours: 168, MaxFailedAttempts: 5, LockoutMinutes: 15,
+	}, nil
+}
+func (t *raftTx) UpsertTenantAuthPolicy(_ context.Context, _ *store.TenantAuthPolicy) (*store.TenantAuthPolicy, error) {
+	return nil, fmt.Errorf("raft: UpsertTenantAuthPolicy not implemented")
+}
+
+func (t *raftTx) GetObservabilityConfig(_ context.Context, tenantID string) (*store.ObservabilityConfig, error) {
+	return &store.ObservabilityConfig{
+		TenantID: tenantID, MetricsScrapeAuth: "{}", MetricsRetentionDays: 30,
+		LogLevels: "{}", LogFormat: "json", LogRotation: "{}",
+		TracesRetentionDays: 7, TracesSampleRate: 1.0,
+	}, nil
+}
+func (t *raftTx) UpsertObservabilityConfig(_ context.Context, _ *store.ObservabilityConfig) (*store.ObservabilityConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertObservabilityConfig not implemented")
+}
+
+func (t *raftTx) GetAuditRetentionConfig(_ context.Context, tenantID string) (*store.AuditRetentionConfig, error) {
+	return &store.AuditRetentionConfig{
+		TenantID: tenantID, RetentionDaysRead: 30, RetentionDaysWrite: 90,
+		RetentionDaysDestructive: 365, AutoExport: "never", AutoExportFormat: "jsonl",
+	}, nil
+}
+func (t *raftTx) UpsertAuditRetentionConfig(_ context.Context, _ *store.AuditRetentionConfig) (*store.AuditRetentionConfig, error) {
+	return nil, fmt.Errorf("raft: UpsertAuditRetentionConfig not implemented")
+}
+
+// ---------------------------------------------------------------------------
+// Webhooks + cluster + impersonation (stage-2) — raft stubs
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) CreateWebhookEndpoint(_ context.Context, _ *store.WebhookEndpoint) (*store.WebhookEndpoint, error) {
+	return nil, fmt.Errorf("raft: CreateWebhookEndpoint not implemented")
+}
+func (t *raftTx) GetWebhookEndpoint(_ context.Context, _, _ string) (*store.WebhookEndpoint, error) {
+	return nil, store.ErrWebhookEndpointNotFound
+}
+func (t *raftTx) ListWebhookEndpointsByTenant(_ context.Context, _ string) ([]*store.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateWebhookEndpoint(_ context.Context, _, _ string, _ store.UpdateWebhookEndpointParams) (*store.WebhookEndpoint, error) {
+	return nil, fmt.Errorf("raft: UpdateWebhookEndpoint not implemented")
+}
+func (t *raftTx) DeleteWebhookEndpoint(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteWebhookEndpoint not implemented")
+}
+
+func (t *raftTx) CreateEnrollmentToken(_ context.Context, _ *store.ClusterEnrollmentToken) (*store.ClusterEnrollmentToken, error) {
+	return nil, fmt.Errorf("raft: CreateEnrollmentToken not implemented")
+}
+func (t *raftTx) GetEnrollmentTokenByHash(_ context.Context, _ string) (*store.ClusterEnrollmentToken, error) {
+	return nil, store.ErrEnrollmentTokenNotFound
+}
+func (t *raftTx) ListActiveEnrollmentTokens(_ context.Context) ([]*store.ClusterEnrollmentToken, error) {
+	return nil, nil
+}
+func (t *raftTx) ConsumeEnrollmentToken(_ context.Context, _, _ string) (*store.ClusterEnrollmentToken, error) {
+	return nil, fmt.Errorf("raft: ConsumeEnrollmentToken not implemented")
+}
+func (t *raftTx) RevokeEnrollmentToken(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: RevokeEnrollmentToken not implemented")
+}
+
+func (t *raftTx) CreateImpersonationSession(_ context.Context, _ *store.ImpersonationSession) (*store.ImpersonationSession, error) {
+	return nil, fmt.Errorf("raft: CreateImpersonationSession not implemented")
+}
+func (t *raftTx) GetImpersonationSession(_ context.Context, _ string) (*store.ImpersonationSession, error) {
+	return nil, store.ErrImpersonationSessionNotFound
+}
+func (t *raftTx) ListActiveImpersonationSessions(_ context.Context) ([]*store.ImpersonationSession, error) {
+	return nil, nil
+}
+func (t *raftTx) EndImpersonationSession(_ context.Context, _, _ string) (*store.ImpersonationSession, error) {
+	return nil, fmt.Errorf("raft: EndImpersonationSession not implemented")
+}
+func (t *raftTx) TouchImpersonationSession(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: TouchImpersonationSession not implemented")
 }

@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS tls_configs;
+DROP INDEX IF EXISTS idx_tls_certificates_expires;
+DROP INDEX IF EXISTS idx_tls_certificates_tenant;
+DROP TABLE IF EXISTS tls_certificates;
+DROP INDEX IF EXISTS idx_cert_enrollments_ca;
+DROP INDEX IF EXISTS idx_cert_enrollments_tenant;
+DROP TABLE IF EXISTS cert_enrollments;
+DROP INDEX IF EXISTS idx_cert_authorities_tenant;
+DROP TABLE IF EXISTS cert_authorities;

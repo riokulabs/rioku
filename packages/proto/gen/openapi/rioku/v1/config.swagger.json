@@ -267,6 +267,26 @@
         }
       }
     },
+    "v1ALookup": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the hostname to resolve (e.g. \"api.example.com\")."
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "description": "port is the port to dial on each resolved address."
+        },
+        "refreshSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "refresh_seconds controls how often Caddy re-resolves the A/AAAA records.\nDefault 60s."
+        }
+      },
+      "description": "ALookup discovers upstream targets via DNS A/AAAA records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.a` source."
+    },
     "v1ApplyResult": {
       "type": "object",
       "properties": {
@@ -309,8 +329,38 @@
         "occurredAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "payloadSchema": {
+          "type": "string",
+          "description": "payload_schema is the audit unification (#182, D6)\ndiscriminator — e.g. \"cert.lifecycle_event.v1\". Empty when\nthis row predates the unification or was emitted via the\nlegacy diff-only path; the admin renderer falls back to the\ndiff renderer in that case."
+        },
+        "payload": {
+          "type": "string",
+          "description": "payload carries the structured audit payload (#182, D6) as\nJSON. The admin renderer dispatches on payload_schema to\npick a typed view. Empty when payload_schema is empty."
         }
       }
+    },
+    "v1Compression": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire block."
+        },
+        "encodings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "encodings is the ordered list of encodings to advertise (e.g.\n[\"zstd\", \"gzip\"]). Caddy picks the first one the client accepts."
+        },
+        "minLength": {
+          "type": "integer",
+          "format": "int32",
+          "description": "min_length is the minimum response body length (in bytes) to\ncompress. Default 1024. Bodies smaller than this are passed\nthrough uncompressed."
+        }
+      },
+      "description": "Compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen Compression is unset or disabled, no encoding handler is emitted."
     },
     "v1ConfigChange": {
       "type": "object",
@@ -380,6 +430,36 @@
         }
       }
     },
+    "v1ConnectionPool": {
+      "type": "object",
+      "properties": {
+        "maxConnsPerUpstream": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_conns_per_upstream caps the total number of open connections\nthe gateway will hold per upstream backend. Zero means \"no limit\"\n(Caddy default)."
+        },
+        "maxIdleConnsPerUpstream": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_idle_conns_per_upstream caps the number of idle keep-alive\nconnections retained per upstream. Zero falls back to Go's\nhttp.DefaultMaxIdleConnsPerHost (2). Bump for high-concurrency\nbackends where reconnect cost dominates."
+        },
+        "maxIdleConns": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_idle_conns caps the total idle keep-alive connections across\nall upstreams in this service. Zero means \"no limit\"."
+        },
+        "writeBufferKb": {
+          "type": "integer",
+          "format": "int32",
+          "description": "write_buffer_kb / read_buffer_kb override the HTTP transport's\nread/write buffer sizes (in kilobytes). Zero uses Go's default\n(4 KB). Bump for backends that ship large request/response\nbodies to reduce syscall count."
+        },
+        "readBufferKb": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "description": "ConnectionPool tunes the HTTP transport's connection-pooling\nparameters for a service. Compiles into Caddy's\n`reverse_proxy.transport` block alongside the existing\ndial/response/idle timeouts.\n\nDefaults are picked by Caddy when fields are zero — leaving the\nblock empty is fine for most workloads. Tune for high-RPS or\nlong-tail-latency services."
+    },
     "v1DirectUpstream": {
       "type": "object",
       "properties": {
@@ -414,6 +494,10 @@
         },
         "invert": {
           "type": "boolean"
+        },
+        "regexp": {
+          "type": "boolean",
+          "description": "regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy's header_regexp doesn't support\na \"!\" prefix); wrap the matcher in `not` instead."
         }
       }
     },
@@ -496,9 +580,13 @@
         "LB_POLICY_RANDOM",
         "LB_POLICY_LEAST_CONN",
         "LB_POLICY_IP_HASH",
-        "LB_POLICY_WEIGHTED_ROUND_ROBIN"
+        "LB_POLICY_WEIGHTED_ROUND_ROBIN",
+        "LB_POLICY_COOKIE",
+        "LB_POLICY_URI_HASH",
+        "LB_POLICY_HEADER"
       ],
-      "default": "LB_POLICY_UNSPECIFIED"
+      "default": "LB_POLICY_UNSPECIFIED",
+      "description": " - LB_POLICY_COOKIE: LB_POLICY_COOKIE pins each client to an upstream via a cookie\n(sticky sessions). The cookie name comes from Service.lb_cookie_name\n(defaults to \"lb\").\n - LB_POLICY_URI_HASH: LB_POLICY_URI_HASH selects an upstream by consistent hash of the\nrequest URI — useful for cache-friendly fan-out where the same\npath should land on the same backend.\n - LB_POLICY_HEADER: LB_POLICY_HEADER selects an upstream by consistent hash of a\nrequest header. The header name comes from\nService.lb_header_name (required)."
     },
     "v1Matcher": {
       "type": "object",
@@ -528,6 +616,26 @@
             "type": "object",
             "$ref": "#/definitions/v1HeaderMatcher"
           }
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1QueryMatcher"
+          },
+          "description": "queries match against URL query string parameters. Compiles to\nCaddy's `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only)."
+        },
+        "expression": {
+          "type": "string",
+          "description": "expression is a CEL expression evaluated against the request.\nCompiles to Caddy's `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don't fit the simpler\nhost/path/method/header/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms."
+        },
+        "not": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Matcher"
+          },
+          "description": "not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy's\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry's primitives).\nUseful for `match X but not Y`."
         }
       }
     },
@@ -558,6 +666,44 @@
           "type": "string"
         }
       }
+    },
+    "v1PassiveHealthCheck": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire passive block. When false the compiler\nemits nothing — useful for keeping the configured thresholds in\nplace while temporarily disabling enforcement."
+        },
+        "failDurationSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "fail_duration_seconds is the rolling window in which max_fails is\ncounted. Caddy default is 0 (passive checks disabled). Typical\nproduction values are 10–30 seconds."
+        },
+        "maxFails": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_fails is the number of recent failures within fail_duration that\nmarks an upstream unhealthy. Must be \u003e 0 for the threshold to fire."
+        },
+        "unhealthyStatus": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "unhealthy_status is the list of HTTP status codes considered failures\nfor passive accounting. Empty means \"use Caddy default\" (5xx).\nCodes like -1 or wildcards are not supported here — list explicit\ninteger codes (e.g. 500, 502, 503, 504)."
+        },
+        "unhealthyLatencyMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "unhealthy_latency_ms is the response latency threshold above which a\nrequest is counted as a failure. Zero disables latency-based\nfailure accounting."
+        },
+        "unhealthyRequestCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "unhealthy_request_count is the in-flight request count above which\nan upstream is considered overloaded. Zero disables this check."
+        }
+      },
+      "description": "PassiveHealthCheck configures passive (in-band) health checking against\nupstream backends — i.e. health is inferred from the success/failure\npattern of real proxied traffic rather than from synthetic probes.\n\nCompiles to Caddy's `reverse_proxy.health_checks.passive` block. All\nthresholds are evaluated within a sliding window of fail_duration_seconds.\nWhen omitted (passive_health_check = nil) no passive checks are emitted\nand Caddy will only consider an upstream unhealthy via active checks."
     },
     "v1PathMatcher": {
       "type": "object",
@@ -643,6 +789,160 @@
         "POLICY_TYPE_BLOCK_LIST"
       ],
       "default": "POLICY_TYPE_UNSPECIFIED"
+    },
+    "v1QueryMatcher": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "description": "QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy."
+    },
+    "v1RequestHeaders": {
+      "type": "object",
+      "properties": {
+        "set": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "set replaces the value of any matching header (or creates it if\nabsent). Map of header name -\u003e value."
+        },
+        "add": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "add appends a value to the named header (multi-value). Map of\nheader name -\u003e additional value."
+        },
+        "delete": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "delete removes the named headers entirely. List of header names to\ndelete."
+        }
+      },
+      "description": "RequestHeaders mutates request headers BEFORE the request is proxied\nto the upstream. Compiles into a Caddy headers handler positioned\nbefore reverse_proxy."
+    },
+    "v1ResponseErrorPage": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "type": "integer",
+          "format": "int32",
+          "description": "status_code is the response status code to send. Default 502."
+        },
+        "body": {
+          "type": "string",
+          "description": "body is the response body (HTML or JSON)."
+        },
+        "contentType": {
+          "type": "string",
+          "description": "content_type is the Content-Type header value.\nDefault \"text/html; charset=utf-8\"."
+        }
+      },
+      "description": "ResponseErrorPage returns a custom static response when an upstream\nresponse matches a ResponseRule."
+    },
+    "v1ResponseHeaders": {
+      "type": "object",
+      "properties": {
+        "set": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "add": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "delete": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "ResponseHeaders mutates response headers AFTER the response is\nreceived from the upstream. Same set/add/delete semantics as\nRequestHeaders. Compiled into reverse_proxy.headers.response."
+    },
+    "v1ResponseRewrite": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "method overrides the request method (e.g. \"GET\")."
+        },
+        "uri": {
+          "type": "string",
+          "description": "uri rewrites the request URI (e.g. \"/maintenance.html\")."
+        }
+      },
+      "description": "ResponseRewrite overrides the request method and/or URI when an\nupstream response matches a ResponseRule."
+    },
+    "v1ResponseRule": {
+      "type": "object",
+      "properties": {
+        "matchStatusCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "match_status_codes is the list of HTTP status codes this rule\nmatches. Use specific codes (404, 502) or wildcard ranges: \"5xx\"\nmatches 500-599; \"4xx\" matches 400-499."
+        },
+        "rewrite": {
+          "$ref": "#/definitions/v1ResponseRewrite",
+          "description": "rewrite changes the URL/method and replays the request through\nthe gateway's route stack."
+        },
+        "serveErrorPage": {
+          "$ref": "#/definitions/v1ResponseErrorPage",
+          "description": "serve_error_page returns a custom error response without\nre-proxying. Useful for static fallbacks."
+        },
+        "routeTo": {
+          "type": "string",
+          "description": "route_to specifies an alternate route to dispatch to (by\nroute_id) when the upstream returns the matched status."
+        }
+      },
+      "description": "ResponseRule conditionally rewrites or replaces an upstream response\nbased on its status code. Compiles into Caddy's\nreverse_proxy.handle_response array."
+    },
+    "v1RetryPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire block. When false the compiler emits no\nretry config, even if the other fields are set."
+        },
+        "maxRetries": {
+          "type": "integer",
+          "format": "int32",
+          "description": "max_retries is the upper bound on additional attempts after the\ninitial request. Total attempts = 1 + max_retries. Must be \u003e 0\nfor retries to fire."
+        },
+        "retryOnStatus": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "retry_on_status is the list of HTTP status codes that trigger a\nretry. Empty means \"retry only on connection-level errors\"\n(Caddy's default behavior — no status-based retries)."
+        },
+        "tryDurationMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "try_duration_ms is the maximum total time (across all attempts)\nthe proxy will keep trying before returning to the client. Zero\nmeans \"no time bound — keep retrying until max_retries hits\"."
+        },
+        "tryIntervalMs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "try_interval_ms is the wait between retry attempts. Zero retries\nimmediately; use a small backoff (e.g. 50–250ms) for upstreams\nthat need a moment to recover."
+        }
+      },
+      "description": "RetryPolicy configures Caddy's reverse_proxy retry behavior so a\ntransient upstream failure (connection reset, 5xx, dial error) is\nretried against the next upstream before the client sees an error.\n\nCompiled fields:\n  - max_retries  -\u003e reverse_proxy.lb_retries\n  - retry_match  -\u003e reverse_proxy.lb_retry_match (status codes)\n  - try_duration -\u003e reverse_proxy.lb_try_duration (cap on total time)\n  - try_interval -\u003e reverse_proxy.lb_try_interval (gap between tries)\n\nWhen omitted, no retry block is emitted and Caddy will not retry —\nmatching the historical behavior. Retries only kick in when there\nare multiple upstreams; with a single upstream, max_retries is\nsilently ignored by Caddy."
     },
     "v1Route": {
       "type": "object",
@@ -755,6 +1055,46 @@
         "idleTimeoutSeconds": {
           "type": "integer",
           "format": "int32"
+        },
+        "passiveHealthCheck": {
+          "$ref": "#/definitions/v1PassiveHealthCheck"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/v1RetryPolicy"
+        },
+        "upstreamTls": {
+          "$ref": "#/definitions/v1UpstreamTLS"
+        },
+        "connectionPool": {
+          "$ref": "#/definitions/v1ConnectionPool"
+        },
+        "lbCookieName": {
+          "type": "string",
+          "description": "lb_cookie_name is the cookie used by LB_POLICY_COOKIE for sticky\nsessions. Empty defaults to \"lb\". Ignored for non-cookie policies."
+        },
+        "lbHeaderName": {
+          "type": "string",
+          "description": "lb_header_name is the request header consulted by LB_POLICY_HEADER\nto pick an upstream (consistent hash on the header value). Required\nwhen lb_policy = LB_POLICY_HEADER; ignored otherwise."
+        },
+        "requestHeaders": {
+          "$ref": "#/definitions/v1RequestHeaders",
+          "description": "request_headers mutates request headers before proxying to the\nupstream. Compiles into a Caddy headers handler positioned before\nreverse_proxy in the route's handler chain."
+        },
+        "responseHeaders": {
+          "$ref": "#/definitions/v1ResponseHeaders",
+          "description": "response_headers mutates response headers after receiving from the\nupstream. Compiled into reverse_proxy.headers.response."
+        },
+        "responseRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ResponseRule"
+          },
+          "description": "response_rules is a list of status-code-conditional rules that\ndetermine how the gateway handles specific upstream responses.\nCompiled into reverse_proxy.handle_response."
+        },
+        "compression": {
+          "$ref": "#/definitions/v1Compression",
+          "description": "compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen unset or disabled, no encoding handler is emitted."
         }
       }
     },
@@ -781,6 +1121,25 @@
       ],
       "default": "ACTION_UNSPECIFIED"
     },
+    "v1SrvLookup": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "service is the SRV service name (e.g. \"_http._tcp.api.example.com\")."
+        },
+        "proto": {
+          "type": "string",
+          "description": "proto is the SRV protocol (\"tcp\" or \"udp\"). Optional; defaults to \"tcp\"."
+        },
+        "refreshSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "refresh_seconds controls how often Caddy re-resolves the SRV record.\nDefault 60s."
+        }
+      },
+      "description": "SrvLookup discovers upstream targets via DNS SRV records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.srv` source."
+    },
     "v1TLSMode": {
       "type": "string",
       "enum": [
@@ -799,7 +1158,8 @@
           "type": "string"
         },
         "address": {
-          "type": "string"
+          "type": "string",
+          "description": "address is the static dial target (e.g. \"10.0.0.1:8080\"). Used when\nsource is unset. For dynamic upstreams, leave address empty and set\none of the source variants below."
         },
         "weight": {
           "type": "integer",
@@ -813,8 +1173,60 @@
         },
         "dialErr": {
           "type": "string"
+        },
+        "srvLookup": {
+          "$ref": "#/definitions/v1SrvLookup"
+        },
+        "aLookup": {
+          "$ref": "#/definitions/v1ALookup"
         }
       }
+    },
+    "v1UpstreamTLS": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the entire block. When false the compiler emits\nno transport.tls config, regardless of other fields."
+        },
+        "serverName": {
+          "type": "string",
+          "description": "server_name overrides the SNI / certificate-name match when\ndialing the upstream. Required when the upstream cert's SAN\ndoes not match the dial address (e.g. dialing by IP)."
+        },
+        "insecureSkipVerify": {
+          "type": "boolean",
+          "description": "insecure_skip_verify disables certificate verification entirely.\nDev/test only — DO NOT enable in production. Use root_ca_pem\nfor private-CA upstreams instead."
+        },
+        "rootCaPem": {
+          "type": "string",
+          "description": "root_ca_pem is one or more PEM-encoded CA certificates the\ngateway will trust when verifying upstream certs. Empty means\n\"use the system trust store\"."
+        },
+        "clientCertPem": {
+          "type": "string",
+          "description": "client_cert_pem + client_key_pem provide a client certificate\nfor upstream mTLS. Both must be set together; either field\nalone is rejected at validation. Empty disables mTLS."
+        },
+        "clientKeyPem": {
+          "type": "string"
+        },
+        "minVersion": {
+          "type": "string",
+          "description": "min_version / max_version pin the TLS protocol version range.\nAcceptable values: \"1.0\", \"1.1\", \"1.2\", \"1.3\". Empty means\n\"Caddy default\" (1.2 minimum)."
+        },
+        "maxVersion": {
+          "type": "string"
+        },
+        "requestBuffers": {
+          "type": "integer",
+          "format": "int32",
+          "description": "request_buffers is the size in bytes of the buffer for reading\nrequest bodies on their way to the upstream. Zero means Caddy default (4096).\nCompiles to reverse_proxy.transport.request_buffers.\nField numbers 100/101 leave room for future TLS sub-fields while\nclearly separating from the existing TLS parameters."
+        },
+        "responseBuffers": {
+          "type": "integer",
+          "format": "int32",
+          "description": "response_buffers is the size in bytes of the buffer for reading\nupstream response bodies. Zero means Caddy default (4096). Compiles to\nreverse_proxy.transport.response_buffers."
+        }
+      },
+      "description": "UpstreamTLS configures TLS parameters used when the gateway dials\nupstream backends over HTTPS. Compiles into Caddy's\n`reverse_proxy.transport.tls` block.\n\nWhen omitted, Caddy uses default TLS dialing (verify cert against\nsystem roots, ServerName from upstream address). Most production\nconfigurations only need server_name (when fronting an upstream\nwhose cert SAN doesn't match the dial address) and root_ca_pem\n(when the upstream is signed by a private CA).\n\nSECURITY NOTE: insecure_skip_verify=true disables certificate\nverification entirely — it must only be used for development or\nwhen paired with a separate verification mechanism. Production\nconfigs should use root_ca_pem to trust a private CA."
     }
   }
 }

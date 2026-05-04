@@ -66,6 +66,22 @@ make dev              # Build + run daemon in dev mode
 - **CI**: All checks must pass before merge.
 - **Planning**: All work tracked in GitHub Projects/Issues. Bugs, features, and roadmap items managed in the open at the `riokulabs` org level.
 
+## Test execution contract
+
+**Tests run in PR CI, not in git hooks.** This is deliberate; see `contrib-docs/docs/decisions/2026-04-30-test-execution-and-sandbox-cadence.md`.
+
+| Layer | Runs | Authoritative? |
+| --- | --- | --- |
+| `pre-commit` | gofmt + goimports auto-fix on staged Go; per-touched-module `go vet`; `buf lint` on staged proto; `eslint --fix` on staged TS in `packages/web` and `packages/ui`. < 5s typical | No — advisory |
+| `pre-push` | `go vet ./...` smoke on `packages/daemon` + `packages/build-service`. < 3s typical | No — advisory |
+| **PR CI** | Full `go test -race`, `store-matrix-*` (5 required), `golangci-lint`, gofmt/goimports drift check, `buf lint`, `cspell`, full web (lint + typecheck + format + Vitest + Playwright + bundle/ABI), `test-e2e` (sandbox smoke + Playwright) | **Yes — blocks merge** |
+
+Hooks are opt-in via `make hooks`. Full reference: `contrib-docs/docs/development/hooks.md`.
+
+## Sandbox refresh cadence
+
+Per the same decision doc: sandbox seed + smoke harness must be refreshed **at every sprint tie-off**, **on every schema migration**, and **on every new Caddy primitive**. The PR author owns the matching sandbox update; reviewers reject schema/primitive changes that don't include it.
+
 ## Coding Conventions
 
 - **Go**: Standard library preferred. No ORM (raw SQL per-dialect). No external test libraries.
@@ -146,6 +162,31 @@ Will the change break the sandbox? Do seeded users/roles have the permissions ne
 
 - **Plans**: Save to `tmp/plans/YYYY-MM-DD-<feature-name>.md` (git-ignored)
 - **Specs**: Save to `tmp/specs/YYYY-MM-DD-<feature-name>.md` (git-ignored)
+
+## Database test env vars
+
+Integration tests for the config store require a live database. All three variables are **skip-on-unset** — if the variable is absent the test file skips cleanly, so a plain `go test ./...` always passes without any external databases.
+
+| Variable | Format | Purpose |
+| --- | --- | --- |
+| `POSTGRES_TEST_DSN` | `postgres://user:pass@host:port/db?sslmode=disable` | Postgres integration tests |
+| `MYSQL_TEST_DSN` | `user:pass@tcp(host:port)/db?parseTime=true&loc=UTC&multiStatements=true` | MySQL / MariaDB integration tests |
+| `GALERA_TEST_DSNS` | comma-separated list of the above format | Multi-node Galera tests (3+ DSNs recommended) |
+
+### CI job names
+
+Branch protection should require all five jobs. The sixth is non-blocking.
+
+| Job name | Required? |
+| --- | --- |
+| `store-matrix-sqlite` | Yes |
+| `store-matrix-postgres-15` | Yes |
+| `store-matrix-postgres-18` | Yes |
+| `store-matrix-mysql-8-4` | Optional (non-blocking — migration rewrite pending) |
+| `store-matrix-mariadb-11-4` | Optional (non-blocking — migration rewrite pending) |
+| `store-matrix-mariadb-11-8` | Optional (non-blocking) |
+
+See `contrib-docs/docs/development/store-test-matrix.md` for the full env-var contract.
 
 ## Ports (configurable)
 

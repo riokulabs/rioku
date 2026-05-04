@@ -1,0 +1,1059 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "rioku/v1/ai_gateway.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "AIGatewayService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/ai/virtual-keys": {
+      "get": {
+        "operationId": "AIGatewayService_ListVirtualKeys",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVirtualKeysResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "summary": "Virtual keys",
+        "operationId": "AIGatewayService_CreateVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateVirtualKeyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}": {
+      "get": {
+        "operationId": "AIGatewayService_GetVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "delete": {
+        "operationId": "AIGatewayService_DeleteVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceUpdateVirtualKeyBody"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}/revoke": {
+      "post": {
+        "operationId": "AIGatewayService_RevokeVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceRevokeVirtualKeyBody"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}/rotate": {
+      "post": {
+        "operationId": "AIGatewayService_RotateVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VirtualKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceRotateVirtualKeyBody"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/permissions/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_RemoveMCPTeamPermission",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/routes": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPRoutes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListMCPRoutesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "summary": "MCP routes",
+        "operationId": "AIGatewayService_CreateMCPRoute",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPRoute"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateMCPRouteRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/routes/{id}": {
+      "get": {
+        "operationId": "AIGatewayService_GetMCPRoute",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPRoute"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "delete": {
+        "operationId": "AIGatewayService_DeleteMCPRoute",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateMCPRoute",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPRoute"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceUpdateMCPRouteBody"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/teams": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPTeams",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListMCPTeamsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "summary": "MCP teams",
+        "operationId": "AIGatewayService_CreateMCPTeam",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeam"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateMCPTeamRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/teams/{id}": {
+      "get": {
+        "operationId": "AIGatewayService_GetMCPTeam",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeam"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "delete": {
+        "operationId": "AIGatewayService_DeleteMCPTeam",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MutationMeta"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateMCPTeam",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeam"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceUpdateMCPTeamBody"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/teams/{teamId}/permissions": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPTeamPermissions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListMCPTeamPermissionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "summary": "MCP team permissions",
+        "operationId": "AIGatewayService_AddMCPTeamPermission",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MCPTeamPermission"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AIGatewayServiceAddMCPTeamPermissionBody"
+            }
+          }
+        ],
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "AIGatewayServiceAddMCPTeamPermissionBody": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        }
+      }
+    },
+    "AIGatewayServiceRevokeVirtualKeyBody": {
+      "type": "object"
+    },
+    "AIGatewayServiceRotateVirtualKeyBody": {
+      "type": "object",
+      "properties": {
+        "newCredentialRef": {
+          "type": "string"
+        }
+      }
+    },
+    "AIGatewayServiceUpdateMCPRouteBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "pathPrefix": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "authPassthrough": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AIGatewayServiceUpdateMCPTeamBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "AIGatewayServiceUpdateVirtualKeyBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "allowedModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "To clear allowed_models replace with an empty list and set\nreplace_allowed_models = true (clients must be explicit so an\nunset list does not accidentally drop the existing filter)."
+        },
+        "replaceAllowedModels": {
+          "type": "boolean"
+        },
+        "rpmLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tpmLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "budgetUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "budgetWindow": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1CreateMCPRouteRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "pathPrefix": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "authPassthrough": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1CreateMCPTeamRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateVirtualKeyRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "allowedModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rpmLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tpmLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "budgetUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "budgetWindow": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListMCPRoutesResponse": {
+      "type": "object",
+      "properties": {
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MCPRoute"
+          }
+        }
+      }
+    },
+    "v1ListMCPTeamPermissionsResponse": {
+      "type": "object",
+      "properties": {
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MCPTeamPermission"
+          }
+        }
+      }
+    },
+    "v1ListMCPTeamsResponse": {
+      "type": "object",
+      "properties": {
+        "teams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MCPTeam"
+          }
+        }
+      }
+    },
+    "v1ListVirtualKeysResponse": {
+      "type": "object",
+      "properties": {
+        "virtualKeys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1VirtualKey"
+          }
+        }
+      }
+    },
+    "v1MCPRoute": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "pathPrefix": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "authPassthrough": {
+          "type": "string",
+          "title": "forward|replace|strip"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1MCPTeam": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "title": "active|paused|closed"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1MCPTeamPermission": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "teamId": {
+          "type": "string"
+        },
+        "mcpServerId": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1MutationMeta": {
+      "type": "object",
+      "properties": {
+        "configVersion": {
+          "type": "string",
+          "format": "int64"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "mutatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1VirtualKey": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string",
+          "title": "vault://... or empty"
+        },
+        "allowedModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rpmLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tpmLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "budgetUsd": {
+          "type": "number",
+          "format": "double"
+        },
+        "budgetWindow": {
+          "type": "string",
+          "title": "minute|hour|day|month"
+        },
+        "revokedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -34,17 +34,17 @@ Format is INI with named profiles, exactly like `~/.aws/config`. Sensitive value
 
 ```ini
 [default]
-daemon_addr = https://localhost:9090
+daemon_addr = https://localhost:7778
 token       = rku_tok_xxxxxxxxxxxxxxxx
 output      = table
 
 [profile homelab]
-daemon_addr = https://gateway.homelab.internal:9090
+daemon_addr = https://gateway.homelab.internal:7778
 token       = rku_tok_yyyyyyyyyyyyyyyy
 output      = json
 
 [profile prod]
-daemon_addr = https://gateway.prod.internal:9090
+daemon_addr = https://gateway.prod.internal:7778
 token       = rku_tok_zzzzzzzzzzzzzzzz
 output      = table
 ```
@@ -134,7 +134,7 @@ $ rku init
 Initializing Rioku...
   Store backend [sqlite]:
   Data directory [/var/lib/rioku]:
-  Listen address [0.0.0.0:9090]:
+  Listen address [0.0.0.0:7778]:
 
 ✓ Config written to /etc/rioku/rioku.yaml
 ✓ Bootstrap token: rku_tok_xxxxxxxxxxxxxxxx
@@ -148,7 +148,7 @@ Run 'rku start' to launch the daemon.
 rku init \
   --store sqlite \
   --data-dir /var/lib/rioku \
-  --listen 0.0.0.0:9090 \
+  --listen 0.0.0.0:7778 \
   --non-interactive
 ```
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/google/uuid"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -64,10 +64,7 @@ func superadminRoleID(t *testing.T, drv store.Driver) string {
 func createTestUserDirect(t *testing.T, drv store.Driver, username, password string) string {
 	t.Helper()
 	ctx := context.Background()
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, password)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -536,6 +533,151 @@ func TestRBACRoutes_AssignRole_MissingRoleID(t *testing.T) {
 // ---------------------------------------------------------------------------
 // handleRevokeRole
 // ---------------------------------------------------------------------------
+
+// loginAsLimited logs in as the given username/password and returns
+// a session-cookie-bearing client. Used to simulate non-superadmin
+// callers in escalation tests.
+func loginAsLimited(t *testing.T, serverURL, username, password string) *http.Client {
+	t.Helper()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+
+	resp := doJSON(t, client, http.MethodPost, serverURL+"/api/v1/auth/login", map[string]string{
+		"username": username,
+		"password": password,
+	})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("limited login: expected 200, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+	return client
+}
+
+// seedLimitedUser creates a custom role with the supplied permission
+// set, assigns it to a fresh user, and returns the username/password.
+func seedLimitedUser(t *testing.T, drv store.Driver, perms []string) (string, string) {
+	t.Helper()
+	ctx := context.Background()
+
+	username := "limited-" + uuidShort()
+	password := "PassABCD!!"
+	createTestUserDirect(t, drv, username, password)
+
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	role, err := tx.CreateRole(ctx, store.CreateRoleParams{
+		ID:          "role_" + uuidShort(),
+		Name:        "limited-" + uuidShort(),
+		Description: "test escalation harness",
+		Permissions: perms,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := tx.GetUserByUsername(ctx, username)
+	if err != nil {
+		t.Fatalf("seedLimitedUser: GetUserByUsername(%q): %v", username, err)
+	}
+	if err := tx.AssignRole(ctx, user.ID, role.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	return username, password
+}
+
+func uuidShort() string {
+	return uuid.NewString()[:8]
+}
+
+func TestRBACRoutes_CreateRole_EscalationRejected(t *testing.T) {
+	server, drv, _ := setupRBACTestServer(t)
+	username, password := seedLimitedUser(t, drv, []string{"roles:manage", "roles:read"})
+	client := loginAsLimited(t, server.URL, username, password)
+
+	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/roles", createRoleRequest{
+		Name:        "would-escalate",
+		Description: "should be denied",
+		Permissions: []string{"roles:read", "users:manage"}, // users:manage not held
+	})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusForbidden {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 403, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+
+	// Confirm an audit row was committed.
+	ctx := context.Background()
+	tx, err := drv.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	entries, err := tx.QueryAuditLog(ctx, store.AuditQuery{Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range entries {
+		if e.GetPayloadSchema() == "auth.role_escalation_rejected.v1" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected at least one auth.role_escalation_rejected.v1 audit entry")
+	}
+}
+
+func TestRBACRoutes_UpdateRole_EscalationRejected(t *testing.T) {
+	server, drv, rootPassword := setupRBACTestServer(t)
+
+	// Root creates a baseline role (with one of the permissions a limited
+	// user holds) so the limited user can attempt to escalate it.
+	rootClient := loginAsRoot(t, server.URL, rootPassword)
+	createResp := doJSON(t, rootClient, http.MethodPost, server.URL+"/api/v1/roles", createRoleRequest{
+		Name:        "baseline-" + uuidShort(),
+		Description: "baseline",
+		Permissions: []string{"roles:read"},
+	})
+	defer func() { _ = createResp.Body.Close() }()
+	if createResp.StatusCode != http.StatusCreated {
+		t.Fatalf("baseline create: %d", createResp.StatusCode)
+	}
+	var baseline roleResponse
+	if err := json.NewDecoder(createResp.Body).Decode(&baseline); err != nil {
+		t.Fatal(err)
+	}
+
+	// Switch to a limited user and try to add a permission the actor
+	// doesn't have.
+	username, password := seedLimitedUser(t, drv, []string{"roles:manage", "roles:read"})
+	client := loginAsLimited(t, server.URL, username, password)
+
+	resp := doJSON(t, client, http.MethodPatch, server.URL+"/api/v1/roles/"+baseline.ID, updateRoleRequest{
+		AddPerms: []string{"users:manage"},
+	})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusForbidden {
+		var pd ProblemDetail
+		_ = json.NewDecoder(resp.Body).Decode(&pd)
+		t.Fatalf("expected 403, got %d: %s", resp.StatusCode, pd.Detail)
+	}
+}
 
 func TestRBACRoutes_RevokeRole(t *testing.T) {
 	server, drv, rootPassword := setupRBACTestServer(t)

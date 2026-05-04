@@ -1,9 +1,9 @@
 # Rioku — Architecture Design Document
 
-**Version:** 0.4
+**Version:** 0.5
 **Status:** Partially implemented (see inline notes)
-**Last Updated:** 2026-04-09
-**Supersedes:** Design Doc v0.3
+**Last Updated:** 2026-04-30
+**Supersedes:** Design Doc v0.4
 
 ---
 
@@ -27,11 +27,18 @@
 └─────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│  Caddy process   │    │  SQLite/PG/      │    │  Valkey          │
-│  (child, mgd)    │    │  MariaDB         │    │  (optional       │
-│                  │    │  (config         │    │  module)         │
-│                  │    │  store)          │    │                  │
+│  Caddy process   │    │  SQLite /        │    │  Valkey          │
+│  (child, mgd)    │    │  Postgres /      │    │  (optional       │
+│                  │    │  MySQL+MariaDB   │    │  module)         │
+│                  │    │  (config store,  │    │                  │
+│                  │    │  3 first-class)  │    │                  │
 └──────────────────┘    └──────────────────┘    └──────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  OTLP exporter (logs)  →  external collector            │
+│  Optional; configured via observability section in      │
+│  rioku.yaml. Direct otel/sdk/log dep, no plugin shim.   │
+└─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
 │  Admin SPA (React 19 + TanStack, go:embed into daemon)  │
@@ -176,6 +183,12 @@ Bearer token, issued by the daemon's own bootstrap auth (first-party JWT, no ext
 
 ## 5. Config Store
 
+**As of stage-2, SQLite, PostgreSQL 15+, and MySQL 8.4 LTS / MariaDB 11.4 LTS are all first-class storage backends.** All three dialects have complete migration files, full integration test coverage, and are tested in CI on every PR. See `store-test-matrix.md` for the env-var contract and CI job names.
+
+- **SQLite** — default for single-node deployments. Zero ops, embedded, no external process.
+- **PostgreSQL 15+** — recommended for small clusters (primary + replicas). Simple HA via streaming replication.
+- **MySQL 8.4 LTS / MariaDB 11.4 LTS with Galera** — recommended for HA multi-master deployments (3+ nodes). Certification-based conflict resolution; no write single point of failure.
+
 ### 5.1 Driver Abstraction
 
 The config engine never talks to a database directly. All access goes through the `StoreDriver` interface:
@@ -240,11 +253,13 @@ config_changes   -- polling-based change notification (see 5.5)
 
 ### 5.3 Deployment Recommendations
 
+All three backends are first-class and fully supported. Choose based on your operational requirements:
+
 | Deployment | Store | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Single node, dev/small prod | SQLite | Zero ops, embedded, no external process |
-| Small cluster (2-5 nodes) | Postgres (primary + replicas) | Simple HA, streaming replication |
-| Large cluster / HA | MariaDB Galera (3+ nodes) | Multi-master, no write single point of failure |
+| Small cluster (2–5 nodes) | PostgreSQL 15+ (primary + replicas) | Simple HA, streaming replication; recommended for most cluster deployments |
+| Large cluster / HA multi-master | MySQL 8.4 LTS / MariaDB 11.4 LTS + Galera (3+ nodes) | Multi-master, no write single point of failure; recommended for HA |
 | Galera minimum viable | 3 nodes | Quorum requires odd number; 2-node is an anti-pattern |
 
 **Important:** Rioku's config store sees low write volume (gateway config, not request logs). Galera is chosen for **correctness** (no split-brain on config changes) not write throughput. Document this clearly so operators don't think Galera is needed for high traffic.

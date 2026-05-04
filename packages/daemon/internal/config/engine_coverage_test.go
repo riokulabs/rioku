@@ -630,6 +630,7 @@ func TestTranslateChangeEvent(t *testing.T) {
 			evt := translateChangeEvent(ce)
 			if evt == nil {
 				t.Fatal("expected non-nil ConfigEvent")
+				return
 			}
 			if evt.Type != tt.wantType {
 				t.Fatalf("expected event type %v, got %v", tt.wantType, evt.Type)

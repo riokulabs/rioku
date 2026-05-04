@@ -1,0 +1,22 @@
+-- Sprint 4 Phase 1a (#164): Plans table. See sqlite migration for
+-- the design discussion. Postgres uses CHECK constraints for the
+-- enums; the application layer treats them as the source of truth.
+CREATE TABLE plans (
+    id                    TEXT PRIMARY KEY,
+    tenant_id             TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    api_id                TEXT NOT NULL,
+    name                  TEXT NOT NULL,
+    description           TEXT NOT NULL DEFAULT '',
+    security_type         TEXT NOT NULL CHECK (security_type IN ('api_key', 'jwt', 'oidc', 'oauth2', 'mtls', 'none')),
+    validation            TEXT NOT NULL DEFAULT 'auto' CHECK (validation IN ('auto', 'manual')),
+    status                TEXT NOT NULL DEFAULT 'staging' CHECK (status IN ('staging', 'published', 'deprecated', 'archived')),
+    rate_limit_per_minute INTEGER NOT NULL DEFAULT 0,
+    quota_per_day         INTEGER NOT NULL DEFAULT 0,
+    selection_rule        TEXT NOT NULL DEFAULT '',
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_plans_tenant ON plans (tenant_id);
+CREATE INDEX idx_plans_api    ON plans (api_id);
+CREATE INDEX idx_plans_status ON plans (status);
+CREATE UNIQUE INDEX idx_plans_tenant_name ON plans (tenant_id, name);

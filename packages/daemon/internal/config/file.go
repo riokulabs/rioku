@@ -10,7 +10,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -43,15 +45,69 @@ type Config struct {
 
 // LoggingConfig controls daemon log output.
 type LoggingConfig struct {
-	Level  string        `yaml:"level"`
-	Format string        `yaml:"format"`
-	Output string        `yaml:"output"`
-	File   LogFileConfig `yaml:"file"`
+	Level       string        `yaml:"level"`
+	Format      string        `yaml:"format"`
+	Output      string        `yaml:"output"`
+	File        LogFileConfig `yaml:"file"`
+	OTLP        LogOTLPConfig `yaml:"otlp"`
+	RedactRules []FilterRule  `yaml:"redact_rules"`
+}
+
+// FilterRule describes a single PII redaction rule applied to log
+// records before they are emitted by downstream handlers. The rule
+// type lives in the config package (and not in internal/logging) to
+// avoid an import cycle: internal/logging already imports
+// internal/config.
+//
+// Kind selects the redaction algorithm:
+//
+//   - "ip_mask"       — masks IP-typed or IP-string attribute values.
+//     IPv4: zero the last octet. IPv6: zero the
+//     last 64 bits.
+//   - "hash"          — replaces the value with `sha256:<8-hex-prefix>`
+//     of the original. Deterministic, so the same
+//     input yields the same output across log lines
+//     (correlation-safe).
+//   - "cookie_redact" — when the attribute key matches `cookie` or
+//     `set-cookie` (case-insensitive), parses the
+//     cookie string and replaces VALUE portions with
+//     `[redacted]` while preserving cookie names.
+//
+// Target is the exact attribute key the rule applies to. Glob matching
+// (e.g. `request.headers.*`) is a planned follow-up; v1 honours exact
+// match only.
+//
+// Params is reserved for future-facing rule configuration. v1 does not
+// consume any params (kept for forward compatibility).
+type FilterRule struct {
+	Kind   string            `yaml:"kind"`
+	Target string            `yaml:"target"`
+	Params map[string]string `yaml:"params"`
 }
 
 // LogFileConfig controls file-based log output.
 type LogFileConfig struct {
 	Path string `yaml:"path"`
+}
+
+// LogOTLPConfig controls OTLP log shipping. When Enabled is false,
+// no OTLP exporter is attached and logs flow only to the configured
+// Output (stderr/file/both).
+type LogOTLPConfig struct {
+	// Enabled toggles OTLP log shipping. Default: false.
+	Enabled bool `yaml:"enabled"`
+	// Endpoint is the collector endpoint, e.g. "https://otel.example.com:4318"
+	// for HTTP or "otel.example.com:4317" for gRPC.
+	Endpoint string `yaml:"endpoint"`
+	// Protocol is "http/protobuf" (default) or "grpc".
+	Protocol string `yaml:"protocol"`
+	// Headers is a map of HTTP/gRPC headers (e.g., authorization tokens).
+	Headers map[string]string `yaml:"headers"`
+	// Insecure disables TLS verification (use only for local collectors).
+	Insecure bool `yaml:"insecure"`
+	// ServiceName overrides the OTel resource service.name. Default:
+	// "rioku-daemon".
+	ServiceName string `yaml:"service_name"`
 }
 
 // --------------------------------------------------------------------------
@@ -118,6 +174,30 @@ type ListenConfig struct {
 	REST         string `yaml:"rest"`
 	AdminDomain  string `yaml:"admin_domain"` // optional; dedicated domain for admin with auto-TLS
 	InternalPort int    `yaml:"internal_port"`
+
+	// TLSAskAddr is the loopback-only address the on-demand TLS `ask`
+	// endpoint binds to. Caddy's TLS automation calls into this URL
+	// during the TLS handshake to validate that an unknown SNI value
+	// corresponds to a configured route — without it, anyone can DoS
+	// our ACME issuance allowance. MUST be a loopback host (127.x.x.x,
+	// ::1, or localhost). Default: "127.0.0.1:7790".
+	TLSAskAddr string `yaml:"tls_ask_addr"`
+
+	// KeyValidatorAddr is the loopback-only address the API-key
+	// validation endpoint binds to (#179, #189). The rioku_apikey
+	// Caddy module POSTs the SHA-256 hash of inbound keys here and
+	// receives the resolved chain (Key → Subscription → Plan).
+	// MUST be a loopback host. Default: "127.0.0.1:7791". Empty
+	// disables the endpoint — Caddy plugins that depend on it must
+	// configure their own validator endpoint when this is off.
+	KeyValidatorAddr string `yaml:"key_validator_addr"`
+
+	// AIGatewayAddr is the loopback-only address the daemon-side AI
+	// gateway HTTP server binds to (D7, #168). Caddy reverse-proxies
+	// to this port for AI routes (/v1/chat/completions etc.). MUST be
+	// a loopback host. Default: "127.0.0.1:7792". Empty disables the
+	// AI gateway — operators with no AI routes can leave it off.
+	AIGatewayAddr string `yaml:"ai_gateway_addr"`
 }
 
 // --------------------------------------------------------------------------
@@ -130,6 +210,14 @@ type CaddyConfig struct {
 	AdminAddr    string   `yaml:"admin_addr"`
 	DataDir      string   `yaml:"data_dir"`
 	TrafficAddrs []string `yaml:"traffic_addrs"` // listen addresses for user traffic server block (default: [":443"])
+
+	// OnDemandTLS turns on Caddy's on-demand TLS automation: instead of
+	// pre-provisioning certificates for every configured route, Caddy
+	// provisions them on the first TLS handshake for an unknown SNI.
+	// When true, the compiler injects an `apps.tls.automation.on_demand.ask`
+	// URL pointing at the daemon's local /tls/ask endpoint so we gate
+	// which domains Caddy is willing to issue for. See #66.
+	OnDemandTLS bool `yaml:"on_demand_tls"`
 }
 
 // --------------------------------------------------------------------------
@@ -341,9 +429,12 @@ func Default() *Config {
 			},
 		},
 		Listen: ListenConfig{
-			GRPC:         ":7777",
-			REST:         ":7778",
-			InternalPort: 7780,
+			GRPC:             ":7777",
+			REST:             ":7778",
+			InternalPort:     7780,
+			TLSAskAddr:       "127.0.0.1:7790",
+			KeyValidatorAddr: "127.0.0.1:7791",
+			AIGatewayAddr:    "127.0.0.1:7792",
 		},
 		Caddy: CaddyConfig{
 			Binary:       "caddy",
@@ -648,6 +739,34 @@ var validPassphraseSources = map[string]bool{
 	"encrypted-file": true,
 }
 
+// isLoopbackAddr reports whether addr binds only to a loopback host.
+// Accepts host:port shapes ("127.0.0.1:7791"), bracket-wrapped IPv6
+// ("[::1]:7791"), or bare hostnames ("localhost:7791"). Empty host
+// means INADDR_ANY ("0.0.0.0" / ":7791") and is rejected.
+func isLoopbackAddr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		// Treat malformed addresses as non-loopback so the operator
+		// has to fix the syntax before the daemon binds.
+		return false
+	}
+	if host == "" {
+		// Bare ":7791" listens on all interfaces.
+		return false
+	}
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Non-localhost hostname — reject; the daemon would resolve
+		// it via DNS at bind time and we can't safely promise the
+		// address is loopback without that lookup.
+		return false
+	}
+	return ip.IsLoopback()
+}
+
 // validate checks the config for required fields, valid enum values,
 // and internal consistency.
 func validate(cfg *Config) error {
@@ -717,6 +836,18 @@ func validate(cfg *Config) error {
 	if (cfg.Logging.Output == "file" || cfg.Logging.Output == "both") && cfg.Logging.File.Path == "" {
 		errs = append(errs, fmt.Errorf("logging.file.path: required when output is %q", cfg.Logging.Output))
 	}
+	// OTLP logging validation (only when enabled).
+	if cfg.Logging.OTLP.Enabled {
+		if cfg.Logging.OTLP.Endpoint == "" {
+			errs = append(errs, fmt.Errorf("logging.otlp.endpoint: required when otlp is enabled"))
+		}
+		switch cfg.Logging.OTLP.Protocol {
+		case "", "http/protobuf", "grpc":
+			// valid
+		default:
+			errs = append(errs, fmt.Errorf("logging.otlp.protocol: must be http/protobuf or grpc (got %q)", cfg.Logging.OTLP.Protocol))
+		}
+	}
 
 	// traces.store
 	if cfg.Traces.Store != "" && !validTraceStores[cfg.Traces.Store] {
@@ -745,6 +876,28 @@ func validate(cfg *Config) error {
 	}
 	if cfg.Listen.REST == "" {
 		errs = append(errs, errors.New("listen.rest address is required"))
+	}
+
+	// Loopback-only listeners. The keyvalidator + AI gateway + tls-ask
+	// endpoints carry no auth themselves — network-level isolation
+	// IS the trust boundary. Refuse to start if an operator binds them
+	// to a non-loopback host (an unauth key-validation oracle / AI
+	// proxy / TLS issuance bypass exposed on the network).
+	for _, lb := range []struct {
+		field, addr string
+	}{
+		{"listen.tls_ask_addr", cfg.Listen.TLSAskAddr},
+		{"listen.key_validator_addr", cfg.Listen.KeyValidatorAddr},
+		{"listen.ai_gateway_addr", cfg.Listen.AIGatewayAddr},
+	} {
+		if lb.addr == "" {
+			continue
+		}
+		if !isLoopbackAddr(lb.addr) {
+			errs = append(errs, fmt.Errorf(
+				"%s = %q must bind to a loopback host (127.0.0.0/8, ::1, or localhost) — these endpoints carry no auth and rely on network isolation",
+				lb.field, lb.addr))
+		}
 	}
 
 	// data_dir must not be empty

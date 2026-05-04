@@ -21,13 +21,16 @@ import (
 
 // Server wraps a gRPC server with registered Rioku services.
 type Server struct {
-	grpcServer *grpc.Server
-	listener   net.Listener
-	addr       string
-	configSvc  riokuv1.ConfigServiceServer
-	healthSvc  riokuv1.HealthServiceServer
-	trafficSvc riokuv1.TrafficServiceServer
-	log        *slog.Logger
+	grpcServer   *grpc.Server
+	listener     net.Listener
+	addr         string
+	configSvc    riokuv1.ConfigServiceServer
+	healthSvc    riokuv1.HealthServiceServer
+	trafficSvc   riokuv1.TrafficServiceServer
+	apiMgmtSvc   riokuv1.APIManagementServiceServer
+	aiGatewaySvc riokuv1.AIGatewayServiceServer
+	wafSvc       riokuv1.WAFServiceServer
+	log          *slog.Logger
 }
 
 // NewServer creates a gRPC server with ConfigService, HealthService, and
@@ -38,20 +41,31 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 		return nil, fmt.Errorf("grpc: listen %s: %w", addr, err)
 	}
 
-	var opts []grpc.ServerOption
+	// Logging interceptors run first so request_id / trace_id are in
+	// context for any downstream interceptor (auth, etc.) and handler.
+	unaryChain := []grpc.UnaryServerInterceptor{UnaryLoggingInterceptor()}
+	streamChain := []grpc.StreamServerInterceptor{StreamLoggingInterceptor()}
 	if a != nil {
-		opts = append(opts,
-			grpc.UnaryInterceptor(UnaryAuthInterceptor(a)),
-			grpc.StreamInterceptor(StreamAuthInterceptor(a)),
-		)
+		unaryChain = append(unaryChain, UnaryAuthInterceptor(a))
+		streamChain = append(streamChain, StreamAuthInterceptor(a))
+	}
+	opts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(unaryChain...),
+		grpc.ChainStreamInterceptor(streamChain...),
 	}
 	gs := grpc.NewServer(opts...)
 
 	cfgSvc := newConfigService(engine)
 	healthSvc := newHealthService(st, caddyMgr)
+	apiMgmtSvc := newAPIManagementService(st, nil) // webhook emitter wired post-Sprint-4 Phase 1e
+	aiGatewaySvc := newAIGatewayService(st)
+	wafSvc := newWAFService(st)
 
 	riokuv1.RegisterConfigServiceServer(gs, cfgSvc)
 	riokuv1.RegisterHealthServiceServer(gs, healthSvc)
+	riokuv1.RegisterAPIManagementServiceServer(gs, apiMgmtSvc)
+	riokuv1.RegisterAIGatewayServiceServer(gs, aiGatewaySvc)
+	riokuv1.RegisterWAFServiceServer(gs, wafSvc)
 
 	var trafficSvc riokuv1.TrafficServiceServer
 	if traceBuf != nil && traceStore != nil {
@@ -63,14 +77,29 @@ func NewServer(addr string, engine *config.Engine, st store.Driver, caddyMgr *ca
 	reflection.Register(gs)
 
 	return &Server{
-		grpcServer: gs,
-		listener:   lis,
-		addr:       addr,
-		configSvc:  cfgSvc,
-		healthSvc:  healthSvc,
-		trafficSvc: trafficSvc,
-		log:        logger,
+		grpcServer:   gs,
+		listener:     lis,
+		addr:         addr,
+		configSvc:    cfgSvc,
+		healthSvc:    healthSvc,
+		trafficSvc:   trafficSvc,
+		apiMgmtSvc:   apiMgmtSvc,
+		aiGatewaySvc: aiGatewaySvc,
+		wafSvc:       wafSvc,
+		log:          logger,
 	}, nil
+}
+
+// AIGatewayService returns the registered AIGatewayService server
+// implementation (Sprint 5: virtual keys + MCP gateway).
+func (s *Server) AIGatewayService() riokuv1.AIGatewayServiceServer {
+	return s.aiGatewaySvc
+}
+
+// WAFService returns the registered WAFService server implementation
+// (#172, #203 — denial-list read path).
+func (s *Server) WAFService() riokuv1.WAFServiceServer {
+	return s.wafSvc
 }
 
 // Start begins serving gRPC requests. Blocks until Stop is called.
@@ -105,3 +134,9 @@ func (s *Server) HealthService() riokuv1.HealthServiceServer { return s.healthSv
 // TrafficService returns the registered TrafficService server implementation,
 // or nil if the tracestore was not configured.
 func (s *Server) TrafficService() riokuv1.TrafficServiceServer { return s.trafficSvc }
+
+// APIManagementService returns the registered APIManagementService
+// server implementation (#164, Sprint 4 Phase 1b).
+func (s *Server) APIManagementService() riokuv1.APIManagementServiceServer {
+	return s.apiMgmtSvc
+}

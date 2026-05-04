@@ -442,6 +442,7 @@ func TestSessionContextHelpers(t *testing.T) {
 	got := auth.SessionClaimsFromContext(ctx)
 	if got == nil {
 		t.Fatal("expected claims from context, got nil")
+		return
 	}
 	if got.SessionID != "sid-1" {
 		t.Errorf("SessionID = %q, want %q", got.SessionID, "sid-1")

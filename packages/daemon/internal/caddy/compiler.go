@@ -5,8 +5,6 @@ package caddy
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"strings"
 
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
@@ -29,10 +27,33 @@ type AdminConfig struct {
 	DevMode bool
 }
 
-// TrustedProxiesConfig specifies CIDR ranges of trusted reverse proxies
-// so Caddy uses the correct client IP from X-Forwarded-For.
+// TrustedProxiesConfig specifies which CIDR sources Caddy trusts for
+// X-Forwarded-For / client IP resolution.
+//
+// Static contains always-trusted CIDR ranges. Dynamic holds a list of
+// named strategies (e.g. "cloudflare", "static-url") that are refreshed
+// periodically. Each entry corresponds to one TrustedProxiesDynamic proto
+// value stored in the daemon config.
 type TrustedProxiesConfig struct {
-	Ranges []string // CIDR ranges, e.g. ["10.0.0.0/8", "172.16.0.0/12"]
+	// Ranges are always-trusted CIDR ranges (static sources).
+	// e.g. ["10.0.0.0/8", "172.16.0.0/12"]
+	Ranges []string
+
+	// Dynamic holds entries for dynamic CIDR strategies.
+	Dynamic []TrustedProxiesDynamicConfig
+}
+
+// TrustedProxiesDynamicConfig is the Go-level representation of one dynamic
+// trusted-proxy strategy, mirroring the TrustedProxiesDynamic proto message.
+type TrustedProxiesDynamicConfig struct {
+	// Strategy is the source name: "cloudflare" or "static" (URL-based refresh).
+	Strategy string
+
+	// URL is the refresh endpoint for the "static" strategy.
+	URL string
+
+	// RefreshSeconds is how often to re-fetch. Zero uses the default (3600s).
+	RefreshSeconds int32
 }
 
 // SecurityHeadersConfig controls which security response headers the compiler
@@ -56,13 +77,39 @@ type HSTSConfig struct {
 	IncludeSubdomains bool
 }
 
+// OnDemandTLSConfig controls Caddy's on-demand TLS automation. When
+// Enabled is true the compiler emits an `apps.tls.automation.on_demand.ask`
+// URL pointing at AskURL — Caddy calls into that URL during the TLS
+// handshake to validate that an unknown SNI matches a configured route.
+// This is the security gate from issue #66.
+type OnDemandTLSConfig struct {
+	// Enabled turns the entire feature on. When false the compiler
+	// emits no TLS automation block and Caddy falls back to its
+	// default certificate-management behavior.
+	Enabled bool
+
+	// AskURL is the absolute URL Caddy will call to validate an SNI.
+	// Typically "http://127.0.0.1:7790/tls/ask" — must be reachable
+	// from the Caddy process. Required when Enabled is true.
+	AskURL string
+
+	// IntervalSeconds and Burst are passed through to Caddy's
+	// `apps.tls.automation.on_demand.rate_limit` block when both are
+	// > 0. They form a secondary defence on top of the ask gate
+	// against runaway issuance attempts.
+	IntervalSeconds int
+	Burst           int
+}
+
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
-	trafficAddrs    []string
-	admin           AdminConfig
-	traceSocketPath string
-	trustedProxies  *TrustedProxiesConfig
-	securityHeaders SecurityHeadersConfig
+	trafficAddrs     []string
+	admin            AdminConfig
+	traceSocketPath  string
+	trustedProxies   *TrustedProxiesConfig
+	securityHeaders  SecurityHeadersConfig
+	onDemandTLS      OnDemandTLSConfig
+	wafAuditEndpoint string
 }
 
 // NewCompiler creates a compiler with the given traffic listen addresses, admin config,
@@ -76,9 +123,61 @@ func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath strin
 	return &Compiler{trafficAddrs: addrs, admin: admin, traceSocketPath: traceSocketPath, trustedProxies: trustedProxies, securityHeaders: secHeaders}
 }
 
+// SetOnDemandTLS enables (or disables) on-demand TLS provisioning in
+// future Compile() calls. Callers are expected to invoke this after
+// construction once the daemon knows the local AskURL.
+func (c *Compiler) SetOnDemandTLS(cfg OnDemandTLSConfig) {
+	c.onDemandTLS = cfg
+}
+
+// SetWAFAuditEndpoint sets the daemon-side `/waf-record` URL Coraza
+// POSTs JSON-formatted audit logs to (#203 follow-up). Empty disables
+// the audit-log directives. Threaded into every WAF-enabled route's
+// directives at compile time when set; passing PerRoutePlugins also
+// allows per-snapshot overrides via WAFAuditEndpoint.
+func (c *Compiler) SetWAFAuditEndpoint(url string) {
+	c.wafAuditEndpoint = url
+}
+
+// CompileWithPlugins compiles the snapshot with the supplied per-route
+// plugin configuration (#171 OAS validator, #172 Coraza WAF). It is
+// the entry point used by config.Engine when it has loaded the
+// per-route plugin maps inside the same store transaction as the
+// snapshot. Test callers and the bare Compile method use this with
+// an empty PerRoutePlugins value.
+//
+// CompileWithPlugins does not mutate the receiver — the per-route
+// configuration is threaded down to each CompileRoute call, so the
+// compiler remains safe for concurrent use across goroutines.
+func (c *Compiler) CompileWithPlugins(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePlugins) ([]byte, error) {
+	return c.compile(snapshot, perRoute)
+}
+
 // Compile takes the full Rioku config snapshot and produces Caddy JSON.
 // The returned bytes are ready to POST to Caddy's /load admin endpoint.
+//
+// Compile is equivalent to CompileWithPlugins with no per-route plugin
+// configuration — every route gets the standard handler chain
+// (tracing -> security headers -> vars -> [compression] ->
+// [request headers] -> reverse_proxy). Callers that need per-route
+// OAS or WAF handlers (#171, #172) must use CompileWithPlugins.
 func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
+	return c.compile(snapshot, PerRoutePlugins{})
+}
+
+// compile is the shared implementation of Compile and CompileWithPlugins.
+// It threads the per-route plugin map through CompileRoute so the
+// receiver stays free of per-call mutable state and Compile remains
+// safe for concurrent use.
+func (c *Compiler) compile(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePlugins) ([]byte, error) {
+	// Inherit WAFAuditEndpoint from the compiler when the snapshot's
+	// per-route plugin set didn't supply one. The daemon installs the
+	// endpoint on the compiler at startup so every WAF-enabled route
+	// posts to the same /waf-record ingress.
+	if perRoute.WAFAuditEndpoint == "" && c.wafAuditEndpoint != "" {
+		perRoute.WAFAuditEndpoint = c.wafAuditEndpoint
+	}
+
 	// Build service lookup map keyed by service ID.
 	services := make(map[string]*riokuv1.Service, len(snapshot.GetServices()))
 	for _, svc := range snapshot.GetServices() {
@@ -90,11 +189,23 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		if !route.GetEnabled() {
 			continue
 		}
-		compiled, err := c.CompileRoute(route, services)
+		compiled, err := c.compileRoute(route, services, perRoute)
 		if err != nil {
 			return nil, fmt.Errorf("compiling route %q: %w", route.GetId(), err)
 		}
 		caddyRoutes = append(caddyRoutes, compiled)
+	}
+
+	// Append MCP gateway routes (#181, #201) — they live in their
+	// own per-tenant table but share the traffic server block. Each
+	// emits a Caddy route with hostname + path_prefix matchers + a
+	// reverse_proxy chain whose auth_passthrough rule is honoured.
+	for _, mcpr := range perRoute.MCPRoutes {
+		r := buildMCPRoute(mcpr)
+		if r == nil {
+			continue
+		}
+		caddyRoutes = append(caddyRoutes, r)
 	}
 
 	// Ensure routes is an empty array, not null, when there are no routes.
@@ -122,13 +233,10 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 	}
 
 	// Add trusted_proxies to all server blocks when configured.
-	if c.trustedProxies != nil && len(c.trustedProxies.Ranges) > 0 {
+	if tp := buildTrustedProxiesBlock(c.trustedProxies); tp != nil {
 		for _, srv := range servers {
 			if s, ok := srv.(map[string]any); ok {
-				s["trusted_proxies"] = map[string]any{
-					"source": "static",
-					"ranges": c.trustedProxies.Ranges,
-				}
+				s["trusted_proxies"] = tp
 			}
 		}
 	}
@@ -146,13 +254,19 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 		}
 	}
 
-	config := map[string]any{
-		"apps": map[string]any{
-			"http": map[string]any{
-				"servers": servers,
-				"metrics": map[string]any{}, // Prometheus metrics at root http level
-			},
+	apps := map[string]any{
+		"http": map[string]any{
+			"servers": servers,
+			"metrics": map[string]any{}, // Prometheus metrics at root http level
 		},
+	}
+
+	if tls := c.buildTLSApp(); tls != nil {
+		apps["tls"] = tls
+	}
+
+	config := map[string]any{
+		"apps": apps,
 	}
 
 	if c.traceSocketPath != "" {
@@ -175,359 +289,6 @@ func (c *Compiler) Compile(snapshot *riokuv1.ConfigSnapshot) ([]byte, error) {
 	return json.Marshal(config)
 }
 
-// CompileRoute converts a single Rioku route and its resolved service into a
-// Caddy route object. The services map is used to look up the service when the
-// route targets a service_id.
-func (c *Compiler) CompileRoute(route *riokuv1.Route, services map[string]*riokuv1.Service) (map[string]any, error) {
-	caddyRoute := make(map[string]any)
-
-	// --- Matchers ---
-	matchSets, err := compileMatchers(route.GetMatchers())
-	if err != nil {
-		return nil, fmt.Errorf("compile matchers: %w", err)
-	}
-	if len(matchSets) > 0 {
-		caddyRoute["match"] = matchSets
-	}
-
-	// --- Handlers ---
-	handler, err := compileHandler(route, services)
-	if err != nil {
-		return nil, err
-	}
-
-	// Resolve the service ID for the vars handler.
-	var serviceID string
-	if t, ok := route.GetTarget().(*riokuv1.Route_ServiceId); ok {
-		serviceID = t.ServiceId
-	}
-
-	// Tracing handler (OTEL) — placed first so the trace ID is available
-	// to all subsequent handlers and logged by the access logger.
-	tracingHandler := map[string]any{
-		"handler": "tracing",
-		"span":    "rioku",
-	}
-
-	// Use Caddy's built-in "vars" handler (http.handlers.vars) to set
-	// Rioku context variables. No custom module needed — native Caddy.
-	varsHandler := map[string]any{
-		"handler":          "vars",
-		"rioku_route_id":   route.GetId(),
-		"rioku_service_id": serviceID,
-	}
-	// Build handler chain: tracing -> [security headers] -> vars -> reverse_proxy.
-	// Security headers are only added to traffic routes (CompileRoute), not admin.
-	handleChain := []map[string]any{tracingHandler}
-	if secHandler := c.buildSecurityHeadersHandler(); secHandler != nil {
-		handleChain = append(handleChain, secHandler)
-	}
-	handleChain = append(handleChain, varsHandler, handler)
-	caddyRoute["handle"] = handleChain
-
-	return caddyRoute, nil
-}
-
-// compileMatchers converts proto Matchers into Caddy match sets.
-// Each proto Matcher becomes one match set (OR semantics between matchers).
-func compileMatchers(matchers []*riokuv1.Matcher) ([]map[string]any, error) {
-	var sets []map[string]any
-	for _, m := range matchers {
-		set := make(map[string]any)
-
-		if len(m.GetHosts()) > 0 {
-			set["host"] = m.GetHosts()
-		}
-
-		paths, pathRegexp, err := compilePaths(m.GetPaths())
-		if err != nil {
-			return nil, fmt.Errorf("compile paths: %w", err)
-		}
-		if len(paths) > 0 {
-			set["path"] = paths
-		}
-		if pathRegexp != nil {
-			set["path_regexp"] = pathRegexp
-		}
-
-		if len(m.GetMethods()) > 0 {
-			set["method"] = m.GetMethods()
-		}
-
-		if len(m.GetHeaders()) > 0 {
-			set["header"] = compileHeaders(m.GetHeaders())
-		}
-
-		if len(set) > 0 {
-			sets = append(sets, set)
-		}
-	}
-	return sets, nil
-}
-
-// compilePaths separates prefix/exact paths (returned as string slice) from
-// regexp paths (returned as a path_regexp object). Only the first regexp
-// matcher is used because Caddy's path_regexp is a single object per match set.
-func compilePaths(paths []*riokuv1.PathMatcher) ([]string, map[string]any, error) {
-	var plain []string
-	var re map[string]any
-	regexpCount := 0
-
-	for _, p := range paths {
-		switch p.GetType() {
-		case riokuv1.PathMatcher_TYPE_PREFIX:
-			v := p.GetValue()
-			if !strings.HasSuffix(v, "*") {
-				v = strings.TrimSuffix(v, "/") + "/*"
-			}
-			plain = append(plain, v)
-		case riokuv1.PathMatcher_TYPE_EXACT:
-			plain = append(plain, p.GetValue())
-		case riokuv1.PathMatcher_TYPE_REGEXP:
-			regexpCount++
-			if regexpCount > 1 {
-				return nil, nil, fmt.Errorf("only one regexp path matcher per match set is supported (got %d); split into separate matchers", regexpCount)
-			}
-			// Validate the regex compiles before sending to Caddy.
-			if _, err := regexp.Compile(p.GetValue()); err != nil {
-				return nil, nil, fmt.Errorf("invalid path regexp %q: %w", p.GetValue(), err)
-			}
-			re = map[string]any{
-				"pattern": p.GetValue(),
-			}
-		}
-	}
-	return plain, re, nil
-}
-
-// compileHeaders converts proto HeaderMatchers into Caddy header match format.
-// Caddy format: {"Header-Name": ["value"]}
-func compileHeaders(headers []*riokuv1.HeaderMatcher) map[string][]string {
-	result := make(map[string][]string, len(headers))
-	for _, h := range headers {
-		name := h.GetName()
-		val := h.GetValue()
-		// Caddy uses a "!" prefix on the value to invert the match.
-		if h.GetInvert() {
-			val = "!" + val
-		}
-		result[name] = append(result[name], val)
-	}
-	return result
-}
-
-// compileHandler builds the Caddy reverse_proxy handler for a route.
-func compileHandler(route *riokuv1.Route, services map[string]*riokuv1.Service) (map[string]any, error) {
-	handler := map[string]any{
-		"handler": "reverse_proxy",
-	}
-
-	// Flush immediately so streamed responses (SSE, LLM streaming) are not
-	// buffered by the reverse proxy. A value of -1 means "flush after every
-	// write" in Caddy's reverse_proxy.
-	handler["flush_interval"] = -1
-
-	switch t := route.GetTarget().(type) {
-	case *riokuv1.Route_ServiceId:
-		svc, ok := services[t.ServiceId]
-		if !ok {
-			return nil, fmt.Errorf("service %q not found", t.ServiceId)
-		}
-		applyService(handler, svc)
-
-	case *riokuv1.Route_Upstream:
-		handler["upstreams"] = []map[string]any{
-			{"dial": t.Upstream.GetAddress()},
-		}
-
-	default:
-		return nil, fmt.Errorf("route %q has no target", route.GetId())
-	}
-
-	// TODO: compile policy_ids into Caddy middleware handlers inserted
-	// before the reverse_proxy handler. Policies will map to rate limiting,
-	// auth, transforms, and other Caddy handler modules.
-
-	return handler, nil
-}
-
-// applyService sets upstreams, load balancing, and health checks on the handler
-// from a proto Service.
-func applyService(handler map[string]any, svc *riokuv1.Service) {
-	// Upstreams
-	upstreams := make([]map[string]any, 0, len(svc.GetUpstreams()))
-	for _, u := range svc.GetUpstreams() {
-		up := map[string]any{"dial": u.GetAddress()}
-		upstreams = append(upstreams, up)
-	}
-	handler["upstreams"] = upstreams
-
-	// Load balancing
-	if policy := lbPolicyString(svc.GetLbPolicy()); policy != "" {
-		lb := map[string]any{
-			"selection_policy": map[string]any{
-				"policy": policy,
-			},
-		}
-		// For weighted round-robin, include upstream weights.
-		if svc.GetLbPolicy() == riokuv1.LoadBalancingPolicy_LB_POLICY_WEIGHTED_ROUND_ROBIN {
-			weights := make([]int32, 0, len(svc.GetUpstreams()))
-			for _, u := range svc.GetUpstreams() {
-				weights = append(weights, u.GetWeight())
-			}
-			lb["selection_policy"].(map[string]any)["weights"] = weights
-		}
-		handler["load_balancing"] = lb
-	}
-
-	// Health checks
-	hc := svc.GetHealthCheck()
-	if hc != nil && hc.GetEnabled() {
-		active := make(map[string]any)
-		if p := hc.GetPath(); p != "" {
-			active["path"] = p
-		}
-		if v := hc.GetIntervalSeconds(); v > 0 {
-			active["interval"] = fmt.Sprintf("%ds", v)
-		}
-		if v := hc.GetTimeoutSeconds(); v > 0 {
-			active["timeout"] = fmt.Sprintf("%ds", v)
-		}
-		if v := hc.GetUnhealthyThreshold(); v > 0 {
-			active["unhealthy_request_count"] = v
-		}
-		if v := hc.GetHealthyThreshold(); v > 0 {
-			active["healthy_request_count"] = v
-		}
-		if statuses := hc.GetExpectedStatuses(); len(statuses) > 0 {
-			active["expect_status"] = statuses
-		}
-		handler["health_checks"] = map[string]any{
-			"active": active,
-		}
-	}
-
-	// Transport timeouts
-	dialTimeout := svc.GetDialTimeoutSeconds()
-	respHeaderTimeout := svc.GetResponseHeaderTimeoutSeconds()
-	idleTimeout := svc.GetIdleTimeoutSeconds()
-
-	if dialTimeout > 0 || respHeaderTimeout > 0 || idleTimeout > 0 {
-		transport := map[string]any{
-			"protocol": "http",
-		}
-		if dialTimeout > 0 {
-			transport["dial_timeout"] = fmt.Sprintf("%ds", dialTimeout)
-		}
-		if respHeaderTimeout > 0 {
-			transport["response_header_timeout"] = fmt.Sprintf("%ds", respHeaderTimeout)
-		}
-		if idleTimeout > 0 {
-			transport["keep_alive"] = map[string]any{
-				"idle_conn_timeout": fmt.Sprintf("%ds", idleTimeout),
-			}
-		}
-		handler["transport"] = transport
-	}
-}
-
-// buildAdminServer creates the Caddy server block that reverse-proxies
-// to the internal Go gateway on loopback.
-func (c *Compiler) buildAdminServer() map[string]any {
-	listenAddr := c.admin.ListenAddr
-	if listenAddr == "" {
-		listenAddr = ":7778"
-	}
-
-	// Domain overrides port-based listening.
-	if c.admin.Domain != "" {
-		listenAddr = ":443"
-	}
-
-	server := map[string]any{
-		"listen": []string{listenAddr},
-		"routes": []map[string]any{
-			{
-				"handle": []map[string]any{
-					{
-						"handler": "reverse_proxy",
-						"upstreams": []map[string]any{
-							{"dial": c.admin.InternalAddr},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	// Add host matcher when a dedicated domain is configured.
-	if c.admin.Domain != "" {
-		server["routes"].([]map[string]any)[0]["match"] = []map[string]any{
-			{"host": []string{c.admin.Domain}},
-		}
-		if !c.admin.DevMode {
-			server["tls_connection_policies"] = []map[string]any{{}}
-		}
-	}
-
-	return server
-}
-
-// buildSecurityHeadersHandler constructs a Caddy headers handler with the
-// configured security response headers. Returns nil if security headers are
-// disabled or all header values are empty (caller should skip insertion).
-func (c *Compiler) buildSecurityHeadersHandler() map[string]any {
-	cfg := c.securityHeaders
-	if !cfg.Enabled {
-		return nil
-	}
-
-	set := make(map[string][]string)
-
-	if cfg.XContentTypeOptions != "" {
-		set["X-Content-Type-Options"] = []string{cfg.XContentTypeOptions}
-	}
-	if cfg.XFrameOptions != "" {
-		set["X-Frame-Options"] = []string{cfg.XFrameOptions}
-	}
-	if cfg.ReferrerPolicy != "" {
-		set["Referrer-Policy"] = []string{cfg.ReferrerPolicy}
-	}
-	if cfg.PermissionsPolicy != "" {
-		set["Permissions-Policy"] = []string{cfg.PermissionsPolicy}
-	}
-
-	// CSP: emit either enforcing or report-only header, not both.
-	if cfg.CSP != "" {
-		if cfg.CSPReportOnly {
-			set["Content-Security-Policy-Report-Only"] = []string{cfg.CSP}
-		} else {
-			set["Content-Security-Policy"] = []string{cfg.CSP}
-		}
-	}
-
-	// HSTS: only when enabled AND running on standard ports.
-	if cfg.HSTS.Enabled && c.hasStandardPorts() {
-		hstsVal := fmt.Sprintf("max-age=%d", cfg.HSTS.MaxAge)
-		if cfg.HSTS.IncludeSubdomains {
-			hstsVal += "; includeSubDomains"
-		}
-		set["Strict-Transport-Security"] = []string{hstsVal}
-	}
-
-	// If no headers ended up in the set, return nil (skip insertion).
-	if len(set) == 0 {
-		return nil
-	}
-
-	return map[string]any{
-		"handler": "headers",
-		"response": map[string]any{
-			"set": set,
-		},
-	}
-}
-
 // hasStandardPorts returns true if the traffic addresses include :443 or :80,
 // meaning Caddy's auto-HTTPS redirect to port 80 would be appropriate.
 func (c *Compiler) hasStandardPorts() bool {
@@ -537,23 +298,4 @@ func (c *Compiler) hasStandardPorts() bool {
 		}
 	}
 	return false
-}
-
-// lbPolicyString maps a proto LoadBalancingPolicy enum to the Caddy
-// selection_policy string. Returns "" for unspecified.
-func lbPolicyString(p riokuv1.LoadBalancingPolicy) string {
-	switch p {
-	case riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN:
-		return "round_robin"
-	case riokuv1.LoadBalancingPolicy_LB_POLICY_RANDOM:
-		return "random"
-	case riokuv1.LoadBalancingPolicy_LB_POLICY_LEAST_CONN:
-		return "least_conn"
-	case riokuv1.LoadBalancingPolicy_LB_POLICY_IP_HASH:
-		return "ip_hash"
-	case riokuv1.LoadBalancingPolicy_LB_POLICY_WEIGHTED_ROUND_ROBIN:
-		return "weighted_round_robin"
-	default:
-		return ""
-	}
 }
