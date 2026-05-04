@@ -99,13 +99,18 @@ func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list roles: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
+	// Materialize all rows BEFORE issuing any nested queries on the
+	// same Tx — pgx in stdlib mode does not multiplex queries on a
+	// single connection while a Rows iterator is open, so calling
+	// getRolePermissions inside the for-rows loop deadlocks waiting
+	// for the open cursor's results to be consumed.
 	var roles []*store.Role
 	for rows.Next() {
 		r := &store.Role{}
 		var parentRoleID sql.NullString
 		var createdAt, updatedAt time.Time
 		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &r.IsBuiltin, &parentRoleID, &createdAt, &updatedAt); err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
 		if parentRoleID.Valid {
@@ -114,14 +119,24 @@ func (t *tx) ListRoles(ctx context.Context) ([]*store.Role, error) {
 		}
 		r.CreatedAt = createdAt.UTC()
 		r.UpdatedAt = updatedAt.UTC()
+		roles = append(roles, r)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	// Now safe to issue per-role permission lookups.
+	for _, r := range roles {
 		perms, err := t.getRolePermissions(ctx, r.ID)
 		if err != nil {
 			return nil, err
 		}
 		r.Permissions = perms
-		roles = append(roles, r)
 	}
-	return roles, rows.Err()
+	return roles, nil
 }
 
 func (t *tx) UpdateRole(ctx context.Context, id string, params store.UpdateRoleParams) (*store.Role, error) {
