@@ -21,6 +21,18 @@ fi
 # Strip leading/trailing whitespace
 MSG=$(echo "$MSG" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
+# Auto-generated git messages are accepted as-is — they don't need
+# to follow Conventional Commits format because the human author
+# never types them. Specifically:
+#   * `Merge ...`   — `git merge` default subject
+#   * `Revert "..."` — `git revert` default subject (the inner
+#                      reverted message is shown verbatim)
+#   * `fixup! ...` / `squash! ...` — `git commit --fixup/squash`
+#                                     auto-prefixed subjects
+if echo "$MSG" | grep -qE '^(Merge |Revert "|fixup! |squash! )'; then
+  exit 0
+fi
+
 # Check conventional commit format
 if ! echo "$MSG" | grep -qE '^(feat|fix|docs|chore|refactor|test|ci|perf|build|revert)(\(.+\))?: .+'; then
   echo "ERROR: Commit message does not follow Conventional Commits format."
