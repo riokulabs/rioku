@@ -2,8 +2,7 @@
  * Tests for <IntegrationsSection> and related components.
  *
  * Covers:
- *   - Stage-1 banner renders with placeholder text
- *   - OAuth cards render (4 providers) and "Configure" buttons are disabled
+ *   - OAuth cards hidden when integrationsOAuth feature flag is off
  *   - Webhooks table shows seeded webhooks
  *   - Create webhook modal: opens, validates path prefix, submits → audit + host event
  *   - Edit webhook: saves changes
@@ -78,10 +77,9 @@ beforeEach(() => {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('IntegrationsSection — banner and layout', () => {
-  it('renders stage-1 banner with placeholder text', () => {
+  it('does not render stage-1 banner (removed with feature flag)', () => {
     render(<IntegrationsSection />, { wrapper: Wrapper });
-    expect(screen.getByTestId('integrations-stage1-banner')).toBeDefined();
-    expect(screen.getByText(/placeholder for stage 2\+/i)).toBeDefined();
+    expect(screen.queryByTestId('integrations-stage1-banner')).toBeNull();
   });
 
   it('shows access-denied alert when integrations:read is missing', () => {
@@ -98,22 +96,18 @@ describe('IntegrationsSection — banner and layout', () => {
 });
 
 describe('IntegrationsSection — OAuth cards', () => {
-  it('renders 4 OAuth provider cards', () => {
+  it('does not render OAuth cards when integrationsOAuth feature flag is off', () => {
     render(<IntegrationsSection />, { wrapper: Wrapper });
-    expect(screen.getByTestId('oauth-card-github')).toBeDefined();
-    expect(screen.getByTestId('oauth-card-google')).toBeDefined();
-    expect(screen.getByTestId('oauth-card-gitlab')).toBeDefined();
-    expect(screen.getByTestId('oauth-card-microsoft')).toBeDefined();
+    expect(screen.queryByTestId('oauth-card-github')).toBeNull();
+    expect(screen.queryByTestId('oauth-card-google')).toBeNull();
+    expect(screen.queryByTestId('oauth-card-gitlab')).toBeNull();
+    expect(screen.queryByTestId('oauth-card-microsoft')).toBeNull();
   });
 
-  it('all Configure buttons are disabled', () => {
+  it('does not render Configure buttons when integrationsOAuth feature flag is off', () => {
     render(<IntegrationsSection />, { wrapper: Wrapper });
-    const buttons = screen.getAllByRole('button', { name: /configure/i });
-    expect(buttons.length).toBe(4);
-    for (const btn of buttons) {
-      // Real attribute assertion — button must have disabled attribute
-      expect(btn.hasAttribute('disabled')).toBe(true);
-    }
+    const buttons = screen.queryAllByRole('button', { name: /configure/i });
+    expect(buttons.length).toBe(0);
   });
 });
 

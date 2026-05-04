@@ -292,7 +292,7 @@ export function McpServerDetail({ serverId, tenantSlug, onEdit, onClose }: McpSe
         >
           Test connection
         </Button>
-        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
+        <Button size="sm" variant="subtle" color="red.8" onClick={openDelete}>
           Delete…
         </Button>
         {testResult && (
@@ -463,7 +463,7 @@ export function McpServerDetail({ serverId, tenantSlug, onEdit, onClose }: McpSe
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== server.name}

@@ -23,10 +23,9 @@ import {
   Text,
   TextInput,
   Title,
-  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconArrowsDiagonal, IconRoute } from '@tabler/icons-react';
+import { IconAlertCircle, IconRoute } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
@@ -40,8 +39,6 @@ interface RouteDetailProps {
   tenantId: string;
   onEdit: () => void;
   onClose: () => void;
-  /** Optional: navigate to the full-page detail view. */
-  onOpenFullPage?: () => void;
 }
 
 const METHOD_COLORS: Record<string, string> = {
@@ -53,13 +50,7 @@ const METHOD_COLORS: Record<string, string> = {
   ANY: 'gray',
 };
 
-export function RouteDetail({
-  routeId,
-  tenantId,
-  onEdit,
-  onClose,
-  onOpenFullPage,
-}: RouteDetailProps) {
+export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailProps) {
   const route = useRouteDetail(routeId);
   const services = useMockStore((s) => s.services);
   const auditEntries = useMockStore((s) => s.audit);
@@ -127,19 +118,6 @@ export function RouteDetail({
             </Text>
           </Stack>
         </Group>
-        {onOpenFullPage && (
-          <Tooltip label="Open full page" withArrow>
-            <Button
-              variant="subtle"
-              size="xs"
-              px={6}
-              aria-label="Open full page"
-              onClick={onOpenFullPage}
-            >
-              <IconArrowsDiagonal size={14} />
-            </Button>
-          </Tooltip>
-        )}
       </Group>
 
       <Divider />
@@ -270,7 +248,7 @@ export function RouteDetail({
         <Button size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button size="sm" variant="subtle" color="red" onClick={openDelete}>
+        <Button size="sm" variant="subtle" color="red.8" onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -315,7 +293,7 @@ export function RouteDetail({
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== route.name}

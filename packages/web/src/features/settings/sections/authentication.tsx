@@ -1,11 +1,12 @@
 /**
  * <AuthenticationSection> — settings authentication section.
  *
- * Renders 4 subsections:
+ * Renders 3 subsections (stage 1):
  *   1. TOTP policy (SegmentedControl)
  *   2. Password policy (NumberInputs + Switches)
  *   3. Session timeouts (NumberInputs)
- *   4. SSO placeholders (greyed-out OAuth + SAML panels)
+ *
+ * SSO is hidden until the `sso` feature flag is enabled (stage 2+).
  *
  * Requires `tenant-auth:write` for all mutations. Read is always visible.
  *
@@ -14,10 +15,8 @@
 import { useState, useEffect } from 'react';
 import {
   Alert,
-  Badge,
-  Box,
   Button,
-  Fieldset,
+  Divider,
   Group,
   NumberInput,
   SegmentedControl,
@@ -25,15 +24,18 @@ import {
   Stack,
   Switch,
   Text,
+  Title,
   Tooltip,
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
-import { IconAlertCircle, IconLock } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
+import { isFeatureEnabled } from '@/host/feature-flags';
 import { useCurrentTenant, useCurrentTenantAuthPolicy, updateTenantAuthPolicy } from '../api';
 import { tenantAuthPolicySchema } from '../schemas';
 import type { TenantAuthPolicyValues } from '../schemas';
+import { SsoProviders } from './auth-sso-providers';
 
 // ─── TOTP policy labels ───────────────────────────────────────────────────────
 
@@ -112,7 +114,7 @@ export function AuthenticationSection() {
           absolute_hours: policy.session_timeouts.absolute_hours,
         },
       });
-      form.resetDirty();
+      form.resetDirty(form.values);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id]);
@@ -152,26 +154,28 @@ export function AuthenticationSection() {
         )}
 
         {/* ── TOTP policy ─────────────────────────────────────────────────── */}
-        <Fieldset legend="TOTP policy" data-testid="auth-totp-fieldset">
-          <Stack gap="xs">
-            <Text size="sm">
-              Controls which users are required to enroll a TOTP authenticator app before they can
-              log in.
-            </Text>
-            <SegmentedControl
-              data={TOTP_POLICY_DATA as unknown as { value: string; label: string }[]}
-              value={form.values.totp_policy}
-              onChange={(value) => {
-                form.setFieldValue('totp_policy', value as TenantAuthPolicyValues['totp_policy']);
-              }}
-              disabled={!canWrite}
-              data-testid="auth-totp-policy"
-            />
-          </Stack>
-        </Fieldset>
+        <Stack gap="sm" data-testid="auth-totp-fieldset">
+          <Title order={5}>TOTP policy</Title>
+          <Text size="sm" c="var(--mantine-color-gray-7)">
+            Controls which users are required to enroll a TOTP authenticator app before they can log
+            in.
+          </Text>
+          <SegmentedControl
+            data={TOTP_POLICY_DATA as unknown as { value: string; label: string }[]}
+            value={form.values.totp_policy}
+            onChange={(value) => {
+              form.setFieldValue('totp_policy', value as TenantAuthPolicyValues['totp_policy']);
+            }}
+            disabled={!canWrite}
+            data-testid="auth-totp-policy"
+          />
+        </Stack>
+
+        <Divider />
 
         {/* ── Password policy ──────────────────────────────────────────────── */}
-        <Fieldset legend="Password policy" data-testid="auth-password-fieldset">
+        <Stack gap="sm" data-testid="auth-password-fieldset">
+          <Title order={5}>Password policy</Title>
           <Stack gap="sm">
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
               <NumberInput
@@ -236,10 +240,13 @@ export function AuthenticationSection() {
               />
             </Stack>
           </Stack>
-        </Fieldset>
+        </Stack>
+
+        <Divider />
 
         {/* ── Session timeouts ─────────────────────────────────────────────── */}
-        <Fieldset legend="Session timeouts" data-testid="auth-session-fieldset">
+        <Stack gap="sm" data-testid="auth-session-fieldset">
+          <Title order={5}>Session timeouts</Title>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <NumberInput
               label="Idle timeout (hours)"
@@ -262,64 +269,15 @@ export function AuthenticationSection() {
               {...form.getInputProps('session_timeouts.absolute_hours')}
             />
           </SimpleGrid>
-        </Fieldset>
+        </Stack>
 
-        {/* ── SSO (coming soon) ────────────────────────────────────────────── */}
-        <Fieldset legend="SSO" data-testid="auth-sso-fieldset">
-          <Stack gap="sm">
-            <Text size="sm" c="var(--mantine-color-gray-7)">
-              Single Sign-On integrations will be available in a future release.
-            </Text>
-            {/* Boxes use explicit dimmed colors rather than opacity so that
-                axe can compute real contrast ratios. opacity:0.5 on a
-                container halves the effective contrast of all child text,
-                causing WCAG AA failures even when the base color is correct.
-                The visual muted effect comes from using dimmed text/border
-                instead. Task 9a.1. */}
-            <Box
-              p="sm"
-              style={{
-                border: '1px solid var(--mantine-color-dimmed)',
-                borderRadius: 'var(--mantine-radius-sm)',
-                cursor: 'not-allowed',
-              }}
-              data-testid="auth-sso-oauth-panel"
-            >
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <IconLock size={16} color="var(--mantine-color-dimmed)" />
-                  <Text size="sm" fw={500} c="dimmed">
-                    OAuth
-                  </Text>
-                </Group>
-                <Badge variant="outline" size="sm" color="gray" data-testid="auth-sso-oauth-badge">
-                  Coming soon
-                </Badge>
-              </Group>
-            </Box>
-            <Box
-              p="sm"
-              style={{
-                border: '1px solid var(--mantine-color-dimmed)',
-                borderRadius: 'var(--mantine-radius-sm)',
-                cursor: 'not-allowed',
-              }}
-              data-testid="auth-sso-saml-panel"
-            >
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <IconLock size={16} color="var(--mantine-color-dimmed)" />
-                  <Text size="sm" fw={500} c="dimmed">
-                    SAML
-                  </Text>
-                </Group>
-                <Badge variant="outline" size="sm" color="gray" data-testid="auth-sso-saml-badge">
-                  Coming soon
-                </Badge>
-              </Group>
-            </Box>
-          </Stack>
-        </Fieldset>
+        {/* ── SSO providers — OAuth + SAML ─────────────────────────────────── */}
+        {isFeatureEnabled('sso') && (
+          <>
+            <Divider />
+            <SsoProviders canWrite={canWrite} />
+          </>
+        )}
 
         {/* ── Save button ──────────────────────────────────────────────────── */}
         <Group justify="flex-end" gap="sm">

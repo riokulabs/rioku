@@ -62,7 +62,7 @@ export function ProfileToggle({ value, onChange }: ProfileToggleProps) {
           />
         </Tooltip>
       </Group>
-      <Text size="xs" c="dimmed">
+      <Text size="xs" c="var(--mantine-color-gray-7)">
         {TOOLTIPS[value]}
       </Text>
     </Stack>

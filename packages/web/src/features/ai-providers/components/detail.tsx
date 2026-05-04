@@ -237,7 +237,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
         <Button
           size="sm"
           variant="subtle"
-          color="red"
+          color="red.8"
           disabled={deleteBlocked}
           onClick={openDelete}
           title={deleteBlocked ? 'Remove dependent agents before deleting' : undefined}
@@ -406,7 +406,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== provider.name}

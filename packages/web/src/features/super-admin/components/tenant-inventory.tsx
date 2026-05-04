@@ -130,7 +130,7 @@ function DeleteTenantConfirm({
         <Button variant="default" onClick={onCancel}>
           Cancel
         </Button>
-        <Button color="red" disabled={!match} onClick={handleDelete}>
+        <Button color="red.8" disabled={!match} onClick={handleDelete}>
           Delete tenant
         </Button>
       </Group>
@@ -195,7 +195,7 @@ export function TenantInventory() {
         <Button
           size="xs"
           variant="subtle"
-          color="red"
+          color="red.8"
           leftSection={<IconTrash size={12} />}
           onClick={(e) => {
             e.stopPropagation();

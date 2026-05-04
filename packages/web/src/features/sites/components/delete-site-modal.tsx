@@ -87,7 +87,7 @@ export function DeleteSiteModal({ opened, site, onClose, onSuccess }: DeleteSite
             Cancel
           </Button>
           <Button
-            color="red"
+            color="red.8"
             size="sm"
             loading={deleting}
             disabled={!site || typed !== domain}

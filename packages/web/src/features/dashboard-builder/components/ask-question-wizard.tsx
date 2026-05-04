@@ -521,7 +521,7 @@ function StepQuery({ draft, availableFields, onChange }: StepQueryProps) {
           <Grid.Col span={{ base: 12, sm: 1 }}>
             <ActionIcon
               variant="subtle"
-              color="red"
+              color="red.8"
               aria-label="Remove measure"
               onClick={() => {
                 setWs({
@@ -600,7 +600,7 @@ function StepQuery({ draft, availableFields, onChange }: StepQueryProps) {
           <Grid.Col span={{ base: 12, sm: 1 }}>
             <ActionIcon
               variant="subtle"
-              color="red"
+              color="red.8"
               aria-label="Remove filter"
               onClick={() => {
                 setWs({

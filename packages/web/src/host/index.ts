@@ -65,3 +65,6 @@ export * from './abi';
 export * from './manifest-schema';
 export * from './manifest-validator';
 export * from './singleton-harden';
+
+// Feature flags
+export * from './feature-flags';

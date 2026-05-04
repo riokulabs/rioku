@@ -2,13 +2,12 @@
  * <NetworkSection> — settings network section.
  *
  * Renders 4 fieldsets:
- *   1. Listen addresses (read-only display; editable in stage 2)
+ *   1. Listen addresses (read-only display in stage 1)
  *   2. Caddy config overrides (Monaco JSON editor, lazy-loaded)
  *   3. HTTP/3 (Switch)
  *   4. Upstream timeouts (NumberInputs)
  *
- * Requires `network:write` for save. In stage 1, save writes to mock store
- * and shows "Config preview updated (changes apply at stage 2)".
+ * Requires `network:write` for save. In stage 1, save writes to mock store.
  *
  * Task 8b.6
  */
@@ -17,7 +16,7 @@ import {
   Alert,
   Badge,
   Button,
-  Fieldset,
+  Divider,
   Group,
   NumberInput,
   SimpleGrid,
@@ -25,6 +24,7 @@ import {
   Stack,
   Switch,
   Text,
+  Title,
   Tooltip,
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
@@ -141,7 +141,10 @@ export function NetworkSection() {
         upstream_timeouts: form.values.upstream_timeouts,
       });
       form.resetDirty(form.values);
-      notify.success('Config preview updated', 'Changes apply at stage 2.');
+      notify.success(
+        'Network config updated',
+        'Changes will take effect when the daemon applies the configuration.',
+      );
     } catch (e) {
       notify.error('Save failed', (e as Error).message);
     } finally {
@@ -152,72 +155,73 @@ export function NetworkSection() {
   const saveDisabled = !canWrite || !dirty || saving;
 
   return (
-    <Stack gap="md">
-      {/* 1. Listen addresses */}
-      <Fieldset legend="Listen addresses" data-testid="fieldset-listen-addresses">
-        <Stack gap="xs">
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            Editable in stage 2
-          </Text>
-          <Group gap="xs" wrap="wrap">
-            {(config?.listen_addresses ?? [':443', ':80']).map((addr) => (
-              <Badge key={addr} variant="outline" data-testid={`listen-address-${addr}`}>
-                {addr}
-              </Badge>
-            ))}
-          </Group>
-        </Stack>
-      </Fieldset>
+    <Stack gap="lg">
+      {/* 1. Listen addresses — read-only display in stage 1 */}
+      <Stack gap="sm" data-testid="fieldset-listen-addresses">
+        <Title order={5}>Listen addresses</Title>
+        <Group gap="xs" wrap="wrap">
+          {(config?.listen_addresses ?? [':443', ':80']).map((addr) => (
+            <Badge key={addr} variant="outline" data-testid={`listen-address-${addr}`}>
+              {addr}
+            </Badge>
+          ))}
+        </Group>
+      </Stack>
+
+      <Divider />
 
       {/* 2. Caddy config overrides */}
-      <Fieldset legend="Caddy config overrides" data-testid="fieldset-caddy-config">
-        <Stack gap="xs">
-          <Text size="sm">
-            Free-form Caddy JSON overrides applied to the managed Caddy process. Validated at stage
-            2 before apply.
-          </Text>
-          <Suspense fallback={<Skeleton height={220} data-testid="monaco-skeleton" />}>
-            <div onBlur={handleCaddyBlur} data-testid="caddy-editor-wrapper">
-              <LazyMonaco
-                value={form.values.caddy_config_overrides}
-                language="json"
-                onChange={handleCaddyChange}
-                height={220}
-              />
-            </div>
-          </Suspense>
-          {jsonError != null && (
-            <Alert
-              icon={<IconAlertCircle size={16} />}
-              color="orange"
-              variant="light"
-              title="Invalid JSON"
-              data-testid="json-error-alert"
-            >
-              {jsonError}
-            </Alert>
-          )}
-        </Stack>
-      </Fieldset>
+      <Stack gap="sm" data-testid="fieldset-caddy-config">
+        <Title order={5}>Caddy config overrides</Title>
+        <Text size="sm" c="var(--mantine-color-gray-7)">
+          Free-form Caddy JSON overrides applied to the managed Caddy process. Validated at stage 2
+          before apply.
+        </Text>
+        <Suspense fallback={<Skeleton height={220} data-testid="monaco-skeleton" />}>
+          <div onBlur={handleCaddyBlur} data-testid="caddy-editor-wrapper">
+            <LazyMonaco
+              value={form.values.caddy_config_overrides}
+              language="json"
+              onChange={handleCaddyChange}
+              height={220}
+            />
+          </div>
+        </Suspense>
+        {jsonError != null && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="orange"
+            variant="light"
+            title="Invalid JSON"
+            data-testid="json-error-alert"
+          >
+            {jsonError}
+          </Alert>
+        )}
+      </Stack>
+
+      <Divider />
 
       {/* 3. HTTP/3 */}
-      <Fieldset legend="HTTP/3 (QUIC)" data-testid="fieldset-http3">
-        <Stack gap="xs">
-          <Switch
-            label="Enable HTTP/3 (QUIC)"
-            description="Enables QUIC transport on UDP. Requires a TLS certificate."
-            disabled={!canWrite}
-            data-testid="http3-switch"
-            checked={form.values.http3_enabled}
-            onChange={(e) => {
-              form.setFieldValue('http3_enabled', e.currentTarget.checked);
-            }}
-          />
-        </Stack>
-      </Fieldset>
+      <Stack gap="sm" data-testid="fieldset-http3">
+        <Title order={5}>HTTP/3 (QUIC)</Title>
+        <Switch
+          label="Enable HTTP/3 (QUIC)"
+          description="Enables QUIC transport on UDP. Requires a TLS certificate."
+          disabled={!canWrite}
+          data-testid="http3-switch"
+          checked={form.values.http3_enabled}
+          onChange={(e) => {
+            form.setFieldValue('http3_enabled', e.currentTarget.checked);
+          }}
+        />
+      </Stack>
+
+      <Divider />
 
       {/* 4. Upstream timeouts */}
-      <Fieldset legend="Upstream timeouts" data-testid="fieldset-upstream-timeouts">
+      <Stack gap="sm" data-testid="fieldset-upstream-timeouts">
+        <Title order={5}>Upstream timeouts</Title>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <NumberInput
             label="Connect timeout (s)"
@@ -256,7 +260,7 @@ export function NetworkSection() {
             {...form.getInputProps('upstream_timeouts.idle')}
           />
         </SimpleGrid>
-      </Fieldset>
+      </Stack>
 
       {/* Save */}
       <Group justify="flex-end">

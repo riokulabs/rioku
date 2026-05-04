@@ -109,7 +109,7 @@ export function ImpersonationEntryForm() {
       // Navigate to target tenant dashboard
       const targetTenant = tenants[values.tenant_id];
       const tenantSlug = targetTenant?.slug ?? values.tenant_id;
-      form.resetDirty();
+      form.resetDirty(form.values);
 
       // Navigate — use typed route params; tenantSlug is a runtime value
       void navigate({ to: '/t/$tenant/dashboard', params: { tenant: tenantSlug } });

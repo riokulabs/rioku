@@ -18,7 +18,6 @@ import {
   Divider,
   Group,
   Modal,
-  Tooltip,
   Stack,
   Table,
   Text,
@@ -26,7 +25,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertCircle, IconArrowsDiagonal, IconRefresh, IconServer } from '@tabler/icons-react';
+import { IconAlertCircle, IconRefresh, IconServer } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
@@ -47,8 +46,6 @@ interface ServiceDetailProps {
   onEditRoute: (route: Route) => void;
   onDeleteRoute: (route: Route) => void;
   onClose: () => void;
-  /** Optional: navigate to the full-page detail view. */
-  onOpenFullPage?: () => void;
 }
 
 const DEFAULT_ROUTE_FILTER: RouteFilter = {
@@ -65,7 +62,6 @@ export function ServiceDetail({
   onEditRoute,
   onDeleteRoute,
   onClose,
-  onOpenFullPage,
 }: ServiceDetailProps) {
   const service = useServiceDetail(serviceId);
   const routes = useServiceRoutes(serviceId);
@@ -196,19 +192,6 @@ export function ServiceDetail({
             )}
           </Stack>
         </Group>
-        {onOpenFullPage && (
-          <Tooltip label="Open full page" withArrow>
-            <Button
-              variant="subtle"
-              size="xs"
-              px={6}
-              aria-label="Open full page"
-              onClick={onOpenFullPage}
-            >
-              <IconArrowsDiagonal size={14} />
-            </Button>
-          </Tooltip>
-        )}
       </Group>
 
       <Divider />
@@ -260,7 +243,7 @@ export function ServiceDetail({
         <Button
           size="sm"
           variant="subtle"
-          color="red"
+          color="red.8"
           disabled={deleteBlocked}
           onClick={openDelete}
           title={deleteBlocked ? 'Remove attached routes before deleting' : undefined}
@@ -415,7 +398,7 @@ export function ServiceDetail({
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== service.name}

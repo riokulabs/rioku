@@ -17,12 +17,16 @@ import { useDraggable } from '@dnd-kit/core';
 import {
   IconChartArea,
   IconChartBar,
+  IconChartDonut,
   IconChartDots,
   IconChartLine,
   IconChartPie,
+  IconFilter,
   IconLayoutGrid,
   IconList,
   IconListDetails,
+  IconMarkdown,
+  IconProgress,
   IconScale,
   IconServerCog,
   IconTable,
@@ -41,11 +45,16 @@ function renderIcon(kind: string): ReactNode {
     case 'time-series':
       return <IconChartLine size={size} />;
     case 'stacked-bar':
+    case 'bar-chart':
       return <IconChartBar size={size} />;
     case 'table':
       return <IconTable size={size} />;
     case 'pie':
       return <IconChartPie size={size} />;
+    case 'donut':
+      return <IconChartDonut size={size} />;
+    case 'funnel':
+      return <IconFilter size={size} />;
     case 'service-map':
       return <IconServerCog size={size} />;
     case 'log-viewer':
@@ -54,6 +63,10 @@ function renderIcon(kind: string): ReactNode {
       return <IconList size={size} />;
     case 'top-n':
       return <IconLayoutGrid size={size} />;
+    case 'markdown':
+      return <IconMarkdown size={size} />;
+    case 'progress':
+      return <IconProgress size={size} />;
     default:
       return <IconChartArea size={size} />;
   }

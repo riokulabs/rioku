@@ -196,7 +196,7 @@ function EnrollmentDetailDrawer({
               <span>
                 <Button
                   variant="light"
-                  color="red"
+                  color="red.8"
                   size="sm"
                   disabled={!canWrite}
                   leftSection={!canWrite ? <IconLock size={14} /> : undefined}
@@ -248,7 +248,7 @@ function EnrollmentDetailDrawer({
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               loading={revoking}
               onClick={() => {
                 void handleRevoke();

@@ -15,6 +15,16 @@ import { ServiceMapWidget } from './components/service-map';
 import { LogViewerWidget } from './components/log-viewer';
 import { AuditTailWidget } from './components/audit-tail';
 import { TopNWidget } from './components/top-n';
+import { KpiCardWidget } from './components/kpi-card';
+import { GaugeWidget } from './components/gauge';
+import { HeatmapWidget } from './components/heatmap';
+import { AreaChartWidget } from './components/area-chart';
+import { StatusGridWidget } from './components/status-grid';
+import { BarChartWidget } from './components/bar-chart';
+import { DonutWidget } from './components/donut';
+import { FunnelWidget } from './components/funnel';
+import { MarkdownWidget } from './components/markdown';
+import { ProgressWidget } from './components/progress';
 import type { WidgetTypeDefinition } from './types';
 
 export const BUILT_IN_WIDGETS: Record<string, WidgetTypeDefinition> = {
@@ -107,6 +117,96 @@ export const BUILT_IN_WIDGETS: Record<string, WidgetTypeDefinition> = {
     supportedDataSources: 'any',
     roundTripMode: 'one-way',
     component: TopNWidget,
+  },
+  'kpi-card': {
+    type: 'kpi-card',
+    displayName: 'KPI card',
+    description: 'Headline number, delta pill, and inline trend sparkline.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: KpiCardWidget,
+  },
+  gauge: {
+    type: 'gauge',
+    displayName: 'Gauge',
+    description: 'Semi-circular arc gauge with threshold-based colour.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: GaugeWidget,
+  },
+  heatmap: {
+    type: 'heatmap',
+    displayName: 'Heatmap',
+    description: '2D cell grid shaded by value intensity.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: HeatmapWidget,
+  },
+  'area-chart': {
+    type: 'area-chart',
+    displayName: 'Area chart',
+    description: 'Multi-series area with gradient fills and legend.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: AreaChartWidget,
+  },
+  'status-grid': {
+    type: 'status-grid',
+    displayName: 'Status grid',
+    description: 'Uniform grid of system-component health tiles.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: StatusGridWidget,
+  },
+  'bar-chart': {
+    type: 'bar-chart',
+    displayName: 'Bar chart',
+    description: 'Single-series vertical bar chart.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: BarChartWidget,
+  },
+  donut: {
+    type: 'donut',
+    displayName: 'Donut',
+    description: 'Donut chart with a centered headline value.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: DonutWidget,
+  },
+  funnel: {
+    type: 'funnel',
+    displayName: 'Funnel',
+    description: 'Conversion funnel with proportional stage segments.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'one-way',
+    component: FunnelWidget,
+  },
+  markdown: {
+    type: 'markdown',
+    displayName: 'Markdown',
+    description: 'Free-form text / markdown panel for annotations.',
+    defaultConfig: { content: '## Notes\n\nUse this panel for context.' },
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: MarkdownWidget,
+  },
+  progress: {
+    type: 'progress',
+    displayName: 'Progress',
+    description: 'Linear progress bar — single or stacked goal indicators.',
+    defaultConfig: {},
+    supportedDataSources: 'any',
+    roundTripMode: 'clean',
+    component: ProgressWidget,
   },
 };
 

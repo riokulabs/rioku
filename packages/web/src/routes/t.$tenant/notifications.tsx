@@ -228,7 +228,9 @@ function NotificationsPage() {
 
       <NotificationList rows={visibleRows} onSelect={handleRowSelect} />
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={handleDrawerClose}
         title={selectedItem ? `Notification · ${selectedItem.title}` : 'Notification'}

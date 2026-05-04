@@ -16,6 +16,10 @@ export default tseslint.config(
       'src/routeTree.gen.ts',
       'sample-plugin/dist/**',
       'sample-plugin/node_modules/**',
+      // go:embed build output from `make build-daemon` — minified SPA
+      // bundle lands here; ESLint shouldn't lint built artifacts.
+      '../daemon/web/build/**',
+      '**/daemon/web/build/**',
     ],
   },
   js.configs.recommended,

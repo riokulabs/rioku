@@ -135,7 +135,7 @@ export function StepPolicies({ form }: StepPoliciesProps) {
                   w={90}
                 />
                 <ActionIcon
-                  color="red"
+                  color="red.8"
                   variant="subtle"
                   onClick={() => {
                     removeRedirect(i);

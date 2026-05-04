@@ -105,72 +105,27 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
 
   return (
     <Stack gap="md" data-testid="profile-personal-info">
-      {/* Avatar */}
-      <Group align="flex-start" gap="md">
-        <Avatar
-          src={avatarPreview ?? null}
-          size={72}
-          radius="md"
-          data-testid="profile-avatar-preview"
-        >
-          {user.name
-            .split(' ')
-            .map((p) => p[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase()}
-        </Avatar>
-        <Stack gap="xs" flex={1}>
-          {avatarError && (
-            <Alert icon={<IconAlertCircle size={14} />} color="red" variant="light" py="xs">
-              {avatarError}
-            </Alert>
-          )}
-          <Tooltip
-            label="You don't have permission to update your profile"
-            disabled={canUpdate}
-            withArrow
+      {/* Avatar row: avatar on left, dropzone + remove inline next to it */}
+      <Group align="center" gap="md" wrap="nowrap">
+        <Stack gap="xs" align="center">
+          <Avatar
+            src={avatarPreview ?? null}
+            size={72}
+            radius="md"
+            data-testid="profile-avatar-preview"
           >
-            <div>
-              <Dropzone
-                onDrop={(files) => {
-                  void handleAvatarDrop(files);
-                }}
-                onReject={(files) => {
-                  const reason = files[0]?.errors[0]?.code;
-                  const msg =
-                    reason === 'file-too-large'
-                      ? 'Image must be 3 MB or smaller.'
-                      : 'Only image files are accepted.';
-                  setAvatarError(msg);
-                }}
-                accept={IMAGE_MIME_TYPE}
-                maxSize={3 * 1024 ** 2}
-                maxFiles={1}
-                disabled={!canUpdate || avatarLoading}
-                inputProps={{ 'aria-label': 'Upload avatar image' }}
-                data-testid="profile-avatar-dropzone"
-              >
-                <Group gap="xs" style={{ pointerEvents: 'none' }}>
-                  <Dropzone.Accept>
-                    <IconUpload size={16} />
-                  </Dropzone.Accept>
-                  <Dropzone.Reject>
-                    <IconX size={16} />
-                  </Dropzone.Reject>
-                  <Dropzone.Idle>
-                    <IconPhoto size={16} />
-                  </Dropzone.Idle>
-                  <Text size="sm">Drop an image here or click to upload (max 3 MB)</Text>
-                </Group>
-              </Dropzone>
-            </div>
-          </Tooltip>
+            {user.name
+              .split(' ')
+              .map((p) => p[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase()}
+          </Avatar>
           {avatarPreview !== null && (
             <Button
               variant="subtle"
               color="red"
-              size="xs"
+              size="compact-xs"
               onClick={() => {
                 void handleRemoveAvatar();
               }}
@@ -178,11 +133,57 @@ export function ProfilePersonalInfo({ user }: ProfilePersonalInfoProps) {
               disabled={!canUpdate}
               data-testid="profile-avatar-remove"
             >
-              Remove avatar
+              Remove
             </Button>
           )}
         </Stack>
+        <Tooltip
+          label="You don't have permission to update your profile"
+          disabled={canUpdate}
+          withArrow
+        >
+          <div style={{ flex: 1 }}>
+            <Dropzone
+              onDrop={(files) => {
+                void handleAvatarDrop(files);
+              }}
+              onReject={(files) => {
+                const reason = files[0]?.errors[0]?.code;
+                const msg =
+                  reason === 'file-too-large'
+                    ? 'Image must be 3 MB or smaller.'
+                    : 'Only image files are accepted.';
+                setAvatarError(msg);
+              }}
+              accept={IMAGE_MIME_TYPE}
+              maxSize={3 * 1024 ** 2}
+              maxFiles={1}
+              disabled={!canUpdate || avatarLoading}
+              inputProps={{ 'aria-label': 'Upload avatar image' }}
+              data-testid="profile-avatar-dropzone"
+              p="md"
+            >
+              <Group gap="xs" justify="center" style={{ pointerEvents: 'none' }}>
+                <Dropzone.Accept>
+                  <IconUpload size={16} />
+                </Dropzone.Accept>
+                <Dropzone.Reject>
+                  <IconX size={16} />
+                </Dropzone.Reject>
+                <Dropzone.Idle>
+                  <IconPhoto size={16} />
+                </Dropzone.Idle>
+                <Text size="sm">Drop an image here or click to upload (max 3 MB)</Text>
+              </Group>
+            </Dropzone>
+          </div>
+        </Tooltip>
       </Group>
+      {avatarError && (
+        <Alert icon={<IconAlertCircle size={14} />} color="red" variant="light" py="xs">
+          {avatarError}
+        </Alert>
+      )}
 
       {/* Name */}
       <form

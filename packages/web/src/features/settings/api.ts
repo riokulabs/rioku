@@ -524,6 +524,36 @@ export async function addCertEnrollment(
   return enrollment;
 }
 
+/** Revoke a Certificate Authority. Marks the CA revoked and prevents new enrollments. */
+export async function revokeCertAuthority(caId: ID, reason: string): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const ca = state.certAuthorities[caId];
+  if (!ca) return;
+  state.updateEntity('certAuthorities', caId, {
+    revoked: true,
+    revoked_at: now(),
+    ...(reason.length > 0 ? { revocation_reason: reason } : {}),
+  });
+  state.appendAudit(makePkiAudit('pki.ca.revoke', ca.tenant_id, caId));
+  emitHostEvent('pki:ca-revoked', { tenant_id: ca.tenant_id, ca_id: caId });
+}
+
+/** Permanently delete a Certificate Authority. Only allowed for already-revoked CAs. */
+export async function deleteCertAuthority(caId: ID): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const ca = state.certAuthorities[caId];
+  if (!ca) return;
+  useMockStore.setState((s) => {
+    const next = { ...s.certAuthorities };
+    Reflect.deleteProperty(next, caId);
+    return { certAuthorities: next };
+  });
+  state.appendAudit(makePkiAudit('pki.ca.delete', ca.tenant_id, caId));
+  emitHostEvent('pki:ca-deleted', { tenant_id: ca.tenant_id, ca_id: caId });
+}
+
 /** Revoke a certificate enrollment and emit audit + host event. */
 export async function revokeCertEnrollment(enrollmentId: ID, reason: string): Promise<void> {
   await simulateLatency('mutation');

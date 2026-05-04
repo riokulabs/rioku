@@ -241,7 +241,7 @@ export function VariablesPanel({ dashboard, onSaved }: VariablesPanelProps) {
                   <Tooltip label="Remove variable" withArrow>
                     <ActionIcon
                       variant="subtle"
-                      color="red"
+                      color="red.8"
                       disabled={!canWrite}
                       onClick={() => {
                         handleRemove(idx);

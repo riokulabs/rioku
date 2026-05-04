@@ -52,7 +52,7 @@ const ROW_HEIGHT_PX = 80;
 const MIN_W = 1;
 const MIN_H = 1;
 const MAX_W = 12;
-const MAX_H = 8;
+const MAX_H = 16;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -419,7 +419,7 @@ function GridCell({
               <Tooltip label="Remove" withArrow>
                 <ActionIcon
                   variant="subtle"
-                  color="red"
+                  color="red.8"
                   size="sm"
                   aria-label={`Remove ${widget.title}`}
                   onClick={(e) => {

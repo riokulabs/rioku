@@ -8,7 +8,16 @@
 import { useMemo, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Badge, Text, Stack, Group, Menu, ActionIcon } from '@mantine/core';
-import { IconDots, IconRefresh, IconPencil, IconTrash, IconServer } from '@tabler/icons-react';
+import {
+  IconDots,
+  IconRefresh,
+  IconPencil,
+  IconTrash,
+  IconServer,
+  IconPlayerPlay,
+  IconPlayerPause,
+  IconDownload,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable, type BulkAction } from '@/components/data-table';
@@ -16,7 +25,7 @@ import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
 import { useMockStore } from '@/api/mock-store';
 import { HealthChip, ProtocolBadge } from '@/features/api-mgmt-shared';
-import { useServiceList, deleteService } from '../api';
+import { useServiceList, deleteService, enableService, disableService } from '../api';
 import type { Service, ServiceFilter } from '../types';
 
 dayjs.extend(relativeTime);
@@ -76,8 +85,108 @@ export function ServiceList({
     }
   }, []);
 
+  const handleBulkEnable = useCallback(async (ids: string[]) => {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await enableService(id);
+      } catch {
+        failed++;
+      }
+    }
+    const succeeded = ids.length - failed;
+    if (succeeded > 0) {
+      notify.success(
+        'Services enabled',
+        `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} enabled.`,
+      );
+    }
+    if (failed > 0) {
+      notify.error(
+        'Some enables failed',
+        `${String(failed)} service${failed !== 1 ? 's' : ''} could not be enabled.`,
+      );
+    }
+  }, []);
+
+  const handleBulkDisable = useCallback(async (ids: string[]) => {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await disableService(id);
+      } catch {
+        failed++;
+      }
+    }
+    const succeeded = ids.length - failed;
+    if (succeeded > 0) {
+      notify.success(
+        'Services disabled',
+        `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} disabled.`,
+      );
+    }
+    if (failed > 0) {
+      notify.error(
+        'Some disables failed',
+        `${String(failed)} service${failed !== 1 ? 's' : ''} could not be disabled.`,
+      );
+    }
+  }, []);
+
+  const handleBulkExportJson = useCallback((ids: string[]) => {
+    const state = useMockStore.getState();
+    const selected = ids
+      .map((id) => state.services[id])
+      .filter((s): s is NonNullable<typeof s> => s !== undefined)
+      .map(({ id, name, upstream, upstream_protocol, env, health, tags, description }) => ({
+        id,
+        name,
+        upstream,
+        upstream_protocol,
+        env,
+        health,
+        tags,
+        ...(description !== undefined ? { description } : {}),
+      }));
+    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `services-export-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify.success(
+      'Export ready',
+      `${String(selected.length)} service${selected.length !== 1 ? 's' : ''} exported.`,
+    );
+  }, []);
+
   const bulkActions = useMemo<BulkAction[]>(
     () => [
+      {
+        label: 'Enable selected',
+        color: 'green',
+        icon: IconPlayerPlay,
+        onClick: (ids) => {
+          void handleBulkEnable(ids);
+        },
+      },
+      {
+        label: 'Disable selected',
+        color: 'orange',
+        icon: IconPlayerPause,
+        onClick: (ids) => {
+          void handleBulkDisable(ids);
+        },
+      },
+      {
+        label: 'Export as JSON',
+        color: 'blue',
+        icon: IconDownload,
+        onClick: (ids) => {
+          handleBulkExportJson(ids);
+        },
+      },
       {
         label: 'Delete selected',
         color: 'red',
@@ -86,7 +195,7 @@ export function ServiceList({
         },
       },
     ],
-    [handleBulkDelete],
+    [handleBulkEnable, handleBulkDisable, handleBulkExportJson, handleBulkDelete],
   );
 
   const columns = useMemo<ColumnDef<Service>[]>(

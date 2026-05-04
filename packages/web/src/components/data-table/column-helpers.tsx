@@ -5,8 +5,10 @@
  * action menus. Import these as building blocks when defining ColumnDef arrays.
  */
 
-import { Badge, Group, ActionIcon, Text, Tooltip } from '@mantine/core';
+import type { ReactNode } from 'react';
+import { Badge, Group, ActionIcon, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots } from '@tabler/icons-react';
+import type { Row } from '@tanstack/react-table';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -56,7 +58,7 @@ export interface TimestampCellProps {
 export function TimestampCell({ value, format = 'relative' }: TimestampCellProps) {
   if (value == null || value === '') {
     return (
-      <Text size="sm" c="dimmed">
+      <Text size="sm" c="var(--mantine-color-gray-7)">
         —
       </Text>
     );
@@ -65,7 +67,7 @@ export function TimestampCell({ value, format = 'relative' }: TimestampCellProps
   const d = dayjs(value);
   if (!d.isValid()) {
     return (
-      <Text size="sm" c="dimmed">
+      <Text size="sm" c="var(--mantine-color-gray-7)">
         invalid date
       </Text>
     );
@@ -85,28 +87,38 @@ export function TimestampCell({ value, format = 'relative' }: TimestampCellProps
 
 // ── ActionsCell ──────────────────────────────────────────────────────────────
 
-export interface ActionItem {
+export interface ActionItem<T = unknown> {
+  /** Unique key for React reconciliation. Falls back to `label` if omitted. */
+  key?: string;
   label: string;
-  onClick: () => void;
-  disabled?: boolean;
+  /** Optional icon placed to the left of the label inside the menu item. */
+  icon?: ReactNode;
+  /** Called with the row's original data when the menu item is clicked. */
+  onClick: (row: T) => void;
+  /** When true the item is rendered with `color="red"`. */
+  destructive?: boolean;
+  /** Per-row disabled predicate. */
+  disabled?: (row: T) => boolean;
+  /** When returns true the item is omitted from the menu entirely. */
+  hidden?: (row: T) => boolean;
+  /** Mantine color override (takes precedence over `destructive`). */
   color?: string;
 }
 
-export interface ActionsCellProps {
-  actions: ActionItem[];
-  /** Accessible label for the menu trigger button. */
+export interface ActionsCellProps<T = unknown> {
+  row: Row<T>;
+  actions: ActionItem<T>[];
+  /** Accessible label for the trigger button. */
   label?: string;
 }
 
 /**
- * ActionsCell renders an overflow button. For stage 1, it shows a simple
- * tooltip listing available actions rather than a full dropdown menu, which
- * keeps the dependency surface small.
- *
- * NOTE: Stage 2 upgrade — replace with Mantine <Menu> for a real dropdown.
+ * ActionsCell renders an overflow `...` button that opens a Mantine <Menu>
+ * dropdown containing per-row action items.
  */
-export function ActionsCell({ actions, label = 'Row actions' }: ActionsCellProps) {
-  const actionLabels = actions.map((a) => a.label).join(', ');
+export function ActionsCell<T>({ row, actions, label = 'Row actions' }: ActionsCellProps<T>) {
+  const available = actions.filter((a) => !a.hidden?.(row.original));
+  if (available.length === 0) return null;
 
   return (
     <Group
@@ -116,24 +128,33 @@ export function ActionsCell({ actions, label = 'Row actions' }: ActionsCellProps
         e.stopPropagation();
       }}
     >
-      <Tooltip label={actionLabels || 'No actions'} withArrow>
-        <ActionIcon
-          size="sm"
-          variant="subtle"
-          color="gray"
-          aria-label={label}
-          aria-haspopup="true"
-          onClick={() => {
-            // Stage 1: invoke first non-disabled action on click.
-            const first = actions.find((a) => !a.disabled);
-            if (first) {
-              first.onClick();
-            }
-          }}
-        >
-          <IconDots size={16} />
-        </ActionIcon>
-      </Tooltip>
+      <Menu shadow="md" position="bottom-end" withinPortal>
+        <Menu.Target>
+          <ActionIcon variant="subtle" size="sm" aria-label={label} data-testid="row-actions">
+            <IconDots size={16} />
+          </ActionIcon>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {available.map((action) => {
+            const itemColor = action.color ?? (action.destructive ? 'red' : undefined);
+            const isDisabled = action.disabled?.(row.original) ?? false;
+            return (
+              <Menu.Item
+                key={action.key ?? action.label}
+                leftSection={action.icon}
+                onClick={() => {
+                  action.onClick(row.original);
+                }}
+                disabled={isDisabled}
+                {...(itemColor !== undefined ? { color: itemColor } : {})}
+                data-testid={`row-action-${action.key ?? action.label.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {action.label}
+              </Menu.Item>
+            );
+          })}
+        </Menu.Dropdown>
+      </Menu>
     </Group>
   );
 }

@@ -74,7 +74,7 @@ export function AdminAuditView() {
       id: 'tenant',
       header: 'Tenant',
       cell: (info) => (
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="var(--mantine-color-gray-7)">
           {info.row.original.tenant_id ?? '—'}
         </Text>
       ),
@@ -83,7 +83,7 @@ export function AdminAuditView() {
       id: 'resource',
       header: 'Resource',
       cell: (info) => (
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="var(--mantine-color-gray-7)">
           {info.row.original.resource_type}
         </Text>
       ),

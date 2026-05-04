@@ -11,6 +11,8 @@ import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { DashboardBuilderShell } from '@/features/dashboard-builder';
 import { VersionHistoryDrawer, useDashboardDetail } from '@/features/dashboards';
+import { resolveDashboardAccess } from '@/features/dashboards/access';
+import { resolveRolePermissions } from '@/host/role-resolver';
 
 function DashboardBuilderPage() {
   const { tenant, dashboardId } = Route.useParams();
@@ -69,16 +71,35 @@ function DashboardBuilderPage() {
 
 export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId_/edit')({
   beforeLoad: (ctx) => {
-    // 1. Baseline permission + auth check.
+    // 1. Baseline permission + auth check (tenant-level write).
     requirePermissions({ required: ['dashboard:write'] })();
 
-    // 2. Scope enforcement — same as the viewer.
+    // 2. Per-dashboard access — must resolve to 'write'. This honours
+    //    per-user grants, per-role grants, and the dashboard's
+    //    `share_permission` fallback.
     const { params } = ctx;
     const { dashboardId } = params as { dashboardId: string };
-    const { dashboards, currentUserId, currentTenantId, memberships } = useMockStore.getState();
+    const { dashboards, currentUserId, currentTenantId, memberships, roles } =
+      useMockStore.getState();
     const dashboard = dashboards[dashboardId];
     if (!dashboard) return true;
-    if (dashboard.tenant_id !== currentTenantId) {
+
+    const userRoleIds = new Set<string>();
+    for (const m of Object.values(memberships)) {
+      if (m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active') {
+        for (const rid of m.role_ids) userRoleIds.add(rid);
+      }
+    }
+    const resolved = resolveRolePermissions(Array.from(userRoleIds), roles);
+    const hasTenantWrite = resolved.has('dashboard:write');
+    const level = resolveDashboardAccess({
+      dashboard,
+      userId: currentUserId,
+      tenantId: currentTenantId,
+      roleIds: Array.from(userRoleIds),
+      hasTenantWrite,
+    });
+    if (level !== 'write') {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({
         to: '/access-denied' as string,
@@ -87,40 +108,6 @@ export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId_/edit'
           requireAny: false,
         } as Record<string, unknown>,
       });
-    }
-    if (dashboard.scope === 'personal') {
-      if (dashboard.owner_user_id !== currentUserId) {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        throw redirect({
-          to: '/access-denied' as string,
-          search: {
-            required: ['dashboard:write'],
-            requireAny: false,
-          } as Record<string, unknown>,
-        });
-      }
-    } else if (dashboard.scope === 'shared') {
-      const userRoleIds = new Set<string>();
-      for (const m of Object.values(memberships)) {
-        if (
-          m.user_id === currentUserId &&
-          m.tenant_id === currentTenantId &&
-          m.state === 'active'
-        ) {
-          for (const rid of m.role_ids) userRoleIds.add(rid);
-        }
-      }
-      const intersects = dashboard.shared_role_ids.some((rid) => userRoleIds.has(rid));
-      if (!intersects) {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        throw redirect({
-          to: '/access-denied' as string,
-          search: {
-            required: ['dashboard:write'],
-            requireAny: false,
-          } as Record<string, unknown>,
-        });
-      }
     }
     return true;
   },

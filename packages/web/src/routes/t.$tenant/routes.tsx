@@ -12,6 +12,7 @@ import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { DrawerTitleExpand } from '@/components/drawer-title-expand';
 import { RouteList, RouteForm, RouteDetail, deleteRoute } from '@/features/routes';
 import type { RouteFilter } from '@/features/routes';
 import type { Route as RouteRecord } from '@/api/resources/types';
@@ -197,10 +198,27 @@ function RoutesPage() {
         onDelete={(r) => void handleDeleteFromList(r)}
       />
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
-        title={drawerTitle}
+        title={
+          <DrawerTitleExpand
+            title={drawerTitle}
+            {...(drawerMode === 'detail' && selected
+              ? {
+                  onOpenFullPage: () => {
+                    closeDrawer();
+                    void navigate({
+                      to: '/t/$tenant/_detail/$kind/$id',
+                      params: { tenant: tenantSlug, kind: 'route', id: selected.id },
+                    } as unknown as Parameters<typeof navigate>[0]);
+                  },
+                }
+              : {})}
+          />
+        }
         position="right"
         size="min(520px, 95vw)"
         padding="md"
@@ -213,13 +231,6 @@ function RoutesPage() {
               setDrawerMode('edit');
             }}
             onClose={closeDrawer}
-            onOpenFullPage={() => {
-              closeDrawer();
-              void navigate({
-                to: '/t/$tenant/_detail/$kind/$id',
-                params: { tenant: tenantSlug, kind: 'route', id: selected.id },
-              } as unknown as Parameters<typeof navigate>[0]);
-            }}
           />
         )}
         {drawerMode === 'create' && (

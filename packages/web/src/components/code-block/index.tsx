@@ -142,7 +142,7 @@ export function CodeBlock({
           })}
         >
           {hasTitle ? (
-            <Text size="xs" fw={500} c="dimmed" ff="monospace">
+            <Text size="xs" fw={500} c="var(--mantine-color-gray-7)" ff="monospace">
               {title}
             </Text>
           ) : (

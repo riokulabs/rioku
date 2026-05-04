@@ -35,17 +35,17 @@ export function ErrorState({
         </ThemeIcon>
         <Title order={4}>{title}</Title>
         {description && (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {description}
           </Text>
         )}
         {correlationId && (
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="var(--mantine-color-gray-7)">
             Correlation ID: <IdBadge id={correlationId} />
           </Text>
         )}
         {retry && (
-          <Button variant="light" color="red" onClick={retry} mt="xs">
+          <Button variant="light" color="red.8" onClick={retry} mt="xs">
             Try again
           </Button>
         )}

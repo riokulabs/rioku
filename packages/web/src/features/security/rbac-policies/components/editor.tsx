@@ -64,7 +64,7 @@ export function RbacPolicyEditor({
     setSaving(true);
     try {
       await onSave(values);
-      form.resetDirty();
+      form.resetDirty(form.values);
     } finally {
       setSaving(false);
     }

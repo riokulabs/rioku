@@ -6,8 +6,8 @@
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { ActionIcon, Badge, Menu, Stack, Switch, Text } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash, IconRoute } from '@tabler/icons-react';
+import { ActionIcon, Badge, Group, Menu, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { IconDots, IconPencil, IconSearch, IconTrash, IconRoute } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
@@ -49,6 +49,15 @@ export function RouteList({
 }: RouteListProps) {
   const routes = useRouteList(serviceId, tenantId, filter);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filteredRoutes = useMemo(() => {
+    if (!search.trim()) return routes;
+    const q = search.toLowerCase();
+    return routes.filter(
+      (r) => r.name.toLowerCase().includes(q) || r.path.toLowerCase().includes(q),
+    );
+  }, [routes, search]);
 
   async function handleToggle(route: Route, next: boolean) {
     setTogglingId(route.id);
@@ -196,23 +205,37 @@ export function RouteList({
   );
 
   return (
-    <DataTable
-      data={routes}
-      columns={columns}
-      sorting
-      pagination={{ pageSize: 20 }}
-      urlSyncKey="routes"
-      onRowClick={onSelect}
-      emptyState={
-        <Stack align="center">
-          <EmptyState
-            icon={IconRoute}
-            title="No routes"
-            description="Create a route to forward traffic to a service."
-          />
-        </Stack>
-      }
-      caption="Routes"
-    />
+    <Stack gap="sm">
+      <Group gap="sm">
+        <TextInput
+          leftSection={<IconSearch size={16} />}
+          placeholder="Search routes…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.currentTarget.value);
+          }}
+          style={{ flex: 1 }}
+          aria-label="Search routes"
+        />
+      </Group>
+      <DataTable
+        data={filteredRoutes}
+        columns={columns}
+        sorting
+        pagination={{ pageSize: 20 }}
+        urlSyncKey="routes"
+        onRowClick={onSelect}
+        emptyState={
+          <Stack align="center">
+            <EmptyState
+              icon={IconRoute}
+              title="No routes"
+              description="Create a route to forward traffic to a service."
+            />
+          </Stack>
+        }
+        caption="Routes"
+      />
+    </Stack>
   );
 }

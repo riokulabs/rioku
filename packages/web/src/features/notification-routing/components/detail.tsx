@@ -268,7 +268,7 @@ export function RoutingRuleDetail({ ruleId, onEdit, onClose }: RoutingRuleDetail
         <Button size="sm" disabled={!canWrite} onClick={onEdit}>
           Edit
         </Button>
-        <Button size="sm" variant="subtle" color="red" disabled={!canWrite} onClick={openDelete}>
+        <Button size="sm" variant="subtle" color="red.8" disabled={!canWrite} onClick={openDelete}>
           Delete…
         </Button>
       </Group>
@@ -315,7 +315,7 @@ export function RoutingRuleDetail({ ruleId, onEdit, onClose }: RoutingRuleDetail
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== rule.name}

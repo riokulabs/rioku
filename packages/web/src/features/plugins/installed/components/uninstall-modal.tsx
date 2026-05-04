@@ -85,7 +85,7 @@ export function UninstallPluginModal({
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               loading={loading}
               disabled={slugInput !== plugin.slug}
               onClick={() => void handleConfirm()}

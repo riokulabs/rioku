@@ -12,6 +12,7 @@ import { emitHostEvent } from '@/host/events';
 import type { AuditEntry, Dashboard, Widget } from '@/api/resources/types';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { runWidgetQuery, WidgetQueryError } from '@/features/widgets/data-sources';
+import { useDashboardRange } from '@/hooks/use-dashboard-range';
 import { LayoutValidationError, WidgetFlipError } from './types';
 import type { AddWidgetInput, UpdateWidgetInput, WidgetDataState } from './types';
 
@@ -62,9 +63,10 @@ function requireDashboard(id: string): Dashboard {
  */
 export function useWidgetData(widget: Widget | undefined): WidgetDataState {
   const [state, setStateRaw] = useState<WidgetDataState>({ data: undefined, loading: true });
+  const { range } = useDashboardRange();
 
   const signature = widget
-    ? `${widget.id}|${widget.kind}|${widget.data_source}|${widget.raw_query}|${widget.updated_at}`
+    ? `${widget.id}|${widget.kind}|${widget.data_source}|${widget.raw_query}|${widget.updated_at}|${range.id}`
     : 'none';
 
   useEffect(() => {
@@ -84,7 +86,16 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
         await simulateLatency('query');
         if (flag.cancelled) return;
         try {
-          const data = runWidgetQuery(w, useMockStore.getState());
+          // Inject the active dashboard range into the widget config under
+          // the `_range` key — mock adapters read this to synthesise trends
+          // at the right density/labels for the selected window. Pass the
+          // entire TimeRange object so non-preset specs (relative/absolute)
+          // still drive correct point counts and tick labels.
+          const widgetWithRange: Widget = {
+            ...w,
+            config: { ...w.config, _range: range },
+          };
+          const data = runWidgetQuery(widgetWithRange, useMockStore.getState());
           // flag.cancelled may have flipped across the microtask boundary.
           // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           if (!flag.cancelled) setStateRaw({ data, loading: false });

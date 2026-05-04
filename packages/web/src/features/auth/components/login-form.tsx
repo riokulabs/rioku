@@ -52,14 +52,18 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
       // Login success — consume saved return URL or navigate to default.
       const saved = consumeReturnUrl();
 
-      // Guard: if user has no tenant membership, redirect to tenant picker.
+      // Guard: if user has no tenant membership, show error but still send to picker.
       if (!result.tenant_id) {
         setError('No tenant memberships found. Contact your administrator.');
         await navigate({ to: '/tenants' });
         return;
       }
 
-      const dest = saved ?? returnUrl ?? `/t/${result.tenant_id}/dashboard`;
+      // Navigate: honour saved return URL or explicit ?return= param first.
+      // Fall back to /tenants (picker) so multi-tenant users can choose their context.
+      // The picker auto-advances to dashboard when the user has exactly one tenant.
+      // TODO(stage-2): subdomain routing may change this default destination.
+      const dest = saved ?? returnUrl ?? '/tenants';
       await navigate({ to: dest });
     } finally {
       setSubmitting(false);

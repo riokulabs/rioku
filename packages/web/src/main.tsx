@@ -60,10 +60,24 @@ async function bootstrapStore(): Promise<void> {
     };
   }
   const { seedStore } = await import('./api/mock-seed');
-  const state = useMockStore.getState();
+  let state = useMockStore.getState();
   // Never auto-seed the first-run bootstrap route — the whole point of that
   // page is to run with an empty store so the user can create the first tenant.
   const onBootstrapRoute = window.location.pathname === '/bootstrap';
+  // Guard against partial-reset migrations: if a persist-middleware migration
+  // cleared some entities (e.g. dashboards/widgets for a schema bump) without
+  // clearing users, the `users.length === 0` seed trigger below would skip
+  // re-seeding and leave the store internally inconsistent (dashboards empty,
+  // tenants/users still populated). Detect that state and do a full reset so
+  // the seed below fires fresh.
+  if (
+    Object.keys(state.users).length > 0 &&
+    Object.keys(state.dashboards).length === 0 &&
+    !onBootstrapRoute
+  ) {
+    state.reset();
+    state = useMockStore.getState();
+  }
   if (Object.keys(state.users).length === 0 && !onBootstrapRoute) {
     seedStore(useMockStore);
   }

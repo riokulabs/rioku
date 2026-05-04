@@ -597,7 +597,7 @@ function ShellInner({ dashboard, widgets, onDone, onVersionHistory }: ShellInner
               Keep editing
             </Button>
             <Button
-              color="red"
+              color="red.8"
               onClick={() => {
                 setCancelOpen(false);
                 onDone('cancelled');

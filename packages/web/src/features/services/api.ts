@@ -170,6 +170,32 @@ export async function deleteService(id: string): Promise<void> {
   emitHostEvent('service.deleted', { service_id: id, tenant_id: service.tenant_id });
 }
 
+export async function enableService(id: string): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const service = state.services[id];
+  if (!service) {
+    throw new Error(`Service ${id} not found`);
+  }
+
+  state.updateEntity('services', id, { health: 'healthy' });
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), service.tenant_id, 'service.enable', id));
+  emitHostEvent('service.updated', { service_id: id, tenant_id: service.tenant_id });
+}
+
+export async function disableService(id: string): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const service = state.services[id];
+  if (!service) {
+    throw new Error(`Service ${id} not found`);
+  }
+
+  state.updateEntity('services', id, { health: 'disabled' });
+  state.appendAudit(makeAuditEntry(getCurrentActorId(), service.tenant_id, 'service.disable', id));
+  emitHostEvent('service.updated', { service_id: id, tenant_id: service.tenant_id });
+}
+
 export async function forceReloadService(id: string): Promise<void> {
   await simulateLatency('mutation');
   const state = useMockStore.getState();

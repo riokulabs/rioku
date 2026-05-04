@@ -108,7 +108,7 @@ export function MembershipActions({ membership, tenantSlug, onChanged }: Members
         )}
 
         {membership.state !== 'removed' && (
-          <Button size="xs" variant="subtle" color="red" onClick={openRemove}>
+          <Button size="xs" variant="subtle" color="red.8" onClick={openRemove}>
             Remove
           </Button>
         )}
@@ -184,7 +184,7 @@ export function MembershipActions({ membership, tenantSlug, onChanged }: Members
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={loading}
               disabled={removeSlugInput !== tenantSlug}

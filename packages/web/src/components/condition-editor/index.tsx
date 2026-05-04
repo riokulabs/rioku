@@ -137,7 +137,7 @@ export function ConditionEditor({
       )}
 
       {/* spec §7.2 exact phrasing */}
-      <Text size="xs" c="dimmed" aria-label="cel-editor-chrome">
+      <Text size="xs" c="var(--mantine-color-gray-7)" aria-label="cel-editor-chrome">
         {CHROME_TEXT}
       </Text>
 

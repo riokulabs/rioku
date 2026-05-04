@@ -49,7 +49,7 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
   const node = useClusterNode(nodeId);
 
   if (!node) {
-    return <Text c="dimmed">Node not found.</Text>;
+    return <Text c="var(--mantine-color-gray-7)">Node not found.</Text>;
   }
 
   const cpuColor =
@@ -65,7 +65,7 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
           <Title order={4} ff="monospace">
             {node.name}
           </Title>
-          <Text size="xs" c="dimmed" ff="monospace">
+          <Text size="xs" c="var(--mantine-color-gray-7)" ff="monospace">
             {node.address}
           </Text>
         </Stack>
@@ -83,27 +83,27 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
 
       {/* Identity table */}
       <Stack gap={4}>
-        <Text size="xs" fw={600} tt="uppercase" c="dimmed">
+        <Text size="xs" fw={600} tt="uppercase" c="var(--mantine-color-gray-7)">
           Identity
         </Text>
         <Table withRowBorders={false} fz="sm">
           <Table.Tbody>
             <Table.Tr>
-              <Table.Td c="dimmed" w={130}>
+              <Table.Td c="var(--mantine-color-gray-7)" w={130}>
                 Region
               </Table.Td>
               <Table.Td ff="monospace">{deriveRegion(node)}</Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Td c="dimmed">Version</Table.Td>
+              <Table.Td c="var(--mantine-color-gray-7)">Version</Table.Td>
               <Table.Td ff="monospace">{node.version}</Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Td c="dimmed">Joined</Table.Td>
+              <Table.Td c="var(--mantine-color-gray-7)">Joined</Table.Td>
               <Table.Td>{dayjs(node.joined_at).fromNow()}</Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Td c="dimmed">Last heartbeat</Table.Td>
+              <Table.Td c="var(--mantine-color-gray-7)">Last heartbeat</Table.Td>
               <Table.Td>{dayjs(node.last_heartbeat_at).fromNow()}</Table.Td>
             </Table.Tr>
           </Table.Tbody>
@@ -114,7 +114,7 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
 
       {/* Metrics */}
       <Stack gap="sm">
-        <Text size="xs" fw={600} tt="uppercase" c="dimmed">
+        <Text size="xs" fw={600} tt="uppercase" c="var(--mantine-color-gray-7)">
           Current metrics
         </Text>
 
@@ -141,13 +141,13 @@ export function NodeDetailDrawer({ nodeId }: NodeDetailDrawerProps) {
         <Table withRowBorders={false} fz="sm" mt="xs">
           <Table.Tbody>
             <Table.Tr>
-              <Table.Td c="dimmed">Requests/sec</Table.Td>
+              <Table.Td c="var(--mantine-color-gray-7)">Requests/sec</Table.Td>
               <Table.Td ff="monospace">
                 {node.metrics.requests_per_second.toLocaleString()}
               </Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Td c="dimmed">p95 latency</Table.Td>
+              <Table.Td c="var(--mantine-color-gray-7)">p95 latency</Table.Td>
               <Table.Td ff="monospace">{node.metrics.latency_p95_ms} ms</Table.Td>
             </Table.Tr>
           </Table.Tbody>

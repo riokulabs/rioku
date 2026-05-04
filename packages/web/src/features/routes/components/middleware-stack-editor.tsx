@@ -172,7 +172,7 @@ export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEdit
                   <ActionIcon
                     size="sm"
                     variant="subtle"
-                    color="red"
+                    color="red.8"
                     disabled={busy}
                     aria-label={`Remove ${m.name} from stack`}
                     onClick={() => void removeAt(i)}

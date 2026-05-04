@@ -72,7 +72,7 @@ function OutcomeLabel({ outcome }: { outcome: 'granted' | 'denied' | 'no-source'
     );
   }
   return (
-    <Text size="sm" c="dimmed" fw={600}>
+    <Text size="sm" c="var(--mantine-color-gray-7)" fw={600}>
       Permission not found
     </Text>
   );
@@ -96,7 +96,7 @@ export function PermissionPathTrace({ userId, tenantId, permission }: Permission
 
       {/* Error message (e.g. membership not found) */}
       {trace.error && (
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--mantine-color-gray-7)">
           {trace.error}
         </Text>
       )}
@@ -112,7 +112,7 @@ export function PermissionPathTrace({ userId, tenantId, permission }: Permission
               </ThemeIcon>
             }
           >
-            <Text size="xs" c="dimmed">
+            <Text size="xs" c="var(--mantine-color-gray-7)">
               User: <strong>{userId}</strong>
             </Text>
           </List.Item>
@@ -125,7 +125,7 @@ export function PermissionPathTrace({ userId, tenantId, permission }: Permission
               </ThemeIcon>
             }
           >
-            <Text size="xs" c="dimmed">
+            <Text size="xs" c="var(--mantine-color-gray-7)">
               Tenant: <strong>{tenantId}</strong>
             </Text>
           </List.Item>
@@ -140,7 +140,7 @@ export function PermissionPathTrace({ userId, tenantId, permission }: Permission
                 </ThemeIcon>
               }
             >
-              <Text size="xs" c="dimmed">
+              <Text size="xs" c="var(--mantine-color-gray-7)">
                 Role: <strong>{trace.roleNames[roleId] ?? roleId}</strong>
               </Text>
             </List.Item>
@@ -157,7 +157,7 @@ export function PermissionPathTrace({ userId, tenantId, permission }: Permission
                     </ThemeIcon>
                   }
                 >
-                  <Text size="xs" c="dimmed">
+                  <Text size="xs" c="var(--mantine-color-gray-7)">
                     Inherited via:{' '}
                     <strong>
                       {trace.resolved.path.map((id) => trace.roleNames[id] ?? id).join(' → ')}
@@ -229,7 +229,7 @@ export function PermissionPathTrace({ userId, tenantId, permission }: Permission
                 </ThemeIcon>
               }
             >
-              <Text size="xs" c="dimmed">
+              <Text size="xs" c="var(--mantine-color-gray-7)">
                 No role grants this permission
               </Text>
             </List.Item>

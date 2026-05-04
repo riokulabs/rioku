@@ -596,7 +596,7 @@ export const useMockStore = IS_VITEST
   : create<MockStore>()(
       persist(storeInitializer, {
         name: 'rioku-mock-store',
-        version: 16,
+        version: 18,
         storage: createJSONStorage(() => {
           // Fall back to a no-op storage in environments without localStorage
           // (e.g. SSR, certain test runners). Persist still works in-memory.
@@ -712,6 +712,26 @@ export const useMockStore = IS_VITEST
           // Additive; persisted stores from v15 simply get an empty map.
           if (version < 16) {
             state.notificationConfigs = {};
+          }
+          // Version 17 — Overview dashboard rebuilt with 22 widgets spanning
+          // the whole Rioku system (new kinds: kpi-card, gauge, heatmap,
+          // area-chart, status-grid). Drop persisted dashboards + widgets so
+          // the seeder repopulates against the current layout spec.
+          if (version < 17) {
+            state.dashboards = {};
+            state.widgets = {};
+            state.dashboardVersions = {};
+            state.userHomeDashboards = {};
+          }
+          // Version 18 — Overview trimmed (audit-tail / log-viewer /
+          // service-map removed), pie + top-n widget configs updated for
+          // HTTP method / error-rate accent hints. Force another reseed so
+          // everyone gets the new layout and widget configs.
+          if (version < 18) {
+            state.dashboards = {};
+            state.widgets = {};
+            state.dashboardVersions = {};
+            state.userHomeDashboards = {};
           }
           return state as unknown as MockStore;
         },

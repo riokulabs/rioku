@@ -294,7 +294,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
         <Button
           size="sm"
           variant="subtle"
-          color="red"
+          color="red.8"
           disabled={!canWrite}
           leftSection={<IconBell size={14} />}
           onClick={openDelete}
@@ -345,7 +345,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={deleting}
               disabled={deleteInput !== channel.name}

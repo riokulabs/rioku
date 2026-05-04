@@ -196,6 +196,7 @@ function PluginsPage() {
             component={Link as any}
             to="/t/$tenant/plugins/signers"
             params={{ tenant: tenantSlug }}
+            data-testid="plugins-signers-link"
           >
             Signer allow-list
           </Button>
@@ -232,7 +233,9 @@ function PluginsPage() {
         </Tabs.Panel>
       </Tabs>
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
         title={selectedPlugin ? selectedPlugin.display_name : 'Plugin detail'}

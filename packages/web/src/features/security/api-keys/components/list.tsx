@@ -3,8 +3,16 @@
  */
 import { useMemo, useState, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge, Text, Select, Stack, Group, ActionIcon, Tooltip } from '@mantine/core';
-import { IconKey, IconTrash, IconRefresh, IconBan } from '@tabler/icons-react';
+import { Badge, Text, Select, Stack, Group, ActionIcon, TextInput, Tooltip } from '@mantine/core';
+import {
+  IconKey,
+  IconSearch,
+  IconTrash,
+  IconRefresh,
+  IconBan,
+  IconDownload,
+} from '@tabler/icons-react';
+import { useMockStore } from '@/api/mock-store';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
@@ -36,12 +44,21 @@ interface ApiKeyListProps {
 export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   const [filter, setFilter] = useState<ApiKeyFilter>(DEFAULT_FILTER);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const handleStatusChange = useCallback((value: string | null) => {
     setFilter({ status: (value ?? 'all') as ApiKeyFilter['status'] });
   }, []);
 
   const keys = useApiKeyList(tenantId, filter);
+
+  const filteredKeys = useMemo(() => {
+    if (!search.trim()) return keys;
+    const q = search.toLowerCase();
+    return keys.filter(
+      (k) => k.name.toLowerCase().includes(q) || k.prefix.toLowerCase().includes(q),
+    );
+  }, [keys, search]);
 
   async function handleRevoke(id: string) {
     setLoadingId(id);
@@ -130,8 +147,47 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
     }
   }, []);
 
+  const handleBulkExportMetadata = useCallback((ids: string[]) => {
+    const state = useMockStore.getState();
+    const selected = ids
+      .map((id) => state.apiKeys[id])
+      .filter((k): k is NonNullable<typeof k> => k !== undefined)
+      .map(
+        ({ id, name, prefix, scope, tenant_id, created_at, expires_at, revoked, last_used }) => ({
+          id,
+          name,
+          prefix,
+          scope,
+          tenant_id,
+          created_at,
+          ...(expires_at !== undefined ? { expires_at } : {}),
+          revoked,
+          ...(last_used !== undefined ? { last_used } : {}),
+        }),
+      );
+    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `api-keys-metadata-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify.success(
+      'Export ready',
+      `${String(selected.length)} key${selected.length !== 1 ? 's' : ''} exported (no secrets).`,
+    );
+  }, []);
+
   const bulkActions = useMemo<BulkAction[]>(
     () => [
+      {
+        label: 'Export metadata',
+        color: 'blue',
+        icon: IconDownload,
+        onClick: (ids) => {
+          handleBulkExportMetadata(ids);
+        },
+      },
       {
         label: 'Revoke selected',
         color: 'orange',
@@ -147,7 +203,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         },
       },
     ],
-    [handleBulkRevoke, handleBulkDelete],
+    [handleBulkExportMetadata, handleBulkRevoke, handleBulkDelete],
   );
 
   const columns = useMemo<ColumnDef<ApiKeyWithMeta>[]>(
@@ -167,7 +223,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         header: 'Key prefix',
         accessorFn: (row) => row.prefix,
         cell: ({ getValue }) => (
-          <Text size="xs" ff="monospace" c="dimmed">
+          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
             {getValue<string>()}…
           </Text>
         ),
@@ -189,7 +245,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         header: 'Last used',
         accessorFn: (row) => row.last_used_summary,
         cell: ({ getValue }) => (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {getValue<string | undefined>() ?? '—'}
           </Text>
         ),
@@ -202,7 +258,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
           const days = row.original.expires_in_days;
           if (days === undefined)
             return (
-              <Text size="sm" c="dimmed">
+              <Text size="sm" c="var(--mantine-color-gray-7)">
                 Never
               </Text>
             );
@@ -274,7 +330,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
                   aria-label="Delete API key"
                   size="sm"
                   variant="subtle"
-                  color="red"
+                  color="red.8"
                   loading={isLoading}
                   onClick={() => void handleDelete(key.id)}
                 >
@@ -292,6 +348,16 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   return (
     <Stack gap="sm">
       <Group gap="sm" align="flex-end">
+        <TextInput
+          leftSection={<IconSearch size={16} />}
+          placeholder="Search API keys…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.currentTarget.value);
+          }}
+          style={{ flex: 1 }}
+          aria-label="Search API keys"
+        />
         <Select
           data={STATUS_OPTIONS}
           value={filter.status}
@@ -302,7 +368,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
       </Group>
 
       <DataTable
-        data={keys}
+        data={filteredKeys}
         columns={columns}
         sorting
         pagination={{ pageSize: 20 }}

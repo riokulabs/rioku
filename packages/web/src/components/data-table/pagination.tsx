@@ -29,7 +29,7 @@ export function DataTablePagination<TData>({ table, totalRows }: DataTablePagina
 
   return (
     <Group justify="space-between" align="center" py="xs" px="sm">
-      <Text size="sm" c="dimmed" aria-live="polite">
+      <Text size="sm" c="var(--mantine-color-gray-7)" aria-live="polite">
         {totalRows === 0
           ? 'No results'
           : `Showing ${String(startRow)}–${String(endRow)} of ${String(totalRows)}`}

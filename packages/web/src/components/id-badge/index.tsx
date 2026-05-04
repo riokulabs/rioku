@@ -28,7 +28,7 @@ export function IdBadge({ id, label }: IdBadgeProps) {
               component="span"
               size="sm"
               ff="monospace"
-              c="dimmed"
+              c="var(--mantine-color-gray-7)"
               style={{ userSelect: 'all' }}
             >
               {display}

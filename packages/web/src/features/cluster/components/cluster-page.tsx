@@ -158,7 +158,7 @@ export function ClusterPage() {
       {/* Summary cards */}
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
         <Card withBorder padding="md" radius="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
             Total nodes
           </Text>
           <Text size="xl" fw={700} mt={4}>
@@ -166,23 +166,23 @@ export function ClusterPage() {
           </Text>
         </Card>
         <Card withBorder padding="md" radius="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
             Healthy
           </Text>
           <Text
             size="xl"
             fw={700}
             mt={4}
-            c={stats.healthyPct === 100 ? 'teal' : stats.healthyPct >= 75 ? 'yellow' : 'red'}
+            c={stats.healthyPct === 100 ? 'teal.4' : stats.healthyPct >= 75 ? 'yellow.4' : 'red.4'}
           >
             {stats.healthyPct}%
           </Text>
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="var(--mantine-color-gray-7)">
             {stats.healthyCount} of {stats.total}
           </Text>
         </Card>
         <Card withBorder padding="md" radius="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
             Cluster version
           </Text>
           <Text size="xl" fw={700} mt={4} ff="monospace">
@@ -190,12 +190,12 @@ export function ClusterPage() {
           </Text>
         </Card>
         <Card withBorder padding="md" radius="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
             Avg p95 latency
           </Text>
           <Text size="xl" fw={700} mt={4}>
             {stats.avgLatency}
-            <Text component="span" size="sm" fw={400} c="dimmed">
+            <Text component="span" size="sm" fw={400} c="var(--mantine-color-gray-7)">
               {' '}
               ms
             </Text>
@@ -230,6 +230,7 @@ export function ClusterPage() {
                 {nodes.map((node) => (
                   <Table.Tr
                     key={node.id}
+                    role="row"
                     style={{ cursor: 'pointer' }}
                     onClick={() => {
                       handleViewNode(node);
@@ -239,7 +240,7 @@ export function ClusterPage() {
                       <Text size="sm" fw={500} ff="monospace">
                         {node.name}
                       </Text>
-                      <Text size="xs" c="dimmed" ff="monospace">
+                      <Text size="xs" c="var(--mantine-color-gray-7)" ff="monospace">
                         {node.address}
                       </Text>
                     </Table.Td>
@@ -273,9 +274,9 @@ export function ClusterPage() {
                         size="sm"
                         ff="monospace"
                         {...(node.metrics.latency_p95_ms > 100
-                          ? { c: 'red' }
+                          ? { c: 'red.4' }
                           : node.metrics.latency_p95_ms > 50
-                            ? { c: 'yellow' }
+                            ? { c: 'yellow.4' }
                             : {})}
                       >
                         {node.metrics.latency_p95_ms}
@@ -307,7 +308,7 @@ export function ClusterPage() {
                           <Tooltip label="Remove node">
                             <ActionIcon
                               variant="subtle"
-                              color="red"
+                              color="red.8"
                               size="sm"
                               onClick={() => {
                                 handleRemoveClick(node);
@@ -332,7 +333,7 @@ export function ClusterPage() {
       <Stack gap="sm">
         <Title order={4}>Active enrollment tokens</Title>
         {activeTokens.length === 0 ? (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             No active enrollment tokens.
           </Text>
         ) : (
@@ -364,7 +365,7 @@ export function ClusterPage() {
                       <Tooltip label="Revoke token">
                         <ActionIcon
                           variant="subtle"
-                          color="red"
+                          color="red.8"
                           size="sm"
                           loading={revokingTokenId === tok.id}
                           onClick={() => {
@@ -426,7 +427,7 @@ export function ClusterPage() {
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               onClick={() => {
                 void handleConfirmRemove();
               }}

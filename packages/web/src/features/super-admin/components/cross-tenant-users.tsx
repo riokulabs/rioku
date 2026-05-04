@@ -79,7 +79,7 @@ export function CrossTenantUsers() {
       id: 'email',
       header: 'Email',
       cell: (info) => (
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="var(--mantine-color-gray-7)">
           {info.row.original.user.email}
         </Text>
       ),

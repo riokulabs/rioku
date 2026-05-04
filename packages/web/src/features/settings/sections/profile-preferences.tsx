@@ -13,7 +13,6 @@ import {
   Alert,
   Button,
   Checkbox,
-  Fieldset,
   Group,
   Select,
   Stack,
@@ -181,7 +180,10 @@ export function ProfilePreferences({ user }: ProfilePreferencesProps) {
         />
 
         {/* Reduced motion */}
-        <Fieldset legend="Accessibility">
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
+            Accessibility
+          </Text>
           <Switch
             label="Reduce motion"
             description="Suppresses animations and transitions throughout the UI."
@@ -192,57 +194,60 @@ export function ProfilePreferences({ user }: ProfilePreferencesProps) {
               form.setFieldValue('reduced_motion', e.currentTarget.checked);
             }}
           />
-        </Fieldset>
+        </Stack>
 
         {/* Notification toggles */}
-        <Fieldset legend="Notifications">
-          <Stack gap="xs">
+        <Stack gap="xs">
+          <Stack gap={2}>
+            <Text size="sm" fw={600}>
+              Notifications
+            </Text>
             <Text size="xs" c="var(--mantine-color-gray-7)">
               Choose which channels deliver notifications to you.
             </Text>
-            <Switch
-              label="Email notifications"
-              disabled={!canUpdate}
-              data-testid="profile-notification-email"
-              checked={form.values.notification_email}
-              onChange={(e) => {
-                form.setFieldValue('notification_email', e.currentTarget.checked);
-              }}
-            />
-            <Switch
-              label="In-app notifications"
-              disabled={!canUpdate}
-              data-testid="profile-notification-in-app"
-              checked={form.values.notification_in_app}
-              onChange={(e) => {
-                form.setFieldValue('notification_in_app', e.currentTarget.checked);
-              }}
-            />
-
-            {/* Mute categories */}
-            <Checkbox.Group
-              label="Mute categories"
-              description="Selected categories will not generate notifications."
-              value={form.values.categories_muted}
-              onChange={(val) => {
-                form.setFieldValue('categories_muted', val);
-              }}
-              data-testid="profile-mute-categories"
-            >
-              <Group gap="sm" mt="xs">
-                {BUILT_IN_CATEGORIES.map((cat) => (
-                  <Checkbox
-                    key={cat}
-                    value={cat}
-                    label={CATEGORY_LABELS[cat] ?? cat}
-                    disabled={!canUpdate}
-                    data-testid={`profile-mute-category-${cat}`}
-                  />
-                ))}
-              </Group>
-            </Checkbox.Group>
           </Stack>
-        </Fieldset>
+          <Switch
+            label="Email notifications"
+            disabled={!canUpdate}
+            data-testid="profile-notification-email"
+            checked={form.values.notification_email}
+            onChange={(e) => {
+              form.setFieldValue('notification_email', e.currentTarget.checked);
+            }}
+          />
+          <Switch
+            label="In-app notifications"
+            disabled={!canUpdate}
+            data-testid="profile-notification-in-app"
+            checked={form.values.notification_in_app}
+            onChange={(e) => {
+              form.setFieldValue('notification_in_app', e.currentTarget.checked);
+            }}
+          />
+
+          {/* Mute categories */}
+          <Checkbox.Group
+            label="Mute categories"
+            description="Selected categories will not generate notifications."
+            value={form.values.categories_muted}
+            onChange={(val) => {
+              form.setFieldValue('categories_muted', val);
+            }}
+            data-testid="profile-mute-categories"
+          >
+            <Group gap="sm" mt="xs">
+              {BUILT_IN_CATEGORIES.map((cat) => (
+                <Checkbox
+                  key={cat}
+                  value={cat}
+                  label={CATEGORY_LABELS[cat] ?? cat}
+                  disabled={!canUpdate}
+                  data-testid={`profile-mute-category-${cat}`}
+                />
+              ))}
+            </Group>
+          </Checkbox.Group>
+        </Stack>
 
         <Group justify="flex-end">
           <Tooltip

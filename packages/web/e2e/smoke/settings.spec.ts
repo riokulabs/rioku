@@ -71,9 +71,9 @@ const SECTION_ANCHOR: Record<string, string> = {
   profile: 'profile-section',
   tenant: 'tenant-section',
   authentication: 'auth-policy-form',
-  // Notifications section renders a button to "Open notifications" rather
-  // than an inline section component — check for the open-link testid.
-  notifications: 'settings-section-open-notifications',
+  // Notifications section is now a full tenant-scoped admin panel (Wave 3c
+  // commit b91b343) that renders with `notifications-section` testid.
+  notifications: 'notifications-section',
   network: 'fieldset-listen-addresses',
   pki: 'pki-section',
   tls: 'tls-section',

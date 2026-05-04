@@ -6,68 +6,134 @@
  */
 
 /**
- * WCAG AA contrast fixes — dark mode.
+ * Dark-mode Colorffy-derived palette + WCAG AA contrast fixes.
  *
- * All overrides target `:root[data-mantine-color-scheme='dark']` to match
- * Mantine's own dark-mode variable specificity so these rules win.
+ * Surface tiers (Colorffy `--clr-surface-a*`, warmed neutral greys):
+ *   --clr-surface-a0   #121212   page body / AppShell navbar (darkest)
+ *   --clr-surface-a10  #282828   cards / panels (default surface)
+ *   --clr-surface-a20  #3f3f3f   elevated / hover state
+ *   --clr-surface-a30  #575757   pressed / active-but-muted
+ *   --clr-surface-a40  #717171   disabled / "quiet" background
+ *   --clr-surface-a50  #8b8b8b   subtle dividers at scale
  *
- * DIMMED TOKEN
- * Mantine's `--mantine-color-dimmed` resolves to `var(--mantine-color-dark-2)`
- * (#828282) in dark mode.  Against the dark.7 page background (#242424) that
- * yields only ~4.0:1 — below WCAG AA (4.5:1).  Against the dark.6 table
- * surface (#2e2e2e) the ratio drops to ~3.5:1.
- * Fix: override to dark.1 (#b8b8b8).
- *   dark.1 vs dark.7 (#242424): ~7.8:1  ✓ WCAG AA
- *   dark.1 vs dark.6 (#2e2e2e): ~6.9:1  ✓ WCAG AA
+ * Semantic palettes (Colorffy a0 anchors, Mantine riokuSuccess/Warning/Danger/Info):
+ *   success #22946e   teal-green
+ *   warning #a87a2a   amber
+ *   danger  #9c2121   deep red
+ *   info    #21498a   navy blue
  *
- * GRAY-7 IN DARK MODE
- * Feature code across plans 2–8 uses c="var(--mantine-color-gray-7)" for
- * secondary/muted text in DataTable cells and detail panels.  gray.7 in
- * Mantine's default light palette is #495057; in dark mode that reads ~1.9:1
- * against dark.7 — a critical failure.
- * Mantine's own components already use explicit dark-mode selectors and do
- * NOT read --mantine-color-gray-7 in dark context, so this override is safe.
- * Fix: remap to dark.1 (#b8b8b8).
- *   dark.1 vs dark.7: ~7.8:1  ✓ WCAG AA
+ * Primary — warm orange `riokuOrange.6` (#b33d0d). Used for CTAs / active nav.
  *
- * GRAY-8 IN DARK MODE
- * Same issue: c="var(--mantine-color-gray-8)" is used for secondary text in
- * notification inbox and plugin detail panels.  gray.8 (#343a40) gives ~1.3:1
- * against dark.7.  Fix: remap to dark.1.
- *
- * PLACEHOLDER COLOR
- * Mantine's --mantine-color-placeholder resolves to dark.3 (#696969) in dark
- * mode.  Against the dark.6 input background (#2e2e2e) that gives ~2.5:1.
- * Fix: override to dark.1 (#b8b8b8), same as dimmed.
- *
- * RED FILLED VARIANT (primaryShade override)
- * With primaryShade: { dark: 5 }, all filled variants use shade 5 of their
- * color in dark mode.  red.5 = #ff6b6b gives only 2.78:1 with white text.
- * Mantine's default CSS already sets --mantine-color-red-filled = red.8
- * (#e03131, 4.51:1 with white) but primaryShade overrides it at the JS layer.
- * Fix: re-pin --mantine-color-red-filled to red.8 and red-filled-hover to
- * red.9 via CSS to restore the passing contrast.
+ * CONTRAST OVERRIDES: dimmed / gray-7 / gray-8 / placeholder all remap to
+ * dark.1 (#b8b8b8) for ≥ 4.5:1 against every surface tier. Red-filled badges
+ * pin to red.8 (#e03131, 4.51:1 with white). Blue-1 progress-bar background
+ * pinned to a dark navy so text reads over it.
  */
 :root[data-mantine-color-scheme='dark'],
 :host([data-mantine-color-scheme='dark']) {
-  /* Dimmed text: dark.2 (#828282) → dark.1 (#b8b8b8) */
-  --mantine-color-dimmed: var(--mantine-color-dark-1);
+  /* -- Colorffy surface scale (dark) ------------------------------------ */
+  --clr-surface-a0: #121212;
+  --clr-surface-a10: #282828;
+  --clr-surface-a20: #3f3f3f;
+  --clr-surface-a30: #575757;
+  --clr-surface-a40: #717171;
+  --clr-surface-a50: #8b8b8b;
 
-  /* Secondary text via explicit gray-7/gray-8 props: #495057/#343a40 → dark.1 */
+  /* -- Surface elevation tiers bound to Mantine tokens -----------------
+   *
+   * Visual hierarchy (lightest chrome, darkest canvas, lifted cards):
+   *   Top bar + Sidebar:   surface-a10  #282828  (distinctly "alive" grey)
+   *   Page body (canvas):  surface-a0   #121212  (darkest, recedes)
+   *   Cards / panels:      surface-a10  #282828  (lifted above canvas)
+   *   Hover / active:      surface-a20  #3f3f3f
+   *   Borders:             surface-a20  #3f3f3f
+   */
+  --mantine-color-body: var(--clr-surface-a0);
+  --mantine-color-default: var(--clr-surface-a10);
+  --mantine-color-default-hover: var(--clr-surface-a20);
+  --mantine-color-default-border: var(--clr-surface-a20);
+
+  /* -- WCAG AA contrast fixes ------------------------------------------- */
+  --mantine-color-dimmed: var(--mantine-color-dark-1);
   --mantine-color-gray-7: var(--mantine-color-dark-1);
   --mantine-color-gray-8: var(--mantine-color-dark-1);
-
-  /* Input placeholder: dark.3 (#696969) → dark.1 (#b8b8b8) */
   --mantine-color-placeholder: var(--mantine-color-dark-1);
 
-  /* Red filled buttons/badges: primaryShade:5 sets red.5 (#ff6b6b, 2.78:1)
-     Re-pin to red.8 (#e03131, 4.51:1 with white) to restore WCAG AA.      */
+  /* Red filled: pin to red.8 for WCAG AA with white text */
   --mantine-color-red-filled: var(--mantine-color-red-8);
   --mantine-color-red-filled-hover: var(--mantine-color-red-9);
+
+  /* Blue-1 progress bar: dark navy so page text reads over it */
+  --mantine-color-blue-1: #0d1b2a;
+
+  /* Primary focus ring: warm orange glow at ~22% opacity (riokuOrange.6) */
+  --mantine-color-focused-outline: 0 0 0 3px rgba(179, 61, 13, 0.22);
+
+  /* -- Categorical chart palette (Vercel-Geist-inspired, dark-mode-tuned) -
+   *
+   * These variables back chart-primitives.tsx CHART_COLORS. Designed for
+   * adjacent-pair distinguishability and color-blind friendliness when
+   * paired with the Okabe-Ito override (see :root[data-palette]).
+   */
+  --chart-1: #b33d0d; /* riokuOrange-6 — warm primary */
+  --chart-2: #3b82f6; /* blue */
+  --chart-3: #22c55e; /* green */
+  --chart-4: #f59e0b; /* amber */
+  --chart-5: #ef4444; /* red */
+  --chart-6: #a855f7; /* purple */
+  --chart-7: #06b6d4; /* cyan */
+}
+
+/* Color-blind safe override (Okabe-Ito) — toggled via [data-palette="okabe-ito"]
+ * on the html element. Stage-2 will surface this from user preferences. */
+:root[data-palette='okabe-ito'] {
+  --chart-1: #e69f00;
+  --chart-2: #56b4e9;
+  --chart-3: #009e73;
+  --chart-4: #f0e442;
+  --chart-5: #0072b2;
+  --chart-6: #d55e00;
+  --chart-7: #cc79a7;
 }
 
 /**
- * API Explorer — scrollbar leak defence.
+ * Container-query degradation for chart cards. When a widget's container
+ * (set by <WidgetContainer>) shrinks below ~280px, hide the legend; below
+ * 200px hide the y-axis tick labels too. Keeps tight cards readable
+ * without JS measurement.
+ */
+@container (max-width: 280px) {
+  .recharts-legend-wrapper {
+    display: none !important;
+  }
+}
+@container (max-width: 200px) {
+  .recharts-yAxis .recharts-cartesian-axis-tick-value {
+    display: none !important;
+  }
+}
+
+/* Tabular numerics on common numeric surfaces. */
+.rioku-numeric,
+.rioku-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * AppShell chrome (sidebar + top bar) lifts to surface-a10 so the navigation
+ * reads as "chrome" above the darker page canvas (surface-a0). Pure-black
+ * chrome looks dead; this is the Colorffy / Pylon two-tier convention.
+ */
+:root[data-mantine-color-scheme='dark'] nav.mantine-AppShell-navbar,
+:root[data-mantine-color-scheme='dark'] [data-mantine-component='AppShellNavbar'],
+:root[data-mantine-color-scheme='dark'] header.mantine-AppShell-header,
+:root[data-mantine-color-scheme='dark'] [data-mantine-component='AppShellHeader'] {
+  background-color: var(--clr-surface-a10);
+  border-color: var(--clr-surface-a20);
+}
+
+/**
+ * API Explorer -- scrollbar leak defence.
  *
  * Scalar's style.css writes global scrollbar styles onto <body> / *.  When the
  * explorer is NOT mounted (the `:has` selector finds no [data-testid] node in

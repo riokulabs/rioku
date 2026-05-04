@@ -6,7 +6,7 @@
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge, Text } from '@mantine/core';
+import { Badge, Group, Text } from '@mantine/core';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { IconShieldHalf } from '@tabler/icons-react';
@@ -27,14 +27,16 @@ export function RoleList({ onSelect }: RoleListProps) {
         accessorKey: 'name',
         header: 'Name',
         cell: ({ getValue, row }) => (
-          <Text size="sm" fw={500}>
-            {getValue<string>()}
+          <Group gap={6} wrap="nowrap" align="center">
+            <Text size="sm" fw={500}>
+              {getValue<string>()}
+            </Text>
             {row.original.system && (
-              <Badge ml="xs" size="xs" variant="outline" color="gray">
+              <Badge size="xs" variant="outline" color="gray">
                 system
               </Badge>
             )}
-          </Text>
+          </Group>
         ),
       },
       {

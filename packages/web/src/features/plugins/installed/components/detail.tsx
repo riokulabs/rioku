@@ -299,7 +299,7 @@ export function InstalledPluginDetail({
         >
           Settings
         </Button>
-        <Button size="sm" variant="subtle" color="red" onClick={onUninstall}>
+        <Button size="sm" variant="subtle" color="red.8" onClick={onUninstall}>
           Uninstall…
         </Button>
       </Group>

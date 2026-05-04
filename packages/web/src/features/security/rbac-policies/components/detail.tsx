@@ -35,7 +35,7 @@ export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailP
           <Button size="xs" variant="light" onClick={onEdit}>
             Edit
           </Button>
-          <Button size="xs" variant="light" color="red" onClick={onDelete}>
+          <Button size="xs" variant="light" color="red.8" onClick={onDelete}>
             Delete
           </Button>
         </Group>
@@ -50,7 +50,7 @@ export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailP
           Affected Roles
         </Text>
         {policy.affected_role_ids.length === 0 ? (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             No roles selected
           </Text>
         ) : (
@@ -90,10 +90,10 @@ export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailP
       )}
 
       <Stack gap="xs">
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--mantine-color-gray-7)">
           Created {dayjs(policy.created_at).format('MMM D, YYYY HH:mm')}
         </Text>
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--mantine-color-gray-7)">
           ID: <code>{policy.id}</code>
         </Text>
       </Stack>

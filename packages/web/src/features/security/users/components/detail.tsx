@@ -26,15 +26,9 @@ import {
   Modal,
   TextInput,
   MultiSelect,
-  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconAlertCircle,
-  IconArrowsDiagonal,
-  IconShieldHalf,
-  IconUserSearch,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { PermissionPathTrace } from '@/components/permission-path-trace';
 import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
@@ -64,17 +58,9 @@ interface UserDetailProps {
   currentTenantId: string;
   tenantSlug: string;
   onClose: () => void;
-  /** Optional: navigate to the full-page detail view. */
-  onOpenFullPage?: () => void;
 }
 
-export function UserDetail({
-  userId,
-  currentTenantId,
-  tenantSlug,
-  onClose,
-  onOpenFullPage,
-}: UserDetailProps) {
+export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: UserDetailProps) {
   const detail = useUserDetail(userId);
   const sessions = useUserSessions(userId);
   const tenants = useMockStore((s) => s.tenants);
@@ -243,24 +229,11 @@ export function UserDetail({
                 </StatusBadge>
               )}
             </Group>
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="var(--mantine-color-gray-7)">
               {user.email}
             </Text>
           </Stack>
         </Group>
-        {onOpenFullPage && (
-          <Tooltip label="Open full page" withArrow>
-            <Button
-              variant="subtle"
-              size="xs"
-              px={6}
-              aria-label="Open full page"
-              onClick={onOpenFullPage}
-            >
-              <IconArrowsDiagonal size={14} />
-            </Button>
-          </Tooltip>
-        )}
       </Group>
 
       {/* Zone: service.detail.header-actions — plugins can add actions here */}
@@ -268,7 +241,7 @@ export function UserDetail({
 
       <Divider />
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue="profile" data-testid="user-detail-tabs">
         <Tabs.List>
           <Tabs.Tab value="profile">Profile</Tabs.Tab>
           <Tabs.Tab value="memberships">Memberships</Tabs.Tab>
@@ -326,7 +299,7 @@ export function UserDetail({
 
             {/* ── Actions ── */}
             <Stack gap="xs">
-              <Text size="xs" fw={500} c="dimmed" tt="uppercase">
+              <Text size="xs" fw={500} c="var(--mantine-color-gray-7)" tt="uppercase">
                 Actions
               </Text>
 
@@ -369,7 +342,7 @@ export function UserDetail({
 
               {/* Delete */}
               {!isSelf && (
-                <Button size="xs" variant="subtle" color="red" onClick={openDelete}>
+                <Button size="xs" variant="subtle" color="red.8" onClick={openDelete}>
                   Delete user…
                 </Button>
               )}
@@ -381,7 +354,7 @@ export function UserDetail({
         <Tabs.Panel value="memberships" pt="md">
           <Stack gap="md">
             {memberships.length === 0 && (
-              <Text size="sm" c="dimmed">
+              <Text size="sm" c="var(--mantine-color-gray-7)">
                 No memberships found.
               </Text>
             )}
@@ -399,18 +372,20 @@ export function UserDetail({
                 <Stack key={m.id} gap="xs">
                   <Group justify="space-between" align="flex-start">
                     <Stack gap={2}>
-                      <Text size="sm" fw={500}>
-                        {tenant?.name ?? m.tenant_id}
+                      <Group gap={6} wrap="nowrap" align="center">
+                        <Text size="sm" fw={500}>
+                          {tenant?.name ?? m.tenant_id}
+                        </Text>
                         {m.tenant_id === currentTenantId && (
-                          <Badge ml="xs" size="xs" variant="outline" color="blue">
+                          <Badge size="xs" variant="outline" color="blue">
                             current
                           </Badge>
                         )}
-                      </Text>
+                      </Group>
 
                       {/* Role edit inline */}
                       {m.tenant_id === currentTenantId && !isEditingRoles && (
-                        <Text size="xs" c="dimmed">
+                        <Text size="xs" c="var(--mantine-color-gray-7)">
                           Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
                         </Text>
                       )}
@@ -447,7 +422,7 @@ export function UserDetail({
                         </Stack>
                       )}
                       {m.tenant_id !== currentTenantId && (
-                        <Text size="xs" c="dimmed">
+                        <Text size="xs" c="var(--mantine-color-gray-7)">
                           Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
                         </Text>
                       )}
@@ -507,7 +482,7 @@ export function UserDetail({
                         <Button
                           size="xs"
                           variant="subtle"
-                          color="red"
+                          color="red.8"
                           loading={actionLoading}
                           onClick={() => void handleRevokeInvite(m.id)}
                         >
@@ -532,7 +507,7 @@ export function UserDetail({
               );
             })}
             {currentMembership && (
-              <Text size="xs" c="dimmed">
+              <Text size="xs" c="var(--mantine-color-gray-7)">
                 Member since{' '}
                 {currentMembership.joined_at
                   ? new Date(currentMembership.joined_at).toLocaleDateString()
@@ -546,7 +521,7 @@ export function UserDetail({
         <Tabs.Panel value="sessions" pt="md">
           <Stack gap="sm">
             {sessions.length === 0 && (
-              <Text size="sm" c="dimmed">
+              <Text size="sm" c="var(--mantine-color-gray-7)">
                 No sessions found.
               </Text>
             )}
@@ -592,7 +567,7 @@ export function UserDetail({
                         <Button
                           size="xs"
                           variant="subtle"
-                          color="red"
+                          color="red.8"
                           loading={revokingSessionId === sess.id}
                           onClick={() => void handleRevokeSession(sess.id)}
                         >
@@ -623,7 +598,7 @@ export function UserDetail({
             {/* ── Trace: single-permission debugger ── */}
             <Tabs.Panel value="trace" pt="md">
               <Stack gap="sm">
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c="var(--mantine-color-gray-7)">
                   Trace why this user has (or doesn&apos;t have) a specific permission.
                 </Text>
                 <Select
@@ -715,7 +690,7 @@ export function UserDetail({
               Cancel
             </Button>
             <Button
-              color="red"
+              color="red.8"
               size="sm"
               loading={actionLoading}
               disabled={deleteEmailInput !== user.email}

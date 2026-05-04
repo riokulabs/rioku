@@ -47,7 +47,7 @@ export function RevokeAllConfirm({ opened, onClose, currentSessionId }: RevokeAl
           <Button variant="default" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button color="red" size="sm" loading={loading} onClick={() => void handleConfirm()}>
+          <Button color="red.8" size="sm" loading={loading} onClick={() => void handleConfirm()}>
             Revoke all other sessions
           </Button>
         </Group>

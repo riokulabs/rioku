@@ -363,7 +363,7 @@ export function InstallProgressModal({
                     <Button
                       size="xs"
                       variant="light"
-                      color="red"
+                      color="red.8"
                       leftSection={<IconFileText size={14} />}
                       onClick={() => {
                         onViewLog(run.failure?.log ?? '');

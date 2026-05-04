@@ -19,6 +19,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { DrawerTitleExpand } from '@/components/drawer-title-expand';
 import {
   ServiceList,
   ServiceFilterBar,
@@ -207,10 +208,31 @@ function ServicesPage() {
         onForceReload={(svc) => void handleForceReload(svc)}
       />
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
-        title={drawerTitle}
+        title={
+          <DrawerTitleExpand
+            title={drawerTitle}
+            {...(drawerMode === 'detail' && selectedService
+              ? {
+                  onOpenFullPage: () => {
+                    closeDrawer();
+                    void navigate({
+                      to: '/t/$tenant/_detail/$kind/$id',
+                      params: {
+                        tenant: tenantSlug,
+                        kind: 'service',
+                        id: selectedService.id,
+                      },
+                    } as unknown as Parameters<typeof navigate>[0]);
+                  },
+                }
+              : {})}
+          />
+        }
         position="right"
         size="min(520px, 95vw)"
         padding="md"
@@ -224,13 +246,6 @@ function ServicesPage() {
             onEditRoute={handleEditRoute}
             onDeleteRoute={handleDeleteRoute}
             onClose={closeDrawer}
-            onOpenFullPage={() => {
-              closeDrawer();
-              void navigate({
-                to: '/t/$tenant/_detail/$kind/$id',
-                params: { tenant: tenantSlug, kind: 'service', id: selectedService.id },
-              } as unknown as Parameters<typeof navigate>[0]);
-            }}
           />
         )}
         {drawerMode === 'create' && (

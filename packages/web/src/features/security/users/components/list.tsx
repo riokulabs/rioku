@@ -7,14 +7,14 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Badge, Text, Select, TextInput, Group, Stack } from '@mantine/core';
-import { IconSearch, IconUser } from '@tabler/icons-react';
+import { IconSearch, IconUser, IconDownload, IconMail } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
 import { useOpaqueFilter } from '@/hooks/use-opaque-filter';
 import { useMockStore } from '@/api/mock-store';
-import { useUserList, deactivateMembership } from '../api';
+import { useUserList, deactivateMembership, resendInvite } from '../api';
 import { MembershipActions } from './membership-actions';
 import type { UserWithMembership, UserFilter } from '../types';
 
@@ -115,8 +115,92 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
     }
   }, []);
 
+  const handleBulkSendInviteReminder = useCallback(async (rowIds: string[]) => {
+    const memberships = rowIds
+      .map((id) => usersRef.current[Number(id)])
+      .filter((u): u is UserWithMembership => u !== undefined)
+      .filter((u) => u.membership.state === 'pending')
+      .map((u) => u.membership.id);
+
+    if (memberships.length === 0) {
+      notify.warn('Nothing to do', 'No pending invites in the selection.');
+      return;
+    }
+
+    let failed = 0;
+    for (const mid of memberships) {
+      try {
+        await resendInvite(mid);
+      } catch {
+        failed++;
+      }
+    }
+    const succeeded = memberships.length - failed;
+    if (succeeded > 0) {
+      notify.success(
+        'Invite reminders sent',
+        `${String(succeeded)} invite reminder${succeeded !== 1 ? 's' : ''} sent.`,
+      );
+    }
+    if (failed > 0) {
+      notify.error(
+        'Some reminders failed',
+        `${String(failed)} invite reminder${failed !== 1 ? 's' : ''} could not be sent.`,
+      );
+    }
+  }, []);
+
+  const handleBulkExportCsv = useCallback((rowIds: string[]) => {
+    const selected = rowIds
+      .map((id) => usersRef.current[Number(id)])
+      .filter((u): u is UserWithMembership => u !== undefined);
+
+    if (selected.length === 0) {
+      notify.warn('Nothing to export', 'No users in the selection.');
+      return;
+    }
+
+    const header = 'name,email,membership_state,roles,joined_at';
+    const rows = selected.map((u) => {
+      const name = `"${u.user.name.replace(/"/g, '""')}"`;
+      const email = `"${u.user.email.replace(/"/g, '""')}"`;
+      const state = u.membership.state;
+      const roles = `"${u.roles.map((r) => r.name).join('; ')}"`;
+      const joinedAt = u.membership.joined_at ?? '';
+      return `${name},${email},${state},${roles},${joinedAt}`;
+    });
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify.success(
+      'Export ready',
+      `${String(selected.length)} user${selected.length !== 1 ? 's' : ''} exported.`,
+    );
+  }, []);
+
   const bulkActions = useMemo<BulkAction[]>(
     () => [
+      {
+        label: 'Send invite reminder',
+        color: 'blue',
+        icon: IconMail,
+        onClick: (ids) => {
+          void handleBulkSendInviteReminder(ids);
+        },
+      },
+      {
+        label: 'Export as CSV',
+        color: 'teal',
+        icon: IconDownload,
+        onClick: (ids) => {
+          handleBulkExportCsv(ids);
+        },
+      },
       {
         label: 'Deactivate selected',
         color: 'orange',
@@ -125,7 +209,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
         },
       },
     ],
-    [handleBulkDeactivate],
+    [handleBulkSendInviteReminder, handleBulkExportCsv, handleBulkDeactivate],
   );
 
   const columns = useMemo<ColumnDef<UserWithMembership>[]>(
@@ -152,7 +236,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
         header: 'Email',
         accessorFn: (row) => row.user.email,
         cell: ({ getValue }) => (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="var(--mantine-color-gray-7)">
             {getValue<string>()}
           </Text>
         ),
@@ -179,7 +263,7 @@ export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
           const val = getValue<string>();
           const truncated = val.length > 40 ? `${val.slice(0, 37)}…` : val;
           return (
-            <Text size="sm" c="dimmed" title={val}>
+            <Text size="sm" c="var(--mantine-color-gray-7)" title={val}>
               {truncated || '—'}
             </Text>
           );

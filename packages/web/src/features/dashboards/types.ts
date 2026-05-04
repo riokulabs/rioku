@@ -1,10 +1,23 @@
 /**
  * Dashboards feature-local types.
  */
-import type { Dashboard, DashboardVariable, Widget } from '@/api/resources/types';
+import type {
+  Dashboard,
+  DashboardPermissionLevel,
+  DashboardRangeSpec,
+  DashboardRoleGrant,
+  DashboardUserGrant,
+  DashboardVariable,
+  Widget,
+} from '@/api/resources/types';
 
 export type {
   Dashboard,
+  DashboardPermissionLevel,
+  DashboardRangeSpec,
+  DashboardRangeUnit,
+  DashboardRoleGrant,
+  DashboardUserGrant,
   DashboardVariable,
   DashboardVersion,
   Widget,
@@ -41,6 +54,10 @@ export interface UpdateDashboardInput {
   variables?: DashboardVariable[];
   layout?: Record<string, { x: number; y: number; w: number; h: number }>;
   widget_ids?: string[];
+  default_range?: DashboardRangeSpec;
+  share_permission?: DashboardPermissionLevel;
+  role_grants?: DashboardRoleGrant[];
+  user_grants?: DashboardUserGrant[];
 }
 
 /** The JSON-exportable dashboard shape. */

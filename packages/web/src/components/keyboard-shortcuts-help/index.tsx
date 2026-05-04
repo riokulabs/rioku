@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Table, Kbd, Group, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
+import { spotlight } from '@mantine/spotlight';
 
 interface ShortcutRow {
   keys: string[];
@@ -9,6 +10,7 @@ interface ShortcutRow {
 
 const SHORTCUTS: ShortcutRow[] = [
   { keys: ['⌘K', 'Ctrl+K'], description: 'Open spotlight' },
+  { keys: ['/'], description: 'Open spotlight (when not in a text input)' },
   { keys: ['g', 'd'], description: 'Navigate to dashboard (placeholder)' },
   { keys: ['g', 's'], description: 'Navigate to services (placeholder)' },
   { keys: ['⌘S', 'Ctrl+S'], description: 'Save form' },
@@ -25,6 +27,16 @@ export function KeyboardShortcutsHelp() {
       '?',
       () => {
         setOpened((o) => !o);
+      },
+    ],
+    [
+      '/',
+      (e) => {
+        // Only trigger when focus is not already inside a text field
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        spotlight.open();
       },
     ],
   ]);

@@ -1,189 +1,326 @@
-import { Stack, Text, NavLink, Box, Badge } from '@mantine/core';
-import {
-  IconDashboard,
-  IconWorld,
-  IconRobot,
-  IconUsers,
-  IconKey,
-  IconShield,
-  IconScale,
-  IconPlug,
-  IconDevices,
-  IconFileText,
-  IconSettings,
-  IconServer,
-  IconRoute,
-  IconStack,
-  IconBook,
-  IconBrain,
-  IconTool,
-  IconRouter,
-  IconGauge,
-  IconHistory,
-  IconLayoutDashboard,
-  IconBell,
-  IconBadge,
-  IconTopologyRing,
-} from '@tabler/icons-react';
-import { Link, useRouterState } from '@tanstack/react-router';
-import type { FC } from 'react';
+/**
+ * <Sidebar> — main nav (rail) + optional sub-menu panel.
+ *
+ * Layout:
+ *   ┌────┬──────────────┐       ┌──────────┬──────────────┐
+ *   │ R  │ Sub menu     │       │ icon Lbl │ Sub menu     │
+ *   │ a  │              │  or   │ icon Lbl │              │
+ *   │ i  │              │       │ icon Lbl │              │
+ *   │ l  │              │       │  …       │              │
+ *   └────┴──────────────┘       └──────────┴──────────────┘
+ *      collapsed rail               expanded rail
+ *
+ * The main nav (rail) has two modes:
+ *   - collapsed: icons only (60px)
+ *   - expanded:  icons + labels (190px)
+ *
+ * The toggle chevron lives in the rail itself (bottom, above the footer).
+ * The sub-menu panel renders to the right whenever the active section has
+ * children. Sections without children don't render a panel — the rail
+ * fills the sidebar on its own.
+ */
+import { Box, Group, NavLink, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconChevronLeft, IconChevronRight, IconPlug } from '@tabler/icons-react';
+import { Link, useLocation, useParams } from '@tanstack/react-router';
+import type { ComponentType } from 'react';
 import { useSidebarEntries } from '@/hooks/use-sidebar-entries';
+import { NAV_SECTIONS, activeSectionFor, type NavSection } from './nav-tree';
 import { SidebarFooter } from './sidebar-footer';
-
-interface NavItem {
-  label: string;
-  to: string;
-  icon: FC<{ size?: number }>;
-}
-
-interface NavGroup {
-  heading: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    heading: 'General',
-    items: [
-      { label: 'Dashboard', to: '/t/acme/dashboard', icon: IconDashboard },
-      { label: 'Sites', to: '/t/acme/sites', icon: IconWorld },
-      { label: 'Notifications', to: '/t/acme/notifications', icon: IconBell },
-    ],
-  },
-  {
-    heading: 'Analytics',
-    items: [{ label: 'Insights', to: '/t/acme/dashboards', icon: IconLayoutDashboard }],
-  },
-  {
-    heading: 'AI',
-    items: [
-      { label: 'Providers', to: '/t/acme/ai/providers', icon: IconBrain },
-      { label: 'Agents', to: '/t/acme/ai/agents', icon: IconRobot },
-      { label: 'Tools', to: '/t/acme/ai/tools', icon: IconTool },
-      { label: 'Tool routing', to: '/t/acme/ai/tool-routing', icon: IconRouter },
-      { label: 'Rate limits', to: '/t/acme/ai/rate-limits', icon: IconGauge },
-      { label: 'Traces', to: '/t/acme/ai/traces', icon: IconHistory },
-      { label: 'MCP servers', to: '/t/acme/ai/mcp-servers', icon: IconServer },
-      // TODO(stage-2): dual view for API-scoped vs AI-scoped access policies
-      {
-        label: 'Access policies',
-        to: '/t/acme/security/access-policies',
-        icon: IconShield,
-      },
-    ],
-  },
-  {
-    heading: 'API management',
-    items: [
-      { label: 'Services', to: '/t/acme/services', icon: IconServer },
-      { label: 'Routes', to: '/t/acme/routes', icon: IconRoute },
-      { label: 'Policies', to: '/t/acme/policies', icon: IconShield },
-      { label: 'Middlewares', to: '/t/acme/middlewares', icon: IconStack },
-      { label: 'API Explorer', to: '/t/acme/api-explorer', icon: IconBook },
-    ],
-  },
-  {
-    heading: 'Security',
-    items: [
-      { label: 'Users', to: '/t/acme/security/users', icon: IconUsers },
-      { label: 'Roles', to: '/t/acme/security/roles', icon: IconBadge },
-      { label: 'API keys', to: '/t/acme/security/api-keys', icon: IconKey },
-      {
-        label: 'RBAC policies',
-        to: '/t/acme/security/rbac-policies',
-        icon: IconScale,
-      },
-      { label: 'Sessions', to: '/t/acme/security/sessions', icon: IconDevices },
-      { label: 'Audit', to: '/t/acme/security/audit', icon: IconFileText },
-    ],
-  },
-  {
-    heading: 'System',
-    items: [
-      { label: 'Cluster', to: '/t/acme/cluster', icon: IconTopologyRing },
-      { label: 'Plugins', to: '/t/acme/plugins', icon: IconPlug },
-      { label: 'Settings', to: '/t/acme/settings', icon: IconSettings },
-    ],
-  },
-];
+import { AnalyticsNavPanel } from './analytics-nav-panel';
 
 interface SidebarProps {
-  /**
-   * Called when a nav link is clicked. Used by AppLayout to close the mobile
-   * drawer after navigation. Optional — not needed on desktop.
-   */
+  /** Closes mobile drawer after navigation — no-op on desktop. */
+  onNavLinkClick?: () => void;
+  /** Desktop only: when true, the rail shows icons only; when false, icons + labels. */
+  collapsed?: boolean;
+  /** Toggles `collapsed`. Renders the rail's collapse chevron. */
+  onToggleCollapsed?: () => void;
+}
+
+export function Sidebar({ onNavLinkClick, collapsed = false, onToggleCollapsed }: SidebarProps) {
+  const location = useLocation();
+  const { tenant: tenantSlug = 'acme' } = useParams({ strict: false });
+  const pluginEntries = useSidebarEntries('plugins');
+
+  const pathSuffix = extractSuffix(location.pathname, tenantSlug);
+  const active = activeSectionFor(pathSuffix);
+
+  const pluginEntriesForPanel = active.id === 'system' ? pluginEntries : [];
+  // Analytics renders its own dynamic panel (lists dashboards), so it always
+  // has a panel even though `children` is empty in the static nav tree.
+  const hasChildren =
+    active.id === 'analytics' ||
+    (active.children !== undefined && active.children.length > 0) ||
+    pluginEntriesForPanel.length > 0;
+
+  return (
+    <Group gap={0} align="stretch" h="100%" wrap="nowrap">
+      <Rail
+        activeSectionId={active.id}
+        tenantSlug={tenantSlug}
+        collapsed={collapsed}
+        {...(onToggleCollapsed !== undefined && { onToggleCollapsed })}
+        {...(onNavLinkClick !== undefined && { onNavLinkClick })}
+      />
+      {hasChildren && active.id === 'analytics' && (
+        <AnalyticsNavPanel
+          tenantSlug={tenantSlug}
+          {...(onNavLinkClick !== undefined && { onNavLinkClick })}
+        />
+      )}
+      {hasChildren && active.id !== 'analytics' && (
+        <SectionPanel
+          section={active}
+          tenantSlug={tenantSlug}
+          pathname={location.pathname}
+          pluginEntries={pluginEntriesForPanel}
+          {...(onNavLinkClick !== undefined && { onNavLinkClick })}
+        />
+      )}
+    </Group>
+  );
+}
+
+function extractSuffix(pathname: string, tenantSlug: string): string {
+  const prefix = `/t/${tenantSlug}/`;
+  if (pathname.startsWith(prefix)) return pathname.slice(prefix.length);
+  // Strip leading slash for consistency with matchPaths ("dashboard", not "/dashboard").
+  return pathname.replace(/^\/+/, '');
+}
+
+// ─── Rail ─────────────────────────────────────────────────────────────────────
+
+interface RailProps {
+  activeSectionId: string;
+  tenantSlug: string;
+  collapsed: boolean;
+  onToggleCollapsed?: () => void;
   onNavLinkClick?: () => void;
 }
 
-export function Sidebar({ onNavLinkClick }: SidebarProps) {
-  const { location } = useRouterState();
-
-  // Plugin-contributed sidebar entries, grouped
-  const pluginEntries = useSidebarEntries('plugins');
-
+function Rail({
+  activeSectionId,
+  tenantSlug,
+  collapsed,
+  onToggleCollapsed,
+  onNavLinkClick,
+}: RailProps) {
   return (
-    <Stack h="100%" gap={0}>
-      <Box flex={1} p="xs" style={{ overflowY: 'auto' }}>
-        {NAV_GROUPS.map((group) => (
-          <Stack key={group.heading} gap={2} mb="md">
-            <Text size="xs" tt="uppercase" fw={600} px="xs" pt="xs">
-              {group.heading}
-            </Text>
-            {group.items.map((item) => (
-              <NavLink
-                key={item.label}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-                component={Link as any}
-                to={item.to}
-                label={item.label}
-                leftSection={<item.icon size={16} />}
-                active={
-                  item.to === '/t/acme/dashboard'
-                    ? location.pathname === item.to
-                    : location.pathname.startsWith(item.to)
-                }
-                {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
-              />
-            ))}
-          </Stack>
+    <Stack
+      gap={4}
+      py="xs"
+      style={{
+        width: collapsed ? 60 : 190,
+        flexShrink: 0,
+        borderRight: '1px solid var(--mantine-color-default-border)',
+      }}
+      align="stretch"
+    >
+      {/* Section entries */}
+      <Stack gap={4} style={{ flex: 1 }}>
+        {NAV_SECTIONS.map((section) => (
+          <RailSectionEntry
+            key={section.id}
+            section={section}
+            tenantSlug={tenantSlug}
+            active={section.id === activeSectionId}
+            collapsed={collapsed}
+            {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
+          />
         ))}
+      </Stack>
 
-        {/* Plugin-contributed nav entries (group: 'plugins') */}
-        {pluginEntries.length > 0 && (
-          <Stack gap={2} mb="md">
-            <Text size="xs" tt="uppercase" fw={600} px="xs" pt="xs">
-              Plugins
-            </Text>
-            {pluginEntries.map((entry) => {
-              // Plugin icons are typed as React.ComponentType (no enforced props).
-              // We cast to accept size to match the Tabler-icons convention used
-              // by first-party nav items.
+      {/* Collapse/expand toggle — lives in the main nav per design */}
+      {onToggleCollapsed !== undefined && (
+        <Tooltip
+          label={collapsed ? 'Expand main menu' : 'Collapse main menu'}
+          position="right"
+          withArrow
+          disabled={!collapsed}
+        >
+          <UnstyledButton
+            aria-label={collapsed ? 'Expand main menu' : 'Collapse main menu'}
+            onClick={onToggleCollapsed}
+            data-testid="sidebar-collapse-toggle"
+            style={{
+              height: 32,
+              margin: collapsed ? '0 auto' : '0 8px',
+              width: collapsed ? 40 : 'auto',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'flex-end',
+              padding: collapsed ? 0 : '0 8px',
+              color: 'var(--mantine-color-dimmed)',
+            }}
+          >
+            {collapsed ? <IconChevronRight size={16} /> : <IconChevronLeft size={16} />}
+          </UnstyledButton>
+        </Tooltip>
+      )}
 
-              const Icon = entry.icon as React.ComponentType<{ size?: number }> | undefined;
+      {/* Tenant + user avatars — footer matches the rail's current mode */}
+      <SidebarFooter collapsed={collapsed} />
+    </Stack>
+  );
+}
+
+interface RailSectionEntryProps {
+  section: NavSection;
+  tenantSlug: string;
+  active: boolean;
+  collapsed: boolean;
+  onClick?: () => void;
+}
+
+function RailSectionEntry({
+  section,
+  tenantSlug,
+  active,
+  collapsed,
+  onClick,
+}: RailSectionEntryProps) {
+  const to =
+    section.defaultRoute !== undefined
+      ? `/t/${tenantSlug}/${section.defaultRoute}`
+      : `/t/${tenantSlug}/${section.matchPaths[0] ?? section.id}`;
+  const Icon = section.icon;
+
+  const button = (
+    <UnstyledButton
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      component={Link as any}
+      to={to}
+      aria-label={section.label}
+      aria-current={active ? 'page' : undefined}
+      data-testid={`rail-section-${section.id}`}
+      {...(onClick !== undefined && { onClick })}
+      style={{
+        height: 40,
+        margin: collapsed ? '0 auto' : '0 8px',
+        width: collapsed ? 40 : 'auto',
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: 10,
+        padding: collapsed ? 0 : '0 10px',
+        position: 'relative',
+        background: active ? 'var(--mantine-color-default-hover)' : 'transparent',
+        color: active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-text)',
+      }}
+    >
+      {/* Active-state rail indicator: 2px accent bar along the left edge */}
+      {active && (
+        <Box
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: collapsed ? -10 : -8,
+            top: 8,
+            bottom: 8,
+            width: 3,
+            borderRadius: 2,
+            background: 'var(--mantine-primary-color-filled)',
+          }}
+        />
+      )}
+      <Icon size={18} />
+      {!collapsed && (
+        <Text size="sm" fw={active ? 600 : 500} style={{ lineHeight: 1 }}>
+          {section.label}
+        </Text>
+      )}
+    </UnstyledButton>
+  );
+
+  // Tooltips are only useful in the collapsed state (no labels visible).
+  return collapsed ? (
+    <Tooltip label={section.label} position="right" withArrow openDelay={200}>
+      {button}
+    </Tooltip>
+  ) : (
+    button
+  );
+}
+
+// ─── Section panel ────────────────────────────────────────────────────────────
+
+interface SectionPanelProps {
+  section: NavSection;
+  tenantSlug: string;
+  pathname: string;
+  pluginEntries: ReturnType<typeof useSidebarEntries>;
+  onNavLinkClick?: () => void;
+}
+
+function SectionPanel({
+  section,
+  tenantSlug,
+  pathname,
+  pluginEntries,
+  onNavLinkClick,
+}: SectionPanelProps) {
+  return (
+    <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+      <Box p="sm" pb={6}>
+        <Text size="xs" tt="uppercase" fw={700} c="dimmed" style={{ letterSpacing: '0.06em' }}>
+          {section.label}
+        </Text>
+      </Box>
+      <Box style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
+        {section.children !== undefined && section.children.length > 0 && (
+          <Stack gap={2} px={6}>
+            {section.children.map((item) => {
+              const to = `/t/${tenantSlug}/${item.suffix}`;
+              const itemPath = `/t/${tenantSlug}/${item.suffix}`;
+              const active = pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+              const Icon = item.icon;
               return (
                 <NavLink
-                  key={entry.id}
+                  key={item.suffix}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
                   component={Link as any}
-                  to={entry.path}
-                  label={
-                    <Box style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{entry.label}</span>
-                      <Badge size="xs" variant="dot" color="violet">
-                        plugin
-                      </Badge>
-                    </Box>
-                  }
-                  leftSection={Icon ? <Icon size={16} /> : <IconPlug size={16} />}
-                  active={location.pathname.startsWith(entry.path)}
+                  to={to}
+                  label={item.label}
+                  leftSection={<Icon size={16} />}
+                  active={active}
                   {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
                 />
               );
             })}
           </Stack>
         )}
+
+        {/* Plugin-contributed entries only render under the System section so
+            they don't flood every panel. Revisit when we have per-section
+            plugin anchors. */}
+        {section.id === 'system' && pluginEntries.length > 0 && (
+          <Box mt="sm" px={6}>
+            <Text size="xs" tt="uppercase" fw={600} c="dimmed" px="xs" py={4}>
+              Plugins
+            </Text>
+            <Stack gap={2}>
+              {pluginEntries.map((entry) => {
+                const Icon =
+                  (entry.icon as ComponentType<{ size?: number }> | undefined) ?? IconPlug;
+                return (
+                  <NavLink
+                    key={entry.id}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+                    component={Link as any}
+                    to={entry.path}
+                    label={entry.label}
+                    leftSection={<Icon size={16} />}
+                    active={pathname.startsWith(entry.path)}
+                    {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
+                  />
+                );
+              })}
+            </Stack>
+          </Box>
+        )}
       </Box>
-      <SidebarFooter />
     </Stack>
   );
 }

@@ -1,11 +1,17 @@
 /**
- * <ApiKeyDetailDrawer> — read-only API key details + revoke/rotate actions.
+ * <ApiKeyDetailDrawer> — read-only API key details + activity history.
+ *
+ * Two-tab drawer: "Details" (metadata + revoke/rotate) and "Activity" (usage
+ * sparkline + audit timeline). Activity defaults to selected when the key is
+ * active; falls back to Details for revoked keys (where Activity is mostly
+ * historical).
  */
 import { useState } from 'react';
-import { Stack, Group, Text, Badge, Button, Divider, Alert } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Stack, Group, Text, Badge, Button, Divider, Alert, Tabs } from '@mantine/core';
+import { IconAlertCircle, IconActivity, IconInfoCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { useApiKey, revokeApiKey, rotateApiKey } from '../api';
+import { ApiKeyActivityPanel } from './activity-panel';
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'green',
@@ -27,6 +33,7 @@ export function ApiKeyDetailDrawer({
 }: ApiKeyDetailDrawerProps) {
   const key = useApiKey(keyId);
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<'details' | 'activity'>('activity');
 
   if (!key) {
     return (
@@ -66,7 +73,7 @@ export function ApiKeyDetailDrawer({
       <Group justify="space-between" align="flex-start">
         <Stack gap={2}>
           <Text fw={600}>{key.name}</Text>
-          <Text size="xs" ff="monospace" c="dimmed">
+          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
             {key.prefix}…
           </Text>
         </Stack>
@@ -75,63 +82,80 @@ export function ApiKeyDetailDrawer({
         </Badge>
       </Group>
 
-      <Divider />
+      <Tabs
+        value={tab}
+        onChange={(v) => {
+          if (v === 'details' || v === 'activity') setTab(v);
+        }}
+      >
+        <Tabs.List>
+          <Tabs.Tab value="activity" leftSection={<IconActivity size={14} />}>
+            Activity
+          </Tabs.Tab>
+          <Tabs.Tab value="details" leftSection={<IconInfoCircle size={14} />}>
+            Details
+          </Tabs.Tab>
+        </Tabs.List>
 
-      <Stack gap="xs">
-        <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>
-            Scope:
-          </Text>
-          <Text size="sm" c="dimmed">
-            {key.scope.join(', ') || '—'}
-          </Text>
-        </Group>
-        <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>
-            Created:
-          </Text>
-          <Text size="sm">{new Date(key.created_at).toLocaleDateString()}</Text>
-        </Group>
-        <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>
-            Last used:
-          </Text>
-          <Text size="sm" c="dimmed">
-            {key.last_used_summary ?? '—'}
-          </Text>
-        </Group>
-        <Group gap="xs">
-          <Text size="sm" fw={500} w={100}>
-            Expires:
-          </Text>
-          <Text size="sm">
-            {key.expires_at
-              ? `${String(key.expires_in_days ?? 0)}d (${new Date(key.expires_at).toLocaleDateString()})`
-              : 'Never'}
-          </Text>
-        </Group>
-      </Stack>
+        <Tabs.Panel value="activity" pt="md">
+          <ApiKeyActivityPanel apiKey={key} />
+        </Tabs.Panel>
 
-      <Divider />
+        <Tabs.Panel value="details" pt="md">
+          <Stack gap="xs">
+            <DetailRow label="Scope" value={key.scope.join(', ') || '—'} />
+            <DetailRow label="Created" value={new Date(key.created_at).toLocaleDateString()} />
+            <DetailRow label="Last used" value={key.last_used_summary ?? '—'} />
+            <DetailRow
+              label="Expires"
+              value={
+                key.expires_at
+                  ? `${String(key.expires_in_days ?? 0)}d (${new Date(key.expires_at).toLocaleDateString()})`
+                  : 'Never'
+              }
+            />
+          </Stack>
 
-      <Group gap="sm">
-        {key.display_status === 'active' && (
-          <Button size="sm" variant="light" loading={loading} onClick={() => void handleRotate()}>
-            Rotate
-          </Button>
-        )}
-        {!key.revoked && (
-          <Button
-            size="sm"
-            variant="light"
-            color="orange"
-            loading={loading}
-            onClick={() => void handleRevoke()}
-          >
-            Revoke
-          </Button>
-        )}
-      </Group>
+          <Divider my="md" />
+
+          <Group gap="sm">
+            {key.display_status === 'active' && (
+              <Button
+                size="sm"
+                variant="light"
+                loading={loading}
+                onClick={() => void handleRotate()}
+              >
+                Rotate
+              </Button>
+            )}
+            {!key.revoked && (
+              <Button
+                size="sm"
+                variant="light"
+                color="orange"
+                loading={loading}
+                onClick={() => void handleRevoke()}
+              >
+                Revoke
+              </Button>
+            )}
+          </Group>
+        </Tabs.Panel>
+      </Tabs>
     </Stack>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Group gap="xs">
+      <Text size="sm" fw={500} w={100}>
+        {label}:
+      </Text>
+      <Text size="sm" c="var(--mantine-color-gray-7)">
+        {value}
+      </Text>
+    </Group>
   );
 }

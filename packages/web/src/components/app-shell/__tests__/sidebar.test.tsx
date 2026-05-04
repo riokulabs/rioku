@@ -1,21 +1,41 @@
 /**
- * Tests for <Sidebar> — verifies the top-level navigation structure per Plan 2
- * Task 2c.23:
+ * Tests for <Sidebar> — verifies the two-pane IA: a 60px rail carrying the
+ * 7 top-level sections, plus a section panel that renders only the
+ * children of the currently-active section.
  *
- *   - "Sites" entry lives under General (top-level, not inside API management).
- *   - "API management" group contains Services, Routes, Policies,
- *     Middlewares, and API Explorer.
- *   - All entries render with their expected href pattern.
+ *   - Rail has exactly 7 sections (Dashboard / Sites / Analytics / APIM /
+ *     AI / Security / System). Settings is intentionally excluded from the
+ *     rail — it lives in the user-card menu.
+ *   - When the user is on an APIM path, the panel renders Services /
+ *     Routes / Policies / Middlewares / API Explorer.
+ *   - When the user is on an AI path, the panel renders the 8 AI entries
+ *     including Access policies.
+ *   - Rail section links point to each section's `defaultRoute`.
  */
 import { describe, it, expect, vi } from 'vitest';
+
+// Hoisted mutable path so different tests can change the "current URL".
+let currentPath = '/t/acme/services';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  useRouterState: () => ({ location: { pathname: '/t/acme/dashboard' } }),
-  Link: ({ children, to }: { children?: React.ReactNode; to?: string }) => (
-    <span data-link-to={to ?? ''}>{children}</span>
+  useRouterState: () => ({ location: { pathname: currentPath } }),
+  useLocation: () => ({ pathname: currentPath }),
+  useParams: () => ({ tenant: 'acme' }),
+  Link: ({
+    children,
+    to,
+    ...rest
+  }: {
+    children?: React.ReactNode;
+    to?: string;
+    [k: string]: unknown;
+  }) => (
+    <span data-link-to={to ?? ''} {...rest}>
+      {children}
+    </span>
   ),
 }));
 
@@ -35,25 +55,54 @@ function wrap(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);
 }
 
-describe('Sidebar', () => {
-  it('renders Sites as a top-level entry', () => {
+function railHrefs(): string[] {
+  const carriers = document.querySelectorAll('[data-testid^="rail-section-"]');
+  return Array.from(carriers).map((el) => el.getAttribute('data-link-to') ?? '');
+}
+
+describe('Sidebar rail', () => {
+  it('renders exactly the 7 top-level rail sections', () => {
+    currentPath = '/t/acme/dashboard';
     wrap(<Sidebar />);
-    const sitesLink = screen.getByText('Sites').closest('a, span');
-    expect(sitesLink).toBeInTheDocument();
-    // Confirm the Sites href matches the tenant-prefixed pattern.
-    const hrefCarriers = document.querySelectorAll('[data-link-to]');
-    const siteEntry = Array.from(hrefCarriers).find((el) => el.textContent.includes('Sites'));
-    expect(siteEntry?.getAttribute('data-link-to')).toBe('/t/acme/sites');
+    const rails = document.querySelectorAll('[data-testid^="rail-section-"]');
+    expect(rails).toHaveLength(7);
+    const ids = Array.from(rails).map((el) =>
+      el.getAttribute('data-testid')?.replace('rail-section-', ''),
+    );
+    expect(ids).toEqual(['dashboard', 'sites', 'analytics', 'apim', 'ai', 'security', 'system']);
   });
 
-  it('renders all API management entries', () => {
+  it('rail icons link to each section default route', () => {
+    currentPath = '/t/acme/dashboard';
+    wrap(<Sidebar />);
+    const hrefs = railHrefs();
+    expect(hrefs).toContain('/t/acme/dashboard');
+    expect(hrefs).toContain('/t/acme/sites');
+    expect(hrefs).toContain('/t/acme/dashboards');
+    expect(hrefs).toContain('/t/acme/services');
+    expect(hrefs).toContain('/t/acme/ai/providers');
+    expect(hrefs).toContain('/t/acme/security/users');
+    expect(hrefs).toContain('/t/acme/cluster');
+  });
+
+  it('does not expose Settings in the rail', () => {
+    currentPath = '/t/acme/dashboard';
+    wrap(<Sidebar />);
+    expect(document.querySelector('[data-testid="rail-section-settings"]')).toBeNull();
+  });
+});
+
+describe('Sidebar panel — APIM section', () => {
+  it('renders all API management entries when on /services', () => {
+    currentPath = '/t/acme/services';
     wrap(<Sidebar />);
     for (const label of ['Services', 'Routes', 'Policies', 'Middlewares', 'API Explorer']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
 
-  it('API management entries point to the expected paths', () => {
+  it('APIM entries point to expected paths', () => {
+    currentPath = '/t/acme/services';
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
@@ -64,19 +113,11 @@ describe('Sidebar', () => {
     expect(byLabel('Middlewares')?.getAttribute('data-link-to')).toBe('/t/acme/middlewares');
     expect(byLabel('API Explorer')?.getAttribute('data-link-to')).toBe('/t/acme/api-explorer');
   });
+});
 
-  it('Analytics section shows Insights entry linking to /dashboards', () => {
-    wrap(<Sidebar />);
-    const carriers = document.querySelectorAll('[data-link-to]');
-    const insightsEntry = Array.from(carriers).find((el) => el.textContent.trim() === 'Insights');
-    expect(insightsEntry, 'Insights nav entry not found').toBeDefined();
-    expect(insightsEntry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
-    // The old "Analytics" label must no longer appear as a nav entry.
-    const analyticsEntry = Array.from(carriers).find((el) => el.textContent.trim() === 'Analytics');
-    expect(analyticsEntry).toBeUndefined();
-  });
-
+describe('Sidebar panel — AI section', () => {
   it('renders all eight AI entries with expected hrefs including Access policies', () => {
+    currentPath = '/t/acme/ai/providers';
     wrap(<Sidebar />);
     const carriers = document.querySelectorAll('[data-link-to]');
     const byLabel = (label: string) =>
@@ -98,19 +139,70 @@ describe('Sidebar', () => {
     }
   });
 
-  it('Access policies does not appear in Security group', () => {
+  it('Navigating to /security/access-policies keeps the AI panel open (not Security)', () => {
+    currentPath = '/t/acme/security/access-policies';
     wrap(<Sidebar />);
-    // Security group entries should not include Access policies.
-    const securityHeading = screen.getByText('Security');
-    const securityStack =
-      securityHeading.closest('[class*="Stack"]') ?? securityHeading.parentElement;
-    // The AI group carries access-policies; the Security group should not have a duplicate.
-    // We verify there is exactly one Access policies link in the full sidebar.
-    const allLinks = document.querySelectorAll('[data-link-to="/t/acme/security/access-policies"]');
-    expect(allLinks).toHaveLength(1);
-    // And it lives before (or in) the AI section, not inside Security section text.
-    const accessEntry = Array.from(allLinks)[0];
-    expect(accessEntry).toBeInTheDocument();
-    void securityStack; // referenced only for conceptual clarity above
+    // AI panel shows Providers, Agents, etc.
+    expect(screen.getByText('Providers')).toBeInTheDocument();
+    // Security-specific items should NOT be visible (different section active).
+    expect(screen.queryByText('Users')).toBeNull();
+  });
+});
+
+describe('Sidebar panel — Analytics section', () => {
+  it('shows Insights entry linking to /dashboards', () => {
+    currentPath = '/t/acme/dashboards';
+    wrap(<Sidebar />);
+    const carriers = document.querySelectorAll('[data-link-to]');
+    const entry = Array.from(carriers).find((el) => el.textContent.trim() === 'Insights');
+    expect(entry).toBeDefined();
+    expect(entry?.getAttribute('data-link-to')).toBe('/t/acme/dashboards');
+  });
+});
+
+describe('Sidebar collapse behavior', () => {
+  it('shows icons only (no labels) in the rail when collapsed', () => {
+    currentPath = '/t/acme/ai/providers';
+    wrap(<Sidebar collapsed onToggleCollapsed={() => {}} />);
+    // Rail is still visible
+    expect(document.querySelectorAll('[data-testid^="rail-section-"]')).toHaveLength(7);
+    // Section labels are NOT rendered inside rail entries when collapsed
+    const dashboardEntry = document.querySelector('[data-testid="rail-section-dashboard"]');
+    expect(dashboardEntry?.textContent).toBe('');
+    // Sub menu (panel) is still open because AI has children
+    expect(screen.getByText('Providers')).toBeInTheDocument();
+  });
+
+  it('shows icons + labels in the rail when expanded', () => {
+    currentPath = '/t/acme/ai/providers';
+    wrap(<Sidebar collapsed={false} onToggleCollapsed={() => {}} />);
+    expect(document.querySelectorAll('[data-testid^="rail-section-"]')).toHaveLength(7);
+    // Each rail entry now carries its label text
+    const dashboardEntry = document.querySelector('[data-testid="rail-section-dashboard"]');
+    expect(dashboardEntry?.textContent).toContain('Dashboard');
+    const aiEntry = document.querySelector('[data-testid="rail-section-ai"]');
+    expect(aiEntry?.textContent).toContain('AI');
+    // Sub menu still open
+    expect(screen.getByText('Providers')).toBeInTheDocument();
+  });
+
+  it('renders the collapse toggle in the main nav (rail), so it shows even when no sub-menu is present', () => {
+    // Dashboard has no children → no panel renders. If the toggle appears
+    // here, it must be living in the rail (the only visible surface).
+    currentPath = '/t/acme/dashboard';
+    wrap(<Sidebar collapsed onToggleCollapsed={() => {}} />);
+    const toggle = document.querySelector('[data-testid="sidebar-collapse-toggle"]');
+    expect(toggle).not.toBeNull();
+  });
+
+  it('does not render a sub-menu panel for sections without children', () => {
+    currentPath = '/t/acme/dashboard';
+    wrap(<Sidebar collapsed={false} onToggleCollapsed={() => {}} />);
+    expect(document.querySelectorAll('[data-testid^="rail-section-"]')).toHaveLength(7);
+    // Dashboard has no children — sub-menu NavLinks from other sections
+    // should not appear, and neither should a panel header for children.
+    expect(screen.queryByText('Providers')).toBeNull();
+    expect(screen.queryByText('Services')).toBeNull();
+    expect(screen.queryByText('Insights')).toBeNull();
   });
 });

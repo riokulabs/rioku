@@ -210,7 +210,9 @@ function AiTracesPage() {
 
       <TraceList rows={visibleRows} onSelect={handleRowClick} />
 
+      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
+        transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
         title={selected ? `Trace · ${selected.request_id}` : 'Trace detail'}
