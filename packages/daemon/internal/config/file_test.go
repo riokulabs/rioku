@@ -43,6 +43,7 @@ func TestConfig_Default(t *testing.T) {
 	cfg := config.Default()
 	if cfg == nil {
 		t.Fatal("Default() returned nil")
+		return
 	}
 
 	// Store
@@ -112,6 +113,7 @@ func TestConfig_Load_ValidFile(t *testing.T) {
 	}
 	if cfg == nil {
 		t.Fatal("Load() returned nil config")
+		return
 	}
 	if cfg.Store.Driver != "sqlite" {
 		t.Errorf("Store.Driver = %q, want %q", cfg.Store.Driver, "sqlite")
@@ -891,6 +893,76 @@ traces:
 			p := writeConfig(t, yaml)
 			if _, err := config.Load(p); err != nil {
 				t.Errorf("Load() unexpected error for sampling.rate=%s: %v", rate, err)
+			}
+		})
+	}
+}
+
+// TestConfig_LoopbackOnly_RejectsExternalAddrs verifies that the
+// keyvalidator / AI gateway / TLS-ask listeners refuse to bind to
+// non-loopback hosts. These endpoints carry no auth — exposing them
+// would be a security hole, so validate() rejects up front.
+func TestConfig_LoopbackOnly_RejectsExternalAddrs(t *testing.T) {
+	cases := []struct {
+		field, addr string
+	}{
+		{"key_validator_addr", "0.0.0.0:7791"},
+		{"key_validator_addr", ":7791"},
+		{"key_validator_addr", "10.0.0.5:7791"},
+		{"key_validator_addr", "192.168.1.1:7791"},
+		{"ai_gateway_addr", "0.0.0.0:7792"},
+		{"tls_ask_addr", "0.0.0.0:7790"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.field+"="+tc.addr, func(t *testing.T) {
+			yaml := `data_dir: /tmp/rioku
+listen:
+  grpc: 127.0.0.1:7777
+  rest: 127.0.0.1:7778
+  ` + tc.field + `: ` + tc.addr + `
+store:
+  driver: sqlite
+  sqlite:
+    path: /tmp/rioku.db
+`
+			p := writeConfig(t, yaml)
+			_, err := config.Load(p)
+			if err == nil {
+				t.Fatalf("expected error for %s = %q, got nil", tc.field, tc.addr)
+			}
+			if !strings.Contains(err.Error(), "loopback") {
+				t.Errorf("err = %q, want mention of 'loopback'", err)
+			}
+		})
+	}
+}
+
+// TestConfig_LoopbackOnly_AcceptsLocalhost verifies that legitimate
+// loopback addresses (127.0.0.1, ::1, localhost) pass validation.
+func TestConfig_LoopbackOnly_AcceptsLocalhost(t *testing.T) {
+	cases := []string{
+		"127.0.0.1:7791",
+		"127.0.0.42:7791",
+		"[::1]:7791",
+		"localhost:7791",
+	}
+	for _, addr := range cases {
+		t.Run(addr, func(t *testing.T) {
+			// quoted in YAML so bracketed IPv6 [::1]:7791 doesn't trip
+			// the flow-mapping parser.
+			yaml := `data_dir: /tmp/rioku
+listen:
+  grpc: 127.0.0.1:7777
+  rest: 127.0.0.1:7778
+  key_validator_addr: "` + addr + `"
+store:
+  driver: sqlite
+  sqlite:
+    path: /tmp/rioku.db
+`
+			p := writeConfig(t, yaml)
+			if _, err := config.Load(p); err != nil {
+				t.Errorf("Load() unexpected error for loopback addr %q: %v", addr, err)
 			}
 		})
 	}

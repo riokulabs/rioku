@@ -1,0 +1,92 @@
+# Stage-2 admin API completion chunk 7b: RBAC policies. Maps subjects
+# (user / group / service-account) to roles within a tenant.
+
+paths:
+  /api/v1/t/{tenant}/rbac-policies:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [rbac-policies]
+      summary: List RBAC policies
+      operationId: listRbacPolicies
+      responses: { "200": { description: ok } }
+    post:
+      tags: [rbac-policies]
+      summary: Create an RBAC policy
+      operationId: createRbacPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, subjectType, subjectId, roleId]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                subjectType:
+                  type: string
+                  enum: [user, group, service-account]
+                subjectId: { type: string }
+                roleId: { type: string }
+                enabled: { type: boolean, default: true }
+      responses:
+        "201": { description: created }
+        "409": { description: duplicate (subjectType + subjectId + roleId already mapped) }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/rbac-policies/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [rbac-policies]
+      operationId: getRbacPolicy
+      responses: { "200": { description: ok }, "404": { description: not found } }
+    put:
+      tags: [rbac-policies]
+      operationId: replaceRbacPolicy
+      responses: { "200": { description: ok } }
+    patch:
+      tags: [rbac-policies]
+      operationId: patchRbacPolicy
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [rbac-policies]
+      operationId: deleteRbacPolicy
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/rbac-policies/{id}/test:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [rbac-policies]
+      summary: Dry-run an RBAC policy against a candidate subject
+      operationId: testRbacPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjectId, subjectType]
+              properties:
+                subjectId: { type: string }
+                subjectType: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matched: { type: boolean }
+                  policyId: { type: string }
+                  roleId: { type: string, description: "Only present when matched is true" }
+    options:
+      responses: { "204": { description: no content } }

@@ -1,0 +1,156 @@
+# Stage-2 admin API completion chunk 5: API key management.
+#
+# Both legacy (/api/v1/keys, default-tenant fallback) and tenant-scoped
+# (/api/v1/t/{tenant}/api-keys) paths are documented. Standard CRUD +
+# `revoke` and `rotate` actions; rotate returns the plaintext secret
+# exactly once.
+
+paths:
+  /api/v1/t/{tenant}/api-keys:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [api-keys]
+      summary: List API keys
+      operationId: listAPIKeys
+      responses: { "200": { description: ok } }
+    post:
+      tags: [api-keys]
+      summary: Create an API key
+      operationId: createAPIKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                scopes: { type: string, description: "Comma-separated scopes" }
+                expires:
+                  type: string
+                  description: "Go duration string (e.g. 720h, 30d)"
+      responses:
+        "201":
+          description: |
+            Created. Returns the plaintext secret in the `key` field exactly
+            once — it cannot be retrieved later.
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/api-keys/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [api-keys]
+      summary: Get an API key
+      operationId: getAPIKey
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  tenantId: { type: string }
+                  name: { type: string }
+                  scopes:
+                    type: array
+                    items: { type: string }
+                  ownerId: { type: string }
+                  expiresAt: { type: string, format: date-time }
+                  createdAt: { type: string, format: date-time }
+                  revokedAt: { type: string, format: date-time }
+                  lastUsedAt: { type: string, format: date-time }
+                  usageCount: { type: integer, format: int64 }
+                  _links: { $ref: "#/components/schemas/LinkSet" }
+    put:
+      tags: [api-keys]
+      summary: Replace API key metadata
+      operationId: replaceAPIKey
+      responses: { "200": { description: ok } }
+    patch:
+      tags: [api-keys]
+      summary: Patch API key metadata
+      operationId: patchAPIKey
+      requestBody:
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                scopes:
+                  type: array
+                  items: { type: string }
+                expiresAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                clearExpiresAt:
+                  type: boolean
+                  description: "Explicit clear flag — equivalent to expiresAt: null."
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [api-keys]
+      summary: Revoke (delete alias)
+      operationId: deleteAPIKey
+      responses: { "204": { description: revoked } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/api-keys/{id}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [api-keys]
+      summary: Revoke (action alias)
+      operationId: revokeAPIKey
+      responses: { "204": { description: revoked } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/api-keys/{id}/rotate:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [api-keys]
+      summary: Rotate the secret
+      operationId: rotateAPIKey
+      description: |
+        Mints a new key with the same name + scopes + owner + expiry,
+        returns the plaintext secret on the response, and revokes the
+        prior id. The old id stays in the audit log; the secret is gone.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, description: "New key id" }
+                  key: { type: string, description: "Plaintext secret (returned once)" }
+                  _links: { $ref: "#/components/schemas/LinkSet" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/api-keys/{id}/usage:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [api-keys]
+      summary: Get usage stats
+      operationId: getAPIKeyUsage
+      responses:
+        "200":
+          description: ok
+    options:
+      responses: { "204": { description: no content } }

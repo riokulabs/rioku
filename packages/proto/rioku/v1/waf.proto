@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+// WAF surface (#172, #203). v1 ships:
+//   - per-route WAF config CRUD (deferred to a follow-up)
+//   - GET /api/v1/waf/denials with cursor-paginated denial list
+//
+// The WAF config table + Tx layer landed in 18198c7 + c299ade
+// (compiler emission). This file exposes the read path admins
+// need to populate the "Security" tab in the panel.
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// WAFDenial is one Coraza-block event captured by the data plane.
+message WAFDenial {
+  string id           = 1;
+  string tenant_id    = 2;
+  string route_id     = 3; // empty when route was deleted
+  string rule_id      = 4;
+  string severity     = 5; // NOTICE | WARNING | ERROR | CRITICAL | ALERT | EMERGENCY
+  string action       = 6; // block | log
+  string request_uri  = 7;
+  string client_ip    = 8;
+  google.protobuf.Timestamp matched_at = 9;
+  string metadata     = 10; // JSON
+}
+
+message ListWAFDenialsRequest {
+  // Optional filters; AND-narrowing.
+  string route_id  = 1;
+  string rule_id   = 2;
+  string severity  = 3;
+  // Cursor pagination — empty = first page. The server returns
+  // next_cursor in the response when more rows are available.
+  string cursor    = 4;
+  // Limit caps page size (default 50, max 500).
+  int32  limit     = 5;
+}
+
+message ListWAFDenialsResponse {
+  repeated WAFDenial denials = 1;
+  string next_cursor = 2;
+}
+
+service WAFService {
+  rpc ListWAFDenials(ListWAFDenialsRequest) returns (ListWAFDenialsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/waf/denials"
+    };
+  }
+}

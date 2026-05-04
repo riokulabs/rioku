@@ -1,0 +1,353 @@
+// Package gateway: stage-2 audit additions — detail / stream /
+// export / typeahead.
+//
+//	OPTIONS  /api/v1/t/{tenant}/audit                discovery
+//	OPTIONS  /api/v1/t/{tenant}/audit/{id}           discovery
+//	GET      /api/v1/t/{tenant}/audit/{id}           per-entry detail
+//	GET      /api/v1/t/{tenant}/audit/stream         SSE — new entries
+//	GET      /api/v1/t/{tenant}/audit/export/csv     CSV download
+//	GET      /api/v1/t/{tenant}/audit/export/jsonl   JSONL download
+//	GET      /api/v1/t/{tenant}/audit/actors         actor typeahead
+//	GET      /api/v1/t/{tenant}/audit/resource-ids   resource-id typeahead
+//
+// Stream endpoint is poll-backed in v1 — re-runs the query every 5s
+// and emits new entries since the last tick. A push-based watcher
+// will land alongside the broader audit-events overhaul.
+package gateway
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/riokulabs/rioku/internal/gateway/export"
+	"github.com/riokulabs/rioku/internal/gateway/links"
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/gateway/stream"
+	"github.com/riokulabs/rioku/internal/store"
+	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
+)
+
+// RegisterAuditExtraRoutes wires the new chunk-6 audit endpoints
+// alongside the existing /audit list + /audit/entity surfaces.
+func RegisterAuditExtraRoutes(mux *http.ServeMux, st store.Driver) {
+	detail := RequirePermission("audit:read")(http.HandlerFunc(handleAuditDetail(st)))
+	streamH := RequirePermission("audit:read")(http.HandlerFunc(handleAuditStream(st)))
+	csv := RequirePermission("audit:read")(http.HandlerFunc(handleAuditExportCSV(st)))
+	jsonl := RequirePermission("audit:read")(http.HandlerFunc(handleAuditExportJSONL(st)))
+	actors := RequirePermission("audit:read")(http.HandlerFunc(handleAuditActors(st)))
+	resourceIDs := RequirePermission("audit:read")(http.HandlerFunc(handleAuditResourceIDs(st)))
+
+	mux.Handle("GET /api/v1/t/{tenant}/audit/{id}", detail)
+	mux.Handle("GET /api/v1/t/{tenant}/audit/stream", streamH)
+	mux.Handle("GET /api/v1/t/{tenant}/audit/export/csv", csv)
+	mux.Handle("GET /api/v1/t/{tenant}/audit/export/jsonl", jsonl)
+	mux.Handle("GET /api/v1/t/{tenant}/audit/actors", actors)
+	mux.Handle("GET /api/v1/t/{tenant}/audit/resource-ids", resourceIDs)
+
+	optionsutil.RegisterWithCapabilities(mux, "/api/v1/t/{tenant}/audit",
+		[]string{"GET"}, []string{"sse", "export-csv", "export-jsonl", "typeahead"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/{id}", []string{"GET"})
+	optionsutil.RegisterWithCapabilities(mux, "/api/v1/t/{tenant}/audit/stream",
+		[]string{"GET"}, []string{"sse"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/export/csv", []string{"GET"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/export/jsonl", []string{"GET"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/actors", []string{"GET"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/resource-ids", []string{"GET"})
+}
+
+func handleAuditDetail(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant := TenantFromContext(r.Context())
+		id := r.PathValue("id")
+		// The legacy `/audit/entity/...` route also matches `/audit/{id}`
+		// because Go ServeMux registers both — guard against the path
+		// hitting the wrong handler when the second segment is one of
+		// the reserved sub-paths.
+		switch id {
+		case "entity", "stream", "export", "actors", "resource-ids":
+			http.NotFound(w, r)
+			return
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		entry, err := tx.GetAuditEntry(r.Context(), id)
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Audit entry not found",
+				"No audit entry with id "+id, r.URL.Path, nil)
+			return
+		}
+		b := tenantBuilderOrRoot(tenant)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id":            entry.GetId(),
+			"actor":         entry.GetActor(),
+			"entityType":    entry.GetEntityType(),
+			"entityId":      entry.GetEntityId(),
+			"operation":     entry.GetOperation(),
+			"diff":          entry.GetDiff(),
+			"configVersion": entry.GetConfigVersion(),
+			"occurredAt":    entry.GetOccurredAt().AsTime().Format(time.RFC3339Nano),
+			"_links":        auditEntryLinks(entry, b),
+		})
+	}
+}
+
+func auditEntryLinks(e *riokuv1.AuditEntry, b *links.Builder) links.Set {
+	out := links.Set{
+		"self": b.Self("audit", e.GetId()),
+	}
+	if e.GetEntityType() != "" && e.GetEntityId() != "" {
+		out["entity"] = b.Path("/audit/entity/" + e.GetEntityType() + "/" + e.GetEntityId())
+	}
+	return out
+}
+
+// handleAuditStream emits an SSE feed of new audit entries. Backed
+// by a 5s poll loop; replace with a push watcher when one lands.
+func handleAuditStream(st store.Driver) http.HandlerFunc {
+	s := stream.Stream[*riokuv1.AuditEntry]{
+		EventName: "audit",
+		Encode: func(e *riokuv1.AuditEntry) (string, []byte, error) {
+			raw, err := json.Marshal(map[string]any{
+				"id":         e.GetId(),
+				"actor":      e.GetActor(),
+				"entityType": e.GetEntityType(),
+				"entityId":   e.GetEntityId(),
+				"operation":  e.GetOperation(),
+				"occurredAt": e.GetOccurredAt().AsTime().Format(time.RFC3339Nano),
+			})
+			return "", raw, err
+		},
+		Subscribe: func(ctx context.Context) (<-chan *riokuv1.AuditEntry, func(), error) {
+			out := make(chan *riokuv1.AuditEntry, 32)
+			done := make(chan struct{})
+			lastSeen := time.Now().UTC()
+			go func() {
+				defer close(out)
+				ticker := time.NewTicker(5 * time.Second)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-done:
+						return
+					case <-ticker.C:
+					}
+					tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+					if err != nil {
+						continue
+					}
+					since := lastSeen
+					rows, err := tx.QueryAuditLog(ctx, store.AuditQuery{Since: &since, Limit: 200})
+					_ = tx.Rollback()
+					if err != nil {
+						continue
+					}
+					// QueryAuditLog returns newest-first; reverse so we
+					// emit in chronological order and the consumer's
+					// view matches the natural log ordering.
+					for i := len(rows) - 1; i >= 0; i-- {
+						e := rows[i]
+						ts := e.GetOccurredAt().AsTime()
+						if !ts.After(lastSeen) {
+							continue
+						}
+						select {
+						case out <- e:
+						case <-ctx.Done():
+							return
+						}
+						if ts.After(lastSeen) {
+							lastSeen = ts
+						}
+					}
+				}
+			}()
+			return out, func() { close(done) }, nil
+		},
+	}
+	return s.Handler()
+}
+
+func handleAuditExportCSV(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		query, err := buildAuditQueryFromRequest(r)
+		if err != nil {
+			writeBadRequest(w, r, err.Error())
+			return
+		}
+		query.Limit = 0 // export pulls everything matching the filter
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		entries, err := tx.QueryAuditLog(r.Context(), query)
+		if err != nil {
+			writeInternalError(w, r, "query audit")
+			return
+		}
+		rows := make([]map[string]any, 0, len(entries))
+		for _, e := range entries {
+			rows = append(rows, map[string]any{
+				"id":            e.GetId(),
+				"actor":         e.GetActor(),
+				"entityType":    e.GetEntityType(),
+				"entityId":      e.GetEntityId(),
+				"operation":     e.GetOperation(),
+				"diff":          e.GetDiff(),
+				"configVersion": e.GetConfigVersion(),
+				"occurredAt":    e.GetOccurredAt().AsTime(),
+			})
+		}
+		_ = export.WriteCSV(w, r, "audit.csv",
+			[]string{"id", "occurredAt", "actor", "entityType", "entityId", "operation", "configVersion", "diff"},
+			export.FromSlice(r.Context(), rows))
+	}
+}
+
+func handleAuditExportJSONL(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		query, err := buildAuditQueryFromRequest(r)
+		if err != nil {
+			writeBadRequest(w, r, err.Error())
+			return
+		}
+		query.Limit = 0
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		entries, err := tx.QueryAuditLog(r.Context(), query)
+		if err != nil {
+			writeInternalError(w, r, "query audit")
+			return
+		}
+		rows := make([]map[string]any, 0, len(entries))
+		for _, e := range entries {
+			rows = append(rows, map[string]any{
+				"id":            e.GetId(),
+				"actor":         e.GetActor(),
+				"entityType":    e.GetEntityType(),
+				"entityId":      e.GetEntityId(),
+				"operation":     e.GetOperation(),
+				"diff":          e.GetDiff(),
+				"configVersion": e.GetConfigVersion(),
+				"occurredAt":    e.GetOccurredAt().AsTime().Format(time.RFC3339Nano),
+			})
+		}
+		_ = export.WriteJSONL(w, r, "audit.jsonl", export.FromSlice(r.Context(), rows))
+	}
+}
+
+func handleAuditActors(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		prefix := q.Get("q")
+		limit := 50
+		if v := q.Get("limit"); v != "" {
+			if n, err := atoiDefault(v, 50); err == nil {
+				limit = n
+			}
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		actors, err := tx.ListAuditActors(r.Context(), prefix, limit)
+		if err != nil {
+			writeInternalError(w, r, "list audit actors")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items": actors,
+			"total": len(actors),
+		})
+	}
+}
+
+func handleAuditResourceIDs(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		entityType := q.Get("entity_type")
+		prefix := q.Get("q")
+		limit := 50
+		if v := q.Get("limit"); v != "" {
+			if n, err := atoiDefault(v, 50); err == nil {
+				limit = n
+			}
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		ids, err := tx.ListAuditResourceIDs(r.Context(), entityType, prefix, limit)
+		if err != nil {
+			writeInternalError(w, r, "list audit resource_ids")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items":      ids,
+			"total":      len(ids),
+			"entityType": entityType,
+		})
+	}
+}
+
+// buildAuditQueryFromRequest mirrors the existing handleAuditQuery
+// filter parsing but produces a store.AuditQuery without writing a
+// response. Used by the export endpoints so they share the same
+// filter set as the list endpoint.
+func buildAuditQueryFromRequest(r *http.Request) (store.AuditQuery, error) {
+	q := r.URL.Query()
+	out := store.AuditQuery{
+		Actor:      q.Get("actor"),
+		EntityType: q.Get("entity_type"),
+		EntityID:   q.Get("entity_id"),
+	}
+	if rangeStr := q.Get("range"); rangeStr != "" {
+		dur, err := parseRange(rangeStr)
+		if err != nil {
+			return out, fmt.Errorf("range must be a duration like '24h' or '7d'")
+		}
+		since := time.Now().UTC().Add(-dur)
+		out.Since = &since
+	}
+	if sinceStr := q.Get("since"); sinceStr != "" {
+		ts, err := time.Parse(time.RFC3339, sinceStr)
+		if err != nil {
+			return out, fmt.Errorf("since must be RFC3339")
+		}
+		out.Since = &ts
+	}
+	if untilStr := q.Get("until"); untilStr != "" {
+		ts, err := time.Parse(time.RFC3339, untilStr)
+		if err != nil {
+			return out, fmt.Errorf("until must be RFC3339")
+		}
+		out.Until = &ts
+	}
+	return out, nil
+}
+
+func atoiDefault(s string, fallback int) (int, error) {
+	var n int
+	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
+		return fallback, err
+	}
+	return n, nil
+}

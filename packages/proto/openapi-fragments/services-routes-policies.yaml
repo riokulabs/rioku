@@ -1,0 +1,213 @@
+# Stage-2 admin API completion chunk 4: tenant-scoped services, routes,
+# middlewares, and access-policies. Each resource exposes the standard
+# CRUD set (GET/POST/GET/PUT/PATCH/DELETE/OPTIONS) plus relation
+# sub-collections and per-resource actions.
+#
+# Schemas reference the proto-generated definitions in components.schemas
+# (services + routes are produced by the buf openapi pipeline; see
+# config.swagger.json). This fragment supplements those with the new
+# action / sub-collection / OPTIONS paths.
+
+paths:
+  /api/v1/t/{tenant}/services:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [services]
+      summary: List services
+      operationId: listServices
+      responses:
+        "200":
+          description: paginated services collection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/v1Service" }
+                  total: { type: integer }
+                  _links: { $ref: "#/components/schemas/LinkSet" }
+    post:
+      tags: [services]
+      summary: Create a service
+      operationId: createService
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/v1Service" }
+      responses:
+        "201":
+          description: service created
+    options:
+      tags: [services]
+      summary: Discover supported methods
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/services/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [services]
+      summary: Get service
+      operationId: getService
+      responses: { "200": { description: ok } }
+    put:
+      tags: [services]
+      summary: Replace service
+      operationId: replaceService
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/v1Service" }
+      responses: { "200": { description: ok } }
+    patch:
+      tags: [services]
+      summary: Patch service (RFC 7396 merge-patch)
+      operationId: patchService
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/v1Service" }
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [services]
+      summary: Delete service
+      operationId: deleteService
+      responses: { "204": { description: deleted } }
+    options:
+      tags: [services]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/services/{id}/force-reload:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [services]
+      summary: Force-reload this service's Caddy admin block
+      operationId: forceReloadService
+      responses:
+        "202":
+          description: reload queued
+    options:
+      tags: [services]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/services/{id}/routes:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [services, routes]
+      summary: List routes targeting this service
+      operationId: listRoutesByService
+      responses:
+        "200":
+          description: paginated route collection
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/routes:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [routes]
+      summary: List routes
+      operationId: listRoutes
+      responses: { "200": { description: ok } }
+    post:
+      tags: [routes]
+      summary: Create a route
+      operationId: createRoute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/v1Route" }
+      responses: { "201": { description: created } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/routes/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get: { tags: [routes], operationId: getRoute, responses: { "200": { description: ok } } }
+    put:
+      tags: [routes]
+      operationId: replaceRoute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/v1Route" }
+      responses: { "200": { description: ok } }
+    patch:
+      tags: [routes]
+      operationId: patchRoute
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/v1Route" }
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [routes]
+      operationId: deleteRoute
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/routes/{id}/policies:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [routes, policies]
+      summary: List policies bound to a route
+      operationId: listPoliciesByRoute
+      responses: { "200": { description: ok } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/routes/{id}/policies/{policyId}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+      - in: path
+        name: policyId
+        required: true
+        schema: { type: string }
+    post:
+      tags: [routes, policies]
+      summary: Attach a policy to a route
+      operationId: attachPolicyToRoute
+      responses: { "201": { description: created } }
+    delete:
+      tags: [routes, policies]
+      summary: Detach a policy from a route
+      operationId: detachPolicyFromRoute
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  parameters:
+    Tenant:
+      in: path
+      name: tenant
+      required: true
+      schema: { type: string, pattern: "^[a-z0-9-]+$" }
+      description: "Tenant slug (e.g. `default`, `acme`)."
+    ID:
+      in: path
+      name: id
+      required: true
+      schema: { type: string, format: uuid }
+      description: "Resource id (UUID)."

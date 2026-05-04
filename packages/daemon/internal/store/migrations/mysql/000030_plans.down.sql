@@ -1,0 +1,2 @@
+ALTER TABLE plans DROP FOREIGN KEY fk_plans_tenant;
+DROP TABLE IF EXISTS plans;

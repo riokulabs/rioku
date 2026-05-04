@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS tenant_notification_configs;
+DROP INDEX IF EXISTS idx_notif_log_channel;
+DROP INDEX IF EXISTS idx_notif_log_tenant;
+DROP TABLE IF EXISTS notification_delivery_log;
+DROP INDEX IF EXISTS idx_notif_rules_tenant;
+DROP TABLE IF EXISTS notification_routing_rules;
+DROP INDEX IF EXISTS idx_notif_channels_tenant;
+DROP TABLE IF EXISTS notification_channels;
+DROP INDEX IF EXISTS idx_notif_items_unread;
+DROP INDEX IF EXISTS idx_notif_items_tenant_user;
+DROP TABLE IF EXISTS notification_items;
+DELETE FROM schema_versions WHERE version = 17;

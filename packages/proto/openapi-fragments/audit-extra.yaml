@@ -1,0 +1,127 @@
+# Stage-2 admin API completion chunk 6: audit detail / stream /
+# export / typeahead. Layered onto the existing /audit list and
+# /audit/entity sub-paths from PR #153.
+
+paths:
+  /api/v1/t/{tenant}/audit/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [audit]
+      summary: Get a single audit entry by id
+      operationId: getAuditEntry
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  actor: { type: string }
+                  entityType: { type: string }
+                  entityId: { type: string }
+                  operation: { type: string }
+                  diff: { type: string }
+                  configVersion: { type: integer, format: int64 }
+                  occurredAt: { type: string, format: date-time }
+                  _links: { $ref: "#/components/schemas/LinkSet" }
+        "404":
+          description: not found
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/stream:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [audit]
+      summary: SSE stream of new audit entries
+      operationId: streamAuditEntries
+      description: |
+        Server-Sent Events feed. Each event is named `audit` with a JSON
+        payload of {id, actor, entityType, entityId, operation, occurredAt}.
+        Backed by a 5-second poll today; will move to push once an audit
+        watcher lands.
+      responses:
+        "200":
+          description: stream open
+          content:
+            text/event-stream:
+              schema:
+                type: string
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/export/csv:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [audit]
+      summary: CSV export
+      operationId: exportAuditCSV
+      description: "Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until)."
+      responses:
+        "200":
+          description: csv stream
+          content:
+            text/csv: { schema: { type: string } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/export/jsonl:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [audit]
+      summary: JSON-Lines export
+      operationId: exportAuditJSONL
+      responses:
+        "200":
+          description: ndjson stream
+          content:
+            application/x-ndjson: { schema: { type: string } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/actors:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: query
+        name: q
+        schema: { type: string }
+        description: "Optional prefix filter."
+      - in: query
+        name: limit
+        schema: { type: integer, default: 50, maximum: 1000 }
+    get:
+      tags: [audit]
+      summary: Distinct audit actor typeahead
+      operationId: listAuditActors
+      responses: { "200": { description: ok } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/resource-ids:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: query
+        name: entity_type
+        schema: { type: string }
+        description: "Optional entity_type filter (e.g. route, service)."
+      - in: query
+        name: q
+        schema: { type: string }
+        description: "Optional prefix filter."
+      - in: query
+        name: limit
+        schema: { type: integer, default: 50, maximum: 1000 }
+    get:
+      tags: [audit]
+      summary: Distinct audit entity-id typeahead
+      operationId: listAuditResourceIDs
+      responses: { "200": { description: ok } }
+    options:
+      responses: { "204": { description: no content } }

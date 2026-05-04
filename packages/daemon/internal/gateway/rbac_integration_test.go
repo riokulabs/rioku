@@ -41,10 +41,7 @@ func setupRBACTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -206,10 +203,7 @@ func TestRBACIntegration(t *testing.T) {
 	newUserPassword := "EditorPass123!!"
 	var newUserID string
 	func() {
-		hash, err := auth.HashPassword(newUserPassword)
-		if err != nil {
-			t.Fatal(err)
-		}
+		hash := cachedHashPassword(t, newUserPassword)
 		tx, err := drv.Begin(ctx, store.TxOptions{})
 		if err != nil {
 			t.Fatal(err)
@@ -406,6 +400,10 @@ func TestSecurityHeaders(t *testing.T) {
 	})
 
 	t.Run("cors_preflight", func(t *testing.T) {
+		// /api/v1/roles now has OPTIONS handler from chunk 7, so the
+		// preflight reaches the resource handler which returns 204
+		// + Allow headers. CORS middleware adds its preflight headers
+		// in addition.
 		req, err := http.NewRequest(http.MethodOptions, server.URL+"/api/v1/roles", nil)
 		if err != nil {
 			t.Fatal(err)

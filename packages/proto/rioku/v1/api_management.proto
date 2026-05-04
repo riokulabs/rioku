@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+// API management surface (Sprint 4 Phase 1, #164):
+// Plans + Applications + Subscriptions. The schema + storage layer
+// landed in commit 342bb1d; this file defines the REST surface.
+
+package rioku.v1;
+
+option go_package = "github.com/riokulabs/rioku/proto/gen/go/rioku/v1;riokuv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "rioku/v1/common.proto";
+
+// ---- Plans ----
+
+message Plan {
+  string id                    = 1;
+  string tenant_id             = 2;
+  string api_id                = 3;
+  string name                  = 4;
+  string description           = 5;
+  string security_type         = 6; // api_key | jwt | oidc | oauth2 | mtls | none
+  string validation            = 7; // auto | manual
+  string status                = 8; // staging | published | deprecated | archived
+  int32  rate_limit_per_minute = 9;
+  int32  quota_per_day         = 10;
+  string selection_rule        = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message CreatePlanRequest {
+  string id                    = 1;
+  string api_id                = 2;
+  string name                  = 3;
+  string description           = 4;
+  string security_type         = 5;
+  string validation            = 6;
+  int32  rate_limit_per_minute = 7;
+  int32  quota_per_day         = 8;
+  string selection_rule        = 9;
+}
+
+message UpdatePlanRequest {
+  string id                       = 1;
+  optional string name            = 2;
+  optional string description     = 3;
+  optional string security_type   = 4;
+  optional string validation      = 5;
+  optional int32  rate_limit_per_minute = 6;
+  optional int32  quota_per_day   = 7;
+  optional string selection_rule  = 8;
+}
+
+message TransitionPlanRequest {
+  string id     = 1;
+  string status = 2; // target status
+}
+
+message GetPlanRequest    { string id = 1; }
+message DeletePlanRequest { string id = 1; }
+message ListPlansRequest  { string api_id = 1; } // optional filter; empty = all
+message ListPlansResponse { repeated Plan plans = 1; }
+
+// ---- Applications ----
+
+message Application {
+  string id            = 1;
+  string tenant_id     = 2;
+  string name          = 3;
+  string description   = 4;
+  string owner_user_id = 5; // empty when no owner
+  string status        = 6; // active | paused | closed
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message CreateApplicationRequest {
+  string id            = 1;
+  string name          = 2;
+  string description   = 3;
+  string owner_user_id = 4;
+}
+
+message UpdateApplicationRequest {
+  string id                   = 1;
+  optional string name        = 2;
+  optional string description = 3;
+  optional string owner_user_id = 4;
+  bool   clear_owner          = 5;
+}
+
+message TransitionApplicationRequest {
+  string id     = 1;
+  string status = 2;
+}
+
+message GetApplicationRequest    { string id = 1; }
+message DeleteApplicationRequest { string id = 1; }
+message ListApplicationsRequest  {}
+message ListApplicationsResponse { repeated Application applications = 1; }
+
+// ---- Subscriptions ----
+
+message Subscription {
+  string id              = 1;
+  string tenant_id       = 2;
+  string plan_id         = 3;
+  string application_id  = 4;
+  string api_id          = 5;
+  string status          = 6; // pending | accepted | rejected | paused | closed
+  string request_message = 7;
+  string reason_message  = 8;
+  google.protobuf.Timestamp starting_at = 9;
+  google.protobuf.Timestamp ending_at   = 10;
+  google.protobuf.Timestamp created_at  = 11;
+  google.protobuf.Timestamp updated_at  = 12;
+}
+
+message CreateSubscriptionRequest {
+  string id              = 1;
+  string plan_id         = 2;
+  string application_id  = 3;
+  string api_id          = 4;
+  string request_message = 5;
+}
+
+message UpdateSubscriptionRequest {
+  string id                       = 1;
+  optional string request_message = 2;
+  optional string reason_message  = 3;
+  google.protobuf.Timestamp starting_at = 4;
+  google.protobuf.Timestamp ending_at   = 5;
+  bool clear_starting_at          = 6;
+  bool clear_ending_at            = 7;
+}
+
+message TransitionSubscriptionRequest {
+  string id     = 1;
+  string status = 2;
+  string reason = 3; // optional approver/operator note
+}
+
+message GetSubscriptionRequest    { string id = 1; }
+message ListSubscriptionsRequest {
+  // Optional filters; only one of these should be set per call,
+  // but the server tolerates both being set (ANDs them).
+  string application_id = 1;
+  string plan_id        = 2;
+}
+message ListSubscriptionsResponse { repeated Subscription subscriptions = 1; }
+
+// ---- Service ----
+
+service APIManagementService {
+  // Plans.
+  rpc CreatePlan(CreatePlanRequest) returns (Plan) {
+    option (google.api.http) = {
+      post: "/api/v1/t/{id=*}/plans"
+      body: "*"
+      additional_bindings { post: "/api/v1/plans" body: "*" }
+    };
+  }
+  rpc GetPlan(GetPlanRequest) returns (Plan) {
+    option (google.api.http) = { get: "/api/v1/plans/{id}" };
+  }
+  rpc ListPlans(ListPlansRequest) returns (ListPlansResponse) {
+    option (google.api.http) = { get: "/api/v1/plans" };
+  }
+  rpc UpdatePlan(UpdatePlanRequest) returns (Plan) {
+    option (google.api.http) = { patch: "/api/v1/plans/{id}" body: "*" };
+  }
+  rpc TransitionPlan(TransitionPlanRequest) returns (Plan) {
+    option (google.api.http) = { post: "/api/v1/plans/{id}/transition" body: "*" };
+  }
+  rpc DeletePlan(DeletePlanRequest) returns (MutationMeta) {
+    option (google.api.http) = { delete: "/api/v1/plans/{id}" };
+  }
+
+  // Applications.
+  rpc CreateApplication(CreateApplicationRequest) returns (Application) {
+    option (google.api.http) = { post: "/api/v1/applications" body: "*" };
+  }
+  rpc GetApplication(GetApplicationRequest) returns (Application) {
+    option (google.api.http) = { get: "/api/v1/applications/{id}" };
+  }
+  rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse) {
+    option (google.api.http) = { get: "/api/v1/applications" };
+  }
+  rpc UpdateApplication(UpdateApplicationRequest) returns (Application) {
+    option (google.api.http) = { patch: "/api/v1/applications/{id}" body: "*" };
+  }
+  rpc TransitionApplication(TransitionApplicationRequest) returns (Application) {
+    option (google.api.http) = { post: "/api/v1/applications/{id}/transition" body: "*" };
+  }
+  rpc DeleteApplication(DeleteApplicationRequest) returns (MutationMeta) {
+    option (google.api.http) = { delete: "/api/v1/applications/{id}" };
+  }
+
+  // Subscriptions.
+  rpc CreateSubscription(CreateSubscriptionRequest) returns (Subscription) {
+    option (google.api.http) = { post: "/api/v1/subscriptions" body: "*" };
+  }
+  rpc GetSubscription(GetSubscriptionRequest) returns (Subscription) {
+    option (google.api.http) = { get: "/api/v1/subscriptions/{id}" };
+  }
+  rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse) {
+    option (google.api.http) = { get: "/api/v1/subscriptions" };
+  }
+  rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Subscription) {
+    option (google.api.http) = { patch: "/api/v1/subscriptions/{id}" body: "*" };
+  }
+  rpc TransitionSubscription(TransitionSubscriptionRequest) returns (Subscription) {
+    option (google.api.http) = { post: "/api/v1/subscriptions/{id}/transition" body: "*" };
+  }
+}

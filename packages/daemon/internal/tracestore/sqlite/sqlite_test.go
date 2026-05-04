@@ -550,6 +550,7 @@ func TestSQLite_WriteAndReadModelBuckets(t *testing.T) {
 	}
 	if gpt4 == nil {
 		t.Fatal("gpt-4 bucket (count=20) not found")
+		return
 	}
 	if gpt4.TotalTokens != 5000 {
 		t.Errorf("gpt4.TotalTokens = %d, want 5000", gpt4.TotalTokens)

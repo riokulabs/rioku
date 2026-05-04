@@ -135,7 +135,15 @@ jobs:
           else
             echo "PR event — running full test suite"
           fi
-          cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=300s ${SHORT_FLAG} ./...
+          # -timeout is per-package. The gateway package alone has 197
+          # integration tests, each spinning up a fresh sqlite store +
+          # running all 47 migrations (~3s/test under -race contention)
+          # for ~600s minimum. The auth scale tests are gated behind the
+          # `scale` build tag so PR CI doesn't run them. 1500s gives the
+          # gateway package room to finish while still bounding hung
+          # tests; total job time is bounded by GitHub's default
+          # 360-minute job timeout (no explicit timeout-minutes set).
+          cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=1500s ${SHORT_FLAG} ./...
 
       - name: Test build-service (race)
         run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...

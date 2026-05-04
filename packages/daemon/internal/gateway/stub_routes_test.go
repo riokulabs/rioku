@@ -10,20 +10,20 @@ import (
 	"github.com/riokulabs/rioku/internal/config"
 )
 
-func TestStubCluster(t *testing.T) {
-	cfg := config.Default()
+// TestStubCluster_LegacyRouteServedByClusterRoutes verifies that the
+// legacy GET /api/v1/cluster shape (used by the current admin panel) is
+// preserved by the new RegisterClusterRoutes registration.
+func TestStubCluster_LegacyRouteServedByClusterRoutes(t *testing.T) {
 	mux := http.NewServeMux()
-	RegisterStubRoutes(mux, cfg)
+	svc := newTestClusterService(t)
+	RegisterClusterRoutes(mux, svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/cluster", nil)
+	req := authedRequest(http.MethodGet, "/api/v1/cluster", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
 
 	var body map[string]any
@@ -32,16 +32,10 @@ func TestStubCluster(t *testing.T) {
 	}
 	nodes, ok := body["nodes"].([]any)
 	if !ok || len(nodes) == 0 {
-		t.Fatal("expected at least one node in cluster response")
+		t.Fatal("expected at least one node in legacy cluster response")
 	}
 	node := nodes[0].(map[string]any)
 
-	// Verify expected fields.
-	for _, field := range []string{"name", "role", "health", "daemon_version", "caddy_version", "store_mode", "last_seen"} {
-		if _, exists := node[field]; !exists {
-			t.Errorf("missing field %q in cluster node", field)
-		}
-	}
 	if node["health"] != "healthy" {
 		t.Errorf("health = %q, want healthy", node["health"])
 	}

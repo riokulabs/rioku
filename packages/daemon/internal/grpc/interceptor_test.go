@@ -69,6 +69,7 @@ func TestExtractAndValidate_ValidToken(t *testing.T) {
 	}
 	if claims == nil {
 		t.Fatal("claims is nil")
+		return
 	}
 	if claims.Subject != "test-user" {
 		t.Errorf("Subject = %q, want %q", claims.Subject, "test-user")
@@ -168,6 +169,7 @@ func TestClaimsFromContext(t *testing.T) {
 	got := ClaimsFromContext(ctx)
 	if got == nil {
 		t.Fatal("ClaimsFromContext returned nil")
+		return
 	}
 	if got.Subject != want.Subject {
 		t.Errorf("Subject = %q, want %q", got.Subject, want.Subject)
@@ -255,6 +257,7 @@ func TestUnaryAuthInterceptor_WithToken(t *testing.T) {
 	claims := ClaimsFromContext(capturedCtx)
 	if claims == nil {
 		t.Fatal("claims not injected into handler context")
+		return
 	}
 	if claims.Subject != "service-account" {
 		t.Errorf("claims.Subject = %q, want %q", claims.Subject, "service-account")
@@ -349,6 +352,7 @@ func TestStreamAuthInterceptor_WithToken(t *testing.T) {
 	claims := ClaimsFromContext(capturedCtx)
 	if claims == nil {
 		t.Fatal("claims not injected into stream context")
+		return
 	}
 	if claims.Subject != "stream-user" {
 		t.Errorf("claims.Subject = %q, want %q", claims.Subject, "stream-user")

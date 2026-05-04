@@ -163,6 +163,31 @@ Will the change break the sandbox? Do seeded users/roles have the permissions ne
 - **Plans**: Save to `tmp/plans/YYYY-MM-DD-<feature-name>.md` (git-ignored)
 - **Specs**: Save to `tmp/specs/YYYY-MM-DD-<feature-name>.md` (git-ignored)
 
+## Database test env vars
+
+Integration tests for the config store require a live database. All three variables are **skip-on-unset** — if the variable is absent the test file skips cleanly, so a plain `go test ./...` always passes without any external databases.
+
+| Variable | Format | Purpose |
+| --- | --- | --- |
+| `POSTGRES_TEST_DSN` | `postgres://user:pass@host:port/db?sslmode=disable` | Postgres integration tests |
+| `MYSQL_TEST_DSN` | `user:pass@tcp(host:port)/db?parseTime=true&loc=UTC&multiStatements=true` | MySQL / MariaDB integration tests |
+| `GALERA_TEST_DSNS` | comma-separated list of the above format | Multi-node Galera tests (3+ DSNs recommended) |
+
+### CI job names
+
+Branch protection should require all five jobs. The sixth is non-blocking.
+
+| Job name | Required? |
+| --- | --- |
+| `store-matrix-sqlite` | Yes |
+| `store-matrix-postgres-15` | Yes |
+| `store-matrix-postgres-18` | Yes |
+| `store-matrix-mysql-8-4` | Optional (non-blocking — migration rewrite pending) |
+| `store-matrix-mariadb-11-4` | Optional (non-blocking — migration rewrite pending) |
+| `store-matrix-mariadb-11-8` | Optional (non-blocking) |
+
+See `contrib-docs/docs/development/store-test-matrix.md` for the full env-var contract.
+
 ## Ports (configurable)
 
 - gRPC: `:7777` (internal only, mTLS required)

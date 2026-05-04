@@ -41,10 +41,7 @@ func setupTOTPTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -391,10 +388,7 @@ func TestTOTPRoutes_Reset(t *testing.T) {
 
 	// Create a second user who will have TOTP enabled.
 	targetPassword := "TargetUser123!!"
-	targetHash, err := auth.HashPassword(targetPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	targetHash := cachedHashPassword(t, targetPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -554,10 +548,7 @@ func TestTOTPRoutes_Reset_Forbidden(t *testing.T) {
 
 	// Create an unprivileged user.
 	userPassword := "NormalUser123!!"
-	hash, err := auth.HashPassword(userPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, userPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -634,10 +625,7 @@ func TestTOTPRoutes_ResolveAuthenticatedUser_BearerToken(t *testing.T) {
 	}
 
 	// Create a user.
-	hash, err := auth.HashPassword("TestPassword123!")
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, "TestPassword123!")
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)

@@ -12,22 +12,50 @@ import (
 	"github.com/google/uuid"
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
-// RegisterUserRoutes registers user management CRUD endpoints on the mux.
+// RegisterUserRoutes registers user management CRUD endpoints on the
+// mux. Both the legacy `/api/v1/users` and the tenant-scoped
+// `/api/v1/t/{tenant}/users` paths are exposed; storage filters by
+// tenant via context so the handlers don't change.
 func RegisterUserRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionManager, cfg *config.Config) {
-	mux.Handle("GET /api/v1/users", RequirePermission("users:read")(http.HandlerFunc(handleListUsers(st))))
-	mux.Handle("POST /api/v1/users", RequirePermission("users:create")(http.HandlerFunc(handleCreateUser(st, cfg))))
-	mux.Handle("GET /api/v1/users/{id}", RequirePermission("users:read")(http.HandlerFunc(handleGetUser(st))))
-	mux.Handle("PATCH /api/v1/users/{id}", RequirePermission("users:manage")(http.HandlerFunc(handleUpdateUser(st))))
-	mux.Handle("POST /api/v1/users/{id}/suspend", RequirePermission("users:manage")(http.HandlerFunc(handleSuspendUser(st, sm))))
-	mux.Handle("POST /api/v1/users/{id}/activate", RequirePermission("users:manage")(http.HandlerFunc(handleActivateUser(st))))
-	mux.Handle("POST /api/v1/users/{id}/lock", RequirePermission("users:manage")(http.HandlerFunc(handleLockUser(st, sm))))
-	mux.Handle("POST /api/v1/users/{id}/unlock", RequirePermission("users:manage")(http.HandlerFunc(handleUnlockUser(st))))
-	mux.Handle("POST /api/v1/users/{id}/reset-password", RequirePermission("users:manage")(http.HandlerFunc(handleResetPassword(st, cfg))))
-	mux.Handle("GET /api/v1/users/{id}/sessions", RequirePermission("sessions:read")(http.HandlerFunc(handleListUserSessions(st))))
-	mux.Handle("DELETE /api/v1/users/{id}", RequirePermission("users:manage")(http.HandlerFunc(handleDeleteUser(st, sm))))
+	listH := RequirePermission("users:read")(http.HandlerFunc(handleListUsers(st)))
+	createH := RequirePermission("users:create")(http.HandlerFunc(handleCreateUser(st, cfg)))
+	getH := RequirePermission("users:read")(http.HandlerFunc(handleGetUser(st)))
+	updateH := RequirePermission("users:manage")(http.HandlerFunc(handleUpdateUser(st)))
+	suspendH := RequirePermission("users:manage")(http.HandlerFunc(handleSuspendUser(st, sm)))
+	activateH := RequirePermission("users:manage")(http.HandlerFunc(handleActivateUser(st)))
+	lockH := RequirePermission("users:manage")(http.HandlerFunc(handleLockUser(st, sm)))
+	unlockH := RequirePermission("users:manage")(http.HandlerFunc(handleUnlockUser(st)))
+	resetPwH := RequirePermission("users:manage")(http.HandlerFunc(handleResetPassword(st, cfg)))
+	sessionsH := RequirePermission("sessions:read")(http.HandlerFunc(handleListUserSessions(st)))
+	deleteH := RequirePermission("users:manage")(http.HandlerFunc(handleDeleteUser(st, sm)))
+
+	for _, base := range []string{"/api/v1/users", "/api/v1/t/{tenant}/users"} {
+		mux.Handle("GET "+base, listH)
+		mux.Handle("POST "+base, createH)
+		mux.Handle("GET "+base+"/{id}", getH)
+		mux.Handle("PATCH "+base+"/{id}", updateH)
+		mux.Handle("PUT "+base+"/{id}", updateH)
+		mux.Handle("POST "+base+"/{id}/suspend", suspendH)
+		mux.Handle("POST "+base+"/{id}/disable", suspendH) // alias per spec
+		mux.Handle("POST "+base+"/{id}/activate", activateH)
+		mux.Handle("POST "+base+"/{id}/enable", activateH) // alias per spec
+		mux.Handle("POST "+base+"/{id}/lock", lockH)
+		mux.Handle("POST "+base+"/{id}/unlock", unlockH)
+		mux.Handle("POST "+base+"/{id}/reset-password", resetPwH)
+		mux.Handle("GET "+base+"/{id}/sessions", sessionsH)
+		mux.Handle("DELETE "+base+"/{id}", deleteH)
+
+		optionsutil.Register(mux, base, []string{"GET", "POST"})
+		optionsutil.Register(mux, base+"/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
+		for _, action := range []string{"suspend", "disable", "activate", "enable", "lock", "unlock", "reset-password"} {
+			optionsutil.Register(mux, base+"/{id}/"+action, []string{"POST"})
+		}
+		optionsutil.Register(mux, base+"/{id}/sessions", []string{"GET"})
+	}
 }
 
 // ---------------------------------------------------------------------------

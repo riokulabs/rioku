@@ -1,0 +1,10 @@
+ALTER TABLE ai_spend_rollups DROP FOREIGN KEY fk_ai_spend_rollups_tenant;
+DROP INDEX idx_ai_spend_rollups_date ON ai_spend_rollups;
+DROP TABLE IF EXISTS ai_spend_rollups;
+ALTER TABLE ai_spend_logs DROP FOREIGN KEY fk_ai_spend_logs_plan;
+ALTER TABLE ai_spend_logs DROP FOREIGN KEY fk_ai_spend_logs_app;
+ALTER TABLE ai_spend_logs DROP FOREIGN KEY fk_ai_spend_logs_tenant;
+DROP INDEX idx_ai_spend_logs_model       ON ai_spend_logs;
+DROP INDEX idx_ai_spend_logs_key         ON ai_spend_logs;
+DROP INDEX idx_ai_spend_logs_tenant_time ON ai_spend_logs;
+DROP TABLE IF EXISTS ai_spend_logs;

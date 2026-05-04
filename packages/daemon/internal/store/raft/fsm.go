@@ -38,6 +38,7 @@ var allBuckets = []string{
 	bucketRoutes,
 	bucketServices,
 	bucketUpstreams,
+	bucketUpstreamsByService,
 	bucketPolicies,
 	bucketPolicyBindings,
 	bucketAPIKeys,
@@ -141,6 +142,21 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 		return fmt.Errorf("reopen db after restore: %w", err)
 	}
 	f.db = db
+
+	// Snapshots can predate the upstreams_by_service index. Ensure every
+	// bucket exists and the index is populated before any reader observes
+	// the new db pointer. Done with the direct db handle because we still
+	// hold dbMu — must not call helpers that re-take the lock.
+	if err := db.Update(func(tx *bolt.Tx) error {
+		for _, name := range allBuckets {
+			if _, err := tx.CreateBucketIfNotExists([]byte(name)); err != nil {
+				return fmt.Errorf("ensure bucket %q: %w", name, err)
+			}
+		}
+		return rebuildUpstreamIndexTx(tx)
+	}); err != nil {
+		return fmt.Errorf("ensure buckets after restore: %w", err)
+	}
 	return nil
 }
 
@@ -191,9 +207,54 @@ func (f *fsm) applyCommand(tx *bolt.Tx, cmd Command) (*CommandResult, error) {
 	case OpAppendAuditEntry:
 		return f.applyAppendAuditEntry(tx, cmd)
 
+	// --- Batch (multi-op atomic) ---
+	case OpBatch:
+		return f.applyBatch(tx, cmd)
+
 	default:
 		return nil, fmt.Errorf("unknown command op: %s", cmd.Op)
 	}
+}
+
+// applyBatch runs each sub-command inside the *same* bbolt transaction. If
+// any sub-command returns an error, the surrounding db.Update rolls back
+// the whole bbolt tx — giving raftTx true atomicity.
+//
+// Per-sub-command results are returned in order so callers that need a
+// server-assigned value (e.g. SaveConfigVersion's auto-incremented version)
+// can extract it.
+//
+// Nested OpBatch is rejected to keep the wire format flat.
+func (f *fsm) applyBatch(tx *bolt.Tx, cmd Command) (*CommandResult, error) {
+	var bd batchData
+	if err := json.Unmarshal(cmd.Data, &bd); err != nil {
+		return nil, fmt.Errorf("unmarshal batch: %w", err)
+	}
+	results := make([]batchSubResult, len(bd.Commands))
+	for i, sub := range bd.Commands {
+		if sub.Op == OpBatch {
+			return nil, fmt.Errorf("batch[%d]: nested OpBatch is not allowed", i)
+		}
+		r, err := f.applyCommand(tx, sub)
+		if err != nil {
+			// Hard error: bubble out so db.Update rolls back the whole tx.
+			return nil, fmt.Errorf("batch[%d] (%s): %w", i, sub.Op, err)
+		}
+		if r.Error != "" {
+			// Soft error reported via CommandResult.Error (e.g. "not found"
+			// from applyDelete). Treat the same as a hard error inside a
+			// batch — atomic-or-nothing — so the caller's expectations
+			// match the standalone-Apply path's "if Error != '' then op
+			// failed" contract.
+			return nil, fmt.Errorf("batch[%d] (%s): %s", i, sub.Op, r.Error)
+		}
+		results[i] = batchSubResult{Data: r.Data}
+	}
+	out, err := json.Marshal(batchResult{Results: results})
+	if err != nil {
+		return nil, fmt.Errorf("marshal batch result: %w", err)
+	}
+	return &CommandResult{Data: out}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -275,11 +336,17 @@ func (f *fsm) applyCreateService(tx *bolt.Tx, cmd Command) (*CommandResult, erro
 		return nil, fmt.Errorf("put service: %w", err)
 	}
 
-	// Store upstreams.
+	// Store upstreams + maintain the upstreams_by_service index. Both
+	// writes happen inside the caller's bbolt write transaction so the
+	// index is always ACID-consistent with the upstream payload.
 	ub := tx.Bucket([]byte(bucketUpstreams))
+	idx := tx.Bucket([]byte(bucketUpstreamsByService))
 	for _, u := range sd.Upstreams {
 		if err := ub.Put([]byte(u.ID), u.Data); err != nil {
 			return nil, fmt.Errorf("put upstream: %w", err)
+		}
+		if err := idx.Put(upstreamIndexKey(sd.ID, u.ID), []byte(u.ID)); err != nil {
+			return nil, fmt.Errorf("put upstream index: %w", err)
 		}
 	}
 
@@ -300,12 +367,18 @@ func (f *fsm) applyUpdateService(tx *bolt.Tx, cmd Command) (*CommandResult, erro
 		return nil, fmt.Errorf("put service: %w", err)
 	}
 
-	// Replace upstreams: delete old, insert new.
+	// Replace upstreams: delete old + their index entries, insert new + index entries.
 	ub := tx.Bucket([]byte(bucketUpstreams))
-	f.deleteUpstreamsForService(ub, sd.ID)
+	idx := tx.Bucket([]byte(bucketUpstreamsByService))
+	if err := f.deleteUpstreamsForService(ub, idx, sd.ID); err != nil {
+		return nil, err
+	}
 	for _, u := range sd.Upstreams {
 		if err := ub.Put([]byte(u.ID), u.Data); err != nil {
 			return nil, fmt.Errorf("put upstream: %w", err)
+		}
+		if err := idx.Put(upstreamIndexKey(sd.ID, u.ID), []byte(u.ID)); err != nil {
+			return nil, fmt.Errorf("put upstream index: %w", err)
 		}
 	}
 
@@ -326,9 +399,12 @@ func (f *fsm) applyDeleteService(tx *bolt.Tx, cmd Command) (*CommandResult, erro
 		return nil, fmt.Errorf("delete service: %w", err)
 	}
 
-	// Delete associated upstreams.
+	// Delete associated upstreams + index entries.
 	ub := tx.Bucket([]byte(bucketUpstreams))
-	f.deleteUpstreamsForService(ub, dd.ID)
+	idx := tx.Bucket([]byte(bucketUpstreamsByService))
+	if err := f.deleteUpstreamsForService(ub, idx, dd.ID); err != nil {
+		return nil, err
+	}
 
 	// Clean up policy bindings for deleted service.
 	pb := tx.Bucket([]byte(bucketPolicyBindings))
@@ -338,21 +414,121 @@ func (f *fsm) applyDeleteService(tx *bolt.Tx, cmd Command) (*CommandResult, erro
 	return &CommandResult{}, nil
 }
 
-func (f *fsm) deleteUpstreamsForService(ub *bolt.Bucket, serviceID string) {
-	// Scan all upstreams to find those belonging to this service.
-	c := ub.Cursor()
-	var toDelete [][]byte
-	for k, v := c.First(); k != nil; k, v = c.Next() {
+// deleteUpstreamsForService removes every upstream belonging to serviceID
+// from both the upstreams bucket and the upstreams_by_service index.
+//
+// The walk uses the index as the source of truth — falling back to a full
+// scan only if the index is empty for this service. This keeps the hot
+// path O(upstreams_for_service) instead of O(total_upstreams).
+func (f *fsm) deleteUpstreamsForService(ub, idx *bolt.Bucket, serviceID string) error {
+	prefix := upstreamIndexPrefix(serviceID)
+
+	var indexKeys [][]byte
+	var upstreamKeys [][]byte
+
+	if idx != nil {
+		c := idx.Cursor()
+		for k, v := c.Seek(prefix); k != nil && hasPrefix(k, prefix); k, v = c.Next() {
+			indexKeys = append(indexKeys, append([]byte{}, k...))
+			upstreamKeys = append(upstreamKeys, append([]byte{}, v...))
+		}
+	}
+
+	// Compatibility fallback: if the index has no entries for this
+	// service (legacy data, missing migration) walk the upstreams
+	// bucket. O(N) but only hit when the index is empty.
+	if len(indexKeys) == 0 {
+		uc := ub.Cursor()
+		for k, v := uc.First(); k != nil; k, v = uc.Next() {
+			var entry struct {
+				ServiceID string `json:"service_id"`
+			}
+			if json.Unmarshal(v, &entry) == nil && entry.ServiceID == serviceID {
+				upstreamKeys = append(upstreamKeys, append([]byte{}, k...))
+			}
+		}
+	}
+
+	for _, k := range upstreamKeys {
+		if err := ub.Delete(k); err != nil {
+			return fmt.Errorf("delete upstream: %w", err)
+		}
+	}
+	for _, k := range indexKeys {
+		if err := idx.Delete(k); err != nil {
+			return fmt.Errorf("delete upstream index: %w", err)
+		}
+	}
+	return nil
+}
+
+// hasPrefix reports whether b starts with prefix.
+//
+// Reimplemented locally to avoid pulling in the bytes package just for a
+// hot-path check.
+func hasPrefix(b, prefix []byte) bool {
+	if len(b) < len(prefix) {
+		return false
+	}
+	for i := range prefix {
+		if b[i] != prefix[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// rebuildUpstreamIndex repopulates bucketUpstreamsByService from the
+// existing upstreams bucket. Idempotent: re-running adds entries that
+// were missing and leaves correct ones alone. Called once per process
+// startup as a migration shim so installs that pre-date the index
+// transparently gain the read-acceleration on first boot.
+//
+// Runs inside its own write transaction; safe to call concurrently with
+// readers (bbolt MVCC keeps existing read txs unaffected).
+func (f *fsm) rebuildUpstreamIndex() error {
+	f.dbMu.RLock()
+	db := f.db
+	f.dbMu.RUnlock()
+	return db.Update(rebuildUpstreamIndexTx)
+}
+
+// rebuildUpstreamIndexTx is the bbolt-Update closure that backfills the
+// upstreams_by_service index. Extracted so callers that already hold a
+// write transaction (notably Restore, which holds dbMu exclusively and
+// must not re-enter the public helper) can run the same logic in-line.
+func rebuildUpstreamIndexTx(tx *bolt.Tx) error {
+	idx, err := tx.CreateBucketIfNotExists([]byte(bucketUpstreamsByService))
+	if err != nil {
+		return fmt.Errorf("ensure upstream index bucket: %w", err)
+	}
+	ub := tx.Bucket([]byte(bucketUpstreams))
+	if ub == nil {
+		return nil
+	}
+	return ub.ForEach(func(k, v []byte) error {
 		var entry struct {
 			ServiceID string `json:"service_id"`
+			ID        string `json:"id"`
 		}
-		if json.Unmarshal(v, &entry) == nil && entry.ServiceID == serviceID {
-			toDelete = append(toDelete, append([]byte{}, k...))
+		if err := json.Unmarshal(v, &entry); err != nil {
+			// Skip malformed entries — match the existing behaviour
+			// of GetService/ListServices which also tolerates them.
+			return nil
 		}
-	}
-	for _, k := range toDelete {
-		_ = ub.Delete(k)
-	}
+		if entry.ServiceID == "" {
+			return nil
+		}
+		id := entry.ID
+		if id == "" {
+			id = string(k)
+		}
+		key := upstreamIndexKey(entry.ServiceID, id)
+		if existing := idx.Get(key); existing != nil {
+			return nil
+		}
+		return idx.Put(key, []byte(id))
+	})
 }
 
 func (f *fsm) deleteBindingsForTarget(pb *bolt.Bucket, targetType, targetID string) {

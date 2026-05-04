@@ -42,10 +42,7 @@ func setupKeyTestServer(t *testing.T) (*httptest.Server, store.Driver, string, *
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -639,10 +636,7 @@ func createUserWithRole(t *testing.T, drv store.Driver, serverURL, username, pas
 	t.Helper()
 	ctx := context.Background()
 
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, password)
 
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
@@ -1111,5 +1105,111 @@ func TestKeyRoutes_RevokeAlreadyRevokedAsNonOwner(t *testing.T) {
 	defer func() { _ = resp2.Body.Close() }()
 	if resp2.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 for nonexistent id, got %d", resp2.StatusCode)
+	}
+}
+
+// ─── Usage stats endpoint (#85) ─────────────────────────────────────────────
+
+func TestKeyRoutes_Usage_FreshKeyShowsZero(t *testing.T) {
+	server, _, _, client := setupKeyTestServer(t)
+	id, _ := createKeyViaAPI(t, client, server.URL, map[string]string{"name": "fresh-usage"})
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/keys/"+id+"/usage", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body["id"] != id {
+		t.Errorf("id = %v, want %s", body["id"], id)
+	}
+	if uc, ok := body["usageCount"].(float64); !ok || uc != 0 {
+		t.Errorf("usageCount = %v, want 0", body["usageCount"])
+	}
+	if _, has := body["lastUsedAt"]; has {
+		t.Errorf("lastUsedAt should be omitted on fresh key, got %v", body["lastUsedAt"])
+	}
+}
+
+func TestKeyRoutes_Usage_AfterRecordedUse(t *testing.T) {
+	server, drv, _, client := setupKeyTestServer(t)
+	id, _ := createKeyViaAPI(t, client, server.URL, map[string]string{"name": "used-key"})
+
+	// Simulate 4 authenticated requests by writing usage events
+	// directly through the store (bypasses the goroutine in the
+	// auth path, which would race with the test).
+	ctx := context.Background()
+	for i := 0; i < 4; i++ {
+		tx, _ := drv.Begin(ctx, store.TxOptions{})
+		if err := tx.RecordAPIKeyUse(ctx, id, time.Now().UTC()); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("RecordAPIKeyUse: %v", err)
+		}
+		_ = tx.Commit()
+	}
+
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/keys/"+id+"/usage", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if uc, _ := body["usageCount"].(float64); uc != 4 {
+		t.Errorf("usageCount = %v, want 4", body["usageCount"])
+	}
+	if _, has := body["lastUsedAt"]; !has {
+		t.Errorf("lastUsedAt should be set after usage, got body=%v", body)
+	}
+}
+
+func TestKeyRoutes_Usage_NotFoundForBogusID(t *testing.T) {
+	server, _, _, client := setupKeyTestServer(t)
+	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/keys/bogus-id-xyz/usage", nil)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for unknown key id, got %d", resp.StatusCode)
+	}
+}
+
+// TestKeyRoutes_TenantScopedPath asserts that the new
+// `/api/v1/t/{tenant}/api-keys` aliases are wired alongside the legacy
+// `/api/v1/keys` paths. We don't need to drive a full CRUD flow — just
+// confirm that the tenant-scoped path resolves through TenantMiddleware
+// (200/401 = matched the route; 404 from the middleware = unknown slug).
+func TestKeyRoutes_TenantScopedPath(t *testing.T) {
+	_, drv, _, _ := setupKeyTestServer(t)
+
+	mux := http.NewServeMux()
+	RegisterKeyRoutes(mux, drv)
+	var handler http.Handler = mux
+	handler = TenantMiddleware(drv)(handler)
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	// Known tenant slug → middleware resolves, route handler runs.
+	// Without AuthMiddleware in the chain RequirePermission returns 401
+	// — that's fine; it proves the alias is registered (a missing route
+	// would 404).
+	resp, err := http.Get(server.URL + "/api/v1/t/default/api-keys")
+	if err != nil {
+		t.Fatalf("GET tenant-scoped api-keys: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		t.Errorf("GET /api/v1/t/default/api-keys: 404 — path alias not registered")
+	}
+
+	// Unknown tenant slug → TenantMiddleware writes 404 before the
+	// handler runs.
+	resp, err = http.Get(server.URL + "/api/v1/t/no-such-tenant/api-keys")
+	if err != nil {
+		t.Fatalf("GET unknown tenant: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("unknown tenant: expected 404 from TenantMiddleware, got %d", resp.StatusCode)
 	}
 }

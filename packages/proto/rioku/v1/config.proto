@@ -31,6 +31,25 @@ message Matcher {
   repeated PathMatcher   paths   = 2;
   repeated string        methods = 3;
   repeated HeaderMatcher headers = 4;
+
+  // queries match against URL query string parameters. Compiles to
+  // Caddy's `query` matcher: a map of parameter name to permitted
+  // values. An empty value matches any value (existence-only).
+  repeated QueryMatcher queries = 5;
+
+  // expression is a CEL expression evaluated against the request.
+  // Compiles to Caddy's `expression` matcher; empty means "no
+  // expression". Use this for conditions that don't fit the simpler
+  // host/path/method/header/query primitives — e.g. cross-field
+  // checks, time-based routing, or value transforms.
+  string expression = 6;
+
+  // not is a list of nested Matcher sets that, when ANY matches the
+  // request, cause this Matcher to NOT match. Compiles to Caddy's
+  // `not` matcher (an array of nested match sets — OR semantics
+  // between entries; AND semantics within each entry's primitives).
+  // Useful for `match X but not Y`.
+  repeated Matcher not = 7;
 }
 
 message PathMatcher {
@@ -48,6 +67,22 @@ message HeaderMatcher {
   string name   = 1;
   string value  = 2;
   bool   invert = 3;
+
+  // regexp marks the value as a regex pattern. The compiler emits
+  // `header_regexp` instead of `header` for this entry. invert is
+  // ignored for regexp entries (Caddy's header_regexp doesn't support
+  // a "!" prefix); wrap the matcher in `not` instead.
+  bool   regexp = 4;
+}
+
+// QueryMatcher matches a single query string parameter. An empty
+// `value` matches any value (existence-only). To match multiple
+// permitted values for the same key, repeat the QueryMatcher with the
+// same `key` — the compiler folds them into a single
+// `{ key: [v1, v2, ...] }` entry in Caddy.
+message QueryMatcher {
+  string key   = 1;
+  string value = 2;
 }
 
 message DirectUpstream {
@@ -67,15 +102,205 @@ message Service {
   int32 dial_timeout_seconds             = 9;
   int32 response_header_timeout_seconds  = 10;
   int32 idle_timeout_seconds             = 11;
+  PassiveHealthCheck        passive_health_check = 12;
+  RetryPolicy               retry_policy = 13;
+  UpstreamTLS               upstream_tls = 14;
+  ConnectionPool            connection_pool = 15;
+
+  // lb_cookie_name is the cookie used by LB_POLICY_COOKIE for sticky
+  // sessions. Empty defaults to "lb". Ignored for non-cookie policies.
+  string lb_cookie_name = 16;
+
+  // lb_header_name is the request header consulted by LB_POLICY_HEADER
+  // to pick an upstream (consistent hash on the header value). Required
+  // when lb_policy = LB_POLICY_HEADER; ignored otherwise.
+  string lb_header_name = 17;
+
+  // request_headers mutates request headers before proxying to the
+  // upstream. Compiles into a Caddy headers handler positioned before
+  // reverse_proxy in the route's handler chain.
+  RequestHeaders request_headers = 18;
+
+  // response_headers mutates response headers after receiving from the
+  // upstream. Compiled into reverse_proxy.headers.response.
+  ResponseHeaders response_headers = 19;
+
+  // response_rules is a list of status-code-conditional rules that
+  // determine how the gateway handles specific upstream responses.
+  // Compiled into reverse_proxy.handle_response.
+  repeated ResponseRule response_rules = 20;
+
+  // compression configures gzip/zstd encoding of upstream responses.
+  // Compiles into Caddy's encode handler positioned before reverse_proxy.
+  // When unset or disabled, no encoding handler is emitted.
+  Compression compression = 21;
+}
+
+// RequestHeaders mutates request headers BEFORE the request is proxied
+// to the upstream. Compiles into a Caddy headers handler positioned
+// before reverse_proxy.
+message RequestHeaders {
+  // set replaces the value of any matching header (or creates it if
+  // absent). Map of header name -> value.
+  map<string, string> set = 1;
+
+  // add appends a value to the named header (multi-value). Map of
+  // header name -> additional value.
+  map<string, string> add = 2;
+
+  // delete removes the named headers entirely. List of header names to
+  // delete.
+  repeated string delete = 3;
+}
+
+// ResponseHeaders mutates response headers AFTER the response is
+// received from the upstream. Same set/add/delete semantics as
+// RequestHeaders. Compiled into reverse_proxy.headers.response.
+message ResponseHeaders {
+  map<string, string> set = 1;
+  map<string, string> add = 2;
+  repeated string delete = 3;
+}
+
+// ResponseRule conditionally rewrites or replaces an upstream response
+// based on its status code. Compiles into Caddy's
+// reverse_proxy.handle_response array.
+message ResponseRule {
+  // match_status_codes is the list of HTTP status codes this rule
+  // matches. Use specific codes (404, 502) or wildcard ranges: "5xx"
+  // matches 500-599; "4xx" matches 400-499.
+  repeated string match_status_codes = 1;
+
+  // action specifies what to do when the rule matches.
+  oneof action {
+    // rewrite changes the URL/method and replays the request through
+    // the gateway's route stack.
+    ResponseRewrite rewrite = 2;
+
+    // serve_error_page returns a custom error response without
+    // re-proxying. Useful for static fallbacks.
+    ResponseErrorPage serve_error_page = 3;
+
+    // route_to specifies an alternate route to dispatch to (by
+    // route_id) when the upstream returns the matched status.
+    string route_to = 4;
+  }
+}
+
+// ResponseRewrite overrides the request method and/or URI when an
+// upstream response matches a ResponseRule.
+message ResponseRewrite {
+  // method overrides the request method (e.g. "GET").
+  string method = 1;
+  // uri rewrites the request URI (e.g. "/maintenance.html").
+  string uri = 2;
+}
+
+// ResponseErrorPage returns a custom static response when an upstream
+// response matches a ResponseRule.
+message ResponseErrorPage {
+  // status_code is the response status code to send. Default 502.
+  int32 status_code = 1;
+  // body is the response body (HTML or JSON).
+  string body = 2;
+  // content_type is the Content-Type header value.
+  // Default "text/html; charset=utf-8".
+  string content_type = 3;
+}
+
+// Compression configures gzip/zstd encoding of upstream responses.
+// Compiles into Caddy's encode handler positioned before reverse_proxy.
+// When Compression is unset or disabled, no encoding handler is emitted.
+message Compression {
+  // enabled gates the entire block.
+  bool enabled = 1;
+
+  // encodings is the ordered list of encodings to advertise (e.g.
+  // ["zstd", "gzip"]). Caddy picks the first one the client accepts.
+  repeated string encodings = 2;
+
+  // min_length is the minimum response body length (in bytes) to
+  // compress. Default 1024. Bodies smaller than this are passed
+  // through uncompressed.
+  int32 min_length = 3;
 }
 
 message Upstream {
   string  id       = 1;
+  // address is the static dial target (e.g. "10.0.0.1:8080"). Used when
+  // source is unset. For dynamic upstreams, leave address empty and set
+  // one of the source variants below.
   string  address  = 2;
   int32   weight   = 3;
   TLSMode tls      = 4;
   bool    healthy  = 5;
   string  dial_err = 6;
+
+  // source is the optional discriminator for dynamic upstreams. When unset,
+  // the Upstream is treated as a static target via the address field.
+  oneof source {
+    SrvLookup srv_lookup = 7;
+    ALookup   a_lookup   = 8;
+  }
+}
+
+// SrvLookup discovers upstream targets via DNS SRV records. Compiles to
+// Caddy's reverse_proxy `dynamic_upstreams.srv` source.
+message SrvLookup {
+  // service is the SRV service name (e.g. "_http._tcp.api.example.com").
+  string service = 1;
+
+  // proto is the SRV protocol ("tcp" or "udp"). Optional; defaults to "tcp".
+  string proto = 2;
+
+  // refresh_seconds controls how often Caddy re-resolves the SRV record.
+  // Default 60s.
+  int32 refresh_seconds = 3;
+}
+
+// ALookup discovers upstream targets via DNS A/AAAA records. Compiles to
+// Caddy's reverse_proxy `dynamic_upstreams.a` source.
+message ALookup {
+  // name is the hostname to resolve (e.g. "api.example.com").
+  string name = 1;
+
+  // port is the port to dial on each resolved address.
+  int32 port = 2;
+
+  // refresh_seconds controls how often Caddy re-resolves the A/AAAA records.
+  // Default 60s.
+  int32 refresh_seconds = 3;
+}
+
+// TrustedProxies configures which CIDR sources Caddy trusts for
+// X-Forwarded-For / client IP resolution. Replaces the previous
+// repeated string field of the same name, but remains backward-compatible:
+// storage code reads the old array-of-strings shape and wraps it in
+// TrustedProxies{static: [...]}.
+message TrustedProxies {
+  // static is the list of CIDR ranges that are always trusted.
+  repeated string static = 1;
+
+  // dynamic is the list of dynamic-CIDR strategies. Each entry produces
+  // a CIDR list refreshed at the strategy's interval. Compiles to Caddy's
+  // `static` and `cloudflare` IP sources.
+  repeated TrustedProxiesDynamic dynamic = 2;
+}
+
+// TrustedProxiesDynamic describes one entry in the dynamic-strategy list
+// of TrustedProxies.
+message TrustedProxiesDynamic {
+  // strategy is the dynamic-source name. Currently supported: "static"
+  // (re-fetches from a config endpoint), "cloudflare" (fetches CF IP
+  // ranges from cloudflare.com/ips).
+  string strategy = 1;
+
+  // url is the endpoint for the "static" strategy — a JSON or
+  // newline-delimited list of CIDR ranges.
+  string url = 2;
+
+  // refresh_seconds is how often to re-fetch. Default 3600.
+  int32 refresh_seconds = 3;
 }
 
 enum LoadBalancingPolicy {
@@ -85,6 +310,18 @@ enum LoadBalancingPolicy {
   LB_POLICY_LEAST_CONN          = 3;
   LB_POLICY_IP_HASH             = 4;
   LB_POLICY_WEIGHTED_ROUND_ROBIN = 5;
+  // LB_POLICY_COOKIE pins each client to an upstream via a cookie
+  // (sticky sessions). The cookie name comes from Service.lb_cookie_name
+  // (defaults to "lb").
+  LB_POLICY_COOKIE              = 6;
+  // LB_POLICY_URI_HASH selects an upstream by consistent hash of the
+  // request URI — useful for cache-friendly fan-out where the same
+  // path should land on the same backend.
+  LB_POLICY_URI_HASH            = 7;
+  // LB_POLICY_HEADER selects an upstream by consistent hash of a
+  // request header. The header name comes from
+  // Service.lb_header_name (required).
+  LB_POLICY_HEADER              = 8;
 }
 
 message HealthCheck {
@@ -95,6 +332,176 @@ message HealthCheck {
   int32          unhealthy_threshold = 5;
   int32          healthy_threshold   = 6;
   repeated int32 expected_statuses   = 7;
+}
+
+// UpstreamTLS configures TLS parameters used when the gateway dials
+// upstream backends over HTTPS. Compiles into Caddy's
+// `reverse_proxy.transport.tls` block.
+//
+// When omitted, Caddy uses default TLS dialing (verify cert against
+// system roots, ServerName from upstream address). Most production
+// configurations only need server_name (when fronting an upstream
+// whose cert SAN doesn't match the dial address) and root_ca_pem
+// (when the upstream is signed by a private CA).
+//
+// SECURITY NOTE: insecure_skip_verify=true disables certificate
+// verification entirely — it must only be used for development or
+// when paired with a separate verification mechanism. Production
+// configs should use root_ca_pem to trust a private CA.
+message UpstreamTLS {
+  // enabled gates the entire block. When false the compiler emits
+  // no transport.tls config, regardless of other fields.
+  bool enabled = 1;
+
+  // server_name overrides the SNI / certificate-name match when
+  // dialing the upstream. Required when the upstream cert's SAN
+  // does not match the dial address (e.g. dialing by IP).
+  string server_name = 2;
+
+  // insecure_skip_verify disables certificate verification entirely.
+  // Dev/test only — DO NOT enable in production. Use root_ca_pem
+  // for private-CA upstreams instead.
+  bool insecure_skip_verify = 3;
+
+  // root_ca_pem is one or more PEM-encoded CA certificates the
+  // gateway will trust when verifying upstream certs. Empty means
+  // "use the system trust store".
+  string root_ca_pem = 4;
+
+  // client_cert_pem + client_key_pem provide a client certificate
+  // for upstream mTLS. Both must be set together; either field
+  // alone is rejected at validation. Empty disables mTLS.
+  string client_cert_pem = 5;
+  string client_key_pem  = 6;
+
+  // min_version / max_version pin the TLS protocol version range.
+  // Acceptable values: "1.0", "1.1", "1.2", "1.3". Empty means
+  // "Caddy default" (1.2 minimum).
+  string min_version = 7;
+  string max_version = 8;
+
+  // request_buffers is the size in bytes of the buffer for reading
+  // request bodies on their way to the upstream. Zero means Caddy default (4096).
+  // Compiles to reverse_proxy.transport.request_buffers.
+  // Field numbers 100/101 leave room for future TLS sub-fields while
+  // clearly separating from the existing TLS parameters.
+  int32 request_buffers = 100;
+
+  // response_buffers is the size in bytes of the buffer for reading
+  // upstream response bodies. Zero means Caddy default (4096). Compiles to
+  // reverse_proxy.transport.response_buffers.
+  int32 response_buffers = 101;
+}
+
+// ConnectionPool tunes the HTTP transport's connection-pooling
+// parameters for a service. Compiles into Caddy's
+// `reverse_proxy.transport` block alongside the existing
+// dial/response/idle timeouts.
+//
+// Defaults are picked by Caddy when fields are zero — leaving the
+// block empty is fine for most workloads. Tune for high-RPS or
+// long-tail-latency services.
+message ConnectionPool {
+  // max_conns_per_upstream caps the total number of open connections
+  // the gateway will hold per upstream backend. Zero means "no limit"
+  // (Caddy default).
+  int32 max_conns_per_upstream = 1;
+
+  // max_idle_conns_per_upstream caps the number of idle keep-alive
+  // connections retained per upstream. Zero falls back to Go's
+  // http.DefaultMaxIdleConnsPerHost (2). Bump for high-concurrency
+  // backends where reconnect cost dominates.
+  int32 max_idle_conns_per_upstream = 2;
+
+  // max_idle_conns caps the total idle keep-alive connections across
+  // all upstreams in this service. Zero means "no limit".
+  int32 max_idle_conns = 3;
+
+  // write_buffer_kb / read_buffer_kb override the HTTP transport's
+  // read/write buffer sizes (in kilobytes). Zero uses Go's default
+  // (4 KB). Bump for backends that ship large request/response
+  // bodies to reduce syscall count.
+  int32 write_buffer_kb = 4;
+  int32 read_buffer_kb  = 5;
+}
+
+// RetryPolicy configures Caddy's reverse_proxy retry behavior so a
+// transient upstream failure (connection reset, 5xx, dial error) is
+// retried against the next upstream before the client sees an error.
+//
+// Compiled fields:
+//   - max_retries  -> reverse_proxy.lb_retries
+//   - retry_match  -> reverse_proxy.lb_retry_match (status codes)
+//   - try_duration -> reverse_proxy.lb_try_duration (cap on total time)
+//   - try_interval -> reverse_proxy.lb_try_interval (gap between tries)
+//
+// When omitted, no retry block is emitted and Caddy will not retry —
+// matching the historical behavior. Retries only kick in when there
+// are multiple upstreams; with a single upstream, max_retries is
+// silently ignored by Caddy.
+message RetryPolicy {
+  // enabled gates the entire block. When false the compiler emits no
+  // retry config, even if the other fields are set.
+  bool enabled = 1;
+
+  // max_retries is the upper bound on additional attempts after the
+  // initial request. Total attempts = 1 + max_retries. Must be > 0
+  // for retries to fire.
+  int32 max_retries = 2;
+
+  // retry_on_status is the list of HTTP status codes that trigger a
+  // retry. Empty means "retry only on connection-level errors"
+  // (Caddy's default behavior — no status-based retries).
+  repeated int32 retry_on_status = 3;
+
+  // try_duration_ms is the maximum total time (across all attempts)
+  // the proxy will keep trying before returning to the client. Zero
+  // means "no time bound — keep retrying until max_retries hits".
+  int32 try_duration_ms = 4;
+
+  // try_interval_ms is the wait between retry attempts. Zero retries
+  // immediately; use a small backoff (e.g. 50–250ms) for upstreams
+  // that need a moment to recover.
+  int32 try_interval_ms = 5;
+}
+
+// PassiveHealthCheck configures passive (in-band) health checking against
+// upstream backends — i.e. health is inferred from the success/failure
+// pattern of real proxied traffic rather than from synthetic probes.
+//
+// Compiles to Caddy's `reverse_proxy.health_checks.passive` block. All
+// thresholds are evaluated within a sliding window of fail_duration_seconds.
+// When omitted (passive_health_check = nil) no passive checks are emitted
+// and Caddy will only consider an upstream unhealthy via active checks.
+message PassiveHealthCheck {
+  // enabled gates the entire passive block. When false the compiler
+  // emits nothing — useful for keeping the configured thresholds in
+  // place while temporarily disabling enforcement.
+  bool enabled = 1;
+
+  // fail_duration_seconds is the rolling window in which max_fails is
+  // counted. Caddy default is 0 (passive checks disabled). Typical
+  // production values are 10–30 seconds.
+  int32 fail_duration_seconds = 2;
+
+  // max_fails is the number of recent failures within fail_duration that
+  // marks an upstream unhealthy. Must be > 0 for the threshold to fire.
+  int32 max_fails = 3;
+
+  // unhealthy_status is the list of HTTP status codes considered failures
+  // for passive accounting. Empty means "use Caddy default" (5xx).
+  // Codes like -1 or wildcards are not supported here — list explicit
+  // integer codes (e.g. 500, 502, 503, 504).
+  repeated int32 unhealthy_status = 4;
+
+  // unhealthy_latency_ms is the response latency threshold above which a
+  // request is counted as a failure. Zero disables latency-based
+  // failure accounting.
+  int32 unhealthy_latency_ms = 5;
+
+  // unhealthy_request_count is the in-flight request count above which
+  // an upstream is considered overloaded. Zero disables this check.
+  int32 unhealthy_request_count = 6;
 }
 
 message Policy {
@@ -209,6 +616,18 @@ message AuditEntry {
   string                    diff           = 6;
   int64                     config_version = 7;
   google.protobuf.Timestamp occurred_at    = 8;
+
+  // payload_schema is the audit unification (#182, D6)
+  // discriminator — e.g. "cert.lifecycle_event.v1". Empty when
+  // this row predates the unification or was emitted via the
+  // legacy diff-only path; the admin renderer falls back to the
+  // diff renderer in that case.
+  string payload_schema = 9;
+
+  // payload carries the structured audit payload (#182, D6) as
+  // JSON. The admin renderer dispatches on payload_schema to
+  // pick a typed view. Empty when payload_schema is empty.
+  string payload = 10;
 }
 
 // ---- Import/Export ----

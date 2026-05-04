@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 7 {
-		t.Fatalf("expected version 7, got %d", v)
+	if v != 47 {
+		t.Fatalf("expected version 47, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -871,6 +871,32 @@ func TestNotify(t *testing.T) {
 	}
 }
 
+// TestCollectMigrationFiles verifies the auto-discovery loop walks
+// the embedded migrations dir and returns versions in ascending
+// order. Adding a new migration file should not require a Go-side
+// registration step (#148).
+func TestCollectMigrationFiles(t *testing.T) {
+	ups, err := collectMigrationFiles("up")
+	if err != nil {
+		t.Fatalf("collectMigrationFiles: %v", err)
+	}
+	if len(ups) < 10 {
+		t.Fatalf("expected >= 10 up migrations, got %d", len(ups))
+	}
+	for i := 1; i < len(ups); i++ {
+		if ups[i].version <= ups[i-1].version {
+			t.Errorf("not sorted ascending: %d follows %d", ups[i].version, ups[i-1].version)
+		}
+	}
+	downs, err := collectMigrationFiles("down")
+	if err != nil {
+		t.Fatalf("collectMigrationFiles down: %v", err)
+	}
+	if len(downs) != len(ups) {
+		t.Errorf("up/down count mismatch: up=%d down=%d", len(ups), len(downs))
+	}
+}
+
 func TestMigrateDown(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDB(t)
@@ -1567,8 +1593,8 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPermissions: %v", err)
 	}
-	if len(perms) != 22 {
-		t.Fatalf("expected 22 atomic permissions, got %d", len(perms))
+	if len(perms) != 26 {
+		t.Fatalf("expected 26 atomic permissions, got %d", len(perms))
 	}
 	_ = tx2.Rollback()
 
@@ -1771,9 +1797,11 @@ func TestResolveUserPermissions(t *testing.T) {
 		t.Fatalf("GetUserScopes: %v", err)
 	}
 	// admin has: config:*, keys:*, users:read, users:manage, roles:read,
-	// sessions:*, audit:read, settings:*, traffic:read, plugins:*, cluster:read
-	if len(scopes) != 11 {
-		t.Fatalf("expected 11 admin scopes, got %d: %v", len(scopes), scopes)
+	// sessions:*, audit:read, settings:*, traffic:read, plugins:*, cluster:read,
+	// access-policies:read, access-policies:write, certificates:read,
+	// certificates:manage
+	if len(scopes) != 15 {
+		t.Fatalf("expected 15 admin scopes, got %d: %v", len(scopes), scopes)
 	}
 
 	// Verify wildcards are included.
@@ -2302,6 +2330,7 @@ func TestUnmarshalLabelsJSON_Empty(t *testing.T) {
 		}
 		if got == nil {
 			t.Fatalf("unmarshalLabelsJSON(%q): expected non-nil Labels, got nil", s)
+			return
 		}
 		if got.Labels == nil {
 			t.Fatalf("unmarshalLabelsJSON(%q): expected non-nil Labels.Labels map, got nil", s)
@@ -2924,5 +2953,1352 @@ func TestServiceTimeout_ZeroValues(t *testing.T) {
 	}
 	if err := tx1.Commit(); err != nil {
 		t.Fatalf("Commit: %v", err)
+	}
+}
+
+// ─── Access Policies (#80) ──────────────────────────────────────────────────
+
+func TestAccessPolicyCRUD(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := &store.AccessPolicy{
+		Name:        "deny-after-hours",
+		Description: "Block writes outside business hours",
+		Effect:      store.AccessPolicyDeny,
+		TargetType:  store.AccessPolicyTargetRoles,
+		TargetIDs:   []string{"role_engineer"},
+		Conditions: []store.AccessPolicyCondition{
+			{Type: "time", Config: map[string]any{"start": "18:00", "end": "08:00", "tz": "America/Los_Angeles"}},
+		},
+		Priority: 50,
+		Enabled:  true,
+	}
+	out, err := tx.CreateAccessPolicy(ctx, in)
+	if err != nil {
+		t.Fatalf("CreateAccessPolicy: %v", err)
+	}
+	if out.ID == "" {
+		t.Error("expected assigned ID")
+	}
+	if out.Name != "deny-after-hours" {
+		t.Errorf("name round-trip failed: %s", out.Name)
+	}
+	if out.Effect != store.AccessPolicyDeny {
+		t.Errorf("effect: %s", out.Effect)
+	}
+	if len(out.TargetIDs) != 1 || out.TargetIDs[0] != "role_engineer" {
+		t.Errorf("target_ids round-trip failed: %v", out.TargetIDs)
+	}
+	if len(out.Conditions) != 1 || out.Conditions[0].Type != "time" {
+		t.Errorf("conditions round-trip failed: %v", out.Conditions)
+	}
+	if out.Conditions[0].Config["tz"] != "America/Los_Angeles" {
+		t.Errorf("condition config round-trip failed: %v", out.Conditions[0].Config)
+	}
+
+	// Get
+	got, err := tx.GetAccessPolicy(ctx, out.ID)
+	if err != nil {
+		t.Fatalf("GetAccessPolicy: %v", err)
+	}
+	if got.Name != out.Name {
+		t.Errorf("get mismatch: %s vs %s", got.Name, out.Name)
+	}
+
+	// Update — change name + disable
+	newName := "deny-after-hours-pst"
+	disabled := false
+	_, err = tx.UpdateAccessPolicy(ctx, out.ID, store.UpdateAccessPolicyParams{
+		Name:    &newName,
+		Enabled: &disabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAccessPolicy: %v", err)
+	}
+	got2, _ := tx.GetAccessPolicy(ctx, out.ID)
+	if got2.Name != newName || got2.Enabled {
+		t.Errorf("update did not apply: name=%s enabled=%v", got2.Name, got2.Enabled)
+	}
+
+	// List should return one row.
+	list, err := tx.ListAccessPolicies(ctx)
+	if err != nil {
+		t.Fatalf("ListAccessPolicies: %v", err)
+	}
+	if len(list) != 1 {
+		t.Errorf("expected 1 policy, got %d", len(list))
+	}
+
+	// Delete
+	if err := tx.DeleteAccessPolicy(ctx, out.ID); err != nil {
+		t.Fatalf("DeleteAccessPolicy: %v", err)
+	}
+	if _, err := tx.GetAccessPolicy(ctx, out.ID); err != store.ErrAccessPolicyNotFound {
+		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAccessPolicyDuplicateName(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+
+	_, err := tx.CreateAccessPolicy(ctx, &store.AccessPolicy{
+		Name: "dup", Effect: store.AccessPolicyAllow, TargetType: store.AccessPolicyTargetAll,
+	})
+	if err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+	_, err = tx.CreateAccessPolicy(ctx, &store.AccessPolicy{
+		Name: "dup", Effect: store.AccessPolicyDeny, TargetType: store.AccessPolicyTargetAll,
+	})
+	if err != store.ErrAccessPolicyDuplicate {
+		t.Errorf("expected ErrAccessPolicyDuplicate, got %v", err)
+	}
+	_ = tx.Rollback()
+}
+
+func TestAccessPolicyListOrdering(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+
+	// Insert three policies with different priorities.
+	for _, p := range []struct {
+		name string
+		prio int
+	}{
+		{"third", 300},
+		{"first", 100},
+		{"second", 200},
+	} {
+		if _, err := tx.CreateAccessPolicy(ctx, &store.AccessPolicy{
+			Name:       p.name,
+			Effect:     store.AccessPolicyAllow,
+			TargetType: store.AccessPolicyTargetAll,
+			Priority:   p.prio,
+			Enabled:    true,
+		}); err != nil {
+			t.Fatalf("create %s: %v", p.name, err)
+		}
+	}
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+
+	list, err := tx2.ListAccessPolicies(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 3 {
+		t.Fatalf("expected 3, got %d", len(list))
+	}
+	wantOrder := []string{"first", "second", "third"}
+	for i, p := range list {
+		if p.Name != wantOrder[i] {
+			t.Errorf("position %d: got %s, want %s", i, p.Name, wantOrder[i])
+		}
+	}
+}
+
+func TestAccessPolicyUpdateNotFound(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx.Rollback() }()
+
+	name := "x"
+	_, err := tx.UpdateAccessPolicy(ctx, "nonexistent", store.UpdateAccessPolicyParams{Name: &name})
+	if err != store.ErrAccessPolicyNotFound {
+		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
+	}
+}
+
+func TestAccessPolicyDeleteNotFound(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx.Rollback() }()
+
+	if err := tx.DeleteAccessPolicy(ctx, "nonexistent"); err != store.ErrAccessPolicyNotFound {
+		t.Errorf("expected ErrAccessPolicyNotFound, got %v", err)
+	}
+}
+
+// ─── PassiveHealthCheck round-trip (#67) ────────────────────────────────────
+
+func TestPassiveHealthCheck_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	want := &riokuv1.PassiveHealthCheck{
+		Enabled:               true,
+		FailDurationSeconds:   30,
+		MaxFails:              5,
+		UnhealthyStatus:       []int32{500, 502, 503},
+		UnhealthyLatencyMs:    250,
+		UnhealthyRequestCount: 100,
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:               "phc-svc",
+		LbPolicy:           riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:          []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+		PassiveHealthCheck: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx1.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	phc := got.GetPassiveHealthCheck()
+	if phc == nil {
+		t.Fatal("expected non-nil PassiveHealthCheck after round-trip")
+	}
+	if phc.GetMaxFails() != 5 || phc.GetFailDurationSeconds() != 30 ||
+		phc.GetUnhealthyLatencyMs() != 250 || phc.GetUnhealthyRequestCount() != 100 {
+		t.Errorf("round-trip mismatch: %+v", phc)
+	}
+	if len(phc.GetUnhealthyStatus()) != 3 || phc.GetUnhealthyStatus()[0] != 500 {
+		t.Errorf("unhealthy_status mismatch: %v", phc.GetUnhealthyStatus())
+	}
+}
+
+// ─── CountAuditLog (#82) ────────────────────────────────────────────────────
+
+func TestCountAuditLog_FiltersAndIgnoresPagination(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+	now := time.Now().UTC()
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	for i := 0; i < 5; i++ {
+		_ = tx1.AppendAuditEntry(ctx, &riokuv1.AuditEntry{
+			Actor:      "alice",
+			EntityType: "route",
+			EntityId:   "r1",
+			Operation:  "update",
+			OccurredAt: timestamppb.New(now.Add(time.Duration(i) * time.Second)),
+		})
+	}
+	for i := 0; i < 3; i++ {
+		_ = tx1.AppendAuditEntry(ctx, &riokuv1.AuditEntry{
+			Actor:      "bob",
+			EntityType: "service",
+			EntityId:   "s1",
+			Operation:  "create",
+			OccurredAt: timestamppb.New(now),
+		})
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+
+	// Total
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{}); c != 8 {
+		t.Errorf("total count = %d, want 8", c)
+	}
+	// Filtered by entity type
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{EntityType: "route"}); c != 5 {
+		t.Errorf("route count = %d, want 5", c)
+	}
+	// Filtered by entity id
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{EntityType: "route", EntityID: "r1"}); c != 5 {
+		t.Errorf("route/r1 count = %d, want 5", c)
+	}
+	// Filtered by actor
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{Actor: "bob"}); c != 3 {
+		t.Errorf("bob count = %d, want 3", c)
+	}
+	// Limit/Offset must be ignored — count is total matches.
+	if c, _ := tx2.CountAuditLog(ctx, store.AuditQuery{Limit: 1, Offset: 100}); c != 8 {
+		t.Errorf("count with limit/offset = %d, want 8 (must ignore pagination)", c)
+	}
+}
+
+// ─── UpstreamTLS + ConnectionPool round-trip (#70) ──────────────────────────
+
+func TestUpstreamTLS_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	want := &riokuv1.UpstreamTLS{
+		Enabled:            true,
+		ServerName:         "internal.example.com",
+		InsecureSkipVerify: false,
+		RootCaPem:          "-----BEGIN CERTIFICATE-----\nXYZ\n-----END CERTIFICATE-----\n",
+		ClientCertPem:      "/etc/rioku/c.crt",
+		ClientKeyPem:       "/etc/rioku/c.key",
+		MinVersion:         "1.2",
+		MaxVersion:         "1.3",
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:        "tls-svc",
+		LbPolicy:    riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:443", Healthy: true}},
+		UpstreamTls: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	got, _ := tx2.GetService(ctx, created.GetId())
+	ut := got.GetUpstreamTls()
+	if ut == nil {
+		t.Fatal("expected non-nil UpstreamTLS after round-trip")
+	}
+	if ut.GetServerName() != "internal.example.com" || ut.GetMinVersion() != "1.2" {
+		t.Errorf("round-trip mismatch: %+v", ut)
+	}
+}
+
+func TestConnectionPool_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	want := &riokuv1.ConnectionPool{
+		MaxConnsPerUpstream:     200,
+		MaxIdleConnsPerUpstream: 50,
+		MaxIdleConns:            500,
+		WriteBufferKb:           16,
+		ReadBufferKb:            32,
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:           "pool-svc",
+		LbPolicy:       riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:      []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+		ConnectionPool: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	got, _ := tx2.GetService(ctx, created.GetId())
+	cp := got.GetConnectionPool()
+	if cp == nil {
+		t.Fatal("expected non-nil ConnectionPool after round-trip")
+	}
+	if cp.GetMaxConnsPerUpstream() != 200 || cp.GetMaxIdleConns() != 500 || cp.GetWriteBufferKb() != 16 {
+		t.Errorf("round-trip mismatch: %+v", cp)
+	}
+}
+
+// ─── RetryPolicy round-trip (#69) ───────────────────────────────────────────
+
+func TestRetryPolicy_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	want := &riokuv1.RetryPolicy{
+		Enabled:       true,
+		MaxRetries:    3,
+		RetryOnStatus: []int32{502, 503, 504},
+		TryDurationMs: 5000,
+		TryIntervalMs: 100,
+	}
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:        "retry-svc",
+		LbPolicy:    riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams:   []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+		RetryPolicy: want,
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	rp := got.GetRetryPolicy()
+	if rp == nil {
+		t.Fatal("expected non-nil RetryPolicy after round-trip")
+	}
+	if rp.GetMaxRetries() != 3 || rp.GetTryDurationMs() != 5000 || rp.GetTryIntervalMs() != 100 {
+		t.Errorf("round-trip mismatch: %+v", rp)
+	}
+	if len(rp.GetRetryOnStatus()) != 3 {
+		t.Errorf("retry_on_status mismatch: %v", rp.GetRetryOnStatus())
+	}
+}
+
+func TestRetryPolicy_NilPersistsAsNil(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:      "no-retry-svc",
+		LbPolicy:  riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	got, _ := tx2.GetService(ctx, created.GetId())
+	if got.GetRetryPolicy() != nil {
+		t.Errorf("expected nil RetryPolicy, got %+v", got.GetRetryPolicy())
+	}
+}
+
+func TestPassiveHealthCheck_NilPersistsAsNil(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	created, err := tx1.CreateService(ctx, &riokuv1.Service{
+		Name:      "no-phc-svc",
+		LbPolicy:  riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080", Healthy: true}},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx1.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	if got.GetPassiveHealthCheck() != nil {
+		t.Errorf("expected nil PassiveHealthCheck, got %+v", got.GetPassiveHealthCheck())
+	}
+}
+
+// ─── RecordAPIKeyUse (#85) ──────────────────────────────────────────────────
+
+func TestRecordAPIKeyUse_BumpsCounterAndTimestamp(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create the key.
+	tx1, _ := d.Begin(ctx, store.TxOptions{})
+	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc", []string{"keys:own"}, nil, "")
+	if err != nil {
+		t.Fatalf("CreateAPIKey: %v", err)
+	}
+	_ = tx1.Commit()
+
+	// Initially, usage stats are zero.
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	k, err := tx2.GetAPIKey(ctx, id)
+	if err != nil {
+		t.Fatalf("GetAPIKey: %v", err)
+	}
+	if k.UsageCount != 0 || k.LastUsedAt != nil {
+		t.Errorf("fresh key should have zero usage, got count=%d lastUsed=%v", k.UsageCount, k.LastUsedAt)
+	}
+	_ = tx2.Rollback()
+
+	// Record three uses.
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 0; i < 3; i++ {
+		tx, _ := d.Begin(ctx, store.TxOptions{})
+		if err := tx.RecordAPIKeyUse(ctx, id, now.Add(time.Duration(i)*time.Second)); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("RecordAPIKeyUse: %v", err)
+		}
+		_ = tx.Commit()
+	}
+
+	tx3, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx3.Rollback() }()
+	k, _ = tx3.GetAPIKey(ctx, id)
+	if k.UsageCount != 3 {
+		t.Errorf("usage_count = %d, want 3", k.UsageCount)
+	}
+	if k.LastUsedAt == nil {
+		t.Fatal("expected non-nil LastUsedAt after RecordAPIKeyUse")
+	}
+}
+
+func TestRecordAPIKeyUse_UnknownIDIsNoop(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx.Rollback() }()
+
+	// Should not error even though the id doesn't exist — the auth
+	// path is the caller and a missing row already means the request
+	// failed validation upstream. Silent no-op keeps the contract
+	// best-effort.
+	if err := tx.RecordAPIKeyUse(ctx, "nonexistent-id", time.Now().UTC()); err != nil {
+		t.Errorf("expected no-op, got error: %v", err)
+	}
+}
+
+// ─── Tenants (stage-2) ──────────────────────────────────────────────────────
+
+func TestTenants_DefaultSeeded(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	tn, err := tx.GetTenantBySlug(ctx, "default")
+	if err != nil {
+		t.Fatalf("GetTenantBySlug(default): %v", err)
+	}
+	if tn.ID != "tenant_default" {
+		t.Errorf("default tenant id = %q, want tenant_default", tn.ID)
+	}
+}
+
+func TestTenants_CreateGetUpdate(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	created, err := tx.CreateTenant(ctx, &store.Tenant{Slug: "acme", Name: "Acme Corp"})
+	if err != nil {
+		t.Fatalf("CreateTenant: %v", err)
+	}
+	if created.ID == "" || created.Slug != "acme" || created.Plan != "community" {
+		t.Errorf("create result: %+v", created)
+	}
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+
+	// Slug uniqueness
+	if _, err := tx2.CreateTenant(ctx, &store.Tenant{Slug: "acme", Name: "Other"}); err != store.ErrTenantSlugTaken {
+		t.Errorf("expected ErrTenantSlugTaken, got %v", err)
+	}
+
+	// Update
+	newName := "Acme Inc."
+	updated, err := tx2.UpdateTenant(ctx, created.ID, store.UpdateTenantParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateTenant: %v", err)
+	}
+	if updated.Name != "Acme Inc." {
+		t.Errorf("updated name = %q", updated.Name)
+	}
+
+	// Default tenant cannot be deleted
+	if err := tx2.DeleteTenant(ctx, "tenant_default"); err != store.ErrTenantImmutable {
+		t.Errorf("expected ErrTenantImmutable, got %v", err)
+	}
+
+	// Other tenant can be deleted
+	if err := tx2.DeleteTenant(ctx, created.ID); err != nil {
+		t.Errorf("DeleteTenant: %v", err)
+	}
+}
+
+func TestTenants_List(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	_, _ = tx.CreateTenant(ctx, &store.Tenant{Slug: "a", Name: "A"})
+	_, _ = tx.CreateTenant(ctx, &store.Tenant{Slug: "b", Name: "B"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+	all, err := tx2.ListTenants(ctx)
+	if err != nil {
+		t.Fatalf("ListTenants: %v", err)
+	}
+	// default + 2 created
+	if len(all) != 3 {
+		t.Errorf("expected 3 tenants, got %d", len(all))
+	}
+}
+
+// ─── Memberships (stage-2) ──────────────────────────────────────────────────
+
+func TestMemberships_BackfilledForExistingUsers(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Create a user (which would normally have happened before migration 13).
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, err := tx.CreateUser(ctx, &store.User{
+		Username:          "backfill-user",
+		PasswordHash:      "x",
+		Status:            "active",
+		PasswordChangedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	_ = tx.Commit()
+
+	// Manually create a membership (since the user was created post-migration).
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	m, err := tx2.CreateMembership(ctx, &store.Membership{
+		TenantID: "tenant_default",
+		UserID:   user.ID,
+		State:    "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateMembership: %v", err)
+	}
+	if m.JoinedAt == nil {
+		t.Error("active membership should have JoinedAt populated")
+	}
+	_ = tx2.Commit()
+
+	// Look up by tenant+user
+	tx3, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx3.Rollback() }()
+	got, err := tx3.GetMembershipByTenantUser(ctx, "tenant_default", user.ID)
+	if err != nil {
+		t.Fatalf("GetMembershipByTenantUser: %v", err)
+	}
+	if got.ID != m.ID {
+		t.Errorf("expected membership %s, got %s", m.ID, got.ID)
+	}
+}
+
+func TestMemberships_DuplicateRejected(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "dup-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	_, _ = tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	defer func() { _ = tx2.Rollback() }()
+	if _, err := tx2.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"}); err != store.ErrMembershipExists {
+		t.Errorf("expected ErrMembershipExists, got %v", err)
+	}
+}
+
+func TestMemberships_StateTransitions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "state-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	m, _ := tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "pending"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	// Valid: pending -> active
+	updated, err := tx2.UpdateMembershipState(ctx, m.ID, "active")
+	if err != nil {
+		t.Fatalf("pending->active: %v", err)
+	}
+	if updated.JoinedAt == nil {
+		t.Error("transition to active should set JoinedAt")
+	}
+	// Invalid: active -> pending
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "pending"); err != store.ErrMembershipInvalidState {
+		t.Errorf("expected ErrMembershipInvalidState for active->pending, got %v", err)
+	}
+	// Valid: active -> deactivated
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "deactivated"); err != nil {
+		t.Errorf("active->deactivated: %v", err)
+	}
+	// Valid: deactivated -> active (re-activation)
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "active"); err != nil {
+		t.Errorf("deactivated->active: %v", err)
+	}
+	// Valid: active -> removed
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "removed"); err != nil {
+		t.Errorf("active->removed: %v", err)
+	}
+	// Invalid: removed is terminal
+	if _, err := tx2.UpdateMembershipState(ctx, m.ID, "active"); err != store.ErrMembershipInvalidState {
+		t.Errorf("expected ErrMembershipInvalidState for removed->active, got %v", err)
+	}
+	_ = tx2.Commit()
+}
+
+func TestMemberships_ListByTenantAndUser(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	other, _ := tx.CreateTenant(ctx, &store.Tenant{Slug: "other", Name: "Other"})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "multi-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	_, _ = tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	_, _ = tx.CreateMembership(ctx, &store.Membership{TenantID: other.ID, UserID: user.ID, State: "pending"})
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+
+	byUser, _ := tx2.ListMembershipsByUser(ctx, user.ID)
+	if len(byUser) != 2 {
+		t.Errorf("expected 2 memberships for user, got %d", len(byUser))
+	}
+	byTenant, _ := tx2.ListMembershipsByTenant(ctx, other.ID)
+	if len(byTenant) != 1 {
+		t.Errorf("expected 1 membership in 'other', got %d", len(byTenant))
+	}
+}
+
+// ─── Membership Roles (stage-2) ─────────────────────────────────────────────
+
+func TestMembershipRoles_AssignAndList(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "role-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	m, _ := tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	if err := tx.AssignMembershipRole(ctx, m.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("AssignMembershipRole: %v", err)
+	}
+	// Idempotent — second assign is a no-op.
+	if err := tx.AssignMembershipRole(ctx, m.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("second AssignMembershipRole: %v", err)
+	}
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+	roles, err := tx2.ListMembershipRoles(ctx, m.ID)
+	if err != nil {
+		t.Fatalf("ListMembershipRoles: %v", err)
+	}
+	if len(roles) != 1 || roles[0].ID != "role_viewer" {
+		t.Errorf("expected [role_viewer], got %+v", roles)
+	}
+}
+
+func TestMembershipRoles_Revoke(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "revoke-user", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	m, _ := tx.CreateMembership(ctx, &store.Membership{TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	_ = tx.AssignMembershipRole(ctx, m.ID, "role_viewer", "")
+	_ = tx.AssignMembershipRole(ctx, m.ID, "role_operator", "")
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{})
+	if err := tx2.RevokeMembershipRole(ctx, m.ID, "role_viewer"); err != nil {
+		t.Fatalf("RevokeMembershipRole: %v", err)
+	}
+	// Revoking again is a no-op (no error).
+	if err := tx2.RevokeMembershipRole(ctx, m.ID, "role_viewer"); err != nil {
+		t.Errorf("repeat revoke: %v", err)
+	}
+	roles, _ := tx2.ListMembershipRoles(ctx, m.ID)
+	if len(roles) != 1 || roles[0].ID != "role_operator" {
+		t.Errorf("expected [role_operator], got %+v", roles)
+	}
+	_ = tx2.Commit()
+}
+
+func TestMembershipRoles_BackfilledFromUserRoles(t *testing.T) {
+	// Migration 13 backfills membership_roles from user_roles for the
+	// default tenant. The seed data ships role_superadmin assigned to
+	// the bootstrap user via user_roles, so the corresponding default
+	// membership should now also list it.
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	user, _ := tx.CreateUser(ctx, &store.User{Username: "pre-migration", PasswordHash: "x", Status: "active", PasswordChangedAt: time.Now().UTC()})
+	if err := tx.AssignRole(ctx, user.ID, "role_viewer", ""); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	// Manually create the membership (the migration only backfills users
+	// that existed at migration time; this user was created after).
+	m, _ := tx.CreateMembership(ctx, &store.Membership{ID: "m_" + user.ID, TenantID: "tenant_default", UserID: user.ID, State: "active"})
+	// Mirror the role assignment at the membership level (which the new
+	// code paths will do automatically; this test exercises the storage).
+	_ = tx.AssignMembershipRole(ctx, m.ID, "role_viewer", "")
+	_ = tx.Commit()
+
+	tx2, _ := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+	roles, _ := tx2.ListMembershipRoles(ctx, m.ID)
+	if len(roles) == 0 {
+		t.Error("expected role_viewer to be present on membership")
+	}
+}
+
+// TestServiceLBSessionAffinity verifies that lb_cookie_name and
+// lb_header_name round-trip through INSERT/SELECT/UPDATE on the
+// services table (#71, migration 23).
+func TestServiceLBSessionAffinity(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	created, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:         "sticky-svc",
+		LbPolicy:     riokuv1.LoadBalancingPolicy_LB_POLICY_COOKIE,
+		LbCookieName: "rioku_sess",
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:80", Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if got := created.GetLbCookieName(); got != "rioku_sess" {
+		t.Errorf("created lb_cookie_name = %q, want rioku_sess", got)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Update the service to switch to header-based LB.
+	tx, err = d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	updated, err := tx.UpdateService(ctx, &riokuv1.Service{
+		Id:           created.GetId(),
+		Name:         "sticky-svc",
+		LbPolicy:     riokuv1.LoadBalancingPolicy_LB_POLICY_HEADER,
+		LbHeaderName: "X-Tenant-ID",
+		LbCookieName: "", // clear
+		Upstreams:    created.GetUpstreams(),
+	})
+	if err != nil {
+		t.Fatalf("UpdateService: %v", err)
+	}
+	if got := updated.GetLbHeaderName(); got != "X-Tenant-ID" {
+		t.Errorf("updated lb_header_name = %q, want X-Tenant-ID", got)
+	}
+	if got := updated.GetLbCookieName(); got != "" {
+		t.Errorf("updated lb_cookie_name = %q, want empty", got)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Re-fetch via Get and List to confirm both code paths return the new fields.
+	tx, _ = d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	got, err := tx.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	if got.GetLbHeaderName() != "X-Tenant-ID" || got.GetLbCookieName() != "" {
+		t.Errorf("Get round-trip mismatch: header=%q cookie=%q", got.GetLbHeaderName(), got.GetLbCookieName())
+	}
+	listed, err := tx.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	var found bool
+	for _, s := range listed {
+		if s.GetId() == created.GetId() {
+			if s.GetLbHeaderName() != "X-Tenant-ID" {
+				t.Errorf("List round-trip header = %q", s.GetLbHeaderName())
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("ListServices: created service missing from results")
+	}
+}
+
+// TestRouteMatcherExtensions verifies that the new Matcher fields
+// (queries, expression, not, header_regexp) round-trip through the
+// SQLite JSON column unchanged (#72).
+func TestRouteMatcherExtensions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	// Need a service to point the route at.
+	tx, _ := d.Begin(ctx, store.TxOptions{})
+	svc, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "tgt",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "127.0.0.1:8080", Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	_ = tx.Commit()
+
+	tx, _ = d.Begin(ctx, store.TxOptions{})
+	created, err := tx.CreateRoute(ctx, &riokuv1.Route{
+		Name: "r-with-extensions",
+		Matchers: []*riokuv1.Matcher{{
+			Hosts:   []string{"api.example.com"},
+			Queries: []*riokuv1.QueryMatcher{{Key: "v", Value: "1"}, {Key: "v", Value: "2"}},
+			Headers: []*riokuv1.HeaderMatcher{
+				{Name: "X-Trace", Value: "^abc[0-9]+$", Regexp: true},
+			},
+			Expression: `method('POST')`,
+			Not: []*riokuv1.Matcher{
+				{Paths: []*riokuv1.PathMatcher{{Type: riokuv1.PathMatcher_TYPE_PREFIX, Value: "/internal"}}},
+			},
+		}},
+		Target:  &riokuv1.Route_ServiceId{ServiceId: svc.GetId()},
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	_ = tx.Commit()
+
+	tx, _ = d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	got, err := tx.GetRoute(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetRoute: %v", err)
+	}
+	if len(got.GetMatchers()) != 1 {
+		t.Fatalf("expected 1 matcher, got %d", len(got.GetMatchers()))
+	}
+	m := got.GetMatchers()[0]
+	if len(m.GetQueries()) != 2 {
+		t.Errorf("queries len = %d, want 2", len(m.GetQueries()))
+	}
+	if got := m.GetExpression(); got != `method('POST')` {
+		t.Errorf("expression = %q", got)
+	}
+	if len(m.GetNot()) != 1 {
+		t.Errorf("not len = %d, want 1", len(m.GetNot()))
+	}
+	if len(m.GetHeaders()) != 1 || !m.GetHeaders()[0].GetRegexp() {
+		t.Errorf("headers regexp lost in round-trip")
+	}
+}
+
+// TestSQLite_Service_CaddyPrimitives_RoundTrip verifies that the Phase 7a /
+// #161 service-level Caddy primitive fields (request_headers, response_headers,
+// response_rules, compression) persist and round-trip correctly through the
+// SQLite driver.
+// ---------------------------------------------------------------------------
+// Phase 7b / #162, #159 residual — dynamic upstreams storage round-trips
+// ---------------------------------------------------------------------------
+
+// TestSQLite_Service_DynamicUpstreams_RoundTrip verifies that both SrvLookup
+// and ALookup upstream variants persist and retrieve correctly through
+// CreateService / GetService / ListServices.
+func TestSQLite_Service_DynamicUpstreams_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	svc, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "dyn-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Source: &riokuv1.Upstream_SrvLookup{
+					SrvLookup: &riokuv1.SrvLookup{
+						Service:        "_http._tcp.api.example.com",
+						Proto:          "tcp",
+						RefreshSeconds: 30,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService (srv): %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, svc.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	if len(got.GetUpstreams()) != 1 {
+		t.Fatalf("upstreams len = %d, want 1", len(got.GetUpstreams()))
+	}
+	u := got.GetUpstreams()[0]
+	srv, ok := u.GetSource().(*riokuv1.Upstream_SrvLookup)
+	if !ok {
+		t.Fatalf("source is %T, want *Upstream_SrvLookup", u.GetSource())
+	}
+	if srv.SrvLookup.GetService() != "_http._tcp.api.example.com" {
+		t.Errorf("srv.service = %q, want _http._tcp.api.example.com", srv.SrvLookup.GetService())
+	}
+	if srv.SrvLookup.GetProto() != "tcp" {
+		t.Errorf("srv.proto = %q, want tcp", srv.SrvLookup.GetProto())
+	}
+	if srv.SrvLookup.GetRefreshSeconds() != 30 {
+		t.Errorf("srv.refresh_seconds = %d, want 30", srv.SrvLookup.GetRefreshSeconds())
+	}
+
+	// Now create a service with ALookup.
+	tx3, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin tx3: %v", err)
+	}
+	svc2, err := tx3.CreateService(ctx, &riokuv1.Service{
+		Name: "dyn-svc-a",
+		Upstreams: []*riokuv1.Upstream{
+			{
+				Source: &riokuv1.Upstream_ALookup{
+					ALookup: &riokuv1.ALookup{
+						Name:           "api.example.com",
+						Port:           8080,
+						RefreshSeconds: 120,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService (a): %v", err)
+	}
+	if err := tx3.Commit(); err != nil {
+		t.Fatalf("Commit tx3: %v", err)
+	}
+
+	tx4, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx4: %v", err)
+	}
+	got2, err := tx4.GetService(ctx, svc2.GetId())
+	if err != nil {
+		t.Fatalf("GetService (a): %v", err)
+	}
+	_ = tx4.Rollback()
+
+	u2 := got2.GetUpstreams()[0]
+	al, ok := u2.GetSource().(*riokuv1.Upstream_ALookup)
+	if !ok {
+		t.Fatalf("source is %T, want *Upstream_ALookup", u2.GetSource())
+	}
+	if al.ALookup.GetName() != "api.example.com" {
+		t.Errorf("a.name = %q, want api.example.com", al.ALookup.GetName())
+	}
+	if al.ALookup.GetPort() != 8080 {
+		t.Errorf("a.port = %d, want 8080", al.ALookup.GetPort())
+	}
+	if al.ALookup.GetRefreshSeconds() != 120 {
+		t.Errorf("a.refresh_seconds = %d, want 120", al.ALookup.GetRefreshSeconds())
+	}
+
+	// Verify ListServices includes both services with their dynamic sources.
+	tx5, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx5: %v", err)
+	}
+	defer func() { _ = tx5.Rollback() }()
+	all, err := tx5.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	srvFound, aFound := false, false
+	for _, s := range all {
+		for _, up := range s.GetUpstreams() {
+			switch up.GetSource().(type) {
+			case *riokuv1.Upstream_SrvLookup:
+				srvFound = true
+			case *riokuv1.Upstream_ALookup:
+				aFound = true
+			}
+		}
+	}
+	if !srvFound {
+		t.Error("ListServices: SrvLookup upstream not found")
+	}
+	if !aFound {
+		t.Error("ListServices: ALookup upstream not found")
+	}
+}
+
+// TestSQLite_Service_DynamicUpstreams_StaticBackward verifies that static
+// (no source) upstreams still round-trip cleanly after migration 27.
+func TestSQLite_Service_DynamicUpstreams_StaticBackward(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	svc, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name: "static-svc",
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080", Weight: 5, Healthy: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, svc.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	if len(got.GetUpstreams()) != 1 {
+		t.Fatalf("upstreams len = %d, want 1", len(got.GetUpstreams()))
+	}
+	u := got.GetUpstreams()[0]
+	if u.GetSource() != nil {
+		t.Errorf("static upstream should have nil source, got %T", u.GetSource())
+	}
+	if u.GetAddress() != "10.0.0.1:8080" {
+		t.Errorf("address = %q, want 10.0.0.1:8080", u.GetAddress())
+	}
+}
+
+// TestSQLite_Service_TrustedProxies_LegacyShape verifies the backward-compat
+// shim in unmarshalTrustedProxiesJSON: a legacy JSON array of CIDR strings is
+// parsed as TrustedProxies{Static: [...]}.
+func TestSQLite_Service_TrustedProxies_LegacyShape(t *testing.T) {
+	legacy := `["10.0.0.0/8","192.168.0.0/16"]`
+	tp, err := unmarshalTrustedProxiesJSON(legacy)
+	if err != nil {
+		t.Fatalf("unmarshalTrustedProxiesJSON (legacy): %v", err)
+	}
+	if tp == nil {
+		t.Fatal("got nil, want TrustedProxies")
+	}
+	if len(tp.GetStatic()) != 2 {
+		t.Fatalf("static len = %d, want 2", len(tp.GetStatic()))
+	}
+	if tp.GetStatic()[0] != "10.0.0.0/8" {
+		t.Errorf("static[0] = %q, want 10.0.0.0/8", tp.GetStatic()[0])
+	}
+	if len(tp.GetDynamic()) != 0 {
+		t.Errorf("dynamic should be empty for legacy shape, got %d", len(tp.GetDynamic()))
+	}
+}
+
+// TestSQLite_Service_TrustedProxies_NewShape verifies that the new object-shape
+// TrustedProxies JSON round-trips cleanly.
+func TestSQLite_Service_TrustedProxies_NewShape(t *testing.T) {
+	original := &riokuv1.TrustedProxies{
+		Static: []string{"10.0.0.0/8"},
+		Dynamic: []*riokuv1.TrustedProxiesDynamic{
+			{Strategy: "cloudflare", RefreshSeconds: 3600},
+		},
+	}
+	s, err := marshalTrustedProxiesJSON(original)
+	if err != nil {
+		t.Fatalf("marshalTrustedProxiesJSON: %v", err)
+	}
+	got, err := unmarshalTrustedProxiesJSON(s)
+	if err != nil {
+		t.Fatalf("unmarshalTrustedProxiesJSON (new shape): %v", err)
+	}
+	if len(got.GetStatic()) != 1 || got.GetStatic()[0] != "10.0.0.0/8" {
+		t.Errorf("static = %v, want [10.0.0.0/8]", got.GetStatic())
+	}
+	if len(got.GetDynamic()) != 1 {
+		t.Fatalf("dynamic len = %d, want 1", len(got.GetDynamic()))
+	}
+	if got.GetDynamic()[0].GetStrategy() != "cloudflare" {
+		t.Errorf("dynamic[0].strategy = %q, want cloudflare", got.GetDynamic()[0].GetStrategy())
+	}
+	if got.GetDynamic()[0].GetRefreshSeconds() != 3600 {
+		t.Errorf("dynamic[0].refresh_seconds = %d, want 3600", got.GetDynamic()[0].GetRefreshSeconds())
+	}
+}
+
+// TestSQLite_Service_CaddyPrimitives_RoundTrip tests phase 7a primitives (unchanged).
+func TestSQLite_Service_CaddyPrimitives_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDB(t)
+
+	tx, err := d.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	created, err := tx.CreateService(ctx, &riokuv1.Service{
+		Name:     "prim-svc",
+		LbPolicy: riokuv1.LoadBalancingPolicy_LB_POLICY_ROUND_ROBIN,
+		Upstreams: []*riokuv1.Upstream{
+			{Address: "10.0.0.1:8080", Weight: 1, Healthy: true},
+		},
+		RequestHeaders: &riokuv1.RequestHeaders{
+			Set:    map[string]string{"X-Custom": "v1"},
+			Add:    map[string]string{"X-Trace": "id"},
+			Delete: []string{"X-Internal"},
+		},
+		ResponseHeaders: &riokuv1.ResponseHeaders{
+			Set:    map[string]string{"X-Frame-Options": "DENY"},
+			Delete: []string{"X-Powered-By"},
+		},
+		ResponseRules: []*riokuv1.ResponseRule{
+			{
+				MatchStatusCodes: []string{"5xx"},
+				Action: &riokuv1.ResponseRule_ServeErrorPage{
+					ServeErrorPage: &riokuv1.ResponseErrorPage{
+						StatusCode: 503,
+						Body:       "<h1>Down</h1>",
+					},
+				},
+			},
+		},
+		Compression: &riokuv1.Compression{
+			Enabled:   true,
+			Encodings: []string{"gzip"},
+			MinLength: 1024,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateService: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Retrieve via GetService.
+	tx2, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx2: %v", err)
+	}
+	got, err := tx2.GetService(ctx, created.GetId())
+	if err != nil {
+		t.Fatalf("GetService: %v", err)
+	}
+	_ = tx2.Rollback()
+
+	// RequestHeaders
+	rh := got.GetRequestHeaders()
+	if rh == nil {
+		t.Fatal("request_headers is nil after round-trip")
+	}
+	if rh.GetSet()["X-Custom"] != "v1" {
+		t.Errorf("request_headers.set[X-Custom] = %q, want v1", rh.GetSet()["X-Custom"])
+	}
+	if rh.GetAdd()["X-Trace"] != "id" {
+		t.Errorf("request_headers.add[X-Trace] = %q, want id", rh.GetAdd()["X-Trace"])
+	}
+	if len(rh.GetDelete()) != 1 || rh.GetDelete()[0] != "X-Internal" {
+		t.Errorf("request_headers.delete = %v, want [X-Internal]", rh.GetDelete())
+	}
+
+	// ResponseHeaders
+	respH := got.GetResponseHeaders()
+	if respH == nil {
+		t.Fatal("response_headers is nil after round-trip")
+	}
+	if respH.GetSet()["X-Frame-Options"] != "DENY" {
+		t.Errorf("response_headers.set[X-Frame-Options] = %q, want DENY", respH.GetSet()["X-Frame-Options"])
+	}
+	if len(respH.GetDelete()) != 1 || respH.GetDelete()[0] != "X-Powered-By" {
+		t.Errorf("response_headers.delete = %v, want [X-Powered-By]", respH.GetDelete())
+	}
+
+	// ResponseRules
+	rules := got.GetResponseRules()
+	if len(rules) != 1 {
+		t.Fatalf("response_rules len = %d, want 1", len(rules))
+	}
+	rule := rules[0]
+	if len(rule.GetMatchStatusCodes()) != 1 || rule.GetMatchStatusCodes()[0] != "5xx" {
+		t.Errorf("response_rules[0].match_status_codes = %v, want [5xx]", rule.GetMatchStatusCodes())
+	}
+	ep, ok := rule.GetAction().(*riokuv1.ResponseRule_ServeErrorPage)
+	if !ok {
+		t.Fatalf("response_rules[0].action is %T, want ServeErrorPage", rule.GetAction())
+	}
+	if ep.ServeErrorPage.GetStatusCode() != 503 {
+		t.Errorf("serve_error_page.status_code = %d, want 503", ep.ServeErrorPage.GetStatusCode())
+	}
+	if ep.ServeErrorPage.GetBody() != "<h1>Down</h1>" {
+		t.Errorf("serve_error_page.body = %q, want <h1>Down</h1>", ep.ServeErrorPage.GetBody())
+	}
+
+	// Compression
+	comp := got.GetCompression()
+	if comp == nil {
+		t.Fatal("compression is nil after round-trip")
+	}
+	if !comp.GetEnabled() {
+		t.Error("compression.enabled = false, want true")
+	}
+	if len(comp.GetEncodings()) != 1 || comp.GetEncodings()[0] != "gzip" {
+		t.Errorf("compression.encodings = %v, want [gzip]", comp.GetEncodings())
+	}
+	if comp.GetMinLength() != 1024 {
+		t.Errorf("compression.min_length = %d, want 1024", comp.GetMinLength())
+	}
+
+	// Verify via ListServices as well.
+	tx3, err := d.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("Begin tx3: %v", err)
+	}
+	defer func() { _ = tx3.Rollback() }()
+	services, err := tx3.ListServices(ctx)
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	if len(services) != 1 {
+		t.Fatalf("ListServices len = %d, want 1", len(services))
+	}
+	if services[0].GetCompression().GetEnabled() != true {
+		t.Error("ListServices: compression.enabled lost")
+	}
+	if services[0].GetRequestHeaders().GetSet()["X-Custom"] != "v1" {
+		t.Error("ListServices: request_headers.set[X-Custom] lost")
 	}
 }

@@ -1,8 +1,10 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -42,10 +44,7 @@ func setupSettingsTestServer(t *testing.T) (*httptest.Server, store.Driver, stri
 
 	// Create root user (superadmin).
 	rootPassword := "TestPassword123!"
-	hash, err := auth.HashPassword(rootPassword)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hash := cachedHashPassword(t, rootPassword)
 	tx, err := drv.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +110,7 @@ func setupSettingsTestServer(t *testing.T) (*httptest.Server, store.Driver, stri
 
 	mux := http.NewServeMux()
 	RegisterAuthRoutes(mux, a, sm, drv, cfg, enc)
-	RegisterSettingsRoutes(mux, cfg, drv, time.Now().UTC())
+	RegisterSettingsRoutes(mux, cfg, drv, time.Now().UTC(), NewRuntimeSettings(cfg, nil))
 
 	var handler http.Handler = mux
 	handler = SecurityHeadersMiddleware(handler)
@@ -535,4 +534,126 @@ func TestGetSettings_Unauthenticated(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ─── PATCH integration tests ────────────────────────────────────────────────
+
+func TestPatchSettings_GeneralLogLevel(t *testing.T) {
+	server, _, _, client := setupSettingsTestServer(t)
+
+	resp := doJSON(t, client, http.MethodPatch, server.URL+"/api/v1/settings/general",
+		map[string]any{"logLevel": "debug"})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["logLevel"] != "debug" {
+		t.Errorf("logLevel = %v, want debug", body["logLevel"])
+	}
+}
+
+func TestPatchSettings_GeneralInvalidLevel(t *testing.T) {
+	server, _, _, client := setupSettingsTestServer(t)
+
+	resp := doJSON(t, client, http.MethodPatch, server.URL+"/api/v1/settings/general",
+		map[string]any{"logLevel": "verbose"})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestPatchSettings_GeneralBadJSON(t *testing.T) {
+	server, _, _, client := setupSettingsTestServer(t)
+
+	req, _ := http.NewRequest(http.MethodPatch, server.URL+"/api/v1/settings/general",
+		// Invalid JSON
+		nil)
+	req.Header.Set("Content-Type", "application/json")
+	// Send a body that's not JSON.
+	req.Body = http.NoBody
+	// Actually set malformed JSON via the bytes reader.
+	req.Body = bytesReader(`{not-json`)
+	req.ContentLength = -1
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 for bad JSON, got %d", resp.StatusCode)
+	}
+}
+
+func TestPatchSettings_AuthCombinedPatch(t *testing.T) {
+	server, _, _, client := setupSettingsTestServer(t)
+
+	resp := doJSON(t, client, http.MethodPatch, server.URL+"/api/v1/settings/auth",
+		map[string]any{
+			"passwordPolicy": map[string]any{"minLength": 16, "requireSpecial": true},
+			"lockout":        map[string]any{"maxAttempts": 7},
+			"rateLimit":      map[string]any{"requestsPerMinute": 240},
+		})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	pp, _ := body["passwordPolicy"].(map[string]any)
+	if pp["minLength"].(float64) != 16 {
+		t.Errorf("minLength echo wrong: %v", pp["minLength"])
+	}
+	if pp["requireSpecial"] != true {
+		t.Errorf("requireSpecial echo wrong: %v", pp["requireSpecial"])
+	}
+}
+
+func TestPatchSettings_AuthValidationFailure(t *testing.T) {
+	server, _, _, client := setupSettingsTestServer(t)
+
+	resp := doJSON(t, client, http.MethodPatch, server.URL+"/api/v1/settings/auth",
+		map[string]any{
+			"passwordPolicy": map[string]any{"minLength": 4}, // too small
+		})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestPatchSettings_TracesSampling(t *testing.T) {
+	server, _, _, client := setupSettingsTestServer(t)
+
+	resp := doJSON(t, client, http.MethodPatch, server.URL+"/api/v1/settings/traces",
+		map[string]any{"samplingRate": 0.25})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["samplingRate"].(float64) != 0.25 {
+		t.Errorf("samplingRate echo wrong: %v", body["samplingRate"])
+	}
+}
+
+// bytesReader wraps a string in an io.ReadCloser for use as an http.Request
+// body. Returns io.EOF when exhausted so net/http parses it correctly.
+func bytesReader(s string) io.ReadCloser {
+	return io.NopCloser(bytes.NewReader([]byte(s)))
 }

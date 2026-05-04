@@ -122,3 +122,15 @@ logging:
   output: stderr
   file:
     path: /var/log/rioku/daemon.log
+  # OTLP log shipping. Disabled by default; enable for the OTLP smoke
+  # test by exporting SANDBOX_OTLP_ENABLED=true (and optionally
+  # SANDBOX_OTLP_ENDPOINT, default "localhost:4318") before
+  # `make sandbox` or `make sandbox-reset`. The sandbox start script
+  # will spin up the bundled `sandbox-otlp-listener` on the matching
+  # port so logs land somewhere countable.
+  otlp:
+    enabled: ${SANDBOX_OTLP_ENABLED}
+    endpoint: ${SANDBOX_OTLP_ENDPOINT}
+    protocol: http/protobuf
+    insecure: true
+    service_name: rioku-sandbox
