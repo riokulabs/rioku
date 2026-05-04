@@ -253,7 +253,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		attemptStart := s.Now()
-		resp, body, transportErr := s.fetchUpstream(r.Context(), upURL, creds, bodyBytes, r)
+		resp, transportErr := s.fetchUpstream(r.Context(), upURL, creds, bodyBytes, r)
 		latencyMS := time.Since(attemptStart).Milliseconds()
 		outcome := strategies.Outcome{
 			UpstreamID: cand.upstream.ID,
@@ -279,7 +279,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 
 		// Commit to this attempt.
 		finalStatus = outcome.Status
-		s.copyResponse(w, resp, body, &final, pr.Model)
+		s.copyResponse(w, resp, &final, pr.Model)
 		break
 	}
 
@@ -366,11 +366,10 @@ func (s *Server) resolveCandidates(ctx context.Context, vk *store.VirtualKey, fa
 }
 
 // fetchUpstream issues one upstream call and waits for the
-// response headers. Returns the response (caller closes body),
-// a small body buffer for non-streaming JSON responses, and any
-// transport-level error. The body buffer is empty for streaming
-// responses so the caller knows to copy directly.
-func (s *Server) fetchUpstream(ctx context.Context, upstream *url.URL, creds string, body []byte, src *http.Request) (*http.Response, []byte, error) {
+// response headers. Returns the response (caller closes body) and
+// any transport-level error. copyResponse handles body buffering
+// for non-streaming JSON responses by re-reading resp.Body.
+func (s *Server) fetchUpstream(ctx context.Context, upstream *url.URL, creds string, body []byte, src *http.Request) (*http.Response, error) {
 	target := *upstream
 	if target.Path == "" || target.Path == "/" {
 		target.Path = src.URL.Path
@@ -381,7 +380,7 @@ func (s *Server) fetchUpstream(ctx context.Context, upstream *url.URL, creds str
 
 	req, err := http.NewRequestWithContext(ctx, src.Method, target.String(), bytes.NewReader(body))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// Copy inbound headers minus Rioku-internal ones.
 	for k, vs := range src.Header {
@@ -398,8 +397,7 @@ func (s *Server) fetchUpstream(ctx context.Context, upstream *url.URL, creds str
 	}
 	req.ContentLength = int64(len(body))
 
-	resp, err := s.HTTPClient.Do(req)
-	return resp, nil, err
+	return s.HTTPClient.Do(req)
 }
 
 // copyResponse writes the upstream response to the client. For a
@@ -407,7 +405,7 @@ func (s *Server) fetchUpstream(ctx context.Context, upstream *url.URL, creds str
 // usage block + set the cost header before flushing. For SSE /
 // streaming we stream chunks through and use the byte heuristic
 // for output tokens.
-func (s *Server) copyResponse(w http.ResponseWriter, resp *http.Response, _ []byte, final *tokenAccounting, modelID string) {
+func (s *Server) copyResponse(w http.ResponseWriter, resp *http.Response, final *tokenAccounting, modelID string) {
 	if resp == nil {
 		writeJSONError(w, http.StatusBadGateway, "upstream unreachable")
 		return
@@ -687,10 +685,12 @@ type spendInput struct {
 	costUSD      float64
 }
 
-// recordSpend persists a minimal spend-log entry. v1 does not yet
-// run tokenization (that's #d10) so input/output tokens are zero;
-// the row is still useful for request-count rollups + status code
-// distribution.
+// recordSpend persists a spend-log entry. Token counts come from
+// the upstream `usage` block when present (OpenAI-shape JSON
+// responses); otherwise we fall back to the byte-based estimator
+// in internal/ai/tokens. Cost is computed from the LiteLLM model
+// registry overlay and stamped on the response as
+// X-Rioku-Response-Cost.
 func (s *Server) recordSpend(ctx context.Context, in *spendInput) {
 	ctx = store.WithTenantID(ctx, in.tenantID)
 	tx, err := s.store.Begin(ctx, store.TxOptions{})
