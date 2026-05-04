@@ -72,7 +72,9 @@ export function TableWidget({ widget, data, loading, error }: WidgetRenderProps)
     );
   }
 
-  const alignments = Object.fromEntries(columns.map((c) => [c, inferAlignment(data.rows, c)])) as Record<string, 'left' | 'right'>;
+  const alignments = Object.fromEntries(
+    columns.map((c) => [c, inferAlignment(data.rows, c)]),
+  ) as Record<string, 'left' | 'right'>;
 
   return (
     <ScrollArea
@@ -152,7 +154,10 @@ export function TableWidget({ widget, data, loading, error }: WidgetRenderProps)
                       textAlign: align === 'right' ? 'right' : 'left',
                       padding: '6px 10px',
                       whiteSpace: 'nowrap',
-                      fontFamily: numeric || align === 'right' ? 'var(--mantine-font-family-monospace)' : undefined,
+                      fontFamily:
+                        numeric || align === 'right'
+                          ? 'var(--mantine-font-family-monospace)'
+                          : undefined,
                       fontVariantNumeric: numeric ? 'tabular-nums' : undefined,
                       color: text === '—' ? 'var(--mantine-color-dimmed)' : undefined,
                     }}

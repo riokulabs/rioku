@@ -57,7 +57,9 @@ export function SingleStatWidget({ widget, data, loading, error }: WidgetRenderP
           </Text>
         )}
       </Group>
-      {data.delta !== undefined && <DeltaPill value={data.delta} inverse={data.inverseDelta === true} />}
+      {data.delta !== undefined && (
+        <DeltaPill value={data.delta} inverse={data.inverseDelta === true} />
+      )}
     </Stack>
   );
 }

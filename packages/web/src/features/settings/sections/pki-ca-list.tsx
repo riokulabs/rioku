@@ -251,8 +251,8 @@ function RevokeCaModal({ ca, onClose }: RevokeCaModalProps) {
     >
       <Stack gap="md">
         <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
-          New enrollments under this CA will be blocked. Already-issued certificates remain
-          valid until they expire.
+          New enrollments under this CA will be blocked. Already-issued certificates remain valid
+          until they expire.
         </Alert>
         <Textarea
           label="Reason (optional)"
@@ -322,8 +322,8 @@ function DeleteCaModal({ ca, onClose, onDeleted }: DeleteCaModalProps) {
     >
       <Stack gap="md">
         <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>
-          This permanently removes the CA record. Issued certificates may still be honored by
-          third parties — operators are responsible for distributing CRLs / OCSP info externally.
+          This permanently removes the CA record. Issued certificates may still be honored by third
+          parties — operators are responsible for distributing CRLs / OCSP info externally.
         </Alert>
         <Text size="sm">
           Type the CA name to confirm:{' '}

@@ -87,6 +87,8 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
   const [err, setErr] = useState<string | null>(null);
 
   // Reset form when re-opening for a different dashboard.
+  // Bounded — fires only on open or dashboard change, not every render.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (opened) {
       setVisibility(dashboard.scope);
@@ -97,6 +99,7 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
       setErr(null);
     }
   }, [opened, dashboard]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleAddUserGrant(userId: string) {
     if (userGrants.some((g) => g.user_id === userId)) return;
@@ -152,13 +155,7 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
   const showPermissionBlock = visibility !== 'personal';
 
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title={`Share "${dashboard.name}"`}
-      size="lg"
-      centered
-    >
+    <Modal opened={opened} onClose={onClose} title={`Share "${dashboard.name}"`} size="lg" centered>
       <Stack gap="lg">
         {err && (
           <Alert color="red" variant="light" icon={<IconAlertCircle size={14} />}>
@@ -296,7 +293,9 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
           <Select
             placeholder="Add a user…"
             data={tenantUserOptions.filter(
-              (o) => o.value !== dashboard.owner_user_id && !userGrants.some((g) => g.user_id === o.value),
+              (o) =>
+                o.value !== dashboard.owner_user_id &&
+                !userGrants.some((g) => g.user_id === o.value),
             )}
             searchable
             clearable

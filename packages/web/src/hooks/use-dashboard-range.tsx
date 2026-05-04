@@ -49,7 +49,7 @@ interface PresetSpec {
 const HOUR_S = 3600;
 const DAY_S = 86_400;
 
-const PRESETS: readonly PresetSpec[] = [
+const PRESETS: readonly [PresetSpec, ...PresetSpec[]] = [
   {
     id: '1h',
     label: '1h',
@@ -124,8 +124,7 @@ export const TIME_RANGES: readonly TimeRange[] = PRESETS.map((p) => ({
   formatTick: p.formatTick,
 }));
 
-const DEFAULT_PRESET: PresetSpec =
-  PRESETS.find((p) => p.id === '24h') ?? (PRESETS[0] as PresetSpec);
+const DEFAULT_PRESET: PresetSpec = PRESETS.find((p) => p.id === '24h') ?? PRESETS[0];
 
 const DEFAULT_RANGE: TimeRange = {
   id: DEFAULT_PRESET.id,
@@ -220,7 +219,7 @@ export function specToTimeRange(spec: DashboardRangeSpec): TimeRange {
     const buckets = autoBuckets(seconds);
     return {
       id: `relative:${String(spec.amount)}${spec.unit}`,
-      label: `${String(spec.amount)}${spec.unit[0]}`,
+      label: `${String(spec.amount)}${spec.unit.charAt(0)}`,
       longLabel: `last ${String(spec.amount)} ${pluralize(spec.amount, spec.unit)}`,
       seconds,
       points: buckets.points,

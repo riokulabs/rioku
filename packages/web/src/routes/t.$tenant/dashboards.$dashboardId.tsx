@@ -133,11 +133,7 @@ export const Route = createFileRoute('/t/$tenant/dashboards/$dashboardId')({
     // need tenant-write here — read access is sufficient for the viewer.
     const roleIds = new Set<string>();
     for (const m of Object.values(memberships)) {
-      if (
-        m.user_id === currentUserId &&
-        m.tenant_id === currentTenantId &&
-        m.state === 'active'
-      ) {
+      if (m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active') {
         for (const rid of m.role_ids) roleIds.add(rid);
       }
     }

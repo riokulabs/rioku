@@ -9,10 +9,7 @@ import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { usePermission } from '@/hooks/use-permission';
 import type { Dashboard } from '@/api/resources/types';
-import {
-  resolveDashboardAccess,
-  type DashboardAccessLevel,
-} from './access';
+import { resolveDashboardAccess, type DashboardAccessLevel } from './access';
 
 export function useDashboardAccess(dashboard: Dashboard | undefined): DashboardAccessLevel {
   const currentUserId = useMockStore((s) => s.currentUserId);
@@ -25,11 +22,7 @@ export function useDashboardAccess(dashboard: Dashboard | undefined): DashboardA
 
     const roleIds = new Set<string>();
     for (const m of Object.values(memberships)) {
-      if (
-        m.user_id === currentUserId &&
-        m.tenant_id === currentTenantId &&
-        m.state === 'active'
-      ) {
+      if (m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active') {
         for (const rid of m.role_ids) roleIds.add(rid);
       }
     }

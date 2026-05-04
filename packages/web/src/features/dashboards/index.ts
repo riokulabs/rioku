@@ -39,11 +39,7 @@ export { DashboardFilterBar } from './components/filter-bar';
 export { DashboardsSidebar } from './components/dashboards-sidebar';
 export { DashboardViewer } from './components/viewer';
 export { ShareDashboardModal } from './components/share-dashboard-modal';
-export {
-  resolveDashboardAccess,
-  canEditDashboard,
-  canViewDashboard,
-} from './access';
+export { resolveDashboardAccess, canEditDashboard, canViewDashboard } from './access';
 export type { DashboardAccessLevel, DashboardAccessInput } from './access';
 export { useDashboardAccess } from './use-dashboard-access';
 export { VariablesPanel } from './components/variables-panel';

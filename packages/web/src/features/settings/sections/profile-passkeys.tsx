@@ -54,7 +54,7 @@ function shortCredId(): string {
   const chars = '0123456789abcdef';
   let out = '';
   for (let i = 0; i < 8; i++) {
-    out += chars[Math.floor(Math.random() * chars.length)];
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return out;
 }
@@ -274,10 +274,7 @@ function PasskeyRow({ passkey, canUpdate, onDelete }: PasskeyRowProps) {
 
 interface PasskeyRegisterModalProps {
   onClose: () => void;
-  onRegister: (input: {
-    name: string;
-    attachment: AttachmentHint;
-  }) => void;
+  onRegister: (input: { name: string; attachment: AttachmentHint }) => void;
 }
 
 function PasskeyRegisterModal({ onClose, onRegister }: PasskeyRegisterModalProps) {
@@ -308,8 +305,8 @@ function PasskeyRegisterModal({ onClose, onRegister }: PasskeyRegisterModalProps
     >
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
-          Your browser will prompt you to use the chosen authenticator. Stage-1 mock simulates
-          the ceremony — no real WebAuthn call is made.
+          Your browser will prompt you to use the chosen authenticator. Stage-1 mock simulates the
+          ceremony — no real WebAuthn call is made.
         </Text>
         <TextInput
           label="Name"
@@ -332,11 +329,7 @@ function PasskeyRegisterModal({ onClose, onRegister }: PasskeyRegisterModalProps
           }}
           allowDeselect={false}
           leftSection={
-            attachment === 'platform' ? (
-              <IconDeviceMobile size={14} />
-            ) : (
-              <IconKey size={14} />
-            )
+            attachment === 'platform' ? <IconDeviceMobile size={14} /> : <IconKey size={14} />
           }
         />
         <Group justify="flex-end" gap="xs" mt="sm">
@@ -361,10 +354,10 @@ function PasskeyRegisterModal({ onClose, onRegister }: PasskeyRegisterModalProps
 function suggestPasskeyName(): string {
   if (typeof navigator === 'undefined') return 'My passkey';
   const ua = navigator.userAgent;
-  if (/Macintosh/.test(ua)) return 'Mac · Touch ID';
+  if (ua.includes('Macintosh')) return 'Mac · Touch ID';
   if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone / iPad';
-  if (/Android/.test(ua)) return 'Android phone';
-  if (/Windows/.test(ua)) return 'Windows · Hello';
-  if (/Linux/.test(ua)) return 'Linux laptop';
+  if (ua.includes('Android')) return 'Android phone';
+  if (ua.includes('Windows')) return 'Windows · Hello';
+  if (ua.includes('Linux')) return 'Linux laptop';
   return 'My passkey';
 }

@@ -93,9 +93,7 @@ export function SsoProviders({ canWrite }: SsoProvidersProps) {
   }
 
   function handleToggle(provider: SsoProvider, enabled: boolean) {
-    setProviders((prev) =>
-      prev.map((p) => (p.id === provider.id ? { ...p, enabled } : p)),
-    );
+    setProviders((prev) => prev.map((p) => (p.id === provider.id ? { ...p, enabled } : p)));
   }
 
   return (
@@ -137,8 +135,8 @@ export function SsoProviders({ canWrite }: SsoProvidersProps) {
         </Group>
       </Group>
       <Text size="sm" c="var(--mantine-color-gray-7)">
-        External identity providers users can sign in with. Standard OAuth 2.0 / OIDC and SAML
-        2.0 supported.
+        External identity providers users can sign in with. Standard OAuth 2.0 / OIDC and SAML 2.0
+        supported.
       </Text>
 
       {providers.length === 0 ? (
@@ -191,7 +189,9 @@ export function SsoProviders({ canWrite }: SsoProvidersProps) {
                   </Badge>
                 </Group>
                 <Text size="xs" c="dimmed" truncate>
-                  {p.kind === 'oauth' ? p.issuer_url ?? 'No issuer set' : p.metadata_url ?? 'Inline XML'}
+                  {p.kind === 'oauth'
+                    ? (p.issuer_url ?? 'No issuer set')
+                    : (p.metadata_url ?? 'Inline XML')}
                 </Text>
               </Stack>
               <Switch

@@ -33,9 +33,7 @@ interface BarData {
 
 function isBarData(data: unknown): data is BarData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    Array.isArray((data as { bars?: unknown }).bars)
+    typeof data === 'object' && data !== null && Array.isArray((data as { bars?: unknown }).bars)
   );
 }
 

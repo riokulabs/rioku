@@ -16,10 +16,7 @@ import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { deleteDashboard } from '@/features/dashboards';
 import type { Dashboard } from '@/features/dashboards/types';
-import {
-  DashboardsLayoutContext,
-  type DashboardsRouteContext,
-} from './-dashboards-layout-context';
+import { DashboardsLayoutContext, type DashboardsRouteContext } from './-dashboards-layout-context';
 
 export { useDashboardsLayoutContext } from './-dashboards-layout-context';
 
@@ -77,8 +74,8 @@ function DashboardsLayoutPage() {
       >
         <Stack gap="md">
           <Text size="sm">
-            This will permanently delete <strong>{deleteTarget?.name}</strong>, its widgets, and
-            its version history. This action cannot be undone.
+            This will permanently delete <strong>{deleteTarget?.name}</strong>, its widgets, and its
+            version history. This action cannot be undone.
           </Text>
           <Group justify="flex-end">
             <Button

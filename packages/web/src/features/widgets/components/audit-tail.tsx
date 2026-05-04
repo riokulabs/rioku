@@ -68,7 +68,12 @@ export function AuditTailWidget({ widget, data, loading, error }: WidgetRenderPr
   }
 
   return (
-    <ScrollArea h="100%" type="hover" offsetScrollbars aria-label={`Audit tail for ${widget.title}`}>
+    <ScrollArea
+      h="100%"
+      type="hover"
+      offsetScrollbars
+      aria-label={`Audit tail for ${widget.title}`}
+    >
       <Stack gap={0} pl={8} style={{ position: 'relative' }}>
         {/* Vertical rail */}
         <Box

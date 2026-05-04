@@ -81,6 +81,8 @@ export function DashboardRangePicker({ value, onChange }: DashboardRangePickerPr
   );
 
   // Sync drafts when `value` changes externally (e.g. dashboard switch).
+  // Bounded — fires only when the prop reference changes, not every render.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setTab(initialTab(value));
     if (value.kind === 'preset') setDraftPreset(value);
@@ -93,6 +95,7 @@ export function DashboardRangePicker({ value, onChange }: DashboardRangePickerPr
       setDraftTo(new Date(value.to));
     }
   }, [value]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const triggerLabel = useMemo(() => specToTimeRange(value).label, [value]);
   const longLabel = useMemo(() => specToTimeRange(value).longLabel, [value]);
@@ -103,7 +106,7 @@ export function DashboardRangePicker({ value, onChange }: DashboardRangePickerPr
     } else if (tab === 'relative') {
       const amount = Math.max(1, Math.floor(draftRelativeAmount));
       onChange({ kind: 'relative', amount, unit: draftRelativeUnit });
-    } else if (tab === 'absolute') {
+    } else {
       if (!draftFrom || !draftTo) return;
       const from = draftFrom.toISOString();
       const to = draftTo.toISOString();
@@ -142,7 +145,7 @@ export function DashboardRangePicker({ value, onChange }: DashboardRangePickerPr
         fullWidth
         value={tab}
         onChange={(v) => {
-          setTab(v as Tab);
+          setTab(v);
         }}
         data={[
           { value: 'preset', label: 'Quick' },
@@ -184,7 +187,7 @@ export function DashboardRangePicker({ value, onChange }: DashboardRangePickerPr
               max={9999}
               value={draftRelativeAmount}
               onChange={(v) => {
-                const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+                const n = typeof v === 'number' ? v : parseInt(v, 10);
                 if (!Number.isNaN(n)) setDraftRelativeAmount(n);
               }}
               data-testid="dashboard-range-relative-amount"
@@ -195,7 +198,7 @@ export function DashboardRangePicker({ value, onChange }: DashboardRangePickerPr
               data={UNIT_OPTIONS}
               value={draftRelativeUnit}
               onChange={(v) => {
-                if (v) setDraftRelativeUnit(v as DashboardRangeUnit);
+                if (v) setDraftRelativeUnit(v);
               }}
               allowDeselect={false}
               comboboxProps={{ withinPortal: true, zIndex: 1100 }}

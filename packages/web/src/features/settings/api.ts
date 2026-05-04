@@ -547,7 +547,7 @@ export async function deleteCertAuthority(caId: ID): Promise<void> {
   if (!ca) return;
   useMockStore.setState((s) => {
     const next = { ...s.certAuthorities };
-    delete next[caId];
+    Reflect.deleteProperty(next, caId);
     return { certAuthorities: next };
   });
   state.appendAudit(makePkiAudit('pki.ca.delete', ca.tenant_id, caId));

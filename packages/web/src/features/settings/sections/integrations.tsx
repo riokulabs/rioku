@@ -710,7 +710,7 @@ export function IntegrationsSection() {
           onDelete={(slug) => {
             setOauthConfigs((prev) => {
               const next = { ...prev };
-              delete next[slug];
+              Reflect.deleteProperty(next, slug);
               return next;
             });
             notify.success(

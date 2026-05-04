@@ -157,8 +157,8 @@ export function AuthenticationSection() {
         <Stack gap="sm" data-testid="auth-totp-fieldset">
           <Title order={5}>TOTP policy</Title>
           <Text size="sm" c="var(--mantine-color-gray-7)">
-            Controls which users are required to enroll a TOTP authenticator app before they can
-            log in.
+            Controls which users are required to enroll a TOTP authenticator app before they can log
+            in.
           </Text>
           <SegmentedControl
             data={TOTP_POLICY_DATA as unknown as { value: string; label: string }[]}

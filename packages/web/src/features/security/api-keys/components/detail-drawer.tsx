@@ -120,7 +120,12 @@ export function ApiKeyDetailDrawer({
 
           <Group gap="sm">
             {key.display_status === 'active' && (
-              <Button size="sm" variant="light" loading={loading} onClick={() => void handleRotate()}>
+              <Button
+                size="sm"
+                variant="light"
+                loading={loading}
+                onClick={() => void handleRotate()}
+              >
                 Rotate
               </Button>
             )}

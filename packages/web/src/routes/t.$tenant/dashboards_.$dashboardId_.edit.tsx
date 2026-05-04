@@ -86,11 +86,7 @@ export const Route = createFileRoute('/t/$tenant/dashboards_/$dashboardId_/edit'
 
     const userRoleIds = new Set<string>();
     for (const m of Object.values(memberships)) {
-      if (
-        m.user_id === currentUserId &&
-        m.tenant_id === currentTenantId &&
-        m.state === 'active'
-      ) {
+      if (m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active') {
         for (const rid of m.role_ids) userRoleIds.add(rid);
       }
     }

@@ -114,7 +114,7 @@ export function ChartTooltip({
           const value =
             typeof entry.value === 'number'
               ? valueFormatter(entry.value, entry)
-              : String(entry.value ?? '—');
+              : (entry.value ?? '—');
           const name = entry.name ?? String(entry.dataKey ?? `series-${String(i)}`);
           return (
             <Group key={i} gap="xs" wrap="nowrap" justify="space-between">
@@ -249,7 +249,13 @@ export function DeltaPill({
   const isZero = value === 0;
   const good = (isPositive && !inverse) || (isNegative && inverse);
   const bad = (isNegative && !inverse) || (isPositive && inverse);
-  const color = isZero ? SEVERITY.neutral : good ? SEVERITY.success : bad ? SEVERITY.danger : SEVERITY.neutral;
+  const color = isZero
+    ? SEVERITY.neutral
+    : good
+      ? SEVERITY.success
+      : bad
+        ? SEVERITY.danger
+        : SEVERITY.neutral;
 
   const Icon = isZero ? IconMinus : isPositive ? IconTrendingUp : IconTrendingDown;
   const sign = isPositive ? '+' : '';

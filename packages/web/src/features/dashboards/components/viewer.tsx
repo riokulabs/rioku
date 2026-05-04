@@ -85,10 +85,7 @@ export function DashboardViewer(props: DashboardViewerProps) {
   const dashboard = useDashboardDetail(props.dashboardId);
   const initialSpec = dashboard?.default_range;
   return (
-    <DashboardRangeProvider
-      key={props.dashboardId}
-      {...(initialSpec ? { initialSpec } : {})}
-    >
+    <DashboardRangeProvider key={props.dashboardId} {...(initialSpec ? { initialSpec } : {})}>
       <DashboardViewerInner {...props} />
     </DashboardRangeProvider>
   );
@@ -341,7 +338,7 @@ function DashboardViewerInner({
                   Make this my home
                 </Button>
               ))}
-            {(onVersionHistory || onSetDefault || onDelete) && (
+            {(onVersionHistory ?? onSetDefault ?? onDelete) && (
               <Menu shadow="md" position="bottom-end" withinPortal>
                 <Menu.Target>
                   <Tooltip label="More" withArrow>
@@ -531,10 +528,7 @@ function DashboardToolbar({ dashboardId, canWrite }: { dashboardId: string; canW
   );
 }
 
-function specEqual(
-  a: import('@/api/resources/types').DashboardRangeSpec,
-  b: import('@/api/resources/types').DashboardRangeSpec | undefined,
-): boolean {
+function specEqual(a: DashboardRangeSpec, b: DashboardRangeSpec | undefined): boolean {
   if (!b) {
     // No saved spec → consider current dirty if anything other than the 24h default.
     return a.kind === 'preset' && a.id === '24h';

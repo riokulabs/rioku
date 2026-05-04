@@ -454,7 +454,7 @@ function RbacPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
   if (!policy) return <NotFound what="RBAC policy" />;
   return (
     <RbacPolicyDetail
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
       policy={policy as any}
       onEdit={() => {
         void navigate({
@@ -505,9 +505,17 @@ interface DetailEntry {
 }
 
 const DETAIL_REGISTRY: Record<string, DetailEntry> = {
-  service: { renderer: ServiceDetailPage, backTo: '/t/$tenant/services', backLabel: 'Back to services' },
+  service: {
+    renderer: ServiceDetailPage,
+    backTo: '/t/$tenant/services',
+    backLabel: 'Back to services',
+  },
   route: { renderer: RouteDetailPage, backTo: '/t/$tenant/routes', backLabel: 'Back to routes' },
-  user: { renderer: UserDetailPage, backTo: '/t/$tenant/security/users', backLabel: 'Back to users' },
+  user: {
+    renderer: UserDetailPage,
+    backTo: '/t/$tenant/security/users',
+    backLabel: 'Back to users',
+  },
   agent: { renderer: AgentDetailPage, backTo: '/t/$tenant/ai/agents', backLabel: 'Back to agents' },
   provider: {
     renderer: ProviderDetailPage,
@@ -546,7 +554,11 @@ const DETAIL_REGISTRY: Record<string, DetailEntry> = {
     backTo: '/t/$tenant/security/audit',
     backLabel: 'Back to audit log',
   },
-  role: { renderer: RoleDetailPage, backTo: '/t/$tenant/security/roles', backLabel: 'Back to roles' },
+  role: {
+    renderer: RoleDetailPage,
+    backTo: '/t/$tenant/security/roles',
+    backLabel: 'Back to roles',
+  },
   'access-policy': {
     renderer: AccessPolicyDetailPage,
     backTo: '/t/$tenant/security/access-policies',
@@ -557,7 +569,11 @@ const DETAIL_REGISTRY: Record<string, DetailEntry> = {
     backTo: '/t/$tenant/security/rbac-policies',
     backLabel: 'Back to RBAC policies',
   },
-  plugin: { renderer: PluginDetailPage, backTo: '/t/$tenant/plugins', backLabel: 'Back to plugins' },
+  plugin: {
+    renderer: PluginDetailPage,
+    backTo: '/t/$tenant/plugins',
+    backLabel: 'Back to plugins',
+  },
 };
 
 // ── Page ─────────────────────────────────────────────────────────────────────

@@ -62,7 +62,8 @@ export function FunnelWidget({ widget, data, loading, error }: WidgetRenderProps
         const prev = i === 0 ? null : data.stages[i - 1];
         const conversion =
           prev && prev.value !== 0 ? ((stage.value / prev.value) * 100).toFixed(1) : null;
-        const accent = stage.color ?? FALLBACK_ACCENTS[i % FALLBACK_ACCENTS.length] ?? 'riokuOrange';
+        const accent =
+          stage.color ?? FALLBACK_ACCENTS[i % FALLBACK_ACCENTS.length] ?? 'riokuOrange';
         const bg = `var(--mantine-color-${accent}-6)`;
         return (
           <Stack key={stage.name} gap={2}>

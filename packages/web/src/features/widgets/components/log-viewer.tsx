@@ -72,7 +72,12 @@ export function LogViewerWidget({ widget, data, loading, error }: WidgetRenderPr
   }
 
   return (
-    <ScrollArea h="100%" type="hover" offsetScrollbars aria-label={`Log viewer for ${widget.title}`}>
+    <ScrollArea
+      h="100%"
+      type="hover"
+      offsetScrollbars
+      aria-label={`Log viewer for ${widget.title}`}
+    >
       <Box>
         {data.lines.map((l, i) => (
           <Group

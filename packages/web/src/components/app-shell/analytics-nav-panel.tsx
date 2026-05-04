@@ -20,11 +20,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import {
-  ImportDashboardModal,
-  createDashboard,
-  useDashboardList,
-} from '@/features/dashboards';
+import { ImportDashboardModal, createDashboard, useDashboardList } from '@/features/dashboards';
 import type { Dashboard, DashboardFilter } from '@/features/dashboards/types';
 
 interface AnalyticsNavPanelProps {
@@ -166,7 +162,13 @@ export function AnalyticsNavPanel({ tenantSlug, onNavLinkClick }: AnalyticsNavPa
         )}
       </Box>
 
-      <Stack gap={6} px="sm" pb="sm" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+      <Stack
+        gap={6}
+        px="sm"
+        pb="sm"
+        pt="xs"
+        style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
+      >
         <Tooltip
           label="You don't have permission to create dashboards"
           disabled={canWrite}
