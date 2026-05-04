@@ -120,12 +120,36 @@ func (s *Server) Listen(addr string) error {
 	mux.HandleFunc("/jwks-refresh", s.handleJWKSRefresh)
 	mux.HandleFunc("/waf-record", s.handleWAFRecord)
 	s.srv = &http.Server{
-		Handler:           mux,
+		// Defense-in-depth: config.validate() rejects non-loopback
+		// listen addresses up front, but if a future code path adds
+		// a non-loopback bind we still refuse network requests at
+		// the handler boundary. These endpoints are unauthenticated
+		// IPC sockets — never serve them to a remote peer.
+		Handler:           loopbackOnly(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 	}
 	return nil
+}
+
+// loopbackOnly rejects any request whose RemoteAddr resolves to a
+// non-loopback host. Defense-in-depth pair to the config-time
+// loopback check.
+func loopbackOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil || host == "" {
+			http.Error(w, "loopback only", http.StatusForbidden)
+			return
+		}
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			http.Error(w, "loopback only", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Addr returns the resolved listener address.

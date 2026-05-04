@@ -83,6 +83,15 @@ func ResolveAPIKeyChain(ctx context.Context, tx Tx, keyHash string, now time.Tim
 		return chain, nil
 	}
 
+	// GetAPIKeyByHash bypasses tenant filtering (auth happens before
+	// tenant context exists). The downstream Get* calls below DO
+	// filter by tenant via TenantIDFromContext — derive the tenant
+	// from the resolved key so subscription/plan/application lookups
+	// see the right tenant scope. Without this, ResolveAPIKeyChain
+	// 500s on every subscription-bound key under a non-default
+	// tenant.
+	ctx = WithTenantID(ctx, key.TenantID)
+
 	sub, err := tx.GetSubscription(ctx, *key.SubscriptionID)
 	if err != nil {
 		// Subscription was deleted but the FK had ON DELETE SET

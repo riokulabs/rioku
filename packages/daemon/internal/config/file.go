@@ -10,7 +10,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -737,6 +739,34 @@ var validPassphraseSources = map[string]bool{
 	"encrypted-file": true,
 }
 
+// isLoopbackAddr reports whether addr binds only to a loopback host.
+// Accepts host:port shapes ("127.0.0.1:7791"), bracket-wrapped IPv6
+// ("[::1]:7791"), or bare hostnames ("localhost:7791"). Empty host
+// means INADDR_ANY ("0.0.0.0" / ":7791") and is rejected.
+func isLoopbackAddr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		// Treat malformed addresses as non-loopback so the operator
+		// has to fix the syntax before the daemon binds.
+		return false
+	}
+	if host == "" {
+		// Bare ":7791" listens on all interfaces.
+		return false
+	}
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Non-localhost hostname — reject; the daemon would resolve
+		// it via DNS at bind time and we can't safely promise the
+		// address is loopback without that lookup.
+		return false
+	}
+	return ip.IsLoopback()
+}
+
 // validate checks the config for required fields, valid enum values,
 // and internal consistency.
 func validate(cfg *Config) error {
@@ -846,6 +876,28 @@ func validate(cfg *Config) error {
 	}
 	if cfg.Listen.REST == "" {
 		errs = append(errs, errors.New("listen.rest address is required"))
+	}
+
+	// Loopback-only listeners. The keyvalidator + AI gateway + tls-ask
+	// endpoints carry no auth themselves — network-level isolation
+	// IS the trust boundary. Refuse to start if an operator binds them
+	// to a non-loopback host (an unauth key-validation oracle / AI
+	// proxy / TLS issuance bypass exposed on the network).
+	for _, lb := range []struct {
+		field, addr string
+	}{
+		{"listen.tls_ask_addr", cfg.Listen.TLSAskAddr},
+		{"listen.key_validator_addr", cfg.Listen.KeyValidatorAddr},
+		{"listen.ai_gateway_addr", cfg.Listen.AIGatewayAddr},
+	} {
+		if lb.addr == "" {
+			continue
+		}
+		if !isLoopbackAddr(lb.addr) {
+			errs = append(errs, fmt.Errorf(
+				"%s = %q must bind to a loopback host (127.0.0.0/8, ::1, or localhost) — these endpoints carry no auth and rely on network isolation",
+				lb.field, lb.addr))
+		}
 	}
 
 	// data_dir must not be empty

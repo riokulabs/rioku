@@ -159,21 +159,37 @@ func (t *tx) AggregateAISpendDay(ctx context.Context, day time.Time) (int64, err
 	if err != nil {
 		return 0, fmt.Errorf("postgres: aggregate spend: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
+	// Materialize the aggregate scan BEFORE issuing any nested
+	// upserts on the same Tx — pgx in stdlib mode does not multiplex
+	// queries on a single connection while a Rows iterator is open
+	// (same constraint as ListRoles in postgres_tx_roles.go).
+	type rollup struct {
+		vkID, modelID                             string
+		reqCount, errCount                        int32
+		inTokensSum, outTokensSum, totalTokensSum int64
+		costSum                                   float64
+	}
+	var rollups []rollup
+	for rows.Next() {
+		var r rollup
+		if err := rows.Scan(&r.vkID, &r.modelID, &r.reqCount, &r.errCount,
+			&r.inTokensSum, &r.outTokensSum, &r.totalTokensSum, &r.costSum); err != nil {
+			_ = rows.Close()
+			return 0, err
+		}
+		rollups = append(rollups, r)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
 
 	var processed int64
 	now := nowUTC()
-	for rows.Next() {
-		var (
-			vkID, modelID                             string
-			reqCount, errCount                        int32
-			inTokensSum, outTokensSum, totalTokensSum int64
-			costSum                                   float64
-		)
-		if err := rows.Scan(&vkID, &modelID, &reqCount, &errCount,
-			&inTokensSum, &outTokensSum, &totalTokensSum, &costSum); err != nil {
-			return processed, err
-		}
+	for _, r := range rollups {
 		_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
 			`INSERT INTO ai_spend_rollups (tenant_id, virtual_key_id, model_id, rollup_date,
 			     request_count, error_count, input_tokens_total, output_tokens_total,
@@ -187,16 +203,16 @@ func (t *tx) AggregateAISpendDay(ctx context.Context, day time.Time) (int64, err
 			     total_tokens = excluded.total_tokens,
 			     cost_usd_total = excluded.cost_usd_total,
 			     updated_at = excluded.updated_at`),
-			tenantID, vkID, modelID, dayStart,
-			reqCount, errCount, inTokensSum, outTokensSum, totalTokensSum,
-			costSum, now,
+			tenantID, r.vkID, r.modelID, dayStart,
+			r.reqCount, r.errCount, r.inTokensSum, r.outTokensSum, r.totalTokensSum,
+			r.costSum, now,
 		)
 		if err != nil {
 			return processed, fmt.Errorf("postgres: upsert ai_spend_rollups: %w", err)
 		}
 		processed++
 	}
-	return processed, rows.Err()
+	return processed, nil
 }
 
 func (t *tx) QueryAISpendRollups(ctx context.Context, q store.AISpendRollupQuery) ([]*store.AISpendRollup, error) {

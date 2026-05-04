@@ -29,6 +29,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -68,10 +69,15 @@ func (MCPAuth) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
-// Provision wires the HTTP client.
+// Provision wires the HTTP client. The 3s timeout caps the per-
+// request wait on a hung daemon validator: rioku_mcp_auth runs on
+// the data-plane request hot path, so a stuck validator must not
+// block inbound requests indefinitely. Soft-fail behaviour above
+// (Validate is a no-op when validator_endpoint is empty) lets the
+// data plane keep serving when the daemon is restarting.
 func (m *MCPAuth) Provision(ctx caddy.Context) error {
 	m.logger = ctx.Logger()
-	m.httpClient = &http.Client{}
+	m.httpClient = &http.Client{Timeout: 3 * time.Second}
 	return nil
 }
 
