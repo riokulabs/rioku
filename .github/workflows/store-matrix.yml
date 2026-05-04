@@ -59,7 +59,7 @@ jobs:
             packages/daemon/go.sum
       - name: Run Postgres 15 store tests
         env:
-          POSTGRES_TEST_DSN: postgres://rioku:rioku_test@localhost:5432/rioku_test?sslmode=disable
+          POSTGRES_TEST_DSN: postgres://rioku:rioku_test@localhost:5432/rioku_test?sslmode=disable&lock_timeout=15000
         run: |
           cd packages/daemon
           go test -race -count=1 -timeout=1500s ./internal/store/postgres/...
@@ -90,7 +90,7 @@ jobs:
             packages/daemon/go.sum
       - name: Run Postgres 18 store tests
         env:
-          POSTGRES_TEST_DSN: postgres://rioku:rioku_test@localhost:5432/rioku_test?sslmode=disable
+          POSTGRES_TEST_DSN: postgres://rioku:rioku_test@localhost:5432/rioku_test?sslmode=disable&lock_timeout=15000
         run: |
           cd packages/daemon
           go test -race -count=1 -timeout=1500s ./internal/store/postgres/...
