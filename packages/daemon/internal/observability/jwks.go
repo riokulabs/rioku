@@ -75,13 +75,6 @@ func NewJWKSRegistry() *JWKSRegistry {
 	}
 }
 
-// SetClock overrides the registry's clock. Test-only.
-func (r *JWKSRegistry) SetClock(now func() time.Time) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.now = now
-}
-
 // Register marks a JWKS URL as configured. Called from the gateway
 // when it discovers the configured upstream JWKS endpoint(s) (e.g.,
 // at compiler emit time or daemon startup). Idempotent — a re-

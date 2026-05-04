@@ -10,10 +10,33 @@ import (
 	"github.com/riokulabs/rioku/internal/observability"
 )
 
+// TestObservabilityRoutes_RequiresAuth confirms RegisterObservability
+// Routes wraps the handler with the settings:read permission gate. An
+// unauthenticated request must be rejected before the handler runs.
+func TestObservabilityRoutes_RequiresAuth(t *testing.T) {
+	mux := http.NewServeMux()
+	RegisterObservabilityRoutes(mux, observability.NewJWKSRegistry())
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/v1/observability/jwks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	// RequirePermission returns 401 when no session/bearer claims are
+	// present in the context — this is the wired middleware speaking,
+	// not the handler.
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 (RequirePermission gate)", resp.StatusCode)
+	}
+}
+
 func TestObservabilityRoutes_NilRegistry(t *testing.T) {
 	mux := http.NewServeMux()
-	// Register the route as unauthenticated for the test by skipping
-	// the permission middleware via a direct handler hook.
+	// Register the handler directly (bypassing RequirePermission) so
+	// this test exercises the nil-registry path; the auth wiring is
+	// covered by TestObservabilityRoutes_RequiresAuth above.
 	mux.Handle("GET /api/v1/observability/jwks",
 		http.HandlerFunc(handleJWKSObservability(nil)))
 	srv := httptest.NewServer(mux)

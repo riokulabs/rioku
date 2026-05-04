@@ -36,6 +36,10 @@ func NewSampleRateCache() *SampleRateCache {
 // pass a fully-built map rather than a per-route Set sequence so the
 // cache transitions atomically — no half-applied state visible to
 // readers mid-snapshot reload.
+//
+// Passing nil clears the cache. This is the documented "snapshot
+// has no per-route overrides" path and is functionally equivalent
+// to passing an empty map.
 func (c *SampleRateCache) Replace(rates map[string]float64) {
 	if rates == nil {
 		rates = make(map[string]float64)

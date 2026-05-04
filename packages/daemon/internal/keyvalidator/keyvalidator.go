@@ -533,7 +533,7 @@ func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		denial := &store.WAFDenial{
-			ID:         "wd_" + denialID(),
+			ID:         "wd_" + uuid.NewString(),
 			TenantID:   store.TenantIDFromContext(r.Context()),
 			RuleID:     ruleID,
 			Severity:   severity,
@@ -557,8 +557,3 @@ func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// denialID generates a short opaque identifier for WAFDenial rows.
-// The column is a free-form string so any unique value works.
-func denialID() string {
-	return uuid.NewString()
-}
