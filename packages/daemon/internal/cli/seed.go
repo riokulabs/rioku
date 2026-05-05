@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -405,6 +407,7 @@ type SeedWebhookEndpoint struct {
 func newSeedCmd() *cobra.Command {
 	var (
 		seedFile   string
+		seedDir    string
 		targetAddr string
 		username   string
 		password   string
@@ -413,22 +416,29 @@ func newSeedCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "seed",
-		Short: "Apply seed data from a YAML file to a running Rioku instance",
-		Long: `Reads a YAML seed file and applies services, routes, policies, users,
-roles, and API keys to a running Rioku daemon via its REST API.
+		Short: "Apply seed data from a YAML file or directory to a running Rioku instance",
+		Long: `Reads a YAML seed file (or a directory of seed files) and applies services,
+routes, policies, users, roles, and API keys to a running Rioku daemon via its REST API.
 
-The seed file supports environment variable substitution using ${VAR:-default} syntax.`,
+When --dir is used, all *.yaml and *.yml files in the directory are loaded in
+alphabetical order, env-substituted, and merged: slice fields are appended and
+pointer/singleton fields are last-write-wins.
+
+Both --file and --dir support environment variable substitution using ${VAR:-default} syntax.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSeed(seedFile, targetAddr, username, password, direct)
+			if (seedFile == "" && seedDir == "") || (seedFile != "" && seedDir != "") {
+				return fmt.Errorf("exactly one of --file or --dir is required")
+			}
+			return runSeed(seedFile, seedDir, targetAddr, username, password, direct)
 		},
 	}
 
-	cmd.Flags().StringVarP(&seedFile, "file", "f", "", "path to seed YAML file (required)")
+	cmd.Flags().StringVarP(&seedFile, "file", "f", "", "path to seed YAML file (mutually exclusive with --dir)")
+	cmd.Flags().StringVarP(&seedDir, "dir", "d", "", "path to a directory of seed YAML files (mutually exclusive with --file)")
 	cmd.Flags().StringVar(&targetAddr, "target", "http://localhost:7778", "daemon REST API address")
 	cmd.Flags().StringVarP(&username, "username", "u", "root", "admin username for API authentication")
 	cmd.Flags().StringVarP(&password, "password", "p", "", "admin password (or set SANDBOX_ROOT_PASSWORD env)")
 	cmd.Flags().BoolVar(&direct, "direct", false, "write directly to store, bypassing API (not implemented)")
-	_ = cmd.MarkFlagRequired("file")
 
 	return cmd
 }
@@ -437,23 +447,30 @@ The seed file supports environment variable substitution using ${VAR:-default} s
 // Core logic
 // ---------------------------------------------------------------------------
 
-func runSeed(seedFile, targetAddr, username, password string, direct bool) error {
+func runSeed(seedFile, seedDir, targetAddr, username, password string, direct bool) error {
 	logger := slog.Default().With("component", "seed")
 
 	if direct {
 		return fmt.Errorf("--direct mode is not implemented yet")
 	}
 
-	// Read and env-substitute the seed file.
-	raw, err := os.ReadFile(seedFile)
-	if err != nil {
-		return fmt.Errorf("read seed file: %w", err)
-	}
-	raw = envSubstitute(raw)
-
 	var seed SeedFile
-	if err := yaml.Unmarshal(raw, &seed); err != nil {
-		return fmt.Errorf("parse seed file: %w", err)
+	if seedFile != "" {
+		// Read and env-substitute the seed file.
+		raw, err := os.ReadFile(seedFile)
+		if err != nil {
+			return fmt.Errorf("read seed file: %w", err)
+		}
+		raw = envSubstitute(raw)
+		if err := yaml.Unmarshal(raw, &seed); err != nil {
+			return fmt.Errorf("parse seed file: %w", err)
+		}
+	} else {
+		merged, err := loadSeedFromDir(seedDir)
+		if err != nil {
+			return fmt.Errorf("load seed dir: %w", err)
+		}
+		seed = merged
 	}
 
 	// Resolve password.
@@ -1177,6 +1194,92 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 	}
 
 	return c
+}
+
+// loadSeedFromDir walks dir, reads every *.yaml/*.yml file in alphabetical
+// order, env-substitutes each, decodes each into SeedFile, and merges the
+// results: slice fields are appended (later files extend), pointer fields
+// are last-write-wins (later files override).
+func loadSeedFromDir(dir string) (SeedFile, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return SeedFile{}, err
+	}
+	var paths []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		n := e.Name()
+		if strings.HasSuffix(n, ".yaml") || strings.HasSuffix(n, ".yml") {
+			paths = append(paths, filepath.Join(dir, n))
+		}
+	}
+	sort.Strings(paths)
+	var merged SeedFile
+	for _, p := range paths {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return SeedFile{}, fmt.Errorf("read %s: %w", p, err)
+		}
+		raw = envSubstitute(raw)
+		var part SeedFile
+		if err := yaml.Unmarshal(raw, &part); err != nil {
+			return SeedFile{}, fmt.Errorf("parse %s: %w", p, err)
+		}
+		mergeSeed(&merged, &part)
+	}
+	return merged, nil
+}
+
+// mergeSeed appends slice fields and overwrites pointer fields with
+// last-write-wins semantics. Order in the directory listing is the
+// tiebreaker for pointer-field conflicts.
+func mergeSeed(dst, src *SeedFile) {
+	dst.Roles = append(dst.Roles, src.Roles...)
+	dst.Services = append(dst.Services, src.Services...)
+	dst.Policies = append(dst.Policies, src.Policies...)
+	dst.Routes = append(dst.Routes, src.Routes...)
+	dst.Users = append(dst.Users, src.Users...)
+	dst.APIKeys = append(dst.APIKeys, src.APIKeys...)
+	dst.Tenants = append(dst.Tenants, src.Tenants...)
+	dst.Memberships = append(dst.Memberships, src.Memberships...)
+	dst.Sites = append(dst.Sites, src.Sites...)
+	dst.Middlewares = append(dst.Middlewares, src.Middlewares...)
+	dst.Dashboards = append(dst.Dashboards, src.Dashboards...)
+	dst.AIProviders = append(dst.AIProviders, src.AIProviders...)
+	dst.AIAgents = append(dst.AIAgents, src.AIAgents...)
+	dst.AITools = append(dst.AITools, src.AITools...)
+	dst.AIToolBindings = append(dst.AIToolBindings, src.AIToolBindings...)
+	dst.AIRateLimits = append(dst.AIRateLimits, src.AIRateLimits...)
+	dst.MCPServers = append(dst.MCPServers, src.MCPServers...)
+	dst.NotificationChannels = append(dst.NotificationChannels, src.NotificationChannels...)
+	dst.NotificationRouting = append(dst.NotificationRouting, src.NotificationRouting...)
+	dst.Plugins = append(dst.Plugins, src.Plugins...)
+	dst.PluginSigners = append(dst.PluginSigners, src.PluginSigners...)
+	dst.CertAuthorities = append(dst.CertAuthorities, src.CertAuthorities...)
+	dst.CertEnrollments = append(dst.CertEnrollments, src.CertEnrollments...)
+	dst.TLSCertificates = append(dst.TLSCertificates, src.TLSCertificates...)
+	dst.WebhookEndpoints = append(dst.WebhookEndpoints, src.WebhookEndpoints...)
+	// Pointer/singleton fields: last-write-wins.
+	if src.TLSConfig != nil {
+		dst.TLSConfig = src.TLSConfig
+	}
+	if src.NetworkConfig != nil {
+		dst.NetworkConfig = src.NetworkConfig
+	}
+	if src.AuthPolicy != nil {
+		dst.AuthPolicy = src.AuthPolicy
+	}
+	if src.ObservabilityConfig != nil {
+		dst.ObservabilityConfig = src.ObservabilityConfig
+	}
+	if src.AuditRetentionConfig != nil {
+		dst.AuditRetentionConfig = src.AuditRetentionConfig
+	}
+	if src.NotificationConfig != nil {
+		dst.NotificationConfig = src.NotificationConfig
+	}
 }
 
 // logSeed emits a single info or warn line for a seeded entity.
