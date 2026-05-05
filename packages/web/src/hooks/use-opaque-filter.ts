@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { customFetch } from '@/api/mutator';
+import { ApiError } from '@/api/errors';
 
 interface OpaqueRegisterResponse {
   handle: string;
@@ -37,8 +38,13 @@ export function useOpaqueFilter(value: string, tenantId: string): UseOpaqueFilte
           data: { value },
           signal,
         });
-      } catch {
-        return { handle: `oh_pending_${fnv1a(value)}` };
+      } catch (err) {
+        // Plan 0c hasn't shipped /opaque-handles yet — only fall back on 501.
+        // Other errors (401, 403, 5xx, network) propagate so React Query surfaces them.
+        if (err instanceof ApiError && err.status === 501) {
+          return { handle: `oh_pending_${fnv1a(value)}` };
+        }
+        throw err;
       }
     },
     staleTime: Infinity,

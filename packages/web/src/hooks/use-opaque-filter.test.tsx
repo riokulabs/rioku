@@ -42,6 +42,15 @@ describe('useOpaqueFilter', () => {
     await waitFor(() => { expect(result.current.handle).toMatch(/^oh_pending_[a-f0-9]{8}$/); });
   });
 
+  it('@read-only propagates non-501 errors instead of falling back', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('', { status: 500 }),
+    );
+    const { result } = renderHook(() => useOpaqueFilter('value', 'tnt-1'), { wrapper });
+    await waitFor(() => expect(result.current.error).toBeDefined());
+    expect(result.current.handle).toBeNull();
+  });
+
   it('@read-only deduplicates calls to the same value', async () => {
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ handle: 'oh_dedupe' }), {
