@@ -18,6 +18,10 @@ export const NAMESPACES = [
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
+// Only 'common' is preloaded. Feature components call useTranslation('feature')
+// to trigger on-demand namespace fetch via i18next-http-backend.
+// All declared namespaces have stub JSON files at public/locales/{en,ar}/<ns>.json
+// so missing-translation fallback ("the key string itself") never reaches users.
 export async function initI18n(): Promise<typeof i18n> {
   await i18n
     .use(HttpBackend)
@@ -26,7 +30,7 @@ export async function initI18n(): Promise<typeof i18n> {
     .init({
       fallbackLng: 'en',
       supportedLngs: ['en', 'ar'],
-      ns: [...NAMESPACES],
+      ns: ['common'],
       defaultNS: 'common',
       backend: { loadPath: '/locales/{{lng}}/{{ns}}.json' },
       interpolation: { escapeValue: false },
