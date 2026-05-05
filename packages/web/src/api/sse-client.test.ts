@@ -62,10 +62,13 @@ class MockEventSource implements EventSource {
 beforeEach(() => {
   MockEventSource.instances = [];
   vi.stubGlobal('EventSource', MockEventSource);
+  // Stub Math.random to 0.5 so jitter factor = 0.8 + 0.5 * 0.4 = 1.0 (no jitter).
+  vi.spyOn(Math, 'random').mockReturnValue(0.5);
   _resetForTests();
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -109,6 +112,23 @@ describe('subscribeSSE', () => {
     MockEventSource.instances[0].dispatchEvent(new Event('error'));
     vi.advanceTimersByTime(2000);
     expect(MockEventSource.instances).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it('@read-only doubles backoff on consecutive errors', () => {
+    vi.useFakeTimers();
+    const handler = vi.fn();
+    subscribeSSE('audit', handler);
+    // First error: retryDelayMs=1000, jitter factor=1.0 → fires after exactly 1000ms
+    MockEventSource.instances[0].dispatchEvent(new Event('error'));
+    vi.advanceTimersByTime(1500);
+    expect(MockEventSource.instances).toHaveLength(2);
+    // Second error: retryDelayMs=2000, jitter factor=1.0 → fires after exactly 2000ms
+    MockEventSource.instances[1].dispatchEvent(new Event('error'));
+    vi.advanceTimersByTime(1500); // not enough (only 1500 of 2000ms elapsed)
+    expect(MockEventSource.instances).toHaveLength(2);
+    vi.advanceTimersByTime(1500); // total 3000ms elapsed since second error — enough
+    expect(MockEventSource.instances).toHaveLength(3);
     vi.useRealTimers();
   });
 

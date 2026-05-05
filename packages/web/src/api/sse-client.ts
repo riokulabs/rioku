@@ -14,6 +14,7 @@ interface TopicConnection {
   listeners: Set<(detail: unknown) => void>;
   lastEventId: string;
   closed: boolean;
+  retryDelayMs: number;
 }
 
 const connections = new Map<string, TopicConnection>();
@@ -32,6 +33,7 @@ function openConnection(topic: string, conn: TopicConnection): void {
 
   es.addEventListener('message', (ev: MessageEvent) => {
     if (ev.lastEventId !== '') conn.lastEventId = ev.lastEventId;
+    conn.retryDelayMs = 1000; // reset backoff on successful receipt
     let detail: unknown = ev.data;
     if (typeof ev.data === 'string') {
       try {
@@ -46,9 +48,11 @@ function openConnection(topic: string, conn: TopicConnection): void {
   es.addEventListener('error', () => {
     if (conn.closed) return;
     es.close();
+    const jitter = conn.retryDelayMs * (0.8 + Math.random() * 0.4); // ±20%
     setTimeout(() => {
       if (!conn.closed) openConnection(topic, conn);
-    }, 1000);
+    }, jitter);
+    conn.retryDelayMs = Math.min(conn.retryDelayMs * 2, 30000);
   });
 }
 
@@ -63,6 +67,7 @@ export function subscribeSSE(
       listeners: new Set(),
       lastEventId: '',
       closed: false,
+      retryDelayMs: 1000,
     };
     connections.set(topic, conn);
     openConnection(topic, conn);
