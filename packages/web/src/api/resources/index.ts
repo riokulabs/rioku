@@ -13,7 +13,7 @@ export * from './sessions';
 export * from './rbac-policies';
 export * from './impersonation';
 export * from './access-policies';
-export * from './audit-types';
+export * from './audit';
 export * from './ai-providers';
 export * from './ai-agents';
 export * from './ai-tools';
