@@ -11,7 +11,9 @@
  * Warn-level only; doesn't fail builds. Plan 13 close-out promotes to error
  * after the migration sweep.
  */
-const PII_NAME_RE = /(?:^|[A-Z_])(?:email|fullName|firstName|lastName|name|phone|ssn|address|tax|dob|birth)/i;
+// Anchored full-identifier match — avoids false positives on operational names
+// like pluginName, tenantName, serviceName, roleName, displayName.
+const PII_NAME_RE = /^(?:email|fullName|firstName|lastName|phone|ssn|dob|birthdate|birthday|taxId|streetAddress|homeAddress|mailingAddress)$/i;
 
 function looksLikeUrl(node) {
   if (node.type === 'TemplateLiteral') {
