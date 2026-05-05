@@ -4,6 +4,7 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import boundaries from 'eslint-plugin-boundaries';
+import noPiiInUrl from './eslint-rules/no-pii-in-url.cjs';
 
 export default tseslint.config(
   {
@@ -125,6 +126,15 @@ export default tseslint.config(
       ],
       // No cross-feature imports
       'boundaries/no-private': ['error', { allowUncles: false }],
+    },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    plugins: {
+      rioku: { rules: { 'no-pii-in-url': noPiiInUrl } },
+    },
+    rules: {
+      'rioku/no-pii-in-url': 'warn',
     },
   },
   {
