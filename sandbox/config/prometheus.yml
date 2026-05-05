@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: rioku-daemon
+    static_configs:
+      - targets: ["host.containers.internal:7778"]
+    metrics_path: /metrics
+  - job_name: caddy
+    static_configs:
+      - targets: ["host.containers.internal:2019"]
+    metrics_path: /metrics

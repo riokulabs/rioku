@@ -1,0 +1,148 @@
+# Owned by Plan 07 (settings) — settings seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# PKI: Certificate Authorities
+cert_authorities:
+  - name: internal-root
+    kind: internal
+    subject: "CN=Rioku Internal Root, O=Acme Sandbox"
+    certificate_pem: |
+      -----BEGIN CERTIFICATE-----
+      PLACEHOLDER
+      -----END CERTIFICATE-----
+
+  - name: external-public
+    kind: external
+    subject: "CN=Let's Encrypt Authority X3"
+    certificate_pem: |
+      -----BEGIN CERTIFICATE-----
+      PLACEHOLDER
+      -----END CERTIFICATE-----
+
+# PKI: Certificate enrollments (issued through CAs)
+cert_enrollments:
+  - ca: internal-root
+    subject: "CN=node-1.internal.rioku.dev"
+    dns_sans: ["node-1.internal.rioku.dev", "node-1.cluster.local"]
+
+  - ca: internal-root
+    subject: "CN=node-2.internal.rioku.dev"
+    dns_sans: ["node-2.internal.rioku.dev", "node-2.cluster.local"]
+
+# TLS certificates managed by the daemon
+tls_certificates:
+  - domain: api.example.com
+    issuer: "Let's Encrypt"
+    source: acme
+
+  - domain: admin.example.com
+    issuer: "Let's Encrypt"
+    source: acme
+
+# Singleton: TLS configuration (per-tenant)
+tls_config:
+  acme_provider: lets-encrypt
+  acme_email: "ops@example.com"
+  allowed_ciphers: ["TLS_AES_256_GCM_SHA384", "TLS_AES_128_GCM_SHA256", "TLS_CHACHA20_POLY1305_SHA256"]
+  min_protocol: "1.2"
+
+# Singleton: Network configuration
+network_config:
+  listen_addresses: [":443", ":80"]
+  http3_enabled: true
+  read_timeout_seconds: 60
+  write_timeout_seconds: 60
+  idle_timeout_seconds: 120
+
+# Singleton: Tenant authentication policy
+auth_policy:
+  totp_policy: admins
+  min_length: 14
+  require_uppercase: true
+  require_lowercase: true
+  require_digit: true
+  require_symbol: false
+  idle_hours: 24
+  absolute_hours: 168
+  max_failed_attempts: 5
+  lockout_minutes: 15
+
+# Singleton: Observability configuration
+observability_config:
+  metrics_scrape_endpoint: "https://prometheus.example/api/v1/write"
+  metrics_scrape_auth:
+    kind: bearer
+    credential: "PLACEHOLDER"
+  metrics_retention_days: 30
+  log_levels:
+    daemon: info
+    gateway: info
+    caddy: warn
+  log_format: json
+  log_rotation:
+    max_size_mb: 100
+    max_backups: 7
+    max_age_days: 30
+  traces_retention_days: 7
+  traces_sample_rate: 1.0
+
+# Singleton: Audit retention policy
+audit_retention:
+  retention_days_read: 30
+  retention_days_write: 90
+  retention_days_destructive: 365
+  auto_export: weekly
+  auto_export_format: jsonl
+  auto_export_destination: "s3://acme-audit/rioku/"
+
+# Singleton: Notification configuration
+notification_config:
+  enabled: true
+  opt_in_mode: opt-out
+  max_retries: 3
+  retry_backoff_seconds: 30
+  channel_priority: ["pagerduty", "slack", "email", "webhook"]
+
+# Notification channels
+notification_channels:
+  - name: ops-slack
+    kind: slack
+    config:
+      webhook_url: "https://hooks.slack.com/services/PLACEHOLDER"
+      channel: "#rioku-ops"
+
+  - name: oncall-pager
+    kind: pagerduty
+    config:
+      integration_key: "PLACEHOLDER"
+
+  - name: email-admin
+    kind: email
+    config:
+      to: ["admin@example.com"]
+      from: "rioku@example.com"
+
+  - name: webhook-monitoring
+    kind: webhook
+    config:
+      url: "https://monitoring.example/webhook"
+      method: POST
+
+# Notification routing rules (lower order_hint = higher priority)
+notification_routing:
+  - name: critical-to-oncall
+    event_filter:
+      severity: error
+    channels: [oncall-pager, ops-slack]
+    order_hint: 0
+
+  - name: warnings-to-slack
+    event_filter:
+      severity: warn
+    channels: [ops-slack]
+    order_hint: 10
+
+  - name: digest-to-email
+    event_filter:
+      category: weekly_digest
+    channels: [email-admin]
+    order_hint: 20

@@ -105,5 +105,100 @@ services:
       media:
         condition: service_healthy
 
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "${SANDBOX_PORT_MAILPIT_SMTP:-11025}:1025"
+      - "${SANDBOX_PORT_MAILPIT_UI:-18025}:8025"
+    environment:
+      MP_MAX_MESSAGES: "5000"
+      MP_DATA_FILE: "/data/mailpit.db"
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8025/api/v1/info"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    ports:
+      - "${SANDBOX_PORT_POSTGRES:-15432}:5432"
+    environment:
+      POSTGRES_USER: rioku
+      POSTGRES_PASSWORD: sandbox
+      POSTGRES_DB: rioku
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rioku"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    ports:
+      - "${SANDBOX_PORT_PROMETHEUS:-19090}:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=24h
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "${SANDBOX_PORT_GRAFANA:-13000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: sandbox
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana-provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - tempo
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    ports:
+      - "${SANDBOX_PORT_OTEL_GRPC:-14317}:4317"
+      - "${SANDBOX_PORT_OTEL_HTTP:-14318}:4318"
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    command: ["--config=/etc/otel-collector.yaml"]
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:2.7.0
+    ports:
+      - "${SANDBOX_PORT_TEMPO:-13200}:3200"
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+
+  pebble:
+    image: letsencrypt/pebble:v2.7.0
+    ports:
+      - "${SANDBOX_PORT_PEBBLE_ACME:-14000}:14000"
+      - "${SANDBOX_PORT_PEBBLE_MGMT:-15000}:15000"
+    environment:
+      PEBBLE_VA_NOSLEEP: "1"
+      PEBBLE_VA_ALWAYS_VALID: "1"
+    volumes:
+      - ./config/pebble-config.json:/test/config/pebble-config.json:ro
+    command: ["pebble", "-config", "/test/config/pebble-config.json"]
+
 volumes:
   daemon-data:
+  mailpit-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+  tempo-data:

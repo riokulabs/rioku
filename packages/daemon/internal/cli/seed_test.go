@@ -2,6 +2,8 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -83,5 +85,89 @@ func TestSandboxSeedFileParses(t *testing.T) {
 	}
 	if seed.NotificationConfig == nil {
 		t.Error("notification_config should be present")
+	}
+}
+
+func TestLoadSeedFromDir(t *testing.T) {
+	dir := t.TempDir()
+
+	// Two YAMLs that should merge: one with services, one with users + tls_config.
+	if err := os.WriteFile(filepath.Join(dir, "01-services.yaml"), []byte(`
+services:
+  - name: a
+  - name: b
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "02-users.yaml"), []byte(`
+users:
+  - username: alice
+    password: Secret1!
+tls_config:
+  min_protocol: TLS_1_3
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	merged, err := loadSeedFromDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(merged.Services) != 2 {
+		t.Errorf("services = %d, want 2", len(merged.Services))
+	}
+	if len(merged.Users) != 1 {
+		t.Errorf("users = %d, want 1", len(merged.Users))
+	}
+	if merged.TLSConfig == nil {
+		t.Error("tls_config not loaded")
+	}
+}
+
+func TestLoadSeedFromDirPointerLWW(t *testing.T) {
+	dir := t.TempDir()
+
+	// First file sets tls_config with min_protocol TLS_1_2.
+	if err := os.WriteFile(filepath.Join(dir, "01-tls.yaml"), []byte(`
+tls_config:
+  min_protocol: TLS_1_2
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Second file overrides with TLS_1_3 (last-write-wins).
+	if err := os.WriteFile(filepath.Join(dir, "02-tls-override.yaml"), []byte(`
+tls_config:
+  min_protocol: TLS_1_3
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	merged, err := loadSeedFromDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merged.TLSConfig == nil {
+		t.Fatal("tls_config is nil")
+	}
+	if merged.TLSConfig.MinProtocol != "TLS_1_3" {
+		t.Errorf("tls_config.min_protocol = %q, want TLS_1_3", merged.TLSConfig.MinProtocol)
+	}
+}
+
+func TestSeedFileAndDirMutuallyExclusive(t *testing.T) {
+	cmd := newSeedCmd()
+	cmd.SetArgs([]string{"--file", "x.yaml", "--dir", "y"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "exactly one of --file or --dir") {
+		t.Errorf("expected mutual-exclusion error, got: %v", err)
+	}
+}
+
+func TestSeedNeitherFileNorDir(t *testing.T) {
+	cmd := newSeedCmd()
+	cmd.SetArgs([]string{"--target", "http://localhost:7778"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "exactly one of --file or --dir") {
+		t.Errorf("expected at-least-one error, got: %v", err)
 	}
 }

@@ -1,0 +1,38 @@
+# Owned by Plan 01 (auth-bootstrap) — users seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Test users (non-secret passwords — local development only)
+users:
+  - username: testadmin
+    password: "TestAdmin123!"
+    roles: [admin]
+    status: active
+
+  - username: testoperator
+    password: "TestOperator123!"
+    roles: [operator]
+    status: active
+
+  - username: testviewer
+    password: "TestView123!"
+    roles: [viewer]
+    status: active
+
+  - username: testmulti
+    password: "TestMulti123!"
+    roles: [operator, auditor]
+    status: active
+
+  - username: test2fa
+    password: "Test2Factor123!"
+    roles: [admin]
+    status: active
+
+  - username: testlocked
+    password: "TestLocked123!"
+    roles: [viewer]
+    status: locked
+
+  - username: testsuspended
+    password: "TestSusp123!"
+    roles: [viewer]
+    status: suspended

@@ -1,0 +1,37 @@
+# Owned by Plan 12 (subdomain) — tenants seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# ============================================================================
+# Stage-2 entities
+#
+# All tenant-scoped entries default to tenant "default" when no tenant
+# field is set. Two extra tenants (acme, beta) are created so the admin
+# panel's tenant-picker has something to switch between.
+# ============================================================================
+
+# Extra tenants beyond the seeded "default"
+tenants:
+  - slug: acme
+    name: Acme Corp
+    plan: pro
+
+  - slug: beta
+    name: Beta Workspace
+    plan: community
+
+# Memberships: place existing seeded users in tenants. testadmin lands
+# in all three; the others stay in default.
+memberships:
+  - tenant: acme
+    username: testadmin
+    state: active
+    roles: [superadmin]
+
+  - tenant: beta
+    username: testadmin
+    state: active
+    roles: [admin]
+
+  - tenant: acme
+    username: testoperator
+    state: active
+    roles: [operator]

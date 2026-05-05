@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -444,3 +444,56 @@ sandbox-container-logs:
 ## sandbox-container-clean: Remove container sandbox (volumes + images)
 sandbox-container-clean:
 	@cd sandbox && $(COMPOSE_CMD) down -v --rmi local
+
+## sandbox-seedgen-build: build the rich-seed generator binary
+sandbox-seedgen-build:
+	cd sandbox/tools/seedgen && go build -o ../../../bin/rioku-seedgen .
+
+## sandbox-seedgen: run rich-seed generator against running daemon
+sandbox-seedgen: sandbox-seedgen-build
+	./bin/rioku-seedgen --mode=rich --seed=42
+
+## sandbox-snapshot: capture current state to a named snapshot tarball
+.PHONY: sandbox-snapshot
+sandbox-snapshot:
+	./sandbox/scripts/snapshot.sh $(NAME)
+
+## sandbox-restore: restore from a named snapshot
+.PHONY: sandbox-restore
+sandbox-restore:
+	./sandbox/scripts/restore.sh $(SNAPSHOT)
+
+## sandbox-baseline: run rich seed then capture as 'baseline' for test isolation
+.PHONY: sandbox-baseline
+sandbox-baseline: sandbox sandbox-seedgen
+	./sandbox/scripts/snapshot.sh baseline
+
+## sandbox-prepull: pull all sandbox container images once
+.PHONY: sandbox-prepull
+sandbox-prepull:
+	cd sandbox && podman-compose --env-file .env.example pull || \
+	  cd sandbox && docker compose --env-file .env.example pull
+
+## sandbox-doctor: health-probe every container against shifted ports
+.PHONY: sandbox-doctor
+sandbox-doctor:
+	./sandbox/scripts/doctor.sh
+
+## sandbox-certs: regenerate self-signed CA + leaf certs
+.PHONY: sandbox-certs
+sandbox-certs:
+	cd sandbox/tools/cert-gen && go run . --out ../../.data/certs --force
+
+## sandbox-lean: minimum-viable seed (CI smoke + RBAC tests)
+.PHONY: sandbox-lean
+sandbox-lean: sandbox-stop sandbox-clean
+	$(MAKE) sandbox SANDBOX_MODE=lean
+
+## sandbox-rich: full demo seed (alias for default sandbox; explicit form)
+.PHONY: sandbox-rich
+sandbox-rich: sandbox sandbox-seedgen
+
+## sandbox-postgres: bring sandbox up using Postgres as the config store
+.PHONY: sandbox-postgres
+sandbox-postgres:
+	cd sandbox && podman-compose --profile postgres --env-file .env.example up -d
