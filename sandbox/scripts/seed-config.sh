@@ -46,23 +46,6 @@ SEED_DIR="${SANDBOX_DIR}/seed"
 REST_BASE="${1:-http://localhost:${SANDBOX_PORT_REST}}"
 
 # --------------------------------------------------------------------------
-# Concatenate per-domain seed files into a single temp file.
-#
-# `rioku seed` only accepts --file (no --dir flag exists yet; see
-# tmp/decisions-needed.md for the open item). The per-domain files under
-# sandbox/seed/ are loaded in glob order (alphabetical), which is safe
-# because the seed CLI resolves cross-entity references by name after
-# loading the full merged document.
-# --------------------------------------------------------------------------
-SEED_TMP=$(mktemp)
-trap 'rm -f "${SEED_TMP}"' EXIT
-
-for f in "${SEED_DIR}"/*.yaml; do
-  cat "$f" >> "${SEED_TMP}"
-  printf '\n' >> "${SEED_TMP}"
-done
-
-# --------------------------------------------------------------------------
 # Dependency checks
 # --------------------------------------------------------------------------
 for cmd in curl; do
@@ -101,14 +84,14 @@ if [[ ! -d "${SEED_DIR}" ]]; then
 fi
 
 # --------------------------------------------------------------------------
-# Apply seed config via rioku seed --file (concat fallback loader)
+# Apply seed config via rioku seed --dir
 # --------------------------------------------------------------------------
 echo ""
 echo -e "${BOLD}==> Seeding configuration${NC}"
-info "Seeding from ${SEED_DIR}/ (merged into ${SEED_TMP}) ..."
+info "Seeding from ${SEED_DIR}/ ..."
 
 if ! "${DAEMON_BIN}" seed \
-    --file "${SEED_TMP}" \
+    --dir "${SEED_DIR}" \
     --target "${REST_BASE}" \
     --password "${ROOT_PASSWORD}"; then
     warn "Seed encountered errors — daemon API may not be fully implemented yet"

@@ -179,9 +179,9 @@ Logs are written to `sandbox/.data/logs/<name>.log`. Color-coded output:
 
 ### Modular Seed Files
 
-The sandbox supports modular per-feature seed files in `sandbox/seed/<feature>.yaml`. The seed system concatenates all files via `sandbox/scripts/seed-config.sh` as a fallback mechanism. Approximately 20 feature-specific YAML files are provided.
+The sandbox supports modular per-feature seed files in `sandbox/seed/<feature>.yaml`. Approximately 20 feature-specific YAML files are provided, one per domain area.
 
-**Note**: The `rioku seed --dir` flag is pending (filed in the decision-list for Plan 0c). Until implemented, the script concatenates all yamls into a temporary file and uses `--file` to apply them.
+The loader uses `rioku seed --dir sandbox/seed`, which walks the directory in alphabetical order, env-substitutes each file, and merges the results: slice fields are appended (later files extend earlier ones) and pointer/singleton fields use last-write-wins semantics.
 
 ### Applying Seeds
 
