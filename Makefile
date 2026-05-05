@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -339,6 +339,16 @@ web:
 ## web-build: Build the admin panel SPA
 web-build:
 	cd $(PKG)/web && $(WEB_PATH) pnpm build
+
+## web-types: Generate the typed admin client + MSW + Zod from api.full.json
+.PHONY: web-types
+web-types:
+	cd $(PKG)/web && $(WEB_PATH) pnpm run types:gen
+
+## web-types-incremental: Same as web-types but reuses Orval cache (CI fast-path)
+.PHONY: web-types-incremental
+web-types-incremental:
+	cd $(PKG)/web && $(WEB_PATH) pnpm run types:gen:incremental
 
 ## web-build-if-changed: Build web SPA only if source files changed (hash-based)
 WEB_HASH_FILE = packages/web/.build-hash
