@@ -27,6 +27,13 @@ export default tseslint.config(
       // tanstack-query queryKey assignment pattern, deprecated zod helpers
       // we don't control, etc.). Treat the OpenAPI spec as the contract.
       'src/api/generated/**',
+      // Tooling configs and custom ESLint rules (.cjs Node scripts) live
+      // outside the typed source tree; the strict typed-eslint preset
+      // can't resolve them via tsconfig and `console`/`require` globals
+      // aren't part of the browser type lib.
+      'orval.config.ts',
+      'vitest.config.ts',
+      'eslint-rules/**',
     ],
   },
   js.configs.recommended,

@@ -5,6 +5,7 @@ import { useLocation, useParams } from '@tanstack/react-router';
 import { TopBar } from '@/components/app-shell/top-bar';
 import { Sidebar } from '@/components/app-shell/sidebar';
 import { activeSectionFor } from '@/components/app-shell/nav-tree';
+import { getNavEntriesForGroup, type NavGroup } from '@/components/app-shell/nav-registry';
 import { useSidebarEntries } from '@/hooks/use-sidebar-entries';
 import { KeyboardShortcutsHelp } from '@/components/keyboard-shortcuts-help';
 import { Zone } from '@/components/zone';
@@ -30,9 +31,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const pathSuffix = extractSuffix(location.pathname, tenantSlug);
   const active = activeSectionFor(pathSuffix);
   const pluginEntriesForActive = active.id === 'system' ? pluginEntries : [];
+  const registryEntriesForActive = getNavEntriesForGroup(active.id as NavGroup);
   const hasChildren =
-    (active.children !== undefined && active.children.length > 0) ||
-    pluginEntriesForActive.length > 0;
+    registryEntriesForActive.length > 0 || pluginEntriesForActive.length > 0;
 
   const railWidth = navDesktopExpanded ? RAIL_EXPANDED_WIDTH : RAIL_COLLAPSED_WIDTH;
   const navbarWidth = hasChildren ? railWidth + PANEL_WIDTH : railWidth;
