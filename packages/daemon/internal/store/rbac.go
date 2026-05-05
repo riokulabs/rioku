@@ -173,10 +173,12 @@ type Role struct {
 
 // Permission represents an atomic access control unit.
 type Permission struct {
-	ID          string
-	Resource    string
-	Action      string
-	Description string
+	ID             string
+	Resource       string
+	Action         string
+	Description    string
+	Source         string // "built-in" | "plugin-manifest" | "plugin-dynamic"
+	SourcePluginID string // empty for built-in permissions
 }
 
 // UserRole represents a role assignment with audit metadata.
