@@ -14,7 +14,7 @@
  * `state.routes[routeId].policies` and resolves the AccessPolicy records.
  */
 import { useMockStore } from '@/api/mock-store';
-import type { AccessPolicy } from '@/api/resources/types';
+import type { AccessPolicy } from '@/api/resources';
 
 export {
   useAccessPolicyList as usePolicyList,
@@ -24,7 +24,7 @@ export {
   deleteAccessPolicyMutation as deletePolicy,
 } from '@/features/security/access-policies';
 
-export type { AccessPolicy as Policy } from '@/api/resources/types';
+export type { AccessPolicy as Policy } from '@/api/resources';
 export type { AccessPolicyPayload as PolicyPayload } from '@/features/security/access-policies';
 
 /**

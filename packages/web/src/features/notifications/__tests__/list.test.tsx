@@ -15,7 +15,7 @@ vi.mock('@tanstack/react-router', () => ({
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { NotificationList } from '../components/list';
-import type { ID, NotificationItem } from '@/api/resources/types';
+import type { ID, NotificationItem } from '@/api/resources';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return <MantineProvider>{children}</MantineProvider>;

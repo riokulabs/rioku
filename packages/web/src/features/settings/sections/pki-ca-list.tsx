@@ -22,7 +22,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle, IconLock, IconPlus, IconTrash } from '@tabler/icons-react';
-import type { CertAuthority } from '@/api/resources/types';
+import type { CertAuthority } from '@/api/resources';
 import { notify } from '@/hooks/use-notify';
 import { useCertAuthorities, revokeCertAuthority, deleteCertAuthority } from '../api';
 import { CreateCaModal } from './pki-create-ca-modal';

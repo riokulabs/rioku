@@ -9,7 +9,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { useMockStore } from '@/api/mock-store';
 import { AuditList } from '../components/list';
-import type { AuditEntry, ID } from '@/api/resources/types';
+import type { AuditEntry, ID } from '@/api/resources';
 
 // TanStack Router URL-sync — same shim used across list tests.
 vi.mock('@tanstack/react-router', () => ({

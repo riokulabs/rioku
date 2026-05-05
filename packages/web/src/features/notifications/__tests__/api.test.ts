@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Tests for the notifications (inbox) API — list selectors, unread count,
  * mark-read / mark-all-read / archive / unarchive, streaming bus, emit.

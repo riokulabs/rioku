@@ -20,7 +20,7 @@ import { seedStore } from '@/api/mock-seed';
 import { TraceDetail } from '../components/detail';
 import { PromptCompletionView } from '../components/prompt-completion-view';
 import { ToolCallList } from '../components/tool-call-list';
-import type { AiTraceToolCall } from '@/api/resources/types';
+import type { AiTraceToolCall } from '@/api/resources';
 
 function wrap(ui: React.ReactNode) {
   return render(

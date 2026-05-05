@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveRolePermissions, detectRoleCycle, validateRoleSave } from './role-resolver';
-import type { Role } from '../api/resources/types';
+import type { Role } from '../api/resources';
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 

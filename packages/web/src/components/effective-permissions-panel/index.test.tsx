@@ -13,7 +13,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
-import type { Membership, Role, RbacPolicy } from '../../api/resources/types';
+import type { Membership, Role, RbacPolicy } from '../../api/resources';
 
 // ─── Fixture data ─────────────────────────────────────────────────────────────
 

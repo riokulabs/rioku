@@ -4,9 +4,9 @@
  * Traces are system-written (the invoke-mock path on agents emits them). This
  * surface is read-only + subscribe + CSV export; no create/update/delete.
  */
-export type { AiTrace, AiTraceToolCall, ID } from '@/api/resources/types';
+export type { AiTrace, AiTraceToolCall, ID } from '@/api/resources';
 
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 
 export interface TraceFilter {
   /** Free-text search across prompt + completion. */

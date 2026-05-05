@@ -1,7 +1,5 @@
 /**
- * Main-sidebar IA — the 7 top-level sections that appear in the rail, plus
- * each section's nested children (rendered in the secondary panel when the
- * user is inside that section or hovers its rail icon).
+ * Main-sidebar IA — the 7 top-level sections that appear in the rail.
  *
  * Notes:
  *   - The rail is flat: every top-level section has a single icon.
@@ -12,40 +10,19 @@
  *     canonical one.
  *   - Settings is intentionally NOT in this tree — it lives only in the
  *     user-card menu.
+ *   - Section panel children are driven by the nav-registry (see nav-registry.ts
+ *     and nav-bootstrap.ts). Hard-coded child arrays have been removed.
  */
 import type { ComponentType } from 'react';
 import {
-  IconBook,
   IconBrain,
-  IconBadge,
-  IconBell,
   IconDashboard,
-  IconDevices,
-  IconFileText,
-  IconGauge,
-  IconHistory,
-  IconKey,
   IconLayoutDashboard,
-  IconPlug,
-  IconRobot,
-  IconRoute,
-  IconScale,
-  IconServer,
   IconShield,
   IconStack,
-  IconTool,
   IconTopologyRing,
-  IconRouter,
-  IconUsers,
   IconWorld,
 } from '@tabler/icons-react';
-
-export interface NavLeaf {
-  label: string;
-  /** Path suffix after `/t/$tenant/`. */
-  suffix: string;
-  icon: ComponentType<{ size?: number }>;
-}
 
 export interface NavSection {
   id: string;
@@ -64,7 +41,6 @@ export interface NavSection {
    * by specificity (most-specific first).
    */
   matchPaths: string[];
-  children?: NavLeaf[];
 }
 
 const DASHBOARD_SECTION: NavSection = {
@@ -90,8 +66,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: IconLayoutDashboard,
     defaultRoute: 'dashboards',
     matchPaths: ['dashboards'],
-    // No static `children` — the secondary panel is rendered by
-    // <AnalyticsNavPanel> which lists dashboards dynamically.
+    // No children — the secondary panel is rendered by <AnalyticsNavPanel>
+    // which lists dashboards dynamically.
   },
   {
     id: 'apim',
@@ -99,13 +75,6 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: IconStack,
     defaultRoute: 'services',
     matchPaths: ['services', 'routes', 'policies', 'middlewares', 'api-explorer'],
-    children: [
-      { label: 'Services', suffix: 'services', icon: IconServer },
-      { label: 'Routes', suffix: 'routes', icon: IconRoute },
-      { label: 'Policies', suffix: 'policies', icon: IconShield },
-      { label: 'Middlewares', suffix: 'middlewares', icon: IconStack },
-      { label: 'API Explorer', suffix: 'api-explorer', icon: IconBook },
-    ],
   },
   {
     id: 'ai',
@@ -113,16 +82,6 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: IconBrain,
     defaultRoute: 'ai/providers',
     matchPaths: ['ai', 'security/access-policies'],
-    children: [
-      { label: 'Providers', suffix: 'ai/providers', icon: IconBrain },
-      { label: 'Agents', suffix: 'ai/agents', icon: IconRobot },
-      { label: 'Tools', suffix: 'ai/tools', icon: IconTool },
-      { label: 'Tool routing', suffix: 'ai/tool-routing', icon: IconRouter },
-      { label: 'Rate limits', suffix: 'ai/rate-limits', icon: IconGauge },
-      { label: 'Traces', suffix: 'ai/traces', icon: IconHistory },
-      { label: 'MCP servers', suffix: 'ai/mcp-servers', icon: IconServer },
-      { label: 'Access policies', suffix: 'security/access-policies', icon: IconShield },
-    ],
   },
   {
     id: 'security',
@@ -139,14 +98,6 @@ export const NAV_SECTIONS: NavSection[] = [
       'security/sessions',
       'security/audit',
     ],
-    children: [
-      { label: 'Users', suffix: 'security/users', icon: IconUsers },
-      { label: 'Roles', suffix: 'security/roles', icon: IconBadge },
-      { label: 'API keys', suffix: 'security/api-keys', icon: IconKey },
-      { label: 'RBAC policies', suffix: 'security/rbac-policies', icon: IconScale },
-      { label: 'Sessions', suffix: 'security/sessions', icon: IconDevices },
-      { label: 'Audit', suffix: 'security/audit', icon: IconFileText },
-    ],
   },
   {
     id: 'system',
@@ -154,11 +105,6 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: IconTopologyRing,
     defaultRoute: 'cluster',
     matchPaths: ['cluster', 'plugins', 'notifications'],
-    children: [
-      { label: 'Cluster', suffix: 'cluster', icon: IconTopologyRing },
-      { label: 'Plugins', suffix: 'plugins', icon: IconPlug },
-      { label: 'Notifications', suffix: 'notifications', icon: IconBell },
-    ],
   },
 ];
 

@@ -13,7 +13,7 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
 import { makeIdFactory } from '@/lib/id-generator';
-import type { Tenant } from '@/api/resources/types';
+import type { Tenant } from '@/api/resources';
 
 const nextTenantId = makeIdFactory('tenant-new');
 

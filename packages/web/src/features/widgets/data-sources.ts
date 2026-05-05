@@ -23,7 +23,7 @@ import type {
   NotificationItem,
   AiTrace,
   WidgetWizardState,
-} from '@/api/resources/types';
+} from '@/api/resources';
 import type { MockStore } from '@/api/mock-store';
 import { getTimeRange, type TimeRange, type TimeRangeId } from '@/hooks/use-dashboard-range';
 

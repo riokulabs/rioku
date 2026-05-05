@@ -14,7 +14,7 @@
 import { publishMock } from './mock-sse';
 import { useMockStore } from './mock-store';
 import { makeIdFactory } from '../lib/id-generator';
-import type { AuditEntry } from './resources/types';
+import type { AuditEntry } from './resources';
 
 const nextId = makeIdFactory('audit-live');
 

@@ -1,9 +1,9 @@
 /**
  * Feature-local types for routes.
  */
-export type { Route, ID } from '@/api/resources/types';
+export type { Route, ID } from '@/api/resources';
 
-import type { Route } from '@/api/resources/types';
+import type { Route } from '@/api/resources';
 
 export interface RouteFilter {
   search: string;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Data-source adapter tests — covers all 6 built-in adapters plus the
  * wizard_state / raw_query / parse-error branches.
@@ -12,7 +11,7 @@ import {
   runWidgetQuery,
   substituteVariables,
 } from '../data-sources';
-import type { DashboardVariable, Widget } from '@/api/resources/types';
+import type { DashboardVariable, Widget } from '@/api/resources';
 
 function makeWidget(partial: Partial<Widget> & { data_source: string; kind: string }): Widget {
   return {

@@ -40,7 +40,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { McpHealthChip } from '@/features/ai-shared';
-import type { McpServer } from '@/api/resources/types';
+import type { McpServer } from '@/api/resources';
 import {
   deleteMcpServer,
   testMcpServer,

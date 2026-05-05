@@ -22,7 +22,7 @@ import {
   Alert,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import type { Middleware } from '@/api/resources/types';
+import type { Middleware } from '@/api/resources';
 
 interface KindConfigPanelProps {
   kind: Middleware['kind'];

@@ -4,7 +4,7 @@
  *
  * Pure functions only — no Mantine imports here.
  */
-import type { Middleware, Route, Service } from '@/api/resources/types';
+import type { Middleware, Route, Service } from '@/api/resources';
 
 /**
  * Format an upstream URL from parts. The port is omitted from the output when

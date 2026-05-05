@@ -14,7 +14,7 @@ import {
   shortenPrompt,
   computeTraceTotalTokens,
 } from '..';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 
 describe('formatCost', () => {
   it('formats zero as $0.00', () => {

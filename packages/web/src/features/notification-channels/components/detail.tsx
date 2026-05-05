@@ -40,7 +40,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import type { NotificationChannel } from '@/api/resources/types';
+import type { NotificationChannel } from '@/api/resources';
 import { deleteChannel, updateChannel, useChannelDetail } from '../api';
 import { ChannelKindConfigPanel } from './kind-config-panel';
 import { TestPanel } from './test-panel';

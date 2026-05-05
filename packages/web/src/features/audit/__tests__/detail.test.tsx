@@ -32,7 +32,7 @@ vi.mock('@/hooks/use-permission', () => ({
 
 import { useMockStore } from '@/api/mock-store';
 import { AuditDetail } from '../components/detail';
-import type { AuditEntry, ID } from '@/api/resources/types';
+import type { AuditEntry, ID } from '@/api/resources';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return <MantineProvider>{children}</MantineProvider>;

@@ -1,9 +1,9 @@
 /**
  * Feature-local types for plugin signers (Plan 6).
  */
-export type { PluginSigner, Plugin, ID } from '@/api/resources/types';
+export type { PluginSigner, Plugin, ID } from '@/api/resources';
 
-import type { PluginSigner } from '@/api/resources/types';
+import type { PluginSigner } from '@/api/resources';
 
 /** List filter for the signers table. */
 export interface SignerFilter {

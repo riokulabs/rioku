@@ -165,7 +165,7 @@ export { CURRENT_ABI_VERSION, MIN_SUPPORTED_ABI } from './abi';
 // Plugins register via host.permissions (useHost().permissions.register), not this.
 
 export { BUILT_IN_PERMISSIONS } from './permissions';
-export type { Permission } from '@/api/resources/types';
+export type { Permission } from '@/api/resources';
 
 // ─── Manifest types (for authoring) ──────────────────────────────────────────
 

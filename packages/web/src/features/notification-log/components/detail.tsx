@@ -15,7 +15,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { useDeliveryLogDetail } from '../api';
-import type { NotificationDeliveryLogEntry } from '@/api/resources/types';
+import type { NotificationDeliveryLogEntry } from '@/api/resources';
 
 dayjs.extend(relativeTime);
 

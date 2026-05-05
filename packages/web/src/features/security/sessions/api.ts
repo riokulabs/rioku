@@ -4,7 +4,7 @@
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { logAuditEntry } from '@/api/resources/audit';
-import type { Session } from '@/api/resources/types';
+import type { Session } from '@/api/resources';
 import type { SessionWithMeta } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

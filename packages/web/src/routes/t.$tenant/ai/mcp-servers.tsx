@@ -24,7 +24,7 @@ import {
   testMcpServer,
 } from '@/features/ai-mcp-servers';
 import type { McpServerFilter } from '@/features/ai-mcp-servers';
-import type { McpServer } from '@/api/resources/types';
+import type { McpServer } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 type Health = McpServer['health'];

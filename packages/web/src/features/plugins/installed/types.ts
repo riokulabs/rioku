@@ -1,7 +1,7 @@
 /**
  * Installed-plugins feature types.
  */
-export type { Plugin, ID } from '@/api/resources/types';
+export type { Plugin, ID } from '@/api/resources';
 
 /** Filter for the installed plugins list. */
 export interface InstalledPluginFilter {

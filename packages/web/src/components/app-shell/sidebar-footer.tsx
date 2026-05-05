@@ -33,7 +33,7 @@ import { useSession } from '@/hooks/use-session';
 import { useMockStore } from '@/api/mock-store';
 import { BUILTIN_THEMES } from '@/theme';
 import { usePluginThemes } from '@/hooks/use-plugin-themes';
-import type { Tenant } from '@/api/resources/types';
+import type { Tenant } from '@/api/resources';
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },

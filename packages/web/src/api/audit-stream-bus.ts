@@ -9,7 +9,7 @@
  *
  * The emitted event is always `'audit'`; `event.detail` is the `AuditEntry`.
  */
-import type { AuditEntry } from './resources/types';
+import type { AuditEntry } from './resources';
 
 /** Fixed topic string — only event name emitted on this bus. */
 export const AUDIT_STREAM_TOPIC = 'audit';

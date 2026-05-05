@@ -18,7 +18,7 @@ import { ModalsProvider } from '@mantine/modals';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { publishAudit } from '@/api/audit-stream-bus';
-import type { AuditEntry } from '@/api/resources/types';
+import type { AuditEntry } from '@/api/resources';
 import { LiveTailBadge, useAuditStream } from '../components/streaming-tail';
 
 function wrap(ui: React.ReactNode) {

@@ -7,7 +7,7 @@
  */
 import { Badge } from '@mantine/core';
 import type { BadgeVariant } from '@mantine/core';
-import type { Service } from '@/api/resources/types';
+import type { Service } from '@/api/resources';
 
 interface HealthChipProps {
   status: Service['health'];

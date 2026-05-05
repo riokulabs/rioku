@@ -27,7 +27,7 @@ import { IdBadge } from '@/components/id-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
-import type { AuditEntry } from '@/api/resources/types';
+import type { AuditEntry } from '@/api/resources';
 
 dayjs.extend(relativeTime);
 

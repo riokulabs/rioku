@@ -20,7 +20,7 @@ import { notify } from '@/hooks/use-notify';
 import { createSite } from '../../api';
 import { createSiteWizardSchema } from '../../schemas';
 import type { SiteWizardInput } from '../../types';
-import type { Site } from '@/api/resources/types';
+import type { Site } from '@/api/resources';
 import { StepHostname } from './step-hostname';
 import { StepUpstream } from './step-upstream';
 import { StepTls } from './step-tls';

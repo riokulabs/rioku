@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import type { AiSemanticRateLimit } from '@/api/resources/types';
+import type { AiSemanticRateLimit } from '@/api/resources';
 import { deleteRateLimit, updateRateLimit, useRateLimitDetail } from '../api';
 import { MetricsSparkline } from './metrics-sparkline';
 import { Simulator } from './simulator';

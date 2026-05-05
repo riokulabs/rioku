@@ -12,7 +12,7 @@
  * spec §7.1, §9.6.1
  */
 
-import type { Permission } from '../api/resources/types';
+import type { Permission } from '../api/resources';
 
 // ─── Re-export Permission type for convenience ────────────────────────────────
 

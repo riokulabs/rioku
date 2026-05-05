@@ -9,7 +9,7 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 import { ModeFlipConfirmDialog } from '../components/mode-flip-confirm';
 
 function wrap(ui: React.ReactNode) {

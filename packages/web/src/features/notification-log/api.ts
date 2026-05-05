@@ -5,7 +5,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useMockStore } from '@/api/mock-store';
-import type { ID, NotificationDeliveryLogEntry } from '@/api/resources/types';
+import type { ID, NotificationDeliveryLogEntry } from '@/api/resources';
 
 import type { DeliveryLogFilter } from './types';
 

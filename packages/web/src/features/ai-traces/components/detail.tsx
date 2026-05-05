@@ -44,7 +44,7 @@ import { notify } from '@/hooks/use-notify';
 import { IdBadge } from '@/components/id-badge';
 import { ProviderKindBadge, formatCost, formatTokens } from '@/features/ai-shared';
 import { useTraceDetail } from '../api';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 import { PromptCompletionView } from './prompt-completion-view';
 import { ToolCallList } from './tool-call-list';
 

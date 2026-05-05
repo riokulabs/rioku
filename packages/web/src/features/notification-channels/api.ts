@@ -16,7 +16,7 @@ import type {
   ID,
   NotificationChannel,
   NotificationDeliveryLogEntry,
-} from '@/api/resources/types';
+} from '@/api/resources';
 
 import { parseChannelConfig } from './schemas';
 import type {

@@ -12,7 +12,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
-import { useOpaqueFilter } from '@/hooks/use-opaque-filter';
+import { useFilterUrlHandle } from '@/hooks/use-filter-url-handle';
 import { useMockStore } from '@/api/mock-store';
 import { useUserList, deactivateMembership, resendInvite } from '../api';
 import { MembershipActions } from './membership-actions';
@@ -43,7 +43,7 @@ interface UserListProps {
 
 export function UserList({ tenantId, tenantSlug, onSelect }: UserListProps) {
   // Opaque filter — search string never hits the URL
-  const { filter, setFilter } = useOpaqueFilter<UserFilter>(DEFAULT_FILTER);
+  const { filter, setFilter } = useFilterUrlHandle<UserFilter>(DEFAULT_FILTER);
 
   // Local search input — debounced before writing to opaque filter
   const [searchInput, setSearchInput] = useState(filter.search);

@@ -20,7 +20,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { McpHealthChip } from '@/features/ai-shared';
-import type { McpServer } from '@/api/resources/types';
+import type { McpServer } from '@/api/resources';
 import { useMcpServerList, updateMcpServer } from '../api';
 import type { McpServerFilter } from '../types';
 

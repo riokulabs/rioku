@@ -19,7 +19,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import type { McpServer } from '@/api/resources/types';
+import type { McpServer } from '@/api/resources';
 import { createMcpServer, updateMcpServer } from '../api';
 import { createMcpServerSchema, updateMcpServerSchema } from '../schemas';
 

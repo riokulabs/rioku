@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { Group, MultiSelect, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import type { PluginSigner } from '@/api/resources/types';
+import type { PluginSigner } from '@/api/resources';
 import type { SignerFilter } from '../types';
 
 type Status = PluginSigner['status'];

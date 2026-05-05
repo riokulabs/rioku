@@ -4,6 +4,7 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import boundaries from 'eslint-plugin-boundaries';
+import noPiiInUrl from './eslint-rules/no-pii-in-url.cjs';
 
 export default tseslint.config(
   {
@@ -20,6 +21,19 @@ export default tseslint.config(
       // bundle lands here; ESLint shouldn't lint built artifacts.
       '../daemon/web/build/**',
       '**/daemon/web/build/**',
+      // Orval-generated client (committed per CI drift gate, regenerable
+      // via `make web-types`). Linting generated code surfaces irrelevant
+      // rule violations (e.g. react-hooks/immutability on the standard
+      // tanstack-query queryKey assignment pattern, deprecated zod helpers
+      // we don't control, etc.). Treat the OpenAPI spec as the contract.
+      'src/api/generated/**',
+      // Tooling configs and custom ESLint rules (.cjs Node scripts) live
+      // outside the typed source tree; the strict typed-eslint preset
+      // can't resolve them via tsconfig and `console`/`require` globals
+      // aren't part of the browser type lib.
+      'orval.config.ts',
+      'vitest.config.ts',
+      'eslint-rules/**',
     ],
   },
   js.configs.recommended,
@@ -128,11 +142,23 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/*.{ts,tsx}'],
+    plugins: {
+      rioku: { rules: { 'no-pii-in-url': noPiiInUrl } },
+    },
+    rules: {
+      'rioku/no-pii-in-url': 'warn',
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}', 'src/test/**/*', 'e2e/**/*'],
     rules: {
       'boundaries/element-types': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-empty-function': 'off',
+      // noUncheckedIndexedAccess requires non-null assertions for mock array
+      // access in tests where the test setup guarantees the element exists.
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {
@@ -162,6 +188,7 @@ export default tseslint.config(
         Buffer: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {

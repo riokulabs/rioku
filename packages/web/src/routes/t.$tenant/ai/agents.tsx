@@ -22,7 +22,7 @@ import {
   deleteAgent,
 } from '@/features/ai-agents';
 import type { AgentFilter } from '@/features/ai-agents';
-import type { AiAgent } from '@/api/resources/types';
+import type { AiAgent } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 

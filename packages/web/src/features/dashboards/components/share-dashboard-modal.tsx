@@ -41,7 +41,7 @@ import type {
   DashboardPermissionLevel,
   DashboardRoleGrant,
   DashboardUserGrant,
-} from '@/api/resources/types';
+} from '@/api/resources';
 import { updateDashboard } from '../api';
 
 type Visibility = 'personal' | 'shared' | 'tenant';

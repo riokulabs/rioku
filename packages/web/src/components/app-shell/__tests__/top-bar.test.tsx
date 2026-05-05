@@ -44,7 +44,7 @@ import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { emitNotification } from '@/features/notifications/api';
 import { TopBar } from '../top-bar';
-import type { ID } from '@/api/resources/types';
+import type { ID } from '@/api/resources';
 
 function wrap(ui: React.ReactNode) {
   return render(

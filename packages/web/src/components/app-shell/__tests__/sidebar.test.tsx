@@ -12,7 +12,30 @@
  *     including Access policies.
  *   - Rail section links point to each section's `defaultRoute`.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { registerNavEntries, _resetNavRegistry } from '../nav-registry';
+import {
+  IconBook,
+  IconBrain,
+  IconBadge,
+  IconBell,
+  IconDevices,
+  IconFileText,
+  IconGauge,
+  IconHistory,
+  IconKey,
+  IconPlug,
+  IconRobot,
+  IconRoute,
+  IconScale,
+  IconServer,
+  IconShield,
+  IconStack,
+  IconTool,
+  IconTopologyRing,
+  IconRouter,
+  IconUsers,
+} from '@tabler/icons-react';
 
 // Hoisted mutable path so different tests can change the "current URL".
 let currentPath = '/t/acme/services';
@@ -50,6 +73,200 @@ vi.mock('../sidebar-footer', () => ({
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Sidebar } from '../sidebar';
+
+// Deterministic nav entry list matching the static nav-tree definitions.
+// Must be kept in sync with the feature nav.ts files.
+const ALL_NAV_ENTRIES = [
+  // apim
+  {
+    id: 'services',
+    label: 'Services',
+    icon: IconServer,
+    suffix: 'services',
+    group: 'apim' as const,
+    order: 10,
+  },
+  {
+    id: 'routes',
+    label: 'Routes',
+    icon: IconRoute,
+    suffix: 'routes',
+    group: 'apim' as const,
+    order: 20,
+  },
+  {
+    id: 'policies',
+    label: 'Policies',
+    icon: IconShield,
+    suffix: 'policies',
+    group: 'apim' as const,
+    order: 30,
+  },
+  {
+    id: 'middlewares',
+    label: 'Middlewares',
+    icon: IconStack,
+    suffix: 'middlewares',
+    group: 'apim' as const,
+    order: 40,
+  },
+  {
+    id: 'api-explorer',
+    label: 'API Explorer',
+    icon: IconBook,
+    suffix: 'api-explorer',
+    group: 'apim' as const,
+    order: 50,
+  },
+  // ai
+  {
+    id: 'ai-providers',
+    label: 'Providers',
+    icon: IconBrain,
+    suffix: 'ai/providers',
+    group: 'ai' as const,
+    order: 10,
+  },
+  {
+    id: 'ai-agents',
+    label: 'Agents',
+    icon: IconRobot,
+    suffix: 'ai/agents',
+    group: 'ai' as const,
+    order: 20,
+  },
+  {
+    id: 'ai-tools',
+    label: 'Tools',
+    icon: IconTool,
+    suffix: 'ai/tools',
+    group: 'ai' as const,
+    order: 30,
+  },
+  {
+    id: 'ai-tool-routing',
+    label: 'Tool routing',
+    icon: IconRouter,
+    suffix: 'ai/tool-routing',
+    group: 'ai' as const,
+    order: 40,
+  },
+  {
+    id: 'ai-rate-limits',
+    label: 'Rate limits',
+    icon: IconGauge,
+    suffix: 'ai/rate-limits',
+    group: 'ai' as const,
+    order: 50,
+  },
+  {
+    id: 'ai-traces',
+    label: 'Traces',
+    icon: IconHistory,
+    suffix: 'ai/traces',
+    group: 'ai' as const,
+    order: 60,
+  },
+  {
+    id: 'ai-mcp-servers',
+    label: 'MCP servers',
+    icon: IconServer,
+    suffix: 'ai/mcp-servers',
+    group: 'ai' as const,
+    order: 70,
+  },
+  {
+    id: 'ai-access-policies',
+    label: 'Access policies',
+    icon: IconShield,
+    suffix: 'security/access-policies',
+    group: 'ai' as const,
+    order: 80,
+  },
+  // security
+  {
+    id: 'security-users',
+    label: 'Users',
+    icon: IconUsers,
+    suffix: 'security/users',
+    group: 'security' as const,
+    order: 10,
+  },
+  {
+    id: 'security-roles',
+    label: 'Roles',
+    icon: IconBadge,
+    suffix: 'security/roles',
+    group: 'security' as const,
+    order: 20,
+  },
+  {
+    id: 'security-api-keys',
+    label: 'API keys',
+    icon: IconKey,
+    suffix: 'security/api-keys',
+    group: 'security' as const,
+    order: 30,
+  },
+  {
+    id: 'security-rbac-policies',
+    label: 'RBAC policies',
+    icon: IconScale,
+    suffix: 'security/rbac-policies',
+    group: 'security' as const,
+    order: 40,
+  },
+  {
+    id: 'security-sessions',
+    label: 'Sessions',
+    icon: IconDevices,
+    suffix: 'security/sessions',
+    group: 'security' as const,
+    order: 50,
+  },
+  {
+    id: 'security-audit',
+    label: 'Audit',
+    icon: IconFileText,
+    suffix: 'security/audit',
+    group: 'security' as const,
+    order: 60,
+  },
+  // system
+  {
+    id: 'cluster',
+    label: 'Cluster',
+    icon: IconTopologyRing,
+    suffix: 'cluster',
+    group: 'system' as const,
+    order: 10,
+  },
+  {
+    id: 'plugins',
+    label: 'Plugins',
+    icon: IconPlug,
+    suffix: 'plugins',
+    group: 'system' as const,
+    order: 20,
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    icon: IconBell,
+    suffix: 'notifications',
+    group: 'system' as const,
+    order: 30,
+  },
+];
+
+beforeEach(() => {
+  _resetNavRegistry();
+  registerNavEntries(...ALL_NAV_ENTRIES);
+});
+
+afterEach(() => {
+  _resetNavRegistry();
+});
 
 function wrap(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);

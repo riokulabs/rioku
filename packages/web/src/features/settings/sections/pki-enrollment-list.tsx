@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { IconLock, IconPlus } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import type { CertEnrollment } from '@/api/resources/types';
+import type { CertEnrollment } from '@/api/resources';
 import { useCertAuthorities, useCertEnrollments, revokeCertEnrollment } from '../api';
 import { CreateEnrollmentModal } from './pki-create-enrollment-modal';
 

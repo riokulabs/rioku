@@ -1,8 +1,8 @@
 /**
  * Feature-local types for roles.
- * Reuses Role and Grant from api/resources/types.
+ * Reuses Role and Grant from api/resources.
  */
-export type { Role, Grant, ID } from '@/api/resources/types';
+export type { Role, Grant, ID } from '@/api/resources';
 
 /** Payload for create/update — omits readonly server-computed fields. */
 export interface RolePayload {

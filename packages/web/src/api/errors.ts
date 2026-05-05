@@ -82,18 +82,3 @@ export class NetworkError extends ApiError {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-
-/**
- * Sentinel thrown when `apiClient` is called in mock mode.
- * Surfaces immediately if a feature accidentally uses the real client path.
- */
-export class MockFetchInterceptError extends Error {
-  constructor(method: string, path: string) {
-    super(
-      `[mock] apiClient.${method}("${path}") was called while VITE_USE_MOCKS=true. ` +
-        'Use the mock-store directly instead of going through the real fetch client.',
-    );
-    this.name = 'MockFetchInterceptError';
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}

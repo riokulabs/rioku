@@ -9,7 +9,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, Dashboard, Widget } from '@/api/resources/types';
+import type { AuditEntry, Dashboard, Widget } from '@/api/resources';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { runWidgetQuery, WidgetQueryError } from '@/features/widgets/data-sources';
 import { useDashboardRange } from '@/hooks/use-dashboard-range';

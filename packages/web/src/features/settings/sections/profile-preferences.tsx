@@ -30,7 +30,7 @@ import { BUILTIN_THEMES } from '@/theme';
 import { BUILT_IN_CATEGORIES } from '@/features/notifications/schemas';
 import { updatePreferences } from '../api';
 import { preferencesSchema, type PreferencesValues } from '../schemas';
-import type { User } from '@/api/resources/types';
+import type { User } from '@/api/resources';
 
 // ─── Category label map ───────────────────────────────────────────────────────
 

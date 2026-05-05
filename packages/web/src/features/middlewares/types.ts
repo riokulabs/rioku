@@ -1,9 +1,9 @@
 /**
  * Feature-local types for middlewares.
  */
-export type { Middleware, ID } from '@/api/resources/types';
+export type { Middleware, ID } from '@/api/resources';
 
-import type { Middleware } from '@/api/resources/types';
+import type { Middleware } from '@/api/resources';
 
 export interface MiddlewareFilter {
   search: string;

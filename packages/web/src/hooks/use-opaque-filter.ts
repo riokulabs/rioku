@@ -1,111 +1,60 @@
-/**
- * useOpaqueFilter — opaque handle ↔ filter-state bridge (stage-1 in-memory).
- *
- * Syncs a typed filter object to the URL as a short opaque handle (`?f=<id>`)
- * instead of serialising the full filter into the query string.  This keeps
- * URLs short and prevents filter internals from leaking into browser history.
- *
- * STAGE-1 CONSTRAINT
- * The handle store is a module-level `Map<string, unknown>`.  It is NOT
- * persisted to localStorage or the daemon.  Handles are lost on a full
- * page reload — on reload the URL `?f=<handle>` will not resolve and the hook
- * returns `filterState` (the default the caller passed in).  This is
- * acceptable for stage 1 because the admin is a mock-only SPA.  In stage 2+
- * the handle will be persisted in a daemon-side table and the hook will fetch
- * it via TanStack Query.
- *
- * SEARCH-PARAM COUPLING
- * TanStack Router's `useSearch` requires a validated route schema per route.
- * Rather than coupling this generic hook to every route's schema, we use
- * `useSearch({ strict: false })` which reads the raw search string without
- * schema validation.  The hook reads only the `f` key; all other params are
- * ignored.
- */
+import { useQuery } from '@tanstack/react-query';
+import { customFetch } from '@/api/mutator';
+import { ApiError } from '@/api/errors';
 
-import { useEffect, useRef, useState } from 'react';
-import { useSearch, useRouter } from '@tanstack/react-router';
-
-// ── Module-level handle store ────────────────────────────────────────────────
-
-const handleStore = new Map<string, unknown>();
-
-/** Generate a short random handle (8 hex chars). */
-function generateHandle(): string {
-  const arr = new Uint8Array(4);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-// ── Hook ─────────────────────────────────────────────────────────────────────
-
-export interface UseOpaqueFilterReturn<F> {
-  /** The current opaque handle stored in the URL `?f=` param. */
+interface OpaqueRegisterResponse {
   handle: string;
-  /** The resolved filter object. */
-  filter: F;
-  /** Update the filter. Generates a new handle and navigates to `?f=<handle>`. */
-  setFilter: (f: F) => void;
+}
+
+interface UseOpaqueFilterResult {
+  handle: string | null;
+  isPending: boolean;
+  error: unknown;
+}
+
+function fnv1a(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h = (h ^ input.charCodeAt(i)) * 0x01000193;
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
 
 /**
- * @param filterState  The default filter to use when no handle is in the URL,
- *                     or when the handle cannot be resolved (e.g. after reload).
+ * Register a sensitive value with the daemon's opaque-handle store.
+ *
+ * Returns an opaque handle that can be used in URLs / logs without leaking the
+ * underlying value. Plan 0c ships the daemon endpoint; until then the endpoint
+ * returns 501 and this hook falls back to a deterministic local placeholder.
  */
-export function useOpaqueFilter<F>(filterState: F): UseOpaqueFilterReturn<F> {
-  // Read the raw `f` param without schema coupling.
-  const search = useSearch({ strict: false });
-  const urlHandle =
-    typeof (search as Record<string, unknown>).f === 'string'
-      ? ((search as Record<string, unknown>).f as string)
-      : '';
-
-  // useRouter gives us the router instance for imperative navigation.
-  // We use it directly (rather than useNavigate) because this generic hook
-  // sets a search param (`f`) that is not declared in any route's validateSearch
-  // schema — navigate()'s strict types would reject it.  router.navigate
-  // accepts a looser NavigateOptions type that allows arbitrary search params
-  // when cast via the router instance.
-  const router = useRouter();
-
-  // Resolve the current filter from the store, or fall back to the default.
-  const resolved: F = urlHandle
-    ? ((handleStore.get(urlHandle) as F | undefined) ?? filterState)
-    : filterState;
-
-  // Reactive handle state — drives the returned `handle` value.
-  const [currentHandle, setCurrentHandle] = useState<string>(urlHandle || '');
-
-  // Stable ref mirrors the state so setFilter callbacks always close over
-  // the latest value without needing it in their dependency arrays.
-  const handleRef = useRef<string>(urlHandle || '');
-
-  // On first render: if there is no handle in the URL, seed one for the
-  // current default filter so callers always have a stable handle.
-  useEffect(() => {
-    if (handleRef.current) return; // URL already has a handle
-    const newHandle = generateHandle();
-    handleStore.set(newHandle, filterState);
-    handleRef.current = newHandle;
-    setCurrentHandle(newHandle);
-    void router.navigate({
-      search: (prev: Record<string, unknown>) => ({ ...prev, f: newHandle }),
-      replace: true,
-    } as Parameters<typeof router.navigate>[0]);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function setFilter(f: F): void {
-    const newHandle = generateHandle();
-    handleStore.set(newHandle, f);
-    handleRef.current = newHandle;
-    setCurrentHandle(newHandle);
-    void router.navigate({
-      search: (prev: Record<string, unknown>) => ({ ...prev, f: newHandle }),
-    } as Parameters<typeof router.navigate>[0]);
-  }
+export function useOpaqueFilter(value: string, tenantId: string): UseOpaqueFilterResult {
+  const query = useQuery<OpaqueRegisterResponse>({
+    queryKey: ['opaque-handle', tenantId, value],
+    queryFn: async ({ signal }) => {
+      try {
+        return await customFetch<OpaqueRegisterResponse>({
+          url: `/t/${encodeURIComponent(tenantId)}/opaque-handles`,
+          method: 'POST',
+          data: { value },
+          signal,
+        });
+      } catch (err) {
+        // Plan 0c hasn't shipped /opaque-handles yet — only fall back on 501.
+        // Other errors (401, 403, 5xx, network) propagate so React Query surfaces them.
+        if (err instanceof ApiError && err.status === 501) {
+          return { handle: `oh_pending_${fnv1a(value)}` };
+        }
+        throw err;
+      }
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+  });
 
   return {
-    handle: currentHandle,
-    filter: resolved,
-    setFilter,
+    handle: query.data?.handle ?? null,
+    isPending: query.isPending,
+    error: query.error,
   };
 }

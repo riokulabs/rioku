@@ -28,7 +28,7 @@ import {
   chartGridProps,
   DeltaPill,
 } from '@/features/widgets/chart-primitives';
-import type { ApiKey } from '@/api/resources/types';
+import type { ApiKey } from '@/api/resources';
 
 dayjs.extend(relativeTime);
 

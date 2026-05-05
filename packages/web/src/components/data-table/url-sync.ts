@@ -6,7 +6,7 @@
  *   ?<key>_s=M          — page size
  *   ?<key>_sort=colId:asc|desc  — sort column and direction
  *
- * Per-column filter URL-sync uses useOpaqueFilter for PII carve-out.
+ * Per-column filter URL-sync uses useFilterUrlHandle for PII carve-out.
  * This module handles only pagination + sort encoding for stage 1.
  */
 

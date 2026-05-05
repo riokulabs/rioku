@@ -33,7 +33,7 @@ vi.mock('@monaco-editor/react', () => {
 });
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 import { WidgetConfigPanel } from '../components/widget-config-panel';
 
 function firstWidget(): Widget {

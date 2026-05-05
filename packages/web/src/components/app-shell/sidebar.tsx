@@ -24,6 +24,7 @@ import { IconChevronLeft, IconChevronRight, IconPlug } from '@tabler/icons-react
 import { Link, useLocation, useParams } from '@tanstack/react-router';
 import type { ComponentType } from 'react';
 import { useSidebarEntries } from '@/hooks/use-sidebar-entries';
+import { getNavEntriesForGroup, type NavGroup } from './nav-registry';
 import { NAV_SECTIONS, activeSectionFor, type NavSection } from './nav-tree';
 import { SidebarFooter } from './sidebar-footer';
 import { AnalyticsNavPanel } from './analytics-nav-panel';
@@ -46,12 +47,11 @@ export function Sidebar({ onNavLinkClick, collapsed = false, onToggleCollapsed }
   const active = activeSectionFor(pathSuffix);
 
   const pluginEntriesForPanel = active.id === 'system' ? pluginEntries : [];
+  const registryChildren = getNavEntriesForGroup(active.id as NavGroup);
   // Analytics renders its own dynamic panel (lists dashboards), so it always
-  // has a panel even though `children` is empty in the static nav tree.
+  // has a panel even though it has no static registry children.
   const hasChildren =
-    active.id === 'analytics' ||
-    (active.children !== undefined && active.children.length > 0) ||
-    pluginEntriesForPanel.length > 0;
+    active.id === 'analytics' || registryChildren.length > 0 || pluginEntriesForPanel.length > 0;
 
   return (
     <Group gap={0} align="stretch" h="100%" wrap="nowrap">
@@ -73,6 +73,7 @@ export function Sidebar({ onNavLinkClick, collapsed = false, onToggleCollapsed }
           section={active}
           tenantSlug={tenantSlug}
           pathname={location.pathname}
+          registryChildren={registryChildren}
           pluginEntries={pluginEntriesForPanel}
           {...(onNavLinkClick !== undefined && { onNavLinkClick })}
         />
@@ -250,6 +251,7 @@ interface SectionPanelProps {
   section: NavSection;
   tenantSlug: string;
   pathname: string;
+  registryChildren: ReturnType<typeof getNavEntriesForGroup>;
   pluginEntries: ReturnType<typeof useSidebarEntries>;
   onNavLinkClick?: () => void;
 }
@@ -258,6 +260,7 @@ function SectionPanel({
   section,
   tenantSlug,
   pathname,
+  registryChildren,
   pluginEntries,
   onNavLinkClick,
 }: SectionPanelProps) {
@@ -269,16 +272,16 @@ function SectionPanel({
         </Text>
       </Box>
       <Box style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
-        {section.children !== undefined && section.children.length > 0 && (
+        {registryChildren.length > 0 && (
           <Stack gap={2} px={6}>
-            {section.children.map((item) => {
+            {registryChildren.map((item) => {
               const to = `/t/${tenantSlug}/${item.suffix}`;
               const itemPath = `/t/${tenantSlug}/${item.suffix}`;
               const active = pathname === itemPath || pathname.startsWith(`${itemPath}/`);
               const Icon = item.icon;
               return (
                 <NavLink
-                  key={item.suffix}
+                  key={item.id}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
                   component={Link as any}
                   to={to}

@@ -7,7 +7,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, NotificationRoutingRule } from '@/api/resources/types';
+import type { AuditEntry, ID, NotificationRoutingRule } from '@/api/resources';
 
 import type { CreateRoutingRuleInput, RoutingRuleFilter, UpdateRoutingRuleInput } from './types';
 import { createRoutingRuleSchema, updateRoutingRuleSchema } from './schemas';

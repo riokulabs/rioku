@@ -1,7 +1,7 @@
 /**
  * Feature-local types for the notification-channels feature.
  */
-import type { ID, NotificationChannel } from '@/api/resources/types';
+import type { ID, NotificationChannel } from '@/api/resources';
 
 export type { ID, NotificationChannel };
 

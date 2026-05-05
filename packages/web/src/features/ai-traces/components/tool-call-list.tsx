@@ -19,7 +19,7 @@ import {
   IconClock,
 } from '@tabler/icons-react';
 import { CodeBlock } from '@/components/code-block';
-import type { AiTraceToolCall } from '@/api/resources/types';
+import type { AiTraceToolCall } from '@/api/resources';
 
 const STATUS_COLOR: Record<AiTraceToolCall['status'], string> = {
   success: 'green',

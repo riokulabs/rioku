@@ -16,7 +16,7 @@
  */
 
 import { useMockStore } from '../api/mock-store';
-import type { Permission } from '../api/resources/types';
+import type { Permission } from '../api/resources';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

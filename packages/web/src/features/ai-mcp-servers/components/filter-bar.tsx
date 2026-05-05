@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Group, TextInput, MultiSelect, SegmentedControl } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import type { McpServer } from '@/api/resources/types';
+import type { McpServer } from '@/api/resources';
 import type { McpServerFilter } from '../types';
 
 type Health = McpServer['health'];

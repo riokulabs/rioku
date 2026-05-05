@@ -1,9 +1,9 @@
 /**
  * Feature-local types for AI providers.
  */
-export type { AiProvider, AiAgent, AiProviderModel, ID } from '@/api/resources/types';
+export type { AiProvider, AiAgent, AiProviderModel, ID } from '@/api/resources';
 
-import type { AiProvider } from '@/api/resources/types';
+import type { AiProvider } from '@/api/resources';
 
 export interface ProviderFilter {
   search: string;

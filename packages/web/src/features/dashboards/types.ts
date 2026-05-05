@@ -9,7 +9,7 @@ import type {
   DashboardUserGrant,
   DashboardVariable,
   Widget,
-} from '@/api/resources/types';
+} from '@/api/resources';
 
 export type {
   Dashboard,
@@ -22,7 +22,7 @@ export type {
   DashboardVersion,
   Widget,
   ID,
-} from '@/api/resources/types';
+} from '@/api/resources';
 
 export interface DashboardFilter {
   search: string;

@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { Group, TextInput, MultiSelect } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import type { Service } from '@/api/resources/types';
+import type { Service } from '@/api/resources';
 import type { ServiceFilter } from '../types';
 
 type HealthStatus = Service['health'];

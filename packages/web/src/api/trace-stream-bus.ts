@@ -8,7 +8,7 @@
  * The event is always `'trace'`; `event.detail` is the `AiTrace` instance.
  * In Stage 2+, this module is replaced by a real SSE/WebSocket stream.
  */
-import type { AiTrace } from './resources/types';
+import type { AiTrace } from './resources';
 
 /** Fixed topic string — only event name emitted on this bus. */
 export const TRACE_STREAM_TOPIC = 'trace';

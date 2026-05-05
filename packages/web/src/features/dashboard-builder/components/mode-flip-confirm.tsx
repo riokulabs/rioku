@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Checkbox, Group, List, Modal, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

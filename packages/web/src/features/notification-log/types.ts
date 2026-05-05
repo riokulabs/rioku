@@ -1,7 +1,7 @@
 /**
  * Feature-local types for the notification-log (delivery log) feature.
  */
-import type { ID, NotificationDeliveryLogEntry } from '@/api/resources/types';
+import type { ID, NotificationDeliveryLogEntry } from '@/api/resources';
 
 export type { ID, NotificationDeliveryLogEntry };
 

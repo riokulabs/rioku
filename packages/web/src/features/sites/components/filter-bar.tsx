@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { Group, MultiSelect, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import type { Site } from '@/api/resources/types';
+import type { Site } from '@/api/resources';
 import type { SiteEnabledFilter, SiteFilter } from '../types';
 
 type TlsMode = Site['tls_mode'];

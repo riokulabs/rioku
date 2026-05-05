@@ -14,7 +14,7 @@ import {
   IconStar,
   IconUpload,
 } from '@tabler/icons-react';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 
 interface DashboardsSidebarProps {
   dashboards: Dashboard[];

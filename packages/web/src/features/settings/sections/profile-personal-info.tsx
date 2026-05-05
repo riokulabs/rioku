@@ -17,7 +17,7 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { updateProfileName, updateProfileAvatar } from '../api';
 import { profileNameSchema } from '../schemas';
-import type { User } from '@/api/resources/types';
+import type { User } from '@/api/resources';
 
 interface ProfilePersonalInfoProps {
   user: User;

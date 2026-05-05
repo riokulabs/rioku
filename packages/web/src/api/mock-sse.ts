@@ -1,5 +1,11 @@
 /**
- * Mock SSE bus via EventTarget — Stage 1 only.
+ * Mock SSE bus via EventTarget — Stage 1 host event bus.
+ *
+ * TODO(plan-0a): This module was scheduled for deletion in Task 15 but retained
+ * because 16 consumers (host/events.ts, host/notify.ts, hooks/use-subscription.ts,
+ * and 13 test files) rely on mockBus/publishMock as the host event bus. Migration
+ * to sse-client + MSW is deferred to Plan 13 close-out, which asserts zero importers
+ * before deleting this file.
  *
  * In Stage 2+, this module is replaced by a real EventSource wrapper
  * that connects to /api/v1/events?topic=<topic>. The `useSubscription`

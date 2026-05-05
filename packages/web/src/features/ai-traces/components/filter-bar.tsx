@@ -17,7 +17,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { usePermission } from '@/hooks/use-permission';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 import type { TraceFilter } from '../types';
 
 export type RangePreset = '1h' | '24h' | '7d' | 'all' | 'custom';

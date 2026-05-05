@@ -9,7 +9,7 @@
  */
 import { Badge } from '@mantine/core';
 import type { BadgeVariant } from '@mantine/core';
-import type { AiProvider, AiTool, McpServer } from '@/api/resources/types';
+import type { AiProvider, AiTool, McpServer } from '@/api/resources';
 
 // ─── ProviderKindBadge ────────────────────────────────────────────────────────
 

@@ -27,7 +27,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import type { AiSemanticRateLimit } from '@/api/resources/types';
+import type { AiSemanticRateLimit } from '@/api/resources';
 import { createRateLimit, updateRateLimit } from '../api';
 import { createRateLimitSchema, updateRateLimitSchema } from '../schemas';
 

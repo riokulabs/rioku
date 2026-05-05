@@ -2,6 +2,9 @@ import { hardenGlobals } from './host/singleton-harden';
 // Harden pollution-vector keys before any other module-body code runs. §9.4.1.
 hardenGlobals();
 
+// Register all feature nav entries before the first render.
+import './components/app-shell/nav-bootstrap';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/app';
@@ -10,16 +13,14 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './global.css';
 import { router } from './app/router';
-import { setAuthFailureHandler } from './api/client';
+import { setAuthFailureHandler } from './api/mutator';
 import { setAuthFailureRouter, handleAuthFailure } from './api/auth-failure';
-import { initAuthBootstrap } from './api/auth-bootstrap';
 
 // Wire auth-failure interceptors before any network calls happen.
 setAuthFailureRouter(router);
 setAuthFailureHandler((url) => {
   handleAuthFailure(url);
 });
-initAuthBootstrap();
 
 async function bootstrapStore(): Promise<void> {
   if (import.meta.env.VITEST) return;

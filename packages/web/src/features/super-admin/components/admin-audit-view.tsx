@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/empty-state';
 import { IdBadge } from '@/components/id-badge';
 import { useMockStore } from '@/api/mock-store';
 import { verifyAdminAuditChain } from '@/api/resources/audit';
-import type { AdminAuditEntry } from '@/api/resources/types';
+import type { AdminAuditEntry } from '@/api/resources';
 
 type VerifyResult =
   | { status: 'idle' }

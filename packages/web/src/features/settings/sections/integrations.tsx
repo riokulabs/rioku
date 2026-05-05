@@ -47,7 +47,7 @@ import {
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { isFeatureEnabled } from '@/host/feature-flags';
-import type { WebhookEndpoint } from '@/api/resources/types';
+import type { WebhookEndpoint } from '@/api/resources';
 import {
   useWebhookEndpoints,
   addWebhookEndpoint,

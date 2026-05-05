@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Group, TextInput, MultiSelect, SegmentedControl } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import type { AiTool } from '@/api/resources/types';
+import type { AiTool } from '@/api/resources';
 import type { ToolFilter } from '../types';
 
 type Kind = AiTool['kind'];

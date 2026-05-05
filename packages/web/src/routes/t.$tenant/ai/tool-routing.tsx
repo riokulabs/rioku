@@ -25,7 +25,7 @@ import {
   MatrixView,
 } from '@/features/ai-tool-routing';
 import type { BindingFilter } from '@/features/ai-tool-routing';
-import type { AiToolBinding } from '@/api/resources/types';
+import type { AiToolBinding } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 type ViewMode = 'list' | 'matrix';

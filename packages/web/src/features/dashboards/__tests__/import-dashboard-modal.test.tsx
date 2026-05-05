@@ -10,7 +10,7 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 import { ImportDashboardModal } from '../components/import-dashboard-modal';
 import { exportDashboardJson } from '../api';
 

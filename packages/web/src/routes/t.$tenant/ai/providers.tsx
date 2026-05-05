@@ -22,7 +22,7 @@ import {
   testProvider,
 } from '@/features/ai-providers';
 import type { ProviderFilter } from '@/features/ai-providers';
-import type { AiProvider } from '@/api/resources/types';
+import type { AiProvider } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 

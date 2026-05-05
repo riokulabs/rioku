@@ -8,7 +8,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
-import type { NotificationDeliveryLogEntry } from '@/api/resources/types';
+import type { NotificationDeliveryLogEntry } from '@/api/resources';
 import type { DeliveryLogFilter } from '../types';
 
 const STATUS_OPTIONS: { value: NotificationDeliveryLogEntry['status']; label: string }[] = [
