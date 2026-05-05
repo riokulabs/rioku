@@ -26,7 +26,7 @@ export async function initI18n(): Promise<typeof i18n> {
     .init({
       fallbackLng: 'en',
       supportedLngs: ['en', 'ar'],
-      ns: ['common'],
+      ns: [...NAMESPACES],
       defaultNS: 'common',
       backend: { loadPath: '/locales/{{lng}}/{{ns}}.json' },
       interpolation: { escapeValue: false },
