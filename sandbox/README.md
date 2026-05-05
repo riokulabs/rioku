@@ -1,24 +1,47 @@
 # Rioku Sandbox
 
-Self-contained development environment with 5 fake upstream applications for testing and validation. Includes auth system with test users, RBAC roles, smoke test scripts, container support, and a unified seed system.
+Self-contained development environment with 5 fake upstream applications for testing and validation. Includes auth system with test users, RBAC roles, smoke test scripts, container support (Podman canonical; Docker supported as fallback), and a unified seed system.
 
 ## Quick Start
 
 ### Native (requires Go, Node, curl, gettext)
 
 ```bash
-make sandbox                    # Build + start + seed
+make sandbox                    # Build + start + seed (rich mode by default)
 make sandbox-stop               # Stop all processes
 make sandbox-reset              # Wipe data + restart fresh
 ```
 
 ### Containers (requires Podman or Docker)
 
+Container sandbox supports multiple profiles:
+
 ```bash
+# Rich mode (default: sandbox + Prometheus + Grafana + OTel + Tempo)
 make sandbox-container          # Build images + start in containers
+
+# Lean mode (smoke tests + RBAC tests only)
+make sandbox-container-lean     # Start with minimal services
+
+# Explicit rich mode
+make sandbox-container-rich     # Equivalent to sandbox-container
+
+# PostgreSQL profile (replaces SQLite)
+make sandbox-container-postgres # Rich services + PostgreSQL backend
+
+# Utility targets
+make sandbox-container-prepull  # Warm container image cache
+make sandbox-container-doctor   # Health probe for running sandbox
+make sandbox-container-certs    # Regenerate self-signed CA + leaf certs
 make sandbox-container-stop     # Stop containers
 make sandbox-container-logs     # Stream container logs
 make sandbox-container-clean    # Remove containers, volumes, and local images
+```
+
+Podman is the canonical engine. The Makefile auto-detects `podman-compose` or falls back to `docker compose`. To force a specific tool:
+
+```bash
+COMPOSE_CMD="docker compose" make sandbox-container
 ```
 
 ### Web Admin Development (HMR)
@@ -61,11 +84,45 @@ SANDBOX_ROOT_PASSWORD=MyPassword1! make sandbox
 
 If not set, a random password is generated and saved to `sandbox/.data/root-password`.
 
+## Stage-2 Services
+
+Stage-2 containers extend the sandbox with observability, email, and optional SQL persistence:
+
+| Service | Image | Default Port | Env Override |
+| --- | --- | --- | --- |
+| Mailpit (SMTP) | axllent/mailpit:v1.21 | 11025 | `SANDBOX_PORT_MAILPIT_SMTP` |
+| Mailpit (UI) | axllent/mailpit:v1.21 | 18025 | `SANDBOX_PORT_MAILPIT_UI` |
+| Postgres (opt) | postgres:16-alpine | 15432 | `SANDBOX_PORT_POSTGRES` |
+| Prometheus | prom/prometheus:v3.0.1 | 19090 | `SANDBOX_PORT_PROMETHEUS` |
+| Grafana | grafana/grafana:11.4.0 | 13000 | `SANDBOX_PORT_GRAFANA` |
+| OTel (gRPC) | otel/opentelemetry-collector-contrib:0.115.1 | 14317 | `SANDBOX_PORT_OTEL_GRPC` |
+| OTel (HTTP) | otel/opentelemetry-collector-contrib:0.115.1 | 14318 | `SANDBOX_PORT_OTEL_HTTP` |
+| Tempo | grafana/tempo:2.7.0 | 13200 | `SANDBOX_PORT_TEMPO` |
+| Pebble (ACME) | letsencrypt/pebble:v2.7.0 | 14000 | `SANDBOX_PORT_PEBBLE_ACME` |
+| Pebble (mgmt) | letsencrypt/pebble:v2.7.0 | 15000 | `SANDBOX_PORT_PEBBLE_MGMT` |
+
+**Note**: Default ports use a +10000 shift (e.g., Prometheus on 19090 instead of 9090) to avoid host collisions with native mode services.
+
+### Troubleshooting Port Collisions
+
+If a service port conflicts with existing processes, override the port via `sandbox/.env`:
+
+```bash
+# sandbox/.env
+SANDBOX_PORT_PROMETHEUS=9091
+SANDBOX_PORT_GRAFANA=3001
+SANDBOX_PORT_POSTGRES=5433
+```
+
+See `sandbox/.env.example` for all available port variables.
+
 ## All Make Targets
+
+### Native (Process) Targets
 
 | Target | Description |
 | --- | --- |
-| `sandbox` | Build all binaries (parallel), start all services, seed data |
+| `sandbox` | Build all binaries (parallel), start all services, seed data (rich mode) |
 | `sandbox-stop` | Stop all sandbox processes (via PID files) |
 | `sandbox-reset` | Stop + wipe `sandbox/.data/` + restart fresh |
 | `sandbox-clean` | Stop + wipe `sandbox/.data/` (same as reset without restart) |
@@ -80,10 +137,26 @@ If not set, a random password is generated and saved to `sandbox/.data/root-pass
 | `sandbox-logs-<name>` | Stream logs for a specific service, e.g. `make sandbox-logs-daemon` |
 | `sandbox-test-auth` | Run auth smoke tests (login, logout, RBAC, locked/suspended users) |
 | `sandbox-test-smoke` | Run full-stack smoke tests (auth + config CRUD + API keys + audit) |
-| `sandbox-container` | Build + start sandbox in containers (Podman or Docker) |
+
+### Container Targets (Podman/Docker)
+
+| Target | Description |
+| --- | --- |
+| `sandbox-container` | Build + start sandbox in containers (rich mode: services + Prometheus + Grafana + OTel + Tempo) |
+| `sandbox-container-lean` | Start containers in lean mode (smoke tests + RBAC tests only) |
+| `sandbox-container-rich` | Explicit rich mode (equivalent to `sandbox-container`) |
+| `sandbox-container-postgres` | Rich mode with PostgreSQL backend (instead of SQLite) |
+| `sandbox-container-prepull` | Warm container image cache (pulls all Stage-2 images) |
+| `sandbox-container-doctor` | Health probe for running container sandbox |
+| `sandbox-container-certs` | Regenerate self-signed CA + leaf certificates |
 | `sandbox-container-stop` | Stop container sandbox |
 | `sandbox-container-logs` | Stream container logs |
 | `sandbox-container-clean` | Remove containers, volumes, and local images |
+
+### Load Testing Targets
+
+| Target | Description |
+| --- | --- |
 | `sandbox-load` | Run standard load profile (requires running sandbox) |
 | `sandbox-load-monitor` | Run soak load profile with resource monitoring |
 | `sandbox-load-compare` | Compare load results against baseline |
@@ -104,14 +177,37 @@ Logs are written to `sandbox/.data/logs/<name>.log`. Color-coded output:
 
 ## Seeding
 
-The sandbox uses a unified YAML seed file. On first `make sandbox`, data is seeded automatically. To re-apply or modify:
+### Modular Seed Files
+
+The sandbox supports modular per-feature seed files in `sandbox/seed/<feature>.yaml`. The seed system concatenates all files via `sandbox/scripts/seed-config.sh` as a fallback mechanism. Approximately 20 feature-specific YAML files are provided.
+
+**Note**: The `rioku seed --dir` flag is pending (filed in the decision-list for Plan 0c). Until implemented, the script concatenates all yamls into a temporary file and uses `--file` to apply them.
+
+### Applying Seeds
 
 ```bash
-make sandbox-seed               # Re-apply seed data from seed.yaml
-# Edit sandbox/config/seed.yaml to modify routes, policies, services, users, and API keys
+make sandbox-seed               # Re-apply seed data from concatenated feature files
+# Edit sandbox/seed/*.yaml or sandbox/config/seed.yaml to customize
 ```
 
-`seed.yaml` supports env-variable substitution (`${SANDBOX_PORT_USERS:-9001}`) so port changes in `.env` propagate automatically.
+Seed files support env-variable substitution (`${SANDBOX_PORT_USERS:-9001}`) so port changes in `.env` propagate automatically.
+
+## Test Isolation: Snapshot / Restore
+
+The sandbox supports capturing and restoring VM snapshots to isolate test runs:
+
+```bash
+# Capture a baseline after initial seeding
+make sandbox-baseline           # Start sandbox + run rich seedgen + capture baseline snapshot
+
+# Capture current state at any time
+make sandbox-snapshot NAME=mytest  # Save snapshot to sandbox/.data/snapshots/mytest.tar.gz
+
+# Restore to a previous state (wipes current data)
+make sandbox-restore SNAPSHOT=mytest  # Restore from sandbox/.data/snapshots/mytest.tar.gz
+```
+
+Snapshots are stored in `sandbox/.data/snapshots/<name>.tar.gz` and can be shared between developers for deterministic test reproduction.
 
 ## Authentication
 
@@ -281,6 +377,28 @@ sandbox/.data/
   traces/             Trace store
   bin/                Compiled sandbox app binaries
 ```
+
+## Sandbox Tools
+
+### cert-gen
+
+Located in `sandbox/tools/cert-gen`, this utility generates self-signed CA and leaf certificates for TLS testing:
+
+```bash
+make sandbox-certs              # Regenerate CA + leaf certs (stored in sandbox/.data/pki/)
+```
+
+The generated certificates are valid for 10 years and are used by Pebble (ACME test server) and Rioku's HTTPS support.
+
+### seedgen
+
+Located in `sandbox/tools/seedgen`, this Go binary generates deterministic fixture data with a seeded random generator:
+
+```bash
+make sandbox-seedgen            # Build and run seedgen (outputs to sandbox/.data/seedgen-output)
+```
+
+Seedgen produces high-volume realistic test data (users, products, API keys, routes, policies) for performance and integration testing.
 
 ## Troubleshooting
 
