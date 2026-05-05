@@ -47,7 +47,9 @@ describe('useOpaqueFilter', () => {
       new Response('', { status: 500 }),
     );
     const { result } = renderHook(() => useOpaqueFilter('value', 'tnt-1'), { wrapper });
-    await waitFor(() => expect(result.current.error).toBeDefined());
+    await waitFor(() => {
+      expect(result.current.error).toBeDefined();
+    });
     expect(result.current.handle).toBeNull();
   });
 

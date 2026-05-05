@@ -21,6 +21,12 @@ export default tseslint.config(
       // bundle lands here; ESLint shouldn't lint built artifacts.
       '../daemon/web/build/**',
       '**/daemon/web/build/**',
+      // Orval-generated client (committed per CI drift gate, regenerable
+      // via `make web-types`). Linting generated code surfaces irrelevant
+      // rule violations (e.g. react-hooks/immutability on the standard
+      // tanstack-query queryKey assignment pattern, deprecated zod helpers
+      // we don't control, etc.). Treat the OpenAPI spec as the contract.
+      'src/api/generated/**',
     ],
   },
   js.configs.recommended,
