@@ -1,0 +1,30 @@
+# Owned by Plan 03 (api-mgmt) — sites seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Per-tenant gateway entries (Sites)
+sites:
+  - name: api-prod
+    domain: api.example.com
+    tls_mode: auto
+    rate_limit_preset: standard
+
+  - name: admin-portal
+    domain: admin.example.com
+    tls_mode: auto
+    basic_auth_enabled: true
+    basic_auth_realm: "Rioku Admin"
+    rate_limit_preset: strict
+
+  - tenant: acme
+    name: acme-www
+    domain: www.acme.test
+    tls_mode: auto
+    rate_limit_preset: lenient
+
+  # Beta-only site — used by tenant isolation smoke tests. testoperator
+  # has membership in `acme` but NOT `beta`, so a request from
+  # testoperator to /api/v1/t/beta/sites must be rejected.
+  - tenant: beta
+    name: beta-www
+    domain: www.beta.test
+    tls_mode: auto
+    rate_limit_preset: standard

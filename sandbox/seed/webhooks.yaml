@@ -1,0 +1,7 @@
+# Owned by Plan 07 (settings) — webhook endpoint seed data.
+# Stub: stage-1 sandbox doesn't seed webhooks; plan 07 adds them when migrating
+# from mock-store to daemon-backed config.
+#
+# NOTE: The Go SeedFile struct uses the key `webhook_endpoints` (not `webhooks`).
+# When this stub is promoted to real data, use `webhook_endpoints:` as the YAML key.
+webhooks: []

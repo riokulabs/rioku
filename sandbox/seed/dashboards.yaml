@@ -1,0 +1,35 @@
+# Owned by Plan 08 (dashboards) — dashboards seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Dashboards with widgets (analytics surfaces)
+dashboards:
+  - name: Overview
+    description: "Cross-service traffic + AI usage at a glance"
+    mode: metabase
+    scope: tenant
+    widgets:
+      - kind: single-stat
+        title: "Requests / minute"
+        data_source: "traffic.requests"
+        config: { unit: "req/min" }
+      - kind: time-series
+        title: "Error rate"
+        data_source: "traffic.error_rate"
+      - kind: top-n
+        title: "Top routes by volume"
+        data_source: "traffic.routes"
+        config: { n: 10 }
+      - kind: pie
+        title: "Status code distribution"
+        data_source: "traffic.status_codes"
+
+  - name: AI Usage
+    description: "Per-agent token consumption + latency"
+    mode: metabase
+    scope: tenant
+    widgets:
+      - kind: stacked-bar
+        title: "Tokens by agent"
+        data_source: "ai.tokens_by_agent"
+      - kind: time-series
+        title: "p95 latency"
+        data_source: "ai.latency"

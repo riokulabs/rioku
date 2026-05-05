@@ -1,0 +1,24 @@
+# Owned by Plan 04 (ai) — ai-tools seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# AI tools
+ai_tools:
+  - name: web-search
+    kind: http
+    description: "Search the web via SerpAPI"
+    http_endpoint: "https://serpapi.com/search"
+    schema:
+      type: object
+      properties:
+        query: { type: string }
+      required: [query]
+
+  - name: fetch-doc
+    kind: mcp
+    mcp_server: docs-mcp
+    description: "Fetch a documentation page by id"
+
+  - name: read-file
+    kind: mcp
+    mcp_server: filesystem-mcp
+    description: "Read a file from the local sandbox filesystem"
+    dangerous: true

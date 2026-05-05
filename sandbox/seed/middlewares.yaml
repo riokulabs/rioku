@@ -1,0 +1,26 @@
+# Owned by Plan 03 (api-mgmt) — middlewares seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Per-tenant reusable middleware components
+middlewares:
+  - name: ip-allowlist
+    kind: auth
+    config:
+      allowed_cidrs: ["10.0.0.0/8", "192.168.0.0/16"]
+
+  - name: gzip-compress
+    kind: transform
+    config:
+      level: 6
+      min_size_bytes: 1024
+
+  - name: redact-pii
+    kind: transform
+    config:
+      headers: ["Authorization", "X-API-Key"]
+      body_paths: ["$.password", "$.ssn"]
+
+  - name: cache-1m
+    kind: cache
+    config:
+      ttl_seconds: 60
+      key_strategy: "url+method"

@@ -42,31 +42,42 @@ fi
 # Derived paths and addresses
 # --------------------------------------------------------------------------
 DATA_DIR="${SANDBOX_DIR}/.data"
-SEED_FILE="${SANDBOX_DIR}/config/seed.json"
-API_KEYS_FILE="${SANDBOX_DIR}/config/api-keys.json"
+SEED_DIR="${SANDBOX_DIR}/seed"
 REST_BASE="${1:-http://localhost:${SANDBOX_PORT_REST}}"
-COOKIE_JAR="${DATA_DIR}/seed-cookies.txt"
 
 # --------------------------------------------------------------------------
-# Generate seed JSON with port substitutions
+# Concatenate per-domain seed files into a single temp file.
+#
+# `rioku seed` only accepts --file (no --dir flag exists yet; see
+# tmp/decisions-needed.md for the open item). The per-domain files under
+# sandbox/seed/ are loaded in glob order (alphabetical), which is safe
+# because the seed CLI resolves cross-entity references by name after
+# loading the full merged document.
 # --------------------------------------------------------------------------
-generate_seed_json() {
-  sed "s/localhost:9001/localhost:${SANDBOX_PORT_USERS}/g; \
-       s/localhost:9002/localhost:${SANDBOX_PORT_PRODUCTS}/g; \
-       s/localhost:9003/localhost:${SANDBOX_PORT_WEBHOOKS}/g; \
-       s/localhost:9004/localhost:${SANDBOX_PORT_AUTH}/g; \
-       s/localhost:9005/localhost:${SANDBOX_PORT_MEDIA}/g" "${SEED_FILE}"
-}
+SEED_TMP=$(mktemp)
+trap 'rm -f "${SEED_TMP}"' EXIT
+
+for f in "${SEED_DIR}"/*.yaml; do
+  cat "$f" >> "${SEED_TMP}"
+  printf '\n' >> "${SEED_TMP}"
+done
 
 # --------------------------------------------------------------------------
 # Dependency checks
 # --------------------------------------------------------------------------
-for cmd in curl python3; do
+for cmd in curl; do
   if ! command -v "${cmd}" >/dev/null 2>&1; then
     echo -e "${RED}[FAIL]${NC}  Required tool '${cmd}' not found. Install it and try again."
     exit 1
   fi
 done
+
+DAEMON_BIN="${REPO_ROOT}/bin/rioku"
+if [[ ! -x "${DAEMON_BIN}" ]]; then
+    echo -e "${RED}[FAIL]${NC}  rioku binary not found at ${DAEMON_BIN}"
+    echo "        Build it first: make build (from repo root)"
+    exit 1
+fi
 
 # --------------------------------------------------------------------------
 # Validate prerequisites
@@ -84,188 +95,27 @@ if [[ -z "${ROOT_PASSWORD}" ]]; then
     exit 1
 fi
 
-if [[ ! -f "${SEED_FILE}" ]]; then
-    echo -e "${RED}[FAIL]${NC}  Seed file not found: ${SEED_FILE}"
+if [[ ! -d "${SEED_DIR}" ]]; then
+    echo -e "${RED}[FAIL]${NC}  Seed directory not found: ${SEED_DIR}"
     exit 1
 fi
 
 # --------------------------------------------------------------------------
-# Login as root to get a session cookie
+# Apply seed config via rioku seed --file (concat fallback loader)
 # --------------------------------------------------------------------------
 echo ""
 echo -e "${BOLD}==> Seeding configuration${NC}"
+info "Seeding from ${SEED_DIR}/ (merged into ${SEED_TMP}) ..."
 
-info "Logging in as root for config seeding..."
-SEED_UA="rioku-seed-script/1.0"
-LOGIN_RESP="$(curl -sf --max-time 10 \
-    -c "${COOKIE_JAR}" \
-    -H "Content-Type: application/json" \
-    -H "User-Agent: ${SEED_UA}" \
-    -d "{\"username\": \"root\", \"password\": \"${ROOT_PASSWORD}\"}" \
-    "${REST_BASE}/api/v1/auth/login" 2>/dev/null || true)"
-
-if [[ -z "${LOGIN_RESP}" ]]; then
-    echo -e "${RED}[FAIL]${NC}  Root login failed — is the daemon running and healthy?"
-    echo "        Check: curl -sf ${REST_BASE}/api/v1/health"
-    rm -f "${COOKIE_JAR}"
-    exit 1
-fi
-
-success "Root login successful"
-
-# --------------------------------------------------------------------------
-# Apply seed config (services, routes, policies)
-# --------------------------------------------------------------------------
-info "Seeding services, routes, and policies from ${SEED_FILE} ..."
-seed_failed=0
-# Generate port-substituted seed JSON for the Python seeder.
-GENERATED_SEED_FILE="${DATA_DIR}/seed-generated.json"
-generate_seed_json > "${GENERATED_SEED_FILE}"
-export SEED_FILE="${GENERATED_SEED_FILE}" REST_BASE COOKIE_JAR SEED_UA
-python3 - <<'PYEOF' 2>/dev/null || seed_failed=1
-import json, urllib.request, urllib.error, os
-
-seed_file  = os.environ.get("SEED_FILE",   "")
-rest_base  = os.environ.get("REST_BASE",   "http://localhost:7778")
-cookie_jar = os.environ.get("COOKIE_JAR",  "")
-
-# Read session cookie from the curl cookie jar file.
-session_id = ""
-if cookie_jar and os.path.exists(cookie_jar):
-    with open(cookie_jar) as cf:
-        for line in cf:
-            if "rioku_sid" in line:
-                session_id = line.strip().split("\t")[-1]
-                break
-
-with open(seed_file) as f:
-    seed = json.load(f)
-
-seed_ua = os.environ.get("SEED_UA", "rioku-seed-script/1.0")
-
-def api(method, path, payload=None):
-    url  = f"{rest_base}{path}"
-    data = json.dumps(payload).encode() if payload is not None else None
-    req  = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", seed_ua)
-    if session_id:
-        req.add_header("Cookie", f"rioku_sid={session_id}")
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            body = resp.read()
-            return resp.status, json.loads(body) if body else {}
-    except urllib.error.HTTPError as e:
-        body = e.read()
-        return e.code, json.loads(body) if body else {}
-
-# --- Step 1: Create services (with health checks and labels) ---
-for svc in seed.get("services", []):
-    payload = {
-        "name":      svc["name"],
-        "upstreams": svc["upstreams"],
-        "lbPolicy":  svc["lbPolicy"],
-    }
-    if svc.get("healthCheck"):
-        payload["healthCheck"] = svc["healthCheck"]
-    if svc.get("labels"):
-        payload["labels"] = svc["labels"]
-    change = {"service": {"action": "UPSERT", "service": payload}}
-    status, resp = api("POST", "/api/v1/config", change)
-    print(f"  service {svc['name']}: HTTP {status}")
-
-# --- Step 2: Create policies ---
-for pol in seed.get("policies", []):
-    status, _ = api("POST", "/api/v1/config", {"policy": {"action": "UPSERT", "policy": {
-        "name":   pol["name"],
-        "type":   pol["type"],
-        "config": pol.get("config", {}),
-    }}})
-    print(f"  policy {pol['name']}: HTTP {status}")
-
-# --- Step 3: Fetch generated IDs for services and policies ---
-_, config_resp = api("GET", "/api/v1/config")
-service_ids = {}
-for svc in config_resp.get("services", []):
-    service_ids[svc["name"]] = svc["id"]
-policy_ids = {}
-for pol in config_resp.get("policies", []):
-    policy_ids[pol["name"]] = pol["id"]
-
-# --- Step 4: Create routes with service + policy references ---
-for route in seed.get("routes", []):
-    svc_ref = route.get("serviceRef", "")
-    svc_id  = service_ids.get(svc_ref, "")
-    if not svc_id:
-        print(f"  route {route['name']}: SKIP (service '{svc_ref}' not found)")
-        continue
-    # Resolve policy names to IDs
-    pol_refs = route.get("policyRefs", [])
-    pol_ids = [policy_ids[p] for p in pol_refs if p in policy_ids]
-    missing = [p for p in pol_refs if p not in policy_ids]
-    if missing:
-        print(f"  route {route['name']}: WARN policies not found: {missing}")
-    r = {
-        "name":     route["name"],
-        "enabled":  route.get("enabled", True),
-        "matchers": route.get("matchers", []),
-        "serviceId": svc_id,
-        "policyIds": pol_ids,
-    }
-    if route.get("labels"):
-        r["labels"] = route["labels"]
-    status, _ = api("POST", "/api/v1/config", {"route": {"action": "UPSERT", "route": r}})
-    print(f"  route {route['name']}: HTTP {status} ({len(pol_ids)} policies attached)")
-PYEOF
-
-if (( seed_failed )); then
-    warn "Config seed encountered errors (daemon API may not be fully implemented yet)"
+if ! "${DAEMON_BIN}" seed \
+    --file "${SEED_TMP}" \
+    --target "${REST_BASE}" \
+    --password "${ROOT_PASSWORD}"; then
+    warn "Seed encountered errors — daemon API may not be fully implemented yet"
+    warn "Run 'make sandbox-seed' manually once the daemon is healthy"
 else
     success "Config seed complete"
 fi
-
-# --------------------------------------------------------------------------
-# Create API keys
-# --------------------------------------------------------------------------
-if [[ -f "${API_KEYS_FILE}" ]]; then
-    info "Creating API keys from ${API_KEYS_FILE} ..."
-    while IFS= read -r key_name; do
-        scopes="$(python3 -c "
-import json
-d = json.load(open('${API_KEYS_FILE}'))
-for k in d['keys']:
-    if k['name'] == '${key_name}':
-        print(','.join(k['scopes']))
-        break
-" 2>/dev/null || echo "admin")"
-
-        resp="$(curl -sf --max-time 10 \
-            -b "${COOKIE_JAR}" -c "${COOKIE_JAR}" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\": \"${key_name}\", \"scopes\": \"${scopes}\"}" \
-            "${REST_BASE}/api/v1/keys" 2>/dev/null || true)"
-
-        if [[ -n "${resp}" ]]; then
-            raw_key="$(echo "${resp}" | grep -o '"key":"[^"]*"' | cut -d'"' -f4 || true)"
-            success "  API key '${key_name}' created: ${raw_key}"
-        else
-            warn "  Failed to create API key '${key_name}'"
-        fi
-    done < <(python3 -c "
-import json
-d = json.load(open('${API_KEYS_FILE}'))
-for k in d['keys']:
-    print(k['name'])
-" 2>/dev/null || true)
-fi
-
-# --------------------------------------------------------------------------
-# Logout root session used for seeding
-# --------------------------------------------------------------------------
-curl -sf --max-time 5 -b "${COOKIE_JAR}" \
-    -X POST "${REST_BASE}/api/v1/auth/logout" >/dev/null 2>&1 || true
-rm -f "${COOKIE_JAR}"
-success "Root seeding session closed"
 
 echo ""
 echo -e "${BOLD}Config seeding complete.${NC}"

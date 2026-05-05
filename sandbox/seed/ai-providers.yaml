@@ -1,0 +1,30 @@
+# Owned by Plan 04 (ai) — ai-providers seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# AI providers + models
+ai_providers:
+  - name: openai-prod
+    kind: openai
+    base_url: "https://api.openai.com"
+    models:
+      - upstream_id: gpt-4-turbo
+        alias: gpt4
+        rate_limit_rpm: 200
+      - upstream_id: gpt-3.5-turbo
+        alias: gpt3
+        rate_limit_rpm: 1000
+
+  - name: anthropic-prod
+    kind: anthropic
+    base_url: "https://api.anthropic.com"
+    models:
+      - upstream_id: claude-3-opus
+        alias: claude-opus
+      - upstream_id: claude-3-sonnet
+        alias: claude-sonnet
+
+  - name: ollama-local
+    kind: ollama
+    base_url: "http://localhost:11434"
+    models:
+      - upstream_id: llama3
+        alias: llama

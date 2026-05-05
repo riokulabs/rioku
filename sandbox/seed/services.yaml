@@ -1,0 +1,31 @@
+# Owned by Plan 03 (api-mgmt) — services seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Upstream services
+services:
+  - name: users-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_USERS:-9001}"
+      - address: "localhost:${SANDBOX_PORT_USERS:-9001}"
+    lb_policy: LB_POLICY_ROUND_ROBIN
+
+  - name: products-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_PRODUCTS:-9002}"
+      - address: "localhost:${SANDBOX_PORT_PRODUCTS:-9002}"
+    lb_policy: LB_POLICY_WEIGHTED_ROUND_ROBIN
+
+  - name: webhooks-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_WEBHOOKS:-9003}"
+    lb_policy: LB_POLICY_LEAST_CONN
+
+  - name: auth-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_AUTH:-9004}"
+      - address: "localhost:${SANDBOX_PORT_AUTH:-9004}"
+    lb_policy: LB_POLICY_ROUND_ROBIN
+
+  - name: media-upstream
+    upstreams:
+      - address: "localhost:${SANDBOX_PORT_MEDIA:-9005}"
+    lb_policy: LB_POLICY_RANDOM
