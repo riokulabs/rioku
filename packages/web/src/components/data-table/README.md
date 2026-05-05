@@ -96,7 +96,7 @@ When `urlSyncKey="services"` is set, pagination and sort state are encoded in UR
 
 Uses `useSearch({ strict: false })` so it works from any route without declaring a search schema. The URL-sync effect fires on sort or pagination change.
 
-Per-column filter URL-sync for PII fields is handled separately via `useOpaqueFilter` — wire it in the feature component, not inside DataTable.
+Per-column filter URL-sync for PII fields is handled separately via `useFilterUrlHandle` — wire it in the feature component, not inside DataTable.
 
 ## Deferred features
 

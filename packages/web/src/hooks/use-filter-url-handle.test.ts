@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 // Import after mocks
-import { useOpaqueFilter } from './use-opaque-filter';
+import { useFilterUrlHandle } from './use-filter-url-handle';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ interface TestFilter {
 const DEFAULT_FILTER: TestFilter = { status: 'active', page: 1 };
 const ALT_FILTER: TestFilter = { status: 'inactive', page: 2 };
 
-describe('useOpaqueFilter', () => {
+describe('useFilterUrlHandle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearch = {};
@@ -34,12 +34,12 @@ describe('useOpaqueFilter', () => {
   });
 
   it('returns the default filter on first render when no URL handle', () => {
-    const { result } = renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    const { result } = renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     expect(result.current.filter).toEqual(DEFAULT_FILTER);
   });
 
   it('generates a handle and updates URL on first render', async () => {
-    renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalled();
     });
@@ -53,7 +53,7 @@ describe('useOpaqueFilter', () => {
   });
 
   it('calling setFilter creates a new handle and navigates', () => {
-    const { result } = renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    const { result } = renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
 
     act(() => {
       result.current.setFilter(ALT_FILTER);
@@ -75,7 +75,7 @@ describe('useOpaqueFilter', () => {
     // instance, then simulate the URL handle being present on mount.
 
     // Step 1: run the hook, set a filter to store it
-    const { result: r1 } = renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    const { result: r1 } = renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     act(() => {
       r1.current.setFilter(ALT_FILTER);
     });
@@ -91,7 +91,7 @@ describe('useOpaqueFilter', () => {
     mockSearch = { f: storedHandle };
     mockNavigate.mockClear();
 
-    const { result: r2 } = renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    const { result: r2 } = renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     // The hook should resolve to the stored ALT_FILTER
     expect(r2.current.filter).toEqual(ALT_FILTER);
   });
@@ -99,13 +99,13 @@ describe('useOpaqueFilter', () => {
   it('falls back to default filter when URL handle is unknown (e.g. after reload)', () => {
     // Provide a handle that was never stored
     mockSearch = { f: 'deadbeef' };
-    const { result } = renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    const { result } = renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     expect(result.current.filter).toEqual(DEFAULT_FILTER);
   });
 
   it('handle in the URL is not navigated away from on init when already set', async () => {
     mockSearch = { f: 'existinghandle' };
-    renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     // Should NOT call navigate to replace the URL when a handle already exists
     await new Promise((r) => setTimeout(r, 10));
     const replaceCalls = mockNavigate.mock.calls.filter(
@@ -115,7 +115,7 @@ describe('useOpaqueFilter', () => {
   });
 
   it('exposes the current handle string', async () => {
-    const { result } = renderHook(() => useOpaqueFilter(DEFAULT_FILTER));
+    const { result } = renderHook(() => useFilterUrlHandle(DEFAULT_FILTER));
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalled();
     });

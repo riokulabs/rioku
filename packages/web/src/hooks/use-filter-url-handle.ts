@@ -1,5 +1,5 @@
 /**
- * useOpaqueFilter — opaque handle ↔ filter-state bridge (stage-1 in-memory).
+ * useFilterUrlHandle — opaque handle ↔ filter-state bridge (stage-1 in-memory).
  *
  * Syncs a typed filter object to the URL as a short opaque handle (`?f=<id>`)
  * instead of serialising the full filter into the query string.  This keeps
@@ -38,7 +38,7 @@ function generateHandle(): string {
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
-export interface UseOpaqueFilterReturn<F> {
+export interface UseFilterUrlHandleReturn<F> {
   /** The current opaque handle stored in the URL `?f=` param. */
   handle: string;
   /** The resolved filter object. */
@@ -51,7 +51,7 @@ export interface UseOpaqueFilterReturn<F> {
  * @param filterState  The default filter to use when no handle is in the URL,
  *                     or when the handle cannot be resolved (e.g. after reload).
  */
-export function useOpaqueFilter<F>(filterState: F): UseOpaqueFilterReturn<F> {
+export function useFilterUrlHandle<F>(filterState: F): UseFilterUrlHandleReturn<F> {
   // Read the raw `f` param without schema coupling.
   const search = useSearch({ strict: false });
   const urlHandle =

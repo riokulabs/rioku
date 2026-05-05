@@ -3,7 +3,7 @@
  *
  * TanStack Router (useSearch / useNavigate) is mocked at the module level
  * so tests run without a real router context, matching the pattern used by
- * use-opaque-filter.test.ts in this codebase.
+ * use-filter-url-handle.test.ts in this codebase.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

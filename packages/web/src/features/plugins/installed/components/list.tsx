@@ -28,7 +28,7 @@ import {
 } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useOpaqueFilter } from '@/hooks/use-opaque-filter';
+import { useFilterUrlHandle } from '@/hooks/use-filter-url-handle';
 import { notify } from '@/hooks/use-notify';
 import { PART_COLORS } from '../../shared/constants';
 import { useInstalledPluginList, enablePlugin, disablePlugin } from '../api';
@@ -49,7 +49,7 @@ interface InstalledPluginListProps {
 }
 
 export function InstalledPluginList({ tenantId, onSelect, onUninstall }: InstalledPluginListProps) {
-  const { filter, setFilter } = useOpaqueFilter<InstalledPluginFilter>(DEFAULT_FILTER);
+  const { filter, setFilter } = useFilterUrlHandle<InstalledPluginFilter>(DEFAULT_FILTER);
 
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);

@@ -15,7 +15,7 @@
  *
  * URL-sync: if `urlSyncKey` is set, pagination + sort are encoded in search params
  * via useSearch({ strict: false }) + useNavigate(). Per-column filter URL-sync
- * for PII fields uses useOpaqueFilter (imported by the caller, not wired internally
+ * for PII fields uses useFilterUrlHandle (imported by the caller, not wired internally
  * for stage 1 — filter state stays in React state unless the caller manages it).
  */
 
