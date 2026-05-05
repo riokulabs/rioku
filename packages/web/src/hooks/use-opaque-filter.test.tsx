@@ -26,7 +26,7 @@ describe('useOpaqueFilter', () => {
       wrapper,
     });
     await waitFor(() => { expect(result.current.handle).toBe('oh_abc123'); });
-    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    const init = mockFetch.mock.calls[0]![1] as RequestInit;
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toMatchObject({ value: 'user-email@example.com' });
   });

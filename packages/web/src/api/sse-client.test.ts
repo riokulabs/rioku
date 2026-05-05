@@ -29,13 +29,28 @@ class MockEventSource implements EventSource {
   addEventListener<K extends keyof EventSourceEventMap>(
     type: K,
     listener: (this: EventSource, ev: EventSourceEventMap[K]) => unknown,
+    options?: boolean | AddEventListenerOptions,
   ): void;
-  addEventListener(type: string, listener: (ev: MessageEvent) => void): void;
+  addEventListener(
+    type: string,
+    listener: (this: EventSource, event: MessageEvent) => unknown,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
   addEventListener(type: string, listener: (ev: MessageEvent) => void): void {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set());
     this.listeners.get(type)?.add(listener);
   }
 
+  removeEventListener<K extends keyof EventSourceEventMap>(
+    type: K,
+    listener: (this: EventSource, ev: EventSourceEventMap[K]) => unknown,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: (this: EventSource, event: MessageEvent) => unknown,
+    options?: boolean | EventListenerOptions,
+  ): void;
   removeEventListener(type: string, listener: (ev: MessageEvent) => void): void {
     this.listeners.get(type)?.delete(listener);
   }
@@ -77,15 +92,15 @@ describe('subscribeSSE', () => {
     const handler = vi.fn();
     const cleanup = subscribeSSE('audit', handler);
     expect(MockEventSource.instances).toHaveLength(1);
-    expect(MockEventSource.instances[0].url).toContain('/events?topic=audit');
-    expect(MockEventSource.instances[0].withCredentials).toBe(true);
+    expect(MockEventSource.instances[0]!.url).toContain('/events?topic=audit');
+    expect(MockEventSource.instances[0]!.withCredentials).toBe(true);
     cleanup();
   });
 
   it('@read-only delivers messages to the handler', () => {
     const handler = vi.fn();
     const cleanup = subscribeSSE('audit', handler);
-    MockEventSource.instances[0].emit('message', { id: 'a-1', action: 'create' });
+    MockEventSource.instances[0]!.emit('message', { id: 'a-1', action: 'create' });
     expect(handler).toHaveBeenCalledWith({ id: 'a-1', action: 'create' });
     cleanup();
   });
@@ -94,13 +109,13 @@ describe('subscribeSSE', () => {
     vi.useFakeTimers();
     const handler = vi.fn();
     subscribeSSE('audit', handler);
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instances[0]!;
     es.emit('message', { id: 'a-1' }, 'evt-1');
     es.emit('message', { id: 'a-2' }, 'evt-2');
     es.dispatchEvent(new Event('error'));
     vi.advanceTimersByTime(2000);
     expect(MockEventSource.instances).toHaveLength(2);
-    expect(MockEventSource.instances[1].url).toContain('last-event-id=evt-2');
+    expect(MockEventSource.instances[1]!.url).toContain('last-event-id=evt-2');
     vi.useRealTimers();
   });
 
@@ -109,7 +124,7 @@ describe('subscribeSSE', () => {
     const handler = vi.fn();
     const cleanup = subscribeSSE('audit', handler);
     cleanup();
-    MockEventSource.instances[0].dispatchEvent(new Event('error'));
+    MockEventSource.instances[0]!.dispatchEvent(new Event('error'));
     vi.advanceTimersByTime(2000);
     expect(MockEventSource.instances).toHaveLength(1);
     vi.useRealTimers();
@@ -120,11 +135,11 @@ describe('subscribeSSE', () => {
     const handler = vi.fn();
     subscribeSSE('audit', handler);
     // First error: retryDelayMs=1000, jitter factor=1.0 → fires after exactly 1000ms
-    MockEventSource.instances[0].dispatchEvent(new Event('error'));
+    MockEventSource.instances[0]!.dispatchEvent(new Event('error'));
     vi.advanceTimersByTime(1500);
     expect(MockEventSource.instances).toHaveLength(2);
     // Second error: retryDelayMs=2000, jitter factor=1.0 → fires after exactly 2000ms
-    MockEventSource.instances[1].dispatchEvent(new Event('error'));
+    MockEventSource.instances[1]!.dispatchEvent(new Event('error'));
     vi.advanceTimersByTime(1500); // not enough (only 1500 of 2000ms elapsed)
     expect(MockEventSource.instances).toHaveLength(2);
     vi.advanceTimersByTime(1500); // total 3000ms elapsed since second error — enough
@@ -138,7 +153,7 @@ describe('subscribeSSE', () => {
     const c1 = subscribeSSE('audit', h1);
     const c2 = subscribeSSE('audit', h2);
     expect(MockEventSource.instances).toHaveLength(1);
-    MockEventSource.instances[0].emit('message', { x: 1 });
+    MockEventSource.instances[0]!.emit('message', { x: 1 });
     expect(h1).toHaveBeenCalledTimes(1);
     expect(h2).toHaveBeenCalledTimes(1);
     c1();

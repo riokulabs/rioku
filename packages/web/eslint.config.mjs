@@ -156,6 +156,9 @@ export default tseslint.config(
       'boundaries/element-types': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-empty-function': 'off',
+      // noUncheckedIndexedAccess requires non-null assertions for mock array
+      // access in tests where the test setup guarantees the element exists.
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {
@@ -185,6 +188,7 @@ export default tseslint.config(
         Buffer: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {

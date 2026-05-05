@@ -18,7 +18,7 @@ describe('customFetch', () => {
     );
     await customFetch<{ ok: boolean }>({ url: '/api/v1/foo', method: 'GET' });
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    const init = mockFetch.mock.calls[0]![1] as RequestInit;
     expect(init.credentials).toBe('include');
   });
 
@@ -101,7 +101,7 @@ describe('customFetch', () => {
       method: 'POST',
       data: { name: 'svc' },
     });
-    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    const init = mockFetch.mock.calls[0]![1] as RequestInit;
     expect(init.method).toBe('POST');
     expect(init.headers).toMatchObject({ 'content-type': 'application/json' });
     expect(init.body).toBe(JSON.stringify({ name: 'svc' }));

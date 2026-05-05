@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Data-source adapter tests — covers all 6 built-in adapters plus the
  * wizard_state / raw_query / parse-error branches.
