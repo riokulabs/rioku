@@ -20,7 +20,9 @@
     "bundle-analyze": "vite-bundle-analyzer dist/stats.html",
     "check-budgets": "node scripts/check-bundle-budgets.mjs",
     "check-abi": "node scripts/check-abi-surface.mjs",
-    "abi:update": "node scripts/check-abi-surface.mjs --update"
+    "abi:update": "node scripts/check-abi-surface.mjs --update",
+    "types:gen": "orval --config orval.config.ts",
+    "types:gen:incremental": "orval --config orval.config.ts --watch=false"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -84,6 +86,7 @@
     "jest-axe": "^9.0.0",
     "jsdom": "29.0.2",
     "msw": "2.13.4",
+    "orval": "7.5.0",
     "postcss": "^8.4.49",
     "postcss-preset-mantine": "1.18.0",
     "postcss-simple-vars": "7.0.1",
