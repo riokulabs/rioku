@@ -1,7 +1,7 @@
 /**
  * Install-approval types.
  */
-export type { Plugin, ID } from '@/api/resources/types';
+export type { Plugin, ID } from '@/api/resources';
 
 /**
  * Minimal shape the approval modal needs to render.

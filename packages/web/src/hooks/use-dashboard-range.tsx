@@ -17,7 +17,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import dayjs from 'dayjs';
-import type { DashboardRangeSpec, DashboardRangeUnit } from '@/api/resources/types';
+import type { DashboardRangeSpec, DashboardRangeUnit } from '@/api/resources';
 
 export type TimeRangeId = '1h' | '6h' | '24h' | '7d' | '30d' | '90d';
 

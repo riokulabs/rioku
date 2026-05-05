@@ -23,7 +23,7 @@ import {
   ToolInUseError,
 } from '@/features/ai-tools';
 import type { ToolFilter } from '@/features/ai-tools';
-import type { AiTool } from '@/api/resources/types';
+import type { AiTool } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 

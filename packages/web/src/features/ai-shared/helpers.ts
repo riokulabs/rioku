@@ -5,7 +5,7 @@
  * Traces, and MCP Servers. No Mantine imports; presentation components live
  * alongside in `badges.tsx`.
  */
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 
 /**
  * Format a USD cost value with millicent precision.

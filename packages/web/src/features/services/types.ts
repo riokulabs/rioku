@@ -1,9 +1,9 @@
 /**
  * Feature-local types for services.
  */
-export type { Service, Route, ID } from '@/api/resources/types';
+export type { Service, Route, ID } from '@/api/resources';
 
-import type { Service } from '@/api/resources/types';
+import type { Service } from '@/api/resources';
 
 type HealthStatus = Service['health'];
 

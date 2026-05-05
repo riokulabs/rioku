@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { render } from '@testing-library/react';
 import { BUILT_IN_WIDGETS } from '../registry';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 import type { WidgetRenderProps } from '../types';
 
 function wrap(ui: React.ReactNode) {

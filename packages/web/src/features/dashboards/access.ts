@@ -16,7 +16,7 @@
  * Tenant-level `dashboard:write` permission is then required for writes — a
  * dashboard grant without the tenant-level perm collapses to read-only.
  */
-import type { Dashboard, DashboardPermissionLevel } from '@/api/resources/types';
+import type { Dashboard, DashboardPermissionLevel } from '@/api/resources';
 
 export type DashboardAccessLevel = 'none' | DashboardPermissionLevel;
 

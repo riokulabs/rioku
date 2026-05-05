@@ -5,7 +5,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { logAuditEntry } from '@/api/resources/audit';
 import { makeIdFactory } from '@/lib/id-generator';
-import type { ApiKey } from '@/api/resources/types';
+import type { ApiKey } from '@/api/resources';
 import type { ApiKeyWithMeta, ApiKeyFilter } from './types';
 
 const nextApiKeyId = makeIdFactory('apikey-new');

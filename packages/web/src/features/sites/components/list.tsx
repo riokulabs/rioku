@@ -13,7 +13,7 @@ import { Link } from '@tanstack/react-router';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
-import type { Site } from '@/api/resources/types';
+import type { Site } from '@/api/resources';
 import { notify } from '@/hooks/use-notify';
 import { useSiteList, toggleSite } from '../api';
 import type { SiteFilter } from '../types';

@@ -3,7 +3,7 @@
  *
  * Mirrors the Plan 7 shape: filter criteria, emit input, listener signatures.
  */
-import type { ID, NotificationItem } from '@/api/resources/types';
+import type { ID, NotificationItem } from '@/api/resources';
 
 export type { ID, NotificationItem };
 

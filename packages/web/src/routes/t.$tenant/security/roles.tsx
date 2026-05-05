@@ -20,7 +20,7 @@ import {
 } from '@/features/security/roles';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import type { Role } from '@/api/resources/types';
+import type { Role } from '@/api/resources';
 import type { RoleCreateFormValues } from '@/features/security/roles';
 
 type DrawerMode = 'detail' | 'create' | 'delete';

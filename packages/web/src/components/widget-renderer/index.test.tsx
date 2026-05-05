@@ -7,7 +7,7 @@ import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { WidgetRenderer } from './index';
 import { registerWidget, unregisterWidget } from '@/host/widgets';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 
 function wrap(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);

@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
 import { usePermission } from '@/hooks/use-permission';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 import { resolveDashboardAccess, type DashboardAccessLevel } from './access';
 
 export function useDashboardAccess(dashboard: Dashboard | undefined): DashboardAccessLevel {

@@ -58,7 +58,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
-import type { Dashboard, DashboardVersion } from '@/api/resources/types';
+import type { Dashboard, DashboardVersion } from '@/api/resources';
 import { restoreDashboardVersion, useDashboardVersions } from '../api';
 
 dayjs.extend(relativeTime);

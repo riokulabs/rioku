@@ -50,7 +50,7 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { DashboardRangeProvider, useDashboardRange } from '@/hooks/use-dashboard-range';
 import { useWidgetData } from '@/features/dashboard-builder';
-import type { Widget, DashboardRangeSpec } from '@/api/resources/types';
+import type { Widget, DashboardRangeSpec } from '@/api/resources';
 import { useDashboardDetail, useDashboardWidgets, setAsMyHome, updateDashboard } from '../api';
 import { useDashboardAccess } from '../use-dashboard-access';
 import { downloadDashboardExport } from '../export-download';

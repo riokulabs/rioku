@@ -43,7 +43,7 @@ import { ActionIcon, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconGripVertical, IconSettings, IconTrash } from '@tabler/icons-react';
 import { WidgetRenderer } from '@/components/widget-renderer';
 import { useWidgetData } from '../api';
-import type { Dashboard, Widget } from '@/api/resources/types';
+import type { Dashboard, Widget } from '@/api/resources';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

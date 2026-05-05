@@ -23,7 +23,7 @@ import {
   RateLimitDetail,
 } from '@/features/ai-rate-limits';
 import type { RateLimitFilter } from '@/features/ai-rate-limits';
-import type { AiSemanticRateLimit } from '@/api/resources/types';
+import type { AiSemanticRateLimit } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 type Scope = AiSemanticRateLimit['scope'];

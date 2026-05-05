@@ -51,7 +51,7 @@ import {
   VariablesPanel,
   downloadDashboardExport,
 } from '@/features/dashboards';
-import type { Dashboard, Widget } from '@/api/resources/types';
+import type { Dashboard, Widget } from '@/api/resources';
 import { addWidget, flipWidgetToAdvanced, removeWidget, updateLayout } from '../api';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { GridCanvas } from './grid-canvas';

@@ -10,7 +10,7 @@
  * The emitted event is always `'inbox'`; `event.detail` is the
  * `NotificationItem`. Consumers filter by user_id / tenant_id themselves.
  */
-import type { NotificationItem } from './resources/types';
+import type { NotificationItem } from './resources';
 
 /** Fixed topic string — only event name emitted on this bus. */
 export const INBOX_STREAM_TOPIC = 'inbox';

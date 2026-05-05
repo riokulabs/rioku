@@ -38,7 +38,7 @@ import type {
   TlsConfig,
   User,
   WebhookEndpoint,
-} from '@/api/resources/types';
+} from '@/api/resources';
 import type {
   CreateCaValues,
   CreateEnrollmentValues,

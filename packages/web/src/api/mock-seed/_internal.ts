@@ -21,7 +21,7 @@ import { BUILT_IN_PERMISSIONS, registerPermission } from '../../host/permissions
 import { seedZones } from '../../host/seed-zones';
 import { DEFAULT_TLS_CIPHERS } from '../../features/settings/tls-constants';
 import type { StoreApi } from 'zustand';
-import type * as T from '../resources/types';
+import type * as T from '../resources';
 import type { MockStore } from '../mock-store';
 
 // ─── ID factories ─────────────────────────────────────────────────────────────

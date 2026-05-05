@@ -9,7 +9,7 @@
  */
 
 import { useMockStore } from '../api/mock-store';
-import type { ID } from '../api/resources/types';
+import type { ID } from '../api/resources';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

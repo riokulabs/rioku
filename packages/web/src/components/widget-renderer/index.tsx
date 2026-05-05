@@ -17,7 +17,7 @@ import { Alert } from '@mantine/core';
 import { IconPlugOff } from '@tabler/icons-react';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { useWidgets } from '@/hooks/use-widgets';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

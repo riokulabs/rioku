@@ -19,7 +19,7 @@ import { EmptyState } from '@/components/empty-state';
 import { Zone } from '@/components/zone';
 import { IconActivity } from '@tabler/icons-react';
 import { DashboardViewer, useUserHomeDashboard } from '@/features/dashboards';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 

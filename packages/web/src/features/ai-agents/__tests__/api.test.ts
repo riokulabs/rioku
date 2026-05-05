@@ -7,7 +7,7 @@ import { renderHook } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { traceStreamBus, TRACE_STREAM_TOPIC } from '@/api/trace-stream-bus';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 import {
   createAgent,
   updateAgent,

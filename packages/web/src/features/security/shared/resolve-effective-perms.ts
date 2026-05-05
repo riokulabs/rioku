@@ -17,7 +17,7 @@
  * All returned entries are sorted by permission key.
  */
 
-import type { Role, Membership, RbacPolicy } from '../../../api/resources/types';
+import type { Role, Membership, RbacPolicy } from '../../../api/resources';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 

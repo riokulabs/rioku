@@ -6,7 +6,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, Route } from '@/api/resources/types';
+import type { AuditEntry, Route } from '@/api/resources';
 import type { RouteFilter, RouteInput, RouteUpdateInput } from './types';
 
 const nextRouteId = makeIdFactory('route-new');

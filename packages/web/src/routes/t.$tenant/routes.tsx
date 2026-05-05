@@ -15,7 +15,7 @@ import { requirePermissions } from '@/hooks/use-before-load';
 import { DrawerTitleExpand } from '@/components/drawer-title-expand';
 import { RouteList, RouteForm, RouteDetail, deleteRoute } from '@/features/routes';
 import type { RouteFilter } from '@/features/routes';
-import type { Route as RouteRecord } from '@/api/resources/types';
+import type { Route as RouteRecord } from '@/api/resources';
 import { useServiceList } from '@/features/services';
 
 type DrawerMode = 'detail' | 'create' | 'edit';

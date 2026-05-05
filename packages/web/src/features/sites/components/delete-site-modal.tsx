@@ -13,7 +13,7 @@ import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/co
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { deleteSite } from '../api';
-import type { Site } from '@/api/resources/types';
+import type { Site } from '@/api/resources';
 
 export interface DeleteSiteModalProps {
   opened: boolean;

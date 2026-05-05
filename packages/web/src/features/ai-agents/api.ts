@@ -14,7 +14,7 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { publishTrace } from '@/api/trace-stream-bus';
-import type { AiAgent, AiTool, AiTrace, AiTraceToolCall, AuditEntry } from '@/api/resources/types';
+import type { AiAgent, AiTool, AiTrace, AiTraceToolCall, AuditEntry } from '@/api/resources';
 import type { AgentFilter, CreateAgentInput, InvokeAgentInput, UpdateAgentInput } from './types';
 
 const nextAgentId = makeIdFactory('aiagent-new');

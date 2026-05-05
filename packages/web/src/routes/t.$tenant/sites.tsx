@@ -27,7 +27,7 @@ import {
   SiteList,
 } from '@/features/sites';
 import type { SiteEnabledFilter, SiteFilter } from '@/features/sites';
-import type { Site } from '@/api/resources/types';
+import type { Site } from '@/api/resources';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 

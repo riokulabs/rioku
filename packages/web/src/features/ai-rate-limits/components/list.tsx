@@ -11,7 +11,7 @@ import { IconDots, IconPencil, IconTrash, IconGauge } from '@tabler/icons-react'
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
-import type { AiSemanticRateLimit } from '@/api/resources/types';
+import type { AiSemanticRateLimit } from '@/api/resources';
 import { useRateLimitList, updateRateLimit } from '../api';
 import type { RateLimitFilter } from '../types';
 import { MetricsSparkline } from './metrics-sparkline';

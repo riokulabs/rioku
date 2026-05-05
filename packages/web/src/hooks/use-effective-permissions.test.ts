@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import type { Membership, Role } from '../api/resources/types';
+import type { Membership, Role } from '../api/resources';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@ import {
 import { IconAlertCircle, IconPlus, IconTrash, IconVariable } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import type { Dashboard, DashboardVariable } from '@/api/resources/types';
+import type { Dashboard, DashboardVariable } from '@/api/resources';
 import { updateDashboard } from '../api';
 
 // ─── Props ────────────────────────────────────────────────────────────────────

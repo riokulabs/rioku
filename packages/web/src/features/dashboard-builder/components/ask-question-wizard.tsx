@@ -41,7 +41,7 @@ import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { WidgetRenderer } from '@/components/widget-renderer';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { DATA_SOURCE_ADAPTERS } from '@/features/widgets/data-sources';
-import type { Widget, WidgetWizardState } from '@/api/resources/types';
+import type { Widget, WidgetWizardState } from '@/api/resources';
 import type { WidgetTypeDefinition } from '@/features/widgets/types';
 import { addWidget, updateWidget, useWidgetData } from '../api';
 import type { AskQuestionWizardProps, DataSourceDescriptor, WizardDraft } from '../types';

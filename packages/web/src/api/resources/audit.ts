@@ -17,7 +17,7 @@
 
 import { useMockStore } from '../mock-store';
 import { makeIdFactory } from '../../lib/id-generator';
-import type { AuditEntry, AdminAuditEntry } from './types';
+import type { AuditEntry, AdminAuditEntry } from './audit-types';
 
 // ─── ID factories ─────────────────────────────────────────────────────────────
 

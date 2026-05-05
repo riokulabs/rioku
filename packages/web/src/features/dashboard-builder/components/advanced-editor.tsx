@@ -29,7 +29,7 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { WidgetRenderer } from '@/components/widget-renderer';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 import { flipWidgetToWizard, updateWidget, useWidgetData } from '../api';
 
 // ─── Monaco (lazy) ────────────────────────────────────────────────────────────

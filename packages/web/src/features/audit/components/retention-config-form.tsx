@@ -40,7 +40,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { z } from 'zod';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import type { AuditRetentionConfig } from '@/api/resources/types';
+import type { AuditRetentionConfig } from '@/api/resources';
 import { updateRetentionConfig, useRetentionConfig } from '../api';
 
 interface RetentionConfigFormProps {

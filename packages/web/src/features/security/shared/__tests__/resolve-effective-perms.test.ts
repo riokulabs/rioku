@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { Role, Membership, RbacPolicy } from '../../../../api/resources/types';
+import type { Role, Membership, RbacPolicy } from '../../../../api/resources';
 import { resolveEffectiveRolePerms, resolveEffectiveUserPerms } from '../resolve-effective-perms';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────

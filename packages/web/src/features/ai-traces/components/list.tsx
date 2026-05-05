@@ -22,7 +22,7 @@ import { IdBadge } from '@/components/id-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { formatCost, formatTokens } from '@/features/ai-shared';
 import { useMockStore } from '@/api/mock-store';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 
 dayjs.extend(relativeTime);
 

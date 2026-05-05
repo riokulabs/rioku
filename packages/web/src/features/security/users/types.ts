@@ -2,9 +2,9 @@
  * Feature-local types for users.
  * Extends core resource types with UI composite shapes.
  */
-export type { User, Membership, Role, Session, ID } from '@/api/resources/types';
+export type { User, Membership, Role, Session, ID } from '@/api/resources';
 
-import type { User, Membership, Role } from '@/api/resources/types';
+import type { User, Membership, Role } from '@/api/resources';
 
 /** Composite shape used in the users list — user + their membership in the current tenant + resolved roles. */
 export interface UserWithMembership {

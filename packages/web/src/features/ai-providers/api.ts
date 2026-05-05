@@ -9,7 +9,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AiAgent, AiProvider, AiProviderModel, AuditEntry } from '@/api/resources/types';
+import type { AiAgent, AiProvider, AiProviderModel, AuditEntry } from '@/api/resources';
 import { ProviderInUseError, ProviderModelInUseError } from './types';
 import type {
   AddModelInput,

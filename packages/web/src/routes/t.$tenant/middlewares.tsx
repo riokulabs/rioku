@@ -20,7 +20,7 @@ import {
   MiddlewareInUseError,
 } from '@/features/middlewares';
 import type { MiddlewareFilter } from '@/features/middlewares';
-import type { Middleware } from '@/api/resources/types';
+import type { Middleware } from '@/api/resources';
 import { MIDDLEWARE_KINDS } from '@/features/middlewares';
 
 type DrawerMode = 'detail' | 'create' | 'edit';

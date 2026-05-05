@@ -11,7 +11,7 @@
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
-import type { User } from '@/api/resources/types';
+import type { User } from '@/api/resources';
 import type {
   LoginResult,
   TotpResult,

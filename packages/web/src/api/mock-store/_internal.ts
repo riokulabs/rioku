@@ -7,7 +7,7 @@
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type * as T from '../resources/types';
+import type * as T from '../resources';
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 

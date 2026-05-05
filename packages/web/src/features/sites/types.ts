@@ -1,9 +1,9 @@
 /**
  * Feature-local types for sites.
  */
-export type { Site, Service, ID } from '@/api/resources/types';
+export type { Site, Service, ID } from '@/api/resources';
 
-import type { Site } from '@/api/resources/types';
+import type { Site } from '@/api/resources';
 
 export type SiteEnabledFilter = 'enabled' | 'disabled';
 

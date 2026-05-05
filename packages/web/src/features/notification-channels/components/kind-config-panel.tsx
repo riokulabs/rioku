@@ -21,7 +21,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import type { NotificationChannel } from '@/api/resources/types';
+import type { NotificationChannel } from '@/api/resources';
 
 interface ChannelKindConfigPanelProps {
   kind: NotificationChannel['kind'];

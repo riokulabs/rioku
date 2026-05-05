@@ -38,7 +38,7 @@ import { EmptyState } from '@/components/empty-state';
 import { Zone } from '@/components/zone';
 import { usePermission } from '@/hooks/use-permission';
 import { useMockStore } from '@/api/mock-store';
-import type { Plugin } from '@/api/resources/types';
+import type { Plugin } from '@/api/resources';
 
 // ─── Plugin list selector ─────────────────────────────────────────────────────
 

@@ -32,7 +32,7 @@ import {
   IconTable,
 } from '@tabler/icons-react';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 import type { WidgetTypeDefinition } from '@/features/widgets/types';
 
 function renderIcon(kind: string): ReactNode {

@@ -1,9 +1,9 @@
 /**
  * Feature-local types for API keys.
  */
-export type { ApiKey, ID } from '@/api/resources/types';
+export type { ApiKey, ID } from '@/api/resources';
 
-import type { ApiKey } from '@/api/resources/types';
+import type { ApiKey } from '@/api/resources';
 
 /** Enriched API key for display — computed fields added client-side. */
 export interface ApiKeyWithMeta extends ApiKey {

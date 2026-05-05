@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Membership, Role } from '../api/resources/types';
+import type { Membership, Role } from '../api/resources';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

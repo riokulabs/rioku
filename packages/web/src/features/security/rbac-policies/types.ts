@@ -2,7 +2,7 @@
  * Feature-local types for rbac-policies.
  *
  * The spec §7.4 RBAC admin-side gate policy types.
- * The existing RbacPolicy in api/resources/types maps a role to a subject —
+ * The existing RbacPolicy in api/resources maps a role to a subject —
  * that's the binding model. The spec's "RBAC policy" for this feature is
  * richer: it carries a policy_type and optional CEL condition.
  *
@@ -11,7 +11,7 @@
  * underlying mock-store RbacPolicy is used as the persistence target
  * with policy_type stored in a name-prefix convention for stage-1 simplicity.
  */
-export type { ID } from '@/api/resources/types';
+export type { ID } from '@/api/resources';
 
 /** Policy types per spec §7.4. */
 export type RbacPolicyType = 'totp-required' | 'step-up-required' | 'login-window' | 'custom';

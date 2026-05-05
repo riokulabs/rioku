@@ -11,7 +11,7 @@
  */
 import { useMockStore } from '@/api/mock-store';
 import { TRACE_STREAM_TOPIC, traceStreamBus } from '@/api/trace-stream-bus';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 import type { TraceFilter, TraceStreamListener } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

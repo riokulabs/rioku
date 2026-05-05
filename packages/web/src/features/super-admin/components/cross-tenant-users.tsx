@@ -11,7 +11,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { useMockStore } from '@/api/mock-store';
-import type { Tenant, User, Membership } from '@/api/resources/types';
+import type { Tenant, User, Membership } from '@/api/resources';
 
 interface CrossTenantUserRow {
   user: User;

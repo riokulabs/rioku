@@ -15,7 +15,7 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
 import { useMockStore } from '@/api/mock-store';
-import type { NotificationDeliveryLogEntry } from '@/api/resources/types';
+import type { NotificationDeliveryLogEntry } from '@/api/resources';
 
 dayjs.extend(relativeTime);
 

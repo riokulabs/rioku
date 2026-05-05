@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Group, TextInput, MultiSelect, SegmentedControl } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import type { AiSemanticRateLimit } from '@/api/resources/types';
+import type { AiSemanticRateLimit } from '@/api/resources';
 import type { RateLimitFilter } from '../types';
 
 type Scope = AiSemanticRateLimit['scope'];

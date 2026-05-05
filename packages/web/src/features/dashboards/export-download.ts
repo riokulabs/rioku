@@ -7,7 +7,7 @@
  * `dashboard-<slug>-v<version>.json` shape.
  */
 import { useMockStore } from '@/api/mock-store';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 import { exportDashboardJson } from './api';
 
 function kebab(s: string): string {

@@ -28,7 +28,7 @@ import {
 import { DateTimePicker } from '@mantine/dates';
 import { IconChevronDown, IconClock } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import type { DashboardRangeSpec, DashboardRangeUnit } from '@/api/resources/types';
+import type { DashboardRangeSpec, DashboardRangeUnit } from '@/api/resources';
 import { specToTimeRange } from '@/hooks/use-dashboard-range';
 
 const PRESET_OPTIONS = [

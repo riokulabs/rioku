@@ -1,7 +1,7 @@
 /**
  * Feature-local types for the notification-routing feature.
  */
-import type { ID, NotificationRoutingRule } from '@/api/resources/types';
+import type { ID, NotificationRoutingRule } from '@/api/resources';
 
 export type { ID, NotificationRoutingRule };
 

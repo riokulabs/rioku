@@ -25,7 +25,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMockStore } from '../api/mock-store';
 import { makeIdFactory } from '../lib/id-generator';
 import { logAuditEntry, logAdminAuditEntry } from '../api/resources/audit';
-import type { ImpersonationSession } from '../api/resources/types';
+import type { ImpersonationSession } from '../api/resources';
 
 // ─── ID factory ───────────────────────────────────────────────────────────────
 

@@ -14,7 +14,7 @@ import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { PluginSigner, Plugin, AuditEntry } from '@/api/resources/types';
+import type { PluginSigner, Plugin, AuditEntry } from '@/api/resources';
 import type { CreateSignerInput, UpdateSignerInput } from './types';
 import { SignerInUseError } from './types';
 

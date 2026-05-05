@@ -1,8 +1,8 @@
 /**
  * Feature-local types for access-policies.
- * Reuses AccessPolicy from api/resources/types; adds form-specific helpers.
+ * Reuses AccessPolicy from api/resources; adds form-specific helpers.
  */
-export type { AccessPolicy, ID } from '@/api/resources/types';
+export type { AccessPolicy, ID } from '@/api/resources';
 
 /** Payload for create/update mutations — omits readonly server-computed fields. */
 export interface AccessPolicyPayload {

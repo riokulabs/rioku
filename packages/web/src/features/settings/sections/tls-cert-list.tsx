@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconLock, IconPlus, IconTrash } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import type { TlsCertificate } from '@/api/resources/types';
+import type { TlsCertificate } from '@/api/resources';
 import { useTlsCertificates, deleteTlsCertificate, toggleCertAutoRenew } from '../api';
 import { TlsUploadModal } from './tls-upload-modal';
 

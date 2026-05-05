@@ -6,7 +6,7 @@
  * round-trip mode) used by the dashboard builder.
  */
 import type { ComponentType } from 'react';
-import type { Widget } from '@/api/resources/types';
+import type { Widget } from '@/api/resources';
 
 /** Shape passed into every widget component. */
 export interface WidgetRenderProps {

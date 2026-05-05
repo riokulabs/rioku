@@ -4,7 +4,7 @@
  * No mutations: installing a plugin is handled by `install-approval` feature.
  */
 import { useMockStore } from '@/api/mock-store';
-import type { MarketplaceListing } from '@/api/resources/types';
+import type { MarketplaceListing } from '@/api/resources';
 import type { MarketplaceFilter } from './types';
 
 /**

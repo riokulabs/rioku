@@ -1,7 +1,7 @@
 /**
  * Cluster feature — local types and guards.
  */
-import type { ClusterNode, ClusterEnrollmentToken } from '@/api/resources/types';
+import type { ClusterNode, ClusterEnrollmentToken } from '@/api/resources';
 
 export type { ClusterNode, ClusterEnrollmentToken };
 

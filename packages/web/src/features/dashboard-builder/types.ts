@@ -1,9 +1,9 @@
 /**
  * Dashboard-builder feature-local types.
  */
-import type { Widget, WidgetWizardState } from '@/api/resources/types';
+import type { Widget, WidgetWizardState } from '@/api/resources';
 
-export type { Dashboard, Widget, ID } from '@/api/resources/types';
+export type { Dashboard, Widget, ID } from '@/api/resources';
 
 export interface AddWidgetInput {
   kind: string;

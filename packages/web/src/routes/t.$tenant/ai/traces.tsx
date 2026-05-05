@@ -27,7 +27,7 @@ import {
   useTraceStream,
 } from '@/features/ai-traces';
 import type { RangePreset, TraceFilter } from '@/features/ai-traces';
-import type { AiTrace } from '@/api/resources/types';
+import type { AiTrace } from '@/api/resources';
 
 const MAX_ROWS = 500;
 const STATUS_VALUES: readonly AiTrace['status'][] = ['success', 'error', 'timeout'];

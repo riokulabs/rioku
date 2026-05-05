@@ -8,7 +8,7 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import type { User, Membership, UserWithMembership, UserFilter } from './types';
-import type { AuditEntry } from '@/api/resources/types';
+import type { AuditEntry } from '@/api/resources';
 
 const nextUserId = makeIdFactory('user-new');
 const nextMembershipId = makeIdFactory('membership-new');

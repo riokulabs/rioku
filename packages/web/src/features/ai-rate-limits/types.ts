@@ -1,9 +1,9 @@
 /**
  * Feature-local types for AI semantic rate limits.
  */
-export type { AiSemanticRateLimit, ID } from '@/api/resources/types';
+export type { AiSemanticRateLimit, ID } from '@/api/resources';
 
-import type { AiSemanticRateLimit } from '@/api/resources/types';
+import type { AiSemanticRateLimit } from '@/api/resources';
 
 export interface RateLimitFilter {
   search: string;

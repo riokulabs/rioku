@@ -9,11 +9,11 @@
  * `path` in ResolvedPermission carries the chain of role IDs that contributed
  * the grant, for display in PermissionPathTrace UI (spec §7).
  *
- * This module only imports from `lib/` and `api/resources/types` (type-only).
+ * This module only imports from `lib/` and `api/resources` (type-only).
  * It has no side-effects at module load time.
  */
 
-import type { Role } from '../api/resources/types';
+import type { Role } from '../api/resources';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 

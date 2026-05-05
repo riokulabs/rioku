@@ -46,7 +46,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import type { AuditEntry } from '@/api/resources/types';
+import type { AuditEntry } from '@/api/resources';
 import { CelDiff } from './cel-diff';
 
 dayjs.extend(relativeTime);

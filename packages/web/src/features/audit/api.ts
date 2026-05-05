@@ -17,7 +17,7 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { resolveRolePermissions } from '@/host/role-resolver';
-import type { AuditEntry, AuditRetentionConfig, ID } from '@/api/resources/types';
+import type { AuditEntry, AuditRetentionConfig, ID } from '@/api/resources';
 import type {
   ActorCandidate,
   AsyncSearchPage,

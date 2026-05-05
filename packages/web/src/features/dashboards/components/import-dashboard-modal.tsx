@@ -17,7 +17,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Button, FileInput, Group, Modal, Stack, Tabs, Text, Textarea } from '@mantine/core';
 import { IconAlertCircle, IconClipboard, IconUpload } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import type { Dashboard } from '@/api/resources/types';
+import type { Dashboard } from '@/api/resources';
 import { importDashboardJson } from '../api';
 import { DashboardImportError } from '../types';
 

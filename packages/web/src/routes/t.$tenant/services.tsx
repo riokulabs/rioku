@@ -30,7 +30,7 @@ import {
   ServiceInUseError,
 } from '@/features/services';
 import type { ServiceFilter } from '@/features/services';
-import type { Service } from '@/api/resources/types';
+import type { Service } from '@/api/resources';
 import type { Route as RouteRecord } from '@/features/routes/types';
 
 type DrawerMode = 'detail' | 'create' | 'edit';

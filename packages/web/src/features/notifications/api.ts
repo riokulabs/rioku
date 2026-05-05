@@ -22,7 +22,7 @@ import { INBOX_STREAM_TOPIC, inboxStreamBus, publishInbox } from '@/api/inbox-st
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, NotificationItem } from '@/api/resources/types';
+import type { AuditEntry, ID, NotificationItem } from '@/api/resources';
 
 import { BUILT_IN_CATEGORIES, PLUGIN_CATEGORY_REGEX, emitNotificationInputSchema } from './schemas';
 import type { EmitNotificationInput, InboxFilter, InboxStreamListener } from './types';

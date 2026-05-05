@@ -13,7 +13,7 @@ import { useMemo } from 'react';
 import { ActionIcon, Alert, Table, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
-import type { AiAgent, AiTool, AiToolBinding } from '@/api/resources/types';
+import type { AiAgent, AiTool, AiToolBinding } from '@/api/resources';
 import type { BindingFilter } from '../types';
 
 interface MatrixViewProps {
