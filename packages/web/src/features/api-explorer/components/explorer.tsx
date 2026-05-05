@@ -61,7 +61,9 @@ export function ApiExplorer() {
    */
   const setPendingRef = useRef<((req: PendingRequest) => void) | null>(null);
   useEffect(() => {
-    setPendingRef.current = (req: PendingRequest) => { setPending(req); };
+    setPendingRef.current = (req: PendingRequest) => {
+      setPending(req);
+    };
   });
 
   /** Mirror of the `pending` state into a ref so the unmount cleanup can read it. */
@@ -103,8 +105,11 @@ export function ApiExplorer() {
    */
   const customScalarFetch = useCallback(
     async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-      const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
-      const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const method = (
+        init?.method ?? (input instanceof Request ? input.method : 'GET')
+      ).toUpperCase();
+      const rawUrl =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       let path: string;
       try {
         path = new URL(rawUrl).pathname;

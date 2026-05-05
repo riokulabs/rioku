@@ -42,16 +42,16 @@ describe('customFetch', () => {
 
   it('@read-only throws AuthFailureError on 401', async () => {
     mockFetch.mockResolvedValue(new Response('', { status: 401 }));
-    await expect(
-      customFetch({ url: '/api/v1/foo', method: 'GET' }),
-    ).rejects.toBeInstanceOf(AuthFailureError);
+    await expect(customFetch({ url: '/api/v1/foo', method: 'GET' })).rejects.toBeInstanceOf(
+      AuthFailureError,
+    );
   });
 
   it('@read-only throws ServerError on 500', async () => {
     mockFetch.mockResolvedValue(new Response('', { status: 500 }));
-    await expect(
-      customFetch({ url: '/api/v1/foo', method: 'GET' }),
-    ).rejects.toBeInstanceOf(ServerError);
+    await expect(customFetch({ url: '/api/v1/foo', method: 'GET' })).rejects.toBeInstanceOf(
+      ServerError,
+    );
   });
 
   it('@read-only captures correlation-id from response header', async () => {

@@ -32,8 +32,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const active = activeSectionFor(pathSuffix);
   const pluginEntriesForActive = active.id === 'system' ? pluginEntries : [];
   const registryEntriesForActive = getNavEntriesForGroup(active.id as NavGroup);
-  const hasChildren =
-    registryEntriesForActive.length > 0 || pluginEntriesForActive.length > 0;
+  const hasChildren = registryEntriesForActive.length > 0 || pluginEntriesForActive.length > 0;
 
   const railWidth = navDesktopExpanded ? RAIL_EXPANDED_WIDTH : RAIL_COLLAPSED_WIDTH;
   const navbarWidth = hasChildren ? railWidth + PANEL_WIDTH : railWidth;

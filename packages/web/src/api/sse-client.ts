@@ -56,10 +56,7 @@ function openConnection(topic: string, conn: TopicConnection): void {
   });
 }
 
-export function subscribeSSE(
-  topic: string,
-  handler: (detail: unknown) => void,
-): () => void {
+export function subscribeSSE(topic: string, handler: (detail: unknown) => void): () => void {
   let conn = connections.get(topic);
   if (conn === undefined) {
     conn = {

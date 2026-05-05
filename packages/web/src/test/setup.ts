@@ -10,9 +10,15 @@ expect.extend(toHaveNoViolations as never);
 
 // MSW server lifecycle — bypass unhandled requests so existing tests that stub
 // fetch via vi.stubGlobal/vi.fn are not affected.
-beforeAll(() => { server.listen({ onUnhandledRequest: 'bypass' }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'bypass' });
+});
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
 
 // jsdom does not implement ResizeObserver — required by Mantine's ScrollArea.
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

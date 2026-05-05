@@ -56,9 +56,7 @@ export function getNavEntries(): NavEntry[] {
  * Returns all entries that belong to a given group, sorted by `order`.
  */
 export function getNavEntriesForGroup(group: NavGroup): NavEntry[] {
-  return _entries
-    .filter((e) => e.group === group)
-    .sort((a, b) => a.order - b.order);
+  return _entries.filter((e) => e.group === group).sort((a, b) => a.order - b.order);
 }
 
 /**

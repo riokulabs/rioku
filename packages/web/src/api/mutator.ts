@@ -44,8 +44,7 @@ async function readBody(res: Response): Promise<unknown> {
 async function parseError(res: Response): Promise<ApiError> {
   const cid = getCorrelationId(res);
   const body = await readBody(res);
-  const rec =
-    body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+  const rec = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : null;
   const message =
     rec !== null && typeof rec.title === 'string'
       ? rec.title
@@ -59,9 +58,7 @@ async function parseError(res: Response): Promise<ApiError> {
       : new AuthFailureError();
   }
   if (res.status === 403) {
-    return cid !== undefined
-      ? new PermissionError({ correlationId: cid })
-      : new PermissionError();
+    return cid !== undefined ? new PermissionError({ correlationId: cid }) : new PermissionError();
   }
   if (res.status === 422 || res.status === 400) {
     const rawFields = rec?.fields;

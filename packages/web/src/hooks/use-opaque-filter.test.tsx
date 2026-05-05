@@ -25,7 +25,9 @@ describe('useOpaqueFilter', () => {
     const { result } = renderHook(() => useOpaqueFilter('user-email@example.com', 'tnt-1'), {
       wrapper,
     });
-    await waitFor(() => { expect(result.current.handle).toBe('oh_abc123'); });
+    await waitFor(() => {
+      expect(result.current.handle).toBe('oh_abc123');
+    });
     const init = mockFetch.mock.calls[0]![1] as RequestInit;
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toMatchObject({ value: 'user-email@example.com' });
@@ -39,13 +41,13 @@ describe('useOpaqueFilter', () => {
       }),
     );
     const { result } = renderHook(() => useOpaqueFilter('value', 'tnt-1'), { wrapper });
-    await waitFor(() => { expect(result.current.handle).toMatch(/^oh_pending_[a-f0-9]{8}$/); });
+    await waitFor(() => {
+      expect(result.current.handle).toMatch(/^oh_pending_[a-f0-9]{8}$/);
+    });
   });
 
   it('@read-only propagates non-501 errors instead of falling back', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response('', { status: 500 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response('', { status: 500 }));
     const { result } = renderHook(() => useOpaqueFilter('value', 'tnt-1'), { wrapper });
     await waitFor(() => {
       expect(result.current.error).toBeDefined();
@@ -60,13 +62,17 @@ describe('useOpaqueFilter', () => {
         headers: { 'content-type': 'application/json' },
       }),
     );
-    const { result, rerender } = renderHook(
-      ({ v }: { v: string }) => useOpaqueFilter(v, 'tnt-1'),
-      { wrapper, initialProps: { v: 'same-value' } },
-    );
-    await waitFor(() => { expect(result.current.handle).toBe('oh_dedupe'); });
+    const { result, rerender } = renderHook(({ v }: { v: string }) => useOpaqueFilter(v, 'tnt-1'), {
+      wrapper,
+      initialProps: { v: 'same-value' },
+    });
+    await waitFor(() => {
+      expect(result.current.handle).toBe('oh_dedupe');
+    });
     rerender({ v: 'same-value' });
-    await waitFor(() => { expect(result.current.handle).toBe('oh_dedupe'); });
+    await waitFor(() => {
+      expect(result.current.handle).toBe('oh_dedupe');
+    });
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

@@ -13,7 +13,8 @@
  */
 // Anchored full-identifier match — avoids false positives on operational names
 // like pluginName, tenantName, serviceName, roleName, displayName.
-const PII_NAME_RE = /^(?:email|fullName|firstName|lastName|phone|ssn|dob|birthdate|birthday|taxId|streetAddress|homeAddress|mailingAddress)$/i;
+const PII_NAME_RE =
+  /^(?:email|fullName|firstName|lastName|phone|ssn|dob|birthdate|birthday|taxId|streetAddress|homeAddress|mailingAddress)$/i;
 
 function looksLikeUrl(node) {
   if (node.type === 'TemplateLiteral') {
@@ -27,7 +28,8 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Disallow interpolating PII-named identifiers into URL strings without useOpaqueFilter',
+      description:
+        'Disallow interpolating PII-named identifiers into URL strings without useOpaqueFilter',
     },
     schema: [],
     messages: {

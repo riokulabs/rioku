@@ -51,9 +51,7 @@ export function Sidebar({ onNavLinkClick, collapsed = false, onToggleCollapsed }
   // Analytics renders its own dynamic panel (lists dashboards), so it always
   // has a panel even though it has no static registry children.
   const hasChildren =
-    active.id === 'analytics' ||
-    registryChildren.length > 0 ||
-    pluginEntriesForPanel.length > 0;
+    active.id === 'analytics' || registryChildren.length > 0 || pluginEntriesForPanel.length > 0;
 
   return (
     <Group gap={0} align="stretch" h="100%" wrap="nowrap">

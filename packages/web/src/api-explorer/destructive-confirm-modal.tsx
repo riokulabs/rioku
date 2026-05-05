@@ -16,13 +16,7 @@ export function DestructiveConfirmModal({
   onConfirm,
 }: DestructiveConfirmProps) {
   return (
-    <Modal
-      opened={open}
-      onClose={onCancel}
-      title="Confirm destructive request"
-      size="md"
-      centered
-    >
+    <Modal opened={open} onClose={onCancel} title="Confirm destructive request" size="md" centered>
       <Stack gap="md">
         <Text>
           You are about to send a <strong>{method}</strong> request to live data. This action will
