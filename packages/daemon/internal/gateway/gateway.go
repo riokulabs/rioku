@@ -115,6 +115,9 @@ func NewGateway(
 	// Build the HTTP handler chain.
 	topMux := http.NewServeMux()
 
+	// OpenAPI spec (unauthenticated; compile-time embed with ETag caching).
+	RegisterOpenAPIRoute(topMux)
+
 	// Auth routes (unauthenticated).
 	RegisterAuthRoutes(topMux, a, sm, st, cfg, enc)
 

@@ -1,0 +1,7161 @@
+{
+  "components": {
+    "parameters": {
+      "ID": {
+        "description": "Resource id (UUID).",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "Tenant": {
+        "description": "Tenant slug (e.g. `default`, `acme`).",
+        "in": "path",
+        "name": "tenant",
+        "required": true,
+        "schema": {
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "AIGatewayServiceAddMCPTeamPermissionBody": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "type": "string"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AIGatewayServiceRevokeVirtualKeyBody": {
+        "type": "object"
+      },
+      "AIGatewayServiceRotateVirtualKeyBody": {
+        "properties": {
+          "newCredentialRef": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AIGatewayServiceUpdateMCPRouteBody": {
+        "properties": {
+          "authPassthrough": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pathPrefix": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AIGatewayServiceUpdateMCPTeamBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AIGatewayServiceUpdateVirtualKeyBody": {
+        "properties": {
+          "allowedModels": {
+            "description": "To clear allowed_models replace with an empty list and set\nreplace_allowed_models = true (clients must be explicit so an\nunset list does not accidentally drop the existing filter).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "budgetUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "budgetWindow": {
+            "type": "string"
+          },
+          "credentialRef": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "replaceAllowedModels": {
+            "type": "boolean"
+          },
+          "rpmLimit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "tpmLimit": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceCreatePlanBody": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "validation": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceTransitionApplicationBody": {
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceTransitionPlanBody": {
+        "properties": {
+          "status": {
+            "title": "target status",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceTransitionSubscriptionBody": {
+        "properties": {
+          "reason": {
+            "title": "optional approver/operator note",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceUpdateApplicationBody": {
+        "properties": {
+          "clearOwner": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceUpdatePlanBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "validation": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "APIManagementServiceUpdateSubscriptionBody": {
+        "properties": {
+          "clearEndingAt": {
+            "type": "boolean"
+          },
+          "clearStartingAt": {
+            "type": "boolean"
+          },
+          "endingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reasonMessage": {
+            "type": "string"
+          },
+          "requestMessage": {
+            "type": "string"
+          },
+          "startingAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BuildServiceSwapBinaryBody": {
+        "properties": {
+          "dryRun": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "InstallEventStage": {
+        "default": "STAGE_UNSPECIFIED",
+        "enum": [
+          "STAGE_UNSPECIFIED",
+          "STAGE_RESOLVING",
+          "STAGE_FETCHING",
+          "STAGE_VALIDATING",
+          "STAGE_BUILDING",
+          "STAGE_SWAPPING",
+          "STAGE_COMPLETE",
+          "STAGE_FAILED"
+        ],
+        "type": "string"
+      },
+      "PluginServiceSetPluginConfigBody": {
+        "properties": {
+          "config": {
+            "type": "object"
+          },
+          "merge": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "protobufAny": {
+        "additionalProperties": {},
+        "properties": {
+          "@type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "protobufNullValue": {
+        "default": "NULL_VALUE",
+        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value.",
+        "enum": [
+          "NULL_VALUE"
+        ],
+        "type": "string"
+      },
+      "rpcStatus": {
+        "properties": {
+          "code": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/protobufAny",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1AITrace": {
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "cacheHitTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "contentTruncated": {
+            "type": "boolean"
+          },
+          "estimatedCostUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "finishReason": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "isStreaming": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "outputTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "parentTraceId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "toolCalls": {
+            "items": {
+              "$ref": "#/components/schemas/v1ToolCallTrace",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "turnNumber": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1ALookup": {
+        "description": "ALookup discovers upstream targets via DNS A/AAAA records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.a` source.",
+        "properties": {
+          "name": {
+            "description": "name is the hostname to resolve (e.g. \"api.example.com\").",
+            "type": "string"
+          },
+          "port": {
+            "description": "port is the port to dial on each resolved address.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "refreshSeconds": {
+            "description": "refresh_seconds controls how often Caddy re-resolves the A/AAAA records.\nDefault 60s.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1AgentSession": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "anomalous": {
+            "type": "boolean"
+          },
+          "anomalyReason": {
+            "type": "string"
+          },
+          "estimatedCostUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "totalTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "turnCount": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1Application": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "title": "empty when no owner",
+            "type": "string"
+          },
+          "status": {
+            "title": "active | paused | closed",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1ApplyResult": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/v1MutationMeta"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1AuditEntry": {
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "configVersion": {
+            "format": "int64",
+            "type": "string"
+          },
+          "diff": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "payload": {
+            "description": "payload carries the structured audit payload (#182, D6) as\nJSON. The admin renderer dispatches on payload_schema to\npick a typed view. Empty when payload_schema is empty.",
+            "type": "string"
+          },
+          "payloadSchema": {
+            "description": "payload_schema is the audit unification (#182, D6)\ndiscriminator — e.g. \"cert.lifecycle_event.v1\". Empty when\nthis row predates the unification or was emitted via the\nlegacy diff-only path; the admin renderer falls back to the\ndiff renderer in that case.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1BuildEvent": {
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "logLine": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "record": {
+            "$ref": "#/components/schemas/v1BuildRecord"
+          },
+          "state": {
+            "$ref": "#/components/schemas/v1BuildState"
+          }
+        },
+        "type": "object"
+      },
+      "v1BuildRecord": {
+        "properties": {
+          "artifactHash": {
+            "type": "string"
+          },
+          "buildService": {
+            "type": "string"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "log": {
+            "type": "string"
+          },
+          "pluginIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/v1BuildState"
+          },
+          "target": {
+            "$ref": "#/components/schemas/v1BuildTarget"
+          },
+          "triggeredAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1BuildRequest": {
+        "properties": {
+          "force": {
+            "type": "boolean"
+          },
+          "pluginIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "target": {
+            "$ref": "#/components/schemas/v1BuildTarget"
+          }
+        },
+        "type": "object"
+      },
+      "v1BuildState": {
+        "default": "BUILD_STATE_UNSPECIFIED",
+        "enum": [
+          "BUILD_STATE_UNSPECIFIED",
+          "BUILD_STATE_IDLE",
+          "BUILD_STATE_TRIGGERED",
+          "BUILD_STATE_FETCHING_DEPS",
+          "BUILD_STATE_BUILDING",
+          "BUILD_STATE_TESTING",
+          "BUILD_STATE_SWAPPING",
+          "BUILD_STATE_COMPLETE",
+          "BUILD_STATE_FAILED"
+        ],
+        "type": "string"
+      },
+      "v1BuildStatus": {
+        "properties": {
+          "caddyBuild": {
+            "$ref": "#/components/schemas/v1BuildRecord"
+          },
+          "daemonBuild": {
+            "$ref": "#/components/schemas/v1BuildRecord"
+          }
+        },
+        "type": "object"
+      },
+      "v1BuildTarget": {
+        "default": "BUILD_TARGET_UNSPECIFIED",
+        "enum": [
+          "BUILD_TARGET_UNSPECIFIED",
+          "BUILD_TARGET_CADDY",
+          "BUILD_TARGET_DAEMON"
+        ],
+        "type": "string"
+      },
+      "v1CaddyStatus": {
+        "properties": {
+          "checkedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "loadedConfigVersion": {
+            "format": "int64",
+            "type": "string"
+          },
+          "pid": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/v1HealthState"
+          },
+          "upstreamsHealthy": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "upstreamsTotal": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1Compression": {
+        "description": "Compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen Compression is unset or disabled, no encoding handler is emitted.",
+        "properties": {
+          "enabled": {
+            "description": "enabled gates the entire block.",
+            "type": "boolean"
+          },
+          "encodings": {
+            "description": "encodings is the ordered list of encodings to advertise (e.g.\n[\"zstd\", \"gzip\"]). Caddy picks the first one the client accepts.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minLength": {
+            "description": "min_length is the minimum response body length (in bytes) to\ncompress. Default 1024. Bodies smaller than this are passed\nthrough uncompressed.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1ConfigChange": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/v1PolicyOp"
+          },
+          "route": {
+            "$ref": "#/components/schemas/v1RouteOp"
+          },
+          "service": {
+            "$ref": "#/components/schemas/v1ServiceOp"
+          }
+        },
+        "type": "object"
+      },
+      "v1ConfigChunk": {
+        "properties": {
+          "data": {
+            "format": "byte",
+            "type": "string"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "sequence": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1ConfigSnapshot": {
+        "properties": {
+          "policies": {
+            "items": {
+              "$ref": "#/components/schemas/v1Policy",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/v1Route",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/v1Service",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "snapshotAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1ConnectionPool": {
+        "description": "ConnectionPool tunes the HTTP transport's connection-pooling\nparameters for a service. Compiles into Caddy's\n`reverse_proxy.transport` block alongside the existing\ndial/response/idle timeouts.\n\nDefaults are picked by Caddy when fields are zero — leaving the\nblock empty is fine for most workloads. Tune for high-RPS or\nlong-tail-latency services.",
+        "properties": {
+          "maxConnsPerUpstream": {
+            "description": "max_conns_per_upstream caps the total number of open connections\nthe gateway will hold per upstream backend. Zero means \"no limit\"\n(Caddy default).",
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxIdleConns": {
+            "description": "max_idle_conns caps the total idle keep-alive connections across\nall upstreams in this service. Zero means \"no limit\".",
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxIdleConnsPerUpstream": {
+            "description": "max_idle_conns_per_upstream caps the number of idle keep-alive\nconnections retained per upstream. Zero falls back to Go's\nhttp.DefaultMaxIdleConnsPerHost (2). Bump for high-concurrency\nbackends where reconnect cost dominates.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "readBufferKb": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "writeBufferKb": {
+            "description": "write_buffer_kb / read_buffer_kb override the HTTP transport's\nread/write buffer sizes (in kilobytes). Zero uses Go's default\n(4 KB). Bump for backends that ship large request/response\nbodies to reduce syscall count.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1CreateApplicationRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1CreateMCPRouteRequest": {
+        "properties": {
+          "authPassthrough": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pathPrefix": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1CreateMCPTeamRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1CreatePlanRequest": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "validation": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1CreateSubscriptionRequest": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "requestMessage": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1CreateVirtualKeyRequest": {
+        "properties": {
+          "allowedModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "budgetUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "budgetWindow": {
+            "type": "string"
+          },
+          "credentialRef": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "rpmLimit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "tpmLimit": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1DirectUpstream": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "tls": {
+            "$ref": "#/components/schemas/v1TLSMode"
+          }
+        },
+        "type": "object"
+      },
+      "v1ExportRequest": {
+        "properties": {
+          "includeAuditLog": {
+            "type": "boolean"
+          },
+          "version": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1HeaderMatcher": {
+        "properties": {
+          "invert": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "regexp": {
+            "description": "regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy's header_regexp doesn't support\na \"!\" prefix); wrap the matcher in `not` instead.",
+            "type": "boolean"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1HealthCheck": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "expectedStatuses": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "healthyThreshold": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "intervalSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "unhealthyThreshold": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1HealthState": {
+        "default": "HEALTH_STATE_UNSPECIFIED",
+        "enum": [
+          "HEALTH_STATE_UNSPECIFIED",
+          "HEALTH_STATE_OK",
+          "HEALTH_STATE_DEGRADED",
+          "HEALTH_STATE_UNHEALTHY"
+        ],
+        "type": "string"
+      },
+      "v1HealthStatus": {
+        "properties": {
+          "caddy": {
+            "$ref": "#/components/schemas/v1SubsystemHealth"
+          },
+          "certmgr": {
+            "$ref": "#/components/schemas/v1SubsystemHealth"
+          },
+          "checkedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cluster": {
+            "$ref": "#/components/schemas/v1SubsystemHealth"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/v1HealthState"
+          },
+          "store": {
+            "$ref": "#/components/schemas/v1SubsystemHealth"
+          },
+          "uptimeSeconds": {
+            "format": "int64",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1ImportResult": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/v1MutationMeta"
+          },
+          "policiesImported": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "routesImported": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "servicesImported": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1InstallEvent": {
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "plugin": {
+            "$ref": "#/components/schemas/v1Plugin"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/InstallEventStage"
+          }
+        },
+        "type": "object"
+      },
+      "v1InstallRequest": {
+        "properties": {
+          "deferBuild": {
+            "type": "boolean"
+          },
+          "initialConfig": {
+            "type": "object"
+          },
+          "modulePath": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1JoinRequest": {
+        "properties": {
+          "caFingerprint": {
+            "type": "string"
+          },
+          "csrPem": {
+            "format": "byte",
+            "type": "string"
+          },
+          "nodeAddress": {
+            "type": "string"
+          },
+          "nodeName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1JoinResult": {
+        "properties": {
+          "caCertPem": {
+            "format": "byte",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/v1Node",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nodeCertPem": {
+            "format": "byte",
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1Labels": {
+        "properties": {
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "v1LeaveRequest": {
+        "properties": {
+          "deregister": {
+            "type": "boolean"
+          },
+          "nodeId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1LeaveResult": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/v1MutationMeta"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListApplicationsResponse": {
+        "properties": {
+          "applications": {
+            "items": {
+              "$ref": "#/components/schemas/v1Application",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListMCPRoutesResponse": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/v1MCPRoute",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListMCPTeamPermissionsResponse": {
+        "properties": {
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/v1MCPTeamPermission",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListMCPTeamsResponse": {
+        "properties": {
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/v1MCPTeam",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListPlansResponse": {
+        "properties": {
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/v1Plan",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListSubscriptionsResponse": {
+        "properties": {
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/v1Subscription",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListVirtualKeysResponse": {
+        "properties": {
+          "virtualKeys": {
+            "items": {
+              "$ref": "#/components/schemas/v1VirtualKey",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ListWAFDenialsResponse": {
+        "properties": {
+          "denials": {
+            "items": {
+              "$ref": "#/components/schemas/v1WAFDenial",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1LoadBalancingPolicy": {
+        "default": "LB_POLICY_UNSPECIFIED",
+        "description": " - LB_POLICY_COOKIE: LB_POLICY_COOKIE pins each client to an upstream via a cookie\n(sticky sessions). The cookie name comes from Service.lb_cookie_name\n(defaults to \"lb\").\n - LB_POLICY_URI_HASH: LB_POLICY_URI_HASH selects an upstream by consistent hash of the\nrequest URI — useful for cache-friendly fan-out where the same\npath should land on the same backend.\n - LB_POLICY_HEADER: LB_POLICY_HEADER selects an upstream by consistent hash of a\nrequest header. The header name comes from\nService.lb_header_name (required).",
+        "enum": [
+          "LB_POLICY_UNSPECIFIED",
+          "LB_POLICY_ROUND_ROBIN",
+          "LB_POLICY_RANDOM",
+          "LB_POLICY_LEAST_CONN",
+          "LB_POLICY_IP_HASH",
+          "LB_POLICY_WEIGHTED_ROUND_ROBIN",
+          "LB_POLICY_COOKIE",
+          "LB_POLICY_URI_HASH",
+          "LB_POLICY_HEADER"
+        ],
+        "type": "string"
+      },
+      "v1MCPRoute": {
+        "properties": {
+          "authPassthrough": {
+            "title": "forward|replace|strip",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pathPrefix": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1MCPTeam": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "title": "active|paused|closed",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1MCPTeamPermission": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1Matcher": {
+        "properties": {
+          "expression": {
+            "description": "expression is a CEL expression evaluated against the request.\nCompiles to Caddy's `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don't fit the simpler\nhost/path/method/header/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms.",
+            "type": "string"
+          },
+          "headers": {
+            "items": {
+              "$ref": "#/components/schemas/v1HeaderMatcher",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "not": {
+            "description": "not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy's\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry's primitives).\nUseful for `match X but not Y`.",
+            "items": {
+              "$ref": "#/components/schemas/v1Matcher",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/v1PathMatcher",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "queries": {
+            "description": "queries match against URL query string parameters. Compiles to\nCaddy's `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only).",
+            "items": {
+              "$ref": "#/components/schemas/v1QueryMatcher",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ModelBreakdown": {
+        "properties": {
+          "estimatedCostUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "requestCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "totalTokens": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1MutationMeta": {
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "configVersion": {
+            "format": "int64",
+            "type": "string"
+          },
+          "mutatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1Node": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "caddyVersion": {
+            "type": "string"
+          },
+          "certFingerprint": {
+            "type": "string"
+          },
+          "daemonVersion": {
+            "type": "string"
+          },
+          "health": {
+            "$ref": "#/components/schemas/v1HealthState"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isLeader": {
+            "type": "boolean"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/v1Labels"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/v1NodeRole"
+          },
+          "state": {
+            "$ref": "#/components/schemas/v1NodeState"
+          },
+          "storeMode": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1NodeList": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/v1Node",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/v1PageResponse"
+          }
+        },
+        "type": "object"
+      },
+      "v1NodeRole": {
+        "default": "NODE_ROLE_UNSPECIFIED",
+        "enum": [
+          "NODE_ROLE_UNSPECIFIED",
+          "NODE_ROLE_BOOTSTRAP",
+          "NODE_ROLE_MEMBER"
+        ],
+        "type": "string"
+      },
+      "v1NodeState": {
+        "default": "NODE_STATE_UNSPECIFIED",
+        "enum": [
+          "NODE_STATE_UNSPECIFIED",
+          "NODE_STATE_JOINING",
+          "NODE_STATE_ACTIVE",
+          "NODE_STATE_DEGRADED",
+          "NODE_STATE_LEAVING",
+          "NODE_STATE_UNREACHABLE"
+        ],
+        "type": "string"
+      },
+      "v1PageRequest": {
+        "properties": {
+          "pageSize": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageToken": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1PageResponse": {
+        "properties": {
+          "nextPageToken": {
+            "type": "string"
+          },
+          "total": {
+            "format": "int64",
+            "title": "-1 if unknown",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1PassiveHealthCheck": {
+        "description": "PassiveHealthCheck configures passive (in-band) health checking against\nupstream backends — i.e. health is inferred from the success/failure\npattern of real proxied traffic rather than from synthetic probes.\n\nCompiles to Caddy's `reverse_proxy.health_checks.passive` block. All\nthresholds are evaluated within a sliding window of fail_duration_seconds.\nWhen omitted (passive_health_check = nil) no passive checks are emitted\nand Caddy will only consider an upstream unhealthy via active checks.",
+        "properties": {
+          "enabled": {
+            "description": "enabled gates the entire passive block. When false the compiler\nemits nothing — useful for keeping the configured thresholds in\nplace while temporarily disabling enforcement.",
+            "type": "boolean"
+          },
+          "failDurationSeconds": {
+            "description": "fail_duration_seconds is the rolling window in which max_fails is\ncounted. Caddy default is 0 (passive checks disabled). Typical\nproduction values are 10–30 seconds.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxFails": {
+            "description": "max_fails is the number of recent failures within fail_duration that\nmarks an upstream unhealthy. Must be > 0 for the threshold to fire.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "unhealthyLatencyMs": {
+            "description": "unhealthy_latency_ms is the response latency threshold above which a\nrequest is counted as a failure. Zero disables latency-based\nfailure accounting.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "unhealthyRequestCount": {
+            "description": "unhealthy_request_count is the in-flight request count above which\nan upstream is considered overloaded. Zero disables this check.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "unhealthyStatus": {
+            "description": "unhealthy_status is the list of HTTP status codes considered failures\nfor passive accounting. Empty means \"use Caddy default\" (5xx).\nCodes like -1 or wildcards are not supported here — list explicit\ninteger codes (e.g. 500, 502, 503, 504).",
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1PathMatcher": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/v1PathMatcherType"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1PathMatcherType": {
+        "default": "TYPE_UNSPECIFIED",
+        "enum": [
+          "TYPE_UNSPECIFIED",
+          "TYPE_EXACT",
+          "TYPE_PREFIX",
+          "TYPE_REGEXP"
+        ],
+        "type": "string"
+      },
+      "v1Plan": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "title": "api_key | jwt | oidc | oauth2 | mtls | none",
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "status": {
+            "title": "staging | published | deprecated | archived",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "validation": {
+            "title": "auto | manual",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1Plugin": {
+        "properties": {
+          "caddyDeps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "config": {
+            "type": "object"
+          },
+          "configSchema": {
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/v1Labels"
+          },
+          "modulePath": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/v1PluginStatus"
+          },
+          "type": {
+            "$ref": "#/components/schemas/v1PluginType"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1PluginConfig": {
+        "properties": {
+          "config": {
+            "type": "object"
+          },
+          "pluginId": {
+            "type": "string"
+          },
+          "schema": {
+            "$ref": "#/components/schemas/V1PluginConfigSchemaValue"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1PluginList": {
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/v1PageResponse"
+          },
+          "plugins": {
+            "items": {
+              "$ref": "#/components/schemas/v1Plugin",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1PluginStatus": {
+        "default": "PLUGIN_STATUS_UNSPECIFIED",
+        "enum": [
+          "PLUGIN_STATUS_UNSPECIFIED",
+          "PLUGIN_STATUS_INSTALLING",
+          "PLUGIN_STATUS_ACTIVE",
+          "PLUGIN_STATUS_DISABLED",
+          "PLUGIN_STATUS_ERROR",
+          "PLUGIN_STATUS_REBUILDING"
+        ],
+        "type": "string"
+      },
+      "v1PluginType": {
+        "default": "PLUGIN_TYPE_UNSPECIFIED",
+        "enum": [
+          "PLUGIN_TYPE_UNSPECIFIED",
+          "PLUGIN_TYPE_TRAFFIC",
+          "PLUGIN_TYPE_MIDDLEWARE",
+          "PLUGIN_TYPE_CLI",
+          "PLUGIN_TYPE_WEB",
+          "PLUGIN_TYPE_AGENTIC"
+        ],
+        "type": "string"
+      },
+      "v1Policy": {
+        "properties": {
+          "config": {
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/v1Labels"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/v1PolicyType"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1PolicyOp": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/v1PolicyOpAction"
+          },
+          "id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/v1Policy"
+          }
+        },
+        "type": "object"
+      },
+      "v1PolicyOpAction": {
+        "default": "ACTION_UNSPECIFIED",
+        "enum": [
+          "ACTION_UNSPECIFIED",
+          "UPSERT",
+          "DELETE"
+        ],
+        "type": "string"
+      },
+      "v1PolicyType": {
+        "default": "POLICY_TYPE_UNSPECIFIED",
+        "enum": [
+          "POLICY_TYPE_UNSPECIFIED",
+          "POLICY_TYPE_RATE_LIMIT",
+          "POLICY_TYPE_AUTH_API_KEY",
+          "POLICY_TYPE_AUTH_JWT",
+          "POLICY_TYPE_TRANSFORM",
+          "POLICY_TYPE_ALLOW_LIST",
+          "POLICY_TYPE_BLOCK_LIST"
+        ],
+        "type": "string"
+      },
+      "v1QueryMatcher": {
+        "description": "QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy.",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1RemoveResult": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/v1MutationMeta"
+          },
+          "rebuildTriggered": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "v1RequestHeaders": {
+        "description": "RequestHeaders mutates request headers BEFORE the request is proxied\nto the upstream. Compiles into a Caddy headers handler positioned\nbefore reverse_proxy.",
+        "properties": {
+          "add": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "add appends a value to the named header (multi-value). Map of\nheader name -> additional value.",
+            "type": "object"
+          },
+          "delete": {
+            "description": "delete removes the named headers entirely. List of header names to\ndelete.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "set": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "set replaces the value of any matching header (or creates it if\nabsent). Map of header name -> value.",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "v1RequestTrace": {
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "actorType": {
+            "title": "\"api_key\" | \"agent\" | \"anonymous\"",
+            "type": "string"
+          },
+          "ai": {
+            "$ref": "#/components/schemas/v1AITrace",
+            "title": "nil for non-AI requests"
+          },
+          "authResult": {
+            "title": "\"pass\" | \"fail\" | \"bypass\"",
+            "type": "string"
+          },
+          "bytesRecv": {
+            "format": "int64",
+            "type": "string"
+          },
+          "bytesSent": {
+            "format": "int64",
+            "type": "string"
+          },
+          "durationMs": {
+            "format": "int64",
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "policyIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "rateLimitHit": {
+            "type": "boolean"
+          },
+          "routeId": {
+            "type": "string"
+          },
+          "serviceId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "spanId": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "statusCode": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "upstreamAddr": {
+            "type": "string"
+          },
+          "upstreamDurationMs": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1ResponseErrorPage": {
+        "description": "ResponseErrorPage returns a custom static response when an upstream\nresponse matches a ResponseRule.",
+        "properties": {
+          "body": {
+            "description": "body is the response body (HTML or JSON).",
+            "type": "string"
+          },
+          "contentType": {
+            "description": "content_type is the Content-Type header value.\nDefault \"text/html; charset=utf-8\".",
+            "type": "string"
+          },
+          "statusCode": {
+            "description": "status_code is the response status code to send. Default 502.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1ResponseHeaders": {
+        "description": "ResponseHeaders mutates response headers AFTER the response is\nreceived from the upstream. Same set/add/delete semantics as\nRequestHeaders. Compiled into reverse_proxy.headers.response.",
+        "properties": {
+          "add": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "delete": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "set": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "v1ResponseRewrite": {
+        "description": "ResponseRewrite overrides the request method and/or URI when an\nupstream response matches a ResponseRule.",
+        "properties": {
+          "method": {
+            "description": "method overrides the request method (e.g. \"GET\").",
+            "type": "string"
+          },
+          "uri": {
+            "description": "uri rewrites the request URI (e.g. \"/maintenance.html\").",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1ResponseRule": {
+        "description": "ResponseRule conditionally rewrites or replaces an upstream response\nbased on its status code. Compiles into Caddy's\nreverse_proxy.handle_response array.",
+        "properties": {
+          "matchStatusCodes": {
+            "description": "match_status_codes is the list of HTTP status codes this rule\nmatches. Use specific codes (404, 502) or wildcard ranges: \"5xx\"\nmatches 500-599; \"4xx\" matches 400-499.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "rewrite": {
+            "$ref": "#/components/schemas/v1ResponseRewrite",
+            "description": "rewrite changes the URL/method and replays the request through\nthe gateway's route stack."
+          },
+          "routeTo": {
+            "description": "route_to specifies an alternate route to dispatch to (by\nroute_id) when the upstream returns the matched status.",
+            "type": "string"
+          },
+          "serveErrorPage": {
+            "$ref": "#/components/schemas/v1ResponseErrorPage",
+            "description": "serve_error_page returns a custom error response without\nre-proxying. Useful for static fallbacks."
+          }
+        },
+        "type": "object"
+      },
+      "v1RetryPolicy": {
+        "description": "RetryPolicy configures Caddy's reverse_proxy retry behavior so a\ntransient upstream failure (connection reset, 5xx, dial error) is\nretried against the next upstream before the client sees an error.\n\nCompiled fields:\n  - max_retries  -> reverse_proxy.lb_retries\n  - retry_match  -> reverse_proxy.lb_retry_match (status codes)\n  - try_duration -> reverse_proxy.lb_try_duration (cap on total time)\n  - try_interval -> reverse_proxy.lb_try_interval (gap between tries)\n\nWhen omitted, no retry block is emitted and Caddy will not retry —\nmatching the historical behavior. Retries only kick in when there\nare multiple upstreams; with a single upstream, max_retries is\nsilently ignored by Caddy.",
+        "properties": {
+          "enabled": {
+            "description": "enabled gates the entire block. When false the compiler emits no\nretry config, even if the other fields are set.",
+            "type": "boolean"
+          },
+          "maxRetries": {
+            "description": "max_retries is the upper bound on additional attempts after the\ninitial request. Total attempts = 1 + max_retries. Must be > 0\nfor retries to fire.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "retryOnStatus": {
+            "description": "retry_on_status is the list of HTTP status codes that trigger a\nretry. Empty means \"retry only on connection-level errors\"\n(Caddy's default behavior — no status-based retries).",
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "tryDurationMs": {
+            "description": "try_duration_ms is the maximum total time (across all attempts)\nthe proxy will keep trying before returning to the client. Zero\nmeans \"no time bound — keep retrying until max_retries hits\".",
+            "format": "int32",
+            "type": "integer"
+          },
+          "tryIntervalMs": {
+            "description": "try_interval_ms is the wait between retry attempts. Zero retries\nimmediately; use a small backoff (e.g. 50–250ms) for upstreams\nthat need a moment to recover.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1Route": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/v1Labels"
+          },
+          "matchers": {
+            "items": {
+              "$ref": "#/components/schemas/v1Matcher",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "policyIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "serviceId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "upstream": {
+            "$ref": "#/components/schemas/v1DirectUpstream"
+          }
+        },
+        "type": "object"
+      },
+      "v1RouteOp": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/v1RouteOpAction"
+          },
+          "id": {
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/components/schemas/v1Route"
+          }
+        },
+        "type": "object"
+      },
+      "v1RouteOpAction": {
+        "default": "ACTION_UNSPECIFIED",
+        "enum": [
+          "ACTION_UNSPECIFIED",
+          "UPSERT",
+          "DELETE"
+        ],
+        "type": "string"
+      },
+      "v1Service": {
+        "properties": {
+          "compression": {
+            "$ref": "#/components/schemas/v1Compression",
+            "description": "compression configures gzip/zstd encoding of upstream responses.\nCompiles into Caddy's encode handler positioned before reverse_proxy.\nWhen unset or disabled, no encoding handler is emitted."
+          },
+          "connectionPool": {
+            "$ref": "#/components/schemas/v1ConnectionPool"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dialTimeoutSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "healthCheck": {
+            "$ref": "#/components/schemas/v1HealthCheck"
+          },
+          "id": {
+            "type": "string"
+          },
+          "idleTimeoutSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/v1Labels"
+          },
+          "lbCookieName": {
+            "description": "lb_cookie_name is the cookie used by LB_POLICY_COOKIE for sticky\nsessions. Empty defaults to \"lb\". Ignored for non-cookie policies.",
+            "type": "string"
+          },
+          "lbHeaderName": {
+            "description": "lb_header_name is the request header consulted by LB_POLICY_HEADER\nto pick an upstream (consistent hash on the header value). Required\nwhen lb_policy = LB_POLICY_HEADER; ignored otherwise.",
+            "type": "string"
+          },
+          "lbPolicy": {
+            "$ref": "#/components/schemas/v1LoadBalancingPolicy"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passiveHealthCheck": {
+            "$ref": "#/components/schemas/v1PassiveHealthCheck"
+          },
+          "requestHeaders": {
+            "$ref": "#/components/schemas/v1RequestHeaders",
+            "description": "request_headers mutates request headers before proxying to the\nupstream. Compiles into a Caddy headers handler positioned before\nreverse_proxy in the route's handler chain."
+          },
+          "responseHeaderTimeoutSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "responseHeaders": {
+            "$ref": "#/components/schemas/v1ResponseHeaders",
+            "description": "response_headers mutates response headers after receiving from the\nupstream. Compiled into reverse_proxy.headers.response."
+          },
+          "responseRules": {
+            "description": "response_rules is a list of status-code-conditional rules that\ndetermine how the gateway handles specific upstream responses.\nCompiled into reverse_proxy.handle_response.",
+            "items": {
+              "$ref": "#/components/schemas/v1ResponseRule",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "retryPolicy": {
+            "$ref": "#/components/schemas/v1RetryPolicy"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "upstreamTls": {
+            "$ref": "#/components/schemas/v1UpstreamTLS"
+          },
+          "upstreams": {
+            "items": {
+              "$ref": "#/components/schemas/v1Upstream",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1ServiceOp": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/v1ServiceOpAction"
+          },
+          "id": {
+            "type": "string"
+          },
+          "service": {
+            "$ref": "#/components/schemas/v1Service"
+          }
+        },
+        "type": "object"
+      },
+      "v1ServiceOpAction": {
+        "default": "ACTION_UNSPECIFIED",
+        "enum": [
+          "ACTION_UNSPECIFIED",
+          "UPSERT",
+          "DELETE"
+        ],
+        "type": "string"
+      },
+      "v1SessionDetail": {
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/v1AgentSession"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/v1RequestTrace",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1SessionList": {
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/v1PageResponse"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/v1AgentSession",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1SetResult": {
+        "properties": {
+          "config": {
+            "type": "object"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/v1MutationMeta"
+          }
+        },
+        "type": "object"
+      },
+      "v1SrvLookup": {
+        "description": "SrvLookup discovers upstream targets via DNS SRV records. Compiles to\nCaddy's reverse_proxy `dynamic_upstreams.srv` source.",
+        "properties": {
+          "proto": {
+            "description": "proto is the SRV protocol (\"tcp\" or \"udp\"). Optional; defaults to \"tcp\".",
+            "type": "string"
+          },
+          "refreshSeconds": {
+            "description": "refresh_seconds controls how often Caddy re-resolves the SRV record.\nDefault 60s.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "service": {
+            "description": "service is the SRV service name (e.g. \"_http._tcp.api.example.com\").",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1StatsBucket": {
+        "properties": {
+          "bucketStart": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "bytesRecv": {
+            "format": "int64",
+            "type": "string"
+          },
+          "bytesSent": {
+            "format": "int64",
+            "type": "string"
+          },
+          "errorCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "errorRate": {
+            "format": "double",
+            "type": "number"
+          },
+          "p50LatencyMs": {
+            "format": "int64",
+            "type": "string"
+          },
+          "p95LatencyMs": {
+            "format": "int64",
+            "type": "string"
+          },
+          "p99LatencyMs": {
+            "format": "int64",
+            "type": "string"
+          },
+          "requestCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1Subscription": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "reasonMessage": {
+            "type": "string"
+          },
+          "requestMessage": {
+            "type": "string"
+          },
+          "startingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "title": "pending | accepted | rejected | paused | closed",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1SubsystemHealth": {
+        "properties": {
+          "detail": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/v1HealthState"
+          }
+        },
+        "type": "object"
+      },
+      "v1SwapResult": {
+        "properties": {
+          "buildId": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "newHash": {
+            "type": "string"
+          },
+          "priorHash": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "swappedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1TLSMode": {
+        "default": "TLS_MODE_UNSPECIFIED",
+        "enum": [
+          "TLS_MODE_UNSPECIFIED",
+          "TLS_MODE_OFF",
+          "TLS_MODE_AUTO",
+          "TLS_MODE_CUSTOM",
+          "TLS_MODE_INTERNAL"
+        ],
+        "type": "string"
+      },
+      "v1TokenBucket": {
+        "properties": {
+          "bucketStart": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "estimatedCostUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "inputTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "outputTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "requestCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "totalTokens": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1TokenStats": {
+        "properties": {
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/v1TokenBucket",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "modelBreakdown": {
+            "items": {
+              "$ref": "#/components/schemas/v1ModelBreakdown",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/v1TokenTotals"
+          }
+        },
+        "type": "object"
+      },
+      "v1TokenTotals": {
+        "properties": {
+          "budgetUsedPct": {
+            "format": "double",
+            "type": "number"
+          },
+          "estimatedCostUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "inputTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "outputTokens": {
+            "format": "int64",
+            "type": "string"
+          },
+          "requestCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "totalTokens": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1ToolCallTrace": {
+        "properties": {
+          "durationMs": {
+            "format": "int64",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "toolId": {
+            "type": "string"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1TraceQueryResult": {
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/v1PageResponse"
+          },
+          "traces": {
+            "items": {
+              "$ref": "#/components/schemas/v1RequestTrace",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1TrafficStats": {
+        "properties": {
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/v1StatsBucket",
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "v1Upstream": {
+        "properties": {
+          "aLookup": {
+            "$ref": "#/components/schemas/v1ALookup"
+          },
+          "address": {
+            "description": "address is the static dial target (e.g. \"10.0.0.1:8080\"). Used when\nsource is unset. For dynamic upstreams, leave address empty and set\none of the source variants below.",
+            "type": "string"
+          },
+          "dialErr": {
+            "type": "string"
+          },
+          "healthy": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "srvLookup": {
+            "$ref": "#/components/schemas/v1SrvLookup"
+          },
+          "tls": {
+            "$ref": "#/components/schemas/v1TLSMode"
+          },
+          "weight": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "v1UpstreamTLS": {
+        "description": "UpstreamTLS configures TLS parameters used when the gateway dials\nupstream backends over HTTPS. Compiles into Caddy's\n`reverse_proxy.transport.tls` block.\n\nWhen omitted, Caddy uses default TLS dialing (verify cert against\nsystem roots, ServerName from upstream address). Most production\nconfigurations only need server_name (when fronting an upstream\nwhose cert SAN doesn't match the dial address) and root_ca_pem\n(when the upstream is signed by a private CA).\n\nSECURITY NOTE: insecure_skip_verify=true disables certificate\nverification entirely — it must only be used for development or\nwhen paired with a separate verification mechanism. Production\nconfigs should use root_ca_pem to trust a private CA.",
+        "properties": {
+          "clientCertPem": {
+            "description": "client_cert_pem + client_key_pem provide a client certificate\nfor upstream mTLS. Both must be set together; either field\nalone is rejected at validation. Empty disables mTLS.",
+            "type": "string"
+          },
+          "clientKeyPem": {
+            "type": "string"
+          },
+          "enabled": {
+            "description": "enabled gates the entire block. When false the compiler emits\nno transport.tls config, regardless of other fields.",
+            "type": "boolean"
+          },
+          "insecureSkipVerify": {
+            "description": "insecure_skip_verify disables certificate verification entirely.\nDev/test only — DO NOT enable in production. Use root_ca_pem\nfor private-CA upstreams instead.",
+            "type": "boolean"
+          },
+          "maxVersion": {
+            "type": "string"
+          },
+          "minVersion": {
+            "description": "min_version / max_version pin the TLS protocol version range.\nAcceptable values: \"1.0\", \"1.1\", \"1.2\", \"1.3\". Empty means\n\"Caddy default\" (1.2 minimum).",
+            "type": "string"
+          },
+          "requestBuffers": {
+            "description": "request_buffers is the size in bytes of the buffer for reading\nrequest bodies on their way to the upstream. Zero means Caddy default (4096).\nCompiles to reverse_proxy.transport.request_buffers.\nField numbers 100/101 leave room for future TLS sub-fields while\nclearly separating from the existing TLS parameters.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "responseBuffers": {
+            "description": "response_buffers is the size in bytes of the buffer for reading\nupstream response bodies. Zero means Caddy default (4096). Compiles to\nreverse_proxy.transport.response_buffers.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "rootCaPem": {
+            "description": "root_ca_pem is one or more PEM-encoded CA certificates the\ngateway will trust when verifying upstream certs. Empty means\n\"use the system trust store\".",
+            "type": "string"
+          },
+          "serverName": {
+            "description": "server_name overrides the SNI / certificate-name match when\ndialing the upstream. Required when the upstream cert's SAN\ndoes not match the dial address (e.g. dialing by IP).",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1VirtualKey": {
+        "properties": {
+          "allowedModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "budgetUsd": {
+            "format": "double",
+            "type": "number"
+          },
+          "budgetWindow": {
+            "title": "minute|hour|day|month",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "credentialRef": {
+            "title": "vault://... or empty",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "revokedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "rpmLimit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "tpmLimit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "v1WAFDenial": {
+        "description": "WAFDenial is one Coraza-block event captured by the data plane.",
+        "properties": {
+          "action": {
+            "title": "block | log",
+            "type": "string"
+          },
+          "clientIp": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "matchedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "title": "JSON",
+            "type": "string"
+          },
+          "requestUri": {
+            "type": "string"
+          },
+          "routeId": {
+            "title": "empty when route was deleted",
+            "type": "string"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "title": "NOTICE | WARNING | ERROR | CRITICAL | ALERT | EMERGENCY",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Link": {
+        "description": "OpenAPI/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n",
+        "properties": {
+          "href": {
+            "format": "uri-reference",
+            "type": "string"
+          },
+          "templated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "type": "object"
+      },
+      "LinkSet": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/Link"
+        },
+        "type": "object"
+      },
+      "Problem": {
+        "description": "RFC 7807 problem+json error envelope.",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "status": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "type": "object"
+      },
+      "V1PluginConfigSchemaValue": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "securitySchemes": {
+      "bearerToken": {
+        "bearerFormat": "JWT",
+        "description": "API key or short-lived JWT issued by /api/v1/auth/token.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "sessionCookie": {
+        "description": "Web-UI session cookie issued by /api/v1/auth/login.",
+        "in": "cookie",
+        "name": "rioku_sid",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "name": "Rioku Labs",
+      "url": "https://github.com/riokulabs/rioku"
+    },
+    "description": "Rioku is an open-source, AI-native API gateway platform built on\nCaddy. This document is the canonical OpenAPI 3.1 specification\nfor every REST endpoint exposed by the daemon.\n\nConventions:\n\n- Tenant-scoped paths live under `/api/v1/t/{tenant}/...`.\n- Every resource exposes `OPTIONS` for capability discovery.\n- Both `PUT` (replace, full body) and `PATCH` (partial, RFC 7396\n  merge-patch) are supported on every resource that takes\n  mutations.\n- Relations carry both the foreign-key id AND a `_links.<relation>.href`\n  pointing at the canonical resource path.\n- Pagination is cursor-based (`?page_token=`); page size is\n  bounded at 1000.\n",
+    "license": {
+      "name": "BUSL-1.1",
+      "url": "https://github.com/riokulabs/rioku/blob/main/LICENSE"
+    },
+    "title": "Rioku API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/ai/virtual-keys": {
+      "get": {
+        "operationId": "AIGatewayService_ListVirtualKeys",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListVirtualKeysResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_CreateVirtualKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1VirtualKey"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Virtual keys",
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1CreateVirtualKeyRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_DeleteVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "get": {
+        "operationId": "AIGatewayService_GetVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1VirtualKey"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1VirtualKey"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIGatewayServiceUpdateVirtualKeyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}/revoke": {
+      "post": {
+        "operationId": "AIGatewayService_RevokeVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIGatewayServiceRevokeVirtualKeyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/virtual-keys/{id}/rotate": {
+      "post": {
+        "operationId": "AIGatewayService_RotateVirtualKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1VirtualKey"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIGatewayServiceRotateVirtualKeyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications": {
+      "get": {
+        "operationId": "APIManagementService_ListApplications",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListApplicationsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "post": {
+        "operationId": "APIManagementService_CreateApplication",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Application"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Applications.",
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1CreateApplicationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{id}": {
+      "delete": {
+        "operationId": "APIManagementService_DeleteApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "get": {
+        "operationId": "APIManagementService_GetApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Application"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "patch": {
+        "operationId": "APIManagementService_UpdateApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Application"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceUpdateApplicationBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{id}/transition": {
+      "post": {
+        "operationId": "APIManagementService_TransitionApplication",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Application"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceTransitionApplicationBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "ConfigService_GetAuditLog",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityType",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "$ref": "#/components/schemas/rpcStatus"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/v1AuditEntry"
+                    }
+                  },
+                  "title": "Stream result of v1AuditEntry",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      }
+    },
+    "/api/v1/build": {
+      "get": {
+        "operationId": "BuildService_GetBuildStatus",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "buildId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1BuildStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "BuildService"
+        ]
+      },
+      "post": {
+        "operationId": "BuildService_TriggerBuild",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "$ref": "#/components/schemas/rpcStatus"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/v1BuildEvent"
+                    }
+                  },
+                  "title": "Stream result of v1BuildEvent",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "BuildService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1BuildRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/build/{buildId}/swap": {
+      "post": {
+        "operationId": "BuildService_SwapBinary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "buildId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1SwapResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "BuildService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildServiceSwapBinaryBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cluster/join": {
+      "post": {
+        "operationId": "ClusterService_Join",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1JoinResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ClusterService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1JoinRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cluster/leave": {
+      "post": {
+        "operationId": "ClusterService_Leave",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1LeaveResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ClusterService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1LeaveRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cluster/nodes": {
+      "get": {
+        "operationId": "ClusterService_ListNodes",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NODE_STATE_UNSPECIFIED",
+                "NODE_STATE_JOINING",
+                "NODE_STATE_ACTIVE",
+                "NODE_STATE_DEGRADED",
+                "NODE_STATE_LEAVING",
+                "NODE_STATE_UNREACHABLE"
+              ],
+              "default": "NODE_STATE_UNSPECIFIED"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1NodeList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/config": {
+      "get": {
+        "operationId": "ConfigService_GetConfig",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ConfigSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      },
+      "post": {
+        "operationId": "ConfigService_ApplyChange",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ApplyResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1ConfigChange"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config/export": {
+      "post": {
+        "operationId": "ConfigService_ExportConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "$ref": "#/components/schemas/rpcStatus"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/v1ConfigChunk"
+                    }
+                  },
+                  "title": "Stream result of v1ConfigChunk",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1ExportRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config/import": {
+      "post": {
+        "operationId": "ConfigService_ImportConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ImportResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1ConfigChunk"
+              }
+            }
+          },
+          "description": " (streaming inputs)"
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthService_GetHealth",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "verbose",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1HealthStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "HealthService"
+        ]
+      }
+    },
+    "/api/v1/health/caddy": {
+      "get": {
+        "operationId": "HealthService_GetCaddyStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1CaddyStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "HealthService"
+        ]
+      }
+    },
+    "/api/v1/mcp/permissions/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_RemoveMCPTeamPermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      }
+    },
+    "/api/v1/mcp/routes": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPRoutes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListMCPRoutesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_CreateMCPRoute",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPRoute"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "MCP routes",
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1CreateMCPRouteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/routes/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_DeleteMCPRoute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "get": {
+        "operationId": "AIGatewayService_GetMCPRoute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPRoute"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateMCPRoute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPRoute"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIGatewayServiceUpdateMCPRouteBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/teams": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPTeams",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListMCPTeamsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_CreateMCPTeam",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPTeam"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "MCP teams",
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1CreateMCPTeamRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/teams/{id}": {
+      "delete": {
+        "operationId": "AIGatewayService_DeleteMCPTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "get": {
+        "operationId": "AIGatewayService_GetMCPTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPTeam"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "patch": {
+        "operationId": "AIGatewayService_UpdateMCPTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPTeam"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIGatewayServiceUpdateMCPTeamBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/teams/{teamId}/permissions": {
+      "get": {
+        "operationId": "AIGatewayService_ListMCPTeamPermissions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListMCPTeamPermissionsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "AIGatewayService"
+        ]
+      },
+      "post": {
+        "operationId": "AIGatewayService_AddMCPTeamPermission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MCPTeamPermission"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "MCP team permissions",
+        "tags": [
+          "AIGatewayService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIGatewayServiceAddMCPTeamPermissionBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plans": {
+      "get": {
+        "operationId": "APIManagementService_ListPlans",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "apiId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListPlansResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "post": {
+        "operationId": "APIManagementService_CreatePlan2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Plan"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Plans.",
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1CreatePlanRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plans/{id}": {
+      "delete": {
+        "operationId": "APIManagementService_DeletePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1MutationMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "get": {
+        "operationId": "APIManagementService_GetPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Plan"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "patch": {
+        "operationId": "APIManagementService_UpdatePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Plan"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceUpdatePlanBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plans/{id}/transition": {
+      "post": {
+        "operationId": "APIManagementService_TransitionPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Plan"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceTransitionPlanBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins": {
+      "get": {
+        "operationId": "PluginService_ListPlugins",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PLUGIN_TYPE_UNSPECIFIED",
+                "PLUGIN_TYPE_TRAFFIC",
+                "PLUGIN_TYPE_MIDDLEWARE",
+                "PLUGIN_TYPE_CLI",
+                "PLUGIN_TYPE_WEB",
+                "PLUGIN_TYPE_AGENTIC"
+              ],
+              "default": "PLUGIN_TYPE_UNSPECIFIED"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PLUGIN_STATUS_UNSPECIFIED",
+                "PLUGIN_STATUS_INSTALLING",
+                "PLUGIN_STATUS_ACTIVE",
+                "PLUGIN_STATUS_DISABLED",
+                "PLUGIN_STATUS_ERROR",
+                "PLUGIN_STATUS_REBUILDING"
+              ],
+              "default": "PLUGIN_STATUS_UNSPECIFIED"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1PluginList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      },
+      "post": {
+        "operationId": "PluginService_InstallPlugin",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "$ref": "#/components/schemas/rpcStatus"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/v1InstallEvent"
+                    }
+                  },
+                  "title": "Stream result of v1InstallEvent",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1InstallRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{pluginId}": {
+      "delete": {
+        "operationId": "PluginService_RemovePlugin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pluginId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purgeConfig",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deferBuild",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1RemoveResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}/config": {
+      "get": {
+        "operationId": "PluginService_GetPluginConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pluginId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1PluginConfig"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ]
+      },
+      "put": {
+        "operationId": "PluginService_SetPluginConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pluginId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1SetResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "PluginService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginServiceSetPluginConfigBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscriptions": {
+      "get": {
+        "operationId": "APIManagementService_ListSubscriptions",
+        "parameters": [
+          {
+            "description": "Optional filters; only one of these should be set per call,\nbut the server tolerates both being set (ANDs them).",
+            "in": "query",
+            "name": "applicationId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "planId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListSubscriptionsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "post": {
+        "operationId": "APIManagementService_CreateSubscription",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Subscriptions.",
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1CreateSubscriptionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscriptions/{id}": {
+      "get": {
+        "operationId": "APIManagementService_GetSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ]
+      },
+      "patch": {
+        "operationId": "APIManagementService_UpdateSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceUpdateSubscriptionBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscriptions/{id}/transition": {
+      "post": {
+        "operationId": "APIManagementService_TransitionSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceTransitionSubscriptionBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/t/{id}/plans": {
+      "post": {
+        "operationId": "APIManagementService_CreatePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "[^/]+"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1Plan"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Plans.",
+        "tags": [
+          "APIManagementService"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIManagementServiceCreatePlanBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys": {
+      "get": {
+        "operationId": "listAPIKeys",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List API keys",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAPIKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expires": {
+                    "description": "Go duration string (e.g. 720h, 30d)",
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "description": "Comma-separated scopes",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created. Returns the plaintext secret in the `key` field exactly\nonce — it cannot be retrieved later.\n"
+          }
+        },
+        "summary": "Create an API key",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}": {
+      "delete": {
+        "operationId": "deleteAPIKey",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke (delete alias)",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "get": {
+        "operationId": "getAPIKey",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "lastUsedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerId": {
+                      "type": "string"
+                    },
+                    "revokedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "scopes": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "tenantId": {
+                      "type": "string"
+                    },
+                    "usageCount": {
+                      "format": "int64",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get an API key",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchAPIKey",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "properties": {
+                  "clearExpiresAt": {
+                    "description": "Explicit clear flag — equivalent to expiresAt: null.",
+                    "type": "boolean"
+                  },
+                  "expiresAt": {
+                    "format": "date-time",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Patch API key metadata",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "put": {
+        "operationId": "replaceAPIKey",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Replace API key metadata",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}/revoke": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "revokeAPIKey",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke (action alias)",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}/rotate": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "description": "Mints a new key with the same name + scopes + owner + expiry,\nreturns the plaintext secret on the response, and revokes the\nprior id. The old id stays in the audit log; the secret is gone.\n",
+        "operationId": "rotateAPIKey",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "id": {
+                      "description": "New key id",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Plaintext secret (returned once)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Rotate the secret",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/api-keys/{id}/usage": {
+      "get": {
+        "operationId": "getAPIKeyUsage",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Get usage stats",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/actors": {
+      "get": {
+        "operationId": "listAuditActors",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Distinct audit actor typeahead",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "description": "Optional prefix filter.",
+          "in": "query",
+          "name": "q",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "schema": {
+            "default": 50,
+            "maximum": 1000,
+            "type": "integer"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/export/csv": {
+      "get": {
+        "description": "Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until).",
+        "operationId": "exportAuditCSV",
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "csv stream"
+          }
+        },
+        "summary": "CSV export",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/export/jsonl": {
+      "get": {
+        "operationId": "exportAuditJSONL",
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ndjson stream"
+          }
+        },
+        "summary": "JSON-Lines export",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/resource-ids": {
+      "get": {
+        "operationId": "listAuditResourceIDs",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Distinct audit entity-id typeahead",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "description": "Optional entity_type filter (e.g. route, service).",
+          "in": "query",
+          "name": "entity_type",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional prefix filter.",
+          "in": "query",
+          "name": "q",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "schema": {
+            "default": 50,
+            "maximum": 1000,
+            "type": "integer"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/stream": {
+      "get": {
+        "description": "Server-Sent Events feed. Each event is named `audit` with a JSON\npayload of {id, actor, entityType, entityId, operation, occurredAt}.\nBacked by a 5-second poll today; will move to push once an audit\nwatcher lands.\n",
+        "operationId": "streamAuditEntries",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "stream open"
+          }
+        },
+        "summary": "SSE stream of new audit entries",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/audit/{id}": {
+      "get": {
+        "operationId": "getAuditEntry",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "actor": {
+                      "type": "string"
+                    },
+                    "configVersion": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "diff": {
+                      "type": "string"
+                    },
+                    "entityId": {
+                      "type": "string"
+                    },
+                    "entityType": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "operation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "summary": "Get a single audit entry by id",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/rbac-policies": {
+      "get": {
+        "operationId": "listRbacPolicies",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List RBAC policies",
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createRbacPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "roleId": {
+                    "type": "string"
+                  },
+                  "subjectId": {
+                    "type": "string"
+                  },
+                  "subjectType": {
+                    "enum": [
+                      "user",
+                      "group",
+                      "service-account"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "subjectType",
+                  "subjectId",
+                  "roleId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "409": {
+            "description": "duplicate (subjectType + subjectId + roleId already mapped)"
+          }
+        },
+        "summary": "Create an RBAC policy",
+        "tags": [
+          "rbac-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/rbac-policies/{id}": {
+      "delete": {
+        "operationId": "deleteRbacPolicy",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "get": {
+        "operationId": "getRbacPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchRbacPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      },
+      "put": {
+        "operationId": "replaceRbacPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/rbac-policies/{id}/test": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "testRbacPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "subjectId": {
+                    "type": "string"
+                  },
+                  "subjectType": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "subjectId",
+                  "subjectType"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "policyId": {
+                      "type": "string"
+                    },
+                    "roleId": {
+                      "description": "Only present when matched is true",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Dry-run an RBAC policy against a candidate subject",
+        "tags": [
+          "rbac-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/routes": {
+      "get": {
+        "operationId": "listRoutes",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List routes",
+        "tags": [
+          "routes"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createRoute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          }
+        },
+        "summary": "Create a route",
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/routes/{id}": {
+      "delete": {
+        "operationId": "deleteRoute",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      },
+      "get": {
+        "operationId": "getRoute",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchRoute",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      },
+      "put": {
+        "operationId": "replaceRoute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "routes"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/routes/{id}/policies": {
+      "get": {
+        "operationId": "listPoliciesByRoute",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List policies bound to a route",
+        "tags": [
+          "routes",
+          "policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/routes/{id}/policies/{policyId}": {
+      "delete": {
+        "operationId": "detachPolicyFromRoute",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Detach a policy from a route",
+        "tags": [
+          "routes",
+          "policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        },
+        {
+          "in": "path",
+          "name": "policyId",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "attachPolicyToRoute",
+        "responses": {
+          "201": {
+            "description": "created"
+          }
+        },
+        "summary": "Attach a policy to a route",
+        "tags": [
+          "routes",
+          "policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services": {
+      "get": {
+        "operationId": "listServices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/v1Service"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "paginated services collection"
+          }
+        },
+        "summary": "List services",
+        "tags": [
+          "services"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "summary": "Discover supported methods",
+        "tags": [
+          "services"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createService",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Service"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "service created"
+          }
+        },
+        "summary": "Create a service",
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services/{id}": {
+      "delete": {
+        "operationId": "deleteService",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Delete service",
+        "tags": [
+          "services"
+        ]
+      },
+      "get": {
+        "operationId": "getService",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Get service",
+        "tags": [
+          "services"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "services"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchService",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Service"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Patch service (RFC 7396 merge-patch)",
+        "tags": [
+          "services"
+        ]
+      },
+      "put": {
+        "operationId": "replaceService",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/v1Service"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "Replace service",
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services/{id}/force-reload": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "services"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "forceReloadService",
+        "responses": {
+          "202": {
+            "description": "reload queued"
+          }
+        },
+        "summary": "Force-reload this service's Caddy admin block",
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/services/{id}/routes": {
+      "get": {
+        "operationId": "listRoutesByService",
+        "responses": {
+          "200": {
+            "description": "paginated route collection"
+          }
+        },
+        "summary": "List routes targeting this service",
+        "tags": [
+          "services",
+          "routes"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/traffic/sessions": {
+      "get": {
+        "operationId": "TrafficService_ListSessions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "activeOnly",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agentId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1SessionList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/sessions/{sessionId}": {
+      "get": {
+        "operationId": "TrafficService_GetSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1SessionDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/stats": {
+      "get": {
+        "operationId": "TrafficService_GetStats",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "description": "\"minute\" | \"hour\" | \"day\"",
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "routeIds",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1TrafficStats"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/tokens": {
+      "get": {
+        "operationId": "TrafficService_GetTokenStats",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1TokenStats"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/traces": {
+      "get": {
+        "operationId": "TrafficService_QueryTraces",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "in": "query",
+            "name": "routeIds",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "statusCodes",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "format": "int32",
+                "type": "integer"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sessionId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "aiOnly",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageSize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page.pageToken",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1TraceQueryResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/traffic/traces/{traceId}": {
+      "get": {
+        "operationId": "TrafficService_GetTrace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "traceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1RequestTrace"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "TrafficService"
+        ]
+      }
+    },
+    "/api/v1/waf/denials": {
+      "get": {
+        "operationId": "WAFService_ListWAFDenials",
+        "parameters": [
+          {
+            "description": "Optional filters; AND-narrowing.",
+            "in": "query",
+            "name": "routeId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ruleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cursor pagination — empty = first page. The server returns\nnext_cursor in the response when more rows are available.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Limit caps page size (default 50, max 500).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/v1ListWAFDenialsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rpcStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "WAFService"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "sessionCookie": []
+    },
+    {
+      "bearerToken": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Rioku daemon REST endpoint",
+      "url": "{scheme}://{host}/api/v1",
+      "variables": {
+        "host": {
+          "default": "localhost:7778"
+        },
+        "scheme": {
+          "default": "https",
+          "enum": [
+            "https",
+            "http"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "WAFService"
+    }
+  ]
+}
