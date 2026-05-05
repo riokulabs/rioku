@@ -64,6 +64,24 @@ export function ApiExplorer() {
     setPendingRef.current = (req: PendingRequest) => { setPending(req); };
   });
 
+  /** Mirror of the `pending` state into a ref so the unmount cleanup can read it. */
+  const pendingRef = useRef<PendingRequest | null>(null);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+
+  useEffect(() => {
+    return () => {
+      // On unmount: if a destructive-confirm modal is pending, reject the
+      // promise inside Scalar's customScalarFetch so it doesn't hang forever.
+      const p = pendingRef.current;
+      if (p !== null) {
+        p.reject(new DOMException('cancelled', 'AbortError'));
+        pendingRef.current = null;
+      }
+    };
+  }, []);
+
   const handleCancel = useCallback(() => {
     if (pending) {
       pending.reject(new DOMException('Request cancelled by user', 'AbortError'));
