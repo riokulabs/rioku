@@ -13,16 +13,14 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './global.css';
 import { router } from './app/router';
-import { setAuthFailureHandler } from './api/client';
+import { setAuthFailureHandler } from './api/mutator';
 import { setAuthFailureRouter, handleAuthFailure } from './api/auth-failure';
-import { initAuthBootstrap } from './api/auth-bootstrap';
 
 // Wire auth-failure interceptors before any network calls happen.
 setAuthFailureRouter(router);
 setAuthFailureHandler((url) => {
   handleAuthFailure(url);
 });
-initAuthBootstrap();
 
 async function bootstrapStore(): Promise<void> {
   if (import.meta.env.VITEST) return;
