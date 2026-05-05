@@ -21,8 +21,8 @@
     "check-budgets": "node scripts/check-bundle-budgets.mjs",
     "check-abi": "node scripts/check-abi-surface.mjs",
     "abi:update": "node scripts/check-abi-surface.mjs --update",
-    "types:gen": "orval --config orval.config.ts && prettier --write 'src/api/generated/**/*.zod.ts'",
-    "types:gen:incremental": "orval --config orval.config.ts --watch=false && prettier --write 'src/api/generated/**/*.zod.ts'"
+    "types:gen": "orval --config orval.config.ts && prettier --write 'src/api/generated/**/*.zod.ts' && node scripts/suppress-generated-typecheck.mjs",
+    "types:gen:incremental": "orval --config orval.config.ts --watch=false && prettier --write 'src/api/generated/**/*.zod.ts' && node scripts/suppress-generated-typecheck.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
