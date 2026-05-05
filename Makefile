@@ -226,6 +226,7 @@ openapi:
 		-extra-bases ../../$(PKG)/proto/gen/openapi/rioku/v1/ \
 		-fragments ../../$(PKG)/proto/openapi-fragments/ \
 		-out ../../$(PKG)/proto/gen/openapi/rioku/v1/api.full.json
+	node $(PKG)/proto/scripts/normalize-to-oas3.mjs $(PKG)/proto/gen/openapi/rioku/v1/api.full.json
 
 ## test: Run all tests
 test:

@@ -219,9 +219,9 @@ jobs:
       - name: Verify generated admin client is up-to-date
         run: |
           make web-types
-          if [ -n "$(git status --porcelain packages/web/src/api/generated packages/web/src/api/openapi-patched.json)" ]; then
+          if [ -n "$(git status --porcelain packages/web/src/api/generated)" ]; then
             echo "::error::Generated admin client is out of date. Run 'make web-types' locally and commit."
-            git diff packages/web/src/api/generated packages/web/src/api/openapi-patched.json | head -200
+            git diff packages/web/src/api/generated | head -200
             exit 1
           fi
       - name: Lint

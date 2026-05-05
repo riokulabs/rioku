@@ -4,9 +4,9 @@ import { defineConfig } from 'orval';
 export default defineConfig({
   rioku: {
     input: {
-      // openapi-patched.json is generated from api.full.json (see scripts/patch-openapi-for-orval.mjs).
-      // The source api.full.json mixes swagger 2.0 and OAS 3.x; the patch converts it to valid OAS 3.0.3.
-      target: 'src/api/openapi-patched.json',
+      // api.full.json is normalized to OAS 3.0.3 in-place by `make openapi`
+      // (packages/proto/scripts/normalize-to-oas3.mjs runs after the Go merge step).
+      target: '../proto/gen/openapi/rioku/v1/api.full.json',
     },
     output: {
       mode: 'tags-split',
@@ -34,14 +34,14 @@ export default defineConfig({
   },
   riokuZod: {
     input: {
-      target: 'src/api/openapi-patched.json',
+      target: '../proto/gen/openapi/rioku/v1/api.full.json',
     },
     output: {
       mode: 'tags-split',
       target: 'src/api/generated/zod.ts',
       client: 'zod',
       fileExtension: '.zod.ts',
-      prettier: true,
+      // prettier removed — formatting handled by explicit prettier step in types:gen script
     },
   },
 });

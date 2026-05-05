@@ -1,32 +1,36 @@
 #!/usr/bin/env node
 /**
- * patch-openapi-for-orval.mjs
+ * normalize-to-oas3.mjs
  *
- * Converts `packages/proto/gen/openapi/rioku/v1/api.full.json` (a hybrid
- * swagger 2.0 / openapi 3.x document) into a valid OpenAPI 3.0.3 document
- * suitable for consumption by Orval.
+ * Normalizes `packages/proto/gen/openapi/rioku/v1/api.full.json` in-place.
+ * The openapi-merge Go tool produces a hybrid swagger 2.0 / OAS 3.x document;
+ * this script converts it to a valid OpenAPI 3.0.3 document.
  *
  * Transformations applied:
  *   1. Moves `definitions` → `components.schemas`
  *   2. Rewrites all `#/definitions/<Name>` refs → `#/components/schemas/<Name>`
  *   3. Migrates `parameters[in=body]` → `requestBody`
  *   4. Wraps `responses[*].schema` → `responses[*].content['application/json'].schema`
- *   5. Sets `openapi: '3.0.3'` and removes `swagger` field
+ *   5. Fixes inline anonymous schemas that cause orval duplicate-name errors
+ *   6. Sets `openapi: '3.0.3'` and removes `swagger` + swagger-2.0-only top-level fields
  *
- * Output: `packages/web/src/api/openapi-patched.json`
+ * Usage: node packages/proto/scripts/normalize-to-oas3.mjs <path-to-api.full.json>
  *
- * Run: node scripts/patch-openapi-for-orval.mjs
+ * Called automatically by `make openapi` after the Go merge step.
  */
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_WEB = resolve(__dirname, '..');
-const SRC = resolve(REPO_WEB, '..', 'proto', 'gen', 'openapi', 'rioku', 'v1', 'api.full.json');
-const OUT = resolve(REPO_WEB, 'src', 'api', 'openapi-patched.json');
+const targetArg = process.argv[2];
+if (!targetArg) {
+  console.error('Usage: normalize-to-oas3.mjs <path-to-api.full.json>');
+  process.exit(1);
+}
+
+const FILE = resolve(targetArg);
 
 const SCHEMA_FIELDS = ['type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'pattern'];
+const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
 
 function rewriteDefinitionRefs(obj) {
   const serialized = JSON.stringify(obj);
@@ -131,7 +135,7 @@ function migrateOperation(operation) {
 }
 
 function main() {
-  const raw = readFileSync(SRC, 'utf8');
+  const raw = readFileSync(FILE, 'utf8');
   let spec = JSON.parse(raw);
 
   // Step 1: rewrite all #/definitions/ refs
@@ -148,7 +152,6 @@ function main() {
 
   // Step 3: migrate paths
   const paths = {};
-  const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
   for (const [pathKey, pathItem] of Object.entries(spec.paths ?? {})) {
     if (!pathItem || typeof pathItem !== 'object') {
       paths[pathKey] = pathItem;
@@ -189,8 +192,7 @@ function main() {
   delete spec.schemes;
   delete spec.securityDefinitions;
 
-  mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify(spec, null, 2) + '\n', 'utf8');
+  writeFileSync(FILE, JSON.stringify(spec, null, 2) + '\n', 'utf8');
 
   const schemaCount = Object.keys(spec.components?.schemas ?? {}).length;
   const pathCount = Object.keys(spec.paths ?? {}).length;
@@ -199,7 +201,7 @@ function main() {
     return acc + Object.keys(item).filter(k => HTTP_METHODS.includes(k)).length;
   }, 0);
 
-  console.log(`✓ wrote ${OUT}`);
+  console.log(`normalize-to-oas3: wrote ${FILE}`);
   console.log(`  schemas:    ${schemaCount}`);
   console.log(`  paths:      ${pathCount}`);
   console.log(`  operations: ${opCount}`);
