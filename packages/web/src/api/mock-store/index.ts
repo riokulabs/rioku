@@ -35,9 +35,8 @@ export * from './settings';
 // Plan 08 (dashboards)
 export * from './dashboards';
 export * from './widgets';
-// Plan 09 (plugins)
+// Plan 09 (plugins) — plugin-signers mock retired (real API in features/plugin-signers/api.ts)
 export * from './plugins';
-export * from './plugin-signers';
 // Plan 10 (cluster)
 export * from './cluster';
 // Plan 11 (super-admin)
