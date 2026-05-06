@@ -38,9 +38,9 @@ func (t *tx) CreateTenant(ctx context.Context, in *store.Tenant) (*store.Tenant,
 	now := nowUTC()
 
 	_, err := t.sqlTx.ExecContext(ctx,
-		`INSERT INTO tenants (id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, in.Slug, in.Name, plan, urlMode, in.Accent, in.LogoURL, in.DefaultDashboardID, now, now,
+		`INSERT INTO tenants (id, slug, name, plan, url_mode, parent_domain, accent, logo_url, default_dashboard_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, in.Slug, in.Name, plan, urlMode, in.ParentDomain, in.Accent, in.LogoURL, in.DefaultDashboardID, now, now,
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -55,7 +55,7 @@ func (t *tx) CreateTenant(ctx context.Context, in *store.Tenant) (*store.Tenant,
 
 func (t *tx) GetTenant(ctx context.Context, id string) (*store.Tenant, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at
+		`SELECT id, slug, name, plan, url_mode, parent_domain, accent, logo_url, default_dashboard_id, created_at, updated_at
 		 FROM tenants WHERE id = ?`, id)
 	tenant, err := scanTenant(row)
 	if err == sql.ErrNoRows {
@@ -66,7 +66,7 @@ func (t *tx) GetTenant(ctx context.Context, id string) (*store.Tenant, error) {
 
 func (t *tx) GetTenantBySlug(ctx context.Context, slug string) (*store.Tenant, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
-		`SELECT id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at
+		`SELECT id, slug, name, plan, url_mode, parent_domain, accent, logo_url, default_dashboard_id, created_at, updated_at
 		 FROM tenants WHERE slug = ?`, slug)
 	tenant, err := scanTenant(row)
 	if err == sql.ErrNoRows {
@@ -77,7 +77,7 @@ func (t *tx) GetTenantBySlug(ctx context.Context, slug string) (*store.Tenant, e
 
 func (t *tx) ListTenants(ctx context.Context) ([]*store.Tenant, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, slug, name, plan, url_mode, accent, logo_url, default_dashboard_id, created_at, updated_at
+		`SELECT id, slug, name, plan, url_mode, parent_domain, accent, logo_url, default_dashboard_id, created_at, updated_at
 		 FROM tenants ORDER BY created_at ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: list tenants: %w", err)
@@ -109,6 +109,9 @@ func (t *tx) UpdateTenant(ctx context.Context, id string, params store.UpdateTen
 	if params.URLMode != nil {
 		current.URLMode = *params.URLMode
 	}
+	if params.ParentDomain != nil {
+		current.ParentDomain = *params.ParentDomain
+	}
 	if params.Accent != nil {
 		current.Accent = params.Accent
 	}
@@ -121,9 +124,9 @@ func (t *tx) UpdateTenant(ctx context.Context, id string, params store.UpdateTen
 
 	now := nowUTC()
 	_, err = t.sqlTx.ExecContext(ctx,
-		`UPDATE tenants SET name=?, plan=?, url_mode=?, accent=?, logo_url=?, default_dashboard_id=?, updated_at=?
+		`UPDATE tenants SET name=?, plan=?, url_mode=?, parent_domain=?, accent=?, logo_url=?, default_dashboard_id=?, updated_at=?
 		 WHERE id=?`,
-		current.Name, current.Plan, current.URLMode, current.Accent, current.LogoURL, current.DefaultDashboardID, now, id,
+		current.Name, current.Plan, current.URLMode, current.ParentDomain, current.Accent, current.LogoURL, current.DefaultDashboardID, now, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: update tenant: %w", err)
@@ -150,11 +153,11 @@ func (t *tx) DeleteTenant(ctx context.Context, id string) error {
 
 func scanTenant(s scanner) (*store.Tenant, error) {
 	var (
-		id, slug, name, plan, urlMode string
-		accent, logoURL, defDashID    *string
-		createdAt, updatedAt          string
+		id, slug, name, plan, urlMode, parentDomain string
+		accent, logoURL, defDashID                  *string
+		createdAt, updatedAt                        string
 	)
-	if err := s.Scan(&id, &slug, &name, &plan, &urlMode, &accent, &logoURL, &defDashID, &createdAt, &updatedAt); err != nil {
+	if err := s.Scan(&id, &slug, &name, &plan, &urlMode, &parentDomain, &accent, &logoURL, &defDashID, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	return &store.Tenant{
@@ -163,6 +166,7 @@ func scanTenant(s scanner) (*store.Tenant, error) {
 		Name:               name,
 		Plan:               plan,
 		URLMode:            urlMode,
+		ParentDomain:       parentDomain,
 		Accent:             accent,
 		LogoURL:            logoURL,
 		DefaultDashboardID: defDashID,

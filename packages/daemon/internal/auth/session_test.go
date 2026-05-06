@@ -865,9 +865,9 @@ func TestSetCookieAndClear(t *testing.T) {
 	drv := setupTestStore(t)
 	sm := auth.NewSessionManager(drv, false) // devMode=false -> Secure=true
 
-	// Test SetCookie.
+	// Test SetCookie with no domain (path mode).
 	w := httptest.NewRecorder()
-	sm.SetCookie(w, "test-session-id")
+	sm.SetCookie(w, "test-session-id", auth.CookieOptions{})
 
 	cookies := w.Result().Cookies()
 	if len(cookies) != 1 {
@@ -889,10 +889,13 @@ func TestSetCookieAndClear(t *testing.T) {
 	if c.MaxAge != 86400 {
 		t.Errorf("expected MaxAge=86400, got %d", c.MaxAge)
 	}
+	if c.Domain != "" {
+		t.Errorf("expected no Domain in path mode, got %q", c.Domain)
+	}
 
-	// Test ClearCookie.
+	// Test ClearCookie with no domain.
 	w2 := httptest.NewRecorder()
-	sm.ClearCookie(w2)
+	sm.ClearCookie(w2, auth.CookieOptions{})
 
 	cookies2 := w2.Result().Cookies()
 	if len(cookies2) != 1 {
@@ -905,12 +908,114 @@ func TestSetCookieAndClear(t *testing.T) {
 	// Test devMode -> Secure=false.
 	smDev := auth.NewSessionManager(drv, true)
 	w3 := httptest.NewRecorder()
-	smDev.SetCookie(w3, "dev-session")
+	smDev.SetCookie(w3, "dev-session", auth.CookieOptions{})
 	cookies3 := w3.Result().Cookies()
 	if len(cookies3) != 1 {
 		t.Fatalf("expected 1 cookie, got %d", len(cookies3))
 	}
 	if cookies3[0].Secure {
 		t.Error("expected Secure=false in dev mode")
+	}
+}
+
+func TestCookieOptionsForTenant(t *testing.T) {
+	tests := []struct {
+		name         string
+		urlMode      string
+		parentDomain string
+		wantDomain   string
+		wantSubdomain bool
+	}{
+		{
+			name:          "path mode — no domain",
+			urlMode:       "path",
+			parentDomain:  "",
+			wantDomain:    "",
+			wantSubdomain: false,
+		},
+		{
+			name:          "subdomain mode without parent — no domain",
+			urlMode:       "subdomain",
+			parentDomain:  "",
+			wantDomain:    "",
+			wantSubdomain: false,
+		},
+		{
+			name:          "subdomain mode with parent domain",
+			urlMode:       "subdomain",
+			parentDomain:  "localhost",
+			wantDomain:    ".localhost",
+			wantSubdomain: true,
+		},
+		{
+			name:          "subdomain mode with leading-dot domain (idempotent)",
+			urlMode:       "subdomain",
+			parentDomain:  ".example.com",
+			wantDomain:    ".example.com",
+			wantSubdomain: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := auth.CookieOptionsForTenant(tc.urlMode, tc.parentDomain)
+			if got.Domain != tc.wantDomain {
+				t.Errorf("Domain = %q, want %q", got.Domain, tc.wantDomain)
+			}
+			if got.Subdomain != tc.wantSubdomain {
+				t.Errorf("Subdomain = %v, want %v", got.Subdomain, tc.wantSubdomain)
+			}
+		})
+	}
+}
+
+func TestSetCookieSubdomainMode(t *testing.T) {
+	drv := setupTestStore(t)
+	sm := auth.NewSessionManager(drv, false)
+
+	opts := auth.CookieOptionsForTenant("subdomain", "localhost")
+
+	// SetCookie in subdomain mode: Domain=.localhost, SameSite=Lax.
+	w := httptest.NewRecorder()
+	sm.SetCookie(w, "sub-session-id", opts)
+
+	cookies := w.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected 1 cookie, got %d", len(cookies))
+	}
+	c := cookies[0]
+	// Go's net/http strips the leading dot per RFC 6265 §4.1.1 — the
+	// parsed Domain field will be "localhost" not ".localhost".
+	if c.Domain != "localhost" {
+		t.Errorf("Domain = %q, want %q", c.Domain, "localhost")
+	}
+	// SameSite=Lax required per spec §4.3 for subdomain cookie sharing.
+	if c.SameSite != http.SameSiteLaxMode {
+		t.Errorf("SameSite = %v, want Lax", c.SameSite)
+	}
+
+	// Verify the raw Set-Cookie header contains a Domain attribute.
+	// Go's net/http serialises Domain without the leading dot per RFC 6265.
+	rawHeader := w.Header().Get("Set-Cookie")
+	if rawHeader == "" {
+		t.Fatal("expected Set-Cookie header")
+	}
+	if !strings.Contains(rawHeader, "Domain=localhost") {
+		t.Errorf("Set-Cookie header %q should contain Domain=localhost", rawHeader)
+	}
+
+	// ClearCookie in subdomain mode: same Domain to ensure browser evicts.
+	w2 := httptest.NewRecorder()
+	sm.ClearCookie(w2, opts)
+	cookies2 := w2.Result().Cookies()
+	if len(cookies2) != 1 {
+		t.Fatalf("expected 1 cookie on clear, got %d", len(cookies2))
+	}
+	// Same RFC 6265 stripping applies.
+	if cookies2[0].Domain != "localhost" {
+		t.Errorf("clear Domain = %q, want %q", cookies2[0].Domain, "localhost")
+	}
+	if cookies2[0].MaxAge != -1 {
+		t.Errorf("clear MaxAge = %d, want -1", cookies2[0].MaxAge)
 	}
 }

@@ -137,6 +137,7 @@ type tenantResponse struct {
 	Name               string  `json:"name"`
 	Plan               string  `json:"plan"`
 	URLMode            string  `json:"urlMode"`
+	ParentDomain       string  `json:"parentDomain,omitempty"`
 	Accent             *string `json:"accent,omitempty"`
 	LogoURL            *string `json:"logoUrl,omitempty"`
 	DefaultDashboardID *string `json:"defaultDashboardId,omitempty"`
@@ -151,6 +152,7 @@ func tenantToResponse(t *store.Tenant) tenantResponse {
 		Name:               t.Name,
 		Plan:               t.Plan,
 		URLMode:            t.URLMode,
+		ParentDomain:       t.ParentDomain,
 		Accent:             t.Accent,
 		LogoURL:            t.LogoURL,
 		DefaultDashboardID: t.DefaultDashboardID,
@@ -160,16 +162,18 @@ func tenantToResponse(t *store.Tenant) tenantResponse {
 }
 
 type createTenantRequest struct {
-	Slug    string `json:"slug"`
-	Name    string `json:"name"`
-	Plan    string `json:"plan,omitempty"`
-	URLMode string `json:"urlMode,omitempty"`
+	Slug         string `json:"slug"`
+	Name         string `json:"name"`
+	Plan         string `json:"plan,omitempty"`
+	URLMode      string `json:"urlMode,omitempty"`
+	ParentDomain string `json:"parentDomain,omitempty"`
 }
 
 type updateTenantRequest struct {
 	Name               *string `json:"name,omitempty"`
 	Plan               *string `json:"plan,omitempty"`
 	URLMode            *string `json:"urlMode,omitempty"`
+	ParentDomain       *string `json:"parentDomain,omitempty"`
 	Accent             *string `json:"accent,omitempty"`
 	LogoURL            *string `json:"logoUrl,omitempty"`
 	DefaultDashboardID *string `json:"defaultDashboardId,omitempty"`
@@ -217,7 +221,7 @@ func handleCreateTenant(st store.Driver) http.HandlerFunc {
 			return
 		}
 		created, err := tx.CreateTenant(r.Context(), &store.Tenant{
-			Slug: req.Slug, Name: req.Name, Plan: req.Plan, URLMode: req.URLMode,
+			Slug: req.Slug, Name: req.Name, Plan: req.Plan, URLMode: req.URLMode, ParentDomain: req.ParentDomain,
 		})
 		if err != nil {
 			_ = tx.Rollback()
@@ -278,6 +282,7 @@ func handleUpdateTenant(st store.Driver) http.HandlerFunc {
 			Name:               req.Name,
 			Plan:               req.Plan,
 			URLMode:            req.URLMode,
+			ParentDomain:       req.ParentDomain,
 			Accent:             req.Accent,
 			LogoURL:            req.LogoURL,
 			DefaultDashboardID: req.DefaultDashboardID,
@@ -362,6 +367,7 @@ func handleUpdateCurrentTenant(st store.Driver) http.HandlerFunc {
 			Name:               req.Name,
 			Plan:               req.Plan,
 			URLMode:            req.URLMode,
+			ParentDomain:       req.ParentDomain,
 			Accent:             req.Accent,
 			LogoURL:            req.LogoURL,
 			DefaultDashboardID: req.DefaultDashboardID,
