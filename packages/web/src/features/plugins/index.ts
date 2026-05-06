@@ -8,3 +8,5 @@ export * from './installed';
 export * from './marketplace';
 export * from './install-by-reference';
 export * from './install-approval';
+export * from './manifest-validate';
+export * from './sideload';

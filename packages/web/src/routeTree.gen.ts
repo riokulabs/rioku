@@ -61,6 +61,7 @@ import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/sec
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
 import { Route as TTenantPluginsSignersRouteImport } from './routes/t.$tenant/plugins_.signers'
+import { Route as TTenantPluginsSideloadRouteImport } from './routes/t.$tenant/plugins_.sideload'
 import { Route as TTenantDashboardsDashboardIdRouteImport } from './routes/t.$tenant/dashboards.$dashboardId'
 import { Route as TTenantAiTracesRouteImport } from './routes/t.$tenant/ai/traces'
 import { Route as TTenantAiToolsRouteImport } from './routes/t.$tenant/ai/tools'
@@ -340,6 +341,11 @@ const TTenantPluginsSignersRoute = TTenantPluginsSignersRouteImport.update({
   path: '/plugins/signers',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantPluginsSideloadRoute = TTenantPluginsSideloadRouteImport.update({
+  id: '/plugins_/sideload',
+  path: '/plugins/sideload',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantDashboardsDashboardIdRoute =
   TTenantDashboardsDashboardIdRouteImport.update({
     id: '/$dashboardId',
@@ -437,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/plugins/sideload': typeof TTenantPluginsSideloadRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -497,6 +504,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/plugins/sideload': typeof TTenantPluginsSideloadRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -562,6 +570,7 @@ export interface FileRoutesById {
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/plugins_/sideload': typeof TTenantPluginsSideloadRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -627,6 +636,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/plugins/signers'
+    | '/t/$tenant/plugins/sideload'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/plugins/signers'
+    | '/t/$tenant/plugins/sideload'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -751,6 +762,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/plugins_/signers'
+    | '/t/$tenant/plugins_/sideload'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -1147,6 +1159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantPluginsSignersRouteImport
       parentRoute: typeof TTenantRoute
     }
+    '/t/$tenant/plugins_/sideload': {
+      id: '/t/$tenant/plugins_/sideload'
+      path: '/plugins/sideload'
+      fullPath: '/t/$tenant/plugins/sideload'
+      preLoaderRoute: typeof TTenantPluginsSideloadRouteImport
+      parentRoute: typeof TTenantRoute
+    }
     '/t/$tenant/dashboards/$dashboardId': {
       id: '/t/$tenant/dashboards/$dashboardId'
       path: '/$dashboardId'
@@ -1369,6 +1388,7 @@ interface TTenantRouteChildren {
   TTenantSettingsRoute: typeof TTenantSettingsRouteWithChildren
   TTenantSitesRoute: typeof TTenantSitesRoute
   TTenantPluginsSignersRoute: typeof TTenantPluginsSignersRoute
+  TTenantPluginsSideloadRoute: typeof TTenantPluginsSideloadRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
   TTenantDetailKindIdRoute: typeof TTenantDetailKindIdRoute
   TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
@@ -1390,6 +1410,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantSettingsRoute: TTenantSettingsRouteWithChildren,
   TTenantSitesRoute: TTenantSitesRoute,
   TTenantPluginsSignersRoute: TTenantPluginsSignersRoute,
+  TTenantPluginsSideloadRoute: TTenantPluginsSideloadRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
   TTenantDetailKindIdRoute: TTenantDetailKindIdRoute,
   TTenantDashboardsDashboardIdEditRoute: TTenantDashboardsDashboardIdEditRoute,

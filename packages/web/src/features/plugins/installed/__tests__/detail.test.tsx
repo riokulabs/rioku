@@ -17,14 +17,24 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw-server';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { InstalledPluginDetail } from '../components/detail';
 
 function wrap(ui: React.ReactNode) {
-  return render(<MantineProvider>{ui}</MantineProvider>);
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MantineProvider>{ui}</MantineProvider>
+    </QueryClientProvider>,
+  );
 }
 
 beforeEach(() => {
@@ -33,7 +43,7 @@ beforeEach(() => {
 });
 
 describe('<InstalledPluginDetail> — signer chip', () => {
-  it('renders the signer chip with short fingerprint for signed plugins', () => {
+  it('renders the signer chip with short fingerprint for signed plugins', async () => {
     // Pick any seeded plugin that has a signer_id.
     const plugin = Object.values(useMockStore.getState().plugins).find(
       (p) => p.signer_id !== undefined,
@@ -41,6 +51,22 @@ describe('<InstalledPluginDetail> — signer chip', () => {
     if (!plugin) throw new Error('seed fixture missing signed plugin');
     const signer = useMockStore.getState().pluginSigners[plugin.signer_id ?? ''];
     if (!signer) throw new Error('seed fixture missing signer for plugin');
+
+    // SignerChip now fetches via the daemon; mock the lookup endpoint.
+    server.use(
+      http.get(/\/api\/v1\/(t\/[^/]+|admin)\/plugin-signers\/[^/]+$/, () =>
+        HttpResponse.json({
+          id: signer.id,
+          tenantScope: signer.tenant_scope ?? null,
+          name: signer.name,
+          fingerprint: signer.fingerprint,
+          status: signer.status,
+          notes: signer.description ?? '',
+          createdAt: signer.created_at,
+          updatedAt: signer.created_at,
+        }),
+      ),
+    );
 
     wrap(
       <InstalledPluginDetail
@@ -51,7 +77,7 @@ describe('<InstalledPluginDetail> — signer chip', () => {
       />,
     );
 
-    const chip = screen.getByTestId('plugin-signer-chip');
+    const chip = await waitFor(() => screen.getByTestId('plugin-signer-chip'));
     expect(chip.textContent).toContain(signer.name);
     expect(chip.textContent).toContain(signer.fingerprint.slice(0, 8));
     // The status is propagated as a data-attribute for UI testing.

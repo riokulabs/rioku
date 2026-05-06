@@ -62,19 +62,20 @@ interface DaemonPlugin {
 // ─── Data mappers (daemon → frontend resource types) ─────────────────────────
 
 function daemonToSigner(d: DaemonSigner): PluginSigner {
-  return {
+  const out: PluginSigner = {
     id: d.id,
     tenant_scope: d.tenantScope ?? null,
     name: d.name,
     fingerprint: d.fingerprint,
     status: d.status,
-    description: d.notes || undefined,
     created_at: d.createdAt,
   };
+  if (d.notes) out.description = d.notes;
+  return out;
 }
 
 function daemonToPlugin(d: DaemonPlugin): Plugin {
-  return {
+  const out: Plugin = {
     id: d.id,
     tenant_scope: d.tenantScope ?? null,
     slug: d.slug,
@@ -85,10 +86,11 @@ function daemonToPlugin(d: DaemonPlugin): Plugin {
     declared_permissions: [],
     manifest: {},
     has_errors: d.buildState === 'failed',
-    build_state: (d.buildState as Plugin['build_state']) ?? 'stable',
+    build_state: d.buildState as Plugin['build_state'],
     cosign_verified: d.cosignVerified,
-    signer_id: d.signerId ?? undefined,
   };
+  if (d.signerId !== null) out.signer_id = d.signerId;
+  return out;
 }
 
 // ─── URL builders ─────────────────────────────────────────────────────────────
@@ -224,7 +226,7 @@ export async function deleteSigner(
   id: string,
   tenantId: string | null = null,
 ): Promise<void> {
-  await customFetch<void>({
+  await customFetch<unknown>({
     url: `${signersBaseUrl(tenantId)}/${id}`,
     method: 'DELETE',
   });

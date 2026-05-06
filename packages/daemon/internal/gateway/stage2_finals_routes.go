@@ -38,10 +38,17 @@ func registerPluginsExtras(mux *http.ServeMux, st store.Driver) {
 	// - plugin-signers/{id}/plugins sub-collection
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/install-from-marketplace",
 		RequirePermission("plugins:write")(http.HandlerFunc(handlePluginInstallMarketplace(st))))
+	// Sideload — accept multipart upload of a built plugin archive +
+	// manifest. Stage-2 stub: returns 501 with a documented decisions
+	// list so the admin form can wire end-to-end and exercise the
+	// permission guard. Real install pipeline ships with #142/#143/#146.
+	mux.Handle("POST /api/v1/t/{tenant}/plugins/sideload",
+		RequirePermission("plugin:install")(http.HandlerFunc(handlePluginSideload(st))))
 	// /plugin-signers/{id}/plugins is already registered in
 	// plugins_routes.go.
 
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/plugins/install-from-marketplace", []string{"POST"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/plugins/sideload", []string{"POST"})
 }
 
 func handlePluginInstallMarketplace(_ store.Driver) http.HandlerFunc {
@@ -53,6 +60,27 @@ func handlePluginInstallMarketplace(_ store.Driver) http.HandlerFunc {
 			"status":    "queued",
 			"note":      "marketplace install pipeline ships with the plugin-marketplace subsystem",
 		})
+	}
+}
+
+// handlePluginSideload — stage-2 stub. The form-data parser for the
+// upload, the cosign verification step, and the on-disk plugin staging
+// directory are tracked in #142 (build pipeline) and #146 (sideload
+// trust ladder). Until those land, we accept the request and return
+// 501 with a "decisions-needed" payload so the admin panel can render
+// the diagnostic banner end-to-end.
+func handlePluginSideload(_ store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// We DO parse the multipart envelope so callers get a clear 400
+		// when they send a malformed body, before the 501.
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			writeBadRequest(w, r, "expected multipart/form-data with 'archive' and 'manifest' parts")
+			return
+		}
+		writeProblem(w, http.StatusNotImplemented, errTypeInternal,
+			"Plugin sideload not yet implemented",
+			"The sideload upload pipeline is tracked by issues #142 (build) and #146 (trust ladder). See contrib-docs/admin-stage2-entry.md.",
+			r.URL.Path, nil)
 	}
 }
 
