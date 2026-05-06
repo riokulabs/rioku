@@ -44,11 +44,10 @@ import { MiddlewareDetail } from '@/features/middlewares';
 
 // ── Security ────────────────────────────────────────────────────────────────
 import { ApiKeyDetailDrawer } from '@/features/security/api-keys/components/detail-drawer';
-import { SessionDetail } from '@/features/security/sessions';
 import { AuditDetail } from '@/features/audit';
-import { RoleDetail } from '@/features/security/roles';
+import { RoleDetail, useRole } from '@/features/security/roles';
 import { AccessPolicyDetail } from '@/features/security/access-policies';
-import { RbacPolicyDetail } from '@/features/security/rbac-policies';
+import { RbacPolicyDetail, useRbacPolicy } from '@/features/security/rbac-policies';
 import { useApiKey } from '@/features/security/api-keys/api';
 
 // ── Plugins / Notifications ─────────────────────────────────────────────────
@@ -354,30 +353,36 @@ function ApiKeyDetailPage({ entityId, tenantSlug }: RendererProps) {
   );
 }
 
-function SessionDetailPage({ entityId, tenantSlug }: RendererProps) {
+/**
+ * Sessions render inline (RD5) — there is no full-page detail. Direct
+ * deep-links to /t/$tenant/_detail/session/$id render an explanation
+ * alert with a "Back to sessions" button so old links don't 404.
+ */
+function SessionDetailPage({ tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const session = useMockStore((s) => {
-    const raw = s.sessions[entityId];
-    if (!raw) return null;
-    return {
-      ...raw,
-      device: raw.user_agent || 'Unknown device',
-      location: '—',
-      is_current: false,
-      last_seen_relative: '',
-    };
-  });
-  if (!session) return <NotFound what="Session" />;
   return (
-    <SessionDetail
-      session={session}
-      onClose={() => {
-        void navigate({
-          to: '/t/$tenant/security/sessions',
-          params: { tenant: tenantSlug },
-        } as unknown as Parameters<typeof navigate>[0]);
-      }}
-    />
+    <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
+      <Stack gap="sm">
+        <Text size="sm">
+          Sessions are shown inline on the sessions page. There is no full-page detail.
+        </Text>
+        <Group>
+          <Button
+            size="xs"
+            variant="default"
+            leftSection={<IconArrowLeft size={14} />}
+            onClick={() => {
+              void navigate({
+                to: '/t/$tenant/security/sessions',
+                params: { tenant: tenantSlug },
+              } as unknown as Parameters<typeof navigate>[0]);
+            }}
+          >
+            Back to sessions
+          </Button>
+        </Group>
+      </Stack>
+    </Alert>
   );
 }
 
@@ -400,10 +405,11 @@ function AuditDetailPage({ entityId, tenantSlug }: RendererProps) {
 
 function RoleDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const role = useMockStore((s) => s.roles[entityId] ?? null);
+  const role = useRole(tenantSlug, entityId);
   if (!role) return <NotFound what="Role" />;
   return (
     <RoleDetail
+      tenant={tenantSlug}
       role={role}
       onClose={() => {
         void navigate({
@@ -446,16 +452,11 @@ function AccessPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
 
 function RbacPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const policy = useMockStore((s) => {
-    const raw = s.rbacPolicies[entityId];
-    if (!raw) return null;
-    return raw;
-  });
+  const policy = useRbacPolicy(tenantSlug, entityId);
   if (!policy) return <NotFound what="RBAC policy" />;
   return (
     <RbacPolicyDetail
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-      policy={policy as any}
+      policy={policy}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/security/rbac-policies',
