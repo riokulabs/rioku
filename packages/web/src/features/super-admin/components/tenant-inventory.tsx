@@ -438,20 +438,20 @@ export function TenantInventory() {
       </Group>
 
       {tenantList.length === 0 ? (
-        <EmptyState
-          icon={IconBuilding}
-          title="No tenants"
-          description={
-            debouncedSearch || planFilter !== 'all'
-              ? 'No tenants match the current filters.'
-              : 'Create a tenant to get started.'
-          }
-          action={
-            !debouncedSearch && planFilter === 'all'
-              ? { label: 'Create tenant', onClick: openCreate }
-              : undefined
-          }
-        />
+        !debouncedSearch && planFilter === 'all' ? (
+          <EmptyState
+            icon={IconBuilding}
+            title="No tenants"
+            description="Create a tenant to get started."
+            action={{ label: 'Create tenant', onClick: openCreate }}
+          />
+        ) : (
+          <EmptyState
+            icon={IconBuilding}
+            title="No tenants"
+            description="No tenants match the current filters."
+          />
+        )
       ) : (
         <DataTable columns={columns} data={tenantList} />
       )}

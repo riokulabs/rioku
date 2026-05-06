@@ -205,8 +205,8 @@ export function AdminAuditView() {
   const [actorFilter, setActorFilter] = useState<string>('all');
   const [tenantFilter, setTenantFilter] = useState<string>('all');
   const [kindFilter, setKindFilter] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState<Date | null>(null);
-  const [dateTo, setDateTo] = useState<Date | null>(null);
+  const [dateFrom, setDateFrom] = useState<string | null>(null);
+  const [dateTo, setDateTo] = useState<string | null>(null);
 
   const actorOptions = useMemo(
     () => [
@@ -242,7 +242,7 @@ export function AdminAuditView() {
       )
         return false;
       if (kindFilter && !e.action.toLowerCase().includes(kindFilter.toLowerCase())) return false;
-      if (dateFrom && new Date(e.at) < dateFrom) return false;
+      if (dateFrom && new Date(e.at) < new Date(dateFrom)) return false;
       if (dateTo) {
         const toEnd = new Date(dateTo);
         toEnd.setHours(23, 59, 59, 999);
