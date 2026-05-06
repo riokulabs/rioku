@@ -58,6 +58,7 @@ import { Route as TTenantSecuritySessionsRouteImport } from './routes/t.$tenant/
 import { Route as TTenantSecurityRolesRouteImport } from './routes/t.$tenant/security/roles'
 import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$tenant/security/rbac-policies'
 import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/security/audit'
+import { Route as TTenantSecurityAuditAdminRouteImport } from './routes/t.$tenant/security/audit_.admin'
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
 import { Route as TTenantPluginsSignersRouteImport } from './routes/t.$tenant/plugins_.signers'
@@ -387,6 +388,11 @@ const TTenantDashboardsDashboardIdEditRoute =
     path: '/dashboards/$dashboardId/edit',
     getParentRoute: () => TTenantRoute,
   } as any)
+const TTenantSecurityAuditAdminRoute = TTenantSecurityAuditAdminRouteImport.update({
+  id: '/security/audit_/admin',
+  path: '/security/audit/admin',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantDetailKindIdRoute = TTenantDetailKindIdRouteImport.update({
   id: '/_detail/$kind/$id',
   path: '/$kind/$id',
@@ -455,6 +461,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
+  '/t/$tenant/security/audit/admin': typeof TTenantSecurityAuditAdminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -500,6 +507,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
+  '/t/$tenant/security/audit/admin': typeof TTenantSecurityAuditAdminRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
@@ -565,6 +573,7 @@ export interface FileRoutesById {
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
+  '/t/$tenant/security/audit_/admin': typeof TTenantSecurityAuditAdminRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
@@ -630,6 +639,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/audit/admin'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -690,6 +700,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/audit/admin'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -754,6 +765,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/audit_/admin'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -1126,6 +1138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityAuditRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/security/audit_/admin': {
+      id: '/t/$tenant/security/audit_/admin'
+      path: '/security/audit/admin'
+      fullPath: '/t/$tenant/security/audit/admin'
+      preLoaderRoute: typeof TTenantSecurityAuditAdminRouteImport
+      parentRoute: typeof TTenantRoute
+    }
     '/t/$tenant/security/api-keys': {
       id: '/t/$tenant/security/api-keys'
       path: '/api-keys'
@@ -1372,6 +1391,7 @@ interface TTenantRouteChildren {
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
   TTenantDetailKindIdRoute: typeof TTenantDetailKindIdRoute
   TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
+  TTenantSecurityAuditAdminRoute: typeof TTenantSecurityAuditAdminRoute
 }
 
 const TTenantRouteChildren: TTenantRouteChildren = {
@@ -1393,6 +1413,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
   TTenantDetailKindIdRoute: TTenantDetailKindIdRoute,
   TTenantDashboardsDashboardIdEditRoute: TTenantDashboardsDashboardIdEditRoute,
+  TTenantSecurityAuditAdminRoute: TTenantSecurityAuditAdminRoute,
 }
 
 const TTenantRouteWithChildren =
