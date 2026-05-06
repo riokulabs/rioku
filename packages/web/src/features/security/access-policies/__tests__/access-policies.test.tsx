@@ -1,156 +1,291 @@
 /**
- * Unit tests for access-policies feature.
+ * Real-API tests for the access-policies slice.
  *
- * Monaco and router are mocked — same pattern as data-table and condition-editor tests.
+ * These tests deliberately bypass the mock-store layer: they wire the
+ * Orval-generated hooks via MSW so the production code path under
+ * stage-2 (`VITE_USE_MOCKS=false`) is the one being exercised.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+import type { ReactNode } from 'react';
 
-// ── Mock @monaco-editor/react ─────────────────────────────────────────────────
-vi.mock('@monaco-editor/react', async () => {
-  const { useEffect } = await import('react');
-  const MockEditor = ({
-    value,
-    onChange,
-    onMount,
-    options,
-  }: {
-    value?: string;
-    onChange?: (v: string | undefined) => void;
-    onMount?: (editor: unknown, monaco: unknown) => void;
-    options?: { readOnly?: boolean };
-  }) => {
-    useEffect(() => {
-      if (onMount) {
-        const fakeModel = {};
-        const fakeEditor = { getModel: () => fakeModel };
-        const fakeMonaco = {
-          editor: { setModelMarkers: vi.fn() },
-          MarkerSeverity: { Error: 8 },
-          languages: {
-            register: vi.fn(),
-            setMonarchTokensProvider: vi.fn(),
-            setLanguageConfiguration: vi.fn(),
-          },
-        };
-        onMount(fakeEditor, fakeMonaco);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    return (
-      <textarea
-        aria-label="CEL Condition"
-        data-testid="monaco-stub"
-        value={value ?? ''}
-        readOnly={options?.readOnly ?? false}
-        onChange={(e) => onChange?.(e.target.value)}
-      />
-    );
-  };
-  return { default: MockEditor };
-});
+import { server } from '@/test/msw-server';
+import {
+  useAccessPolicyList,
+  createAccessPolicyMutation,
+  updateAccessPolicyMutation,
+  deleteAccessPolicyMutation,
+  testAccessPolicyCelMutation,
+} from '../api';
 
-// ── Mock cel-parser ───────────────────────────────────────────────────────────
-vi.mock('@/lib/cel-parser', () => ({
-  parseCel: vi.fn().mockResolvedValue({ ok: true }),
-}));
+const TENANT = 'acme';
 
-// ── Mock TanStack Router (same pattern as data-table tests) ──────────────────
-vi.mock('@tanstack/react-router', () => ({
-  useSearch: () => ({}),
-  useNavigate: () => vi.fn(),
-  useBlocker: () => ({ status: 'idle' }),
-}));
-
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MantineProvider } from '@mantine/core';
-import { ModalsProvider } from '@mantine/modals';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
-import { AccessPolicyList } from '../components/list';
-import { AccessPolicyEditor } from '../components/editor';
-
-// ─── Wrapper ──────────────────────────────────────────────────────────────────
-
-function wrap(ui: React.ReactNode) {
-  return render(
-    <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
-  );
+function wrap() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  function QueryWrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  }
+  return QueryWrapper;
 }
 
-// ─── Setup ─────────────────────────────────────────────────────────────────────
+interface RecordedRequest {
+  method: string;
+  url: string;
+  body: unknown;
+}
 
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
+function captureRequest(
+  method: 'get' | 'post' | 'patch' | 'put' | 'delete',
+  pathPattern: string,
+  responseFactory: () => Response | Promise<Response>,
+): RecordedRequest[] {
+  const recorded: RecordedRequest[] = [];
+  server.use(
+    http[method](pathPattern, async ({ request }) => {
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        body = undefined;
+      }
+      recorded.push({ method: request.method, url: request.url, body });
+      return responseFactory();
+    }),
+  );
+  return recorded;
+}
 
-// ─── Tests ─────────────────────────────────────────────────────────────────────
+// ─── list ──────────────────────────────────────────────────────────────────────
 
-describe('AccessPolicyList', () => {
-  it('renders seeded 15 policies', () => {
-    const onSelect = vi.fn();
-    wrap(<AccessPolicyList onSelect={onSelect} />);
-    const rows = screen.getAllByRole('row');
-    // rows includes the header row
-    expect(rows.length).toBeGreaterThanOrEqual(16);
-  });
+describe('useAccessPolicyList', () => {
+  it('renders the policies returned by the daemon', async () => {
+    server.use(
+      http.get(`*/api/v1/t/${TENANT}/access-policies`, () =>
+        HttpResponse.json({
+          accessPolicies: [
+            {
+              id: 'pol-1',
+              tenantId: TENANT,
+              name: 'block-internal',
+              expression: 'request.method == "DELETE"',
+              effect: 'deny',
+              priority: 10,
+              enabled: true,
+              createdAt: '2026-04-01T00:00:00Z',
+            },
+            {
+              id: 'pol-2',
+              tenantId: TENANT,
+              name: 'allow-readers',
+              expression: 'true',
+              effect: 'allow',
+              priority: 100,
+              enabled: false,
+              createdAt: '2026-04-02T00:00:00Z',
+            },
+          ],
+        }),
+      ),
+    );
 
-  it('calls onSelect when a row is clicked', () => {
-    const onSelect = vi.fn();
-    wrap(<AccessPolicyList onSelect={onSelect} />);
-    const dataRows = screen.getAllByRole('row').slice(1); // skip header
-    const firstRow = dataRows[0];
-    if (!firstRow) throw new Error('No rows found');
-    fireEvent.click(firstRow);
-    expect(onSelect).toHaveBeenCalledOnce();
-  });
-});
-
-describe('AccessPolicyEditor', () => {
-  it('does not call onSave when name is empty', async () => {
-    const onSave = vi.fn();
-    const onCancel = vi.fn();
-    wrap(<AccessPolicyEditor tenantId="tenant-1" onSave={onSave} onCancel={onCancel} />);
-    const saveBtn = screen.getByRole('button', { name: /create policy/i });
-    // Name input is empty by default — form validation should block submission
-    fireEvent.click(saveBtn);
-    // Wait a tick to allow any async form processing to complete
-    await new Promise((r) => setTimeout(r, 50));
-    expect(onSave).not.toHaveBeenCalled();
-  });
-
-  it('calls onSave with valid form values', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const onCancel = vi.fn();
-    wrap(<AccessPolicyEditor tenantId="tenant-1" onSave={onSave} onCancel={onCancel} />);
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    fireEvent.change(nameInput, { target: { value: 'test-policy' } });
-
-    // Set condition via the mocked textarea
-    const conditionInput = screen.getByRole('textbox', { name: /cel condition/i });
-    fireEvent.change(conditionInput, { target: { value: 'true' } });
-
-    const saveBtn = screen.getByRole('button', { name: /create policy/i });
-    fireEvent.click(saveBtn);
+    const { result } = renderHook(() => useAccessPolicyList(TENANT), { wrapper: wrap() });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledOnce();
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(result.current.error).toBeNull();
+    expect(result.current.data).toHaveLength(2);
+    expect(result.current.data[0]).toMatchObject({
+      id: 'pol-1',
+      tenant_id: TENANT,
+      name: 'block-internal',
+      condition: 'request.method == "DELETE"',
+      action: 'deny',
+      priority: 10,
+      enabled: true,
+    });
+    expect(result.current.data[1]).toMatchObject({
+      id: 'pol-2',
+      action: 'allow',
+      enabled: false,
     });
   });
 
-  it('save action adds a new entry to the mock store', async () => {
-    const initialCount = Object.keys(useMockStore.getState().accessPolicies).length;
-    const { createAccessPolicyMutation } = await import('../api');
-    await createAccessPolicyMutation('tenant-acme', {
-      name: 'new-policy-from-test',
-      condition: 'true',
+  it('surfaces fetch errors', async () => {
+    server.use(
+      http.get(`*/api/v1/t/${TENANT}/access-policies`, () =>
+        HttpResponse.json({ title: 'boom' }, { status: 500 }),
+      ),
+    );
+
+    const { result } = renderHook(() => useAccessPolicyList(TENANT), { wrapper: wrap() });
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+    expect(result.current.data).toEqual([]);
+  });
+});
+
+// ─── create / update / delete ──────────────────────────────────────────────────
+
+describe('createAccessPolicyMutation', () => {
+  it('POSTs the wire payload (expression/effect, not condition/action)', async () => {
+    const recorded = captureRequest('post', `*/api/v1/t/${TENANT}/access-policies`, () =>
+      HttpResponse.json(null, { status: 201 }),
+    );
+
+    await createAccessPolicyMutation(TENANT, {
+      name: 'new-policy',
+      condition: 'request.method == "GET"',
       action: 'allow',
-      priority: 100,
+      priority: 50,
       enabled: true,
     });
-    const newCount = Object.keys(useMockStore.getState().accessPolicies).length;
-    expect(newCount).toBe(initialCount + 1);
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.method).toBe('POST');
+    expect(recorded[0]?.url).toContain(`/api/v1/t/${TENANT}/access-policies`);
+    expect(recorded[0]?.body).toMatchObject({
+      name: 'new-policy',
+      expression: 'request.method == "GET"',
+      effect: 'allow',
+      priority: 50,
+      enabled: true,
+    });
+  });
+});
+
+describe('updateAccessPolicyMutation', () => {
+  it('PATCHes the wire payload (merge-patch)', async () => {
+    const recorded = captureRequest('patch', `*/api/v1/t/${TENANT}/access-policies/pol-1`, () =>
+      HttpResponse.json(null, { status: 200 }),
+    );
+
+    await updateAccessPolicyMutation(TENANT, 'pol-1', {
+      enabled: false,
+      priority: 200,
+    });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.method).toBe('PATCH');
+    expect(recorded[0]?.body).toMatchObject({ enabled: false, priority: 200 });
+    const body = recorded[0]?.body as Record<string, unknown>;
+    expect(body.name).toBeUndefined();
+    expect(body.expression).toBeUndefined();
+  });
+});
+
+describe('deleteAccessPolicyMutation', () => {
+  it('issues DELETE against the canonical resource path', async () => {
+    const recorded = captureRequest('delete', `*/api/v1/t/${TENANT}/access-policies/pol-1`, () =>
+      HttpResponse.json(null, { status: 204 }),
+    );
+
+    await deleteAccessPolicyMutation(TENANT, 'pol-1');
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.method).toBe('DELETE');
+  });
+});
+
+// ─── test-cel ──────────────────────────────────────────────────────────────────
+
+describe('testAccessPolicyCelMutation', () => {
+  it('returns matched=true on a matching expression', async () => {
+    const recorded = captureRequest(
+      'post',
+      `*/api/v1/t/${TENANT}/access-policies/test-cel`,
+      () =>
+        HttpResponse.json({
+          matched: true,
+          durationMs: 0.42,
+        }),
+    );
+
+    const result = await testAccessPolicyCelMutation(TENANT, {
+      expression: 'request.method == "GET"',
+      sample: { request: { method: 'GET' } },
+    });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.body).toMatchObject({
+      expression: 'request.method == "GET"',
+      sample: { request: { method: 'GET' } },
+    });
+    expect(result.matched).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('returns matched=false with an error string for an invalid expression', async () => {
+    server.use(
+      http.post(`*/api/v1/t/${TENANT}/access-policies/test-cel`, () =>
+        HttpResponse.json({
+          matched: false,
+          durationMs: 0.12,
+          error: 'ERROR: <input>:1:1: Syntax error: unexpected token',
+        }),
+      ),
+    );
+
+    const result = await testAccessPolicyCelMutation(TENANT, {
+      expression: 'request.method ==',
+      sample: { request: { method: 'GET' } },
+    });
+
+    expect(result.matched).toBe(false);
+    expect(result.error).toBeDefined();
+    expect(result.error).toContain('Syntax error');
+  });
+});
+
+// ─── E2E: create → list cache invalidation ─────────────────────────────────────
+
+describe('cache invalidation on mutate', () => {
+  it('refetches the list after a successful create', async () => {
+    let listCalls = 0;
+    server.use(
+      http.get(`*/api/v1/t/${TENANT}/access-policies`, () => {
+        listCalls += 1;
+        return HttpResponse.json({ accessPolicies: [] });
+      }),
+      http.post(`*/api/v1/t/${TENANT}/access-policies`, () =>
+        HttpResponse.json(null, { status: 201 }),
+      ),
+    );
+
+    const { useCreateAccessPolicyMutation } = await import('../api');
+    const Wrapper = wrap();
+    const { result } = renderHook(
+      () => ({
+        list: useAccessPolicyList(TENANT),
+        create: useCreateAccessPolicyMutation(TENANT),
+      }),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isLoading).toBe(false);
+    });
+    const initial = listCalls;
+
+    await act(async () => {
+      await result.current.create({
+        name: 'fresh',
+        condition: 'true',
+        action: 'allow',
+        priority: 100,
+        enabled: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(listCalls).toBeGreaterThan(initial);
+    });
   });
 });

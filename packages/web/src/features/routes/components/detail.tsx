@@ -154,7 +154,7 @@ export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailP
 
       <Divider />
 
-      <AttachedPolicies routeId={route.id} />
+      <AttachedPolicies routeId={route.id} tenant={tenantId} />
 
       <Divider />
 

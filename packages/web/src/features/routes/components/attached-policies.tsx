@@ -13,11 +13,13 @@ import { attachPolicy, detachPolicy } from '../api';
 
 interface AttachedPoliciesProps {
   routeId: string;
+  /** Tenant slug for the access-policies query (stage-2 real-API). */
+  tenant: string;
 }
 
-export function AttachedPolicies({ routeId }: AttachedPoliciesProps) {
+export function AttachedPolicies({ routeId, tenant }: AttachedPoliciesProps) {
   const attached = usePoliciesAttachedToRoute(routeId);
-  const allPolicies = usePolicyList();
+  const { data: allPolicies } = usePolicyList(tenant);
 
   const [pickerOpened, { open: openPicker, close: closePicker }] = useDisclosure(false);
   const [busyId, setBusyId] = useState<string | null>(null);

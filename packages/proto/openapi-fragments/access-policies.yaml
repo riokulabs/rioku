@@ -77,14 +77,77 @@ paths:
     put:
       tags: [access-policies]
       operationId: replaceAccessPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, expression]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                expression: { type: string }
+                effect: { type: string, enum: [allow, deny] }
+                priority: { type: integer }
+                enabled: { type: boolean }
       responses: { "200": { description: ok } }
     patch:
       tags: [access-policies]
       operationId: patchAccessPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                expression: { type: string }
+                effect: { type: string, enum: [allow, deny] }
+                priority: { type: integer }
+                enabled: { type: boolean }
       responses: { "200": { description: ok } }
     delete:
       tags: [access-policies]
       operationId: deleteAccessPolicy
       responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+
+  /api/v1/t/{tenant}/access-policies/test-cel:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [access-policies]
+      operationId: testAccessPolicyCel
+      summary: "Dry-run a CEL expression against a sample event."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expression]
+              properties:
+                expression: { type: string }
+                sample:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: evaluation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [matched, durationMs]
+                properties:
+                  matched: { type: boolean }
+                  error: { type: string }
+                  durationMs: { type: number }
+        "400": { description: bad request envelope }
     options:
       responses: { "204": { description: no content } }
