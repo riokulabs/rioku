@@ -229,10 +229,11 @@ interface DaemonTestResponse {
 /**
  * Send a real test notification through the daemon.
  *
- * Stage-2 caveat: the daemon-side dispatcher currently stubs the live send
- * (returns ok=true with a `note` field). Once the dispatcher is wired up
- * (deferred work — see decisions-needed.md) this will perform a real outbound
- * call to the channel's configured target.
+ * Hits POST /api/v1/t/{tenant}/notification-channels/{id}/test which loads
+ * the channel, dispatches a synthetic "test" message via the channel-send
+ * dispatcher (with retry + delivery-log writes), and returns
+ * `{ ok, deliveredAt }` on success or a problem-detail body with HTTP 502
+ * on send failure.
  */
 export async function testChannel(id: ID): Promise<TestChannelResult> {
   const tenant = resolveTenant();

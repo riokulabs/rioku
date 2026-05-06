@@ -19,12 +19,63 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/notifications"
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// channelDispatcherOnce lazily constructs a process-wide
+// notifications.ChannelDispatcher backed by the wired store. Tests
+// override this via SetChannelDispatcherForTest below.
+var (
+	channelDispatcherMu      sync.Mutex
+	channelDispatcherFactory func(store.Driver) *notifications.ChannelDispatcher
+	channelDispatcher        *notifications.ChannelDispatcher
+)
+
+// SetChannelDispatcherForTest replaces the channel-send dispatcher used
+// by handleTestChannel. Pass nil to reset.
+func SetChannelDispatcherForTest(d *notifications.ChannelDispatcher) {
+	channelDispatcherMu.Lock()
+	defer channelDispatcherMu.Unlock()
+	channelDispatcher = d
+}
+
+func getChannelDispatcher(st store.Driver) *notifications.ChannelDispatcher {
+	channelDispatcherMu.Lock()
+	defer channelDispatcherMu.Unlock()
+	if channelDispatcher != nil {
+		return channelDispatcher
+	}
+	if channelDispatcherFactory != nil {
+		channelDispatcher = channelDispatcherFactory(st)
+		return channelDispatcher
+	}
+	d := notifications.NewChannelDispatcher(st, slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	// Sandbox / dev default: mailpit at localhost:1025. Override via
+	// RIOKU_SMTP_HOST / RIOKU_SMTP_PORT in production.
+	if h := os.Getenv("RIOKU_SMTP_HOST"); h != "" {
+		d.DefaultSMTPHost = h
+	} else {
+		d.DefaultSMTPHost = "localhost"
+	}
+	if p := os.Getenv("RIOKU_SMTP_PORT"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			d.DefaultSMTPPort = n
+		}
+	} else {
+		d.DefaultSMTPPort = 1025
+	}
+	channelDispatcher = d
+	return d
+}
 
 func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 	// Inbox
@@ -568,14 +619,67 @@ func handleDeleteChannel(st store.Driver) http.HandlerFunc {
 }
 
 func handleTestChannel(st store.Driver) http.HandlerFunc {
-	// Stage-2 stub — real channel test will dispatch a real test message.
+	// Resolves the stored channel, runs a single dispatch through the
+	// channel-send dispatcher (with retry + delivery-log writes), and
+	// returns the result. Used by the admin panel "Send test" button.
 	return func(w http.ResponseWriter, r *http.Request) {
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		id := r.PathValue("id")
+
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		ch, err := tx.GetNotificationChannel(r.Context(), tenant.ID, id)
+		_ = tx.Rollback()
+		if err != nil {
+			if errors.Is(err, store.ErrNotificationChannelNotFound) {
+				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Channel not found",
+					"No notification channel with id "+id, r.URL.Path, nil)
+				return
+			}
+			writeInternalError(w, r, "get channel")
+			return
+		}
+
+		msg := notifications.Message{
+			Kind:     "test",
+			Subject:  "Test from Rioku",
+			Body:     "This is a test notification dispatched from the Rioku admin panel. If you received this, the channel is correctly configured.",
+			Severity: "info",
+			Metadata: map[string]any{
+				"channelId":   ch.ID,
+				"channelName": ch.Name,
+				"channelKind": ch.Kind,
+			},
+		}
+
+		disp := getChannelDispatcher(st)
+		sendErr := disp.SendToChannel(r.Context(), ch, msg, nil)
+		now := nowFormatted()
+		if sendErr != nil {
+			writeProblem(w, http.StatusBadGateway, errTypeBadGateway, "Channel test delivery failed",
+				sendErr.Error(), r.URL.Path, nil)
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"channelId": r.PathValue("id"), "ok": true,
-			"note": "live channel delivery test is stubbed in stage-2",
+			"channelId":   ch.ID,
+			"ok":          true,
+			"deliveredAt": now,
 		})
 	}
 }
+
+func nowFormatted() string {
+	return timeNowFn().UTC().Format("2006-01-02T15:04:05.000Z")
+}
+
+// timeNowFn is a seam for tests. Defaults to time.Now.
+var timeNowFn = func() time.Time { return time.Now() }
 
 // ─── Routing rule handlers ──────────────────────────────────────────────────
 

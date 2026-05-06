@@ -5,7 +5,7 @@
 
 ## Item 001 — Notification dispatcher (channel send-side) deferred
 
-- **Status:** open
+- **Status:** RESOLVED (2026-05-06)
 - **Filed by:** plan-06 (stage2/plan-06-notifications), 2026-05-06
 - **Category:** scope-question
 - **What:** The plan envisions a real notification dispatcher that consumes
@@ -40,8 +40,23 @@
     4. Sandbox: add mailpit (or reuse existing) and verify smoke smoke.
 - **Alternatives:** Ship channel dispatcher as part of plan-06's PR by
   scope-creeping the worktree — rejected for risk and PR diff size.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Resolved in-worktree as a follow-up commit on
+  stage2/plan-06-notifications rather than splitting into plan-06b. Scope
+  delivered: `internal/notifications/channel.go` (Channel interface +
+  Message envelope + ErrPermanent helpers), `email_channel.go`
+  (net/smtp-backed sender with stubbable Sender seam, RFC822 builder,
+  permanent-vs-transient SMTP error classification), `webhook_channel.go`
+  (HTTP POST with canonical envelope, 4xx-vs-5xx classification), plus
+  `slack_channel.go` (incoming-webhook adapter). `dispatcher_send.go`
+  defines `ChannelDispatcher` with retry + exponential backoff,
+  delivery-log writes per attempt, and an env-driven default SMTP
+  fallback (`RIOKU_SMTP_HOST` / `RIOKU_SMTP_PORT`, defaulting to
+  localhost:1025 for sandbox/mailpit). `handleTestChannel` now resolves
+  the stored channel, runs one dispatch, returns `{ok, deliveredAt}` on
+  success or 502 + problem-detail on failure. CEL evaluation of routing
+  rules remains future work but the channel send-side is no longer a
+  stub. Sandbox seed gains a `mailpit-sandbox` email channel.
+- **Resolution date / commit:** 2026-05-06, on stage2/plan-06-notifications
 
 ## Item 002 — Cross-feature mock-store reads in detail components
 

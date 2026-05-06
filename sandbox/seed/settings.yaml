@@ -121,6 +121,17 @@ notification_channels:
       to: ["admin@example.com"]
       from: "rioku@example.com"
 
+  # Mailpit-backed test channel (sandbox SMTP relay at mailpit:1025).
+  # The "Send test" button should produce a visible message in the
+  # mailpit UI at http://localhost:8025.
+  - name: mailpit-sandbox
+    kind: email
+    config:
+      to: ["sandbox@example.test"]
+      from: "rioku@example.test"
+      host: "mailpit"
+      port: 1025
+
   - name: webhook-monitoring
     kind: webhook
     config:

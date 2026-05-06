@@ -14,12 +14,15 @@ func TestNotificationChannels_CRUD(t *testing.T) {
 	drv := openTenantTestStore(t)
 	mux := http.NewServeMux()
 	RegisterNotificationsRoutes(mux, drv)
+	// Use a stub channel impl so /test doesn't actually dial slack.
+	prev := installStubChannelDispatcher(t, drv, nil)
+	t.Cleanup(prev)
 
 	// Create
 	r := httptest.NewRecorder()
 	mux.ServeHTTP(r, authedTenantRequest(t, drv, http.MethodPost,
 		"/api/v1/t/default/notification-channels", "default",
-		map[string]any{"name": "ops-slack", "kind": "slack", "config": map[string]any{"webhookUrl": "https://x"}}))
+		map[string]any{"name": "ops-slack", "kind": "slack", "config": map[string]any{"webhook_url": "https://x"}}))
 	if r.Code != http.StatusCreated {
 		t.Fatalf("create: %d (%s)", r.Code, r.Body.String())
 	}
