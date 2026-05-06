@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -174,7 +174,7 @@ build-caddy:
 	cd $(PKG)/plugins && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-caddy ./cmd/rioku-caddy
 
 ## build-daemon: Build the rioku daemon binary (embeds admin panel)
-build-daemon: web-embed
+build-daemon: web-embed openapi-embed
 	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
 
 ## web-embed: Copy web build into daemon for go:embed
@@ -227,6 +227,10 @@ openapi:
 		-fragments ../../$(PKG)/proto/openapi-fragments/ \
 		-out ../../$(PKG)/proto/gen/openapi/rioku/v1/api.full.json
 	node $(PKG)/proto/scripts/normalize-to-oas3.mjs $(PKG)/proto/gen/openapi/rioku/v1/api.full.json
+
+## openapi-embed: copy generated openapi spec into gateway package for go:embed
+openapi-embed: openapi
+	cp $(PKG)/proto/gen/openapi/rioku/v1/api.full.json $(PKG)/daemon/internal/gateway/api.full.json
 
 ## test: Run all tests
 test:

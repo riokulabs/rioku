@@ -205,7 +205,7 @@ func (t *tx) DeleteRole(ctx context.Context, id string) error {
 
 func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, resource, action, description FROM permissions
+		`SELECT id, resource, action, description, source, COALESCE(source_plugin_id, '') FROM permissions
 		 WHERE id NOT LIKE '%:*' AND id != '*'
 		 ORDER BY resource, action`)
 	if err != nil {
@@ -215,7 +215,7 @@ func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
 	var perms []*store.Permission
 	for rows.Next() {
 		p := &store.Permission{}
-		if err := rows.Scan(&p.ID, &p.Resource, &p.Action, &p.Description); err != nil {
+		if err := rows.Scan(&p.ID, &p.Resource, &p.Action, &p.Description, &p.Source, &p.SourcePluginID); err != nil {
 			return nil, err
 		}
 		perms = append(perms, p)

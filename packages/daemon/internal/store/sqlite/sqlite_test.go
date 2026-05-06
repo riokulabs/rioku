@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 47 {
-		t.Fatalf("expected version 47, got %d", v)
+	if v != 50 {
+		t.Fatalf("expected version 50, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -1593,8 +1593,11 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPermissions: %v", err)
 	}
-	if len(perms) != 26 {
-		t.Fatalf("expected 26 atomic permissions, got %d", len(perms))
+	// 26 legacy permissions from migrations 000003/000008 + 101 net-new v2 permissions
+	// from migration 000049 (103 inserted minus 2 that overlap with legacy: audit:read, cluster:read)
+	// + 2 opaque permissions from migration 000050 (opaque:read, opaque:write).
+	if len(perms) != 129 {
+		t.Fatalf("expected 129 atomic permissions, got %d", len(perms))
 	}
 	_ = tx2.Rollback()
 

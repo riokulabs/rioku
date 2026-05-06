@@ -1083,6 +1083,22 @@ func (t *raftTx) DeleteAccessPolicy(_ context.Context, _ string) error {
 }
 
 // ---------------------------------------------------------------------------
+// Opaque handles
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) GetOpaqueHandle(_ context.Context, _, _ string) (*store.OpaqueHandle, error) {
+	return nil, fmt.Errorf("raft: GetOpaqueHandle not implemented")
+}
+
+func (t *raftTx) GetOpaqueHandleByValueHash(_ context.Context, _, _ string) (*store.OpaqueHandle, error) {
+	return nil, fmt.Errorf("raft: GetOpaqueHandleByValueHash not implemented")
+}
+
+func (t *raftTx) UpsertOpaqueHandle(_ context.Context, _ store.OpaqueHandle) error {
+	return fmt.Errorf("raft: UpsertOpaqueHandle not implemented")
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
