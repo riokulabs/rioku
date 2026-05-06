@@ -25,11 +25,7 @@ export * from './ai-traces';
 export * from './ai-mcp-servers';
 // Plan 05 (audit)
 export * from './audit';
-// Plan 06 (notifications)
-export * from './notifications';
-export * from './notification-channels';
-export * from './notification-routing';
-export * from './notification-log';
+// Plan 06 (notifications) feature slices retired — seed lives in _internal.ts
 // Plan 07 (settings)
 export * from './settings';
 // Plan 08 (dashboards)
