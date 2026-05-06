@@ -61,6 +61,7 @@ import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$ten
 import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/security/audit'
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
+import { Route as TTenantRoutesRouteIdRouteImport } from './routes/t.$tenant/routes_.$routeId'
 import { Route as TTenantPluginsSignersRouteImport } from './routes/t.$tenant/plugins_.signers'
 import { Route as TTenantMiddlewaresMiddlewareIdRouteImport } from './routes/t.$tenant/middlewares_.$middlewareId'
 import { Route as TTenantDashboardsDashboardIdRouteImport } from './routes/t.$tenant/dashboards.$dashboardId'
@@ -342,6 +343,11 @@ const TTenantSecurityAccessPoliciesRoute =
     path: '/access-policies',
     getParentRoute: () => TTenantSecurityRoute,
   } as any)
+const TTenantRoutesRouteIdRoute = TTenantRoutesRouteIdRouteImport.update({
+  id: '/routes_/$routeId',
+  path: '/routes/$routeId',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantPluginsSignersRoute = TTenantPluginsSignersRouteImport.update({
   id: '/plugins_/signers',
   path: '/plugins/signers',
@@ -451,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/middlewares/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/routes/$routeId': typeof TTenantRoutesRouteIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -513,6 +520,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/middlewares/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/routes/$routeId': typeof TTenantRoutesRouteIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -580,6 +588,7 @@ export interface FileRoutesById {
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/middlewares_/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/routes_/$routeId': typeof TTenantRoutesRouteIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -647,6 +656,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/middlewares/$middlewareId'
     | '/t/$tenant/plugins/signers'
+    | '/t/$tenant/routes/$routeId'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -709,6 +719,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/middlewares/$middlewareId'
     | '/t/$tenant/plugins/signers'
+    | '/t/$tenant/routes/$routeId'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -775,6 +786,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboards/$dashboardId'
     | '/t/$tenant/middlewares_/$middlewareId'
     | '/t/$tenant/plugins_/signers'
+    | '/t/$tenant/routes_/$routeId'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -1172,6 +1184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityAccessPoliciesRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/routes_/$routeId': {
+      id: '/t/$tenant/routes_/$routeId'
+      path: '/routes/$routeId'
+      fullPath: '/t/$tenant/routes/$routeId'
+      preLoaderRoute: typeof TTenantRoutesRouteIdRouteImport
+      parentRoute: typeof TTenantRoute
+    }
     '/t/$tenant/plugins_/signers': {
       id: '/t/$tenant/plugins_/signers'
       path: '/plugins/signers'
@@ -1409,6 +1428,7 @@ interface TTenantRouteChildren {
   TTenantSitesRoute: typeof TTenantSitesRoute
   TTenantMiddlewaresMiddlewareIdRoute: typeof TTenantMiddlewaresMiddlewareIdRoute
   TTenantPluginsSignersRoute: typeof TTenantPluginsSignersRoute
+  TTenantRoutesRouteIdRoute: typeof TTenantRoutesRouteIdRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
   TTenantSitesSiteIdRoute: typeof TTenantSitesSiteIdRoute
   TTenantDetailKindIdRoute: typeof TTenantDetailKindIdRoute
@@ -1432,6 +1452,7 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantSitesRoute: TTenantSitesRoute,
   TTenantMiddlewaresMiddlewareIdRoute: TTenantMiddlewaresMiddlewareIdRoute,
   TTenantPluginsSignersRoute: TTenantPluginsSignersRoute,
+  TTenantRoutesRouteIdRoute: TTenantRoutesRouteIdRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
   TTenantSitesSiteIdRoute: TTenantSitesSiteIdRoute,
   TTenantDetailKindIdRoute: TTenantDetailKindIdRoute,

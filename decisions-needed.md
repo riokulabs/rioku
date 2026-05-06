@@ -83,7 +83,7 @@
 
 ## Item 003 — route-middleware-reorder-endpoint-missing
 
-- **Status:** open
+- **Status:** RESOLVED 2026-05-06
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-endpoint
 - **What:** Plan 3 Task 3 requires a `PUT /api/v1/t/{tenant}/routes/{id}/middlewares/order`
@@ -101,8 +101,18 @@
 - **Alternatives:**
   (a) Use `PATCH /routes/{id}` with `middleware_ids` as the reorder mechanism (simpler).
   (b) Add the dedicated reorder endpoint (cleaner REST semantics).
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Alternative (b) — dedicated reorder endpoint.
+- **Resolution date / commit:** 2026-05-06 — added
+  `packages/daemon/internal/gateway/route_middleware_order.go` exposing
+  `PUT /api/v1/t/{tenant}/routes/{id}/middlewares/order` with body
+  `{ order: string[] }`. The handler replaces the
+  `rioku.admin/middleware-ids` label on the route, rejects duplicate ids,
+  and triggers `triggerCaddyReload(ctx, "route.middlewares.reorder")` after
+  the transaction commits. Tests in
+  `route_middleware_order_test.go` cover happy-path, duplicate rejection,
+  and the 404-on-missing-route case. Frontend hook
+  `useReorderMiddlewaresMutation` and the imperative
+  `reorderRouteMiddlewaresFetch` call the new endpoint via `customFetch`.
 
 ---
 

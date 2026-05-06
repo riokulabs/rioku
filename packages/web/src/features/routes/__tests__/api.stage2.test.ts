@@ -345,14 +345,19 @@ describe('useDeleteRouteMutation', () => {
 // ─── useReorderMiddlewaresMutation ────────────────────────────────────────────
 
 describe('useReorderMiddlewaresMutation', () => {
-  it('patches route with middleware_ids label and returns adapted route', async () => {
-    const patched = makeV1Route({
-      id: 'rt-reorder',
-      labels: { labels: { [LBL_MIDDLEWARE_IDS]: 'mw-2,mw-1' } },
-    });
+  it('PUTs to dedicated reorder endpoint and returns the new order', async () => {
+    let receivedBody: { order: string[] } | null = null;
     server.use(
-      http.patch(`*/api/v1/t/${TENANT}/routes/rt-reorder`, () =>
-        HttpResponse.json(patched),
+      http.put(
+        `*/api/v1/t/${TENANT}/routes/rt-reorder/middlewares/order`,
+        async ({ request }) => {
+          receivedBody = (await request.json()) as { order: string[] };
+          return HttpResponse.json({
+            id: 'rt-reorder',
+            order: receivedBody.order,
+            middlewareIds: receivedBody.order,
+          });
+        },
       ),
     );
 
@@ -362,15 +367,16 @@ describe('useReorderMiddlewaresMutation', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    let route: Route | undefined;
+    let payload: { routeId: string; order: string[] } | undefined;
     await act(async () => {
-      route = await result.current.mutateAsync({
+      payload = await result.current.mutateAsync({
         routeId: 'rt-reorder',
         middlewareIds: ['mw-2', 'mw-1'],
       });
     });
 
-    expect(route!.middleware_ids).toEqual(['mw-2', 'mw-1']);
+    expect(payload).toEqual({ routeId: 'rt-reorder', order: ['mw-2', 'mw-1'] });
+    expect(receivedBody).toEqual({ order: ['mw-2', 'mw-1'] });
   });
 });
 

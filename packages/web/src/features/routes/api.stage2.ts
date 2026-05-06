@@ -6,10 +6,11 @@
  * still receive the admin `Route` type.
  *
  * ## Middleware reorder
- * The `reorderMiddlewares` function (Decision 003) has no dedicated daemon
- * endpoint yet. Until `PUT .../routes/{id}/middlewares/order` is added, reorder
- * is implemented as a `PATCH /routes/{id}` with the full `middleware_ids` array
- * stored in the `rioku.admin/middleware-ids` label. See Decision 003 for tracking.
+ * Decision 003 RESOLVED. The dedicated endpoint
+ * `PUT /api/v1/t/{tenant}/routes/{id}/middlewares/order` is wired and
+ * called by `useReorderMiddlewaresMutation` / `reorderMiddlewaresReal`.
+ * The daemon updates the `rioku.admin/middleware-ids` label and triggers
+ * a Caddy reload (`route.middlewares.reorder`).
  *
  * ## Policy attach/detach
  * The generated `attachPolicyToRoute` and `detachPolicyFromRoute` hooks are
@@ -32,6 +33,7 @@ import {
 } from '@/api/generated/routes/routes';
 import type { V1Route } from '@/api/generated/schemas';
 import type { Route } from '@/api/resources';
+import { customFetch } from '@/api/mutator';
 import type { RouteFilter, RouteInput, RouteUpdateInput } from './types';
 import { fromProtoRoute, toProtoRouteBody, toProtoRoutePatch } from './adapter';
 
@@ -152,9 +154,17 @@ export function useDeleteRouteMutation(tenantId: string) {
 /**
  * Reorder middlewares on a route.
  *
- * Decision 003: No dedicated `PUT .../middlewares/order` endpoint exists.
- * This uses `PATCH /routes/{id}` with the ordered `middleware_ids` list
- * encoded in the `rioku.admin/middleware-ids` label.
+ * Decision 003 RESOLVED: dedicated endpoint added.
+ *
+ * `PUT /api/v1/t/{tenantId}/routes/{routeId}/middlewares/order`
+ *
+ * Body: `{ order: string[] }`. The daemon updates the
+ * `rioku.admin/middleware-ids` label and triggers a Caddy reload.
+ *
+ * The hook is invoked by the drag-drop UI in `MiddlewareStackEditor` after
+ * a sortable drop. Optimistic update is intentionally omitted — the UI
+ * waits on the response so the new order rendered is the authoritative
+ * one (no flicker on rollback).
  */
 export function useReorderMiddlewaresMutation(tenantId: string) {
   const qc = useQueryClient();
@@ -165,16 +175,31 @@ export function useReorderMiddlewaresMutation(tenantId: string) {
     }: {
       routeId: string;
       middlewareIds: string[];
-    }): Promise<Route> => {
-      const body = toProtoRoutePatch({ middleware_ids: middlewareIds });
-      const res = await patchRoute(tenantId, routeId, body);
-      const proto = res as unknown as V1Route;
-      return fromProtoRoute(proto, tenantId);
+    }): Promise<{ routeId: string; order: string[] }> => {
+      const data = await reorderRouteMiddlewaresFetch(tenantId, routeId, middlewareIds);
+      return { routeId, order: data.order };
     },
     onSuccess: (_data, { routeId }) => {
       void qc.invalidateQueries({ queryKey: getGetRouteQueryKey(tenantId, routeId) });
       void qc.invalidateQueries({ queryKey: getListRoutesQueryKey(tenantId) });
     },
+  });
+}
+
+/**
+ * Imperative wrapper around the dedicated reorder endpoint. Used by the
+ * legacy `reorderMiddlewares(routeId, ids)` signature exposed from the
+ * feature barrel.
+ */
+export async function reorderRouteMiddlewaresFetch(
+  tenantId: string,
+  routeId: string,
+  order: string[],
+): Promise<{ id: string; order: string[]; middlewareIds: string[] }> {
+  return customFetch<{ id: string; order: string[]; middlewareIds: string[] }>({
+    url: `/t/${encodeURIComponent(tenantId)}/routes/${encodeURIComponent(routeId)}/middlewares/order`,
+    method: 'PUT',
+    data: { order },
   });
 }
 
@@ -217,7 +242,8 @@ export function useListRoutePoliciesReal(tenantId: string, routeId: string) {
 
 // ─── Imperative wrappers (matches api.ts signature contract) ──────────────────
 
-/** @deprecated Prefer `useCreateRouteMutation` for React components. */
+/** Imperative create — used by `features/routes/api.ts`. Prefer the
+ * mutation hook inside React components. */
 export async function createRouteReal(tenantId: string, input: RouteInput): Promise<Route> {
   const body = toProtoRouteBody(input);
   const res = await orvalCreateRoute(tenantId, body);
@@ -225,12 +251,12 @@ export async function createRouteReal(tenantId: string, input: RouteInput): Prom
   return fromProtoRoute(proto, tenantId);
 }
 
-/** @deprecated Prefer `useDeleteRouteMutation` for React components. */
+/** Imperative delete — used by `features/routes/api.ts`. */
 export async function deleteRouteReal(tenantId: string, id: string): Promise<void> {
   await orvalDeleteRoute(tenantId, id);
 }
 
-/** @deprecated Prefer `useAttachPolicyMutation` for React components. */
+/** Imperative policy attach — used by `features/routes/api.ts`. */
 export async function attachPolicyReal(
   tenantId: string,
   routeId: string,
@@ -239,7 +265,7 @@ export async function attachPolicyReal(
   await orvalAttachPolicy(tenantId, routeId, policyId);
 }
 
-/** @deprecated Prefer `useDetachPolicyMutation` for React components. */
+/** Imperative policy detach — used by `features/routes/api.ts`. */
 export async function detachPolicyReal(
   tenantId: string,
   routeId: string,
@@ -249,16 +275,15 @@ export async function detachPolicyReal(
 }
 
 /**
- * Reorder middlewares (imperative).
- * @deprecated Prefer `useReorderMiddlewaresMutation` for React components.
+ * Reorder middlewares (imperative). Calls the dedicated reorder endpoint.
+ * Used by `features/routes/api.ts`. Prefer `useReorderMiddlewaresMutation`
+ * inside React components.
  */
 export async function reorderMiddlewaresReal(
   tenantId: string,
   routeId: string,
   middlewareIds: string[],
-): Promise<Route> {
-  const body = toProtoRoutePatch({ middleware_ids: middlewareIds });
-  const res = await patchRoute(tenantId, routeId, body);
-  const proto = res as unknown as V1Route;
-  return fromProtoRoute(proto, tenantId);
+): Promise<{ id: string; order: string[] }> {
+  const data = await reorderRouteMiddlewaresFetch(tenantId, routeId, middlewareIds);
+  return { id: data.id, order: data.order };
 }
