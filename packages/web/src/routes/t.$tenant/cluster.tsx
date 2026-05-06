@@ -1,18 +1,19 @@
 /**
- * Cluster management page — /t/$tenant/cluster
+ * Cluster section layout — /t/$tenant/cluster
  *
- * Provides visibility into cluster nodes, their health metrics, and tooling
- * to enroll new members via enrollment tokens.
+ * Pure outlet container. Children render focused subpages:
+ *   - /t/$tenant/cluster              (index — combined overview, see cluster.index.tsx)
+ *   - /t/$tenant/cluster/nodes        (nodes-only list page)
+ *   - /t/$tenant/cluster/nodes/$id    (single-node detail page)
+ *   - /t/$tenant/cluster/enrollment-tokens (tokens management)
  *
- * Permission guard: requires cluster:read.
- * Write actions (Remove node, Revoke token, Generate token) are gated inside
- * <ClusterPage> via usePermission('cluster:write') and usePermission('cluster:enroll').
+ * Permission guard: cluster:read. Stricter guards applied per-child for
+ * write/manage actions (cluster:write, cluster:enroll, cluster:manage).
  */
-import { createFileRoute } from '@tanstack/react-router';
+import { Outlet, createFileRoute } from '@tanstack/react-router';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { ClusterPage } from '@/features/cluster';
 
 export const Route = createFileRoute('/t/$tenant/cluster')({
   beforeLoad: requirePermissions({ required: ['cluster:read'] }),
-  component: ClusterPage,
+  component: () => <Outlet />,
 });
