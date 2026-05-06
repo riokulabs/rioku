@@ -12,3 +12,30 @@ echo "Running pre-push checks (go vet smoke)..."
 (cd "$REPO_ROOT/packages/daemon" && go vet ./...) || exit 1
 (cd "$REPO_ROOT/packages/build-service" && go vet ./...) || exit 1
 echo "All pre-push checks passed."
+
+# ── Stage-2 push discipline ──────────────────────────────────────────────────
+# Block force-push to protected integration branches (stage2/main, develop, main).
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/stage2/main|refs/heads/develop|refs/heads/main)
+      # remote_sha = 0{40} means "deleted/no remote yet" — initial push, allow
+      if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
+        # Non-fast-forward = force-push. Test by checking remote_sha is reachable from local_sha.
+        if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+          echo "[pre-push] REJECTED: non-fast-forward push to $remote_ref forbidden." >&2
+          echo "           Resolve via rebase + force-with-lease ONLY for personal feature branches." >&2
+          exit 1
+        fi
+      fi
+      ;;
+  esac
+
+  # When pushing a stage2/plan-* branch, run pre-push-verify
+  case "$remote_ref" in
+    refs/heads/stage2/plan-*)
+      if ! make pre-push-verify >/dev/null 2>&1; then
+        echo "[pre-push] WARN: pre-push-verify failed (continuing — fix before merge)" >&2
+      fi
+      ;;
+  esac
+done
