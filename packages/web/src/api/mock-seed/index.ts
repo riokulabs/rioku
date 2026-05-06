@@ -4,12 +4,7 @@ export * from './_internal';
 // Plan 01 (auth-bootstrap)
 export * from './sessions';
 export * from './users';
-// Plan 02 (identity)
-export * from './roles';
-export * from './api-keys';
-export * from './rbac-policies';
-export * from './impersonation';
-export * from './access-policies';
+// Plan 02 (identity) feature slices retired — seed lives in _internal.ts
 // Plan 03 (api-mgmt)
 export * from './services';
 export * from './routes';
