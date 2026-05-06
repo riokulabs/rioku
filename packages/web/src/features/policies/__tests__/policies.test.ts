@@ -47,7 +47,7 @@ describe('usePoliciesAttachedToRoute', () => {
     expect(result.current).toEqual([]);
   });
 
-  it('resolves policy records attached via route.policies', async () => {
+  it('resolves policy records attached via route.policies', () => {
     const route = Object.values(useMockStore.getState().routes)[0];
     if (!route) throw new Error('no route');
     const policy = Object.values(useMockStore.getState().accessPolicies)[0];
