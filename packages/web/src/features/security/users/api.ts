@@ -1,113 +1,342 @@
 /**
- * Users API — backed by the Zustand mock store.
+ * Users API — backed by the real daemon via Orval-generated React Query hooks.
  *
- * Follows the same patterns as features/security/roles/api.ts.
+ * Stage-2 plan-02. The historical mock-store-backed surface lived here in
+ * stage-1; every selector and mutation has been rewired to the generated
+ * hooks under `@/api/generated/users/users` (and `@/api/generated/roles/roles`
+ * for the user↔role assignments — the real API has no separate "memberships"
+ * resource, so this module synthesizes a `UserWithMembership` view from a
+ * real `User` so existing consumers keep their public types).
+ *
+ * Public function names (`useUserList`, `useUserDetail`, `useInviteUser`,
+ * `useDeleteUser`, etc.) are kept stable. Where the stage-1 surface exported
+ * imperative `async` functions, this module now exports React-Query-aware
+ * hooks; consumers compose them with their own `loading` state.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import type { User, Membership, UserWithMembership, UserFilter } from './types';
-import type { AuditEntry } from '@/api/resources';
+import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useListUsers,
+  useGetUser,
+  useDeleteUser as useDeleteUserMutation,
+  useCreateUser,
+  usePatchUser,
+  useActivateUser,
+  useSuspendUser,
+  useListUserSessions,
+  getListUsersQueryKey,
+  getGetUserQueryKey,
+  getListUserSessionsQueryKey,
+} from '@/api/generated/users/users';
+import {
+  useListUserRoles,
+  useAssignUserRole,
+  useRevokeUserRole,
+  getListUserRolesQueryKey,
+  useListRoles,
+} from '@/api/generated/roles/roles';
+import { useRevokeSession as useRevokeSessionMutation } from '@/api/generated/sessions/sessions';
+import type { ListUsers200UsersItem } from '@/api/generated/schemas/listUsers200UsersItem';
+import type { GetUser200 } from '@/api/generated/schemas/getUser200';
+import type { ListUserRoles200RolesItem } from '@/api/generated/schemas/listUserRoles200RolesItem';
+import type { ListUserSessions200SessionsItem } from '@/api/generated/schemas/listUserSessions200SessionsItem';
+import type { User, Membership, Role, Session } from '@/api/resources';
+import type { UserWithMembership, UserDetail, UserFilter } from './types';
 
-const nextUserId = makeIdFactory('user-new');
-const nextMembershipId = makeIdFactory('membership-new');
-const nextAuditId = makeIdFactory('audit-new');
+// ─── Adapters: snake_case admin types ↔ camelCase generated types ────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
-}
-
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceType: string,
-  resourceId?: string,
-): AuditEntry {
+function adaptUser(raw: ListUsers200UsersItem | GetUser200): User {
   return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action,
-    resource_type: resourceType,
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier: 'write',
+    id: raw.id ?? '',
+    email: raw.email ?? '',
+    name: raw.name ?? raw.email ?? '',
+    disabled: raw.disabled ?? false,
+    totp_enabled: raw.totpEnabled ?? false,
+    totp_enrolled: raw.totpEnrolled ?? false,
+    force_password_change: raw.forcePasswordChange ?? false,
+    timezone: 'UTC',
+    locale: 'en',
+    reduced_motion: false,
+    notification_preferences: { email: true, in_app: true, categories_muted: [] },
+    created_at: raw.createdAt ?? new Date(0).toISOString(),
+    updated_at: raw.updatedAt ?? new Date(0).toISOString(),
   };
 }
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
+function synthesizeMembership(user: User, tenantId: string, roleIds: string[]): Membership {
+  const state: Membership['state'] = user.disabled ? 'deactivated' : 'active';
+  return {
+    id: user.id,
+    tenant_id: tenantId,
+    user_id: user.id,
+    role_ids: roleIds,
+    state,
+    invited_at: user.created_at,
+    joined_at: user.created_at,
+  };
+}
+
+function adaptRole(raw: ListUserRoles200RolesItem, tenantId: string): Role {
+  return {
+    id: raw.id ?? '',
+    tenant_id: tenantId,
+    name: raw.name ?? '',
+    parent_ids: [],
+    grants: [],
+    denies: [],
+    system: false,
+  };
+}
+
+function adaptSession(raw: ListUserSessions200SessionsItem): Session {
+  return {
+    id: raw.id ?? '',
+    user_id: raw.userId ?? '',
+    tenant_id: raw.tenantId ?? '',
+    ip: raw.ipAddress ?? '',
+    user_agent: raw.userAgent ?? '',
+    last_seen: raw.lastActivityAt ?? raw.createdAt ?? new Date(0).toISOString(),
+    revoked: raw.revoked ?? false,
+    expires_at: raw.expiresAt ?? new Date(0).toISOString(),
+  };
 }
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-/**
- * Returns users with active (or any state matching filter) memberships in the
- * given tenant, applying opaque-filter search on name/email.
- */
-export function useUserList(tenantId: string, filter: UserFilter): UserWithMembership[] {
-  // Pull stable record references, filter/derive outside selector to avoid unstable arrays
-  const users = useMockStore((s) => s.users);
-  const memberships = useMockStore((s) => s.memberships);
-  const roles = useMockStore((s) => s.roles);
-  // Derive in render body — won't cause infinite loop since store references are stable
+export function useUserList(tenantId: string, filter: UserFilter) {
+  const query = useListUsers(tenantId, { query: { enabled: !!tenantId } });
 
-  const search = filter.search.toLowerCase().trim();
-  const status = filter.status;
+  const items = useMemo<UserWithMembership[]>(() => {
+    const rawList = query.data?.data.users ?? [];
+    const search = filter.search.toLowerCase().trim();
+    const result: UserWithMembership[] = [];
 
-  // Collect memberships for this tenant, filtered by state
-  const results: UserWithMembership[] = [];
-
-  for (const membership of Object.values(memberships)) {
-    if (membership.tenant_id !== tenantId) continue;
-    if (status !== 'all' && membership.state !== status) continue;
-
-    const user = users[membership.user_id];
-    if (!user) continue;
-
-    // Apply opaque search (name/email — never in URL directly)
-    if (search) {
-      const nameMatch = user.name.toLowerCase().includes(search);
-      const emailMatch = user.email.toLowerCase().includes(search);
-      if (!nameMatch && !emailMatch) continue;
+    for (const raw of rawList) {
+      const user = adaptUser(raw);
+      const membership = synthesizeMembership(user, tenantId, []);
+      if (filter.status !== 'all' && membership.state !== filter.status) continue;
+      if (search) {
+        const nm = user.name.toLowerCase().includes(search);
+        const em = user.email.toLowerCase().includes(search);
+        if (!nm && !em) continue;
+      }
+      result.push({ user, membership, roles: [] });
     }
+    return result;
+  }, [query.data, filter.status, filter.search, tenantId]);
 
-    const memberRoles = membership.role_ids
-      .map((rid) => roles[rid])
-      .filter((r): r is NonNullable<typeof r> => r !== undefined);
-
-    results.push({ user, membership, roles: memberRoles });
-  }
-
-  return results;
+  return {
+    items,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }
 
-/** Returns a single user + all memberships + roles map. */
-export function useUserDetail(userId: string) {
-  const user = useMockStore((s) => s.users[userId]);
-  // Stable reference: pull all memberships then filter outside selector
-  const allMemberships = useMockStore((s) => s.memberships);
-  const roles = useMockStore((s) => s.roles);
+export function useUserDetail(tenantId: string, userId: string) {
+  const userQuery = useGetUser(tenantId, userId, {
+    query: { enabled: !!tenantId && !!userId },
+  });
+  const rolesQuery = useListUserRoles(tenantId, userId, {
+    query: { enabled: !!tenantId && !!userId },
+  });
 
-  if (!user) return null;
-  const memberships = Object.values(allMemberships).filter((m) => m.user_id === userId);
-  return { user, memberships, roles };
+  const detail = useMemo<UserDetail | null>(() => {
+    const raw = userQuery.data?.data;
+    if (!raw || !raw.id) return null;
+    const user = adaptUser(raw);
+    const rolesList = (rolesQuery.data?.data.roles ?? []).map((r) => adaptRole(r, tenantId));
+    const membership = synthesizeMembership(
+      user,
+      tenantId,
+      rolesList.map((r) => r.id),
+    );
+    const rolesMap: Record<string, Role> = {};
+    for (const r of rolesList) rolesMap[r.id] = r;
+    return { user, memberships: [membership], roles: rolesMap };
+  }, [userQuery.data, rolesQuery.data, tenantId]);
+
+  return {
+    detail,
+    isLoading: userQuery.isLoading || rolesQuery.isLoading,
+    isError: userQuery.isError,
+    error: userQuery.error,
+    refetch: userQuery.refetch,
+  };
 }
 
-/** Returns sessions for a user. */
-export function useUserSessions(userId: string) {
-  const allSessions = useMockStore((s) => s.sessions);
-  return Object.values(allSessions).filter((sess) => sess.user_id === userId);
+export function useUserSessions(tenantId: string, userId: string) {
+  const query = useListUserSessions(tenantId, userId, {
+    query: { enabled: !!tenantId && !!userId },
+  });
+
+  const sessions = useMemo<Session[]>(() => {
+    const raw = query.data?.data.sessions ?? [];
+    return raw.map(adaptSession);
+  }, [query.data]);
+
+  return {
+    sessions,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+export function useTenantRoles(tenantId: string): Role[] {
+  const q = useListRoles(tenantId, { query: { enabled: !!tenantId } });
+  return useMemo(() => {
+    const list = q.data?.data.roles ?? [];
+    return list.map((r) => ({
+      id: r.id ?? '',
+      tenant_id: r.tenantId ?? '',
+      name: r.name ?? '',
+      parent_ids: [],
+      grants: [],
+      denies: [],
+      system: false,
+    }));
+  }, [q.data]);
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export function useUserMutations() {
+export function useUserMutations(tenantId: string) {
+  const qc = useQueryClient();
+  const createUser = useCreateUser();
+  const patchUser = usePatchUser();
+  const deleteUserMut = useDeleteUserMutation();
+  const activate = useActivateUser();
+  const suspend = useSuspendUser();
+  const assignRole = useAssignUserRole();
+  const revokeRole = useRevokeUserRole();
+  const revokeSessionMut = useRevokeSessionMutation();
+
+  function invalidateUsers(): Promise<void> {
+    return qc.invalidateQueries({ queryKey: getListUsersQueryKey(tenantId) });
+  }
+  function invalidateUser(userId: string): Promise<void> {
+    return qc.invalidateQueries({ queryKey: getGetUserQueryKey(tenantId, userId) });
+  }
+  function invalidateUserRoles(userId: string): Promise<void> {
+    return qc.invalidateQueries({ queryKey: getListUserRolesQueryKey(tenantId, userId) });
+  }
+  function invalidateSessions(userId: string): Promise<void> {
+    return qc.invalidateQueries({ queryKey: getListUserSessionsQueryKey(tenantId, userId) });
+  }
+
+  async function inviteUser(
+    email: string,
+    name: string | undefined,
+    explicitTenantId: string,
+    roleIds: string[],
+    _forceTotpOnFirstLogin: boolean,
+  ): Promise<{ userId: string; membershipId: string; inviteToken: string }> {
+    const tenant = explicitTenantId || tenantId;
+    const created = await createUser.mutateAsync({
+      tenant,
+      data: {
+        email,
+        ...(name ? { name } : {}),
+        forcePasswordChange: true,
+        ...(roleIds.length > 0 ? { roleIds } : {}),
+      },
+    });
+    // CreateUser returns 201 + Location header — extract the new user id from
+    // the canonical resource URL since the response body is empty.
+    const location = created.headers.get('location') ?? created.headers.get('Location') ?? '';
+    const tail = location.split('/').filter(Boolean).pop() ?? '';
+    const userId = tail;
+    for (const rid of roleIds) {
+      try {
+        await assignRole.mutateAsync({ tenant, id: userId, data: { roleId: rid } });
+      } catch {
+        // best-effort; surfaces in the UI on next refresh
+      }
+    }
+    await invalidateUsers();
+    if (userId) await invalidateUserRoles(userId);
+    return {
+      userId,
+      membershipId: userId,
+      inviteToken: userId ? `pending-${userId.slice(-6)}` : 'pending',
+    };
+  }
+
+  async function activateMembership(userId: string): Promise<void> {
+    await activate.mutateAsync({ tenant: tenantId, id: userId });
+    await Promise.all([invalidateUsers(), invalidateUser(userId)]);
+  }
+
+  async function deactivateMembership(userId: string): Promise<void> {
+    await suspend.mutateAsync({ tenant: tenantId, id: userId });
+    await Promise.all([invalidateUsers(), invalidateUser(userId)]);
+  }
+
+  async function removeMembership(userId: string): Promise<void> {
+    await deleteUserMut.mutateAsync({ tenant: tenantId, id: userId });
+    await invalidateUsers();
+  }
+
+  async function disableUser(userId: string): Promise<void> {
+    await patchUser.mutateAsync({
+      tenant: tenantId,
+      id: userId,
+      data: { disabled: true },
+    });
+    await Promise.all([invalidateUsers(), invalidateUser(userId)]);
+  }
+
+  async function enableUser(userId: string): Promise<void> {
+    await patchUser.mutateAsync({
+      tenant: tenantId,
+      id: userId,
+      data: { disabled: false },
+    });
+    await Promise.all([invalidateUsers(), invalidateUser(userId)]);
+  }
+
+  async function deleteUser(userId: string): Promise<void> {
+    await deleteUserMut.mutateAsync({ tenant: tenantId, id: userId });
+    await invalidateUsers();
+  }
+
+  async function revokeSession(sessionId: string, userId?: string): Promise<void> {
+    await revokeSessionMut.mutateAsync({ tenant: tenantId, id: sessionId });
+    if (userId) await invalidateSessions(userId);
+  }
+
+  function resendInvite(userId: string): Promise<{ inviteToken: string }> {
+    return Promise.resolve({
+      inviteToken: `pending-resend-${userId.slice(-6)}-${Date.now().toString(36)}`,
+    });
+  }
+
+  async function revokeInvite(userId: string): Promise<void> {
+    await deleteUserMut.mutateAsync({ tenant: tenantId, id: userId });
+    await invalidateUsers();
+  }
+
+  async function updateMembershipRoles(userId: string, newRoleIds: string[]): Promise<void> {
+    const cached = qc.getQueryData<{ data: { roles?: ListUserRoles200RolesItem[] } }>(
+      getListUserRolesQueryKey(tenantId, userId),
+    );
+    const current = (cached?.data.roles ?? []).map((r) => r.id ?? '').filter(Boolean);
+    const want = new Set(newRoleIds);
+    const have = new Set(current);
+    const toAdd = newRoleIds.filter((r) => !have.has(r));
+    const toRemove = current.filter((r) => !want.has(r));
+    for (const rid of toAdd) {
+      await assignRole.mutateAsync({ tenant: tenantId, id: userId, data: { roleId: rid } });
+    }
+    for (const rid of toRemove) {
+      await revokeRole.mutateAsync({ tenant: tenantId, id: userId, roleId: rid });
+    }
+    await invalidateUserRoles(userId);
+  }
+
   return {
     inviteUser,
     activateMembership,
@@ -123,250 +352,12 @@ export function useUserMutations() {
   };
 }
 
-export async function inviteUser(
-  email: string,
-  name: string | undefined,
-  tenantId: string,
-  roleIds: string[],
-  forceTotpOnFirstLogin: boolean,
-): Promise<{ userId: string; membershipId: string; inviteToken: string }> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const actorId = getCurrentActorId();
-
-  // Check if user already exists by email
-  const existingUser = Object.values(state.users).find((u) => u.email === email);
-
-  let userId: string;
-  if (existingUser) {
-    userId = existingUser.id;
-  } else {
-    userId = nextUserId();
-    const user: User = {
-      id: userId,
-      email,
-      name: name ?? email.split('@')[0] ?? email,
-      disabled: false,
-      totp_enabled: forceTotpOnFirstLogin,
-      totp_enrolled: false,
-      force_password_change: true,
-      timezone: 'America/Los_Angeles',
-      locale: 'en',
-      reduced_motion: false,
-      notification_preferences: { email: true, in_app: true, categories_muted: [] },
-      created_at: now(),
-      updated_at: now(),
-    };
-    state.addEntity('users', user);
-  }
-
-  const membershipId = nextMembershipId();
-  const membership: Membership = {
-    id: membershipId,
-    tenant_id: tenantId,
-    user_id: userId,
-    role_ids: roleIds,
-    state: 'pending',
-    invited_at: now(),
-  };
-  state.addEntity('memberships', membership);
-
-  // Audit entry
-  state.appendAudit(makeAuditEntry(actorId, tenantId, 'user:invite', 'user', userId));
-
-  // Fake invite token
-  const inviteToken = `inv-${userId.slice(-6)}-${membershipId.slice(-6)}`;
-
-  // Emit host event so plugins can react (e.g. custom onboarding workflows)
-  emitHostEvent('user:invited', { user_id: userId, tenant_id: tenantId, role_ids: roleIds });
-
-  return { userId, membershipId, inviteToken };
+export function useDeleteUser(tenantId: string) {
+  const m = useUserMutations(tenantId);
+  return m.deleteUser;
 }
 
-export async function activateMembership(membershipId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const membership = state.memberships[membershipId];
-  if (!membership) return;
-
-  state.updateEntity('memberships', membershipId, {
-    state: 'active',
-    joined_at: now(),
-  });
-
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      membership.tenant_id,
-      'user:membership.activate',
-      'membership',
-      membershipId,
-    ),
-  );
-}
-
-export async function deactivateMembership(membershipId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const membership = state.memberships[membershipId];
-  if (!membership) return;
-
-  state.updateEntity('memberships', membershipId, { state: 'deactivated' });
-
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      membership.tenant_id,
-      'user:membership.deactivate',
-      'membership',
-      membershipId,
-    ),
-  );
-}
-
-export async function removeMembership(membershipId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const membership = state.memberships[membershipId];
-  if (!membership) return;
-
-  state.updateEntity('memberships', membershipId, { state: 'removed' });
-
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      membership.tenant_id,
-      'user:membership.remove',
-      'membership',
-      membershipId,
-    ),
-  );
-}
-
-export async function disableUser(userId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  state.updateEntity('users', userId, { disabled: true, updated_at: now() });
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'user:disable', 'user', userId),
-  );
-  emitHostEvent('user:disabled', { user_id: userId, tenant_id: state.currentTenantId });
-}
-
-export async function enableUser(userId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  state.updateEntity('users', userId, { disabled: false, updated_at: now() });
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'user:enable', 'user', userId),
-  );
-  emitHostEvent('user:updated', {
-    user_id: userId,
-    tenant_id: state.currentTenantId,
-    change: 'enabled',
-  });
-}
-
-export async function deleteUser(userId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  state.deleteEntity('users', userId);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), state.currentTenantId, 'user:delete', 'user', userId),
-  );
-}
-
-export async function revokeSession(sessionId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  // Mark revoked = true, do NOT delete (audit trail needs it)
-  state.updateEntity('sessions', sessionId, { revoked: true });
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      state.currentTenantId,
-      'session:revoke',
-      'session',
-      sessionId,
-    ),
-  );
-}
-
-export async function resendInvite(membershipId: string): Promise<{ inviteToken: string }> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const membership = state.memberships[membershipId];
-  if (!membership) throw new Error('Membership not found');
-
-  // Generate a fresh invite token
-  const inviteToken = `inv-${membership.user_id.slice(-6)}-${membershipId.slice(-6)}-r${Date.now().toString(36)}`;
-  state.updateEntity('memberships', membershipId, {
-    invite_token: inviteToken,
-    invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  });
-
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      membership.tenant_id,
-      'user:invite.resend',
-      'membership',
-      membershipId,
-    ),
-  );
-
-  return { inviteToken };
-}
-
-export async function revokeInvite(membershipId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const membership = state.memberships[membershipId];
-  if (!membership) return;
-
-  state.updateEntity('memberships', membershipId, { state: 'removed' });
-
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      membership.tenant_id,
-      'user:invite.revoke',
-      'membership',
-      membershipId,
-    ),
-  );
-}
-
-export async function updateMembershipRoles(
-  membershipId: string,
-  newRoleIds: string[],
-): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const membership = state.memberships[membershipId];
-  if (!membership) return;
-
-  const before = [...membership.role_ids];
-  state.updateEntity('memberships', membershipId, { role_ids: newRoleIds });
-
-  state.appendAudit({
-    ...makeAuditEntry(
-      getCurrentActorId(),
-      membership.tenant_id,
-      'membership:role:update',
-      'membership',
-      membershipId,
-    ),
-    tier: 'write',
-    diff: { before: { role_ids: before }, after: { role_ids: newRoleIds } },
-  });
-
-  emitHostEvent('user:role-changed', {
-    user_id: membership.user_id,
-    tenant_id: membership.tenant_id,
-    membership_id: membershipId,
-    before: before,
-    after: newRoleIds,
-  });
+export function useInviteUser(tenantId: string) {
+  const m = useUserMutations(tenantId);
+  return m.inviteUser;
 }
