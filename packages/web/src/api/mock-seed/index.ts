@@ -15,13 +15,7 @@ export * from './services';
 export * from './routes';
 export * from './middlewares';
 export * from './sites';
-// Plan 04 (ai) — ai-providers wired to real daemon (stub deleted)
-export * from './ai-agents';
-export * from './ai-tools';
-export * from './ai-tool-bindings';
-export * from './ai-rate-limits';
-export * from './ai-traces';
-export * from './ai-mcp-servers';
+// Plan 04 (ai) feature slices retired — seed lives in _internal.ts
 // Plan 05 (audit)
 export * from './audit';
 // Plan 06 (notifications)
