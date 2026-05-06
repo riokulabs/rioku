@@ -19,10 +19,17 @@
 import { Alert, Group, Text, Button, Anchor, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconEye } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMockStore } from '@/api/mock-store';
+import { isRealApi } from '@/api/mode';
 import { useImpersonation } from '@/hooks/use-impersonation';
 import { useImpersonationSession } from '@/features/security/impersonation/use-impersonation-session';
+import {
+  useEndImpersonation,
+  getListImpersonationSessionsQueryKey,
+} from '@/features/security/impersonation/realApi';
+import { ImpersonationIdleModal } from '@/features/security/impersonation/components/idle-modal';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -35,8 +42,13 @@ export function ImpersonationBanner() {
   const session = realSession ?? mockSession;
   const navigate = useNavigate();
   const tenants = useMockStore((s) => s.tenants);
+  const queryClient = useQueryClient();
+  const endMutation = useEndImpersonation();
 
   if (!session) return null;
+  // Stable reference for use inside async closures where TS narrowing
+  // does not propagate (the session field is read inside `onConfirm`).
+  const liveSession = session;
 
   const tenant = tenants[session.tenant_id];
   const tenantName = tenant?.name ?? session.tenant_id;
@@ -55,6 +67,20 @@ export function ImpersonationBanner() {
       confirmProps: { color: 'orange' },
       onConfirm: () => {
         void (async () => {
+          // Real-API mode: hit the daemon DELETE endpoint and let the
+          // listImpersonationSessions query refresh so the banner unmounts
+          // when the daemon returns the ended state. Then clear the mock
+          // store so `getActiveImpersonationId` stops stamping the
+          // impersonation header on subsequent requests.
+          if (isRealApi()) {
+            try {
+              await endMutation.mutateAsync({ id: liveSession.id });
+            } finally {
+              await queryClient.invalidateQueries({
+                queryKey: getListImpersonationSessionsQueryKey(),
+              });
+            }
+          }
           await exit();
           void navigate({ to: '/admin' as string });
         })();
@@ -137,11 +163,13 @@ export function ImpersonationBanner() {
             variant="filled"
             onClick={handleExit}
             styles={{ root: { flexShrink: 0 } }}
+            loading={endMutation.isPending}
           >
             End session
           </Button>
         </Group>
       </Alert>
+      <ImpersonationIdleModal />
     </div>
   );
 }

@@ -28,10 +28,16 @@ import {
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertTriangle } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMockStore } from '@/api/mock-store';
+import { isRealApi } from '@/api/mode';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
 import { useImpersonation } from '@/hooks/use-impersonation';
+import {
+  useStartImpersonation,
+  getListImpersonationSessionsQueryKey,
+} from '../realApi';
 import { ProfileToggle } from './profile-toggle';
 import { impersonationFormSchema, type ImpersonationFormValues } from '../schemas';
 
@@ -51,6 +57,8 @@ export function ImpersonationEntryForm() {
 
   const navigate = useNavigate();
   const { entry } = useImpersonation();
+  const queryClient = useQueryClient();
+  const startMutation = useStartImpersonation();
 
   // Read tenants + memberships from store
   const tenants = useMockStore((s) => s.tenants);
@@ -96,6 +104,34 @@ export function ImpersonationEntryForm() {
     setSaving(true);
     setError(null);
     try {
+      // Real-API mode: POST /api/v1/admin/impersonation. The TOTP code
+      // is forwarded as an `X-TOTP-Code` header so the daemon can
+      // enforce step-up auth without leaking it in the audit log
+      // payload. The wire body matches the OpenAPI contract.
+      if (isRealApi()) {
+        const res = await startMutation.mutateAsync({
+          data: {
+            tenantId: values.tenant_id,
+            targetUserId: values.user_id ?? '',
+            reason: values.reason,
+            ...(values.ticketRef?.trim() ? { ticketRef: values.ticketRef.trim() } : {}),
+          },
+        });
+        await queryClient.invalidateQueries({
+          queryKey: getListImpersonationSessionsQueryKey(),
+        });
+        // Mirror the daemon-issued session id into the mock store so the
+        // mutator's `getActiveImpersonationId` accessor can stamp the
+        // `X-Impersonation-Id` header on subsequent requests.
+        const newId = res.data?.id;
+        if (typeof newId === 'string' && newId !== '') {
+          useMockStore.setState({ activeImpersonationId: newId });
+        }
+      }
+      // Always run the local entry — it owns the two-sided audit emission
+      // and the timer state machine. In real-API mode it duplicates the
+      // session into the mock-store mirror; the bridge hook prefers the
+      // daemon-reported session, so the banner shows the canonical one.
       await entry({
         tenant_id: values.tenant_id,
         ...(values.user_id ? { user_id: values.user_id } : {}),

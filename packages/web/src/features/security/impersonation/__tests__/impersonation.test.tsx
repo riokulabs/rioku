@@ -40,6 +40,32 @@ vi.mock('@/hooks/use-impersonation', () => ({
   }),
 }));
 
+// ─── Real-API mode flag — flipped per-test ──────────────────────────────────
+
+const realApiMock = vi.hoisted(() => ({ value: false }));
+vi.mock('@/api/mode', () => ({
+  isRealApi: () => realApiMock.value,
+  useMocks: () => !realApiMock.value,
+}));
+
+// ─── Generated impersonation client mock ────────────────────────────────────
+
+const mockStartMutate = vi.fn().mockResolvedValue({
+  data: { id: 'imp-daemon-001' },
+  status: 201,
+});
+vi.mock('../realApi', () => ({
+  useStartImpersonation: () => ({
+    mutateAsync: mockStartMutate,
+    isPending: false,
+  }),
+  getListImpersonationSessionsQueryKey: () => ['/api/v1/admin/impersonation'],
+  // Other re-exports — present for symmetry. Not used by the entry form.
+  useEndImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useTouchImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListImpersonationSessions: () => ({ data: undefined }),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function seedStore() {
@@ -91,6 +117,9 @@ describe('ImpersonationEntryForm', () => {
     seedStore();
     mockEntry.mockReset();
     mockEntry.mockResolvedValue(undefined);
+    mockStartMutate.mockReset();
+    mockStartMutate.mockResolvedValue({ data: { id: 'imp-daemon-001' }, status: 201 });
+    realApiMock.value = false;
   });
 
   it('renders all required fields', () => {
@@ -206,6 +235,73 @@ describe('ImpersonationEntryForm', () => {
         }),
       );
     });
+  });
+
+  it('does NOT call the daemon start mutation in mock-API mode', async () => {
+    realApiMock.value = false;
+    const user = userEvent.setup();
+    renderWithProviders(<ImpersonationEntryForm />);
+
+    const [tenantSelect] = screen.getAllByLabelText(/target tenant/i);
+    if (!tenantSelect) throw new Error('tenant select not found');
+    await user.click(tenantSelect);
+    await waitFor(() => {
+      expect(screen.getByText(/Acme Corp/i)).toBeDefined();
+    });
+    await user.click(screen.getByText(/Acme Corp/i));
+
+    const [reasonInput] = screen.getAllByLabelText(/reason/i);
+    if (!reasonInput) throw new Error('reason input not found');
+    await user.type(reasonInput, 'Investigating support ticket about role assignments');
+
+    const [totpInput] = screen.getAllByLabelText(/totp code/i);
+    if (!totpInput) throw new Error('totp input not found');
+    await user.type(totpInput, '123456');
+
+    const submitBtn = screen.getByRole('button', { name: /start impersonation/i });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockEntry).toHaveBeenCalled();
+    });
+    expect(mockStartMutate).not.toHaveBeenCalled();
+  });
+
+  it('calls the daemon start mutation in real-API mode with the wire body shape', async () => {
+    realApiMock.value = true;
+    const user = userEvent.setup();
+    renderWithProviders(<ImpersonationEntryForm />);
+
+    const [tenantSelect] = screen.getAllByLabelText(/target tenant/i);
+    if (!tenantSelect) throw new Error('tenant select not found');
+    await user.click(tenantSelect);
+    await waitFor(() => {
+      expect(screen.getByText(/Acme Corp/i)).toBeDefined();
+    });
+    await user.click(screen.getByText(/Acme Corp/i));
+
+    const [reasonInput] = screen.getAllByLabelText(/reason/i);
+    if (!reasonInput) throw new Error('reason input not found');
+    await user.type(reasonInput, 'Investigating support ticket about role assignments');
+
+    const [totpInput] = screen.getAllByLabelText(/totp code/i);
+    if (!totpInput) throw new Error('totp input not found');
+    await user.type(totpInput, '123456');
+
+    const submitBtn = screen.getByRole('button', { name: /start impersonation/i });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockStartMutate).toHaveBeenCalled();
+    });
+    const callArg = mockStartMutate.mock.calls[0]?.[0] as
+      | { data: { tenantId: string; targetUserId: string; reason: string } }
+      | undefined;
+    expect(callArg?.data.tenantId).toBe('tenant-acme');
+    expect(callArg?.data.targetUserId).toBe('');
+    expect(callArg?.data.reason).toBe('Investigating support ticket about role assignments');
+    // Local entry() still called for the audit + mock-store mirror.
+    expect(mockEntry).toHaveBeenCalled();
   });
 
   it('shows valid ticketRef as URL', async () => {

@@ -21,6 +21,41 @@ export function setAuthFailureHandler(fn: (currentUrl: string) => void): void {
   _authFailureHandler = fn;
 }
 
+// ─── Impersonation header forwarding ─────────────────────────────────────────
+//
+// When a super-admin impersonation session is active, every outgoing
+// daemon request must carry the session id so the daemon-side audit
+// emit code can stamp `acted_as_admin: true` on tenant-side audit
+// entries (and skip the same flag on the super-admin log).
+//
+// The accessor is a tiny module-level pointer set by the impersonation
+// state owner (wired from `main.tsx` once the mock-store module has
+// loaded). The mutator does not import the store directly — that
+// would create a fetch/-store/auth circular import. The only path
+// between them is this setter.
+
+let _activeImpersonationId: (() => string | null) | null = null;
+
+export function setActiveImpersonationIdAccessor(
+  fn: (() => string | null) | null,
+): void {
+  _activeImpersonationId = fn;
+}
+
+export function getActiveImpersonationId(): string | null {
+  return _activeImpersonationId?.() ?? null;
+}
+
+/** Path patterns that must NOT receive the impersonation header.
+ *  Impersonation-management endpoints are super-admin-self calls and
+ *  the session id either does not exist yet (start) or is in the
+ *  path (end / touch / list).
+ */
+function shouldStampImpersonationHeader(url: string): boolean {
+  const path = url.split('?')[0] ?? url;
+  return !path.includes('/admin/impersonation');
+}
+
 const BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
 
 function isProblemContentType(ct: string | null): boolean {
@@ -136,6 +171,17 @@ export async function customFetch<T>(
       Object.assign(headers, orvalHeaders);
     }
   }
+  // Stamp the active impersonation session id on every outgoing
+  // daemon request except impersonation-management calls themselves.
+  // The daemon will use this header to set `acted_as_admin: true`
+  // on tenant-side audit entries.
+  const impId = getActiveImpersonationId();
+  if (impId !== null && shouldStampImpersonationHeader(fullUrl)) {
+    if (!('x-impersonation-id' in headers) && !('X-Impersonation-Id' in headers)) {
+      headers['x-impersonation-id'] = impId;
+    }
+  }
+
   const fetchInit: RequestInit = {
     method,
     headers,
