@@ -3,23 +3,23 @@
  */
 import { Stack, Group, Text, Badge, Title, Divider, Button } from '@mantine/core';
 import dayjs from 'dayjs';
-import { ConditionEditor } from '@/components/condition-editor';
-import type { RbacPolicyFull, RbacPolicyType } from '../types';
+import type { RbacPolicyFull, RbacSubjectType } from '../types';
 
 interface RbacPolicyDetailProps {
   policy: RbacPolicyFull;
   onEdit: () => void;
   onDelete: () => void;
+  /** When true, hides the Edit/Delete buttons (used by viewer-permission UIs). */
+  readOnly?: boolean;
 }
 
-const TYPE_LABELS: Record<RbacPolicyType, string> = {
-  'totp-required': 'TOTP Required',
-  'step-up-required': 'Step-up Required',
-  'login-window': 'Login Window',
-  custom: 'Custom CEL',
+const SUBJECT_LABELS: Record<RbacSubjectType, string> = {
+  user: 'User',
+  group: 'Group',
+  'service-account': 'Service account',
 };
 
-export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailProps) {
+export function RbacPolicyDetail({ policy, onEdit, onDelete, readOnly }: RbacPolicyDetailProps) {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="flex-start">
@@ -27,18 +27,29 @@ export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailP
           <Title order={4}>{policy.name}</Title>
           <Group gap="xs">
             <Badge variant="light" color="violet">
-              {TYPE_LABELS[policy.policy_type]}
+              {SUBJECT_LABELS[policy.subject_type]}
             </Badge>
+            {policy.enabled ? (
+              <Badge variant="light" color="green">
+                Enabled
+              </Badge>
+            ) : (
+              <Badge variant="light" color="gray">
+                Disabled
+              </Badge>
+            )}
           </Group>
         </Stack>
-        <Group gap="xs">
-          <Button size="xs" variant="light" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button size="xs" variant="light" color="red.8" onClick={onDelete}>
-            Delete
-          </Button>
-        </Group>
+        {!readOnly && (
+          <Group gap="xs">
+            <Button size="xs" variant="light" onClick={onEdit}>
+              Edit
+            </Button>
+            <Button size="xs" variant="light" color="red.8" onClick={onDelete}>
+              Delete
+            </Button>
+          </Group>
+        )}
       </Group>
 
       <Divider />
@@ -47,52 +58,28 @@ export function RbacPolicyDetail({ policy, onEdit, onDelete }: RbacPolicyDetailP
 
       <Stack gap="xs">
         <Text size="sm" fw={600}>
-          Affected Roles
+          Subject
         </Text>
-        {policy.affected_role_ids.length === 0 ? (
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            No roles selected
-          </Text>
-        ) : (
-          <Group gap="xs">
-            {policy.affected_role_ids.map((id) => (
-              <Badge key={id} variant="outline" size="sm">
-                {id}
-              </Badge>
-            ))}
-          </Group>
-        )}
+        <Text size="sm" style={{ fontFamily: 'monospace' }}>
+          {policy.subject_id || '—'}
+        </Text>
       </Stack>
 
-      {policy.window && (
-        <Stack gap="xs">
-          <Text size="sm" fw={600}>
-            {policy.policy_type === 'login-window' ? 'Login Window' : 'Step-up Timeout'}
-          </Text>
-          <Text size="sm" style={{ fontFamily: 'monospace' }}>
-            {policy.window}
-          </Text>
-        </Stack>
-      )}
-
-      {policy.policy_type === 'custom' && policy.condition && (
-        <Stack gap="xs">
-          <Text size="sm" fw={600}>
-            CEL Condition
-          </Text>
-          <ConditionEditor
-            value={policy.condition}
-            onChange={() => undefined}
-            readOnly
-            height={100}
-          />
-        </Stack>
-      )}
+      <Stack gap="xs">
+        <Text size="sm" fw={600}>
+          Bound role
+        </Text>
+        <Text size="sm" style={{ fontFamily: 'monospace' }}>
+          {policy.role_id || '—'}
+        </Text>
+      </Stack>
 
       <Stack gap="xs">
-        <Text size="xs" c="var(--mantine-color-gray-7)">
-          Created {dayjs(policy.created_at).format('MMM D, YYYY HH:mm')}
-        </Text>
+        {policy.created_at && (
+          <Text size="xs" c="var(--mantine-color-gray-7)">
+            Created {dayjs(policy.created_at).format('MMM D, YYYY HH:mm')}
+          </Text>
+        )}
         <Text size="xs" c="var(--mantine-color-gray-7)">
           ID: <code>{policy.id}</code>
         </Text>

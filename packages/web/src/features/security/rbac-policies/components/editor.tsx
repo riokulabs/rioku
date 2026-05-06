@@ -2,65 +2,46 @@
  * <RbacPolicyEditor> — create / edit form for a RBAC policy.
  */
 import { useState } from 'react';
-import {
-  Stack,
-  TextInput,
-  Textarea,
-  Select,
-  MultiSelect,
-  Button,
-  Group,
-  Text,
-} from '@mantine/core';
+import { Stack, TextInput, Textarea, Select, Switch, Button, Group } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
-import { ConditionEditor } from '@/components/condition-editor';
-import { useMockStore } from '@/api/mock-store';
+import { useListRoles } from '@/features/security/roles/realApi';
 import { rbacPolicySchema, type RbacPolicyFormValues } from '../schemas';
 import type { RbacPolicyFull } from '../types';
 
 interface RbacPolicyEditorProps {
   initial?: RbacPolicyFull;
-  tenantId: string;
+  tenant: string;
   onSave: (values: RbacPolicyFormValues) => Promise<void>;
   onCancel: () => void;
 }
 
-export function RbacPolicyEditor({
-  initial,
-  tenantId: _tenantId,
-  onSave,
-  onCancel,
-}: RbacPolicyEditorProps) {
+export function RbacPolicyEditor({ initial, tenant, onSave, onCancel }: RbacPolicyEditorProps) {
   const [saving, setSaving] = useState(false);
-  const [conditionValid, setConditionValid] = useState(true);
 
-  const roles = useMockStore((s) => s.roles);
-  const roleOptions = Object.values(roles).map((r) => ({
-    value: r.id,
-    label: r.name,
-  }));
+  const rolesResult = useListRoles(tenant, { query: { enabled: tenant.length > 0 } });
+  const roleOptions = (rolesResult.data?.data.roles ?? []).map(
+    (r: { id?: string; name?: string }) => ({
+      value: r.id ?? '',
+      label: r.name ?? r.id ?? '',
+    }),
+  );
 
   const form = useForm<RbacPolicyFormValues>({
     validate: schemaResolver(rbacPolicySchema, { sync: true }),
     initialValues: {
       name: initial?.name ?? '',
       description: initial?.description ?? '',
-      policy_type: initial?.policy_type ?? 'totp-required',
-      affected_role_ids: initial?.affected_role_ids ?? [],
-      condition: initial?.condition ?? '',
-      window: initial?.window ?? '',
+      enabled: initial?.enabled ?? true,
+      subject_type: initial?.subject_type ?? 'user',
+      subject_id: initial?.subject_id ?? '',
+      role_id: initial?.role_id ?? '',
     },
   });
 
   useDirtyForm(form);
 
-  const policyType = form.values.policy_type;
-  const needsCondition = policyType === 'custom';
-  const needsWindow = policyType === 'login-window' || policyType === 'step-up-required';
-
   async function handleSubmit(values: RbacPolicyFormValues) {
-    if (needsCondition && !conditionValid) return;
     setSaving(true);
     try {
       await onSave(values);
@@ -75,7 +56,7 @@ export function RbacPolicyEditor({
       <Stack gap="md">
         <TextInput
           label="Name"
-          placeholder="e.g. totp-required-admin"
+          placeholder="e.g. devs-bind-engineering"
           required
           {...form.getInputProps('name')}
         />
@@ -88,65 +69,47 @@ export function RbacPolicyEditor({
         />
 
         <Select
-          label="Policy type"
+          label="Subject type"
           data={[
-            { value: 'totp-required', label: 'TOTP Required' },
-            { value: 'step-up-required', label: 'Step-up TOTP Required' },
-            { value: 'login-window', label: 'Login Window' },
-            { value: 'custom', label: 'Custom (CEL)' },
+            { value: 'user', label: 'User' },
+            { value: 'group', label: 'Group' },
+            { value: 'service-account', label: 'Service account' },
+            { value: 'role-template', label: 'Role template' },
           ]}
           required
-          {...form.getInputProps('policy_type')}
+          {...form.getInputProps('subject_type')}
         />
 
-        <MultiSelect
-          label="Affected roles"
-          description="Roles this policy applies to."
+        <TextInput
+          label="Subject ID"
+          placeholder="user / group / sa identifier"
+          required
+          {...form.getInputProps('subject_id')}
+        />
+
+        <Select
+          label="Bound role"
+          description="Role granted to the subject by this binding."
           data={roleOptions}
           searchable
-          clearable
           required
-          {...form.getInputProps('affected_role_ids')}
+          {...form.getInputProps('role_id')}
         />
 
-        {needsWindow && (
-          <TextInput
-            label={policyType === 'login-window' ? 'Login window' : 'Step-up timeout (seconds)'}
-            placeholder={policyType === 'login-window' ? '07:00–19:00 UTC' : '60'}
-            {...form.getInputProps('window')}
-          />
-        )}
-
-        {needsCondition && (
-          <Stack gap="xs">
-            <ConditionEditor
-              label="CEL Condition"
-              value={form.values.condition ?? ''}
-              onChange={(v) => {
-                form.setFieldValue('condition', v);
-              }}
-              onValidityChange={setConditionValid}
-              placeholder="request.method == 'GET'"
-              height={120}
-            />
-            {form.errors.condition && (
-              <Text size="xs" c="red">
-                {form.errors.condition}
-              </Text>
-            )}
-            {!conditionValid && (
-              <Text size="xs" c="orange">
-                CEL syntax error — fix before saving.
-              </Text>
-            )}
-          </Stack>
-        )}
+        <Switch
+          label="Enabled"
+          description="Disabled policies are persisted but not enforced."
+          checked={form.values.enabled}
+          onChange={(e) => {
+            form.setFieldValue('enabled', e.currentTarget.checked);
+          }}
+        />
 
         <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" loading={saving} disabled={needsCondition && !conditionValid}>
+          <Button type="submit" loading={saving}>
             {initial ? 'Save changes' : 'Create policy'}
           </Button>
         </Group>
