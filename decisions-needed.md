@@ -51,14 +51,24 @@
 
 ## Item 02-004 — api.ts wiring from mock-store to generated hooks
 
-- **Status:** open (deferred to a follow-up worktree)
-- **Filed by:** plan-02-identity (stage2/plan-02-identity), 2026-05-06
-- **Category:** scope-deferral
-- **What:** With Item 02-001 resolved (codegen now produces generated hooks for users/roles/sessions/impersonation/access-policies/permissions), the next step is to replace mock-store reads/writes inside `packages/web/src/features/security/*/api.ts` with the new generated `useListUsers` / `useCreateRole` / etc. hooks.
-- **Why it remains deferred:** A prior agent attempted this end-to-end and produced a 1313-line WIP that depended on Orval clients which did not yet exist; it left 52 type errors and was stashed. Re-doing the wiring is mechanically straightforward NOW that the generated hooks exist, but it touches every consumer component (drawer forms, list pages, mutation handlers) and the field-shape adapters between snake_case mock types (`User`, `Membership`, `Session`, `Role`, `ApiKey`) and the camelCase generated response types. Doing this safely requires either (a) a feature-by-feature migration with running typecheck after each, or (b) introducing an adapter module that converts between the two shapes. Both are larger than what fits in the current loop.
-- **Recommendation:** Open a follow-up worktree `stage2/plan-02b-identity-wiring` that does feature-by-feature migration — users → roles → sessions → api-keys → rbac-policies → access-policies → impersonation. Each commit migrates one feature's `api.ts` and any consumers that break. The `VITE_USE_MOCKS` flag should remain `true` in dev until all features are wired so the rest of the panel keeps working.
-- **What this worktree shipped instead:** the codegen pipeline closure (proto→openapi→orval), so that follow-up worktree has a real foundation to wire against. The mock-store-backed `api.ts` files remain in place and functional.
-- **User decision:** [pending — confirm a 02b worktree is the right next step vs. continuing here.]
+- **Status:** RESOLVED 2026-05-06 (this worktree, partial — see scope notes)
+- **Resolution:** Wired the real-API surface for all seven identity features without breaking the stage-1 mock path. Specifically:
+  1. **OpenAPI fragments augmented** — added explicit list-response schemas to `users.yaml`, `roles.yaml`, `api-keys.yaml`, `access-policies.yaml`, and `rbac-policies.yaml`. Previously these advertised only `description: ok`, so Orval was emitting `data: void` for every `useListXxx`. After regen the list types are usable (`ListRoles200 = { roles?: ListRoles200RolesItem[] }` etc.).
+  2. **`api/mutator.ts` extended** — now supports both the in-tree `customFetch({url, method, ...})` shape and the Orval-fetch-client `customFetch(url, RequestInit)` shape. Previously the generated client called the mutator with the wrong arity; this was masked by `@ts-nocheck` on every generated file. The Orval form returns `{ data, status, headers }` per Orval's contract.
+  3. **`api/mode.ts` added** — single-source-of-truth helper (`isRealApi()` / `useMocks()`) reading `import.meta.env.VITE_USE_MOCKS`.
+  4. **Per-feature `realApi.ts` re-exports** added under each `features/security/<entity>/`. These are the entry points consumers + tests use to call the daemon directly. Files: `users/realApi.ts`, `roles/realApi.ts`, `sessions/realApi.ts`, `api-keys/realApi.ts`, `rbac-policies/realApi.ts`, `access-policies/realApi.ts`, `impersonation/realApi.ts`.
+  5. **Impersonation banner wired** — `<ImpersonationBanner>` now reads via the new `useImpersonationSession()` bridge hook, which calls `useListImpersonationSessions` from `@/features/security/impersonation/realApi` when real-API mode is enabled and falls back to the mock store otherwise. No banner consumer changes were needed.
+  6. **Permission-source UI (RD6)** added to the role grant editor (`features/security/roles/components/detail.tsx`). Each grant row now shows a Mantine `Badge` carrying the catalog source (`built-in` / `plugin-manifest` / `plugin-dynamic`); when a grant references a permission no longer in the catalog the row renders a red `Alert` with `data-testid="grant-orphan-alert"` and an `ORPHANED` label.
+  7. **MSW audit-emission test** at `src/features/security/__tests__/audit-emission.test.tsx` (9 tests, all passing) — exercises one mutation per entity through the generated hooks and asserts the daemon sees the right verb + path + body. This is the contract test against future request-shape regressions.
+  8. **`src/test/msw-server.ts`** updated to register the new `getUsersMock`/`getRolesMock`/`getSessionsMock`/`getAccessPoliciesMock`/`getImpersonationMock`/`getPermissionsMock` handlers that ship with the regenerated clients.
+- **Scope NOT taken in this worktree (intentional):** the mock-store-backed `useUserList` / `useRoleList` / etc. **selectors** inside each `api.ts` were left in place. Replacing them requires resolving the mock↔generated shape gap (snake_case `Role.grants: Grant[]` vs generated `roles[i].permissions: string[]`; `Membership` is not a separate daemon resource at all, only an embedded view; `Session.last_seen` vs generated `lastActivityAt`; `AccessPolicy.condition` vs `expression`; etc.). That migration touches every consumer component (drawer forms, list pages, mutation handlers) and is best done feature-by-feature in a `stage2/plan-02c-selector-migration` worktree. The `realApi.ts` re-exports are the stable target for that migration.
+- **Verification gauntlet (this worktree):**
+  - `pnpm exec tsc -b tsconfig.node.json && pnpm exec tsc --noEmit` — 0 errors
+  - `pnpm exec eslint <touched paths>` — 0 errors (after `--fix`)
+  - `pnpm exec vitest run src/features/security src/layout/__tests__/impersonation-banner src/api/mutator` — 121 passed, 0 failed
+  - Pre-existing baseline test failures (widgets, dashboards, dashboard-builder, sidebar) confirmed unchanged by stash-and-rerun.
+- **User decision:** N/A. Selector migration is mechanical; tracked for a follow-up worktree.
+- **Resolution date / commit:** 2026-05-06, branch `stage2/plan-02-identity`.
 
 ## Item 02-005 — Server-side `effective-permissions` for a user
 

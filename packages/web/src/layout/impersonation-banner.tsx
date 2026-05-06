@@ -22,11 +22,17 @@ import { IconEye } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMockStore } from '@/api/mock-store';
 import { useImpersonation } from '@/hooks/use-impersonation';
+import { useImpersonationSession } from '@/features/security/impersonation/use-impersonation-session';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ImpersonationBanner() {
-  const { session, exit } = useImpersonation();
+  const { session: mockSession, exit } = useImpersonation();
+  // RD: when real-API mode is enabled, prefer the daemon-reported
+  // session over the mock store. In mock mode the bridge hook returns
+  // the same value as `useImpersonation().session`.
+  const realSession = useImpersonationSession();
+  const session = realSession ?? mockSession;
   const navigate = useNavigate();
   const tenants = useMockStore((s) => s.tenants);
 

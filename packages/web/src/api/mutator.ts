@@ -84,10 +84,38 @@ async function parseError(res: Response): Promise<ApiError> {
     : new ApiError(message, { status: res.status });
 }
 
-export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
-  const { url, method, data, signal, params } = args;
+/**
+ * customFetch supports two invocation shapes:
+ *
+ *   1. The hand-written `{url, method, data, params, signal}` form used by
+ *      existing in-tree consumers and the mutator unit test.
+ *   2. The Orval-fetch-client form `customFetch(url, RequestInit)` — emitted
+ *      by every generated `<entity>.ts`. The body shape returned for this
+ *      form is `{ data, status, headers }` (Orval's standard wrapper).
+ */
+export function customFetch<T>(args: CustomFetchArgs): Promise<T>;
+export function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
+export async function customFetch<T>(
+  argsOrUrl: CustomFetchArgs | string,
+  maybeInit?: RequestInit,
+): Promise<T> {
+  // Branch on call shape. If a string is passed, we're in the Orval form.
+  const orvalShape = typeof argsOrUrl === 'string';
+  const url = orvalShape ? argsOrUrl : argsOrUrl.url;
+  const method = orvalShape
+    ? (maybeInit?.method ?? 'GET')
+    : argsOrUrl.method;
+  const data = orvalShape ? undefined : argsOrUrl.data;
+  const signal = orvalShape ? maybeInit?.signal : argsOrUrl.signal;
+  const params = orvalShape ? undefined : argsOrUrl.params;
+  const orvalBody = orvalShape ? maybeInit?.body : undefined;
+  const orvalHeaders = orvalShape ? maybeInit?.headers : undefined;
 
   let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
+  // Strip duplicate API prefix when generated paths already include it.
+  if (BASE === '/api/v1' && fullUrl.startsWith('/api/v1/api/v1/')) {
+    fullUrl = fullUrl.slice('/api/v1'.length);
+  }
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -97,6 +125,17 @@ export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
   }
 
   const headers: Record<string, string> = {};
+  if (orvalHeaders) {
+    if (orvalHeaders instanceof Headers) {
+      orvalHeaders.forEach((value, key) => {
+        headers[key] = value;
+      });
+    } else if (Array.isArray(orvalHeaders)) {
+      for (const [k, v] of orvalHeaders) headers[k] = v;
+    } else {
+      Object.assign(headers, orvalHeaders);
+    }
+  }
   const fetchInit: RequestInit = {
     method,
     headers,
@@ -105,6 +144,15 @@ export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
   if (data !== undefined) {
     headers['content-type'] = 'application/json';
     fetchInit.body = JSON.stringify(data);
+  } else if (orvalBody !== undefined) {
+    fetchInit.body = orvalBody;
+    if (
+      typeof orvalBody === 'string' &&
+      !('content-type' in headers) &&
+      !('Content-Type' in headers)
+    ) {
+      headers['content-type'] = 'application/json';
+    }
   }
   if (signal !== undefined) fetchInit.signal = signal;
 
@@ -123,15 +171,30 @@ export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
     throw err;
   }
 
-  if (res.status === 204) return undefined as T;
+  // 204 No Content — Orval wrapper expects an object, hand-written shape
+  // expects undefined.
+  if (res.status === 204) {
+    return (
+      orvalShape
+        ? ({ data: undefined, status: 204, headers: res.headers } as unknown as T)
+        : (undefined as T)
+    );
+  }
 
   const ct = res.headers.get('content-type');
+  let parsed: unknown;
   if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
     try {
-      return (await res.json()) as T;
+      parsed = await res.json();
     } catch (cause) {
       throw new ApiError('Failed to parse response JSON', { cause });
     }
+  } else {
+    parsed = await res.text();
   }
-  return (await res.text()) as T;
+
+  if (orvalShape) {
+    return { data: parsed, status: res.status, headers: res.headers } as unknown as T;
+  }
+  return parsed as T;
 }

@@ -28,6 +28,7 @@ import { EffectivePermissionsPanel } from '@/components/effective-permissions-pa
 import { ConditionEditor } from '@/components/condition-editor';
 import { validateRoleSave } from '@/host/role-resolver';
 import { useMockStore } from '@/api/mock-store';
+import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { useRoleUserCounts, useRolesMap, updateRoleMutation } from '../api';
 import type { Role, GrantRow } from '../types';
 
@@ -47,6 +48,25 @@ interface GrantRowEditorProps {
 
 function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
   const [showCondition, setShowCondition] = useState(!!row.when);
+  const { all: catalog } = usePermissionsCatalog();
+
+  // RD6: surface the permission source ('built-in' / 'plugin-manifest' /
+  // 'plugin-dynamic') as a small Mantine Badge next to the permission name.
+  // If the permission is no longer present in the catalog (uninstalled
+  // plugin, renamed permission, etc.) we render an orphan alert instead.
+  const matched = row.permission
+    ? catalog.find((p) => p.key === row.permission)
+    : undefined;
+  const isOrphan = !!row.permission && !matched;
+  const sourceLabel = matched?.source ?? null;
+  const sourceColor =
+    sourceLabel === 'built-in'
+      ? 'gray'
+      : sourceLabel === 'plugin-manifest'
+        ? 'blue'
+        : sourceLabel === 'plugin-dynamic'
+          ? 'violet'
+          : 'gray';
 
   return (
     <Paper withBorder p="xs" radius="sm">
@@ -59,10 +79,32 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
             }}
             label="Permission"
           />
+          {sourceLabel && (
+            <Badge
+              color={sourceColor}
+              variant="light"
+              size="sm"
+              aria-label={`Source: ${sourceLabel}`}
+              data-testid="grant-source-badge"
+            >
+              {sourceLabel}
+            </Badge>
+          )}
           <ActionIcon color="red.8" variant="subtle" onClick={onRemove} aria-label="Remove grant">
             <IconTrash size={14} />
           </ActionIcon>
         </Group>
+        {isOrphan && (
+          <Alert
+            color="red"
+            variant="light"
+            icon={<IconAlertCircle size={14} />}
+            data-testid="grant-orphan-alert"
+          >
+            ORPHANED — permission <code>{row.permission}</code> no longer exists in the catalog.
+            Re-select a valid permission or remove this grant.
+          </Alert>
+        )}
         {!showCondition && (
           <Button
             size="xs"
