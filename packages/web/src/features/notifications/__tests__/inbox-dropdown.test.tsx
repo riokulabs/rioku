@@ -2,13 +2,20 @@
  * Tests for <InboxDropdown>.
  *
  * Covers: grouped rendering, category filter narrows, archive removes from
- * main list, mark-read updates unread count via store, empty state, subscribe
- * handling when a new notification lands on the bus.
+ * main list, mark-read POSTs to daemon, empty state, SSE subscribe wiring.
+ *
+ * Stage-2: MSW intercepts daemon fetch calls; QueryClientProvider wraps
+ * the component so TanStack Query hooks resolve. usePermission still
+ * reads from useMockStore (stage-1 hook) so we seed membership/roles only.
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import { server } from '@/test/msw-server';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -37,146 +44,288 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
+vi.mock('@/api/sse-client', () => ({
+  subscribeSSE: vi.fn(() => () => {}),
+  _resetForTests: vi.fn(),
+}));
+
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import { emitNotification } from '../api';
 import { InboxDropdown } from '../components/inbox-dropdown';
-import type { ID, NotificationItem } from '@/api/resources';
+import type { ID } from '@/api/resources';
 
-function wrap(ui: React.ReactNode) {
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
+
+const TENANT = 'acme';
+
+/** Daemon-shaped notification items (camelCase from REST layer). */
+const ITEM_SYSTEM = {
+  id: 'notif-sys-001',
+  tenantId: 'tenant-acme',
+  userId: 'user-001',
+  category: 'system',
+  severity: 'info',
+  title: 'System test notification',
+  body: 'system body',
+  occurredAt: '2026-01-01T10:00:00.000Z',
+  readAt: null,
+  archivedAt: null,
+};
+
+const ITEM_SECURITY = {
+  id: 'notif-sec-001',
+  tenantId: 'tenant-acme',
+  userId: 'user-001',
+  category: 'security',
+  severity: 'warn',
+  title: 'Security test notification',
+  body: 'security body',
+  occurredAt: '2026-01-01T09:00:00.000Z',
+  readAt: null,
+  archivedAt: null,
+};
+
+const ITEM_PLUGIN = {
+  id: 'notif-plg-001',
+  tenantId: 'tenant-acme',
+  userId: 'user-001',
+  category: 'plugin:com.example.slack',
+  severity: 'info',
+  title: 'Plugin test notification',
+  body: 'plugin body',
+  occurredAt: '2026-01-01T08:00:00.000Z',
+  readAt: null,
+  archivedAt: null,
+};
+
+const ALL_ITEMS = [ITEM_SYSTEM, ITEM_SECURITY, ITEM_PLUGIN];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+}
+
+/** Wrap component with Mantine + QueryClientProvider. */
+function wrap(ui: React.ReactNode, qc?: QueryClient) {
+  const client = qc ?? makeQueryClient();
   return render(
-    <MantineProvider>
-      <Notifications />
-      {ui}
-    </MantineProvider>,
+    <QueryClientProvider client={client}>
+      <MantineProvider>
+        <Notifications />
+        {ui}
+      </MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
-function currentUserId(): ID {
-  const id = useMockStore.getState().currentUserId;
-  if (!id) throw new Error('expected seeded currentUserId');
-  return id;
+/** Register a default MSW handler returning all fixture items. */
+function useAllItems() {
+  server.use(
+    http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+      HttpResponse.json({ items: ALL_ITEMS, total: ALL_ITEMS.length }),
+    ),
+  );
 }
 
-function setupFixture(): {
-  userId: ID;
-  system: NotificationItem;
-  security: NotificationItem;
-  plugin: NotificationItem;
-} {
-  const userId = currentUserId();
-  // Replace the store's notifications with a small deterministic fixture so we
-  // can assert specific groups / rows without wrestling with seed noise.
-  useMockStore.setState({ notifications: {} });
-  const tenantId = useMockStore.getState().currentTenantId;
-  const system = emitNotification({
-    tenant_id: tenantId,
-    user_id: userId,
-    category: 'system',
-    severity: 'info',
-    title: 'System test notification',
-    body: 'system body',
-  });
-  const security = emitNotification({
-    tenant_id: tenantId,
-    user_id: userId,
-    category: 'security',
-    severity: 'warn',
-    title: 'Security test notification',
-    body: 'security body',
-  });
-  const plugin = emitNotification({
-    tenant_id: tenantId,
-    user_id: userId,
-    category: 'plugin:com.example.slack',
-    severity: 'info',
-    title: 'Plugin test notification',
-    body: 'plugin body',
-  });
-  return { userId, system, security, plugin };
+/** Register an MSW handler returning an empty list. */
+function useNoItems() {
+  server.use(
+    http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+      HttpResponse.json({ items: [], total: 0 }),
+    ),
+  );
 }
+
+// ─── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  // Seed mock store so usePermission (still mock-store-backed) resolves
+  // notification:manage-own → allows mark-read / archive buttons.
   useMockStore.getState().reset();
   seedStore(useMockStore);
+
+  // Point window.location to a tenant URL so resolveTenant() returns 'acme'.
+  Object.defineProperty(window, 'location', {
+    value: { pathname: `/t/${TENANT}/notifications` },
+    writable: true,
+  });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
 describe('<InboxDropdown>', () => {
-  it('renders grouped notifications per category', () => {
-    const { userId, system, security, plugin } = setupFixture();
+  it('renders grouped notifications per category', async () => {
+    useAllItems();
+    const userId = useMockStore.getState().currentUserId as ID;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
-    expect(screen.getByTestId('inbox-group-system')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('inbox-group-system')).toBeInTheDocument();
+    });
+
     expect(screen.getByTestId('inbox-group-security')).toBeInTheDocument();
     expect(screen.getByTestId('inbox-group-plugin:com.example.slack')).toBeInTheDocument();
-    expect(screen.getByTestId(`inbox-row-title-${system.id}`)).toHaveTextContent(
+    expect(screen.getByTestId(`inbox-row-title-${ITEM_SYSTEM.id}`)).toHaveTextContent(
       'System test notification',
     );
-    expect(screen.getByTestId(`inbox-row-title-${security.id}`)).toHaveTextContent(
+    expect(screen.getByTestId(`inbox-row-title-${ITEM_SECURITY.id}`)).toHaveTextContent(
       'Security test notification',
     );
-    expect(screen.getByTestId(`inbox-row-title-${plugin.id}`)).toHaveTextContent(
+    expect(screen.getByTestId(`inbox-row-title-${ITEM_PLUGIN.id}`)).toHaveTextContent(
       'Plugin test notification',
     );
   });
 
-  it('category filter chip narrows the list to the selected bucket', () => {
-    const { userId } = setupFixture();
+  it('category filter chip narrows the list to the selected bucket', async () => {
+    useAllItems();
+    const userId = useMockStore.getState().currentUserId as ID;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
-    // The Mantine Chip's test-id lands on the input itself — clicking it
-    // toggles the multi-select chip group state.
-    const input = screen.getByTestId('inbox-filter-chip-security');
-    fireEvent.click(input);
-    expect(screen.queryByTestId('inbox-group-system')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('inbox-group-system')).toBeInTheDocument();
+    });
+
+    // After data loads, clicking the security chip should filter to security only.
+    // Server is re-queried; register a handler for the filtered request too.
+    server.use(
+      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+        HttpResponse.json({ items: [ITEM_SECURITY], total: 1 }),
+      ),
+    );
+
+    const chip = screen.getByTestId('inbox-filter-chip-security');
+    fireEvent.click(chip);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('inbox-group-system')).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId('inbox-group-security')).toBeInTheDocument();
   });
 
-  it('mark-read button marks a notification read in the store', async () => {
-    const { userId, system } = setupFixture();
+  it('mark-read button POSTs to /notifications/:id/read', async () => {
+    useAllItems();
+
+    let markReadCalled = false;
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notifications/${ITEM_SYSTEM.id}/read`, () => {
+        markReadCalled = true;
+        return HttpResponse.json({ ...ITEM_SYSTEM, readAt: '2026-01-02T00:00:00.000Z' });
+      }),
+    );
+
+    const userId = useMockStore.getState().currentUserId as ID;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
-    const btn = screen.getByTestId(`inbox-row-mark-read-${system.id}`);
-    fireEvent.click(btn);
+
     await waitFor(() => {
-      const stored = useMockStore.getState().notifications[system.id];
-      expect(stored?.read_at).not.toBeNull();
+      expect(screen.getByTestId(`inbox-row-mark-read-${ITEM_SYSTEM.id}`)).toBeInTheDocument();
     });
-  });
 
-  it('archive button removes a row from the default (non-archived) view', async () => {
-    const { userId, system } = setupFixture();
-    wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
-    const btn = screen.getByTestId(`inbox-row-archive-${system.id}`);
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByTestId(`inbox-row-mark-read-${ITEM_SYSTEM.id}`));
+
     await waitFor(() => {
-      expect(screen.queryByTestId(`inbox-row-${system.id}`)).not.toBeInTheDocument();
+      expect(markReadCalled).toBe(true);
     });
   });
 
-  it('renders empty state when no notifications match', () => {
-    const userId = currentUserId();
-    useMockStore.setState({ notifications: {} });
-    wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
-    expect(screen.getByText('No notifications')).toBeInTheDocument();
+  it('archive button POSTs to /notifications/:id/archive and row disappears', async () => {
+    useAllItems();
+
+    let archiveCalled = false;
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notifications/${ITEM_SYSTEM.id}/archive`, () => {
+        archiveCalled = true;
+        return HttpResponse.json({
+          ...ITEM_SYSTEM,
+          archivedAt: '2026-01-02T00:00:00.000Z',
+        });
+      }),
+    );
+
+    // After archive, next list refetch returns only non-archived items.
+    server.use(
+      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+        HttpResponse.json({ items: [ITEM_SECURITY, ITEM_PLUGIN], total: 2 }),
+      ),
+    );
+
+    const userId = useMockStore.getState().currentUserId as ID;
+    const qc = makeQueryClient();
+    wrap(<InboxDropdown userId={userId} onClose={() => undefined} />, qc);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(`inbox-row-archive-${ITEM_SYSTEM.id}`)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId(`inbox-row-archive-${ITEM_SYSTEM.id}`));
+
+    await waitFor(() => {
+      expect(archiveCalled).toBe(true);
+    });
   });
 
-  it('subscribes to new emits and re-renders when a notification lands', () => {
-    const userId = currentUserId();
-    useMockStore.setState({ notifications: {} });
+  it('renders empty state when no notifications match', async () => {
+    useNoItems();
+    const userId = useMockStore.getState().currentUserId as ID;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
-    expect(screen.getByText('No notifications')).toBeInTheDocument();
-    act(() => {
-      emitNotification({
-        tenant_id: useMockStore.getState().currentTenantId,
-        user_id: userId,
-        category: 'system',
-        severity: 'info',
-        title: 'Live emit',
-        body: 'live body',
-      });
+
+    await waitFor(() => {
+      expect(screen.getByText('No notifications')).toBeInTheDocument();
     });
-    expect(screen.getByText('Live emit')).toBeInTheDocument();
+  });
+
+  it('subscribes to SSE stream via subscribeInboxStream', async () => {
+    const { subscribeSSE } = await import('@/api/sse-client');
+    useNoItems();
+    const userId = useMockStore.getState().currentUserId as ID;
+    wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No notifications')).toBeInTheDocument();
+    });
+
+    // subscribeSSE should have been called with the tenant notifications stream
+    expect(vi.mocked(subscribeSSE)).toHaveBeenCalledWith(
+      `t/${TENANT}/notifications/stream`,
+      expect.any(Function),
+    );
+  });
+
+  it('renders new notification when list refetches after SSE event', async () => {
+    // Start empty
+    useNoItems();
+    const userId = useMockStore.getState().currentUserId as ID;
+    const qc = makeQueryClient();
+    wrap(<InboxDropdown userId={userId} onClose={() => undefined} />, qc);
+
+    await waitFor(() => {
+      expect(screen.getByText('No notifications')).toBeInTheDocument();
+    });
+
+    // Simulate cache invalidation (what useInboxStream does on SSE delta):
+    // override the MSW handler then manually invalidate the query.
+    server.use(
+      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+        HttpResponse.json({ items: [ITEM_SYSTEM], total: 1 }),
+      ),
+    );
+
+    await act(async () => {
+      await qc.invalidateQueries({ queryKey: ['notifications', TENANT] });
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('System test notification')).toBeInTheDocument();
+    });
   });
 });

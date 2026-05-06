@@ -1,11 +1,18 @@
 /**
  * Tests for <NotificationDetail> — header, body, metadata, toggle-read +
- * toggle-archive actions.
+ * toggle-archive actions hit daemon endpoints.
+ *
+ * Stage-2: Component accepts `item` as props; mutations call daemon via
+ * customFetch. MSW intercepts POST calls so we can assert endpoint was hit.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import { server } from '@/test/msw-server';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -18,12 +25,22 @@ import { seedStore } from '@/api/mock-seed';
 import { NotificationDetail } from '../components/detail';
 import type { ID, NotificationItem } from '@/api/resources';
 
+const TENANT = 'acme';
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+}
+
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <MantineProvider>
-      <Notifications />
-      {children}
-    </MantineProvider>
+    <QueryClientProvider client={makeQueryClient()}>
+      <MantineProvider>
+        <Notifications />
+        {children}
+      </MantineProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -46,9 +63,14 @@ function makeItem(overrides: Partial<NotificationItem> = {}): NotificationItem {
 }
 
 beforeEach(() => {
+  // Seed mock store so usePermission resolves notification:manage-own.
   useMockStore.getState().reset();
   seedStore(useMockStore);
-  useMockStore.setState({ notifications: { 'n-1': makeItem() } });
+
+  Object.defineProperty(window, 'location', {
+    value: { pathname: `/t/${TENANT}/notifications` },
+    writable: true,
+  });
 });
 
 describe('<NotificationDetail>', () => {
@@ -77,7 +99,18 @@ describe('<NotificationDetail>', () => {
     expect(btn).toHaveTextContent('Investigate');
   });
 
-  it('toggle-read switches the notification read state', async () => {
+  it('toggle-read POSTs to /notifications/:id/read', async () => {
+    let markReadCalled = false;
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notifications/n-1/read`, () => {
+        markReadCalled = true;
+        return HttpResponse.json({
+          ...makeItem(),
+          readAt: '2026-04-10T13:00:00.000Z',
+        });
+      }),
+    );
+
     render(<NotificationDetail item={makeItem()} onClose={() => undefined} />, {
       wrapper: Wrapper,
     });
@@ -85,11 +118,22 @@ describe('<NotificationDetail>', () => {
     expect(btn).toHaveTextContent('Mark as read');
     fireEvent.click(btn);
     await waitFor(() => {
-      expect(useMockStore.getState().notifications['n-1']?.read_at).not.toBeNull();
+      expect(markReadCalled).toBe(true);
     });
   });
 
-  it('toggle-archive archives then unarchives', async () => {
+  it('toggle-archive POSTs to /notifications/:id/archive', async () => {
+    let archiveCalled = false;
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notifications/n-1/archive`, () => {
+        archiveCalled = true;
+        return HttpResponse.json({
+          ...makeItem(),
+          archivedAt: '2026-04-10T13:00:00.000Z',
+        });
+      }),
+    );
+
     const item = makeItem();
     render(<NotificationDetail item={item} onClose={() => undefined} />, {
       wrapper: Wrapper,
@@ -98,7 +142,7 @@ describe('<NotificationDetail>', () => {
     expect(btn).toHaveTextContent('Archive');
     fireEvent.click(btn);
     await waitFor(() => {
-      expect(useMockStore.getState().notifications['n-1']?.archived_at).not.toBeNull();
+      expect(archiveCalled).toBe(true);
     });
   });
 });
