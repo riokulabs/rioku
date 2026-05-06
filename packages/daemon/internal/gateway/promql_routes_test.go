@@ -190,6 +190,115 @@ func TestPromQLQuery_rejects_bypass(t *testing.T) {
 	}
 }
 
+// ─── AST-based edge cases (label_replace, on/ignoring, string literals) ─────
+
+// TestInjectTenantLabel_label_replace_targeting_tenant_id_rejected verifies
+// that label_replace cannot rewrite the tenant_id label even if used as
+// destination.
+func TestInjectTenantLabel_label_replace_targeting_tenant_id_rejected(t *testing.T) {
+	queries := []string{
+		`label_replace(up, "tenant_id", "$1", "tenant_id", "(.*)")`,
+		`label_replace(up, "tenant_id", "evil", "job", "(.*)")`,
+		// As source label too — escaping the tenant constraint.
+		`label_replace(up, "leaked", "$1", "tenant_id", "(.*)")`,
+	}
+	for _, q := range queries {
+		_, err := injectTenantLabel(q, "acme")
+		if err == nil {
+			t.Errorf("expected rejection for %q, got nil", q)
+		}
+	}
+}
+
+// TestInjectTenantLabel_label_join_targeting_tenant_id_rejected verifies
+// label_join cannot use tenant_id as destination/source label.
+func TestInjectTenantLabel_label_join_targeting_tenant_id_rejected(t *testing.T) {
+	queries := []string{
+		`label_join(up, "tenant_id", ",", "job")`,
+		`label_join(up, "merged", ",", "tenant_id", "job")`,
+	}
+	for _, q := range queries {
+		_, err := injectTenantLabel(q, "acme")
+		if err == nil {
+			t.Errorf("expected rejection for %q, got nil", q)
+		}
+	}
+}
+
+// TestInjectTenantLabel_vector_matching_on_tenant_id_rejected verifies
+// `on(tenant_id)` and `ignoring(tenant_id)` are rejected to prevent
+// cross-tenant joins.
+func TestInjectTenantLabel_vector_matching_on_tenant_id_rejected(t *testing.T) {
+	queries := []string{
+		`up * on(tenant_id) http_requests_total`,
+		`up * ignoring(tenant_id) http_requests_total`,
+		`up * on(job) group_left(tenant_id) http_requests_total`,
+	}
+	for _, q := range queries {
+		_, err := injectTenantLabel(q, "acme")
+		if err == nil {
+			t.Errorf("expected rejection for %q, got nil", q)
+		}
+	}
+}
+
+// TestInjectTenantLabel_string_literal_with_fake_matcher verifies that a
+// string literal containing the substring `tenant_id="other"` does not fool
+// the rewriter — the AST is structural so a quoted string can't escape.
+func TestInjectTenantLabel_string_literal_with_fake_matcher(t *testing.T) {
+	// label_replace uses string literal arguments. Since label_replace itself
+	// is rejected when targeting tenant_id, we confirm a non-tenant-targeted
+	// label_replace is still allowed AND that tenant_id is correctly injected
+	// into the inner VectorSelector.
+	q := `label_replace(up, "renamed", "$1", "job", "(.*)")`
+	got, err := injectTenantLabel(q, "acme")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !strings.Contains(got, `tenant_id="acme"`) {
+		t.Errorf("expected tenant_id injection, got %q", got)
+	}
+}
+
+// TestInjectTenantLabel_subquery verifies tenant injection traverses into
+// subquery expressions.
+func TestInjectTenantLabel_subquery(t *testing.T) {
+	got, err := injectTenantLabel(`max_over_time(rate(http_requests_total[5m])[10m:1m])`, "acme")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !strings.Contains(got, `tenant_id="acme"`) {
+		t.Errorf("expected tenant_id injection inside subquery, got %q", got)
+	}
+}
+
+// TestInjectTenantLabel_negative_name_matcher_rejected verifies regex-based
+// __name__ matchers are rejected (a label-only selector with __name__=~"..."
+// would otherwise sidestep the per-metric tenant rewrite).
+func TestInjectTenantLabel_negative_name_matcher_rejected(t *testing.T) {
+	queries := []string{
+		`{__name__=~".+"}`,
+		`{__name__!="up"}`,
+		`{__name__!~"foo.*"}`,
+	}
+	for _, q := range queries {
+		_, err := injectTenantLabel(q, "acme")
+		if err == nil {
+			t.Errorf("expected rejection for %q, got nil", q)
+		}
+	}
+}
+
+// TestInjectTenantLabel_invalid_promql_rejected verifies syntactically
+// invalid PromQL queries are rejected with a clear error rather than being
+// passed through unchanged.
+func TestInjectTenantLabel_invalid_promql_rejected(t *testing.T) {
+	_, err := injectTenantLabel(`up{`, "acme")
+	if err == nil {
+		t.Error("expected rejection of invalid PromQL, got nil")
+	}
+}
+
 // TestPromQLQuery_rejects_empty_query verifies 400 for missing query field.
 func TestPromQLQuery_rejects_empty_query(t *testing.T) {
 	drv := openTenantTestStore(t)

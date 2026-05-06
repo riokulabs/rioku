@@ -2,18 +2,20 @@
 //
 // Plan 8 replaces the Plan 0c 501 stub with a real handler that:
 //   - Reads the tenant from the URL path
-//   - Validates and rewrites the PromQL query to inject tenant_id="<tenant>"
-//     into every metric selector using a safe regexp-based rewriter
-//   - Rejects queries that attempt to bypass isolation via dangerous patterns
-//     ({__name__=~...}, label_replace, or raw metric-name-only that would
-//     match all tenants)
+//   - Parses the PromQL query into an AST using github.com/prometheus/prometheus
+//     and walks every VectorSelector to inject tenant_id="<tenant>"
+//   - Rejects queries that:
+//   - Already contain a tenant_id matcher with a different value or operator
+//   - Use label_replace/label_join with tenant_id as the destination label
+//   - Use on(...) / ignoring(...) referring to tenant_id (cross-tenant join)
+//   - Use bare {__name__=~...} matchers without an explicit metric name
 //   - Forwards the rewritten query to the Prometheus instance configured in
 //     the tenant's observability settings (MetricsScrapeEndpoint)
 //   - Returns the upstream Prometheus response with sensible cache headers
 //
-// The rewriter works by detecting PromQL label selectors and inserting the
-// tenant label. Unsupported patterns are rejected with 400 Bad Request
-// rather than silently leaking cross-tenant data.
+// Using the official parser eliminates string-rewriting hazards (comments,
+// nested string literals, vector matching clauses, etc.) that a regex-based
+// implementation can miss.
 package gateway
 
 import (
@@ -25,11 +27,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -37,23 +40,8 @@ import (
 // In sandbox it is the prometheus container; in production the operator configures it.
 const defaultPrometheusEndpoint = "http://prometheus:9090"
 
-// promqlBypassPatterns are PromQL constructs that could escape tenant isolation.
-// Any query matching these is rejected outright.
-var promqlBypassPatterns = []*regexp.Regexp{
-	// Bare __name__ matcher: {__name__=~".+"} or {__name__!=""}
-	regexp.MustCompile(`\{[^}]*__name__\s*[=!]`),
-	// label_replace and label_join can rename/remove the tenant label
-	regexp.MustCompile(`\blabel_replace\s*\(`),
-	regexp.MustCompile(`\blabel_join\s*\(`),
-}
-
-// selectorRe matches an explicit metric selector: either a bare metric name
-// (letters/digits/underscores/colons) optionally followed by a label block,
-// or a label block without a metric name. We rewrite each match.
-//
-// Group 1 = metric name (possibly empty)
-// Group 2 = existing label content inside {} (possibly empty)
-var selectorRe = regexp.MustCompile(`([a-zA-Z_:][a-zA-Z0-9_:]*)\s*(\{[^}]*\})?|(\{[^}]*\})`)
+// tenantLabelName is the reserved label that scopes a metric to a tenant.
+const tenantLabelName = "tenant_id"
 
 // RegisterPromQLRoutes registers the PromQL query proxy.
 func RegisterPromQLRoutes(mux *http.ServeMux, st store.Driver) {
@@ -91,22 +79,11 @@ func handlePromQLQuery(st store.Driver) http.HandlerFunc {
 			return
 		}
 
-		// Validate for bypass attempts before rewriting.
-		if err := validatePromQL(req.Query); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation,
-				"PromQL query rejected",
-				err.Error(),
-				r.URL.Path,
-				nil,
-			)
-			return
-		}
-
-		// Rewrite: inject tenant_id label into every selector.
+		// Validate + inject in a single AST walk.
 		rewritten, err := injectTenantLabel(req.Query, tenant.ID)
 		if err != nil {
 			writeProblem(w, http.StatusBadRequest, errTypeValidation,
-				"PromQL rewrite failed",
+				"PromQL query rejected",
 				err.Error(),
 				r.URL.Path,
 				nil,
@@ -153,243 +130,167 @@ func handlePromQLQuery(st store.Driver) http.HandlerFunc {
 	}
 }
 
-// validatePromQL checks for disallowed patterns before rewriting.
-// Returns non-nil error if the query is rejected.
+// promqlParser is a process-wide PromQL parser. parser.NewParser is cheap and
+// stateless after construction, so we share a single instance.
+var promqlParser = parser.NewParser(parser.Options{})
+
+// validatePromQL is a thin wrapper that runs the AST validator on a query
+// without performing injection. Used for tests and pre-flight checks.
 func validatePromQL(query string) error {
-	for _, pat := range promqlBypassPatterns {
-		if pat.MatchString(query) {
-			return fmt.Errorf("query uses a disallowed construct (%s) that could bypass tenant isolation", pat.String())
-		}
+	expr, err := promqlParser.ParseExpr(query)
+	if err != nil {
+		return fmt.Errorf("invalid PromQL: %w", err)
 	}
-	return nil
+	return validateAST(expr)
 }
 
-// injectTenantLabel rewrites all metric selectors in query to include
-// tenant_id="<tenantID>". The approach is conservative: if any selector
-// already contains tenant_id, we validate it matches and return an error
-// if it doesn't.
-//
-// Strategy:
-//  1. Walk each PromQL token (metric name, label block, function call).
-//  2. For each label block: insert tenant_id="<id>" if not present.
-//     If tenant_id is present but has a different literal value: reject.
-//  3. For bare metric names without braces: append {tenant_id="<id>"}.
+// injectTenantLabel parses the query into an AST, validates it for cross-tenant
+// bypass attempts, injects tenant_id="<tenantID>" into every VectorSelector,
+// and serializes the rewritten AST back to a query string.
 func injectTenantLabel(query, tenantID string) (string, error) {
-	// Quick validation: tenantID must be a safe label value (no quote chars).
+	// Quick validation: tenantID must be a safe label value.
 	for _, ch := range tenantID {
 		if ch == '"' || ch == '\\' || !unicode.IsPrint(ch) {
 			return "", fmt.Errorf("tenant id contains unsafe characters")
 		}
 	}
+	if tenantID == "" {
+		return "", fmt.Errorf("tenant id is empty")
+	}
 
-	tenantLabel := fmt.Sprintf(`tenant_id="%s"`, tenantID)
-
-	// We build the result by finding each selector and rewriting it.
-	// This is not a full AST walk; it handles the common Prometheus query
-	// patterns. Complex nested subqueries or offset/@ modifiers are preserved
-	// because the rewriter only replaces content inside {} blocks.
-
-	result, err := rewriteSelectors(query, tenantID, tenantLabel)
+	expr, err := promqlParser.ParseExpr(query)
 	if err != nil {
+		return "", fmt.Errorf("invalid PromQL: %w", err)
+	}
+
+	if err := validateAST(expr); err != nil {
 		return "", err
 	}
-	return result, nil
+
+	if err := injectAST(expr, tenantID); err != nil {
+		return "", err
+	}
+
+	return expr.String(), nil
 }
 
-// rewriteSelectors walks the query string and rewrites label blocks.
-// It uses a simple state machine to handle quoted strings inside {}.
-func rewriteSelectors(query, tenantID, tenantLabel string) (string, error) {
-	var out strings.Builder
-	i := 0
-	n := len(query)
-
-	for i < n {
-		// Find the next '{' that starts a label block, or the next
-		// bare metric name followed optionally by a label block.
-		// We scan character by character.
-
-		// Check for a bare metric name (token start).
-		if isLabelNameStart(rune(query[i])) {
-			// Collect the metric name token.
-			j := i + 1
-			for j < n && isLabelNameContinue(rune(query[j])) {
-				j++
+// validateAST walks the AST and rejects constructs that could escape tenant
+// isolation. It does NOT mutate the tree.
+func validateAST(root parser.Node) error {
+	var rejectErr error
+	parser.Inspect(root, func(node parser.Node, _ []parser.Node) error {
+		switch n := node.(type) {
+		case *parser.VectorSelector:
+			// A bare {__name__=~...} or {__name__!=...} matcher with no
+			// concrete metric name lets a caller select arbitrary metrics
+			// and is rejected. A regular `metric{...}` selector also
+			// surfaces __name__ as an internal matcher with MatchEqual,
+			// so we only reject regex/negative __name__ matchers.
+			for _, m := range n.LabelMatchers {
+				if m.Name == labels.MetricName {
+					if m.Type == labels.MatchRegexp || m.Type == labels.MatchNotRegexp || m.Type == labels.MatchNotEqual {
+						rejectErr = fmt.Errorf("query uses a %s matcher on __name__ which can bypass tenant isolation", m.Type.String())
+						return rejectErr
+					}
+				}
 			}
-			token := query[i:j]
-
-			// Skip whitespace after the token.
-			k := j
-			for k < n && query[k] == ' ' || k < n && query[k] == '\t' {
-				k++
+		case *parser.Call:
+			if n.Func != nil {
+				switch n.Func.Name {
+				case "label_replace":
+					// label_replace(v, dst_label, replacement, src_label, regex)
+					// Reject if dst_label or src_label is tenant_id.
+					if callTargetsTenantLabel(n) {
+						rejectErr = fmt.Errorf("label_replace targeting %s is not permitted", tenantLabelName)
+						return rejectErr
+					}
+				case "label_join":
+					// label_join(v, dst_label, separator, src_label_1, ...)
+					if callTargetsTenantLabel(n) {
+						rejectErr = fmt.Errorf("label_join targeting %s is not permitted", tenantLabelName)
+						return rejectErr
+					}
+				}
 			}
+		case *parser.BinaryExpr:
+			if n.VectorMatching != nil {
+				// on(tenant_id) / ignoring(tenant_id) / group_left/right(tenant_id)
+				for _, lbl := range n.VectorMatching.MatchingLabels {
+					if lbl == tenantLabelName {
+						rejectErr = fmt.Errorf("vector matching clause referencing %s is not permitted", tenantLabelName)
+						return rejectErr
+					}
+				}
+				for _, lbl := range n.VectorMatching.Include {
+					if lbl == tenantLabelName {
+						rejectErr = fmt.Errorf("group_left/right clause referencing %s is not permitted", tenantLabelName)
+						return rejectErr
+					}
+				}
+			}
+		case *parser.AggregateExpr:
+			// by(tenant_id) / without(tenant_id) — by(tenant_id) is benign
+			// (just preserves the label) but without(tenant_id) drops it,
+			// which we don't want to expose as it could mix tenants in
+			// downstream label_replace. The label is already constrained
+			// upstream though — so without() is safe; we don't reject it.
+			_ = n
+		}
+		return nil
+	})
+	return rejectErr
+}
 
-			// Is this a function name (followed by '(')? If so, don't inject.
-			if k < n && query[k] == '(' {
-				out.WriteString(token)
-				i = j
+// callTargetsTenantLabel checks if a label_replace/label_join Call references
+// tenant_id as its destination or source label argument.
+func callTargetsTenantLabel(c *parser.Call) bool {
+	for _, arg := range c.Args {
+		s, ok := arg.(*parser.StringLiteral)
+		if !ok {
+			continue
+		}
+		if s.Val == tenantLabelName {
+			return true
+		}
+	}
+	return false
+}
+
+// injectAST walks the AST and, for every VectorSelector, ensures a tenant_id
+// matcher is present with the expected value. Mutates the tree in place.
+func injectAST(root parser.Node, tenantID string) error {
+	var injectErr error
+	parser.Inspect(root, func(node parser.Node, _ []parser.Node) error {
+		vs, ok := node.(*parser.VectorSelector)
+		if !ok {
+			return nil
+		}
+
+		// Look for an existing tenant_id matcher.
+		for _, m := range vs.LabelMatchers {
+			if m.Name != tenantLabelName {
 				continue
 			}
-
-			// Is the token a PromQL keyword or function?
-			if isPromQLKeyword(token) {
-				out.WriteString(token)
-				i = j
-				continue
+			// Existing tenant_id matcher: only accept exact-equality with
+			// the bound tenantID.
+			if m.Type != labels.MatchEqual || m.Value != tenantID {
+				injectErr = fmt.Errorf("query attempts to set %s=%q with operator %s; cross-tenant queries are not permitted",
+					tenantLabelName, m.Value, m.Type.String())
+				return injectErr
 			}
-
-			// This is a metric name. Does a label block follow?
-			if k < n && query[k] == '{' {
-				// Extract the label block.
-				end, err := findLabelBlockEnd(query, k)
-				if err != nil {
-					return "", err
-				}
-				inner := query[k+1 : end] // content between { and }
-				rewritten, err := injectIntoLabelBlock(inner, tenantID, tenantLabel)
-				if err != nil {
-					return "", err
-				}
-				// Write: metric name + whitespace + { rewritten }
-				out.WriteString(token)
-				out.WriteString(query[j:k]) // whitespace
-				out.WriteByte('{')
-				out.WriteString(rewritten)
-				out.WriteByte('}')
-				i = end + 1
-			} else {
-				// Bare metric name, no label block — inject one.
-				out.WriteString(token)
-				out.WriteByte('{')
-				out.WriteString(tenantLabel)
-				out.WriteByte('}')
-				i = j
-			}
-			continue
+			return nil // already correct, no injection needed
 		}
 
-		// Standalone label block (no metric name).
-		if query[i] == '{' {
-			end, err := findLabelBlockEnd(query, i)
-			if err != nil {
-				return "", err
-			}
-			inner := query[i+1 : end]
-			rewritten, err := injectIntoLabelBlock(inner, tenantID, tenantLabel)
-			if err != nil {
-				return "", err
-			}
-			out.WriteByte('{')
-			out.WriteString(rewritten)
-			out.WriteByte('}')
-			i = end + 1
-			continue
+		// No tenant_id matcher present — append one.
+		matcher, err := labels.NewMatcher(labels.MatchEqual, tenantLabelName, tenantID)
+		if err != nil {
+			injectErr = fmt.Errorf("build tenant matcher: %w", err)
+			return injectErr
 		}
-
-		// Skip quoted strings in other contexts.
-		if query[i] == '"' || query[i] == '\'' || query[i] == '`' {
-			quote := query[i]
-			out.WriteByte(quote)
-			i++
-			for i < n {
-				ch := query[i]
-				out.WriteByte(ch)
-				if ch == '\\' && i+1 < n {
-					i++
-					out.WriteByte(query[i])
-				} else if ch == quote {
-					i++
-					break
-				}
-				i++
-			}
-			continue
-		}
-
-		out.WriteByte(query[i])
-		i++
-	}
-
-	return out.String(), nil
-}
-
-// injectIntoLabelBlock injects tenant_id into an existing label list.
-// inner is the content between { and }, e.g. `job="api", env="prod"`.
-// Returns an error if tenant_id is present with a different value.
-func injectIntoLabelBlock(inner, tenantID, tenantLabel string) (string, error) {
-	trimmed := strings.TrimSpace(inner)
-
-	// Check for existing tenant_id.
-	// Pattern: tenant_id<op>"<value>"
-	tenantRe := regexp.MustCompile(`\btenant_id\s*([=!~]+)\s*"([^"]*)"`)
-	if m := tenantRe.FindStringSubmatch(trimmed); m != nil {
-		op := m[1]
-		existing := m[2]
-		// Allow only if it exactly matches our tenantID with exact equality.
-		if op == "=" && existing == tenantID {
-			return inner, nil // already correct
-		}
-		return "", fmt.Errorf("query attempts to set tenant_id to %q (want %q) with operator %s; cross-tenant queries are not permitted", existing, tenantID, op)
-	}
-
-	// No tenant_id present — inject it.
-	if trimmed == "" {
-		return tenantLabel, nil
-	}
-	return trimmed + "," + tenantLabel, nil
-}
-
-// findLabelBlockEnd finds the closing '}' of a label block starting at pos.
-// Handles quoted strings within the block.
-func findLabelBlockEnd(query string, pos int) (int, error) {
-	n := len(query)
-	i := pos + 1 // skip opening '{'
-	for i < n {
-		ch := query[i]
-		if ch == '}' {
-			return i, nil
-		}
-		if ch == '"' || ch == '\'' || ch == '`' {
-			quote := ch
-			i++
-			for i < n {
-				c := query[i]
-				if c == '\\' && i+1 < n {
-					i += 2
-					continue
-				}
-				if c == quote {
-					break
-				}
-				i++
-			}
-		}
-		i++
-	}
-	return -1, fmt.Errorf("unclosed label block in PromQL query")
-}
-
-func isLabelNameStart(ch rune) bool {
-	return ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
-}
-
-func isLabelNameContinue(ch rune) bool {
-	return isLabelNameStart(ch) || (ch >= '0' && ch <= '9') || ch == ':'
-}
-
-// promqlKeywords includes PromQL aggregation operators and special identifiers
-// that should not have label blocks injected after them.
-var promqlKeywords = map[string]bool{
-	"sum": true, "min": true, "max": true, "avg": true, "group": true,
-	"stddev": true, "stdvar": true, "count": true, "count_values": true,
-	"bottomk": true, "topk": true, "quantile": true,
-	"by": true, "without": true, "on": true, "ignoring": true,
-	"group_left": true, "group_right": true,
-	"offset": true, "bool": true, "and": true, "or": true, "unless": true,
-	"inf": true, "nan": true,
-}
-
-func isPromQLKeyword(s string) bool {
-	return promqlKeywords[strings.ToLower(s)]
+		vs.LabelMatchers = append(vs.LabelMatchers, matcher)
+		return nil
+	})
+	return injectErr
 }
 
 // forwardToPrometheus POSTs the rewritten query to Prometheus and returns
@@ -442,3 +343,4 @@ func forwardToPrometheus(ctx context.Context, prometheusBase, query string, req 
 
 	return bytes.NewReader(body), resp.StatusCode, resp.Header, nil
 }
+
