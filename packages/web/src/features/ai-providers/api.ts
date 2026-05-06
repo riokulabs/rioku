@@ -113,7 +113,7 @@ export function useDeleteProvider(tenant: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      customFetch<void>({
+      customFetch<unknown>({
         url: `${providerBase(tenant)}/${id}`,
         method: 'DELETE',
       }),
@@ -214,7 +214,7 @@ export async function updateProvider(
 }
 
 export async function deleteProvider(tenant: string, id: string): Promise<void> {
-  return customFetch<void>({
+  await customFetch<unknown>({
     url: `${providerBase(tenant)}/${id}`,
     method: 'DELETE',
   });

@@ -215,6 +215,7 @@ function ProviderDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
     <ProviderDetail
+      tenant={tenantSlug}
       providerId={entityId}
       onEdit={() => {
         void navigate({

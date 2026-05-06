@@ -29,20 +29,22 @@ export function resetProviderStore(seed?: AiProvider[]): void {
 
 export function makeProvider(overrides: Partial<AiProvider> = {}): AiProvider {
   const id = overrides.id ?? makeId();
-  return {
+  const base: AiProvider = {
     id,
     tenant_id: 'tenant-acme',
     name: overrides.name ?? `Provider ${id}`,
     kind: overrides.kind ?? 'openai',
     base_url: overrides.base_url ?? 'https://api.openai.com/v1',
     enabled: overrides.enabled ?? true,
-    description: overrides.description,
     credential_ref: overrides.credential_ref ?? { prefix: 'sk-testXXX', created_at: new Date().toISOString() },
     models: overrides.models ?? [],
     created_at: overrides.created_at ?? new Date().toISOString(),
     updated_at: overrides.updated_at ?? new Date().toISOString(),
-    ...overrides,
   };
+  if (overrides.description !== undefined) {
+    base.description = overrides.description;
+  }
+  return { ...base, ...overrides };
 }
 
 export const aiProviderHandlers = [
@@ -75,7 +77,6 @@ export const aiProviderHandlers = [
       kind: body.kind ?? 'openai',
       base_url: body.base_url ?? '',
       enabled: body.enabled ?? true,
-      description: body.description,
       credential_ref: {
         prefix: (body.credential ?? 'sk-').slice(0, 12),
         created_at: now,
@@ -84,6 +85,9 @@ export const aiProviderHandlers = [
       created_at: now,
       updated_at: now,
     };
+    if (body.description !== undefined) {
+      p.description = body.description;
+    }
     providerStore[id] = p;
     return HttpResponse.json(p, { status: 201 });
   }),
@@ -110,7 +114,9 @@ export const aiProviderHandlers = [
   http.delete(`${BASE}/t/:tenant/ai/providers/:id`, ({ params }) => {
     const id = params.id as string;
     if (!providerStore[id]) return new HttpResponse(null, { status: 404 });
-    delete providerStore[id];
+    const { [id]: _removed, ...rest } = providerStore;
+    void _removed;
+    providerStore = rest;
     return new HttpResponse(null, { status: 204 });
   }),
 

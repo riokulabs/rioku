@@ -62,3 +62,65 @@ is added that this is client-side only until daemon #117 is resolved.
 
 These failures existed before Plan 04 work begins (pre-existing). Plan 04 will fix them as part
 of migrating these components to real API hooks (the Zustand selector path had a slow path).
+
+## 04-002 Missing OpenAPI coverage for ai-agents
+
+**Audit of `packages/web/src/api/generated/` (2026-05-06):** the AI admin features have **zero**
+generated Orval clients. Only `aigateway-service` exists, and it covers the runtime LLM proxy
+data plane — not admin CRUD. Per the user instruction for missing OpenAPI coverage, Plan 04
+applies the **minimum-viable scope cut** for T3–T8: stage-1 mock-store paths remain in place,
+smoke tests assert mock paths still work, and real-daemon wiring is deferred until the proto
+spec covers these endpoints.
+
+**Feature**: ai-agents (T3)
+**Status**: Wiring DEFERRED. Mock-store path retained from stage-1.
+**Smoke**: `src/features/ai-agents/__tests__/api.test.ts` (8 tests) all green.
+**Action**: Add `/api/v1/t/:tenant/ai/agents` family to OpenAPI spec, regen Orval, re-open T3.
+
+## 04-003 Missing OpenAPI coverage for ai-tools
+
+**Feature**: ai-tools (T4)
+**Status**: Wiring DEFERRED. Mock-store path retained from stage-1.
+**Smoke**: `src/features/ai-tools/__tests__/api.test.ts` (9 tests) all green.
+**Action**: Add `/api/v1/t/:tenant/ai/tools` family to OpenAPI spec, regen Orval, re-open T4.
+
+## 04-004 Missing OpenAPI coverage for ai-tool-bindings (tool-routing)
+
+**Feature**: ai-tool-routing (T5)
+**Status**: Wiring DEFERRED. Mock-store path retained from stage-1.
+**Smoke**: `src/features/ai-tool-routing/__tests__/api.test.ts` (9 tests) all green.
+**Action**: Add `/api/v1/t/:tenant/ai/tool-bindings` family to OpenAPI spec, regen Orval,
+re-open T5.
+
+## 04-005 Missing OpenAPI coverage for ai-rate-limits
+
+**Feature**: ai-rate-limits (T6)
+**Status**: Wiring DEFERRED. Mock-store path retained from stage-1.
+**Smoke**: `src/features/ai-rate-limits/__tests__/api.test.ts` (8 tests) all green.
+**Action**: Add `/api/v1/t/:tenant/ai/rate-limits` family + Jaccard→cosine swap on the daemon
+side to OpenAPI spec, regen Orval, re-open T6.
+
+## 04-006 Missing OpenAPI coverage for ai-traces (and SSE live tail)
+
+**Feature**: ai-traces (T7)
+**Status**: Wiring DEFERRED. Mock-store path + in-process `trace-stream-bus` retained from
+stage-1. SSE live-tail wiring via `subscribeSSE` + `/api/v1/t/:tenant/ai/traces/stream` is also
+deferred — the daemon endpoint exists (`ai_extra_routes.go`) but has no OpenAPI surface, and
+the stage-1 mock bus is still the canonical source for the live-tail UI today.
+**Smoke**: `src/features/ai-traces/__tests__/api.test.ts` (≥8 tests),
+`streaming-tail.test.tsx` (5 tests) all green.
+**Action**: Add `/api/v1/t/:tenant/ai/traces` + `/ai/traces/stream` (SSE) to OpenAPI spec,
+regen Orval, swap to `subscribeSSE`, delete `src/api/trace-stream-bus.ts`, re-open T7.
+
+## 04-007 Missing OpenAPI coverage for ai-mcp-servers
+
+**Feature**: ai-mcp-servers (T8)
+**Status**: Wiring DEFERRED. Mock-store path retained from stage-1.
+**Smoke**: `src/features/ai-mcp-servers/__tests__/api.test.ts` (8 tests) all green.
+**Action**: Add `/api/v1/t/:tenant/ai/mcp-servers` family to OpenAPI spec, regen Orval, re-open T8.
+
+## 04-008 T9 Verify gauntlet (final status)
+
+`cd packages/web && pnpm exec tsc --noEmit` — see commit body.
+`pnpm exec eslint src/` — see commit body.
+`pnpm exec vitest run src/features/ai-` — 22 files / 111 tests green at deferral time.
