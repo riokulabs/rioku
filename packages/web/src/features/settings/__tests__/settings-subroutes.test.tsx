@@ -16,11 +16,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import type * as TanstackRouter from '@tanstack/react-router';
 
 // ─── Router stub ──────────────────────────────────────────────────────────────
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
+  const actual =
+    await importOriginal<typeof TanstackRouter>();
   return {
     ...actual,
     useSearch: () => ({}),
@@ -138,7 +140,7 @@ function getAcmeTenantId(): string {
 }
 
 // Extract the component from a route module
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function getRouteComponent(mod: { Route: any }): React.ComponentType {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   return mod.Route.options.component as React.ComponentType;
