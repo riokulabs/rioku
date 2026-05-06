@@ -2829,6 +2829,154 @@
         },
         "type": "object"
       },
+      "MarketplaceEntry": {
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "manifest_url": {
+            "format": "uri-reference",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "signer_fingerprint": {
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "manifest_url"
+        ],
+        "type": "object"
+      },
+      "MarketplaceList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MarketplaceEntry"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "Plugin": {
+        "properties": {
+          "buildState": {
+            "enum": [
+              "stable",
+              "building",
+              "failed",
+              "ready",
+              "pending-build"
+            ],
+            "type": "string"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "cosignVerified": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "signerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "tenantScope": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "version",
+          "enabled",
+          "buildState",
+          "cosignVerified",
+          "config",
+          "metadata",
+          "installedAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "PluginList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Plugin"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "Problem": {
         "description": "RFC 7807 problem+json error envelope.",
         "properties": {
@@ -4971,6 +5119,35 @@
         }
       }
     },
+    "/api/v1/plugins/marketplace": {
+      "get": {
+        "description": "Mirrors `/api/v1/t/{tenant}/plugin-marketplace` but is reachable\nwithout a tenant scope, for marketplace browse views that are\nrendered before tenant resolution.\n",
+        "operationId": "listMarketplaceCatalog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Curated marketplace catalog (cross-tenant alias)",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      }
+    },
     "/api/v1/plugins/{pluginId}": {
       "delete": {
         "operationId": "PluginService_RemovePlugin",
@@ -5973,6 +6150,665 @@
           "$ref": "#/components/parameters/ID"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/plugin-marketplace": {
+      "get": {
+        "operationId": "listTenantMarketplaceCatalog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Curated marketplace catalog (tenant-scoped)",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/plugin-marketplace/{id}": {
+      "get": {
+        "operationId": "getMarketplaceCatalogEntry",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceEntry"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "summary": "Curated marketplace entry",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/plugins": {
+      "get": {
+        "operationId": "listPlugins",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List installed plugins",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "description": "Stage-2 stub. Inserts a plugin record with `buildState=building`.\nReal install orchestration ships with the build pipeline.\nUse `install-from-marketplace` for curated installs and\n`sideload` for direct artifact uploads.\n",
+        "operationId": "installPlugin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "version"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plugin"
+                }
+              }
+            },
+            "description": "accepted"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "slug taken"
+          }
+        },
+        "summary": "Install a plugin (placeholder install row)",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/plugins/install-from-marketplace": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "description": "Queues a build + install for a plugin referenced by its\nmarketplace catalog id. Returns an install id the caller can\npoll via `/build-log`.\n",
+        "operationId": "installFromMarketplace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "config": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "marketplaceId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "marketplaceId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "installId": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "queued",
+                        "building"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "installId",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "accepted"
+          }
+        },
+        "summary": "Install a curated marketplace plugin",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/plugins/manifest/validate": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "description": "Returns `{valid, errors[]}` for a candidate manifest. Errors\ncarry a JSON pointer in `path` and a human-readable\n`message`.\n",
+        "operationId": "validatePluginManifest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "errors": {
+                      "items": {
+                        "properties": {
+                          "message": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "valid": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "valid",
+                    "errors"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Validate a plugin manifest",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/plugins/sideload": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "description": "Uploads a pre-built plugin binary together with its manifest.\nThe daemon validates the manifest, optionally verifies the\nartifact signature against tenant plugin-signers, and stores\nthe artifact under the tenant's plugin staging directory.\n\nNative-arch artifacts are written with `build_state=ready`.\nCross-arch / pending-build flows return `pending-build` and\ndelegate to the build-service (issue #142).\n\nCosign verification is enforced when the request includes a\nnon-empty `Signer-Fingerprint` header that resolves to a\n`verified` signer in the tenant scope.\n",
+        "operationId": "sideloadPlugin",
+        "parameters": [
+          {
+            "description": "When present, the signature is verified against the\nreferenced tenant plugin-signer (status must be\n`verified`).\n",
+            "in": "header",
+            "name": "Signer-Fingerprint",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "archive": {
+                    "description": "The built plugin entrypoint (`.so`, `.wasm`, or\narchive containing one).\n",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "manifest": {
+                    "description": "A JSON `manifest.json` matching the\n`pluginManifest` schema enforced by the\n`/manifest/validate` endpoint.\n",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "signature": {
+                    "description": "Optional cosign or PGP signature blob covering the\narchive. Required when `Signer-Fingerprint` is set.\n",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "archive",
+                  "manifest"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "buildLogUrl": {
+                      "format": "uri-reference",
+                      "type": "string"
+                    },
+                    "pluginId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "ready",
+                        "pending-build"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "pluginId",
+                    "status",
+                    "buildLogUrl"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created. The plugin row is written with `buildState=ready`\nfor native-arch installs.\n"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "malformed multipart body or invalid manifest"
+          },
+          "401": {
+            "description": "unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "signature verification failed"
+          }
+        },
+        "summary": "Sideload a built plugin artifact",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/plugins/{id}": {
+      "delete": {
+        "operationId": "uninstallPlugin",
+        "responses": {
+          "204": {
+            "description": "no content"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "summary": "Uninstall a plugin",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "get": {
+        "operationId": "getPlugin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plugin"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "summary": "Get a plugin",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/plugins/{id}/build-log": {
+      "get": {
+        "description": "Returns the most recent build output for the plugin. Stage-2\nsnapshot endpoint; live streaming uses an SSE upgrade tracked\nwith the build pipeline (#142).\n",
+        "operationId": "getPluginBuildLog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "buildState": {
+                      "enum": [
+                        "stable",
+                        "building",
+                        "failed",
+                        "ready",
+                        "pending-build"
+                      ],
+                      "type": "string"
+                    },
+                    "log": {
+                      "type": "string"
+                    },
+                    "pluginId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "pluginId",
+                    "buildState",
+                    "log"
+                  ],
+                  "type": "object"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "description": "SSE stream of build progress events. Each event has\n`event: progress` and `data:` containing a JSON\n`{ stage, progress, message }` envelope.\n",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Read the captured build log for a plugin",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/plugins/{id}/disable": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "disablePlugin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plugin"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Disable a plugin",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/plugins/{id}/enable": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "enablePlugin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plugin"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Enable a plugin",
+        "tags": [
+          "plugins"
+        ]
+      }
     },
     "/api/v1/t/{tenant}/rbac-policies": {
       "get": {

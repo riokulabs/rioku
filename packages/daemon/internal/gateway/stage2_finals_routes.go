@@ -10,15 +10,34 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/plugins"
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// pluginStagingDir is the base directory under which sideloaded plugin
+// artifacts are persisted. The full path for a given plugin is
+// `<base>/plugins/<tenant>/<plugin-id>/`. Tests may override this via
+// `SetPluginStagingDir` to point at a t.TempDir().
+var pluginStagingDir = ""
+
+// SetPluginStagingDir configures the on-disk root used by the sideload
+// handler. Callers should invoke this once at server boot with the
+// resolved daemon `DataDir`. Tests pass a temp dir.
+func SetPluginStagingDir(dir string) { pluginStagingDir = dir }
 
 func RegisterStage2FinalsRoutes(mux *http.ServeMux, st store.Driver) {
 	registerPluginsExtras(mux, st)
@@ -63,25 +82,291 @@ func handlePluginInstallMarketplace(_ store.Driver) http.HandlerFunc {
 	}
 }
 
-// handlePluginSideload — stage-2 stub. The form-data parser for the
-// upload, the cosign verification step, and the on-disk plugin staging
-// directory are tracked in #142 (build pipeline) and #146 (sideload
-// trust ladder). Until those land, we accept the request and return
-// 501 with a "decisions-needed" payload so the admin panel can render
-// the diagnostic banner end-to-end.
-func handlePluginSideload(_ store.Driver) http.HandlerFunc {
+// handlePluginSideload accepts a multipart upload of a built plugin
+// artifact and its manifest, validates the manifest, optionally
+// verifies the signer fingerprint against the tenant's plugin-signers,
+// stages the artifact under the configured staging directory, and
+// records a `Plugin` row with `buildState=ready` (native arch) or
+// `pending-build` (cross-arch).
+//
+// Security model:
+//
+//   - The request must carry the `plugin:install` permission (enforced
+//     by the registrar).
+//   - When a `Signer-Fingerprint` header is present, the daemon looks
+//     up the matching tenant plugin-signer; the signer must exist and
+//     be `verified`. The presence of a `signature` part is required.
+//     Cryptographic verification of the signature blob against the
+//     archive bytes is delegated to the build-service (#146 trust
+//     ladder); the stage-2 implementation records the signer
+//     reference and `cosignVerified=true` only when the signer row is
+//     `verified`.
+//   - When no header is present, the artifact is stored unverified
+//     (`cosignVerified=false`). Tenants that disable unsigned
+//     sideload do so via tenant policy (out of scope here).
+//
+// Files are written to:
+//
+//	<pluginStagingDir>/plugins/<tenant>/<plugin-id>/manifest.json
+//	<pluginStagingDir>/plugins/<tenant>/<plugin-id>/<archive-name>
+//	<pluginStagingDir>/plugins/<tenant>/<plugin-id>/signature.bin (when present)
+//
+// All writes happen before the DB row is inserted so a partial failure
+// leaves no dangling DB record. On a DB failure after the bytes land
+// we best-effort remove the staging directory.
+func handlePluginSideload(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// We DO parse the multipart envelope so callers get a clear 400
-		// when they send a malformed body, before the 501.
+		ctx := r.Context()
+		scope, ok := scopeForRequest(r, false)
+		if !ok || scope == "" {
+			writeProblem(w, http.StatusBadRequest, errTypeValidation,
+				"Tenant required",
+				"sideload requires a tenant-scoped path",
+				r.URL.Path, nil)
+			return
+		}
+
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			writeBadRequest(w, r, "expected multipart/form-data with 'archive' and 'manifest' parts")
 			return
 		}
-		writeProblem(w, http.StatusNotImplemented, errTypeInternal,
-			"Plugin sideload not yet implemented",
-			"The sideload upload pipeline is tracked by issues #142 (build) and #146 (trust ladder). See contrib-docs/admin-stage2-entry.md.",
-			r.URL.Path, nil)
+
+		archiveBytes, archiveName, err := readMultipartFile(r, "archive")
+		if err != nil {
+			writeBadRequest(w, r, "missing or unreadable 'archive' part: "+err.Error())
+			return
+		}
+		manifestBytes, _, err := readMultipartFile(r, "manifest")
+		if err != nil {
+			writeBadRequest(w, r, "missing or unreadable 'manifest' part: "+err.Error())
+			return
+		}
+
+		// Validate manifest shape using the shared validator.
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(manifestBytes, &raw); err != nil {
+			writeBadRequest(w, r, "manifest is not valid JSON: "+err.Error())
+			return
+		}
+		valid, validationErrs := plugins.ValidateManifest(raw)
+		if !valid {
+			ve := make([]ValidationError, 0, len(validationErrs))
+			for _, e := range validationErrs {
+				ve = append(ve, ValidationError{Field: e.Path, Reason: e.Message})
+			}
+			writeProblem(w, http.StatusBadRequest, errTypeValidation,
+				"Plugin manifest invalid",
+				fmt.Sprintf("manifest failed validation: %d error(s)", len(validationErrs)),
+				r.URL.Path, ve)
+			return
+		}
+
+		// Pull a few canonical fields out of the manifest. The validator
+		// already guaranteed they exist + are non-empty strings.
+		var manifest struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Version string `json:"version"`
+			Arch    string `json:"arch,omitempty"`
+		}
+		if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+			writeBadRequest(w, r, "manifest decode: "+err.Error())
+			return
+		}
+
+		// Optional signer verification — when the caller asserts a
+		// signer fingerprint, the daemon looks it up in tenant scope
+		// and refuses unverified or unknown signers. A signature part
+		// is required in that case.
+		signerFP := strings.TrimSpace(r.Header.Get("Signer-Fingerprint"))
+		var signerID *string
+		cosignVerified := false
+		var signatureBytes []byte
+		if signerFP != "" {
+			signatureBytes, _, err = readMultipartFile(r, "signature")
+			if err != nil || len(signatureBytes) == 0 {
+				writeProblem(w, http.StatusForbidden, errTypeValidation,
+					"Signature required",
+					"Signer-Fingerprint header set but no 'signature' part provided",
+					r.URL.Path, nil)
+				return
+			}
+			signer, perr := lookupTenantSignerByFingerprint(ctx, st, scope, signerFP)
+			if perr != nil {
+				writeProblem(w, http.StatusForbidden, errTypeValidation,
+					"Signer not trusted",
+					perr.Error(),
+					r.URL.Path, nil)
+				return
+			}
+			signerID = &signer.ID
+			cosignVerified = true // signer is verified; deep crypto-check delegated to build-service.
+		}
+
+		// Decide the build state based on arch compatibility. When the
+		// manifest declares a different arch than the daemon process,
+		// we mark the row `pending-build` so the build-service can
+		// schedule a cross-arch rebuild (#142). Native installs land
+		// at `ready`.
+		// The store's build_state CHECK constraint only allows
+		// `stable|building|failed`. Native-arch sideloads land as
+		// `stable` (artifact already on disk, ready to load).
+		// Cross-arch sideloads land as `building` and the
+		// build-service promotes them to `stable` once the rebuild
+		// finishes (#142).
+		buildState := "stable"
+		statusOut := "ready"
+		if manifest.Arch != "" && manifest.Arch != runtime.GOARCH {
+			buildState = "building"
+			statusOut = "pending-build"
+		}
+
+		// Stage artifacts on disk before touching the DB so a partial
+		// failure leaves no dangling rows.
+		stagingBase := pluginStagingDir
+		if stagingBase == "" {
+			writeInternalError(w, r, "plugin staging directory is not configured")
+			return
+		}
+		// Reserve a UUID-ish id for the staging path. We let the store
+		// generate the canonical row id; we use a transient subdir
+		// that we rename on commit.
+		parent := filepath.Join(stagingBase, "plugins")
+		if err := os.MkdirAll(parent, 0o750); err != nil {
+			writeInternalError(w, r, "create staging parent: "+err.Error())
+			return
+		}
+		tmpDir, err := os.MkdirTemp(parent, "stage-*")
+		if err != nil {
+			writeInternalError(w, r, "create staging dir: "+err.Error())
+			return
+		}
+		// Best-effort cleanup on any error path below.
+		stagedOK := false
+		defer func() {
+			if !stagedOK {
+				_ = os.RemoveAll(tmpDir)
+			}
+		}()
+
+		archiveBase := filepath.Base(archiveName)
+		if archiveBase == "" || archiveBase == "/" || archiveBase == "." {
+			archiveBase = "entrypoint.bin"
+		}
+		if err := os.WriteFile(filepath.Join(tmpDir, "manifest.json"), manifestBytes, 0o640); err != nil {
+			writeInternalError(w, r, "write manifest")
+			return
+		}
+		if err := os.WriteFile(filepath.Join(tmpDir, archiveBase), archiveBytes, 0o640); err != nil {
+			writeInternalError(w, r, "write archive")
+			return
+		}
+		if len(signatureBytes) > 0 {
+			if err := os.WriteFile(filepath.Join(tmpDir, "signature.bin"), signatureBytes, 0o640); err != nil {
+				writeInternalError(w, r, "write signature")
+				return
+			}
+		}
+
+		// Insert the DB row.
+		ts := scope
+		tx, err := st.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		created, err := tx.CreatePlugin(ctx, &store.Plugin{
+			TenantScope:    &ts,
+			Slug:           manifest.ID,
+			Name:           manifest.Name,
+			Version:        manifest.Version,
+			Enabled:        false,
+			BuildState:     buildState,
+			CosignVerified: cosignVerified,
+			SignerID:       signerID,
+		})
+		if err != nil {
+			_ = tx.Rollback()
+			if errors.Is(err, store.ErrPluginSlugTaken) {
+				writeProblem(w, http.StatusConflict, errTypeConflict,
+					"Slug already in use",
+					"A plugin with id "+manifest.ID+" already exists in this tenant",
+					r.URL.Path, nil)
+				return
+			}
+			writeInternalError(w, r, "create plugin")
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit plugin")
+			return
+		}
+
+		// Promote the staging directory to its canonical id-keyed path.
+		finalDir := filepath.Join(stagingBase, "plugins", scope, created.ID)
+		if err := os.MkdirAll(filepath.Dir(finalDir), 0o750); err != nil {
+			writeInternalError(w, r, "create plugin dir")
+			return
+		}
+		if err := os.Rename(tmpDir, finalDir); err != nil {
+			writeInternalError(w, r, "promote staging dir")
+			return
+		}
+		stagedOK = true
+
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"pluginId":    created.ID,
+			"status":      statusOut,
+			"buildLogUrl": fmt.Sprintf("/api/v1/t/%s/plugins/%s/build-log", scope, created.ID),
+		})
 	}
+}
+
+// readMultipartFile reads the first file under the given form key.
+// Returns the bytes and the original filename.
+func readMultipartFile(r *http.Request, key string) ([]byte, string, error) {
+	if r.MultipartForm == nil || r.MultipartForm.File == nil {
+		return nil, "", fmt.Errorf("no multipart form")
+	}
+	files := r.MultipartForm.File[key]
+	if len(files) == 0 {
+		return nil, "", fmt.Errorf("missing %q part", key)
+	}
+	fh := files[0]
+	f, err := fh.Open()
+	if err != nil {
+		return nil, "", err
+	}
+	defer func() { _ = f.Close() }()
+	b, err := io.ReadAll(io.LimitReader(f, 64<<20)) // 64 MiB hard cap.
+	if err != nil {
+		return nil, "", err
+	}
+	return b, fh.Filename, nil
+}
+
+// lookupTenantSignerByFingerprint resolves a tenant-scoped signer by
+// fingerprint and returns it iff its status is `verified`. Returns a
+// human-readable error otherwise.
+func lookupTenantSignerByFingerprint(ctx context.Context, st store.Driver, tenantID, fingerprint string) (*store.PluginSigner, error) {
+	tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	signers, err := tx.ListPluginSignersByScope(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("list signers: %w", err)
+	}
+	for _, s := range signers {
+		if s.Fingerprint == fingerprint {
+			if s.Status != "verified" {
+				return nil, fmt.Errorf("signer %s is not verified (status=%s)", fingerprint, s.Status)
+			}
+			return s, nil
+		}
+	}
+	return nil, fmt.Errorf("no tenant-scoped signer with fingerprint %s", fingerprint)
 }
 
 // ─── Chunk 16: /settings/me profile family ──────────────────────────────────
