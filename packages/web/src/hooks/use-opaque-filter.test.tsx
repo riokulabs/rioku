@@ -33,20 +33,7 @@ describe('useOpaqueFilter', () => {
     expect(JSON.parse(init.body as string)).toMatchObject({ value: 'user-email@example.com' });
   });
 
-  it('@read-only falls back to a hash placeholder if endpoint returns 501', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ status: 501, title: 'Not Implemented' }), {
-        status: 501,
-        headers: { 'content-type': 'application/problem+json' },
-      }),
-    );
-    const { result } = renderHook(() => useOpaqueFilter('value', 'tnt-1'), { wrapper });
-    await waitFor(() => {
-      expect(result.current.handle).toMatch(/^oh_pending_[a-f0-9]{8}$/);
-    });
-  });
-
-  it('@read-only propagates non-501 errors instead of falling back', async () => {
+  it('@read-only propagates errors instead of falling back to a placeholder', async () => {
     mockFetch.mockResolvedValueOnce(new Response('', { status: 500 }));
     const { result } = renderHook(() => useOpaqueFilter('value', 'tnt-1'), { wrapper });
     await waitFor(() => {
