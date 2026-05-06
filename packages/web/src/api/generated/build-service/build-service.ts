@@ -50,6 +50,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type buildServiceGetBuildStatusResponse = {
   data: V1BuildStatus | RpcStatus;
   status: number;
@@ -93,15 +95,16 @@ export const getBuildServiceGetBuildStatusInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getBuildServiceGetBuildStatusQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>> = ({
     signal,
-  }) => buildServiceGetBuildStatus(params, signal);
+  }) => buildServiceGetBuildStatus(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof buildServiceGetBuildStatus>>,
@@ -132,6 +135,7 @@ export function useBuildServiceGetBuildStatusInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useBuildServiceGetBuildStatusInfinite<
@@ -151,6 +155,7 @@ export function useBuildServiceGetBuildStatusInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useBuildServiceGetBuildStatusInfinite<
@@ -162,6 +167,7 @@ export function useBuildServiceGetBuildStatusInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -174,6 +180,7 @@ export function useBuildServiceGetBuildStatusInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getBuildServiceGetBuildStatusInfiniteQueryOptions(params, options);
@@ -196,15 +203,16 @@ export const getBuildServiceGetBuildStatusQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getBuildServiceGetBuildStatusQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>> = ({
     signal,
-  }) => buildServiceGetBuildStatus(params, signal);
+  }) => buildServiceGetBuildStatus(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof buildServiceGetBuildStatus>>,
@@ -235,6 +243,7 @@ export function useBuildServiceGetBuildStatus<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useBuildServiceGetBuildStatus<
@@ -254,6 +263,7 @@ export function useBuildServiceGetBuildStatus<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useBuildServiceGetBuildStatus<
@@ -265,6 +275,7 @@ export function useBuildServiceGetBuildStatus<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -277,6 +288,7 @@ export function useBuildServiceGetBuildStatus<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof buildServiceGetBuildStatus>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getBuildServiceGetBuildStatusQueryOptions(params, options);
@@ -322,6 +334,7 @@ export const getBuildServiceTriggerBuildMutationOptions = <
     { data: V1BuildRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof buildServiceTriggerBuild>>,
   TError,
@@ -329,11 +342,11 @@ export const getBuildServiceTriggerBuildMutationOptions = <
   TContext
 > => {
   const mutationKey = ['buildServiceTriggerBuild'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof buildServiceTriggerBuild>>,
@@ -341,7 +354,7 @@ export const getBuildServiceTriggerBuildMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return buildServiceTriggerBuild(data);
+    return buildServiceTriggerBuild(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -360,6 +373,7 @@ export const useBuildServiceTriggerBuild = <TError = RpcStatus, TContext = unkno
     { data: V1BuildRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof buildServiceTriggerBuild>>,
   TError,
@@ -403,6 +417,7 @@ export const getBuildServiceSwapBinaryMutationOptions = <
     { buildId: string; data: BuildServiceSwapBinaryBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof buildServiceSwapBinary>>,
   TError,
@@ -410,11 +425,11 @@ export const getBuildServiceSwapBinaryMutationOptions = <
   TContext
 > => {
   const mutationKey = ['buildServiceSwapBinary'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof buildServiceSwapBinary>>,
@@ -422,7 +437,7 @@ export const getBuildServiceSwapBinaryMutationOptions = <
   > = (props) => {
     const { buildId, data } = props ?? {};
 
-    return buildServiceSwapBinary(buildId, data);
+    return buildServiceSwapBinary(buildId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -441,6 +456,7 @@ export const useBuildServiceSwapBinary = <TError = RpcStatus, TContext = unknown
     { buildId: string; data: BuildServiceSwapBinaryBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof buildServiceSwapBinary>>,
   TError,
