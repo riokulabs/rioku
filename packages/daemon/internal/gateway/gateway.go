@@ -121,6 +121,9 @@ func NewGateway(
 	// PromQL proxy stub (RFC-7807 501; full impl in Plan 8 / Dashboards).
 	RegisterPromQLRoutes(topMux)
 
+	// Opaque-handle store: PII → short token mapping (plan 00c).
+	RegisterOpaqueRoutes(topMux, st)
+
 	// Auth routes (unauthenticated).
 	RegisterAuthRoutes(topMux, a, sm, st, cfg, enc)
 

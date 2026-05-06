@@ -767,6 +767,17 @@ type Tx interface {
 	// DeleteAccessPolicy removes a policy. Returns ErrAccessPolicyNotFound
 	// if no row matched.
 	DeleteAccessPolicy(ctx context.Context, id string) error
+
+	// --- Opaque handles (stage-2 plan 00c) ---
+
+	// GetOpaqueHandle returns the handle for a (tenantID, handle) pair.
+	// Returns (nil, nil) when not found.
+	GetOpaqueHandle(ctx context.Context, tenantID, handle string) (*OpaqueHandle, error)
+	// GetOpaqueHandleByValueHash returns the handle for a (tenantID, valueHash) pair.
+	// Returns (nil, nil) when not found.
+	GetOpaqueHandleByValueHash(ctx context.Context, tenantID, valueHash string) (*OpaqueHandle, error)
+	// UpsertOpaqueHandle inserts or replaces an opaque handle row.
+	UpsertOpaqueHandle(ctx context.Context, h OpaqueHandle) error
 }
 
 // ---------------------------------------------------------------------------
@@ -1834,4 +1845,15 @@ type UpdateAccessPolicyParams struct {
 	Conditions  *[]AccessPolicyCondition
 	Priority    *int
 	Enabled     *bool
+}
+
+// OpaqueHandle maps a short random token (prefix "oh_") to a SHA-256 hash of
+// the original sensitive value. The original value is never stored; callers
+// hash it before calling the store. ExpiresAt is nil for non-expiring handles.
+type OpaqueHandle struct {
+	Handle    string
+	TenantID  string
+	ValueHash string
+	CreatedAt time.Time
+	ExpiresAt *time.Time
 }
