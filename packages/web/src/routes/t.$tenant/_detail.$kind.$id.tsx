@@ -43,7 +43,7 @@ import { RateLimitDetail } from '@/features/ai-rate-limits';
 import { MiddlewareDetail } from '@/features/middlewares';
 
 // ── Security ────────────────────────────────────────────────────────────────
-import { ApiKeyDetailDrawer } from '@/features/security/api-keys/components/detail-drawer';
+import { ApiKeyDrawer } from '@/features/security/api-keys/components/drawer';
 import { AuditDetail } from '@/features/audit';
 import { RoleDetail, useRole } from '@/features/security/roles';
 import { AccessPolicyDetail } from '@/features/security/access-policies';
@@ -336,13 +336,14 @@ function MiddlewareDetailPage({ entityId, tenantSlug }: RendererProps) {
   );
 }
 
-function ApiKeyDetailPage({ entityId, tenantSlug }: RendererProps) {
+function ApiKeyDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const key = useApiKey(entityId);
+  const key = useApiKey(tenantId, entityId);
   if (!key) return <NotFound what="API key" />;
   return (
-    <ApiKeyDetailDrawer
+    <ApiKeyDrawer
       keyId={entityId}
+      tenantId={tenantId}
       onClose={() => {
         void navigate({
           to: '/t/$tenant/security/api-keys',
