@@ -24,8 +24,8 @@ git fetch origin stage2/main
 git worktree add "$DIR" -b "$BRANCH" origin/stage2/main
 
 # Initialize per-worktree decisions-needed.md from template if present
-if [ -f tmp/decisions-template.md ]; then
-  cp tmp/decisions-template.md "$DIR/decisions-needed.md"
+if [ -f contrib-docs/templates/decisions-needed.md ]; then
+  cp contrib-docs/templates/decisions-needed.md "$DIR/decisions-needed.md"
 fi
 
 echo "worktree ready: $DIR (branch: $BRANCH)"
