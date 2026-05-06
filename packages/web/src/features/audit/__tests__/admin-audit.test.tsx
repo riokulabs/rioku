@@ -88,7 +88,7 @@ beforeEach(() => {
 
 describe('TenantAdminAuditPage', () => {
   it('renders the empty state when no adminAudit entries for tenant', () => {
-    const Component = Route.component as React.ComponentType;
+    const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
     expect(screen.getByTestId('tenant-admin-audit-page')).toBeInTheDocument();
     expect(screen.getByText('No admin audit entries')).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('TenantAdminAuditPage', () => {
       tier: 'destructive',
     });
 
-    const Component = Route.component as React.ComponentType;
+    const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
 
     // The page renders each action twice: once in the DataTable row, once in the
@@ -144,15 +144,20 @@ describe('TenantAdminAuditPage', () => {
       tier: 'read',
     });
 
-    const Component = Route.component as React.ComponentType;
+    const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
 
     const verifyBtn = screen.getByTestId('verify-chain-button');
     fireEvent.click(verifyBtn);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('chain-verified-badge')).toBeInTheDocument();
-    });
+    // SHA-256 hash-chain verification dispatches into the WebCrypto async
+    // queue; the default 1s waitFor timeout flakes on slower CI runners.
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('chain-verified-badge')).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
   });
 
   it('verify chain button shows "Broken at entry" badge for a corrupted chain', async () => {
@@ -174,19 +179,22 @@ describe('TenantAdminAuditPage', () => {
     };
     useMockStore.getState().appendAdminAudit(corruptEntry);
 
-    const Component = Route.component as React.ComponentType;
+    const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
 
     const verifyBtn = screen.getByTestId('verify-chain-button');
     fireEvent.click(verifyBtn);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('chain-broken-badge')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('chain-broken-badge')).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
   });
 
   it('renders the "Back to audit log" link', () => {
-    const Component = Route.component as React.ComponentType;
+    const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
     expect(screen.getByTestId('admin-audit-back')).toBeInTheDocument();
   });
@@ -202,7 +210,7 @@ describe('TenantAdminAuditPage', () => {
       tier: 'write',
     });
 
-    const Component = Route.component as React.ComponentType;
+    const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
 
     // The accordion shows entries; check that hash/prev_hash elements exist

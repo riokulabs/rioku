@@ -32,7 +32,12 @@ import { LiveTailBadge, useAuditStream } from '../components/streaming-tail';
 
 // ─── Mock EventSource ─────────────────────────────────────────────────────────
 
-class MockEventSource implements EventSource {
+// Intentionally not `implements EventSource` — the DOM `addEventListener`
+// overloads in the lib include `MessageEvent`-typed listeners that conflict
+// with the simpler `(ev: Event) => void` shape we use in tests. The cast at
+// `globalThis.EventSource = MockEventSource` keeps the runtime substitution
+// working.
+class MockEventSource {
   static instances: MockEventSource[] = [];
 
   readonly url: string;
@@ -103,7 +108,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   _resetForTests();
-  // @ts-expect-error -- restoring global
   globalThis.EventSource = OriginalEventSource;
 });
 

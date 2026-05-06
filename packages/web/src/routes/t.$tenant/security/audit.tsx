@@ -43,6 +43,7 @@ import {
   AuditFilterBar,
   AuditList,
   LiveTailBadge,
+  encodeResourceHandle,
   exportAuditCsv,
   exportAuditJsonl,
   useAuditList,
@@ -340,16 +341,54 @@ function AuditPage() {
 export const Route = createFileRoute('/t/$tenant/security/audit')({
   beforeLoad: requirePermissions({ required: ['audit:read'] }),
   component: AuditPage,
-  validateSearch: (s: Record<string, unknown>): SearchParams => ({
-    actions: parseCsv(s.actions),
-    outcomes: parseOutcomes(s.outcomes),
-    resource_types: parseCsv(s.resource_types),
-    tiers: parseTiers(s.tiers),
-    actor_handles: parseCsv(s.actor_handles),
-    resource_id_handles: parseCsv(s.resource_id_handles),
-    search: typeof s.search === 'string' ? s.search : '',
-    date_from: parseIso(s.date_from),
-    date_to: parseIso(s.date_to),
-    ...(typeof s.selected === 'string' && s.selected.length > 0 ? { selected: s.selected } : {}),
-  }),
+  validateSearch: (s: Record<string, unknown>): SearchParams => {
+    // Per-entity filter alias (#82). Entity pages link here with
+    // `?entity_type=service&entity_id=svc-123` (or the equivalent
+    // `?resource_type=…&resource_id=…`). When present, expand into the
+    // canonical `resource_types` + `resource_id_handles` shape so the
+    // existing filter machinery picks them up without per-entity wiring.
+    const aliasType =
+      typeof s.entity_type === 'string' && s.entity_type.length > 0
+        ? s.entity_type
+        : typeof s.resource_type === 'string' && s.resource_type.length > 0
+          ? s.resource_type
+          : null;
+    const aliasId =
+      typeof s.entity_id === 'string' && s.entity_id.length > 0
+        ? s.entity_id
+        : typeof s.resource_id === 'string' && s.resource_id.length > 0
+          ? s.resource_id
+          : null;
+
+    const baseResourceTypes = parseCsv(s.resource_types);
+    const baseResourceHandles = parseCsv(s.resource_id_handles);
+
+    const resource_types =
+      aliasType !== null && !baseResourceTypes.includes(aliasType)
+        ? [...baseResourceTypes, aliasType]
+        : baseResourceTypes;
+
+    const resource_id_handles =
+      aliasType !== null && aliasId !== null
+        ? (() => {
+            const handle = encodeResourceHandle(aliasType, aliasId);
+            return baseResourceHandles.includes(handle)
+              ? baseResourceHandles
+              : [...baseResourceHandles, handle];
+          })()
+        : baseResourceHandles;
+
+    return {
+      actions: parseCsv(s.actions),
+      outcomes: parseOutcomes(s.outcomes),
+      resource_types,
+      tiers: parseTiers(s.tiers),
+      actor_handles: parseCsv(s.actor_handles),
+      resource_id_handles,
+      search: typeof s.search === 'string' ? s.search : '',
+      date_from: parseIso(s.date_from),
+      date_to: parseIso(s.date_to),
+      ...(typeof s.selected === 'string' && s.selected.length > 0 ? { selected: s.selected } : {}),
+    };
+  },
 });

@@ -7,8 +7,9 @@
  * export button.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { subscribeHostEvent } from '@/host/events';
 
 // Shiki mock — payload section uses CodeBlock.
 vi.mock('shiki', () => ({
@@ -87,11 +88,15 @@ describe('<AuditDetail>', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 
-  it('shows IP when permission is granted', () => {
+  it('hides IP behind reveal flow even when permission is granted', () => {
     render(<AuditDetail entry={makeEntry({ ip: '10.0.0.1' })} onClose={() => undefined} />, {
       wrapper: Wrapper,
     });
-    expect(screen.getByTestId('audit-ip')).toHaveTextContent('10.0.0.1');
+    // IP is redacted by default; user must click "Reveal sensitive" + supply
+    // a reason to unmask. Validates the reveal-flow gating that records a
+    // follow-up audit entry for compliance.
+    expect(screen.getByTestId('audit-ip')).toHaveTextContent('[redacted]');
+    expect(screen.getByTestId('audit-reveal-sensitive')).toBeInTheDocument();
   });
 
   it('redacts IP when permission is missing', () => {
@@ -100,6 +105,40 @@ describe('<AuditDetail>', () => {
       wrapper: Wrapper,
     });
     expect(screen.getByTestId('audit-ip')).toHaveTextContent('[redacted]');
+    // No reveal button when the user lacks the permission.
+    expect(screen.queryByTestId('audit-reveal-sensitive')).not.toBeInTheDocument();
+  });
+
+  it('reveal flow requires a reason and emits a host event', async () => {
+    const events: unknown[] = [];
+    const unsub = subscribeHostEvent('audit:sensitive-revealed', (data) => {
+      events.push(data);
+    });
+    try {
+      render(<AuditDetail entry={makeEntry({ ip: '10.0.0.1' })} onClose={() => undefined} />, {
+        wrapper: Wrapper,
+      });
+      // Click "Reveal sensitive" to open the modal.
+      fireEvent.click(screen.getByTestId('audit-reveal-sensitive'));
+      const reasonInput = await screen.findByTestId('audit-reveal-reason');
+      // Empty reason — confirm should be rejected with an error.
+      fireEvent.click(screen.getByTestId('audit-reveal-confirm'));
+      expect(events).toHaveLength(0);
+      expect(screen.getByTestId('audit-ip')).toHaveTextContent('[redacted]');
+      // Provide a valid reason and confirm.
+      fireEvent.change(reasonInput, { target: { value: 'Investigating incident #42' } });
+      fireEvent.click(screen.getByTestId('audit-reveal-confirm'));
+      await waitFor(() => {
+        expect(events).toHaveLength(1);
+      });
+      expect(events[0]).toMatchObject({
+        entry_id: 'audit-1',
+        reason: 'Investigating incident #42',
+      });
+      expect(screen.getByTestId('audit-ip')).toHaveTextContent('10.0.0.1');
+    } finally {
+      unsub();
+    }
   });
 
   it('renders CelDiff when action is a policy write and condition strings differ', () => {

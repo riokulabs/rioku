@@ -92,7 +92,9 @@ export function useAuditStream(
   // Keep a stable ref to onEntry so the subscribeSSE handler always calls
   // the latest version without needing to re-subscribe on every render.
   const onEntryRef = useRef(onEntry);
-  onEntryRef.current = onEntry;
+  useEffect(() => {
+    onEntryRef.current = onEntry;
+  }, [onEntry]);
 
   useEffect(() => {
     if (!enabled || tenantId === '') return;
