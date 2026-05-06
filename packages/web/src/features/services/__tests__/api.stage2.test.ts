@@ -11,13 +11,14 @@
  * Adapter bridging (V1Service ↔ admin Service) is tested separately in
  * adapter.test.ts. Here we validate the end-to-end hook + adapter integration.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw-server';
 import type { ListServices200, V1Service } from '@/api/generated/schemas';
+import type { Service } from '@/api/resources';
 import {
   useServiceListReal,
   useServiceDetailReal,
@@ -40,8 +41,9 @@ function makeQueryClient(): QueryClient {
 }
 
 function makeWrapper(qc: QueryClient) {
-  return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client: qc }, children);
+  return function TestQueryProvider({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: qc }, children);
+  };
 }
 
 const TENANT = 'test-tenant';
@@ -82,7 +84,7 @@ describe('useServiceListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.services).toHaveLength(0);
     expect(result.current.isError).toBe(false);
   });
@@ -103,7 +105,7 @@ describe('useServiceListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.services).toHaveLength(1));
+    await waitFor(() => { expect(result.current.services).toHaveLength(1); });
     const svc = result.current.services[0];
     expect(svc).toBeDefined();
     expect(svc!.id).toBe('svc-fixture-1');
@@ -132,7 +134,7 @@ describe('useServiceListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.services).toHaveLength(1);
     expect(result.current.services[0]!.id).toBe('s1');
   });
@@ -154,7 +156,7 @@ describe('useServiceListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.services).toHaveLength(1);
     expect(result.current.services[0]!.name).toBe('payments-api');
   });
@@ -173,7 +175,7 @@ describe('useServiceListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => { expect(result.current.isError).toBe(true); });
   });
 });
 
@@ -210,7 +212,7 @@ describe('useServiceDetailReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current).toBeDefined());
+    await waitFor(() => { expect(result.current).toBeDefined(); });
     expect(result.current!.id).toBe('svc-detail-1');
     expect(result.current!.name).toBe('detail-api');
   });
@@ -234,7 +236,7 @@ describe('useCreateServiceMutation', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    let service: import('@/api/resources').Service | undefined;
+    let service: Service | undefined;
     await act(async () => {
       service = await result.current.mutateAsync({
         name: 'new-api',
@@ -292,7 +294,7 @@ describe('useUpdateServiceMutation', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    let service: import('@/api/resources').Service | undefined;
+    let service: Service | undefined;
     await act(async () => {
       service = await result.current.mutateAsync({
         id: 'svc-u1',

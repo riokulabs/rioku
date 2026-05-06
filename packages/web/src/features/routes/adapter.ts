@@ -71,7 +71,7 @@ export function fromProtoRoute(proto: V1Route, tenantId: string): Route {
   const method = deriveMethod(proto);
   const matchKind = deriveMatchKind(proto);
   const stripPrefix = labels[LBL_STRIP_PREFIX] === 'true';
-  const rewritePath = labels[LBL_REWRITE_PATH] || undefined;
+  const rewritePath = labels[LBL_REWRITE_PATH] ?? undefined;
   const headersAdd: Record<string, string> = (() => {
     try {
       return labels[LBL_HEADERS_ADD] ? (JSON.parse(labels[LBL_HEADERS_ADD]) as Record<string, string>) : {};
@@ -103,7 +103,7 @@ export function fromProtoRoute(proto: V1Route, tenantId: string): Route {
     created_at: proto.createdAt ?? '',
     updated_at: proto.updatedAt ?? '',
     // Note: tenant_id not in V1Route — passed from caller context
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     ...(tenantId ? { tenant_id: tenantId } : {}),
   };
 }

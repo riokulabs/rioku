@@ -8,7 +8,6 @@ import {
   fromProtoRoute,
   toProtoRouteBody,
   toProtoRoutePatch,
-  LBL_MATCH_KIND,
   LBL_STRIP_PREFIX,
   LBL_REWRITE_PATH,
   LBL_HEADERS_ADD,

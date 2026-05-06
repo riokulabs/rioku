@@ -111,7 +111,6 @@ export function useCreateRouteMutation(tenantId: string) {
       const body = toProtoRouteBody(input);
       const res = await orvalCreateRoute(tenantId, body);
       const proto = res as unknown as V1Route;
-      if (!proto) throw new Error('Server returned empty route');
       return fromProtoRoute(proto, tenantId);
     },
     onSuccess: () => {
@@ -128,7 +127,6 @@ export function useUpdateRouteMutation(tenantId: string) {
       const body = toProtoRoutePatch(input);
       const res = await patchRoute(tenantId, id, body);
       const proto = res as unknown as V1Route;
-      if (!proto) throw new Error('Server returned empty route');
       return fromProtoRoute(proto, tenantId);
     },
     onSuccess: (_data, { id }) => {
@@ -171,7 +169,6 @@ export function useReorderMiddlewaresMutation(tenantId: string) {
       const body = toProtoRoutePatch({ middleware_ids: middlewareIds });
       const res = await patchRoute(tenantId, routeId, body);
       const proto = res as unknown as V1Route;
-      if (!proto) throw new Error('Server returned empty route');
       return fromProtoRoute(proto, tenantId);
     },
     onSuccess: (_data, { routeId }) => {
@@ -225,7 +222,6 @@ export async function createRouteReal(tenantId: string, input: RouteInput): Prom
   const body = toProtoRouteBody(input);
   const res = await orvalCreateRoute(tenantId, body);
   const proto = res as unknown as V1Route;
-  if (!proto) throw new Error('Server returned empty route');
   return fromProtoRoute(proto, tenantId);
 }
 
@@ -264,6 +260,5 @@ export async function reorderMiddlewaresReal(
   const body = toProtoRoutePatch({ middleware_ids: middlewareIds });
   const res = await patchRoute(tenantId, routeId, body);
   const proto = res as unknown as V1Route;
-  if (!proto) throw new Error('Server returned empty route');
   return fromProtoRoute(proto, tenantId);
 }

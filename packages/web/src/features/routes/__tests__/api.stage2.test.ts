@@ -21,6 +21,7 @@ import { createElement, type ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw-server';
 import type { V1Route } from '@/api/generated/schemas';
+import type { Route } from '@/api/resources';
 import { V1PathMatcherType } from '@/api/generated/schemas';
 import {
   useRouteListReal,
@@ -47,8 +48,9 @@ function makeQueryClient(): QueryClient {
 }
 
 function makeWrapper(qc: QueryClient) {
-  return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client: qc }, children);
+  return function TestQueryProvider({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: qc }, children);
+  };
 }
 
 const TENANT = 'test-tenant';
@@ -89,7 +91,7 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.routes).toHaveLength(0);
     expect(result.current.isError).toBe(false);
   });
@@ -108,7 +110,7 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.routes).toHaveLength(1));
+    await waitFor(() => { expect(result.current.routes).toHaveLength(1); });
     const rt = result.current.routes[0];
     expect(rt).toBeDefined();
     expect(rt!.id).toBe('rt-fixture-1');
@@ -135,7 +137,7 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.routes).toHaveLength(1);
     expect(result.current.routes[0]!.id).toBe('rt-1');
   });
@@ -155,7 +157,7 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.routes).toHaveLength(1);
     expect(result.current.routes[0]!.id).toBe('rt-get');
   });
@@ -175,7 +177,7 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.routes).toHaveLength(1);
     expect(result.current.routes[0]!.name).toBe('payments-route');
   });
@@ -191,7 +193,7 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => { expect(result.current.isError).toBe(true); });
   });
 });
 
@@ -227,7 +229,7 @@ describe('useRouteDetailReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current).toBeDefined());
+    await waitFor(() => { expect(result.current).toBeDefined(); });
     expect(result.current!.id).toBe('rt-detail-1');
     expect(result.current!.name).toBe('detail-route');
   });
@@ -249,7 +251,7 @@ describe('useRouteDetailReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current).toBeDefined());
+    await waitFor(() => { expect(result.current).toBeDefined(); });
     expect(result.current!.middleware_ids).toEqual(['mw-1', 'mw-2']);
   });
 });
@@ -271,7 +273,7 @@ describe('useCreateRouteMutation', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    let route: import('@/api/resources').Route | undefined;
+    let route: Route | undefined;
     await act(async () => {
       route = await result.current.mutateAsync({
         service_id: 'svc-1',
@@ -304,7 +306,7 @@ describe('useUpdateRouteMutation', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    let route: import('@/api/resources').Route | undefined;
+    let route: Route | undefined;
     await act(async () => {
       route = await result.current.mutateAsync({
         id: 'rt-u1',
@@ -360,7 +362,7 @@ describe('useReorderMiddlewaresMutation', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    let route: import('@/api/resources').Route | undefined;
+    let route: Route | undefined;
     await act(async () => {
       route = await result.current.mutateAsync({
         routeId: 'rt-reorder',
@@ -434,7 +436,7 @@ describe('useListRoutePoliciesReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
     expect(result.current.isError).toBe(false);
   });
 });

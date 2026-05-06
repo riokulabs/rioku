@@ -63,16 +63,16 @@ function deriveHealth(
 export function fromProtoService(proto: V1Service, tenantId: string): Service {
   const labels = proto.labels?.labels ?? {};
   const upstream = proto.upstreams?.[0]?.address ?? '';
-  const upstreamProtocol = (labels[LBL_PROTOCOL] as Service['upstream_protocol']) ?? 'http';
+  const upstreamProtocol = (labels[LBL_PROTOCOL] as Service['upstream_protocol'] | undefined) ?? 'http';
   const env = labels[LBL_ENV] ?? '';
   const tags = labels[LBL_TAGS] ? labels[LBL_TAGS].split(',').filter(Boolean) : [];
-  const description = labels[LBL_DESCRIPTION] || undefined;
+  const description = labels[LBL_DESCRIPTION] ?? undefined;
   const health = deriveHealth(proto.upstreams, labels);
 
   // health_check: map from proto HealthCheck if present
   const hc = proto.healthCheck;
   const health_check =
-    hc && hc.path
+    hc?.path
       ? {
           path: hc.path,
           interval_seconds: hc.intervalSeconds ?? 30,
@@ -103,7 +103,7 @@ export function toProtoServiceBody(input: ServiceInput): V1Service {
   const labels: Record<string, string> = {};
   if (input.env) labels[LBL_ENV] = input.env;
   if (input.tags && input.tags.length > 0) labels[LBL_TAGS] = input.tags.join(',');
-  if (input.upstream_protocol) labels[LBL_PROTOCOL] = input.upstream_protocol;
+  labels[LBL_PROTOCOL] = input.upstream_protocol;
   if (input.description) labels[LBL_DESCRIPTION] = input.description;
 
   const upstream: V1Upstream = { address: input.upstream };

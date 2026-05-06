@@ -18,7 +18,6 @@
  * the final resolution for the schema mismatch.
  */
 
-import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listServices,
@@ -30,7 +29,7 @@ import {
   getListServicesQueryKey,
   getGetServiceQueryKey,
 } from '@/api/generated/services/services';
-import type { ListServices200 } from '@/api/generated/schemas';
+import type { ListServices200, V1Service } from '@/api/generated/schemas';
 import type { Service } from '@/api/resources';
 import type { ServiceFilter, ServiceInput, ServiceUpdateInput } from './types';
 import { ServiceInUseError } from './types';
@@ -92,7 +91,7 @@ export function useServiceDetailReal(
   });
   if (!data) return undefined;
   // customFetch returns JSON body directly at runtime
-  const proto = data as unknown as import('@/api/generated/schemas').V1Service;
+  const proto = data as unknown as V1Service;
   return fromProtoService(proto, tenantId);
 }
 
@@ -109,8 +108,7 @@ export function useCreateServiceMutation(tenantId: string) {
       const body = toProtoServiceBody(input);
       const res = await orvalCreateService(tenantId, body);
       // customFetch returns JSON body directly at runtime
-      const proto = res as unknown as import('@/api/generated/schemas').V1Service;
-      if (!proto) throw new Error('Server returned empty service');
+      const proto = res as unknown as V1Service;
       return fromProtoService(proto, tenantId);
     },
     onSuccess: () => {
@@ -128,8 +126,7 @@ export function useUpdateServiceMutation(tenantId: string) {
     mutationFn: async ({ id, input }: { id: string; input: ServiceUpdateInput }): Promise<Service> => {
       const body = toProtoServicePatch(input);
       const res = await patchService(tenantId, id, body);
-      const proto = res as unknown as import('@/api/generated/schemas').V1Service;
-      if (!proto) throw new Error('Server returned empty service');
+      const proto = res as unknown as V1Service;
       return fromProtoService(proto, tenantId);
     },
     onSuccess: (_data, { id }) => {
@@ -233,8 +230,7 @@ export function useForceReloadServiceMutation(tenantId: string) {
 export async function createServiceReal(tenantId: string, input: ServiceInput): Promise<Service> {
   const body = toProtoServiceBody(input);
   const res = await orvalCreateService(tenantId, body);
-  const proto = res as unknown as import('@/api/generated/schemas').V1Service;
-  if (!proto) throw new Error('Server returned empty service');
+  const proto = res as unknown as V1Service;
   return fromProtoService(proto, tenantId);
 }
 
