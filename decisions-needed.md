@@ -5,7 +5,7 @@
 
 ## Item 07-001 — Settings family absent from OpenAPI / Orval clients
 
-- **Status:** open
+- **Status:** RESOLVED (this branch)
 - **Filed by:** plan-07 (stage2/plan-07-settings), 2026-05-06
 - **Category:** missing-endpoint
 - **What:** The daemon registers REST routes for the entire settings family
@@ -44,11 +44,30 @@
        observability/{metrics,logs,traces}, webhooks/{id}/test, and the danger
        zone trio (hard-reset, export, delete tenant). When Orval clients land
        these hooks delete in a 1:1 swap.
-- **Alternatives:** Hand-write a full Orval-shape generated/<entity>/<entity>.ts
+- **Alternatives:** Hand-write a full Orval-shape `generated/<entity>/<entity>.ts`
   matching the OpenAPI contract. Rejected — duplicates the contract and
   guarantees drift.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** accepted recommendation (a) — extend OpenAPI coverage.
+- **Resolution date / commit:** 2026-05-06, plan-07 follow-up.
+- **Resolution notes:** A new fragment
+  `packages/proto/openapi-fragments/settings.yaml` was added covering profile,
+  tenant, auth-policy, network, observability triplet, TLS, PKI, integrations,
+  webhook test-send, and the danger trio. After `make openapi` +
+  `pnpm types:gen`, Orval now emits a full `src/api/generated/settings/`
+  directory (~118 KB) with hooks for every endpoint above
+  (`useGetSettingsProfile`, `usePatchSettingsProfile`,
+  `useGetSettingsNetwork`, `usePutSettingsNetwork`,
+  `useGetSettingsObservability{Metrics,Logs,Traces}`,
+  `usePutSettingsObservability*`, `useGetSettingsTLS`/`usePutSettingsTLS`,
+  `useGetSettingsPKI`/`usePutSettingsPKI`,
+  `useGetSettingsIntegrations`/`usePutSettingsIntegrations`,
+  `usePostWebhookTest`, `usePostDangerHardReset`, `useGetDangerExport`,
+  `useDeleteDangerTenant`). Smoke coverage:
+  `packages/web/src/features/settings/__tests__/generated-hooks.test.ts`.
+  The legacy hand-rolled hooks in `real-api.ts` are kept in place for now
+  to preserve their snake_case wire-shape contract until Plan 13 re-wires
+  the deep stage-1 sections; at that time the customFetch wrappers retire
+  in a 1:1 swap to the generated hooks.
 
 ---
 
@@ -124,7 +143,7 @@
 
 ## Item 07-005 — Tenant general PATCH not exposed beyond mock
 
-- **Status:** open
+- **Status:** RESOLVED (OpenAPI side; section rewrite tracked under 07-004)
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** missing-endpoint
 - **What:** Plan 07 Task 2 wants tenant name + default theme + logo upload on
@@ -133,7 +152,13 @@
   and the stage-1 `<TenantSection>` wires through mock-store.
 - **Recommendation:** Subsumed by Item 07-001 — once OpenAPI includes the
   tenant tag, swap the mock hook in the section.
-- **User decision:** [pending]
+- **User decision:** accepted; resolved by 07-001 fragment.
+- **Resolution date / commit:** 2026-05-06, plan-07 follow-up. The fragment
+  declares `GET/PATCH /api/v1/t/{tenant}/settings/tenant` with a typed
+  `SettingsTenant` schema (id, name, slug, description, parentDomain,
+  logoUrl, defaultTheme, createdAt, updatedAt). Generated hooks
+  `useGetSettingsTenant` / `usePatchSettingsTenant` are available; the
+  deep section rewrite remains tracked under 07-004 for Plan 13.
 
 ---
 
@@ -186,7 +211,10 @@
   07-004.
 - **Recommendation:** Add CRUD hooks to `real-api.ts` once the section is
   rewired in Plan 13.
-- **User decision:** [pending]
+- **User decision:** test-send portion accepted; CRUD hooks deferred to
+  Plan 13 (section rewrite owns full surface). Test-send now ships through
+  the generated `usePostWebhookTest` hook (07-001) in addition to the
+  hand-rolled `usePostWebhookTest` from `real-api.ts`.
 
 ---
 
