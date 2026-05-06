@@ -23,7 +23,10 @@ Conventions:
  */
 
 export type TestMCPServer200 = {
-  mcpServerId?: string;
-  note?: string;
-  ok?: boolean;
+  error?: string;
+  /** @minimum 0 */
+  latencyMs: number;
+  mcpServerId: string;
+  ok: boolean;
+  serverVersion?: string;
 };

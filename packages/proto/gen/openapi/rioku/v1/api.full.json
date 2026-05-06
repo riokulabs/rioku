@@ -6529,6 +6529,7 @@
         }
       ],
       "post": {
+        "description": "Issues a short HTTP probe (5s timeout) against the MCP server's\nconfigured URL and reports the outcome. Reachable but non-2xx\nupstreams are still treated as `ok: true` for the purpose of\nconnectivity (many MCP endpoints respond 401/404 to a bare GET).\n",
         "operationId": "testMCPServer",
         "responses": {
           "200": {
@@ -6536,16 +6537,28 @@
               "application/json": {
                 "schema": {
                   "properties": {
-                    "mcpServerId": {
+                    "error": {
                       "type": "string"
                     },
-                    "note": {
+                    "latencyMs": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "mcpServerId": {
                       "type": "string"
                     },
                     "ok": {
                       "type": "boolean"
+                    },
+                    "serverVersion": {
+                      "type": "string"
                     }
                   },
+                  "required": [
+                    "mcpServerId",
+                    "ok",
+                    "latencyMs"
+                  ],
                   "type": "object"
                 }
               }
@@ -6553,7 +6566,7 @@
             "description": "Test result"
           }
         },
-        "summary": "Test connectivity to MCP server (stage-2 stub)",
+        "summary": "Test connectivity to an MCP server",
         "tags": [
           "ai-mcp-servers"
         ]
@@ -6571,6 +6584,19 @@
                     "items": {
                       "items": {
                         "properties": {
+                          "argSchema": {
+                            "description": "JSON-schema string for the tool input arguments.",
+                            "type": "string"
+                          },
+                          "dangerous": {
+                            "type": "boolean"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
                           "id": {
                             "type": "string"
                           },
@@ -6578,6 +6604,10 @@
                             "type": "string"
                           }
                         },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
                         "type": "object"
                       },
                       "type": "array"

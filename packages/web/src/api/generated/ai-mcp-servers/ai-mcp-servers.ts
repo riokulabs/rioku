@@ -49,6 +49,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List MCP servers
  */
@@ -85,14 +87,15 @@ export const getListMCPServersInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMCPServers>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListMCPServersQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listMCPServers>>> = ({ signal }) =>
-    listMCPServers(tenant, signal);
+    listMCPServers(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listMCPServers>>,
@@ -123,6 +126,7 @@ export function useListMCPServersInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServersInfinite<
@@ -142,6 +146,7 @@ export function useListMCPServersInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServersInfinite<
@@ -153,6 +158,7 @@ export function useListMCPServersInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMCPServers>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -168,6 +174,7 @@ export function useListMCPServersInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMCPServers>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListMCPServersInfiniteQueryOptions(tenant, options);
@@ -188,14 +195,15 @@ export const getListMCPServersQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMCPServers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListMCPServersQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listMCPServers>>> = ({ signal }) =>
-    listMCPServers(tenant, signal);
+    listMCPServers(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listMCPServers>>,
@@ -222,6 +230,7 @@ export function useListMCPServers<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServers<
@@ -239,6 +248,7 @@ export function useListMCPServers<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServers<
@@ -248,6 +258,7 @@ export function useListMCPServers<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMCPServers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -261,6 +272,7 @@ export function useListMCPServers<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMCPServers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListMCPServersQueryOptions(tenant, options);
@@ -307,6 +319,7 @@ export const getCreateMCPServerMutationOptions = <TError = unknown, TContext = u
     { tenant: string; data: MCPServerCreateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createMCPServer>>,
   TError,
@@ -314,11 +327,11 @@ export const getCreateMCPServerMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['createMCPServer'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createMCPServer>>,
@@ -326,7 +339,7 @@ export const getCreateMCPServerMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createMCPServer(tenant, data);
+    return createMCPServer(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -348,6 +361,7 @@ export const useCreateMCPServer = <TError = unknown, TContext = unknown>(options
     { tenant: string; data: MCPServerCreateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createMCPServer>>,
   TError,
@@ -386,6 +400,7 @@ export const getDeleteMCPServerMutationOptions = <TError = unknown, TContext = u
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteMCPServer>>,
   TError,
@@ -393,11 +408,11 @@ export const getDeleteMCPServerMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['deleteMCPServer'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteMCPServer>>,
@@ -405,7 +420,7 @@ export const getDeleteMCPServerMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteMCPServer(tenant, id);
+    return deleteMCPServer(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -424,6 +439,7 @@ export const useDeleteMCPServer = <TError = unknown, TContext = unknown>(options
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteMCPServer>>,
   TError,
@@ -469,14 +485,15 @@ export const getGetMCPServerInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getMCPServer>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetMCPServerQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getMCPServer>>> = ({ signal }) =>
-    getMCPServer(tenant, id, signal);
+    getMCPServer(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -509,6 +526,7 @@ export function useGetMCPServerInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMCPServerInfinite<
@@ -529,6 +547,7 @@ export function useGetMCPServerInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMCPServerInfinite<
@@ -541,6 +560,7 @@ export function useGetMCPServerInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getMCPServer>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -554,6 +574,7 @@ export function useGetMCPServerInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getMCPServer>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetMCPServerInfiniteQueryOptions(tenant, id, options);
@@ -575,14 +596,15 @@ export const getGetMCPServerQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getMCPServer>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetMCPServerQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getMCPServer>>> = ({ signal }) =>
-    getMCPServer(tenant, id, signal);
+    getMCPServer(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getMCPServer>>,
@@ -607,6 +629,7 @@ export function useGetMCPServer<TData = Awaited<ReturnType<typeof getMCPServer>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMCPServer<TData = Awaited<ReturnType<typeof getMCPServer>>, TError = unknown>(
@@ -622,6 +645,7 @@ export function useGetMCPServer<TData = Awaited<ReturnType<typeof getMCPServer>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMCPServer<TData = Awaited<ReturnType<typeof getMCPServer>>, TError = unknown>(
@@ -629,6 +653,7 @@ export function useGetMCPServer<TData = Awaited<ReturnType<typeof getMCPServer>>
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getMCPServer>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -637,6 +662,7 @@ export function useGetMCPServer<TData = Awaited<ReturnType<typeof getMCPServer>>
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getMCPServer>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetMCPServerQueryOptions(tenant, id, options);
@@ -681,6 +707,7 @@ export const getPatchMCPServerMutationOptions = <TError = unknown, TContext = un
     { tenant: string; id: string; data: MCPServerUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchMCPServer>>,
   TError,
@@ -688,11 +715,11 @@ export const getPatchMCPServerMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['patchMCPServer'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchMCPServer>>,
@@ -700,7 +727,7 @@ export const getPatchMCPServerMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchMCPServer(tenant, id, data);
+    return patchMCPServer(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -717,6 +744,7 @@ export const usePatchMCPServer = <TError = unknown, TContext = unknown>(options?
     { tenant: string; id: string; data: MCPServerUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchMCPServer>>,
   TError,
@@ -758,6 +786,7 @@ export const getUpdateMCPServerMutationOptions = <TError = unknown, TContext = u
     { tenant: string; id: string; data: MCPServerUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateMCPServer>>,
   TError,
@@ -765,11 +794,11 @@ export const getUpdateMCPServerMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['updateMCPServer'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateMCPServer>>,
@@ -777,7 +806,7 @@ export const getUpdateMCPServerMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return updateMCPServer(tenant, id, data);
+    return updateMCPServer(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -796,6 +825,7 @@ export const useUpdateMCPServer = <TError = unknown, TContext = unknown>(options
     { tenant: string; id: string; data: MCPServerUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateMCPServer>>,
   TError,
@@ -807,7 +837,12 @@ export const useUpdateMCPServer = <TError = unknown, TContext = unknown>(options
   return useMutation(mutationOptions);
 };
 /**
- * @summary Test connectivity to MCP server (stage-2 stub)
+ * Issues a short HTTP probe (5s timeout) against the MCP server's
+configured URL and reports the outcome. Reachable but non-2xx
+upstreams are still treated as `ok: true` for the purpose of
+connectivity (many MCP endpoints respond 401/404 to a bare GET).
+
+ * @summary Test connectivity to an MCP server
  */
 export type testMCPServerResponse = {
   data: TestMCPServer200;
@@ -837,6 +872,7 @@ export const getTestMCPServerMutationOptions = <TError = unknown, TContext = unk
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof testMCPServer>>,
   TError,
@@ -844,11 +880,11 @@ export const getTestMCPServerMutationOptions = <TError = unknown, TContext = unk
   TContext
 > => {
   const mutationKey = ['testMCPServer'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof testMCPServer>>,
@@ -856,7 +892,7 @@ export const getTestMCPServerMutationOptions = <TError = unknown, TContext = unk
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return testMCPServer(tenant, id);
+    return testMCPServer(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -867,7 +903,7 @@ export type TestMCPServerMutationResult = NonNullable<Awaited<ReturnType<typeof 
 export type TestMCPServerMutationError = unknown;
 
 /**
- * @summary Test connectivity to MCP server (stage-2 stub)
+ * @summary Test connectivity to an MCP server
  */
 export const useTestMCPServer = <TError = unknown, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
@@ -876,6 +912,7 @@ export const useTestMCPServer = <TError = unknown, TContext = unknown>(options?:
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof testMCPServer>>,
   TError,
@@ -924,14 +961,15 @@ export const getListMCPServerToolsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMCPServerTools>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListMCPServerToolsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listMCPServerTools>>> = ({ signal }) =>
-    listMCPServerTools(tenant, id, signal);
+    listMCPServerTools(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -966,6 +1004,7 @@ export function useListMCPServerToolsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServerToolsInfinite<
@@ -986,6 +1025,7 @@ export function useListMCPServerToolsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServerToolsInfinite<
@@ -998,6 +1038,7 @@ export function useListMCPServerToolsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMCPServerTools>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1014,6 +1055,7 @@ export function useListMCPServerToolsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMCPServerTools>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListMCPServerToolsInfiniteQueryOptions(tenant, id, options);
@@ -1035,14 +1077,15 @@ export const getListMCPServerToolsQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMCPServerTools>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListMCPServerToolsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listMCPServerTools>>> = ({ signal }) =>
-    listMCPServerTools(tenant, id, signal);
+    listMCPServerTools(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listMCPServerTools>>,
@@ -1072,6 +1115,7 @@ export function useListMCPServerTools<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServerTools<
@@ -1092,6 +1136,7 @@ export function useListMCPServerTools<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMCPServerTools<
@@ -1102,6 +1147,7 @@ export function useListMCPServerTools<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMCPServerTools>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1116,6 +1162,7 @@ export function useListMCPServerTools<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMCPServerTools>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListMCPServerToolsQueryOptions(tenant, id, options);

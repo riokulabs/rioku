@@ -167,9 +167,11 @@ export const getUpdateMCPServerResponseMock = (
 export const getTestMCPServerResponseMock = (
   overrideResponse: Partial<TestMCPServer200> = {},
 ): TestMCPServer200 => ({
-  mcpServerId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  note: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  ok: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  error: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  latencyMs: faker.number.int({ min: 0, max: undefined }),
+  mcpServerId: faker.string.alpha(20),
+  ok: faker.datatype.boolean(),
+  serverVersion: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
   ...overrideResponse,
 });
 
@@ -178,8 +180,12 @@ export const getListMCPServerToolsResponseMock = (
 ): ListMCPServerTools200 => ({
   items: faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-      name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      argSchema: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      dangerous: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      id: faker.string.alpha(20),
+      name: faker.string.alpha(20),
     })),
     undefined,
   ]),

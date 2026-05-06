@@ -1,7 +1,11 @@
 /**
  * <McpServerForm> — create / edit an MCP server.
+ *
+ * Wired to the daemon via the orval-generated mutations. The "Authorized
+ * agents" picker is populated from `useListAIAgents` (real fetch) and the
+ * selected ids are sent on the update body.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -17,7 +21,8 @@ import {
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useListAIAgents } from '@/api/generated/ai-agents/ai-agents';
+import type { AIAgent } from '@/api/generated/schemas';
 import { notify } from '@/hooks/use-notify';
 import type { McpServer } from '@/api/resources';
 import { createMcpServer, updateMcpServer } from '../api';
@@ -37,7 +42,8 @@ interface McpServerFormValues {
 
 interface McpServerFormProps {
   mode: 'create' | 'edit';
-  tenantId: string;
+  /** Tenant slug — used for daemon URL paths. */
+  tenant: string;
   initialValues?: McpServer;
   onSuccess: (srv: McpServer) => void;
   onCancel: () => void;
@@ -55,9 +61,17 @@ function initialFromServer(s?: McpServer): McpServerFormValues {
   };
 }
 
+function envelopeItems<T>(raw: unknown): T[] {
+  if (raw === null || typeof raw !== 'object') return [];
+  const obj = raw as { data?: { items?: T[] }; items?: T[] };
+  if (obj.data?.items) return obj.data.items;
+  if (obj.items) return obj.items;
+  return [];
+}
+
 export function McpServerForm({
   mode,
-  tenantId,
+  tenant,
   initialValues,
   onSuccess,
   onCancel,
@@ -65,10 +79,13 @@ export function McpServerForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const agents = useMockStore((s) => s.aiAgents);
-  const agentOptions = Object.values(agents)
-    .filter((a) => a.tenant_id === tenantId)
-    .map((a) => ({ value: a.id, label: a.name }));
+  const { data: agentsRaw } = useListAIAgents(tenant, {
+    query: { enabled: tenant !== '' },
+  });
+  const agentOptions = useMemo(() => {
+    const items = envelopeItems<AIAgent>(agentsRaw);
+    return items.map((a) => ({ value: a.id, label: a.name }));
+  }, [agentsRaw]);
 
   const schema = mode === 'create' ? createMcpServerSchema : updateMcpServerSchema;
 
@@ -83,7 +100,7 @@ export function McpServerForm({
     try {
       const description = values.description.trim();
       if (mode === 'create') {
-        const srv = await createMcpServer(tenantId, {
+        const srv = await createMcpServer(tenant, {
           name: values.name.trim(),
           url: values.url.trim(),
           auth_kind: values.auth_kind,
@@ -95,7 +112,7 @@ export function McpServerForm({
         notify.success('MCP server created', `${srv.name} is ready.`);
         onSuccess(srv);
       } else if (initialValues) {
-        const srv = await updateMcpServer(initialValues.id, {
+        const srv = await updateMcpServer(tenant, initialValues.id, {
           name: values.name.trim(),
           url: values.url.trim(),
           auth_kind: values.auth_kind,

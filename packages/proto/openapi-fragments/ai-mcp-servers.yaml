@@ -94,7 +94,12 @@ paths:
       - $ref: "#/components/parameters/ID"
     post:
       tags: [ai-mcp-servers]
-      summary: Test connectivity to MCP server (stage-2 stub)
+      summary: Test connectivity to an MCP server
+      description: |
+        Issues a short HTTP probe (5s timeout) against the MCP server's
+        configured URL and reports the outcome. Reachable but non-2xx
+        upstreams are still treated as `ok: true` for the purpose of
+        connectivity (many MCP endpoints respond 401/404 to a bare GET).
       operationId: testMCPServer
       responses:
         "200":
@@ -103,10 +108,13 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [mcpServerId, ok, latencyMs]
                 properties:
                   mcpServerId: { type: string }
                   ok: { type: boolean }
-                  note: { type: string }
+                  latencyMs: { type: integer, minimum: 0 }
+                  error: { type: string }
+                  serverVersion: { type: string }
     options:
       responses: { "204": { description: no content } }
 
@@ -130,9 +138,16 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [id, name]
                       properties:
                         id: { type: string }
                         name: { type: string }
+                        description: { type: string }
+                        argSchema:
+                          type: string
+                          description: JSON-schema string for the tool input arguments.
+                        dangerous: { type: boolean }
+                        enabled: { type: boolean }
                   total: { type: integer }
     options:
       responses: { "204": { description: no content } }

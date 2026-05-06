@@ -23,6 +23,11 @@ Conventions:
  */
 
 export type ListMCPServerTools200ItemsItem = {
-  id?: string;
-  name?: string;
+  /** JSON-schema string for the tool input arguments. */
+  argSchema?: string;
+  dangerous?: boolean;
+  description?: string;
+  enabled?: boolean;
+  id: string;
+  name: string;
 };

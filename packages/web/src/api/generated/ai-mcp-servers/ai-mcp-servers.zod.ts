@@ -109,12 +109,21 @@ export const updateMCPServerResponse = zod.object({
 });
 
 /**
- * @summary Test connectivity to MCP server (stage-2 stub)
+ * Issues a short HTTP probe (5s timeout) against the MCP server's
+configured URL and reports the outcome. Reachable but non-2xx
+upstreams are still treated as `ok: true` for the purpose of
+connectivity (many MCP endpoints respond 401/404 to a bare GET).
+
+ * @summary Test connectivity to an MCP server
  */
+export const testMCPServerResponseLatencyMsMin = 0;
+
 export const testMCPServerResponse = zod.object({
-  mcpServerId: zod.string().optional(),
-  note: zod.string().optional(),
-  ok: zod.boolean().optional(),
+  error: zod.string().optional(),
+  latencyMs: zod.number().min(testMCPServerResponseLatencyMsMin),
+  mcpServerId: zod.string(),
+  ok: zod.boolean(),
+  serverVersion: zod.string().optional(),
 });
 
 /**
@@ -124,8 +133,12 @@ export const listMCPServerToolsResponse = zod.object({
   items: zod
     .array(
       zod.object({
-        id: zod.string().optional(),
-        name: zod.string().optional(),
+        argSchema: zod.string().optional(),
+        dangerous: zod.boolean().optional(),
+        description: zod.string().optional(),
+        enabled: zod.boolean().optional(),
+        id: zod.string(),
+        name: zod.string(),
       }),
     )
     .optional(),
