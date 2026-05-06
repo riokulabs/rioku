@@ -357,6 +357,11 @@ type AuthConfig struct {
 	RateLimit      RateLimitConfig `yaml:"rate_limit"`
 	CORS           CORSConfig      `yaml:"cors"`
 	SMTP           SMTPConfig      `yaml:"smtp"`
+	// PublicURL is the externally reachable base URL of the admin panel,
+	// used when constructing password-reset and invite-accept links in
+	// outbound emails. Example: "https://admin.example.com"
+	// Defaults to "http://localhost:7778" when empty.
+	PublicURL string `yaml:"public_url"`
 }
 
 // RateLimitConfig defines per-endpoint or global request rate limiting.

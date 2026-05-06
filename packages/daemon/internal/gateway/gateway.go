@@ -130,6 +130,16 @@ func NewGateway(
 	// Bootstrap routes — GET /bootstrap-status + POST /bootstrap (unauthenticated).
 	RegisterBootstrapRoutes(topMux, st, sm, cfg)
 
+	// Password reset routes — request/validate/apply (unauthenticated).
+	// BaseURL for reset links defaults to the configured public URL; callers
+	// that know the real public URL should override via NewGateway options in
+	// a future refactor. For now a sensible localhost default is used.
+	resetBaseURL := cfg.Auth.PublicURL
+	if resetBaseURL == "" {
+		resetBaseURL = "http://localhost:7778"
+	}
+	RegisterPasswordResetRoutes(topMux, st, auth.NewNopMailer(), cfg, resetBaseURL)
+
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
 

@@ -249,6 +249,17 @@ type Tx interface {
 	UpdateUser(ctx context.Context, u *User) (*User, error)
 	DeleteUser(ctx context.Context, id string) error
 
+	// --- Password Reset Tokens ---
+
+	// CreatePasswordResetToken stores a hashed token for the given user
+	// that expires at expiresAt. The raw token is never stored.
+	CreatePasswordResetToken(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error
+	// GetPasswordResetToken returns the token row for a given hash.
+	// Returns sql.ErrNoRows when not found.
+	GetPasswordResetToken(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	// ConsumePasswordResetToken marks the token as consumed (sets consumed_at).
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) error
+
 	// IncrementFailedAttempts increments failed_attempts and optionally sets
 	// locked_until + status='locked' if threshold is reached.
 	IncrementFailedAttempts(ctx context.Context, userID string, lockUntil *time.Time) error
@@ -817,6 +828,16 @@ type UpdateTenantParams struct {
 	Accent             *string
 	LogoURL            *string
 	DefaultDashboardID *string
+}
+
+// PasswordResetToken represents a single-use token for password reset.
+// The raw token is never stored; only its SHA-256 hex hash is persisted.
+type PasswordResetToken struct {
+	TokenHash  string
+	UserID     string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
 }
 
 // Membership ties a User to a Tenant with a state machine
