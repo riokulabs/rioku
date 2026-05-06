@@ -535,7 +535,9 @@ func TestTxStubsReturnNotImplemented(t *testing.T) {
 	}{
 		{"GetUser", func() error { _, err := tx.GetUser(ctx, "x"); return err }},
 		{"GetUserByUsername", func() error { _, err := tx.GetUserByUsername(ctx, "x"); return err }},
+		{"GetUserByEmail", func() error { _, err := tx.GetUserByEmail(ctx, "x"); return err }},
 		{"ListUsers", func() error { _, err := tx.ListUsers(ctx); return err }},
+		{"CountUsers", func() error { _, err := tx.CountUsers(ctx); return err }},
 		{"UpdateUser", func() error { _, err := tx.UpdateUser(ctx, &store.User{}); return err }},
 		{"DeleteUser", func() error { return tx.DeleteUser(ctx, "x") }},
 		{"IncrementFailedAttempts", func() error { return tx.IncrementFailedAttempts(ctx, "x", &now) }},

@@ -127,6 +127,9 @@ func NewGateway(
 	// Auth routes (unauthenticated).
 	RegisterAuthRoutes(topMux, a, sm, st, cfg, enc)
 
+	// Bootstrap routes — GET /bootstrap-status + POST /bootstrap (unauthenticated).
+	RegisterBootstrapRoutes(topMux, st, sm, cfg)
+
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
 

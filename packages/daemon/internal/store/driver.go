@@ -239,6 +239,13 @@ type Tx interface {
 	GetUser(ctx context.Context, id string) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	ListUsers(ctx context.Context) ([]*User, error)
+	// CountUsers returns the total number of users in the store.
+	// Used by the bootstrap-status endpoint to determine if any admin
+	// account exists.
+	CountUsers(ctx context.Context) (int, error)
+	// GetUserByEmail looks up a user by email address (case-insensitive).
+	// Returns sql.ErrNoRows when not found.
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, u *User) (*User, error)
 	DeleteUser(ctx context.Context, id string) error
 

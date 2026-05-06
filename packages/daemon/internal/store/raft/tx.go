@@ -910,8 +910,16 @@ func (t *raftTx) GetUserByUsername(_ context.Context, _ string) (*store.User, er
 	return nil, fmt.Errorf("raft: GetUserByUsername not implemented")
 }
 
+func (t *raftTx) GetUserByEmail(_ context.Context, _ string) (*store.User, error) {
+	return nil, fmt.Errorf("raft: GetUserByEmail not implemented")
+}
+
 func (t *raftTx) ListUsers(_ context.Context) ([]*store.User, error) {
 	return nil, fmt.Errorf("raft: ListUsers not implemented")
+}
+
+func (t *raftTx) CountUsers(_ context.Context) (int, error) {
+	return 0, fmt.Errorf("raft: CountUsers not implemented")
 }
 
 func (t *raftTx) UpdateUser(_ context.Context, _ *store.User) (*store.User, error) {
