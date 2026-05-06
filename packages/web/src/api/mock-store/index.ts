@@ -32,9 +32,7 @@ export * from './notification-routing';
 export * from './notification-log';
 // Plan 07 (settings)
 export * from './settings';
-// Plan 08 (dashboards)
-export * from './dashboards';
-export * from './widgets';
+// Plan 08 (dashboards) feature slices retired — store lives in _internal.ts
 // Plan 09 (plugins)
 export * from './plugins';
 export * from './plugin-signers';
