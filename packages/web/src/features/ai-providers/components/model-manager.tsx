@@ -23,11 +23,11 @@ import { useDisclosure } from '@mantine/hooks';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import { addModel, removeModel, updateModel, useProviderDetail } from '../api';
+import { useAddModel, useRemoveModel, useUpdateModel, useProviderDetail } from '../api';
 import { addModelSchema } from '../schemas';
-import { ProviderModelInUseError } from '../types';
 
 interface ModelManagerProps {
+  tenant: string;
   providerId: string;
 }
 
@@ -47,10 +47,12 @@ const EMPTY_FORM: AddModelFormValues = {
   enabled: true,
 };
 
-export function ModelManager({ providerId }: ModelManagerProps) {
-  const provider = useProviderDetail(providerId);
+export function ModelManager({ tenant, providerId }: ModelManagerProps) {
+  const provider = useProviderDetail(tenant, providerId);
+  const addModelMut = useAddModel(tenant);
+  const updateModelMut = useUpdateModel(tenant);
+  const removeModelMut = useRemoveModel(tenant);
   const [formOpened, { toggle: toggleForm, close: closeForm }] = useDisclosure(false);
-  const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<AddModelFormValues>({
@@ -67,15 +69,17 @@ export function ModelManager({ providerId }: ModelManagerProps) {
   }
 
   async function handleAddModel(values: AddModelFormValues) {
-    setSubmitting(true);
     setFormError(null);
     try {
-      await addModel(providerId, {
-        upstream_id: values.upstream_id.trim(),
-        alias: values.alias.trim(),
-        rate_limit_rpm: values.rate_limit_rpm,
-        daily_quota_tokens: values.daily_quota_tokens,
-        enabled: values.enabled,
+      await addModelMut.mutateAsync({
+        providerId,
+        model: {
+          upstream_id: values.upstream_id.trim(),
+          alias: values.alias.trim(),
+          rate_limit_rpm: values.rate_limit_rpm,
+          daily_quota_tokens: values.daily_quota_tokens,
+          enabled: values.enabled,
+        },
       });
       notify.success('Model added', `${values.alias} is available.`);
       form.setValues(EMPTY_FORM);
@@ -84,14 +88,12 @@ export function ModelManager({ providerId }: ModelManagerProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to add model';
       setFormError(msg);
-    } finally {
-      setSubmitting(false);
     }
   }
 
   async function handleToggle(upstreamId: string, enabled: boolean) {
     try {
-      await updateModel(providerId, upstreamId, { enabled });
+      await updateModelMut.mutateAsync({ providerId, upstreamId, patch: { enabled } });
     } catch {
       notify.error('Failed to update model', 'Please try again.');
     }
@@ -99,17 +101,10 @@ export function ModelManager({ providerId }: ModelManagerProps) {
 
   async function handleRemove(upstreamId: string, alias: string) {
     try {
-      await removeModel(providerId, upstreamId);
+      await removeModelMut.mutateAsync({ providerId, upstreamId });
       notify.success('Model removed', `${alias} was removed.`);
-    } catch (err) {
-      if (err instanceof ProviderModelInUseError) {
-        notify.error(
-          'Cannot remove — in use',
-          `${String(err.agentIds.length)} agent(s) still use this alias.`,
-        );
-      } else {
-        notify.error('Failed to remove model', 'Please try again.');
-      }
+    } catch {
+      notify.error('Failed to remove model', 'Please try again.');
     }
   }
 
@@ -256,7 +251,7 @@ export function ModelManager({ providerId }: ModelManagerProps) {
               >
                 Cancel
               </Button>
-              <Button size="xs" type="submit" loading={submitting}>
+              <Button size="xs" type="submit" loading={addModelMut.isPending}>
                 Add model
               </Button>
             </Group>

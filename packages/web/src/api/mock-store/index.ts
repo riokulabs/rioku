@@ -15,8 +15,7 @@ export * from './services';
 export * from './routes';
 export * from './middlewares';
 export * from './sites';
-// Plan 04 (ai)
-export * from './ai-providers';
+// Plan 04 (ai) — ai-providers wired to real daemon (stub deleted)
 export * from './ai-agents';
 export * from './ai-tools';
 export * from './ai-tool-bindings';

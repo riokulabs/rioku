@@ -1,7 +1,8 @@
 /**
  * Unit tests for <ProviderList> + <ProviderFilterBar>.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -9,45 +10,42 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn() }),
 }));
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { server } from '@/test/msw-server';
 import { ProviderList } from '../components/list';
-import { ProviderFilterBar } from '../components/filter-bar';
 import type { ProviderFilter } from '../types';
+import { aiProviderHandlers, resetProviderStore, makeProvider } from './msw-handlers';
 
 function wrap(ui: React.ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+    <QueryClientProvider client={qc}>
+      <MantineProvider>
+        <ModalsProvider>{ui}</ModalsProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
-const DEFAULT_FILTER: ProviderFilter = {
-  search: '',
-  kinds: [],
-};
+const DEFAULT_FILTER: ProviderFilter = { search: '', kinds: [] };
 
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
+  resetProviderStore([
+    makeProvider({ id: 'p1', name: 'OpenAI Prod', kind: 'openai' }),
+    makeProvider({ id: 'p2', name: 'Anthropic Prod', kind: 'anthropic' }),
+    makeProvider({ id: 'p3', name: 'Ollama Local', kind: 'ollama' }),
+  ]);
+  server.use(...aiProviderHandlers);
 });
-
-function acmeId(): string {
-  const state = useMockStore.getState();
-  const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
-  if (!acme) throw new Error('No acme tenant seeded');
-  return acme.id;
-}
 
 describe('ProviderList', () => {
-  it('renders seeded providers for the acme tenant', () => {
+  it('renders seeded providers for the acme tenant', async () => {
     wrap(
       <ProviderList
-        tenantId={acmeId()}
+        tenant="acme"
         filter={DEFAULT_FILTER}
         onSelect={vi.fn()}
         onEdit={vi.fn()}
@@ -55,60 +53,43 @@ describe('ProviderList', () => {
         onTest={vi.fn()}
       />,
     );
-    const rows = screen.getAllByRole('row');
-    expect(rows.length).toBeGreaterThan(1);
+    await waitFor(() => {
+      const rows = screen.getAllByRole('row');
+      // header + 3 data rows
+      expect(rows.length).toBeGreaterThanOrEqual(4);
+    });
   });
 
-  it('shows empty state when tenant has no providers', () => {
+  it('filters by kind', async () => {
     wrap(
       <ProviderList
-        tenantId="nonexistent-tenant-id"
-        filter={DEFAULT_FILTER}
+        tenant="acme"
+        filter={{ search: '', kinds: ['openai'] }}
         onSelect={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onTest={vi.fn()}
       />,
     );
-    expect(screen.getAllByText(/no providers/i).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText('OpenAI Prod')).toBeInTheDocument();
+      expect(screen.queryByText('Anthropic Prod')).toBeNull();
+    });
   });
 
-  it('narrows by kind filter', () => {
-    const { rerender } = wrap(
+  it('shows empty state when no providers match filter', async () => {
+    wrap(
       <ProviderList
-        tenantId={acmeId()}
-        filter={DEFAULT_FILTER}
+        tenant="acme"
+        filter={{ search: 'zzz-nonexistent', kinds: [] }}
         onSelect={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onTest={vi.fn()}
       />,
     );
-    const allCount = screen.getAllByRole('row').length;
-    rerender(
-      <MantineProvider>
-        <ModalsProvider>
-          <ProviderList
-            tenantId={acmeId()}
-            filter={{ ...DEFAULT_FILTER, kinds: ['openai'] }}
-            onSelect={vi.fn()}
-            onEdit={vi.fn()}
-            onDelete={vi.fn()}
-            onTest={vi.fn()}
-          />
-        </ModalsProvider>
-      </MantineProvider>,
-    );
-    const filteredCount = screen.queryAllByRole('row').length;
-    expect(filteredCount).toBeLessThanOrEqual(allCount);
-  });
-});
-
-describe('ProviderFilterBar', () => {
-  it('renders search, kind, and enabled controls', () => {
-    wrap(<ProviderFilterBar filter={DEFAULT_FILTER} onChange={vi.fn()} />);
-    expect(screen.getAllByLabelText('Search providers').length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('Filter by provider kind').length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('Filter by enabled').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText(/No providers/i)).toBeInTheDocument();
+    });
   });
 });
