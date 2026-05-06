@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help worktree-add worktree-rm worktree-rebase worktree-doctor
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -501,3 +501,23 @@ sandbox-rich: sandbox sandbox-seedgen
 .PHONY: sandbox-postgres
 sandbox-postgres:
 	cd sandbox && podman-compose --profile postgres --env-file .env.example up -d
+
+## worktree-add: create a new stage-2 plan worktree off origin/stage2/main
+.PHONY: worktree-add
+worktree-add:
+	./scripts/worktree-add.sh
+
+## worktree-rm: remove a worktree (archives decisions-needed.md to tmp/)
+.PHONY: worktree-rm
+worktree-rm:
+	./scripts/worktree-rm.sh
+
+## worktree-rebase: rebase all open plan worktrees onto origin/stage2/main
+.PHONY: worktree-rebase
+worktree-rebase:
+	./scripts/worktree-rebase.sh
+
+## worktree-doctor: full health check for the current worktree
+.PHONY: worktree-doctor
+worktree-doctor:
+	./scripts/worktree-doctor.sh
