@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help worktree-add worktree-rm worktree-rebase worktree-doctor
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help worktree-add worktree-rm worktree-rebase worktree-doctor pre-push-verify
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -521,3 +521,18 @@ worktree-rebase:
 .PHONY: worktree-doctor
 worktree-doctor:
 	./scripts/worktree-doctor.sh
+
+## pre-push-verify: scan unpushed commits for forbidden phrases / shape per §13.3
+.PHONY: pre-push-verify
+pre-push-verify:
+	@if git log --format="%s" origin/stage2/main..HEAD 2>/dev/null | grep -ivE '^(feat|fix|chore|docs|test|refactor|perf|ci|build|revert|style)(\([a-z0-9_/-]+\))?!?: .+' | grep -v '^Merge\|^Revert\|^fixup!\|^squash!' >/dev/null 2>&1; then \
+	  echo "non-Conventional-Commits messages in this branch's commit history:"; \
+	  git log --format="%s" origin/stage2/main..HEAD | grep -ivE '^(feat|fix|chore|docs|test|refactor|perf|ci|build|revert|style)(\([a-z0-9_/-]+\))?!?: .+' | grep -v '^Merge\|^Revert\|^fixup!\|^squash!' || true; \
+	  exit 1; \
+	fi
+	@if git log --format="%B" origin/stage2/main..HEAD 2>/dev/null | grep -iE '(^claude\b|^anthropic\b|copilot|^wip\b|^oops\b|^fix typo)' >/dev/null 2>&1; then \
+	  echo "forbidden phrases found in commit history:"; \
+	  git log --format="%B" origin/stage2/main..HEAD | grep -iE '(^claude\b|^anthropic\b|copilot|^wip\b|^oops\b|^fix typo)' || true; \
+	  exit 1; \
+	fi
+	@echo "pre-push-verify OK"
