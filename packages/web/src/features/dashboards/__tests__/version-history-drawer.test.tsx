@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <VersionHistoryDrawer> tests — list render, selection, diff, restore flow.
  */

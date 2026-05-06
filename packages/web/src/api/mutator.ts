@@ -84,10 +84,58 @@ async function parseError(res: Response): Promise<ApiError> {
     : new ApiError(message, { status: res.status });
 }
 
-export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
+/**
+ * customFetch accepts two call shapes:
+ *   1. Project-internal: `customFetch({url, method, data, signal, params})`
+ *      — used by hand-written feature code (`features/<x>/api.ts`).
+ *   2. Orval-generated: `customFetch(url, RequestInit)` — used by the
+ *      generated clients in `src/api/generated/` (Plan 08 onward).
+ *
+ * The two are identical at the wire level. The function normalises
+ * shape (2) into shape (1) before continuing. Generated `RequestInit`
+ * carries `method`, optional `headers`, optional `body`, and optional
+ * `signal`; we extract those into `CustomFetchArgs` semantics.
+ */
+export async function customFetch<T>(
+  argsOrUrl: CustomFetchArgs | string,
+  init?: RequestInit,
+): Promise<T> {
+  let args: CustomFetchArgs;
+  if (typeof argsOrUrl === 'string') {
+    let parsedData: unknown;
+    if (init?.body !== undefined && init.body !== null) {
+      if (typeof init.body === 'string') {
+        try {
+          parsedData = JSON.parse(init.body);
+        } catch {
+          parsedData = init.body;
+        }
+      } else {
+        parsedData = init.body;
+      }
+    }
+    args = {
+      url: argsOrUrl,
+      method: init?.method ?? 'GET',
+      ...(parsedData !== undefined ? { data: parsedData } : {}),
+      ...(init?.signal ? { signal: init.signal } : {}),
+    };
+  } else {
+    args = argsOrUrl;
+  }
   const { url, method, data, signal, params } = args;
 
-  let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
+  // Project-internal callers pass relative paths (e.g. `/services`) and rely
+  // on `BASE` to prepend `/api/v1`. Orval-generated callers pass absolute
+  // paths (e.g. `/api/v1/t/{tenant}/dashboards`) — these must NOT be
+  // double-prefixed. Detect either an absolute URL or one already rooted
+  // at `/api/` and skip the prefix in those cases.
+  let fullUrl: string;
+  if (url.startsWith('http') || url.startsWith('/api/')) {
+    fullUrl = url;
+  } else {
+    fullUrl = `${BASE}${url}`;
+  }
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
