@@ -13,10 +13,10 @@
  * ISO strings. Selected row id is also carried so back/forward restore the
  * open drawer.
  *
- * Live-tail uses the Plan 3d trace-store pattern — the mock SSE bus
- * dispatches `AuditEntry` events which `publishAudit` emits alongside
- * `appendAudit`. The Zustand selector picks up new rows automatically;
- * the `useAuditStream` hook is used only to bump the "+N" badge counter.
+ * Live-tail uses `useAuditStream` which subscribes to the real SSE stream
+ * at `/api/v1/t/:tenant/audit/stream`. The `onEntry` callback is used only
+ * to bump the "+N" badge counter — the list re-renders via query
+ * invalidation / Zustand subscription when new rows arrive.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';

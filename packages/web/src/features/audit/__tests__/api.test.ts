@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
- * Tests for the audit API layer — list selectors, streaming bus,
- * async-search, export (CSV + JSONL), retention CRUD, and
- * permission-aware redaction.
+ * Tests for the audit API layer — list selectors, async-search,
+ * export (CSV + JSONL), retention CRUD, and permission-aware redaction.
+ *
+ * Stage 2: `subscribeAuditStream` removed (SSE wired via `subscribeSSE`
+ * in streaming-tail.tsx, tested in streaming-tail.test.tsx).
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import { publishAudit } from '@/api/audit-stream-bus';
 import {
   decodeActorHandle,
   decodeResourceHandle,
@@ -18,7 +19,6 @@ import {
   exportAuditJsonl,
   searchActors,
   searchResourceIds,
-  subscribeAuditStream,
   updateRetentionConfig,
   useAuditDetail,
   useAuditList,
@@ -227,81 +227,8 @@ describe('useAuditListInfinite', () => {
   });
 });
 
-describe('subscribeAuditStream', () => {
-  it('fires when publishAudit is called for the tenant', () => {
-    const tenantId = tenantIdBySlug('acme');
-    const received: AuditEntry[] = [];
-    const unsub = subscribeAuditStream(tenantId, (e) => received.push(e));
-    try {
-      const entry: AuditEntry = {
-        id: 'audit-stream-1',
-        tenant_id: tenantId,
-        actor_id: 'u-1',
-        action: 'user.login',
-        resource_type: 'user',
-        outcome: 'success',
-        at: new Date().toISOString(),
-        tier: 'read',
-      };
-      publishAudit(entry);
-      expect(received).toHaveLength(1);
-      expect(received[0]!.id).toBe('audit-stream-1');
-    } finally {
-      unsub();
-    }
-  });
-
-  it('ignores entries for other tenants', () => {
-    const tenantId = tenantIdBySlug('acme');
-    const received: AuditEntry[] = [];
-    const unsub = subscribeAuditStream(tenantId, (e) => received.push(e));
-    try {
-      publishAudit({
-        id: 'audit-other',
-        tenant_id: tenantIdBySlug('beta'),
-        actor_id: 'u-1',
-        action: 'user.login',
-        resource_type: 'user',
-        outcome: 'success',
-        at: new Date().toISOString(),
-        tier: 'read',
-      });
-      expect(received).toHaveLength(0);
-    } finally {
-      unsub();
-    }
-  });
-
-  it('returns an unsubscribe that stops future notifications', () => {
-    const tenantId = tenantIdBySlug('acme');
-    let n = 0;
-    const unsub = subscribeAuditStream(tenantId, () => {
-      n += 1;
-    });
-    publishAudit({
-      id: 'a1',
-      tenant_id: tenantId,
-      actor_id: 'u',
-      action: 'user.login',
-      resource_type: 'user',
-      outcome: 'success',
-      at: new Date().toISOString(),
-      tier: 'read',
-    });
-    unsub();
-    publishAudit({
-      id: 'a2',
-      tenant_id: tenantId,
-      actor_id: 'u',
-      action: 'user.login',
-      resource_type: 'user',
-      outcome: 'success',
-      at: new Date().toISOString(),
-      tier: 'read',
-    });
-    expect(n).toBe(1);
-  });
-});
+// NOTE: `subscribeAuditStream` (mock EventTarget bus) was removed in Stage 2.
+// The SSE live-tail is tested via streaming-tail.test.tsx which mocks EventSource.
 
 describe('exportAuditCsv', () => {
   it('emits a Blob with the canonical header', async () => {

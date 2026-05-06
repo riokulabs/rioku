@@ -1,10 +1,10 @@
 /**
- * Audit API layer — read-only list + streaming tail + async-search +
- * export + retention-config CRUD.
+ * Audit API layer — read-only list + async-search + export +
+ * retention-config CRUD.
  *
- * Backed by the Zustand mock store and the module-level audit-stream bus.
- * Exports are shaped like Plan 3d's trace API so the in-browser UX can
- * swap in a real daemon-backed implementation with minimal churn.
+ * Backed by the Zustand mock store. The SSE live-tail is handled
+ * by `useAuditStream` in `components/streaming-tail.tsx` via the
+ * real `subscribeSSE` client (Stage 2+).
  *
  * Opaque-handle convention (§13.2a):
  *   actor:        user_<user_id>
@@ -12,7 +12,6 @@
  */
 import { useMemo, useState, useCallback } from 'react';
 import { useMockStore } from '@/api/mock-store';
-import { AUDIT_STREAM_TOPIC, auditStreamBus, publishAudit } from '@/api/audit-stream-bus';
 import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
@@ -23,7 +22,6 @@ import type {
   AsyncSearchPage,
   AuditFilter,
   AuditListInfiniteResult,
-  AuditStreamListener,
   ResourceIdCandidate,
   UpdateRetentionConfigInput,
 } from './types';
@@ -206,26 +204,6 @@ export function useAuditListInfinite(
 export function useAuditDetail(entryId: string): AuditEntry | undefined {
   const audit = useMockStore((s) => s.audit);
   return useMemo(() => audit.find((e) => e.id === entryId), [audit, entryId]);
-}
-
-// ─── Streaming tail ──────────────────────────────────────────────────────────
-
-/**
- * Subscribe to newly-emitted audit entries for the given tenant. Fires
- * `onEntry` for each `publishAudit` call whose entry's `tenant_id`
- * matches (including the `null` super-admin case when `tenantId === null`).
- * Returns an unsubscribe function.
- */
-export function subscribeAuditStream(tenantId: string, onEntry: AuditStreamListener): () => void {
-  const handler = (e: Event): void => {
-    const detail = (e as CustomEvent<AuditEntry>).detail;
-    if (detail.tenant_id !== tenantId) return;
-    onEntry(detail);
-  };
-  auditStreamBus.addEventListener(AUDIT_STREAM_TOPIC, handler);
-  return () => {
-    auditStreamBus.removeEventListener(AUDIT_STREAM_TOPIC, handler);
-  };
 }
 
 // ─── Export ──────────────────────────────────────────────────────────────────
@@ -456,7 +434,6 @@ export async function updateRetentionConfig(
     diff: prev ? { before: prev, after: next } : { before: null, after: next },
   };
   state.appendAudit(entry);
-  publishAudit(entry);
 
   emitHostEvent('audit.retention.updated', {
     tenant_id: tenantId,

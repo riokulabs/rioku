@@ -23,8 +23,7 @@ export * from './ai-tool-bindings';
 export * from './ai-rate-limits';
 export * from './ai-traces';
 export * from './ai-mcp-servers';
-// Plan 05 (audit)
-export * from './audit';
+// Plan 05 (audit) — stub retired; audit slice lives in _internal.ts
 // Plan 06 (notifications)
 export * from './notifications';
 export * from './notification-channels';
