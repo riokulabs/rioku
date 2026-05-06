@@ -46,6 +46,13 @@ export interface Tenant {
   plan: 'community' | 'pro' | 'enterprise';
   /** URL-addressing mode. `path` = `/t/<slug>/...`, `subdomain` = `<slug>.example.com`. */
   url_mode: 'path' | 'subdomain';
+  /**
+   * Parent domain used when url_mode=subdomain. Daemon issues session cookies
+   * with Domain=<parent_domain> so subdomains can share sessions.
+   * E.g. 'localhost' → cookies scoped to *.localhost.
+   * Optional — defaults to 'localhost' in dev / daemon host in prod.
+   */
+  parent_domain?: string;
   /** Name of the registered theme (matches RegisteredTheme.name from @/theme). Optional — fallback is the system default. */
   default_theme?: string;
   /** URL or data URI of tenant logo. Empty string = cleared (same sentinel as avatar). */
