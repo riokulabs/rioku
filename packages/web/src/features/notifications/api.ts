@@ -41,7 +41,7 @@ const nextNotifId = makeIdFactory('notif-emit');
  */
 export function resolveTenant(): string {
   if (typeof window !== 'undefined') {
-    const m = window.location.pathname.match(/^\/t\/([^/]+)/);
+    const m = /^\/t\/([^/]+)/.exec(window.location.pathname);
     if (m?.[1]) return m[1];
   }
   return '';
@@ -109,10 +109,10 @@ export const notificationKeys = {
 function buildParams(filter: InboxFilter): Record<string, string> {
   const p: Record<string, string> = {};
   // Single-value filters pushed to server; multi-value done client-side.
-  if (filter.categories.length === 1) p['category'] = filter.categories[0]!;
-  if (filter.severities.length === 1) p['severity'] = filter.severities[0]!;
-  if (filter.unreadOnly) p['read'] = 'false';
-  if (!filter.includeArchived) p['archived'] = 'false';
+  if (filter.categories.length === 1) p.category = filter.categories[0] ?? '';
+  if (filter.severities.length === 1) p.severity = filter.severities[0] ?? '';
+  if (filter.unreadOnly) p.read = 'false';
+  if (!filter.includeArchived) p.archived = 'false';
   return p;
 }
 
@@ -224,7 +224,9 @@ export function useNotificationListInfinite(
   const [pages, setPages] = useState(1);
   const currentSlice = useMemo(() => full.slice(0, pages * pageSize), [full, pages, pageSize]);
   const hasNextPage = currentSlice.length < full.length;
-  const fetchNextPage = useCallback(() => setPages((p) => p + 1), []);
+  const fetchNextPage = useCallback(() => {
+    setPages((p) => p + 1);
+  }, []);
   return { data: currentSlice, fetchNextPage, hasNextPage, isFetching: false };
 }
 
@@ -336,7 +338,11 @@ export function subscribeInboxStream(
   const tenant = tenantOrUserId.startsWith('user-')
     ? resolveTenant()
     : tenantOrUserId;
-  if (!tenant) return () => {};
+  if (!tenant) {
+    return () => {
+      /* no-op: no tenant in URL, nothing to unsubscribe */
+    };
+  }
   const topic = `t/${tenant}/notifications/stream`;
   return subscribeSSE(topic, (detail) => {
     // The legacy InboxStreamListener expected a NotificationItem; SSE now
@@ -363,7 +369,7 @@ export function useInboxStream(
     if (!tenant) return;
     const unsub = subscribeInboxStream(tenant, (delta: NotificationStreamDelta) => {
       void qc.invalidateQueries({ queryKey: notificationKeys.all(tenant) });
-      onDelta?.(delta as NotificationStreamDelta);
+      onDelta?.(delta);
     });
     return unsub;
   }, [tenant, qc, onDelta]);

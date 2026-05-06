@@ -52,7 +52,6 @@ vi.mock('@/api/sse-client', () => ({
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { InboxDropdown } from '../components/inbox-dropdown';
-import type { ID } from '@/api/resources';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -166,7 +165,7 @@ afterEach(() => {
 describe('<InboxDropdown>', () => {
   it('renders grouped notifications per category', async () => {
     useAllItems();
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
 
     await waitFor(() => {
@@ -188,7 +187,7 @@ describe('<InboxDropdown>', () => {
 
   it('category filter chip narrows the list to the selected bucket', async () => {
     useAllItems();
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
 
     await waitFor(() => {
@@ -223,7 +222,7 @@ describe('<InboxDropdown>', () => {
       }),
     );
 
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
 
     await waitFor(() => {
@@ -258,7 +257,7 @@ describe('<InboxDropdown>', () => {
       ),
     );
 
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     const qc = makeQueryClient();
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />, qc);
 
@@ -275,7 +274,7 @@ describe('<InboxDropdown>', () => {
 
   it('renders empty state when no notifications match', async () => {
     useNoItems();
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
 
     await waitFor(() => {
@@ -286,7 +285,7 @@ describe('<InboxDropdown>', () => {
   it('subscribes to SSE stream via subscribeInboxStream', async () => {
     const { subscribeSSE } = await import('@/api/sse-client');
     useNoItems();
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />);
 
     await waitFor(() => {
@@ -303,7 +302,7 @@ describe('<InboxDropdown>', () => {
   it('renders new notification when list refetches after SSE event', async () => {
     // Start empty
     useNoItems();
-    const userId = useMockStore.getState().currentUserId as ID;
+    const userId = useMockStore.getState().currentUserId!;
     const qc = makeQueryClient();
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />, qc);
 

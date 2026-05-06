@@ -72,12 +72,10 @@ function emptyFilter(): InboxFilter {
 
 const TENANT = 'acme';
 
-// Seed the URL so resolveTenant() finds /t/acme/.
+// Seed the URL so resolveTenant() finds /t/acme/. Set pathname only so that
+// jsdom retains the default `origin` and fetch can resolve relative URLs.
 function setTenantUrl() {
-  Object.defineProperty(window, 'location', {
-    value: { pathname: `/t/${TENANT}/notifications` },
-    writable: true,
-  });
+  window.history.replaceState(null, '', `/t/${TENANT}/notifications`);
 }
 
 const ITEM_A = {
@@ -293,10 +291,7 @@ describe('markRead', () => {
   });
 
   it('returns undefined when tenant cannot be resolved', async () => {
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/' },
-      writable: true,
-    });
+    window.history.replaceState(null, '', '/');
     const result = await markRead('notif-0001');
     expect(result).toBeUndefined();
     setTenantUrl();
