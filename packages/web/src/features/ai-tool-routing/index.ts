@@ -9,6 +9,8 @@ export {
   deleteBinding,
   bulkAttachToolsToAgent,
   previewCondition,
+  useInvalidateBindings,
+  bindingKeys,
 } from './api';
 
 export { createBindingSchema, updateBindingSchema } from './schemas';
@@ -25,4 +27,10 @@ export { BindingList } from './components/list';
 export { BindingFilterBar } from './components/filter-bar';
 export { BindingForm } from './components/form';
 export { BindingDetail } from './components/detail';
+export { BindingDrawer } from './components/drawer';
+export { BindingFullPage } from './components/full-page';
+export { BulkAttachModal } from './components/bulk-attach';
 export { MatrixView } from './components/matrix-view';
+
+export { useAgentRefs, useToolRefs } from './refs';
+export type { AgentRef, ToolRef } from './refs';

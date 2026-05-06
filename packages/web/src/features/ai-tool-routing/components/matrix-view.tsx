@@ -12,14 +12,15 @@
 import { useMemo } from 'react';
 import { ActionIcon, Alert, Table, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
-import type { AiAgent, AiTool, AiToolBinding } from '@/api/resources';
+import type { AiToolBinding } from '@/api/resources';
+import { useBindingList } from '../api';
+import { useAgentRefs, useToolRefs, type AgentRef, type ToolRef } from '../refs';
 import type { BindingFilter } from '../types';
 
 interface MatrixViewProps {
   tenantId: string;
   filter: BindingFilter;
-  onCellClick: (args: { agent: AiAgent; tool: AiTool; binding?: AiToolBinding }) => void;
+  onCellClick: (args: { agent: AgentRef; tool: ToolRef; binding?: AiToolBinding }) => void;
 }
 
 const MAX_AGENTS = 50;
@@ -40,25 +41,19 @@ function dotColor(binding: AiToolBinding | undefined): { bg: string; label: stri
 }
 
 export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
-  const agentsRec = useMockStore((s) => s.aiAgents);
-  const toolsRec = useMockStore((s) => s.aiTools);
-  const bindingsRec = useMockStore((s) => s.aiToolBindings);
+  const { list: agentList } = useAgentRefs(tenantId);
+  const { list: toolList } = useToolRefs(tenantId);
+  const bindings = useBindingList(tenantId, filter);
 
   const allAgents = useMemo(() => {
-    const out = Object.values(agentsRec).filter((a) => a.tenant_id === tenantId);
-    if (filter.agent_ids.length > 0) {
-      return out.filter((a) => filter.agent_ids.includes(a.id));
-    }
-    return out;
-  }, [agentsRec, tenantId, filter.agent_ids]);
+    if (filter.agent_ids.length === 0) return agentList;
+    return agentList.filter((a) => filter.agent_ids.includes(a.id));
+  }, [agentList, filter.agent_ids]);
 
   const allTools = useMemo(() => {
-    const out = Object.values(toolsRec).filter((t) => t.tenant_id === tenantId);
-    if (filter.tool_ids.length > 0) {
-      return out.filter((t) => filter.tool_ids.includes(t.id));
-    }
-    return out;
-  }, [toolsRec, tenantId, filter.tool_ids]);
+    if (filter.tool_ids.length === 0) return toolList;
+    return toolList.filter((t) => filter.tool_ids.includes(t.id));
+  }, [toolList, filter.tool_ids]);
 
   const agents = allAgents.slice(0, MAX_AGENTS);
   const tools = allTools.slice(0, MAX_TOOLS);
@@ -66,19 +61,11 @@ export function MatrixView({ tenantId, filter, onCellClick }: MatrixViewProps) {
   /** bindings keyed by `${agent_id}::${tool_id}`. */
   const bindingByKey = useMemo(() => {
     const m = new Map<string, AiToolBinding>();
-    for (const b of Object.values(bindingsRec)) {
-      if (b.tenant_id !== tenantId) continue;
-      // Apply the same condition/enabled filters used by the list view so the
-      // visible dots match the list's filter output.
-      if (filter.enabled !== undefined && b.enabled !== filter.enabled) continue;
-      if (filter.has_condition !== undefined) {
-        const has = b.condition.trim().length > 0;
-        if (has !== filter.has_condition) continue;
-      }
+    for (const b of bindings) {
       m.set(`${b.agent_id}::${b.tool_id}`, b);
     }
     return m;
-  }, [bindingsRec, tenantId, filter.enabled, filter.has_condition]);
+  }, [bindings]);
 
   const capped = allAgents.length > MAX_AGENTS || allTools.length > MAX_TOOLS;
 

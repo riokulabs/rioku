@@ -3,7 +3,7 @@
  * and has-condition segmented control for BindingList / MatrixView.
  */
 import { Group, MultiSelect, SegmentedControl } from '@mantine/core';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentRefs, useToolRefs } from '../refs';
 import type { BindingFilter } from '../types';
 
 interface BindingFilterBarProps {
@@ -13,16 +13,11 @@ interface BindingFilterBarProps {
 }
 
 export function BindingFilterBar({ tenantId, filter, onChange }: BindingFilterBarProps) {
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
+  const { list: agents } = useAgentRefs(tenantId);
+  const { list: tools } = useToolRefs(tenantId);
 
-  const agentOptions = Object.values(agents)
-    .filter((a) => a.tenant_id === tenantId)
-    .map((a) => ({ value: a.id, label: a.name }));
-
-  const toolOptions = Object.values(tools)
-    .filter((t) => t.tenant_id === tenantId)
-    .map((t) => ({ value: t.id, label: t.name }));
+  const agentOptions = agents.map((a) => ({ value: a.id, label: a.name }));
+  const toolOptions = tools.map((t) => ({ value: t.id, label: t.name }));
 
   const enabledValue = filter.enabled === undefined ? 'all' : filter.enabled ? 'on' : 'off';
 
