@@ -84,8 +84,30 @@ async function parseError(res: Response): Promise<ApiError> {
     : new ApiError(message, { status: res.status });
 }
 
-export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
-  const { url, method, data, signal, params } = args;
+/**
+ * Supports two calling styles:
+ *   1. Object form (legacy): customFetch({ url, method, data, signal, params })
+ *      → returns the parsed body (T).
+ *   2. Fetch form (Orval-generated): customFetch(url, RequestInit)
+ *      → returns `{ data, status, headers }` so generated clients can read
+ *      response metadata.
+ */
+export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+export async function customFetch<T>(
+  url: string,
+  init: RequestInit,
+): Promise<{ data: T; status: number; headers: Headers }>;
+export async function customFetch<T>(
+  argsOrUrl: CustomFetchArgs | string,
+  maybeInit?: RequestInit,
+): Promise<unknown> {
+  // Form 2: (url, init) — used by Orval-generated clients.
+  if (typeof argsOrUrl === 'string') {
+    return _orvalFetch<T>(argsOrUrl, maybeInit ?? {});
+  }
+  // Form 1: object args — legacy in-feature callers.
+  const { url, method, data, signal, params } = argsOrUrl;
 
   let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
   if (params !== undefined && Object.keys(params).length > 0) {
@@ -134,4 +156,51 @@ export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
     }
   }
   return (await res.text()) as T;
+}
+
+/**
+ * Orval-style fetch: takes (url, RequestInit) and returns the response with
+ * data/status/headers. Used by generated clients in `src/api/generated/`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+async function _orvalFetch<T>(
+  url: string,
+  init: RequestInit,
+): Promise<{ data: T; status: number; headers: Headers }> {
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
+  const headers = new Headers(init.headers ?? {});
+  if (init.body !== undefined && init.body !== null && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+  let res: Response;
+  try {
+    res = await fetch(fullUrl, {
+      ...init,
+      headers,
+      credentials: init.credentials ?? 'include',
+    });
+  } catch (cause) {
+    throw new NetworkError({ cause });
+  }
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (err instanceof AuthFailureError) {
+      _authFailureHandler?.(window.location.pathname + window.location.search);
+    }
+    throw err;
+  }
+  let data: unknown = undefined;
+  if (res.status !== 204) {
+    const ct = res.headers.get('content-type');
+    if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
+      try {
+        data = await res.json();
+      } catch (cause) {
+        throw new ApiError('Failed to parse response JSON', { cause });
+      }
+    } else {
+      data = await res.text();
+    }
+  }
+  return { data: data as T, status: res.status, headers: res.headers };
 }

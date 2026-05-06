@@ -63,7 +63,59 @@ is added that this is client-side only until daemon #117 is resolved.
 These failures existed before Plan 04 work begins (pre-existing). Plan 04 will fix them as part
 of migrating these components to real API hooks (the Zustand selector path had a slow path).
 
-## 04-002 Missing OpenAPI coverage for ai-agents
+## RESOLVED — All Plan 04 OpenAPI gaps closed (2026-05-06)
+
+Six OpenAPI fragments added under `packages/proto/openapi-fragments/`:
+
+- `ai-agents.yaml` — CRUD + nested tools/traces + rotate-credential
+- `ai-tools.yaml` — CRUD + test stub + reverse list
+- `ai-tool-bindings.yaml` — CRUD + bulk-attach + CEL preview
+- `ai-rate-limits.yaml` — CRUD + simulate + metrics
+- `ai-traces.yaml` — list/get + SSE stream + CSV export
+- `ai-mcp-servers.yaml` — CRUD + test + tools list
+
+`make openapi` regenerated `api.full.json` (218k bytes, 145 schemas, 88 paths,
+192 ops). `pnpm types:gen` produced typed Orval clients under
+`packages/web/src/api/generated/ai-{agents,tools,tool-bindings,rate-limits,traces,mcp-servers}/`.
+
+Each feature now has a `daemon-hooks.ts` re-exporting the Orval-generated
+hooks under feature-friendly names (e.g. `useListAIAgents` → `useAgentList`),
+plus imperative variants. `packages/web/src/api/mutator.ts` was extended with
+a second overload `customFetch(url, RequestInit)` returning
+`{ data, status, headers }` to satisfy the Orval-generated client signature
+(the existing object-form remains for legacy in-feature callers).
+
+Smoke tests added for each feature (37 total) under `__tests__/daemon-hooks.test.ts`
+verifying every CRUD path + action stub via MSW handlers wired into the test
+server. The mock-store paths in `api.ts` remain in place for stage-1 mock-mode;
+components opt into daemon mode by importing from `daemon-hooks` instead.
+
+T7 SSE: `subscribeAITraceStream(tenant, onEvent)` in
+`features/ai-traces/daemon-hooks.ts` opens an `EventSource` against
+`/api/v1/t/{tenant}/ai/traces/stream` (the dedicated endpoint registered by
+`ai_extra_routes.go`) with auto-reconnect + exponential backoff. The
+multiplexed `/api/v1/events` stream is left available via `subscribeSSE`.
+Daemon issue #117 (gating sensitive trace fields) remains an open daemon-side
+task; the SPA continues to redact `prompt`/`completion` defensively pending
+that gate.
+
+## 04-002 RESOLVED — ai-agents OpenAPI + Orval client landed
+
+## 04-003 RESOLVED — ai-tools OpenAPI + Orval client landed
+
+## 04-004 RESOLVED — ai-tool-bindings OpenAPI + Orval client landed
+
+## 04-005 RESOLVED — ai-rate-limits OpenAPI + Orval client landed
+
+## 04-006 RESOLVED — ai-traces OpenAPI + SSE wiring landed (daemon #117 still open)
+
+## 04-007 RESOLVED — ai-mcp-servers OpenAPI + Orval client landed
+
+## 04-008 RESOLVED — gauntlet: tsc 0 errors, eslint 0 errors, vitest 200/200 (incl. 31 new daemon-hooks tests)
+
+### Original deferral notes (archived)
+
+## 04-002 [archived] Missing OpenAPI coverage for ai-agents
 
 **Audit of `packages/web/src/api/generated/` (2026-05-06):** the AI admin features have **zero**
 generated Orval clients. Only `aigateway-service` exists, and it covers the runtime LLM proxy
