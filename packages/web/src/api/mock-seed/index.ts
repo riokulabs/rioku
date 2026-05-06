@@ -38,7 +38,6 @@ export * from './widgets';
 // Plan 09 (plugins)
 export * from './plugins';
 export * from './plugin-signers';
-// Plan 10 (cluster)
-export * from './cluster';
+// Plan 10 (cluster) feature slice retired — seed lives in _internal.ts
 // Plan 11 (super-admin)
 export * from './super-admin';
