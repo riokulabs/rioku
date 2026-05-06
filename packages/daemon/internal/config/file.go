@@ -338,6 +338,17 @@ type LockoutPolicy struct {
 	ResetAfter      time.Duration `yaml:"reset_after"`
 }
 
+// SMTPConfig holds outbound SMTP connection parameters. When Host is empty,
+// the daemon uses the nop mailer (all email silently discarded).
+type SMTPConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	From     string `yaml:"from"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	StartTLS bool   `yaml:"starttls"`
+}
+
 // AuthConfig holds all auth-related daemon configuration.
 type AuthConfig struct {
 	PasswordPolicy PasswordPolicy  `yaml:"password_policy"`
@@ -345,6 +356,7 @@ type AuthConfig struct {
 	DevMode        bool            `yaml:"dev_mode"`
 	RateLimit      RateLimitConfig `yaml:"rate_limit"`
 	CORS           CORSConfig      `yaml:"cors"`
+	SMTP           SMTPConfig      `yaml:"smtp"`
 }
 
 // RateLimitConfig defines per-endpoint or global request rate limiting.
