@@ -39,8 +39,17 @@ import type {
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import type { CreateAccessPolicyBody, ListAccessPolicies200 } from '.././schemas';
+import type {
+  CreateAccessPolicyBody,
+  ListAccessPolicies200,
+  PatchAccessPolicyBody,
+  ReplaceAccessPolicyBody,
+  TestAccessPolicyCel200,
+  TestAccessPolicyCelBody,
+} from '.././schemas';
 import { customFetch } from '../../mutator';
+
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
 
 export type listAccessPoliciesResponse = {
   data: ListAccessPolicies200;
@@ -75,14 +84,15 @@ export const getListAccessPoliciesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAccessPolicies>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAccessPoliciesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccessPolicies>>> = ({ signal }) =>
-    listAccessPolicies(tenant, signal);
+    listAccessPolicies(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAccessPolicies>>,
@@ -113,6 +123,7 @@ export function useListAccessPoliciesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAccessPoliciesInfinite<
@@ -132,6 +143,7 @@ export function useListAccessPoliciesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAccessPoliciesInfinite<
@@ -143,6 +155,7 @@ export function useListAccessPoliciesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAccessPolicies>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -155,6 +168,7 @@ export function useListAccessPoliciesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAccessPolicies>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAccessPoliciesInfiniteQueryOptions(tenant, options);
@@ -175,14 +189,15 @@ export const getListAccessPoliciesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAccessPoliciesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccessPolicies>>> = ({ signal }) =>
-    listAccessPolicies(tenant, signal);
+    listAccessPolicies(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAccessPolicies>>,
@@ -211,6 +226,7 @@ export function useListAccessPolicies<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAccessPolicies<
@@ -230,6 +246,7 @@ export function useListAccessPolicies<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAccessPolicies<
@@ -239,6 +256,7 @@ export function useListAccessPolicies<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -249,6 +267,7 @@ export function useListAccessPolicies<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAccessPoliciesQueryOptions(tenant, options);
@@ -295,6 +314,7 @@ export const getCreateAccessPolicyMutationOptions = <
     { tenant: string; data: CreateAccessPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createAccessPolicy>>,
   TError,
@@ -302,11 +322,11 @@ export const getCreateAccessPolicyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['createAccessPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createAccessPolicy>>,
@@ -314,7 +334,7 @@ export const getCreateAccessPolicyMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createAccessPolicy(tenant, data);
+    return createAccessPolicy(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -333,6 +353,7 @@ export const useCreateAccessPolicy = <TError = unknown, TContext = unknown>(opti
     { tenant: string; data: CreateAccessPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createAccessPolicy>>,
   TError,
@@ -340,6 +361,92 @@ export const useCreateAccessPolicy = <TError = unknown, TContext = unknown>(opti
   TContext
 > => {
   const mutationOptions = getCreateAccessPolicyMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Dry-run a CEL expression against a sample event.
+ */
+export type testAccessPolicyCelResponse = {
+  data: TestAccessPolicyCel200 | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getTestAccessPolicyCelUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/access-policies/test-cel`;
+};
+
+export const testAccessPolicyCel = async (
+  tenant: string,
+  testAccessPolicyCelBody: TestAccessPolicyCelBody,
+  options?: RequestInit,
+): Promise<testAccessPolicyCelResponse> => {
+  return customFetch<testAccessPolicyCelResponse>(getTestAccessPolicyCelUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(testAccessPolicyCelBody),
+  });
+};
+
+export const getTestAccessPolicyCelMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testAccessPolicyCel>>,
+    TError,
+    { tenant: string; data: TestAccessPolicyCelBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testAccessPolicyCel>>,
+  TError,
+  { tenant: string; data: TestAccessPolicyCelBody },
+  TContext
+> => {
+  const mutationKey = ['testAccessPolicyCel'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testAccessPolicyCel>>,
+    { tenant: string; data: TestAccessPolicyCelBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return testAccessPolicyCel(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestAccessPolicyCelMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testAccessPolicyCel>>
+>;
+export type TestAccessPolicyCelMutationBody = TestAccessPolicyCelBody;
+export type TestAccessPolicyCelMutationError = void;
+
+/**
+ * @summary Dry-run a CEL expression against a sample event.
+ */
+export const useTestAccessPolicyCel = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testAccessPolicyCel>>,
+    TError,
+    { tenant: string; data: TestAccessPolicyCelBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testAccessPolicyCel>>,
+  TError,
+  { tenant: string; data: TestAccessPolicyCelBody },
+  TContext
+> => {
+  const mutationOptions = getTestAccessPolicyCelMutationOptions(options);
 
   return useMutation(mutationOptions);
 };
@@ -374,6 +481,7 @@ export const getDeleteAccessPolicyMutationOptions = <
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteAccessPolicy>>,
   TError,
@@ -381,11 +489,11 @@ export const getDeleteAccessPolicyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['deleteAccessPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteAccessPolicy>>,
@@ -393,7 +501,7 @@ export const getDeleteAccessPolicyMutationOptions = <
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteAccessPolicy(tenant, id);
+    return deleteAccessPolicy(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -412,6 +520,7 @@ export const useDeleteAccessPolicy = <TError = unknown, TContext = unknown>(opti
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteAccessPolicy>>,
   TError,
@@ -457,14 +566,15 @@ export const getGetAccessPolicyInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccessPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAccessPolicyQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccessPolicy>>> = ({ signal }) =>
-    getAccessPolicy(tenant, id, signal);
+    getAccessPolicy(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -499,6 +609,7 @@ export function useGetAccessPolicyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAccessPolicyInfinite<
@@ -519,6 +630,7 @@ export function useGetAccessPolicyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAccessPolicyInfinite<
@@ -531,6 +643,7 @@ export function useGetAccessPolicyInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccessPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -544,6 +657,7 @@ export function useGetAccessPolicyInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAccessPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAccessPolicyInfiniteQueryOptions(tenant, id, options);
@@ -565,14 +679,15 @@ export const getGetAccessPolicyQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccessPolicy>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAccessPolicyQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccessPolicy>>> = ({ signal }) =>
-    getAccessPolicy(tenant, id, signal);
+    getAccessPolicy(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAccessPolicy>>,
@@ -600,6 +715,7 @@ export function useGetAccessPolicy<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAccessPolicy<
@@ -618,6 +734,7 @@ export function useGetAccessPolicy<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAccessPolicy<
@@ -628,6 +745,7 @@ export function useGetAccessPolicy<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccessPolicy>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -639,6 +757,7 @@ export function useGetAccessPolicy<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccessPolicy>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAccessPolicyQueryOptions(tenant, id, options);
@@ -665,11 +784,14 @@ export const getPatchAccessPolicyUrl = (tenant: string, id: string) => {
 export const patchAccessPolicy = async (
   tenant: string,
   id: string,
+  patchAccessPolicyBody: PatchAccessPolicyBody,
   options?: RequestInit,
 ): Promise<patchAccessPolicyResponse> => {
   return customFetch<patchAccessPolicyResponse>(getPatchAccessPolicyUrl(tenant, id), {
     ...options,
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(patchAccessPolicyBody),
   });
 };
 
@@ -680,29 +802,30 @@ export const getPatchAccessPolicyMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof patchAccessPolicy>>,
     TError,
-    { tenant: string; id: string },
+    { tenant: string; id: string; data: PatchAccessPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchAccessPolicy>>,
   TError,
-  { tenant: string; id: string },
+  { tenant: string; id: string; data: PatchAccessPolicyBody },
   TContext
 > => {
   const mutationKey = ['patchAccessPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchAccessPolicy>>,
-    { tenant: string; id: string }
+    { tenant: string; id: string; data: PatchAccessPolicyBody }
   > = (props) => {
-    const { tenant, id } = props ?? {};
+    const { tenant, id, data } = props ?? {};
 
-    return patchAccessPolicy(tenant, id);
+    return patchAccessPolicy(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -711,20 +834,21 @@ export const getPatchAccessPolicyMutationOptions = <
 export type PatchAccessPolicyMutationResult = NonNullable<
   Awaited<ReturnType<typeof patchAccessPolicy>>
 >;
-
+export type PatchAccessPolicyMutationBody = PatchAccessPolicyBody;
 export type PatchAccessPolicyMutationError = unknown;
 
 export const usePatchAccessPolicy = <TError = unknown, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof patchAccessPolicy>>,
     TError,
-    { tenant: string; id: string },
+    { tenant: string; id: string; data: PatchAccessPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchAccessPolicy>>,
   TError,
-  { tenant: string; id: string },
+  { tenant: string; id: string; data: PatchAccessPolicyBody },
   TContext
 > => {
   const mutationOptions = getPatchAccessPolicyMutationOptions(options);
@@ -744,11 +868,14 @@ export const getReplaceAccessPolicyUrl = (tenant: string, id: string) => {
 export const replaceAccessPolicy = async (
   tenant: string,
   id: string,
+  replaceAccessPolicyBody: ReplaceAccessPolicyBody,
   options?: RequestInit,
 ): Promise<replaceAccessPolicyResponse> => {
   return customFetch<replaceAccessPolicyResponse>(getReplaceAccessPolicyUrl(tenant, id), {
     ...options,
     method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(replaceAccessPolicyBody),
   });
 };
 
@@ -759,29 +886,30 @@ export const getReplaceAccessPolicyMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof replaceAccessPolicy>>,
     TError,
-    { tenant: string; id: string },
+    { tenant: string; id: string; data: ReplaceAccessPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceAccessPolicy>>,
   TError,
-  { tenant: string; id: string },
+  { tenant: string; id: string; data: ReplaceAccessPolicyBody },
   TContext
 > => {
   const mutationKey = ['replaceAccessPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceAccessPolicy>>,
-    { tenant: string; id: string }
+    { tenant: string; id: string; data: ReplaceAccessPolicyBody }
   > = (props) => {
-    const { tenant, id } = props ?? {};
+    const { tenant, id, data } = props ?? {};
 
-    return replaceAccessPolicy(tenant, id);
+    return replaceAccessPolicy(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -790,20 +918,21 @@ export const getReplaceAccessPolicyMutationOptions = <
 export type ReplaceAccessPolicyMutationResult = NonNullable<
   Awaited<ReturnType<typeof replaceAccessPolicy>>
 >;
-
+export type ReplaceAccessPolicyMutationBody = ReplaceAccessPolicyBody;
 export type ReplaceAccessPolicyMutationError = unknown;
 
 export const useReplaceAccessPolicy = <TError = unknown, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof replaceAccessPolicy>>,
     TError,
-    { tenant: string; id: string },
+    { tenant: string; id: string; data: ReplaceAccessPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceAccessPolicy>>,
   TError,
-  { tenant: string; id: string },
+  { tenant: string; id: string; data: ReplaceAccessPolicyBody },
   TContext
 > => {
   const mutationOptions = getReplaceAccessPolicyMutationOptions(options);

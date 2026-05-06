@@ -51,3 +51,35 @@ export const createAccessPolicyBody = zod.object({
   name: zod.string(),
   priority: zod.number().optional(),
 });
+
+/**
+ * @summary Dry-run a CEL expression against a sample event.
+ */
+export const testAccessPolicyCelBody = zod.object({
+  expression: zod.string(),
+  sample: zod.record(zod.string(), zod.any()).optional(),
+});
+
+export const testAccessPolicyCelResponse = zod.object({
+  durationMs: zod.number(),
+  error: zod.string().optional(),
+  matched: zod.boolean(),
+});
+
+export const patchAccessPolicyBody = zod.object({
+  description: zod.string().optional(),
+  effect: zod.enum(['allow', 'deny']).optional(),
+  enabled: zod.boolean().optional(),
+  expression: zod.string().optional(),
+  name: zod.string().optional(),
+  priority: zod.number().optional(),
+});
+
+export const replaceAccessPolicyBody = zod.object({
+  description: zod.string().optional(),
+  effect: zod.enum(['allow', 'deny']).optional(),
+  enabled: zod.boolean().optional(),
+  expression: zod.string(),
+  name: zod.string(),
+  priority: zod.number().optional(),
+});

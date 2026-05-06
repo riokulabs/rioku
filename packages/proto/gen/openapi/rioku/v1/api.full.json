@@ -5744,6 +5744,79 @@
         ]
       }
     },
+    "/api/v1/t/{tenant}/access-policies/test-cel": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "testAccessPolicyCel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expression": {
+                    "type": "string"
+                  },
+                  "sample": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "expression"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "durationMs": {
+                      "type": "number"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "matched": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "matched",
+                    "durationMs"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "evaluation result"
+          },
+          "400": {
+            "description": "bad request envelope"
+          }
+        },
+        "summary": "Dry-run a CEL expression against a sample event.",
+        "tags": [
+          "access-policies"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/access-policies/{id}": {
       "delete": {
         "operationId": "deleteAccessPolicy",
@@ -5787,6 +5860,40 @@
       ],
       "patch": {
         "operationId": "patchAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "effect": {
+                    "enum": [
+                      "allow",
+                      "deny"
+                    ],
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "expression": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "ok"
@@ -5798,6 +5905,44 @@
       },
       "put": {
         "operationId": "replaceAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "effect": {
+                    "enum": [
+                      "allow",
+                      "deny"
+                    ],
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "expression": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "name",
+                  "expression"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "ok"

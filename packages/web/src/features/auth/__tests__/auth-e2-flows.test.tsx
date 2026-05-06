@@ -7,7 +7,7 @@
  *   1e.90 — BootstrapForm
  *   1e.91 — Force-password-change guard + empty-membership fallback
  */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';

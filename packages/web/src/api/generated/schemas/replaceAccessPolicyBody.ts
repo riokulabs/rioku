@@ -21,20 +21,13 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
-import type { LinkSet } from './linkSet';
+import type { ReplaceAccessPolicyBodyEffect } from './replaceAccessPolicyBodyEffect';
 
-export type GetAPIKey200 = {
-  _links?: LinkSet;
-  createdAt?: string;
-  expiresAt?: string;
-  id?: string;
-  lastUsedAt?: string;
-  name?: string;
-  ownerId?: string;
-  /** Non-secret display fragment of the raw key (e.g. rku_tok_AbCd). Empty for legacy keys created before migration #51. */
-  prefix?: string;
-  revokedAt?: string;
-  scopes?: string[];
-  tenantId?: string;
-  usageCount?: number;
+export type ReplaceAccessPolicyBody = {
+  description?: string;
+  effect?: ReplaceAccessPolicyBodyEffect;
+  enabled?: boolean;
+  expression: string;
+  name: string;
+  priority?: number;
 };

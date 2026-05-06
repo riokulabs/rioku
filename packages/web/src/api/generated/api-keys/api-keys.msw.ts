@@ -23,7 +23,7 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { GetAPIKey200, ListAPIKeys200, RotateAPIKey200 } from '.././schemas';
+import type { CreateAPIKey201, GetAPIKey200, ListAPIKeys200, RotateAPIKey200 } from '.././schemas';
 
 export const getListAPIKeysResponseMock = (
   overrideResponse: Partial<ListAPIKeys200> = {},
@@ -68,6 +68,15 @@ export const getListAPIKeysResponseMock = (
   ...overrideResponse,
 });
 
+export const getCreateAPIKeyResponseMock = (
+  overrideResponse: Partial<CreateAPIKey201> = {},
+): CreateAPIKey201 => ({
+  id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  key: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  prefix: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  ...overrideResponse,
+});
+
 export const getGetAPIKeyResponseMock = (
   overrideResponse: Partial<GetAPIKey200> = {},
 ): GetAPIKey200 => ({
@@ -95,6 +104,7 @@ export const getGetAPIKeyResponseMock = (
   ]),
   name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
   ownerId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  prefix: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
   revokedAt: faker.helpers.arrayElement([
     `${faker.date.past().toISOString().split('.')[0]}Z`,
     undefined,
@@ -127,6 +137,7 @@ export const getRotateAPIKeyResponseMock = (
   ]),
   id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
   key: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  prefix: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
   ...overrideResponse,
 });
 
@@ -155,15 +166,24 @@ export const getListAPIKeysMockHandler = (
 
 export const getCreateAPIKeyMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void),
+    | CreateAPIKey201
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<CreateAPIKey201> | CreateAPIKey201),
 ) => {
   return http.post('*/api/v1/t/:tenant/api-keys', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 201 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateAPIKeyResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 

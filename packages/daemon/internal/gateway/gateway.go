@@ -151,6 +151,8 @@ func NewGateway(
 
 	// Access policy CRUD (#80).
 	RegisterAccessPolicyRoutes(topMux, st)
+	// Access policy CEL test/dry-run endpoint (Stage-2 plan-02).
+	RegisterAccessPolicyTestCelRoutes(topMux)
 
 	// Settings endpoints (replaces old monolithic GET /api/v1/settings stub).
 	runtimeSettings := NewRuntimeSettings(cfg, levelVar)

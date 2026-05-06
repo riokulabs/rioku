@@ -40,6 +40,7 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  CreateAPIKey201,
   CreateAPIKeyBody,
   GetAPIKey200,
   ListAPIKeys200,
@@ -47,6 +48,8 @@ import type {
   RotateAPIKey200,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
+
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
 
 /**
  * @summary List API keys
@@ -84,14 +87,15 @@ export const getListAPIKeysInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAPIKeys>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAPIKeysQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAPIKeys>>> = ({ signal }) =>
-    listAPIKeys(tenant, signal);
+    listAPIKeys(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAPIKeys>>,
@@ -120,6 +124,7 @@ export function useListAPIKeysInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAPIKeysInfinite<
@@ -139,6 +144,7 @@ export function useListAPIKeysInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAPIKeysInfinite<
@@ -150,6 +156,7 @@ export function useListAPIKeysInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAPIKeys>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -165,6 +172,7 @@ export function useListAPIKeysInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAPIKeys>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAPIKeysInfiniteQueryOptions(tenant, options);
@@ -185,14 +193,15 @@ export const getListAPIKeysQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAPIKeys>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAPIKeysQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAPIKeys>>> = ({ signal }) =>
-    listAPIKeys(tenant, signal);
+    listAPIKeys(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAPIKeys>>,
@@ -216,6 +225,7 @@ export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, TError = unknown>(
@@ -230,12 +240,14 @@ export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAPIKeys>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -246,6 +258,7 @@ export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, 
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAPIKeys>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAPIKeysQueryOptions(tenant, options);
@@ -263,7 +276,7 @@ export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, 
  * @summary Create an API key
  */
 export type createAPIKeyResponse = {
-  data: void;
+  data: CreateAPIKey201;
   status: number;
   headers: Headers;
 };
@@ -292,6 +305,7 @@ export const getCreateAPIKeyMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; data: CreateAPIKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createAPIKey>>,
   TError,
@@ -299,11 +313,11 @@ export const getCreateAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['createAPIKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createAPIKey>>,
@@ -311,7 +325,7 @@ export const getCreateAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createAPIKey(tenant, data);
+    return createAPIKey(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -331,6 +345,7 @@ export const useCreateAPIKey = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; data: CreateAPIKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createAPIKey>>,
   TError,
@@ -372,6 +387,7 @@ export const getDeleteAPIKeyMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteAPIKey>>,
   TError,
@@ -379,11 +395,11 @@ export const getDeleteAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['deleteAPIKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteAPIKey>>,
@@ -391,7 +407,7 @@ export const getDeleteAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteAPIKey(tenant, id);
+    return deleteAPIKey(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -411,6 +427,7 @@ export const useDeleteAPIKey = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteAPIKey>>,
   TError,
@@ -457,14 +474,15 @@ export const getGetAPIKeyInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAPIKey>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAPIKeyQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAPIKey>>> = ({ signal }) =>
-    getAPIKey(tenant, id, signal);
+    getAPIKey(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -495,6 +513,7 @@ export function useGetAPIKeyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKeyInfinite<
@@ -513,6 +532,7 @@ export function useGetAPIKeyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKeyInfinite<
@@ -523,6 +543,7 @@ export function useGetAPIKeyInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAPIKey>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -537,6 +558,7 @@ export function useGetAPIKeyInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAPIKey>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAPIKeyInfiniteQueryOptions(tenant, id, options);
@@ -558,14 +580,15 @@ export const getGetAPIKeyQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAPIKey>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAPIKeyQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAPIKey>>> = ({ signal }) =>
-    getAPIKey(tenant, id, signal);
+    getAPIKey(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAPIKey>>,
@@ -590,6 +613,7 @@ export function useGetAPIKey<TData = Awaited<ReturnType<typeof getAPIKey>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKey<TData = Awaited<ReturnType<typeof getAPIKey>>, TError = unknown>(
@@ -605,6 +629,7 @@ export function useGetAPIKey<TData = Awaited<ReturnType<typeof getAPIKey>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKey<TData = Awaited<ReturnType<typeof getAPIKey>>, TError = unknown>(
@@ -612,6 +637,7 @@ export function useGetAPIKey<TData = Awaited<ReturnType<typeof getAPIKey>>, TErr
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAPIKey>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -623,6 +649,7 @@ export function useGetAPIKey<TData = Awaited<ReturnType<typeof getAPIKey>>, TErr
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAPIKey>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAPIKeyQueryOptions(tenant, id, options);
@@ -670,6 +697,7 @@ export const getPatchAPIKeyMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string; data: PatchAPIKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchAPIKey>>,
   TError,
@@ -677,11 +705,11 @@ export const getPatchAPIKeyMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['patchAPIKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchAPIKey>>,
@@ -689,7 +717,7 @@ export const getPatchAPIKeyMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchAPIKey(tenant, id, data);
+    return patchAPIKey(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -709,6 +737,7 @@ export const usePatchAPIKey = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string; data: PatchAPIKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchAPIKey>>,
   TError,
@@ -750,6 +779,7 @@ export const getReplaceAPIKeyMutationOptions = <TError = unknown, TContext = unk
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceAPIKey>>,
   TError,
@@ -757,11 +787,11 @@ export const getReplaceAPIKeyMutationOptions = <TError = unknown, TContext = unk
   TContext
 > => {
   const mutationKey = ['replaceAPIKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceAPIKey>>,
@@ -769,7 +799,7 @@ export const getReplaceAPIKeyMutationOptions = <TError = unknown, TContext = unk
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return replaceAPIKey(tenant, id);
+    return replaceAPIKey(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -789,6 +819,7 @@ export const useReplaceAPIKey = <TError = unknown, TContext = unknown>(options?:
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceAPIKey>>,
   TError,
@@ -830,6 +861,7 @@ export const getRevokeAPIKeyMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof revokeAPIKey>>,
   TError,
@@ -837,11 +869,11 @@ export const getRevokeAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['revokeAPIKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof revokeAPIKey>>,
@@ -849,7 +881,7 @@ export const getRevokeAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return revokeAPIKey(tenant, id);
+    return revokeAPIKey(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -869,6 +901,7 @@ export const useRevokeAPIKey = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof revokeAPIKey>>,
   TError,
@@ -914,6 +947,7 @@ export const getRotateAPIKeyMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof rotateAPIKey>>,
   TError,
@@ -921,11 +955,11 @@ export const getRotateAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['rotateAPIKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof rotateAPIKey>>,
@@ -933,7 +967,7 @@ export const getRotateAPIKeyMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return rotateAPIKey(tenant, id);
+    return rotateAPIKey(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -953,6 +987,7 @@ export const useRotateAPIKey = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof rotateAPIKey>>,
   TError,
@@ -1001,14 +1036,15 @@ export const getGetAPIKeyUsageInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAPIKeyUsage>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAPIKeyUsageQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAPIKeyUsage>>> = ({ signal }) =>
-    getAPIKeyUsage(tenant, id, signal);
+    getAPIKeyUsage(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1043,6 +1079,7 @@ export function useGetAPIKeyUsageInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKeyUsageInfinite<
@@ -1063,6 +1100,7 @@ export function useGetAPIKeyUsageInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKeyUsageInfinite<
@@ -1075,6 +1113,7 @@ export function useGetAPIKeyUsageInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAPIKeyUsage>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1091,6 +1130,7 @@ export function useGetAPIKeyUsageInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAPIKeyUsage>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAPIKeyUsageInfiniteQueryOptions(tenant, id, options);
@@ -1112,14 +1152,15 @@ export const getGetAPIKeyUsageQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAPIKeyUsage>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAPIKeyUsageQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAPIKeyUsage>>> = ({ signal }) =>
-    getAPIKeyUsage(tenant, id, signal);
+    getAPIKeyUsage(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAPIKeyUsage>>,
@@ -1147,6 +1188,7 @@ export function useGetAPIKeyUsage<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKeyUsage<
@@ -1165,6 +1207,7 @@ export function useGetAPIKeyUsage<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAPIKeyUsage<
@@ -1175,6 +1218,7 @@ export function useGetAPIKeyUsage<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAPIKeyUsage>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1189,6 +1233,7 @@ export function useGetAPIKeyUsage<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAPIKeyUsage>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAPIKeyUsageQueryOptions(tenant, id, options);

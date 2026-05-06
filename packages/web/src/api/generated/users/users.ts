@@ -49,6 +49,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List users
  */
@@ -83,14 +85,15 @@ export const getListUsersInfiniteQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListUsersQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({ signal }) =>
-    listUsers(tenant, signal);
+    listUsers(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listUsers>>,
@@ -117,6 +120,7 @@ export function useListUsersInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUsersInfinite<
@@ -134,6 +138,7 @@ export function useListUsersInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUsersInfinite<
@@ -143,6 +148,7 @@ export function useListUsersInfinite<
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -156,6 +162,7 @@ export function useListUsersInfinite<
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListUsersInfiniteQueryOptions(tenant, options);
@@ -176,14 +183,15 @@ export const getListUsersQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListUsersQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({ signal }) =>
-    listUsers(tenant, signal);
+    listUsers(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listUsers>>,
@@ -207,6 +215,7 @@ export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TError = unknown>(
@@ -221,12 +230,14 @@ export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -237,6 +248,7 @@ export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TErr
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListUsersQueryOptions(tenant, options);
@@ -283,6 +295,7 @@ export const getCreateUserMutationOptions = <TError = void, TContext = unknown>(
     { tenant: string; data: CreateUserBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createUser>>,
   TError,
@@ -290,11 +303,11 @@ export const getCreateUserMutationOptions = <TError = void, TContext = unknown>(
   TContext
 > => {
   const mutationKey = ['createUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createUser>>,
@@ -302,7 +315,7 @@ export const getCreateUserMutationOptions = <TError = void, TContext = unknown>(
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createUser(tenant, data);
+    return createUser(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -322,6 +335,7 @@ export const useCreateUser = <TError = void, TContext = unknown>(options?: {
     { tenant: string; data: CreateUserBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createUser>>,
   TError,
@@ -360,6 +374,7 @@ export const getDeleteUserMutationOptions = <TError = unknown, TContext = unknow
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteUser>>,
   TError,
@@ -367,11 +382,11 @@ export const getDeleteUserMutationOptions = <TError = unknown, TContext = unknow
   TContext
 > => {
   const mutationKey = ['deleteUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteUser>>,
@@ -379,7 +394,7 @@ export const getDeleteUserMutationOptions = <TError = unknown, TContext = unknow
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteUser(tenant, id);
+    return deleteUser(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -396,6 +411,7 @@ export const useDeleteUser = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteUser>>,
   TError,
@@ -439,14 +455,15 @@ export const getGetUserInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetUserQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getUser>>> = ({ signal }) =>
-    getUser(tenant, id, signal);
+    getUser(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -477,6 +494,7 @@ export function useGetUserInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetUserInfinite<
@@ -495,6 +513,7 @@ export function useGetUserInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetUserInfinite<
@@ -505,6 +524,7 @@ export function useGetUserInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -516,6 +536,7 @@ export function useGetUserInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetUserInfiniteQueryOptions(tenant, id, options);
@@ -534,14 +555,15 @@ export const getGetUserQueryOptions = <TData = Awaited<ReturnType<typeof getUser
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetUserQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getUser>>> = ({ signal }) =>
-    getUser(tenant, id, signal);
+    getUser(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getUser>>,
@@ -566,6 +588,7 @@ export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError =
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError = void>(
@@ -581,6 +604,7 @@ export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError =
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError = void>(
@@ -588,6 +612,7 @@ export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError =
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -596,6 +621,7 @@ export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError =
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetUserQueryOptions(tenant, id, options);
@@ -640,6 +666,7 @@ export const getPatchUserMutationOptions = <TError = unknown, TContext = unknown
     { tenant: string; id: string; data: PatchUserBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchUser>>,
   TError,
@@ -647,11 +674,11 @@ export const getPatchUserMutationOptions = <TError = unknown, TContext = unknown
   TContext
 > => {
   const mutationKey = ['patchUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchUser>>,
@@ -659,7 +686,7 @@ export const getPatchUserMutationOptions = <TError = unknown, TContext = unknown
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchUser(tenant, id, data);
+    return patchUser(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -676,6 +703,7 @@ export const usePatchUser = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string; data: PatchUserBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchUser>>,
   TError,
@@ -714,6 +742,7 @@ export const getReplaceUserMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceUser>>,
   TError,
@@ -721,11 +750,11 @@ export const getReplaceUserMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['replaceUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceUser>>,
@@ -733,7 +762,7 @@ export const getReplaceUserMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return replaceUser(tenant, id);
+    return replaceUser(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -750,6 +779,7 @@ export const useReplaceUser = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceUser>>,
   TError,
@@ -791,6 +821,7 @@ export const getActivateUserMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof activateUser>>,
   TError,
@@ -798,11 +829,11 @@ export const getActivateUserMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['activateUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof activateUser>>,
@@ -810,7 +841,7 @@ export const getActivateUserMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return activateUser(tenant, id);
+    return activateUser(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -830,6 +861,7 @@ export const useActivateUser = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof activateUser>>,
   TError,
@@ -868,6 +900,7 @@ export const getLockUserMutationOptions = <TError = unknown, TContext = unknown>
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof lockUser>>,
   TError,
@@ -875,11 +908,11 @@ export const getLockUserMutationOptions = <TError = unknown, TContext = unknown>
   TContext
 > => {
   const mutationKey = ['lockUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof lockUser>>,
@@ -887,7 +920,7 @@ export const getLockUserMutationOptions = <TError = unknown, TContext = unknown>
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return lockUser(tenant, id);
+    return lockUser(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -904,6 +937,7 @@ export const useLockUser = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof lockUser>>,
   TError,
@@ -948,6 +982,7 @@ export const getResetUserPasswordMutationOptions = <
     { tenant: string; id: string; data: ResetUserPasswordBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof resetUserPassword>>,
   TError,
@@ -955,11 +990,11 @@ export const getResetUserPasswordMutationOptions = <
   TContext
 > => {
   const mutationKey = ['resetUserPassword'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof resetUserPassword>>,
@@ -967,7 +1002,7 @@ export const getResetUserPasswordMutationOptions = <
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return resetUserPassword(tenant, id, data);
+    return resetUserPassword(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -986,6 +1021,7 @@ export const useResetUserPassword = <TError = unknown, TContext = unknown>(optio
     { tenant: string; id: string; data: ResetUserPasswordBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof resetUserPassword>>,
   TError,
@@ -1034,14 +1070,15 @@ export const getListUserSessionsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUserSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListUserSessionsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listUserSessions>>> = ({ signal }) =>
-    listUserSessions(tenant, id, signal);
+    listUserSessions(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1076,6 +1113,7 @@ export function useListUserSessionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserSessionsInfinite<
@@ -1096,6 +1134,7 @@ export function useListUserSessionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserSessionsInfinite<
@@ -1108,6 +1147,7 @@ export function useListUserSessionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUserSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1124,6 +1164,7 @@ export function useListUserSessionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUserSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListUserSessionsInfiniteQueryOptions(tenant, id, options);
@@ -1145,14 +1186,15 @@ export const getListUserSessionsQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUserSessions>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListUserSessionsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listUserSessions>>> = ({ signal }) =>
-    listUserSessions(tenant, id, signal);
+    listUserSessions(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listUserSessions>>,
@@ -1180,6 +1222,7 @@ export function useListUserSessions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserSessions<
@@ -1198,6 +1241,7 @@ export function useListUserSessions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserSessions<
@@ -1208,6 +1252,7 @@ export function useListUserSessions<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUserSessions>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1222,6 +1267,7 @@ export function useListUserSessions<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUserSessions>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListUserSessionsQueryOptions(tenant, id, options);
@@ -1266,6 +1312,7 @@ export const getSuspendUserMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof suspendUser>>,
   TError,
@@ -1273,11 +1320,11 @@ export const getSuspendUserMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['suspendUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof suspendUser>>,
@@ -1285,7 +1332,7 @@ export const getSuspendUserMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return suspendUser(tenant, id);
+    return suspendUser(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1305,6 +1352,7 @@ export const useSuspendUser = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof suspendUser>>,
   TError,
@@ -1343,6 +1391,7 @@ export const getUnlockUserMutationOptions = <TError = unknown, TContext = unknow
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof unlockUser>>,
   TError,
@@ -1350,11 +1399,11 @@ export const getUnlockUserMutationOptions = <TError = unknown, TContext = unknow
   TContext
 > => {
   const mutationKey = ['unlockUser'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof unlockUser>>,
@@ -1362,7 +1411,7 @@ export const getUnlockUserMutationOptions = <TError = unknown, TContext = unknow
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return unlockUser(tenant, id);
+    return unlockUser(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1379,6 +1428,7 @@ export const useUnlockUser = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof unlockUser>>,
   TError,

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <DashboardViewer> smoke tests — happy path (renders widgets), empty state
  * (no widgets), missing dashboard (not-found state).

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * Tests for the AI tools API layer — CRUD, delete-guard, testTool validation.
  */

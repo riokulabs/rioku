@@ -39,6 +39,8 @@ import type {
 import type { ListPermissions200, ListPermissionsParams } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List the permission catalog
  */
@@ -87,14 +89,15 @@ export const getListPermissionsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListPermissionsQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listPermissions>>> = ({ signal }) =>
-    listPermissions(tenant, params, signal);
+    listPermissions(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listPermissions>>,
@@ -126,6 +129,7 @@ export function useListPermissionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPermissionsInfinite<
@@ -146,6 +150,7 @@ export function useListPermissionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPermissionsInfinite<
@@ -158,6 +163,7 @@ export function useListPermissionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -174,6 +180,7 @@ export function useListPermissionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListPermissionsInfiniteQueryOptions(tenant, params, options);
@@ -195,14 +202,15 @@ export const getListPermissionsQueryOptions = <
   params?: ListPermissionsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListPermissionsQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listPermissions>>> = ({ signal }) =>
-    listPermissions(tenant, params, signal);
+    listPermissions(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listPermissions>>,
@@ -230,6 +238,7 @@ export function useListPermissions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPermissions<
@@ -248,6 +257,7 @@ export function useListPermissions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPermissions<
@@ -258,6 +268,7 @@ export function useListPermissions<
   params?: ListPermissionsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -272,6 +283,7 @@ export function useListPermissions<
   params?: ListPermissionsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListPermissionsQueryOptions(tenant, params, options);

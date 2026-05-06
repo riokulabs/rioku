@@ -21,20 +21,12 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
-import type { LinkSet } from './linkSet';
 
-export type GetAPIKey200 = {
-  _links?: LinkSet;
-  createdAt?: string;
-  expiresAt?: string;
-  id?: string;
-  lastUsedAt?: string;
-  name?: string;
-  ownerId?: string;
-  /** Non-secret display fragment of the raw key (e.g. rku_tok_AbCd). Empty for legacy keys created before migration #51. */
-  prefix?: string;
-  revokedAt?: string;
-  scopes?: string[];
-  tenantId?: string;
-  usageCount?: number;
-};
+export type PatchAccessPolicyBodyEffect =
+  (typeof PatchAccessPolicyBodyEffect)[keyof typeof PatchAccessPolicyBodyEffect];
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const PatchAccessPolicyBodyEffect = {
+  allow: 'allow',
+  deny: 'deny',
+} as const;

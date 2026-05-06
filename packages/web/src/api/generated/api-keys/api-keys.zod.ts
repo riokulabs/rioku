@@ -75,6 +75,7 @@ export const getAPIKeyResponse = zod.object({
   lastUsedAt: zod.string().datetime().optional(),
   name: zod.string().optional(),
   ownerId: zod.string().optional(),
+  prefix: zod.string().optional(),
   revokedAt: zod.string().datetime().optional(),
   scopes: zod.array(zod.string()).optional(),
   tenantId: zod.string().optional(),
@@ -100,4 +101,5 @@ export const rotateAPIKeyResponse = zod.object({
     .optional(),
   id: zod.string().optional(),
   key: zod.string().optional(),
+  prefix: zod.string().optional(),
 });

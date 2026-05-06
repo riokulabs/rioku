@@ -23,7 +23,7 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { ListAccessPolicies200 } from '.././schemas';
+import type { ListAccessPolicies200, TestAccessPolicyCel200 } from '.././schemas';
 
 export const getListAccessPoliciesResponseMock = (
   overrideResponse: Partial<ListAccessPolicies200> = {},
@@ -56,6 +56,15 @@ export const getListAccessPoliciesResponseMock = (
     undefined,
   ]),
   nextPageToken: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  ...overrideResponse,
+});
+
+export const getTestAccessPolicyCelResponseMock = (
+  overrideResponse: Partial<TestAccessPolicyCel200> = {},
+): TestAccessPolicyCel200 => ({
+  durationMs: faker.number.int({ min: undefined, max: undefined }),
+  error: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  matched: faker.datatype.boolean(),
   ...overrideResponse,
 });
 
@@ -93,6 +102,29 @@ export const getCreateAccessPolicyMockHandler = (
       await overrideResponse(info);
     }
     return new HttpResponse(null, { status: 201 });
+  });
+};
+
+export const getTestAccessPolicyCelMockHandler = (
+  overrideResponse?:
+    | TestAccessPolicyCel200
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<TestAccessPolicyCel200> | TestAccessPolicyCel200),
+) => {
+  return http.post('*/api/v1/t/:tenant/access-policies/test-cel', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getTestAccessPolicyCelResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
@@ -154,6 +186,7 @@ export const getReplaceAccessPolicyMockHandler = (
 export const getAccessPoliciesMock = () => [
   getListAccessPoliciesMockHandler(),
   getCreateAccessPolicyMockHandler(),
+  getTestAccessPolicyCelMockHandler(),
   getDeleteAccessPolicyMockHandler(),
   getGetAccessPolicyMockHandler(),
   getPatchAccessPolicyMockHandler(),

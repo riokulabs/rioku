@@ -48,6 +48,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List roles
  */
@@ -82,14 +84,15 @@ export const getListRolesInfiniteQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRolesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoles>>> = ({ signal }) =>
-    listRoles(tenant, signal);
+    listRoles(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listRoles>>,
@@ -116,6 +119,7 @@ export function useListRolesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRolesInfinite<
@@ -133,6 +137,7 @@ export function useListRolesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRolesInfinite<
@@ -142,6 +147,7 @@ export function useListRolesInfinite<
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -155,6 +161,7 @@ export function useListRolesInfinite<
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRolesInfiniteQueryOptions(tenant, options);
@@ -175,14 +182,15 @@ export const getListRolesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRolesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoles>>> = ({ signal }) =>
-    listRoles(tenant, signal);
+    listRoles(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listRoles>>,
@@ -206,6 +214,7 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TError = unknown>(
@@ -220,12 +229,14 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -236,6 +247,7 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRolesQueryOptions(tenant, options);
@@ -282,6 +294,7 @@ export const getCreateRoleMutationOptions = <TError = void, TContext = unknown>(
     { tenant: string; data: CreateRoleBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createRole>>,
   TError,
@@ -289,11 +302,11 @@ export const getCreateRoleMutationOptions = <TError = void, TContext = unknown>(
   TContext
 > => {
   const mutationKey = ['createRole'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createRole>>,
@@ -301,7 +314,7 @@ export const getCreateRoleMutationOptions = <TError = void, TContext = unknown>(
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createRole(tenant, data);
+    return createRole(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -321,6 +334,7 @@ export const useCreateRole = <TError = void, TContext = unknown>(options?: {
     { tenant: string; data: CreateRoleBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createRole>>,
   TError,
@@ -359,6 +373,7 @@ export const getDeleteRoleMutationOptions = <TError = unknown, TContext = unknow
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteRole>>,
   TError,
@@ -366,11 +381,11 @@ export const getDeleteRoleMutationOptions = <TError = unknown, TContext = unknow
   TContext
 > => {
   const mutationKey = ['deleteRole'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteRole>>,
@@ -378,7 +393,7 @@ export const getDeleteRoleMutationOptions = <TError = unknown, TContext = unknow
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteRole(tenant, id);
+    return deleteRole(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -395,6 +410,7 @@ export const useDeleteRole = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteRole>>,
   TError,
@@ -438,14 +454,15 @@ export const getGetRoleInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetRoleQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRole>>> = ({ signal }) =>
-    getRole(tenant, id, signal);
+    getRole(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -476,6 +493,7 @@ export function useGetRoleInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRoleInfinite<
@@ -494,6 +512,7 @@ export function useGetRoleInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRoleInfinite<
@@ -504,6 +523,7 @@ export function useGetRoleInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -515,6 +535,7 @@ export function useGetRoleInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRoleInfiniteQueryOptions(tenant, id, options);
@@ -533,14 +554,15 @@ export const getGetRoleQueryOptions = <TData = Awaited<ReturnType<typeof getRole
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetRoleQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRole>>> = ({ signal }) =>
-    getRole(tenant, id, signal);
+    getRole(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getRole>>,
@@ -565,6 +587,7 @@ export function useGetRole<TData = Awaited<ReturnType<typeof getRole>>, TError =
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRole<TData = Awaited<ReturnType<typeof getRole>>, TError = void>(
@@ -580,6 +603,7 @@ export function useGetRole<TData = Awaited<ReturnType<typeof getRole>>, TError =
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRole<TData = Awaited<ReturnType<typeof getRole>>, TError = void>(
@@ -587,6 +611,7 @@ export function useGetRole<TData = Awaited<ReturnType<typeof getRole>>, TError =
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -595,6 +620,7 @@ export function useGetRole<TData = Awaited<ReturnType<typeof getRole>>, TError =
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRoleQueryOptions(tenant, id, options);
@@ -636,6 +662,7 @@ export const getPatchRoleMutationOptions = <TError = unknown, TContext = unknown
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchRole>>,
   TError,
@@ -643,11 +670,11 @@ export const getPatchRoleMutationOptions = <TError = unknown, TContext = unknown
   TContext
 > => {
   const mutationKey = ['patchRole'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchRole>>,
@@ -655,7 +682,7 @@ export const getPatchRoleMutationOptions = <TError = unknown, TContext = unknown
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return patchRole(tenant, id);
+    return patchRole(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -672,6 +699,7 @@ export const usePatchRole = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchRole>>,
   TError,
@@ -710,6 +738,7 @@ export const getReplaceRoleMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceRole>>,
   TError,
@@ -717,11 +746,11 @@ export const getReplaceRoleMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['replaceRole'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceRole>>,
@@ -729,7 +758,7 @@ export const getReplaceRoleMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return replaceRole(tenant, id);
+    return replaceRole(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -746,6 +775,7 @@ export const useReplaceRole = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceRole>>,
   TError,
@@ -794,14 +824,15 @@ export const getListUserRolesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUserRoles>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListUserRolesQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listUserRoles>>> = ({ signal }) =>
-    listUserRoles(tenant, id, signal);
+    listUserRoles(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -836,6 +867,7 @@ export function useListUserRolesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserRolesInfinite<
@@ -856,6 +888,7 @@ export function useListUserRolesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserRolesInfinite<
@@ -868,6 +901,7 @@ export function useListUserRolesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUserRoles>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -884,6 +918,7 @@ export function useListUserRolesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listUserRoles>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListUserRolesInfiniteQueryOptions(tenant, id, options);
@@ -905,14 +940,15 @@ export const getListUserRolesQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUserRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListUserRolesQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listUserRoles>>> = ({ signal }) =>
-    listUserRoles(tenant, id, signal);
+    listUserRoles(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listUserRoles>>,
@@ -940,6 +976,7 @@ export function useListUserRoles<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserRoles<
@@ -958,6 +995,7 @@ export function useListUserRoles<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListUserRoles<
@@ -968,6 +1006,7 @@ export function useListUserRoles<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUserRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -982,6 +1021,7 @@ export function useListUserRoles<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listUserRoles>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListUserRolesQueryOptions(tenant, id, options);
@@ -1029,6 +1069,7 @@ export const getAssignUserRoleMutationOptions = <TError = void, TContext = unkno
     { tenant: string; id: string; data: AssignUserRoleBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof assignUserRole>>,
   TError,
@@ -1036,11 +1077,11 @@ export const getAssignUserRoleMutationOptions = <TError = void, TContext = unkno
   TContext
 > => {
   const mutationKey = ['assignUserRole'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof assignUserRole>>,
@@ -1048,7 +1089,7 @@ export const getAssignUserRoleMutationOptions = <TError = void, TContext = unkno
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return assignUserRole(tenant, id, data);
+    return assignUserRole(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1068,6 +1109,7 @@ export const useAssignUserRole = <TError = void, TContext = unknown>(options?: {
     { tenant: string; id: string; data: AssignUserRoleBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof assignUserRole>>,
   TError,
@@ -1110,6 +1152,7 @@ export const getRevokeUserRoleMutationOptions = <TError = unknown, TContext = un
     { tenant: string; id: string; roleId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof revokeUserRole>>,
   TError,
@@ -1117,11 +1160,11 @@ export const getRevokeUserRoleMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['revokeUserRole'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof revokeUserRole>>,
@@ -1129,7 +1172,7 @@ export const getRevokeUserRoleMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, id, roleId } = props ?? {};
 
-    return revokeUserRole(tenant, id, roleId);
+    return revokeUserRole(tenant, id, roleId, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1149,6 +1192,7 @@ export const useRevokeUserRole = <TError = unknown, TContext = unknown>(options?
     { tenant: string; id: string; roleId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof revokeUserRole>>,
   TError,

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * Tests for the audit API layer — list selectors, streaming bus,
  * async-search, export (CSV + JSONL), retention CRUD, and

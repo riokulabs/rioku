@@ -46,6 +46,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List active impersonation sessions
  */
@@ -79,14 +81,15 @@ export const getListImpersonationSessionsInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listImpersonationSessions>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListImpersonationSessionsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listImpersonationSessions>>> = ({
     signal,
-  }) => listImpersonationSessions(signal);
+  }) => listImpersonationSessions({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listImpersonationSessions>>,
@@ -115,6 +118,7 @@ export function useListImpersonationSessionsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListImpersonationSessionsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listImpersonationSessions>>>,
@@ -131,6 +135,7 @@ export function useListImpersonationSessionsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListImpersonationSessionsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listImpersonationSessions>>>,
@@ -139,6 +144,7 @@ export function useListImpersonationSessionsInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listImpersonationSessions>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List active impersonation sessions
@@ -151,6 +157,7 @@ export function useListImpersonationSessionsInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listImpersonationSessions>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListImpersonationSessionsInfiniteQueryOptions(options);
 
@@ -170,14 +177,15 @@ export const getListImpersonationSessionsQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof listImpersonationSessions>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListImpersonationSessionsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listImpersonationSessions>>> = ({
     signal,
-  }) => listImpersonationSessions(signal);
+  }) => listImpersonationSessions({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listImpersonationSessions>>,
@@ -206,6 +214,7 @@ export function useListImpersonationSessions<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListImpersonationSessions<
   TData = Awaited<ReturnType<typeof listImpersonationSessions>>,
@@ -222,6 +231,7 @@ export function useListImpersonationSessions<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListImpersonationSessions<
   TData = Awaited<ReturnType<typeof listImpersonationSessions>>,
@@ -230,6 +240,7 @@ export function useListImpersonationSessions<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof listImpersonationSessions>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List active impersonation sessions
@@ -242,6 +253,7 @@ export function useListImpersonationSessions<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof listImpersonationSessions>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListImpersonationSessionsQueryOptions(options);
 
@@ -286,6 +298,7 @@ export const getStartImpersonationMutationOptions = <TError = void, TContext = u
     { data: StartImpersonationBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof startImpersonation>>,
   TError,
@@ -293,11 +306,11 @@ export const getStartImpersonationMutationOptions = <TError = void, TContext = u
   TContext
 > => {
   const mutationKey = ['startImpersonation'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof startImpersonation>>,
@@ -305,7 +318,7 @@ export const getStartImpersonationMutationOptions = <TError = void, TContext = u
   > = (props) => {
     const { data } = props ?? {};
 
-    return startImpersonation(data);
+    return startImpersonation(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -327,6 +340,7 @@ export const useStartImpersonation = <TError = void, TContext = unknown>(options
     { data: StartImpersonationBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof startImpersonation>>,
   TError,
@@ -367,6 +381,7 @@ export const getEndImpersonationMutationOptions = <TError = unknown, TContext = 
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof endImpersonation>>,
   TError,
@@ -374,11 +389,11 @@ export const getEndImpersonationMutationOptions = <TError = unknown, TContext = 
   TContext
 > => {
   const mutationKey = ['endImpersonation'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof endImpersonation>>,
@@ -386,7 +401,7 @@ export const getEndImpersonationMutationOptions = <TError = unknown, TContext = 
   > = (props) => {
     const { id } = props ?? {};
 
-    return endImpersonation(id);
+    return endImpersonation(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -408,6 +423,7 @@ export const useEndImpersonation = <TError = unknown, TContext = unknown>(option
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof endImpersonation>>,
   TError,
@@ -451,6 +467,7 @@ export const getTouchImpersonationMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof touchImpersonation>>,
   TError,
@@ -458,11 +475,11 @@ export const getTouchImpersonationMutationOptions = <
   TContext
 > => {
   const mutationKey = ['touchImpersonation'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof touchImpersonation>>,
@@ -470,7 +487,7 @@ export const getTouchImpersonationMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return touchImpersonation(id);
+    return touchImpersonation(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -492,6 +509,7 @@ export const useTouchImpersonation = <TError = unknown, TContext = unknown>(opti
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof touchImpersonation>>,
   TError,
