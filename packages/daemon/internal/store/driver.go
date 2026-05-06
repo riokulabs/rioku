@@ -500,6 +500,12 @@ type Tx interface {
 	// machine (pending -> active -> deactivated -> removed). Invalid
 	// transitions return ErrMembershipInvalidState.
 	UpdateMembershipState(ctx context.Context, id, state string) (*Membership, error)
+	// GetMembershipByInviteToken looks up a pending membership by its hashed
+	// invite token. Returns ErrMembershipNotFound when not found.
+	GetMembershipByInviteToken(ctx context.Context, tokenHash string) (*Membership, error)
+	// AcceptInvite activates a pending membership: sets user_id, clears
+	// invite_token_hash, sets state=active, and sets joined_at=now.
+	AcceptInvite(ctx context.Context, membershipID, userID string) error
 	// DeleteMembership hard-deletes a membership. Prefer
 	// UpdateMembershipState("removed") for audit retention; this is for
 	// administrative cleanup.

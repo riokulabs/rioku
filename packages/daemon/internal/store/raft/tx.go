@@ -1249,6 +1249,14 @@ func (t *raftTx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*sto
 	return nil, store.ErrMembershipNotFound
 }
 
+func (t *raftTx) GetMembershipByInviteToken(_ context.Context, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) AcceptInvite(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: AcceptInvite not implemented")
+}
+
 func (t *raftTx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {
 	return nil, nil
 }

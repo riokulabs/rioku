@@ -138,7 +138,25 @@ func NewGateway(
 	if resetBaseURL == "" {
 		resetBaseURL = "http://localhost:7778"
 	}
-	RegisterPasswordResetRoutes(topMux, st, auth.NewNopMailer(), cfg, resetBaseURL)
+	// Construct outbound mailer from config: SMTP when host is configured,
+	// nop otherwise (silently discards messages).
+	var outboundMailer auth.Mailer
+	if cfg.Auth.SMTP.Host != "" {
+		outboundMailer = auth.NewSMTPMailer(auth.MailerConfig{
+			Host:     cfg.Auth.SMTP.Host,
+			Port:     cfg.Auth.SMTP.Port,
+			From:     cfg.Auth.SMTP.From,
+			Username: cfg.Auth.SMTP.Username,
+			Password: cfg.Auth.SMTP.Password,
+			StartTLS: cfg.Auth.SMTP.StartTLS,
+		})
+	} else {
+		outboundMailer = auth.NewNopMailer()
+	}
+	RegisterPasswordResetRoutes(topMux, st, outboundMailer, cfg, resetBaseURL)
+
+	// Invite routes — POST /t/{tenant}/users/invite + POST /auth/invite/accept (unauthenticated accept).
+	RegisterInviteRoutes(topMux, st, sm, outboundMailer, cfg)
 
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
