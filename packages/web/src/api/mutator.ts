@@ -84,8 +84,43 @@ async function parseError(res: Response): Promise<ApiError> {
     : new ApiError(message, { status: res.status });
 }
 
-export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
-  const { url, method, data, signal, params } = args;
+/**
+ * customFetch supports two calling conventions:
+ *
+ * 1. Single-object form (hand-written callers):
+ *    customFetch({ url, method, data, signal, params })
+ *
+ * 2. Two-argument form (Orval-generated code):
+ *    customFetch(url: string, options: RequestInit & { data?: unknown; params?: Record<...> })
+ *
+ * Both are normalised internally to the same path.
+ */
+export async function customFetch<T>(
+  argsOrUrl: CustomFetchArgs | string,
+  orvalOptions?: RequestInit & {
+    data?: unknown;
+    params?: Record<string, string | number | boolean | undefined>;
+  },
+): Promise<T> {
+  let url: string;
+  let method: string;
+  let data: unknown;
+  let signal: AbortSignal | undefined;
+  let params: Record<string, string | number | boolean | undefined> | undefined;
+
+  if (typeof argsOrUrl === 'string') {
+    // Orval two-argument form
+    url = argsOrUrl;
+    method = (orvalOptions?.method as string | undefined) ?? 'GET';
+    data = orvalOptions?.body !== undefined
+      ? (typeof orvalOptions.body === 'string' ? JSON.parse(orvalOptions.body) : orvalOptions.body)
+      : orvalOptions?.data;
+    signal = orvalOptions?.signal ?? undefined;
+    params = orvalOptions?.params;
+  } else {
+    // Single-object form
+    ({ url, method, data, signal, params } = argsOrUrl);
+  }
 
   let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
   if (params !== undefined && Object.keys(params).length > 0) {
