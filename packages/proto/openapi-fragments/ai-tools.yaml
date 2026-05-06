@@ -1,0 +1,180 @@
+# Stage-2 admin API: AI tools (CRUD + test invocation + reverse-list).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_tools_routes.go
+
+paths:
+  /api/v1/t/{tenant}/ai/tools:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-tools]
+      summary: List AI tools
+      operationId: listAITools
+      responses:
+        "200":
+          description: List of AI tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AITool" }
+                  total: { type: integer }
+    post:
+      tags: [ai-tools]
+      summary: Create an AI tool
+      operationId: createAITool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIToolCreateRequest" }
+      responses:
+        "201":
+          description: Tool created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AITool" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/tools/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-tools]
+      operationId: getAITool
+      responses:
+        "200":
+          description: AI tool
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AITool" }
+    put:
+      tags: [ai-tools]
+      operationId: updateAITool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIToolUpdateRequest" }
+      responses:
+        "200":
+          description: Tool updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AITool" }
+    patch:
+      tags: [ai-tools]
+      operationId: patchAITool
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/AIToolUpdateRequest" }
+      responses:
+        "200":
+          description: Tool patched
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AITool" }
+    delete:
+      tags: [ai-tools]
+      operationId: deleteAITool
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/tools/{id}/test:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [ai-tools]
+      summary: Test invoke a tool (stage-2 stub)
+      operationId: testAITool
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  toolId: { type: string }
+                  ok: { type: boolean }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/tools/{id}/agents:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-tools]
+      summary: List agents bound to this tool
+      operationId: listAIToolAgents
+      responses:
+        "200":
+          description: Agents bound to this tool
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        agentId: { type: string }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AITool:
+      type: object
+      required: [id, tenantId, name, kind, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        description: { type: string }
+        schema: { type: object, additionalProperties: true }
+        httpEndpoint: { type: string, nullable: true }
+        mcpServerId: { type: string, nullable: true }
+        dangerous: { type: boolean }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AIToolCreateRequest:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        description: { type: string }
+        schema: { type: object, additionalProperties: true }
+        httpEndpoint: { type: string, nullable: true }
+        mcpServerId: { type: string, nullable: true }
+        dangerous: { type: boolean }
+
+    AIToolUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        description: { type: string }
+        schema: { type: object, additionalProperties: true }
+        httpEndpoint: { type: string, nullable: true }
+        mcpServerId: { type: string, nullable: true }
+        dangerous: { type: boolean }
+        enabled: { type: boolean }

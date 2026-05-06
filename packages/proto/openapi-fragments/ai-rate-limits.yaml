@@ -1,0 +1,177 @@
+# Stage-2 admin API: AI semantic rate-limits (CRUD + simulate + metrics).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_rate_limits_routes.go
+
+paths:
+  /api/v1/t/{tenant}/ai/rate-limits:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-rate-limits]
+      summary: List AI rate limits
+      operationId: listAIRateLimits
+      responses:
+        "200":
+          description: List of rate limits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AIRateLimit" }
+                  total: { type: integer }
+    post:
+      tags: [ai-rate-limits]
+      summary: Create an AI rate limit
+      operationId: createAIRateLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIRateLimitCreateRequest" }
+      responses:
+        "201":
+          description: Rate limit created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimit" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/rate-limits/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-rate-limits]
+      operationId: getAIRateLimit
+      responses:
+        "200":
+          description: Rate limit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimit" }
+    put:
+      tags: [ai-rate-limits]
+      operationId: updateAIRateLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIRateLimitUpdateRequest" }
+      responses:
+        "200":
+          description: Rate limit updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimit" }
+    delete:
+      tags: [ai-rate-limits]
+      operationId: deleteAIRateLimit
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/rate-limits/{id}/simulate:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [ai-rate-limits]
+      summary: Simulate the rate-limit against historical traces (stage-2 stub)
+      operationId: simulateAIRateLimit
+      responses:
+        "200":
+          description: Simulation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rateLimitId: { type: string }
+                  hits: { type: integer }
+                  window: { type: string }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/rate-limits/{id}/metrics:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-rate-limits]
+      summary: Live metrics for a rate-limit
+      operationId: getAIRateLimitMetrics
+      responses:
+        "200":
+          description: Rate-limit metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rateLimitId: { type: string }
+                  current: { type: integer }
+                  limit: { type: integer }
+                  resetSeconds: { type: integer }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AIRateLimit:
+      type: object
+      required: [id, tenantId, name, scope, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        scope: { type: string }
+        agentId: { type: string, nullable: true }
+        toolId: { type: string, nullable: true }
+        exemplars:
+          type: array
+          items: { type: string }
+        similarityThreshold: { type: number, format: double }
+        windowSeconds: { type: integer, format: int32 }
+        threshold: { type: integer, format: int32 }
+        action: { type: string }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AIRateLimitCreateRequest:
+      type: object
+      required: [name, scope]
+      properties:
+        name: { type: string }
+        scope: { type: string }
+        agentId: { type: string, nullable: true }
+        toolId: { type: string, nullable: true }
+        exemplars:
+          type: array
+          items: { type: string }
+        similarityThreshold: { type: number, format: double }
+        windowSeconds: { type: integer, format: int32 }
+        threshold: { type: integer, format: int32 }
+        action: { type: string }
+
+    AIRateLimitUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        scope: { type: string }
+        agentId: { type: string, nullable: true }
+        toolId: { type: string, nullable: true }
+        exemplars:
+          type: array
+          items: { type: string }
+        similarityThreshold: { type: number, format: double }
+        windowSeconds: { type: integer, format: int32 }
+        threshold: { type: integer, format: int32 }
+        action: { type: string }
+        enabled: { type: boolean }
