@@ -30,8 +30,7 @@ export * from './notifications';
 export * from './notification-channels';
 export * from './notification-routing';
 export * from './notification-log';
-// Plan 07 (settings)
-export * from './settings';
+// Plan 07 (settings) feature slice retired — seed lives in _internal.ts
 // Plan 08 (dashboards)
 export * from './dashboards';
 export * from './widgets';
