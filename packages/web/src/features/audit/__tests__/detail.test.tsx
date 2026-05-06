@@ -139,9 +139,14 @@ describe('<AuditDetail>', () => {
       // Provide a valid reason and confirm.
       fireEvent.change(reasonInput, { target: { value: 'Investigating incident #42' } });
       fireEvent.click(screen.getByTestId('audit-reveal-confirm'));
-      await waitFor(() => {
-        expect(events).toHaveLength(1);
-      });
+      // The MSW reveal handler delays 1s; bump the waitFor budget so
+      // the mutation has time to settle and onSettled emits the event.
+      await waitFor(
+        () => {
+          expect(events).toHaveLength(1);
+        },
+        { timeout: 5000 },
+      );
       expect(events[0]).toMatchObject({
         entry_id: 'audit-1',
         reason: 'Investigating incident #42',

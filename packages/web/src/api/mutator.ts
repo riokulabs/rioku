@@ -84,10 +84,48 @@ async function parseError(res: Response): Promise<ApiError> {
     : new ApiError(message, { status: res.status });
 }
 
-export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
-  const { url, method, data, signal, params } = args;
+/**
+ * Two call shapes are supported:
+ *
+ *   1. The hand-rolled shape `{ url, method, data?, signal?, params? }` used
+ *      throughout the admin SPA prior to Orval codegen.
+ *   2. The positional `(url, init)` shape that Orval-generated clients use,
+ *      where `init` is a `RequestInit` (method/body/headers/signal already
+ *      packed in by the caller).
+ *
+ * Internally both shapes converge on the `{ url, method, ... }` form before
+ * issuing the actual fetch. The body/headers from the Orval `init` are
+ * forwarded as-is so generated `Content-Type: application/json` + pre-
+ * serialised JSON bodies survive the trip.
+ */
+export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
+export async function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
+export async function customFetch<T>(
+  argsOrUrl: CustomFetchArgs | string,
+  initArg?: RequestInit,
+): Promise<T> {
+  const { url, method, data, signal, params, init } =
+    typeof argsOrUrl === 'string'
+      ? {
+          url: argsOrUrl,
+          method: initArg?.method ?? 'GET',
+          data: undefined as unknown,
+          signal: initArg?.signal ?? undefined,
+          params: undefined,
+          init: initArg,
+        }
+      : { ...argsOrUrl, init: undefined as RequestInit | undefined };
 
-  let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
+  let fullUrl: string;
+  if (url.startsWith('http')) {
+    fullUrl = url;
+  } else if (url.startsWith('/api/')) {
+    // Generated Orval clients already include the /api/v1 prefix in
+    // their URL builders; don't double-prepend the base.
+    fullUrl = url;
+  } else {
+    fullUrl = `${BASE}${url}`;
+  }
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -107,6 +145,16 @@ export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
     fetchInit.body = JSON.stringify(data);
   }
   if (signal !== undefined) fetchInit.signal = signal;
+
+  // When called via the Orval positional shape, the body / headers are
+  // already packed into `init` — forward them onto the fetch init.
+  if (init) {
+    if (init.body !== undefined && init.body !== null) fetchInit.body = init.body;
+    if (init.headers) {
+      const ih = init.headers as Record<string, string>;
+      for (const [k, v] of Object.entries(ih)) headers[k.toLowerCase()] = v;
+    }
+  }
 
   let res: Response;
   try {

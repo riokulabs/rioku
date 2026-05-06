@@ -25,18 +25,42 @@ Generated Orval clients now expose the matching hooks under
 (mutation), `useGetAuditRetentionConfig`, `useUpsertAuditRetentionConfig`
 (mutation), plus the existing typeahead/export/stream hooks.
 
-## 05-002 T1 list / filter / infinite scroll — DEFERRED (rationale: minimal value-add)
+## 05-002 T1 list / filter / infinite scroll — RESOLVED
 
-**Status:** still mock-store backed. The OpenAPI gap is now closed
-(`useListAuditEntries[Infinite]` is generated), so the future swap is one
-file: replace the body of `useAuditList` / `useAuditListInfinite` in
-`features/audit/api.ts` with the generated hook + a server-side filter
-translation layer. The translation layer is non-trivial because the SPA
-filter shape (multi-handle actor + resource, action / outcome / tier
-multi-select, free-text search) is richer than the daemon query (single
-actor / entity_type / entity_id / range). A real swap will need either a
-client-side post-filter on top of the server query OR a daemon-side filter
-extension — neither belongs in this plan.
+`useAuditList` and `useAuditListInfinite` in `features/audit/api.ts` are
+now wired to the real daemon `GET /api/v1/t/{tenant}/audit` endpoint via
+TanStack Query (`useQuery` / `useInfiniteQuery`). The richer SPA filter
+shape (multi-handle actor + resource, action / outcome / tier
+multi-select, free-text search) is bridged by `buildAuditListParams`,
+which forwards the daemon-supported axes (`actor`, `entity_type`,
+`entity_id`, `since`, `until`, `limit`, `offset`) and leaves the rest as
+a client-side post-filter via `matchesFilter`.
+
+A process-local fallback `QueryClient` keeps legacy bare `renderHook`
+test callers green; production + the new `list.test.tsx` integration
+suite supply their own provider via `<QueryClientProvider>`. The
+mock-store remains as a fallback merge source so mock-mode dev / E2E
+fixtures still see seeded entries when the daemon returns nothing.
+
+`api/mutator.ts` was extended to support both the hand-rolled
+`{url, method, ...}` shape AND the positional `(url, init)` shape that
+Orval-generated clients use, with body / headers forwarded as-is. The
+double-prefix bug (`/api/v1/api/v1/...`) when generated paths already
+include `/api/v1` is also corrected.
+
+Tests:
+
+- `features/audit/__tests__/list.test.tsx` — 13 tests covering presentation,
+  selector against MSW-served daemon, actor-filter narrowing the wire
+  call, infinite-scroll fetchNextPage advancing offset, RBAC negative
+  for the Reveal control, and per-entity deep-link `validateSearch`
+  alias.
+- `audit_extra_routes_test.go::TestAuditExtra_Reveal_Forbidden` — viewer
+  without `audit:read-sensitive` receives 403 + RFC-7807 problem-detail
+  body, no follow-up reveal row persisted.
+- `e2e/audit/audit-flow.spec.ts` — `@isolated` flow against the real
+  sandbox (skip-if-unavailable): create service → audit row appears →
+  reveal with reason ≥ 10 chars → assert chain still verifies.
 
 ## 05-003 T2 sensitive reveal — RESOLVED
 
