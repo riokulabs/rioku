@@ -159,7 +159,7 @@ describe('toProtoServiceBody', () => {
     const body = toProtoServiceBody(baseInput);
     expect(body.name).toBe('my-api');
     expect(body.upstreams).toHaveLength(1);
-    expect(body.upstreams![0].address).toBe('http://backend:8080');
+    expect(body.upstreams![0]!.address).toBe('http://backend:8080');
   });
 
   it('encodes env, tags, protocol in labels', () => {
@@ -206,7 +206,7 @@ describe('toProtoServicePatch', () => {
   it('patches upstream when upstream changes', () => {
     const patch = toProtoServicePatch({ upstream: 'http://new-backend:9090' });
     expect(patch.upstreams).toHaveLength(1);
-    expect(patch.upstreams![0].address).toBe('http://new-backend:9090');
+    expect(patch.upstreams![0]!.address).toBe('http://new-backend:9090');
   });
 
   it('sets disabled label when health is set to "disabled"', () => {

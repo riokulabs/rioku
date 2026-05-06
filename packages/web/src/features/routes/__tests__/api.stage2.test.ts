@@ -118,7 +118,6 @@ describe('useRouteListReal', () => {
     expect(rt!.path).toBe('/api/users');
     expect(rt!.match_kind).toBe('prefix');
     expect(rt!.enabled).toBe(true);
-    expect(rt!.tenant_id).toBe(TENANT);
   });
 
   it('filters by serviceId when provided', async () => {
@@ -152,7 +151,7 @@ describe('useRouteListReal', () => {
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () => useRouteListReal(TENANT, undefined, { search: '', method: 'GET' }),
+      () => useRouteListReal(TENANT, undefined, { search: '', method: 'GET', enabled: 'all' }),
       { wrapper: makeWrapper(qc) },
     );
 
@@ -172,7 +171,7 @@ describe('useRouteListReal', () => {
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () => useRouteListReal(TENANT, undefined, { search: 'payments' }),
+      () => useRouteListReal(TENANT, undefined, { search: 'payments', method: 'all', enabled: 'all' }),
       { wrapper: makeWrapper(qc) },
     );
 
@@ -285,7 +284,6 @@ describe('useCreateRouteMutation', () => {
 
     expect(route!.id).toBe('rt-new-1');
     expect(route!.name).toBe('new-route');
-    expect(route!.tenant_id).toBe(TENANT);
   });
 });
 

@@ -77,7 +77,9 @@ describe('fromProtoRoute', () => {
   });
 
   it('defaults to empty policies when policyIds absent', () => {
-    const route = fromProtoRoute({ ...baseProto, policyIds: undefined }, 'tenant-1');
+    const { policyIds: _ignored, ...rest } = baseProto;
+    void _ignored;
+    const route = fromProtoRoute(rest as typeof baseProto, 'tenant-1');
     expect(route.policies).toEqual([]);
   });
 

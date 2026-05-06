@@ -92,7 +92,7 @@ export function fromProtoService(proto: V1Service, tenantId: string): Service {
     ...(description !== undefined ? { description } : {}),
     ...(health_check !== undefined ? { health_check } : {}),
     created_at: proto.createdAt ?? '',
-    ...(proto.updatedAt ? { last_reloaded_at: undefined } : {}),
+    ...(proto.updatedAt ? { last_reloaded_at: proto.updatedAt } : {}),
   };
 }
 

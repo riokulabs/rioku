@@ -224,8 +224,9 @@ export function useListRoutePoliciesReal(tenantId: string, routeId: string) {
 export async function createRouteReal(tenantId: string, input: RouteInput): Promise<Route> {
   const body = toProtoRouteBody(input);
   const res = await orvalCreateRoute(tenantId, body);
-  if (!res.data) throw new Error('Server returned empty route');
-  return fromProtoRoute(res.data, tenantId);
+  const proto = res as unknown as V1Route;
+  if (!proto) throw new Error('Server returned empty route');
+  return fromProtoRoute(proto, tenantId);
 }
 
 /** @deprecated Prefer `useDeleteRouteMutation` for React components. */
@@ -262,6 +263,7 @@ export async function reorderMiddlewaresReal(
 ): Promise<Route> {
   const body = toProtoRoutePatch({ middleware_ids: middlewareIds });
   const res = await patchRoute(tenantId, routeId, body);
-  if (!res.data) throw new Error('Server returned empty route');
-  return fromProtoRoute(res.data, tenantId);
+  const proto = res as unknown as V1Route;
+  if (!proto) throw new Error('Server returned empty route');
+  return fromProtoRoute(proto, tenantId);
 }
