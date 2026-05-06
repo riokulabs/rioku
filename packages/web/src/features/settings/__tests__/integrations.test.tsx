@@ -44,6 +44,12 @@ vi.mock('@/hooks/use-permission', () => ({
   },
 }));
 
+// ─── Feature flags mock ───────────────────────────────────────────────────────
+// OAuth connector cards are hidden when integrationsOAuth flag is off.
+vi.mock('@/host/feature-flags', () => ({
+  isFeatureEnabled: (flag: string) => flag !== 'integrationsOAuth',
+}));
+
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
 import { useMockStore } from '@/api/mock-store';
