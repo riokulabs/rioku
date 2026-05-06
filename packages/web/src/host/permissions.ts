@@ -466,6 +466,12 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     source: 'built-in',
     default_roles: ['admin'],
   },
+  {
+    key: 'ai-tool:invoke',
+    description: 'Invoke (test/run) AI tools',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
 
   // ai-trace:*
   {

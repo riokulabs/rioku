@@ -162,7 +162,7 @@ describe('BUILT_IN_PERMISSIONS', () => {
     }
   });
 
-  it('contains all 17 Plan 3 AI / MCP keys', () => {
+  it('contains all 18 Plan 3 / Plan 4 AI / MCP keys', () => {
     const expected = [
       'ai-provider:read',
       'ai-provider:write',
@@ -174,6 +174,7 @@ describe('BUILT_IN_PERMISSIONS', () => {
       'ai-tool:read',
       'ai-tool:write',
       'ai-tool:delete',
+      'ai-tool:invoke',
       'ai-trace:read',
       'ai-trace:read-sensitive',
       'ai-rate-limit:read',
@@ -182,7 +183,7 @@ describe('BUILT_IN_PERMISSIONS', () => {
       'mcp-server:write',
       'mcp-server:delete',
     ];
-    expect(expected).toHaveLength(17);
+    expect(expected).toHaveLength(18);
     for (const key of expected) {
       expect(keys).toContain(key);
     }
