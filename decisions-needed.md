@@ -21,16 +21,22 @@
 
 ## Item 02-002 — Daemon ApiKey shape mismatch with stage-1 mock
 
-- **Status:** open
-- **Filed by:** plan-02-identity (stage2/plan-02-identity), 2026-05-06
-- **Category:** missing-data
-- **What:** The generated `GetAPIKey200` type (from OpenAPI) carries `tenantId`, `createdAt`, `revokedAt` (timestamp), `lastUsedAt`, `scopes`, `usageCount`, `ownerId`. The stage-1 mock `ApiKey` type uses `tenant_id`, `created_at`, `revoked` (bool), `last_used`, `scope`, `prefix`, `user_id`. Notably, **`prefix` is not in the daemon response** — the SPA list/detail views display `key.prefix` to identify keys without exposing the secret.
-- **Found in:** `packages/web/src/api/generated/schemas/getAPIKey200.ts` vs `packages/web/src/api/resources/_internal.ts` (ApiKey).
-- **Why it matters:** Real-API wiring for api-keys requires either an adapter (manageable) and/or a daemon-side addition of `prefix` to the API key response (preferable — without it, the UI cannot show identifying tokens to humans). `revoked: bool` vs `revokedAt: timestamp` is similarly load-bearing for filter logic.
-- **Recommendation:** Add `prefix` to the daemon `ApiKey` response and align field naming via the proto. Once aligned, the SPA adapter shrinks to a thin camelCase→snake_case transform.
-- **Alternatives:** Adapter-only — derive a synthetic prefix from `id`. Rejected: prefix must match the actual key value for support/debug.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **Status:** RESOLVED 2026-05-06 (this worktree)
+- **Resolution:** Added `prefix` to the daemon-side `store.APIKey` model and threaded it through every layer:
+  1. **Migration #51** (`000051_api_keys_prefix`) adds `prefix TEXT/VARCHAR NOT NULL DEFAULT ''` to `api_keys` across sqlite, postgres, mysql.
+  2. **`store.Driver.CreateAPIKey`** signature gains `prefix string` (22 callsites updated; system / refresh / bootstrap keys pass `""`).
+  3. **`auth.KeyPrefix(rawKey)`** centralizes the derivation — first 12 chars of the raw token (e.g. `rku_tok_AbCd`).
+  4. **`gateway/key_routes.go`** computes the prefix from the raw token at create + rotate time, persists via `CreateAPIKey`, and surfaces it in `keyResponse` (list), `keyDetailDTO` (get), the `POST /api-keys` 201 body, and the `POST /api-keys/{id}/rotate` 200 body.
+  5. **OpenAPI fragment** (`packages/proto/openapi-fragments/api-keys.yaml`) now declares `prefix` in `getAPIKey` 200, `createAPIKey` 201, and `rotateAPIKey` 200; clients regenerated via `make openapi` + `pnpm run types:gen` (yields `CreateAPIKey201.prefix`, `RotateAPIKey200.prefix`, `GetAPIKey200.prefix`).
+- **`revoked: bool` vs `revokedAt: timestamp`** — the SPA adapter computes `revoked = (revokedAt !== '')` so the existing `display_status` filter (active / revoked / expired) keeps working without daemon changes.
+- **Verification:**
+  - `go vet ./internal/...` — clean (only pre-existing web/embed build-tag noise).
+  - `go test ./internal/gateway/ -run Key -short -race -count=1` — pass (95.9s).
+  - `go test ./internal/store/sqlite/ -short -race -count=1 -run "Key|APIKey|ApiKey"` — pass (49.9s).
+  - `pnpm exec eslint src/features/security/api-keys` — 0 errors.
+  - `pnpm exec vitest run src/features/security/api-keys` — 7/7 pass.
+  - `pnpm exec tsc --noEmit` — 0 errors in api-keys (the 5 remaining errors are in the access-policies sibling slice, not this scope).
+- **Resolution date / commit:** 2026-05-06, commit `cb6a291b` (daemon shape) + `a97d4217` (web wire-up) + `a231b461` (lint/test polish).
 
 ## Item 02-003 — Permission catalog endpoint not exposed
 
