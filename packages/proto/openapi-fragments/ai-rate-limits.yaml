@@ -80,20 +80,19 @@ paths:
       - $ref: "#/components/parameters/ID"
     post:
       tags: [ai-rate-limits]
-      summary: Simulate the rate-limit against historical traces (stage-2 stub)
+      summary: Simulate the rate-limit against a probe request volume
       operationId: simulateAIRateLimit
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIRateLimitSimulateRequest" }
       responses:
         "200":
           description: Simulation result
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  rateLimitId: { type: string }
-                  hits: { type: integer }
-                  window: { type: string }
-                  note: { type: string }
+              schema: { $ref: "#/components/schemas/AIRateLimitSimulateResponse" }
     options:
       responses: { "204": { description: no content } }
 
@@ -103,21 +102,21 @@ paths:
       - $ref: "#/components/parameters/ID"
     get:
       tags: [ai-rate-limits]
-      summary: Live metrics for a rate-limit
+      summary: Throttle event time-series for a rate-limit
       operationId: getAIRateLimitMetrics
+      parameters:
+        - in: query
+          name: since
+          required: false
+          schema: { type: string, default: "24h" }
+          description: |
+            Lookback window. One of `1h`, `24h`, `7d`. Defaults to `24h`.
       responses:
         "200":
           description: Rate-limit metrics
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  rateLimitId: { type: string }
-                  current: { type: integer }
-                  limit: { type: integer }
-                  resetSeconds: { type: integer }
-                  note: { type: string }
+              schema: { $ref: "#/components/schemas/AIRateLimitMetricsResponse" }
     options:
       responses: { "204": { description: no content } }
 
@@ -175,3 +174,57 @@ components:
         threshold: { type: integer, format: int32 }
         action: { type: string }
         enabled: { type: boolean }
+
+    AIRateLimitSimulateRequest:
+      type: object
+      properties:
+        request_count:
+          type: integer
+          format: int32
+          description: Probe volume; defaults to 1.
+        time_window_seconds:
+          type: integer
+          format: int32
+          description: Probe window in seconds; defaults to the rule's window.
+        principal:
+          type: string
+          description: Subject id for the probe (informational; echoed back).
+
+    AIRateLimitSimulateResponse:
+      type: object
+      required: [rate_limit_id, would_throttle, retry_after_ms, current_consumption, limit]
+      properties:
+        rate_limit_id: { type: string }
+        principal: { type: string }
+        would_throttle: { type: boolean }
+        retry_after_ms:
+          type: integer
+          format: int32
+          description: Hint for how long to wait before retrying. 0 when not throttled.
+        current_consumption:
+          type: integer
+          format: int32
+          description: Probe volume normalised to the rule's window.
+        limit:
+          type: integer
+          format: int32
+          description: The rule's configured threshold.
+
+    AIRateLimitMetricsPoint:
+      type: object
+      required: [timestamp, throttle_events]
+      properties:
+        timestamp: { type: string, format: date-time }
+        throttle_events:
+          type: integer
+          format: int32
+
+    AIRateLimitMetricsResponse:
+      type: object
+      required: [rate_limit_id, since, points]
+      properties:
+        rate_limit_id: { type: string }
+        since: { type: string }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/AIRateLimitMetricsPoint" }

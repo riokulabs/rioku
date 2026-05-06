@@ -36,6 +36,7 @@ export * from './aIGatewayServiceUpdateMCPTeamBody';
 export * from './aIGatewayServiceUpdateVirtualKeyBody';
 export * from './aIRateLimit';
 export * from './aIRateLimitCreateRequest';
+export * from './aIRateLimitSimulateRequest';
 export * from './aIRateLimitUpdateRequest';
 export * from './aITool';
 export * from './aIToolBinding';

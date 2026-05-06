@@ -91,14 +91,14 @@ describe('ai-rate-limits daemon-hooks (T6)', () => {
   });
 
   it('simulates a rate limit', async () => {
-    const res = (await simulateAIRateLimit(TENANT, 'rl-1')) as {
+    const res = (await simulateAIRateLimit(TENANT, 'rl-1')) as unknown as {
       data: { rateLimitId: string; hits: number };
     };
     expect(res.data.rateLimitId).toBe('rl-1');
   });
 
   it('reads metrics', async () => {
-    const res = (await getAIRateLimitMetrics(TENANT, 'rl-1')) as {
+    const res = (await getAIRateLimitMetrics(TENANT, 'rl-1')) as unknown as {
       data: { current: number; limit: number };
     };
     expect(res.data.limit).toBe(10);

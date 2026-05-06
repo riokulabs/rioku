@@ -40,6 +40,7 @@ import { Simulator } from './simulator';
 dayjs.extend(relativeTime);
 
 interface RateLimitDetailProps {
+  tenantId: string;
   ruleId: string;
   onEdit: () => void;
   onClose: () => void;
@@ -57,8 +58,8 @@ function formatWindow(seconds: number): string {
   return `${String(seconds)}s`;
 }
 
-export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProps) {
-  const rule = useRateLimitDetail(ruleId);
+export function RateLimitDetail({ tenantId, ruleId, onEdit, onClose }: RateLimitDetailProps) {
+  const rule = useRateLimitDetail(tenantId, ruleId);
   const agents = useMockStore((s) => s.aiAgents);
   const tools = useMockStore((s) => s.aiTools);
   const auditEntries = useMockStore((s) => s.audit);
@@ -94,7 +95,7 @@ export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProp
   async function handleToggle(enabled: boolean) {
     if (!rule) return;
     try {
-      await updateRateLimit(rule.id, { enabled });
+      await updateRateLimit(tenantId, rule.id, { enabled });
     } catch {
       notify.error('Failed to update rule', 'Please try again.');
     }
@@ -105,7 +106,7 @@ export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProp
     if (deleteInput !== rule.name) return;
     setDeleting(true);
     try {
-      await deleteRateLimit(rule.id);
+      await deleteRateLimit(tenantId, rule.id);
       notify.success('Rate limit deleted', `${rule.name} was removed.`);
       closeDelete();
       onClose();
@@ -212,13 +213,13 @@ export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProp
         <Text size="sm" fw={600}>
           Matches — last 24h
         </Text>
-        <MetricsSparkline ruleId={rule.id} size="lg" window="24h" />
+        <MetricsSparkline tenantId={tenantId} ruleId={rule.id} size="lg" window="24h" />
       </Stack>
 
       <Divider />
 
       {/* Simulator */}
-      <Simulator ruleId={rule.id} />
+      <Simulator tenantId={tenantId} ruleId={rule.id} />
 
       <Divider />
 

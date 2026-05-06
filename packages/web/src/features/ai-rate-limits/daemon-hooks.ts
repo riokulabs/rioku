@@ -25,5 +25,9 @@ export {
 export type {
   AIRateLimit,
   AIRateLimitCreateRequest,
+  AIRateLimitSimulateRequest,
   AIRateLimitUpdateRequest,
+  GetAIRateLimitMetrics200,
+  AIRateLimitMetricsPoint,
+  SimulateAIRateLimit200,
 } from '@/api/generated/schemas';
