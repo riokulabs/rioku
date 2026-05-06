@@ -42,6 +42,7 @@ import type {
 import type {
   CreateAPIKeyBody,
   GetAPIKey200,
+  ListAPIKeys200,
   PatchAPIKeyBody,
   RotateAPIKey200,
 } from '.././schemas';
@@ -51,7 +52,7 @@ import { customFetch } from '../../mutator';
  * @summary List API keys
  */
 export type listAPIKeysResponse = {
-  data: void;
+  data: ListAPIKeys200;
   status: number;
   headers: Headers;
 };

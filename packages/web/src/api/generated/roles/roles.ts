@@ -39,14 +39,20 @@ import type {
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import type { AssignUserRoleBody, CreateRoleBody, GetRole200 } from '.././schemas';
+import type {
+  AssignUserRoleBody,
+  CreateRoleBody,
+  GetRole200,
+  ListRoles200,
+  ListUserRoles200,
+} from '.././schemas';
 import { customFetch } from '../../mutator';
 
 /**
  * @summary List roles
  */
 export type listRolesResponse = {
-  data: void;
+  data: ListRoles200;
   status: number;
   headers: Headers;
 };
@@ -754,7 +760,7 @@ export const useReplaceRole = <TError = unknown, TContext = unknown>(options?: {
  * @summary List roles assigned to a user
  */
 export type listUserRolesResponse = {
-  data: void;
+  data: ListUserRoles200;
   status: number;
   headers: Headers;
 };

@@ -21,19 +21,64 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
+import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
+import type { ListAccessPolicies200 } from '.././schemas';
+
+export const getListAccessPoliciesResponseMock = (
+  overrideResponse: Partial<ListAccessPolicies200> = {},
+): ListAccessPolicies200 => ({
+  accessPolicies: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      createdAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      effect: faker.helpers.arrayElement([
+        faker.helpers.arrayElement(['allow', 'deny'] as const),
+        undefined,
+      ]),
+      enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      expression: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      priority: faker.helpers.arrayElement([
+        faker.number.int({ min: undefined, max: undefined }),
+        undefined,
+      ]),
+      tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      updatedAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+    })),
+    undefined,
+  ]),
+  nextPageToken: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  ...overrideResponse,
+});
 
 export const getListAccessPoliciesMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListAccessPolicies200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListAccessPolicies200> | ListAccessPolicies200),
 ) => {
   return http.get('*/api/v1/t/:tenant/access-policies', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListAccessPoliciesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 

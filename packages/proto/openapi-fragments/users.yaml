@@ -16,7 +16,30 @@ paths:
       tags: [users]
       summary: List users
       operationId: listUsers
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        tenantId: { type: string }
+                        email: { type: string }
+                        name: { type: string }
+                        disabled: { type: boolean }
+                        totpEnabled: { type: boolean }
+                        totpEnrolled: { type: boolean }
+                        forcePasswordChange: { type: boolean }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+                  nextPageToken: { type: string }
     post:
       tags: [users]
       summary: Create a user
@@ -167,6 +190,27 @@ paths:
       tags: [users]
       summary: List sessions for a user
       operationId: listUserSessions
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        userId: { type: string }
+                        tenantId: { type: string }
+                        ipAddress: { type: string }
+                        userAgent: { type: string }
+                        revoked: { type: boolean }
+                        createdAt: { type: string, format: date-time }
+                        expiresAt: { type: string, format: date-time }
+                        lastActivityAt: { type: string, format: date-time }
     options:
       responses: { "204": { description: no content } }

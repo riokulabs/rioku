@@ -24,6 +24,26 @@ Conventions:
 import { z as zod } from 'zod';
 
 /**
+ * @summary List roles
+ */
+export const listRolesResponse = zod.object({
+  nextPageToken: zod.string().optional(),
+  roles: zod
+    .array(
+      zod.object({
+        createdAt: zod.string().datetime().optional(),
+        description: zod.string().optional(),
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+        permissions: zod.array(zod.string()).optional(),
+        source: zod.enum(['builtin', 'custom', 'plugin-manifest', 'plugin-dynamic']).optional(),
+        tenantId: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
  * @summary Create a role
  */
 export const createRoleBody = zod.object({
@@ -49,6 +69,20 @@ export const getRoleResponse = zod.object({
   permissions: zod.array(zod.string()).optional(),
   source: zod.enum(['builtin', 'custom', 'plugin-manifest', 'plugin-dynamic']).optional(),
   tenantId: zod.string().optional(),
+});
+
+/**
+ * @summary List roles assigned to a user
+ */
+export const listUserRolesResponse = zod.object({
+  roles: zod
+    .array(
+      zod.object({
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /**

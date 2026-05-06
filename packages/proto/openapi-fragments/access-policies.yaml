@@ -13,7 +13,30 @@ paths:
     get:
       tags: [access-policies]
       operationId: listAccessPolicies
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessPolicies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        tenantId: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+                        expression: { type: string }
+                        effect: { type: string, enum: [allow, deny] }
+                        priority: { type: integer }
+                        enabled: { type: boolean }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+                  nextPageToken: { type: string }
     post:
       tags: [access-policies]
       operationId: createAccessPolicy

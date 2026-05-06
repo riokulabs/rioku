@@ -42,6 +42,8 @@ import type {
 import type {
   CreateUserBody,
   GetUser200,
+  ListUserSessions200,
+  ListUsers200,
   PatchUserBody,
   ResetUserPasswordBody,
 } from '.././schemas';
@@ -51,7 +53,7 @@ import { customFetch } from '../../mutator';
  * @summary List users
  */
 export type listUsersResponse = {
-  data: void;
+  data: ListUsers200;
   status: number;
   headers: Headers;
 };
@@ -998,7 +1000,7 @@ export const useResetUserPassword = <TError = unknown, TContext = unknown>(optio
  * @summary List sessions for a user
  */
 export type listUserSessionsResponse = {
-  data: void;
+  data: ListUserSessions200;
   status: number;
   headers: Headers;
 };

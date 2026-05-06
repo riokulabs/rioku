@@ -23,6 +23,26 @@ Conventions:
  */
 import { z as zod } from 'zod';
 
+export const listAccessPoliciesResponse = zod.object({
+  accessPolicies: zod
+    .array(
+      zod.object({
+        createdAt: zod.string().datetime().optional(),
+        description: zod.string().optional(),
+        effect: zod.enum(['allow', 'deny']).optional(),
+        enabled: zod.boolean().optional(),
+        expression: zod.string().optional(),
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+        priority: zod.number().optional(),
+        tenantId: zod.string().optional(),
+        updatedAt: zod.string().datetime().optional(),
+      }),
+    )
+    .optional(),
+  nextPageToken: zod.string().optional(),
+});
+
 export const createAccessPolicyBody = zod.object({
   description: zod.string().optional(),
   effect: zod.enum(['allow', 'deny']).optional(),

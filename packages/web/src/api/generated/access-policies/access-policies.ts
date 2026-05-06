@@ -39,11 +39,11 @@ import type {
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import type { CreateAccessPolicyBody } from '.././schemas';
+import type { CreateAccessPolicyBody, ListAccessPolicies200 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
 export type listAccessPoliciesResponse = {
-  data: void;
+  data: ListAccessPolicies200;
   status: number;
   headers: Headers;
 };

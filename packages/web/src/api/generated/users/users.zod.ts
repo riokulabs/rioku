@@ -24,6 +24,29 @@ Conventions:
 import { z as zod } from 'zod';
 
 /**
+ * @summary List users
+ */
+export const listUsersResponse = zod.object({
+  nextPageToken: zod.string().optional(),
+  users: zod
+    .array(
+      zod.object({
+        createdAt: zod.string().datetime().optional(),
+        disabled: zod.boolean().optional(),
+        email: zod.string().optional(),
+        forcePasswordChange: zod.boolean().optional(),
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+        tenantId: zod.string().optional(),
+        totpEnabled: zod.boolean().optional(),
+        totpEnrolled: zod.boolean().optional(),
+        updatedAt: zod.string().datetime().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
  * @summary Create a user
  */
 export const createUserBody = zod.object({
@@ -60,4 +83,25 @@ export const getUserResponse = zod.object({
 export const resetUserPasswordBody = zod.object({
   forceChangeOnNextLogin: zod.boolean().optional(),
   newPassword: zod.string().optional(),
+});
+
+/**
+ * @summary List sessions for a user
+ */
+export const listUserSessionsResponse = zod.object({
+  sessions: zod
+    .array(
+      zod.object({
+        createdAt: zod.string().datetime().optional(),
+        expiresAt: zod.string().datetime().optional(),
+        id: zod.string().optional(),
+        ipAddress: zod.string().optional(),
+        lastActivityAt: zod.string().datetime().optional(),
+        revoked: zod.boolean().optional(),
+        tenantId: zod.string().optional(),
+        userAgent: zod.string().optional(),
+        userId: zod.string().optional(),
+      }),
+    )
+    .optional(),
 });

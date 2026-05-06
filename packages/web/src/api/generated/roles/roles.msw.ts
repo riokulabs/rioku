@@ -23,7 +23,42 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { GetRole200 } from '.././schemas';
+import type { GetRole200, ListRoles200, ListUserRoles200 } from '.././schemas';
+
+export const getListRolesResponseMock = (
+  overrideResponse: Partial<ListRoles200> = {},
+): ListRoles200 => ({
+  nextPageToken: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  roles: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      createdAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      permissions: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+          faker.string.alpha(20),
+        ),
+        undefined,
+      ]),
+      source: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([
+          'builtin',
+          'custom',
+          'plugin-manifest',
+          'plugin-dynamic',
+        ] as const),
+        undefined,
+      ]),
+      tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    })),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
 
 export const getGetRoleResponseMock = (overrideResponse: Partial<GetRole200> = {}): GetRole200 => ({
   _links: faker.helpers.arrayElement([
@@ -56,17 +91,39 @@ export const getGetRoleResponseMock = (overrideResponse: Partial<GetRole200> = {
   ...overrideResponse,
 });
 
+export const getListUserRolesResponseMock = (
+  overrideResponse: Partial<ListUserRoles200> = {},
+): ListUserRoles200 => ({
+  roles: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    })),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
 export const getListRolesMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListRoles200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListRoles200> | ListRoles200),
 ) => {
   return http.get('*/api/v1/t/:tenant/roles', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListRolesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
@@ -149,15 +206,24 @@ export const getReplaceRoleMockHandler = (
 
 export const getListUserRolesMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListUserRoles200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListUserRoles200> | ListUserRoles200),
 ) => {
   return http.get('*/api/v1/t/:tenant/users/:id/roles', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListUserRolesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 

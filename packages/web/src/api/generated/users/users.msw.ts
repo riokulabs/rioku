@@ -23,7 +23,35 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { GetUser200 } from '.././schemas';
+import type { GetUser200, ListUserSessions200, ListUsers200 } from '.././schemas';
+
+export const getListUsersResponseMock = (
+  overrideResponse: Partial<ListUsers200> = {},
+): ListUsers200 => ({
+  nextPageToken: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  users: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      createdAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      disabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      email: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      forcePasswordChange: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      totpEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      totpEnrolled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      updatedAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+    })),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
 
 export const getGetUserResponseMock = (overrideResponse: Partial<GetUser200> = {}): GetUser200 => ({
   _links: faker.helpers.arrayElement([
@@ -54,17 +82,55 @@ export const getGetUserResponseMock = (overrideResponse: Partial<GetUser200> = {
   ...overrideResponse,
 });
 
+export const getListUserSessionsResponseMock = (
+  overrideResponse: Partial<ListUserSessions200> = {},
+): ListUserSessions200 => ({
+  sessions: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      createdAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      expiresAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      ipAddress: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      lastActivityAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      revoked: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      userAgent: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    })),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
 export const getListUsersMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListUsers200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListUsers200> | ListUsers200),
 ) => {
   return http.get('*/api/v1/t/:tenant/users', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListUsersResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
@@ -189,15 +255,24 @@ export const getResetUserPasswordMockHandler = (
 
 export const getListUserSessionsMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListUserSessions200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListUserSessions200> | ListUserSessions200),
 ) => {
   return http.get('*/api/v1/t/:tenant/users/:id/sessions', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListUserSessionsResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 

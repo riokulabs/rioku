@@ -13,7 +13,33 @@ paths:
       tags: [api-keys]
       summary: List API keys
       operationId: listAPIKeys
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiKeys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        tenantId: { type: string }
+                        name: { type: string }
+                        prefix: { type: string }
+                        scopes:
+                          type: array
+                          items: { type: string }
+                        ownerId: { type: string }
+                        expiresAt: { type: string, format: date-time }
+                        createdAt: { type: string, format: date-time }
+                        revokedAt: { type: string, format: date-time }
+                        lastUsedAt: { type: string, format: date-time }
+                        usageCount: { type: integer, format: int64 }
+                  nextPageToken: { type: string }
     post:
       tags: [api-keys]
       summary: Create an API key

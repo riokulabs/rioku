@@ -11,7 +11,31 @@ paths:
       tags: [roles]
       summary: List roles
       operationId: listRoles
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        tenantId: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+                        source:
+                          type: string
+                          enum: [builtin, custom, plugin-manifest, plugin-dynamic]
+                        permissions:
+                          type: array
+                          items: { type: string }
+                        createdAt: { type: string, format: date-time }
+                  nextPageToken: { type: string }
     post:
       tags: [roles]
       summary: Create a role
@@ -86,7 +110,21 @@ paths:
       tags: [roles]
       summary: List roles assigned to a user
       operationId: listUserRoles
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
     post:
       tags: [roles]
       summary: Assign a role to a user
