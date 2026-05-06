@@ -40,5 +40,4 @@ export * from './plugins';
 export * from './plugin-signers';
 // Plan 10 (cluster)
 export * from './cluster';
-// Plan 11 (super-admin)
-export * from './super-admin';
+// Plan 11 (super-admin) — stub retired; feature slice lives in _internal.ts
