@@ -154,7 +154,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       // Plan 12: allow subdomain requests (e.g. t1.localhost:5173) in dev.
       // Without this Vite rejects requests from *.localhost with 403.
-      allowedHosts: ['localhost', /^.*\.localhost$/],
+      // Vite expects a leading-dot suffix for wildcard subdomains.
+      allowedHosts: ['localhost', '.localhost'],
       // Plan 12: pin HMR websocket to 'localhost' so HMR works across subdomains.
       // Without this, the HMR client on t1.localhost tries to connect to t1.localhost
       // for the websocket, which Vite isn't listening on by name.

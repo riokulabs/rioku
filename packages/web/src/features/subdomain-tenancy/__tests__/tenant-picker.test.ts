@@ -19,6 +19,7 @@ function makeTenant(overrides: Partial<Tenant>): Tenant {
     id: 'tenant_test',
     slug: 'acme',
     name: 'Acme Corp',
+    accent: '#22c55e',
     plan: 'community',
     url_mode: 'path',
     default_theme: 'light',
@@ -94,7 +95,9 @@ describe('tenantDashboardUrl', () => {
     });
 
     it('falls back to same-origin path when parent_domain is missing', () => {
-      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'acme', parent_domain: undefined });
+      // Omitting parent_domain entirely (exactOptionalPropertyTypes forbids
+      // explicit undefined for an optional property).
+      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'acme' });
       const { href, isExternal } = tenantDashboardUrl(tenant);
       expect(isExternal).toBe(false);
       expect(href).toBe('/t/acme/dashboard');

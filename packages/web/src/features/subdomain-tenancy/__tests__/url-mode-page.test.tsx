@@ -90,9 +90,13 @@ describe('updateTenantUrlModeWithDomain', () => {
   it('emits tenant:updated host event with url_mode and parent_domain fields', async () => {
     const { updateTenantUrlModeWithDomain } = await import('@/features/settings/api');
     const tenantId = getAcmeTenantId();
-    const events: CustomEvent[] = [];
+    interface TenantUpdatedDetail {
+      tenant_id: string;
+      fields: readonly string[];
+    }
+    const events: CustomEvent<TenantUpdatedDetail>[] = [];
     const listener = (e: Event) => {
-      events.push(e as CustomEvent);
+      events.push(e as CustomEvent<TenantUpdatedDetail>);
     };
     mockBus.addEventListener('tenant:updated', listener);
     try {
@@ -101,7 +105,7 @@ describe('updateTenantUrlModeWithDomain', () => {
       const ev = events[0];
       expect(ev?.detail).toMatchObject({
         tenant_id: tenantId,
-        fields: expect.arrayContaining(['url_mode', 'parent_domain']),
+        fields: expect.arrayContaining(['url_mode', 'parent_domain']) as unknown as string[],
       });
     } finally {
       mockBus.removeEventListener('tenant:updated', listener);

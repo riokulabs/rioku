@@ -19,7 +19,7 @@ export function tenantDashboardUrl(tenant: Tenant): { href: string; isExternal: 
   if (isSubdomain) {
     const proto = window.location.protocol;
     const port = window.location.port ? `:${window.location.port}` : '';
-    const parent = tenant.parent_domain!.replace(/^\./, '');
+    const parent = (tenant.parent_domain ?? '').replace(/^\./, '');
     const href = `${proto}//${tenant.slug}.${parent}${port}/t/${tenant.slug}/dashboard`;
     return { href, isExternal: true };
   }
@@ -49,7 +49,7 @@ function TenantPicker() {
     if (only) {
       const { href, isExternal } = tenantDashboardUrl(only);
       if (isExternal) {
-        window.location.href = href;
+        window.location.assign(href);
       } else {
         void navigate({ to: '/t/$tenant/dashboard', params: { tenant: only.slug } });
       }
@@ -75,7 +75,7 @@ function TenantPicker() {
         ),
         labels: { confirm: 'Continue', cancel: 'Cancel' },
         onConfirm: () => {
-          window.location.href = href;
+          window.location.assign(href);
         },
       });
     } else if (!isSubdomain && currentSlug !== null) {
@@ -84,7 +84,7 @@ function TenantPicker() {
     } else {
       // Default: navigate to the tenant (external or internal).
       if (isExternal) {
-        window.location.href = href;
+        window.location.assign(href);
       } else {
         void navigate({ to: '/t/$tenant/dashboard', params: { tenant: tenant.slug } });
       }
