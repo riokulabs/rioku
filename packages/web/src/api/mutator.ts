@@ -111,7 +111,7 @@ export async function customFetch<T>(
   if (typeof argsOrUrl === 'string') {
     // Orval two-argument form
     url = argsOrUrl;
-    method = (orvalOptions?.method as string | undefined) ?? 'GET';
+    method = (orvalOptions?.method) ?? 'GET';
     data = orvalOptions?.body !== undefined
       ? (typeof orvalOptions.body === 'string' ? JSON.parse(orvalOptions.body) : orvalOptions.body)
       : orvalOptions?.data;

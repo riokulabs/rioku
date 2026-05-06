@@ -1,0 +1,153 @@
+# Stage-2 plan-03 api-mgmt: sites (virtual hosts mapped to a hostname/domain
+# and optionally linked to an upstream service via Caddy virtual-host config).
+#
+# Mirrors RegisterSiteRoutes in
+# packages/daemon/internal/gateway/sites_routes.go.
+
+paths:
+  /api/v1/t/{tenant}/sites:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [sites]
+      summary: List sites
+      operationId: listSites
+      responses:
+        "200":
+          description: List of sites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Site" }
+                  total: { type: integer }
+    post:
+      tags: [sites]
+      summary: Create site
+      operationId: createSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSiteBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/sites/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [sites]
+      operationId: getSite
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+    put:
+      tags: [sites]
+      operationId: replaceSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSiteBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+    patch:
+      tags: [sites]
+      operationId: patchSite
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateSiteBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+    delete:
+      tags: [sites]
+      operationId: deleteSite
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/sites/{id}/enabled:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    patch:
+      tags: [sites]
+      operationId: toggleSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses: { "200": { description: ok } }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    Site:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        domain: { type: string }
+        tlsMode: { type: string }
+        enabled: { type: boolean }
+        upstreamServiceId: { type: string }
+        basicAuthEnabled: { type: boolean }
+        basicAuthRealm: { type: string }
+        rateLimitPreset: { type: string }
+        redirectRules: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateSiteBody:
+      type: object
+      required: [name, domain]
+      properties:
+        name: { type: string }
+        domain: { type: string }
+        tlsMode: { type: string }
+        upstreamServiceId: { type: string }
+        basicAuthEnabled: { type: boolean }
+        basicAuthRealm: { type: string }
+        rateLimitPreset: { type: string }
+        redirectRules: { type: string }
+    UpdateSiteBody:
+      type: object
+      properties:
+        name: { type: string }
+        domain: { type: string }
+        tlsMode: { type: string }
+        upstreamServiceId: { type: string }
+        basicAuthEnabled: { type: boolean }
+        basicAuthRealm: { type: string }
+        rateLimitPreset: { type: string }
+        redirectRules: { type: string }

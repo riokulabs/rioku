@@ -54,6 +54,16 @@ func RegisterAccessPolicyRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("PATCH /api/v1/t/{tenant}/access-policies/{id}", update)
 	mux.Handle("DELETE /api/v1/t/{tenant}/access-policies/{id}", del)
 
+	// Test-CEL endpoint (Plan-03 Task 6 / decisions-needed.md item 004).
+	// Validates a CEL expression against a sample event. The current
+	// implementation performs structural parse-only validation (cel-go is
+	// not yet a daemon dependency); a full evaluator lands when the
+	// daemon's auth-middleware gains real CEL evaluation.
+	testCEL := RequirePermission("access-policies:read")(http.HandlerFunc(handleTestAccessPolicyCEL()))
+	mux.Handle("POST /api/v1/t/{tenant}/access-policies/test-cel", testCEL)
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/access-policies/test-cel",
+		[]string{"POST"})
+
 	optionsutil.Register(mux, "/api/v1/auth/access-policies",
 		[]string{"GET", "POST"})
 	optionsutil.Register(mux, "/api/v1/auth/access-policies/{id}",

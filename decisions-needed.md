@@ -42,7 +42,7 @@
 
 ## Item 002 — middlewares-sites-access-policies-not-in-proto-openapi
 
-- **Status:** open
+- **Status:** RESOLVED 2026-05-06
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-endpoint
 - **What:** The daemon endpoints for middlewares (`GET/POST /api/v1/t/{tenant}/middlewares`,
@@ -68,8 +68,16 @@
 - **Alternatives:**
   (a) Write hand-crafted fetch hooks (bypassing Orval) for these resources as an interim step.
   (b) Split off these three resources into a separate follow-up plan once proto coverage lands.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Add hand-written OpenAPI fragments and regenerate
+  Orval clients. Defer full proto-message authoring (the wire shapes are
+  documented in the fragments themselves; proto migration can follow when
+  gRPC clients need these resources).
+- **Resolution date / commit:** 2026-05-06 — added
+  `packages/proto/openapi-fragments/middlewares.yaml`,
+  `packages/proto/openapi-fragments/sites.yaml`, and
+  `packages/proto/openapi-fragments/access-policies.yaml`. Regenerated
+  Orval clients land typed hooks for all three resources. T4/T5/T6
+  features now have real Stage-2 wiring backed by the generated client.
 
 ---
 
@@ -100,7 +108,7 @@
 
 ## Item 004 — access-policy-cel-test-endpoint-missing
 
-- **Status:** open
+- **Status:** RESOLVED (parse-only stub) 2026-05-06
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-endpoint
 - **What:** Plan 3 Task 6 requires a `POST /api/v1/t/{tenant}/policies/{id}/test` endpoint
@@ -119,14 +127,23 @@
 - **Alternatives:**
   (a) Add a generic tenant-scoped CEL eval endpoint (`POST /api/v1/t/{tenant}/cel/evaluate`)
   not tied to a specific policy ID — accepts expression + context, returns result + cost.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Ship a parse-only validator now (no cel-go dependency)
+  to unblock the frontend "Test condition" button; full cel-go evaluation
+  lands when the auth-middleware gains runtime CEL evaluation, at which
+  point the same dependency can be reused here.
+- **Resolution date / commit:** 2026-05-06 — added
+  `POST /api/v1/t/{tenant}/access-policies/test-cel` backed by
+  `evaluateCELStub` in
+  `packages/daemon/internal/gateway/access_policies_test_cel.go`.
+  Performs balanced-paren / quote validation and returns
+  `{ matched, error?, durationMs }`. Frontend hook `useTestCEL` is wired
+  in `packages/web/src/features/security/access-policies/api.stage2.ts`.
 
 ---
 
 ## Item 005 — force-reload-is-daemon-stub
 
-- **Status:** open
+- **Status:** RESOLVED (hook-injection scaffolding) 2026-05-06
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-endpoint | undefined-behavior
 - **What:** The `POST /api/v1/t/{tenant}/services/{id}/force-reload` endpoint exists in the
@@ -146,8 +163,18 @@
 - **Alternatives:**
   (a) Use Caddy's watch/live-reload feature instead of explicit POST to `/load`.
   (b) Batch reloads with a debounce timer to avoid reloading on every single mutation.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Add a package-level injectable hook
+  (`SetCaddyReloadHook`) with a no-op default; wire `triggerCaddyReload`
+  into every Create/Update/Delete + force-reload path in services,
+  middlewares, and sites. The real Caddy admin-API client implementation
+  is deferred but the hook contract is now provable end-to-end via
+  `caddy_reload_integration_test.go`.
+- **Resolution date / commit:** 2026-05-06 — added
+  `packages/daemon/internal/gateway/caddy_reload_hook.go` (hook
+  registry); wired `triggerCaddyReload` into services / middlewares /
+  sites mutation handlers; rewrote `caddy_reload_integration_test.go`
+  to swap a counting hook in via `SetCaddyReloadHook` and assert each
+  verb triggers the expected reload reason exactly once.
 
 ---
 
