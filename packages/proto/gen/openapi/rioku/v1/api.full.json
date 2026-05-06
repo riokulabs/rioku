@@ -2807,6 +2807,41 @@
         },
         "type": "object"
       },
+      "ImpersonationSession": {
+        "properties": {
+          "actorUserId": {
+            "type": "string"
+          },
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "targetUserId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "ticketRef": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Link": {
         "description": "OpenAPI/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n",
         "properties": {
@@ -2826,6 +2861,36 @@
       "LinkSet": {
         "additionalProperties": {
           "$ref": "#/components/schemas/Link"
+        },
+        "type": "object"
+      },
+      "Permission": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "description": "resource:action canonical id",
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "built-in",
+              "plugin-manifest",
+              "plugin-dynamic"
+            ],
+            "type": "string"
+          },
+          "sourcePluginId": {
+            "description": "Set when source is plugin-manifest or plugin-dynamic.",
+            "type": "string"
+          }
         },
         "type": "object"
       },
@@ -2905,6 +2970,158 @@
   },
   "openapi": "3.0.3",
   "paths": {
+    "/api/v1/admin/impersonation": {
+      "get": {
+        "operationId": "listImpersonationSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "sessions": {
+                      "items": {
+                        "$ref": "#/components/schemas/ImpersonationSession"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List active impersonation sessions",
+        "tags": [
+          "impersonation"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "post": {
+        "operationId": "startImpersonation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expiresIn": {
+                    "description": "Go duration string. Default 1h.",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Audit-grade reason for the impersonation; recorded in the audit log.",
+                    "type": "string"
+                  },
+                  "targetUserId": {
+                    "type": "string"
+                  },
+                  "tenantId": {
+                    "description": "Tenant id of the target user — required to disambiguate.",
+                    "type": "string"
+                  },
+                  "ticketRef": {
+                    "description": "Optional support ticket / incident reference.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetUserId",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpersonationSession"
+                }
+              }
+            },
+            "description": "started"
+          },
+          "403": {
+            "description": "not authorized to impersonate target"
+          }
+        },
+        "summary": "Start an impersonation session",
+        "tags": [
+          "impersonation"
+        ]
+      }
+    },
+    "/api/v1/admin/impersonation/{id}": {
+      "delete": {
+        "operationId": "endImpersonation",
+        "responses": {
+          "204": {
+            "description": "ended"
+          }
+        },
+        "summary": "End an impersonation session",
+        "tags": [
+          "impersonation"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/admin/impersonation/{id}/touch": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "touchImpersonation",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpersonationSession"
+                }
+              }
+            },
+            "description": "refreshed"
+          }
+        },
+        "summary": "Refresh the expiry timestamp on an active session",
+        "tags": [
+          "impersonation"
+        ]
+      }
+    },
     "/api/v1/ai/virtual-keys": {
       "get": {
         "operationId": "AIGatewayService_ListVirtualKeys",
@@ -5393,6 +5610,148 @@
         }
       }
     },
+    "/api/v1/t/{tenant}/access-policies": {
+      "get": {
+        "operationId": "listAccessPolicies",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "effect": {
+                    "default": "allow",
+                    "enum": [
+                      "allow",
+                      "deny"
+                    ],
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "expression": {
+                    "description": "CEL expression evaluated against the request context.",
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "description": "Lower priority numbers evaluate first.",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "name",
+                  "expression"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/access-policies/{id}": {
+      "delete": {
+        "operationId": "deleteAccessPolicy",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "get": {
+        "operationId": "getAccessPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchAccessPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "put": {
+        "operationId": "replaceAccessPolicy",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/api-keys": {
       "get": {
         "operationId": "listAPIKeys",
@@ -5974,6 +6333,62 @@
         }
       ]
     },
+    "/api/v1/t/{tenant}/permissions": {
+      "get": {
+        "operationId": "listPermissions",
+        "parameters": [
+          {
+            "description": "Optional filter by permission source.",
+            "in": "query",
+            "name": "source",
+            "schema": {
+              "enum": [
+                "builtin",
+                "plugin-manifest",
+                "plugin-dynamic"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "permissions": {
+                      "items": {
+                        "$ref": "#/components/schemas/Permission"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List the permission catalog",
+        "tags": [
+          "permissions"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/rbac-policies": {
       "get": {
         "operationId": "listRbacPolicies",
@@ -6188,6 +6603,181 @@
         "summary": "Dry-run an RBAC policy against a candidate subject",
         "tags": [
           "rbac-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/roles": {
+      "get": {
+        "operationId": "listRoles",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List roles",
+        "tags": [
+          "roles"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "permissions": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "409": {
+            "description": "duplicate name"
+          }
+        },
+        "summary": "Create a role",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/roles/{id}": {
+      "delete": {
+        "operationId": "deleteRole",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "roles"
+        ]
+      },
+      "get": {
+        "operationId": "getRole",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "permissions": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "source": {
+                      "enum": [
+                        "builtin",
+                        "custom",
+                        "plugin-manifest",
+                        "plugin-dynamic"
+                      ],
+                      "type": "string"
+                    },
+                    "tenantId": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "roles"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchRole",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "roles"
+        ]
+      },
+      "put": {
+        "operationId": "replaceRole",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "roles"
         ]
       }
     },
@@ -6623,6 +7213,628 @@
           "$ref": "#/components/parameters/ID"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/sessions": {
+      "get": {
+        "operationId": "listSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "sessions": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "ipAddress": {
+                            "type": "string"
+                          },
+                          "lastActivityAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "revoked": {
+                            "type": "boolean"
+                          },
+                          "tenantId": {
+                            "type": "string"
+                          },
+                          "userAgent": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List active sessions for the current principal",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/sessions/revoke-others": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "revokeOtherSessions",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke all other sessions for the current principal",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/sessions/{id}": {
+      "delete": {
+        "operationId": "revokeSession",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke a session",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/users": {
+      "get": {
+        "operationId": "listUsers",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List users",
+        "tags": [
+          "users"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "disabled": {
+                    "type": "boolean"
+                  },
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "forcePasswordChange": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "roleIds": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "email"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "409": {
+            "description": "duplicate email"
+          }
+        },
+        "summary": "Create a user",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}": {
+      "delete": {
+        "operationId": "deleteUser",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "get": {
+        "operationId": "getUser",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "forcePasswordChange": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "tenantId": {
+                      "type": "string"
+                    },
+                    "totpEnabled": {
+                      "type": "boolean"
+                    },
+                    "totpEnrolled": {
+                      "type": "boolean"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchUser",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "properties": {
+                  "disabled": {
+                    "type": "boolean"
+                  },
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "put": {
+        "operationId": "replaceUser",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}/activate": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "activateUser",
+        "responses": {
+          "204": {
+            "description": "activated"
+          }
+        },
+        "summary": "Activate (re-enable) a user — alias `/enable`",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}/lock": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "lockUser",
+        "responses": {
+          "204": {
+            "description": "locked"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}/reset-password": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "resetUserPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "forceChangeOnNextLogin": {
+                    "type": "boolean"
+                  },
+                  "newPassword": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}/roles": {
+      "get": {
+        "operationId": "listUserRoles",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List roles assigned to a user",
+        "tags": [
+          "roles"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "assignUserRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "roleId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "roleId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "assigned"
+          },
+          "409": {
+            "description": "already assigned"
+          }
+        },
+        "summary": "Assign a role to a user",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}/roles/{roleId}": {
+      "delete": {
+        "operationId": "revokeUserRole",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke a role from a user",
+        "tags": [
+          "roles"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        },
+        {
+          "in": "path",
+          "name": "roleId",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/users/{id}/sessions": {
+      "get": {
+        "operationId": "listUserSessions",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "summary": "List sessions for a user",
+        "tags": [
+          "users"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/users/{id}/suspend": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "suspendUser",
+        "responses": {
+          "204": {
+            "description": "suspended"
+          }
+        },
+        "summary": "Suspend (disable) a user — alias `/disable`",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/users/{id}/unlock": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "unlockUser",
+        "responses": {
+          "204": {
+            "description": "unlocked"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
     },
     "/api/v1/traffic/sessions": {
       "get": {
