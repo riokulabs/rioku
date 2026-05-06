@@ -118,8 +118,8 @@ func NewGateway(
 	// OpenAPI spec (unauthenticated; compile-time embed with ETag caching).
 	RegisterOpenAPIRoute(topMux)
 
-	// PromQL proxy stub (RFC-7807 501; full impl in Plan 8 / Dashboards).
-	RegisterPromQLRoutes(topMux)
+	// PromQL proxy with tenant label injection (Plan 8 — Dashboards).
+	RegisterPromQLRoutes(topMux, st)
 
 	// Opaque-handle store: PII → short token mapping (plan 00c).
 	RegisterOpaqueRoutes(topMux, st)
