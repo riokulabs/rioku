@@ -509,7 +509,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", []string{"read", "write"}, &expires, "")
+	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", "", []string{"read", "write"}, &expires, "")
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}
@@ -3417,7 +3417,7 @@ func TestRecordAPIKeyUse_BumpsCounterAndTimestamp(t *testing.T) {
 
 	// Create the key.
 	tx1, _ := d.Begin(ctx, store.TxOptions{})
-	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc", []string{"keys:own"}, nil, "")
+	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc", "", []string{"keys:own"}, nil, "")
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}

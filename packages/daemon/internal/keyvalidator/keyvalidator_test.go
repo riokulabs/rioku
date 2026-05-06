@@ -99,7 +99,7 @@ func TestValidator_ValidStandaloneKey(t *testing.T) {
 	rawKey := "sk-live-" + uuid.NewString()
 	hash := hashKey(rawKey)
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	if _, err := tx.CreateAPIKey(ctx, "live", hash, []string{"keys:demo"}, nil, ""); err != nil {
+	if _, err := tx.CreateAPIKey(ctx, "live", hash, "", []string{"keys:demo"}, nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	_ = tx.Commit()
@@ -145,7 +145,7 @@ func TestValidator_RevokedKey(t *testing.T) {
 	rawKey := "sk-revoked-" + uuid.NewString()
 	hash := hashKey(rawKey)
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	keyID, _ := tx.CreateAPIKey(ctx, "x", hash, []string{}, nil, "")
+	keyID, _ := tx.CreateAPIKey(ctx, "x", hash, "", []string{}, nil, "")
 	_ = tx.RevokeAPIKey(ctx, keyID)
 	_ = tx.Commit()
 

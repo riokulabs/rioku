@@ -518,7 +518,7 @@ func (t *raftTx) ListPoliciesByTarget(_ context.Context, targetType, targetID st
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
+func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
 	id := uuid.New().String()
 	now := nowUTC()
 
@@ -526,6 +526,7 @@ func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []
 		"id":         id,
 		"name":       name,
 		"key_hash":   keyHash,
+		"prefix":     prefix,
 		"scopes":     scopes,
 		"created_at": now.Format(timeFormat),
 	}
@@ -1130,6 +1131,7 @@ func unmarshalAPIKey(data []byte) (*store.APIKey, error) {
 		ID:      getString(entry, "id"),
 		Name:    getString(entry, "name"),
 		KeyHash: getString(entry, "key_hash"),
+		Prefix:  getString(entry, "prefix"),
 	}
 
 	if scopesRaw, ok := entry["scopes"]; ok {

@@ -663,7 +663,7 @@ func TestMySQL_APIKey_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	keyID, err := tx1.CreateAPIKey(ctx, "my-key", "hash-abc123", []string{"read:routes"}, nil, ownerID)
+	keyID, err := tx1.CreateAPIKey(ctx, "my-key", "hash-abc123", "", []string{"read:routes"}, nil, ownerID)
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}

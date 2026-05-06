@@ -70,6 +70,7 @@ type keyCreateRequest struct {
 type keyResponse struct {
 	ID        string   `json:"id"`
 	Name      string   `json:"name"`
+	Prefix    string   `json:"prefix,omitempty"`
 	Scopes    []string `json:"scopes"`
 	OwnerID   string   `json:"ownerId,omitempty"`
 	CreatedAt string   `json:"createdAt"`
@@ -134,6 +135,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 			return
 		}
 		hash := auth.HashToken(rawKey)
+		prefix := auth.KeyPrefix(rawKey)
 
 		scopes := strings.Split(req.Scopes, ",")
 		if req.Scopes == "" {
@@ -182,7 +184,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 			return
 		}
 
-		id, err := tx.CreateAPIKey(ctx, req.Name, hash, scopes, expiresAt, ownerID)
+		id, err := tx.CreateAPIKey(ctx, req.Name, hash, prefix, scopes, expiresAt, ownerID)
 		if err != nil {
 			_ = tx.Rollback()
 			writeProblem(w, http.StatusInternalServerError, errTypeInternal,
@@ -197,8 +199,9 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"id":  id,
-			"key": rawKey,
+			"id":     id,
+			"key":    rawKey,
+			"prefix": prefix,
 		})
 	}
 }
@@ -251,6 +254,7 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 			result = append(result, keyResponse{
 				ID:        k.ID,
 				Name:      k.Name,
+				Prefix:    k.Prefix,
 				Scopes:    k.Scopes,
 				OwnerID:   k.OwnerID,
 				CreatedAt: k.CreatedAt.Format(time.RFC3339),
@@ -462,6 +466,7 @@ type keyDetailDTO struct {
 	ID         string    `json:"id"`
 	TenantID   string    `json:"tenantId"`
 	Name       string    `json:"name"`
+	Prefix     string    `json:"prefix,omitempty"`
 	Scopes     []string  `json:"scopes"`
 	OwnerID    string    `json:"ownerId,omitempty"`
 	ExpiresAt  *string   `json:"expiresAt,omitempty"`
@@ -477,6 +482,7 @@ func keyToDetailDTO(k *store.APIKey, b *links.Builder) keyDetailDTO {
 		ID:         k.ID,
 		TenantID:   k.TenantID,
 		Name:       k.Name,
+		Prefix:     k.Prefix,
 		Scopes:     k.Scopes,
 		OwnerID:    k.OwnerID,
 		CreatedAt:  k.CreatedAt.UTC().Format(time.RFC3339),
@@ -676,7 +682,8 @@ func handleKeyRotate(st store.Driver) http.HandlerFunc {
 			return
 		}
 		hash := auth.HashToken(raw)
-		newID, err := tx.CreateAPIKey(ctx, old.Name, hash, old.Scopes, old.ExpiresAt, old.OwnerID)
+		newPrefix := auth.KeyPrefix(raw)
+		newID, err := tx.CreateAPIKey(ctx, old.Name, hash, newPrefix, old.Scopes, old.ExpiresAt, old.OwnerID)
 		if err != nil {
 			_ = tx.Rollback()
 			writeInternalError(w, r, "create rotated key")
@@ -694,8 +701,9 @@ func handleKeyRotate(st store.Driver) http.HandlerFunc {
 
 		b := tenantBuilderOrRoot(tenant)
 		writeJSON(w, http.StatusOK, map[string]any{
-			"id":  newID,
-			"key": raw,
+			"id":     newID,
+			"key":    raw,
+			"prefix": newPrefix,
 			"_links": links.Set{
 				"self":  b.Self("api-keys", newID),
 				"prior": b.Self("api-keys", id),

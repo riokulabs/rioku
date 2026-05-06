@@ -182,7 +182,10 @@ type Tx interface {
 	// --- API Keys ---
 
 	// CreateAPIKey stores a new API key and returns its generated ID.
-	CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
+	// `prefix` is the non-secret display fragment of the raw token
+	// (e.g. `rku_tok_AbCd`); pass "" for system / refresh / bootstrap
+	// keys whose raw form is never shown to humans.
+	CreateAPIKey(ctx context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
 	GetAPIKey(ctx context.Context, id string) (*APIKey, error)
 	// GetAPIKeyByHash looks up a key by its hash (used during authentication).
 	GetAPIKeyByHash(ctx context.Context, keyHash string) (*APIKey, error)
@@ -1642,6 +1645,10 @@ type APIKey struct {
 	TenantID   string
 	Name       string
 	KeyHash    string
+	// Prefix is a non-secret display fragment of the raw key (e.g. the
+	// first 12 chars: `rku_tok_AbCd`). Empty for legacy keys created
+	// before migration #51 and for system / refresh / bootstrap keys.
+	Prefix     string
 	Scopes     []string
 	OwnerID    string // user ID of creator, empty for system keys
 	ExpiresAt  *time.Time

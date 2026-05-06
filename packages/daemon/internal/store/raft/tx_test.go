@@ -496,7 +496,7 @@ func TestTxCreateAPIKeyWithExpiry(t *testing.T) {
 	exp := time.Now().Add(24 * time.Hour).UTC()
 
 	tx, _ := node.Begin(ctx, store.TxOptions{})
-	keyID, err := tx.CreateAPIKey(ctx, "expiry-key", "sha256:exp", []string{"admin"}, &exp, "")
+	keyID, err := tx.CreateAPIKey(ctx, "expiry-key", "sha256:exp", "", []string{"admin"}, &exp, "")
 	if err != nil {
 		t.Fatalf("create api key with expiry: %v", err)
 	}

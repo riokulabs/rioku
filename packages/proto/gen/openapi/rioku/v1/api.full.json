@@ -5924,6 +5924,26 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Plaintext secret (returned once)",
+                      "type": "string"
+                    },
+                    "prefix": {
+                      "description": "Non-secret display fragment of the raw key",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Created. Returns the plaintext secret in the `key` field exactly\nonce — it cannot be retrieved later.\n"
           }
         },
@@ -5976,6 +5996,10 @@
                       "type": "string"
                     },
                     "ownerId": {
+                      "type": "string"
+                    },
+                    "prefix": {
+                      "description": "Non-secret display fragment of the raw key (e.g. rku_tok_AbCd). Empty for legacy keys created before migration #51.",
                       "type": "string"
                     },
                     "revokedAt": {
@@ -6140,6 +6164,10 @@
                     },
                     "key": {
                       "description": "Plaintext secret (returned once)",
+                      "type": "string"
+                    },
+                    "prefix": {
+                      "description": "Non-secret display fragment of the new raw key",
                       "type": "string"
                     }
                   },

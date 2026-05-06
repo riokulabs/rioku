@@ -435,7 +435,7 @@ func TestClusterStoreInterfaceParity(t *testing.T) {
 	t.Run("apikey_crud", func(t *testing.T) {
 		tx, _ := node.Begin(ctx, store.TxOptions{})
 		keyHash := "sha256:parity-test-hash-abcdef1234567890"
-		keyID, err := tx.CreateAPIKey(ctx, "parity-key", keyHash, []string{"read", "write"}, nil, "")
+		keyID, err := tx.CreateAPIKey(ctx, "parity-key", keyHash, "", []string{"read", "write"}, nil, "")
 		if err != nil {
 			t.Fatalf("create api key: %v", err)
 		}
