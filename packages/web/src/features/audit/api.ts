@@ -296,6 +296,72 @@ export function exportAuditJsonl(tenantId: string, filter: AuditFilter): Blob {
   });
 }
 
+// ─── Streaming export (real daemon endpoint) ────────────────────────────────
+
+/**
+ * Stream the audit export from the daemon and trigger a browser download.
+ * Reads `response.body.getReader()` and assembles chunks into a Blob so
+ * the file is emitted incrementally — large exports don't have to fit in
+ * a single in-memory string.
+ *
+ * The query-string filters mirror the daemon's `buildAuditQueryFromRequest`
+ * accepted parameters (actor / entity_type / entity_id / range / since /
+ * until). Filter shapes that don't have a 1:1 daemon equivalent (action /
+ * outcome / tier / search / multi-handle) are NOT forwarded — those still
+ * filter client-side via the in-memory exporters above.
+ *
+ * Returns the number of bytes written. Throws on non-2xx response so the
+ * caller can fall back to the in-memory exporter if needed.
+ */
+export async function streamAuditExport(
+  tenant: string,
+  format: 'csv' | 'jsonl',
+  filename: string,
+  filters: {
+    actor?: string;
+    entity_type?: string;
+    entity_id?: string;
+    range?: string;
+    since?: string;
+    until?: string;
+  } = {},
+): Promise<number> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v) qs.set(k, v);
+  }
+  const base =
+    (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
+  const path = `${base}/t/${tenant}/audit/export/${format}${qs.toString() ? `?${qs.toString()}` : ''}`;
+  const res = await fetch(path, { credentials: 'same-origin' });
+  if (!res.ok) {
+    throw new Error(`audit export failed: ${String(res.status)}`);
+  }
+  if (!res.body) {
+    throw new Error('audit export: empty response body');
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    bytes += value.byteLength;
+  }
+  const mime = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/x-ndjson;charset=utf-8';
+  const blob = new Blob(chunks as BlobPart[], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return bytes;
+}
+
 // ─── Async search (unbounded MultiSelect) ────────────────────────────────────
 
 const DEFAULT_PAGE_SIZE = 25;

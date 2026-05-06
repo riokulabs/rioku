@@ -6,7 +6,7 @@
  * Stage 2: `subscribeAuditStream` removed (SSE wired via `subscribeSSE`
  * in streaming-tail.tsx, tested in streaming-tail.test.tsx).
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
@@ -19,6 +19,7 @@ import {
   exportAuditJsonl,
   searchActors,
   searchResourceIds,
+  streamAuditExport,
   updateRetentionConfig,
   useAuditDetail,
   useAuditList,
@@ -392,5 +393,57 @@ describe('useRetentionConfig + updateRetentionConfig', () => {
     const last = useMockStore.getState().audit[useMockStore.getState().audit.length - 1]!;
     expect(last.action).toBe('audit.retention.update');
     expect(last.resource_type).toBe('audit-retention');
+  });
+});
+
+describe('streamAuditExport', () => {
+  type CreateUrl = (b: Blob) => string;
+  let originalFetch: typeof globalThis.fetch | undefined;
+  let originalCreate: CreateUrl | undefined;
+  let originalRevoke: ((s: string) => void) | undefined;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    originalCreate = URL.createObjectURL.bind(URL);
+    originalRevoke = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+  });
+  afterEach(() => {
+    if (originalFetch) globalThis.fetch = originalFetch;
+    if (originalCreate) URL.createObjectURL = originalCreate;
+    if (originalRevoke) URL.revokeObjectURL = originalRevoke;
+  });
+
+  it('streams chunks via response.body.getReader and assembles a blob', async () => {
+    const enc = new TextEncoder();
+    const chunks = [enc.encode('a,b,c\n'), enc.encode('1,2,3\n')];
+    let i = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (i < chunks.length) {
+          controller.enqueue(chunks[i++]!);
+        } else {
+          controller.close();
+        }
+      },
+    });
+    const fakeFetch = vi.fn().mockResolvedValue(new Response(stream, { status: 200 }));
+    globalThis.fetch = fakeFetch as unknown as typeof globalThis.fetch;
+
+    // jsdom anchors don't actually navigate; click() is a no-op for downloads.
+    const bytes = await streamAuditExport('acme', 'csv', 'audit.csv', { since: '2026-01-01T00:00:00Z' });
+    expect(bytes).toBe(12);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+    const calledUrl = fakeFetch.mock.calls[0]![0] as string;
+    expect(calledUrl).toContain('/t/acme/audit/export/csv');
+    expect(calledUrl).toContain('since=2026-01-01');
+  });
+
+  it('throws on non-2xx so callers can fall back to in-memory exporters', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response('nope', { status: 500 }),
+    ) as unknown as typeof globalThis.fetch;
+    await expect(streamAuditExport('acme', 'jsonl', 'audit.jsonl')).rejects.toThrow(/audit export failed/);
   });
 });

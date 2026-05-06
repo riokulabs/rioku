@@ -2807,6 +2807,74 @@
         },
         "type": "object"
       },
+      "AuditEntry": {
+        "properties": {
+          "_links": {
+            "$ref": "#/components/schemas/LinkSet"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "configVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "diff": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AuditRetentionConfig": {
+        "properties": {
+          "autoExport": {
+            "type": "string"
+          },
+          "autoExportDestination": {
+            "nullable": true,
+            "type": "string"
+          },
+          "autoExportFormat": {
+            "type": "string"
+          },
+          "retentionDaysDestructive": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "retentionDaysRead": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "retentionDaysWrite": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Link": {
         "description": "OpenAPI/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n",
         "properties": {
@@ -5709,11 +5777,143 @@
         }
       ]
     },
+    "/api/v1/t/{tenant}/audit": {
+      "get": {
+        "description": "Returns audit entries newest-first matching the supplied filters.\nTotal unpaginated match count is returned in the `X-Total-Count`\nheader so callers can render \"page 1 of N\" without a separate\ncount call.\n",
+        "operationId": "listAuditEntries",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "ok",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Total number of entries matching the filter (ignores limit/offset).",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List audit entries",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "description": "Filter by actor id (exact match).",
+          "in": "query",
+          "name": "actor",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Filter by entity type (e.g. service, route, policy).",
+          "in": "query",
+          "name": "entity_type",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Filter by entity id.",
+          "in": "query",
+          "name": "entity_id",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Convenience range — Go-ish duration with `h` or `d` suffix (e.g. 24h, 7d).",
+          "in": "query",
+          "name": "range",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "RFC3339 timestamp; takes precedence over `range`.",
+          "in": "query",
+          "name": "since",
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "description": "RFC3339 upper bound.",
+          "in": "query",
+          "name": "until",
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "schema": {
+            "default": 100,
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        {
+          "in": "query",
+          "name": "offset",
+          "schema": {
+            "default": 0,
+            "minimum": 0,
+            "type": "integer"
+          }
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/audit/actors": {
       "get": {
         "operationId": "listAuditActors",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "ok"
           }
         },
@@ -5754,7 +5954,7 @@
     },
     "/api/v1/t/{tenant}/audit/export/csv": {
       "get": {
-        "description": "Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until).",
+        "description": "Streams Content-Disposition: attachment CSV. Honours the same filter set as GET /audit.",
         "operationId": "exportAuditCSV",
         "responses": {
           "200": {
@@ -5783,11 +5983,56 @@
       "parameters": [
         {
           "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "query",
+          "name": "actor",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "entity_type",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "entity_id",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "range",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "since",
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "until",
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
         }
       ]
     },
     "/api/v1/t/{tenant}/audit/export/jsonl": {
       "get": {
+        "description": "Streams Content-Disposition: attachment NDJSON.",
         "operationId": "exportAuditJSONL",
         "responses": {
           "200": {
@@ -5816,6 +6061,50 @@
       "parameters": [
         {
           "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "query",
+          "name": "actor",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "entity_type",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "entity_id",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "range",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "since",
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "until",
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
         }
       ]
     },
@@ -5824,6 +6113,27 @@
         "operationId": "listAuditResourceIDs",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "entityType": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "ok"
           }
         },
@@ -5870,6 +6180,110 @@
         }
       ]
     },
+    "/api/v1/t/{tenant}/audit/retention": {
+      "get": {
+        "description": "Returns defaults if no row exists for the tenant.",
+        "operationId": "getAuditRetentionConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditRetentionConfig"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get audit-retention config",
+        "tags": [
+          "audit"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "upsertAuditRetentionConfig",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "autoExport": {
+                    "enum": [
+                      "off",
+                      "on"
+                    ],
+                    "type": "string"
+                  },
+                  "autoExportDestination": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "autoExportFormat": {
+                    "enum": [
+                      "csv",
+                      "jsonl"
+                    ],
+                    "type": "string"
+                  },
+                  "retentionDaysDestructive": {
+                    "format": "int32",
+                    "maximum": 3650,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "retentionDaysRead": {
+                    "format": "int32",
+                    "maximum": 3650,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "retentionDaysWrite": {
+                    "format": "int32",
+                    "maximum": 3650,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditRetentionConfig"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "400": {
+            "description": "invalid"
+          }
+        },
+        "summary": "Replace audit-retention config",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/audit/stream": {
       "get": {
         "description": "Server-Sent Events feed. Each event is named `audit` with a JSON\npayload of {id, actor, entityType, entityId, operation, occurredAt}.\nBacked by a 5-second poll today; will move to push once an audit\nwatcher lands.\n",
@@ -5912,38 +6326,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "_links": {
-                      "$ref": "#/components/schemas/LinkSet"
-                    },
-                    "actor": {
-                      "type": "string"
-                    },
-                    "configVersion": {
-                      "format": "int64",
-                      "type": "integer"
-                    },
-                    "diff": {
-                      "type": "string"
-                    },
-                    "entityId": {
-                      "type": "string"
-                    },
-                    "entityType": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "type": "string"
-                    },
-                    "occurredAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "operation": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/AuditEntry"
                 }
               }
             },
@@ -5973,6 +6356,80 @@
           "$ref": "#/components/parameters/ID"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/audit/{id}/reveal": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "description": "Records a follow-up audit row capturing the reveal action and the\ncaller-supplied reason, then returns the original entry with\nsensitive fields (ip / user_agent / payload) included. Requires\nthe `audit:read-sensitive` permission.\n",
+        "operationId": "revealAuditEntry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "reason": {
+                    "description": "Compliance justification, persisted with the new audit row.",
+                    "minLength": 4,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "entry": {
+                      "$ref": "#/components/schemas/AuditEntry"
+                    },
+                    "revealEntry": {
+                      "$ref": "#/components/schemas/AuditEntry"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "400": {
+            "description": "invalid reason"
+          },
+          "403": {
+            "description": "forbidden"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "summary": "Reveal sensitive fields on an audit entry",
+        "tags": [
+          "audit"
+        ]
+      }
     },
     "/api/v1/t/{tenant}/rbac-policies": {
       "get": {

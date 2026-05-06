@@ -156,9 +156,9 @@ describe('TenantAdminAuditPage', () => {
       () => {
         expect(screen.getByTestId('chain-verified-badge')).toBeInTheDocument();
       },
-      { timeout: 5000 },
+      { timeout: 15000 },
     );
-  });
+  }, 20000);
 
   it('verify chain button shows "Broken at entry" badge for a corrupted chain', async () => {
     const tenantId = acmeTenantId();

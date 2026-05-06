@@ -21,33 +21,292 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseInfiniteQueryResult,
   DefinedUseQueryResult,
   InfiniteData,
+  MutationFunction,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
 import type {
-  GetAuditEntry200,
+  AuditEntry,
+  AuditRetentionConfig,
+  ExportAuditCSVParams,
+  ExportAuditJSONLParams,
+  ListAuditActors200,
   ListAuditActorsParams,
+  ListAuditEntriesParams,
+  ListAuditResourceIDs200,
   ListAuditResourceIDsParams,
+  RevealAuditEntry200,
+  RevealAuditEntryBody,
+  UpsertAuditRetentionConfigBody,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
+
+/**
+ * Returns audit entries newest-first matching the supplied filters.
+Total unpaginated match count is returned in the `X-Total-Count`
+header so callers can render "page 1 of N" without a separate
+count call.
+
+ * @summary List audit entries
+ */
+export type listAuditEntriesResponse = {
+  data: AuditEntry[];
+  status: number;
+  headers: Headers;
+};
+
+export const getListAuditEntriesUrl = (tenant: string, params?: ListAuditEntriesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {});
+
+  return normalizedParams.size
+    ? `/api/v1/t/${tenant}/audit?${normalizedParams.toString()}`
+    : `/api/v1/t/${tenant}/audit`;
+};
+
+export const listAuditEntries = async (
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: RequestInit,
+): Promise<listAuditEntriesResponse> => {
+  return customFetch<listAuditEntriesResponse>(getListAuditEntriesUrl(tenant, params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListAuditEntriesQueryKey = (tenant: string, params?: ListAuditEntriesParams) => {
+  return [`/api/v1/t/${tenant}/audit`, ...(params ? [params] : [])] as const;
+};
+
+export const getListAuditEntriesInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof listAuditEntries>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>
+    >;
+  },
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAuditEntriesQueryKey(tenant, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditEntries>>> = ({ signal }) =>
+    listAuditEntries(tenant, params, signal);
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listAuditEntries>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListAuditEntriesInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAuditEntries>>
+>;
+export type ListAuditEntriesInfiniteQueryError = unknown;
+
+export function useListAuditEntriesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listAuditEntries>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params: undefined | ListAuditEntriesParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditEntries>>
+        >,
+        'initialData'
+      >;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAuditEntriesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listAuditEntries>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditEntries>>
+        >,
+        'initialData'
+      >;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAuditEntriesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listAuditEntries>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>
+    >;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List audit entries
+ */
+
+export function useListAuditEntriesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listAuditEntries>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>
+    >;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListAuditEntriesInfiniteQueryOptions(tenant, params, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListAuditEntriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAuditEntries>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>>;
+  },
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAuditEntriesQueryKey(tenant, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditEntries>>> = ({ signal }) =>
+    listAuditEntries(tenant, params, signal);
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAuditEntries>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListAuditEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditEntries>>>;
+export type ListAuditEntriesQueryError = unknown;
+
+export function useListAuditEntries<
+  TData = Awaited<ReturnType<typeof listAuditEntries>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params: undefined | ListAuditEntriesParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditEntries>>
+        >,
+        'initialData'
+      >;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAuditEntries<
+  TData = Awaited<ReturnType<typeof listAuditEntries>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditEntries>>
+        >,
+        'initialData'
+      >;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAuditEntries<
+  TData = Awaited<ReturnType<typeof listAuditEntries>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List audit entries
+ */
+
+export function useListAuditEntries<
+  TData = Awaited<ReturnType<typeof listAuditEntries>>,
+  TError = unknown,
+>(
+  tenant: string,
+  params?: ListAuditEntriesParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEntries>>, TError, TData>>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListAuditEntriesQueryOptions(tenant, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
 
 /**
  * @summary Distinct audit actor typeahead
  */
 export type listAuditActorsResponse = {
-  data: void;
+  data: ListAuditActors200;
   status: number;
   headers: Headers;
 };
@@ -286,7 +545,7 @@ export function useListAuditActors<
 }
 
 /**
- * Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until).
+ * Streams Content-Disposition: attachment CSV. Honours the same filter set as GET /audit.
  * @summary CSV export
  */
 export type exportAuditCSVResponse = {
@@ -295,22 +554,29 @@ export type exportAuditCSVResponse = {
   headers: Headers;
 };
 
-export const getExportAuditCSVUrl = (tenant: string) => {
-  return `/api/v1/t/${tenant}/audit/export/csv`;
+export const getExportAuditCSVUrl = (tenant: string, params?: ExportAuditCSVParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {});
+
+  return normalizedParams.size
+    ? `/api/v1/t/${tenant}/audit/export/csv?${normalizedParams.toString()}`
+    : `/api/v1/t/${tenant}/audit/export/csv`;
 };
 
 export const exportAuditCSV = async (
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: RequestInit,
 ): Promise<exportAuditCSVResponse> => {
-  return customFetch<exportAuditCSVResponse>(getExportAuditCSVUrl(tenant), {
+  return customFetch<exportAuditCSVResponse>(getExportAuditCSVUrl(tenant, params), {
     ...options,
     method: 'GET',
   });
 };
 
-export const getExportAuditCSVQueryKey = (tenant: string) => {
-  return [`/api/v1/t/${tenant}/audit/export/csv`] as const;
+export const getExportAuditCSVQueryKey = (tenant: string, params?: ExportAuditCSVParams) => {
+  return [`/api/v1/t/${tenant}/audit/export/csv`, ...(params ? [params] : [])] as const;
 };
 
 export const getExportAuditCSVInfiniteQueryOptions = <
@@ -318,6 +584,7 @@ export const getExportAuditCSVInfiniteQueryOptions = <
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
@@ -326,10 +593,10 @@ export const getExportAuditCSVInfiniteQueryOptions = <
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExportAuditCSVQueryKey(tenant);
+  const queryKey = queryOptions?.queryKey ?? getExportAuditCSVQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditCSV>>> = ({ signal }) =>
-    exportAuditCSV(tenant, signal);
+    exportAuditCSV(tenant, params, signal);
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof exportAuditCSV>>,
@@ -348,6 +615,7 @@ export function useExportAuditCSVInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params: undefined | ExportAuditCSVParams,
   options: {
     query: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
@@ -367,6 +635,7 @@ export function useExportAuditCSVInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
@@ -386,6 +655,7 @@ export function useExportAuditCSVInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
@@ -401,13 +671,14 @@ export function useExportAuditCSVInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
     >;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExportAuditCSVInfiniteQueryOptions(tenant, options);
+  const queryOptions = getExportAuditCSVInfiniteQueryOptions(tenant, params, options);
 
   const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -423,16 +694,17 @@ export const getExportAuditCSVQueryOptions = <
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>>;
   },
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExportAuditCSVQueryKey(tenant);
+  const queryKey = queryOptions?.queryKey ?? getExportAuditCSVQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditCSV>>> = ({ signal }) =>
-    exportAuditCSV(tenant, signal);
+    exportAuditCSV(tenant, params, signal);
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof exportAuditCSV>>,
@@ -449,6 +721,7 @@ export function useExportAuditCSV<
   TError = unknown,
 >(
   tenant: string,
+  params: undefined | ExportAuditCSVParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>> &
       Pick<
@@ -466,6 +739,7 @@ export function useExportAuditCSV<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>> &
       Pick<
@@ -483,6 +757,7 @@ export function useExportAuditCSV<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>>;
   },
@@ -496,11 +771,12 @@ export function useExportAuditCSV<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditCSVParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExportAuditCSVQueryOptions(tenant, options);
+  const queryOptions = getExportAuditCSVQueryOptions(tenant, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -512,6 +788,7 @@ export function useExportAuditCSV<
 }
 
 /**
+ * Streams Content-Disposition: attachment NDJSON.
  * @summary JSON-Lines export
  */
 export type exportAuditJSONLResponse = {
@@ -520,22 +797,29 @@ export type exportAuditJSONLResponse = {
   headers: Headers;
 };
 
-export const getExportAuditJSONLUrl = (tenant: string) => {
-  return `/api/v1/t/${tenant}/audit/export/jsonl`;
+export const getExportAuditJSONLUrl = (tenant: string, params?: ExportAuditJSONLParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {});
+
+  return normalizedParams.size
+    ? `/api/v1/t/${tenant}/audit/export/jsonl?${normalizedParams.toString()}`
+    : `/api/v1/t/${tenant}/audit/export/jsonl`;
 };
 
 export const exportAuditJSONL = async (
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: RequestInit,
 ): Promise<exportAuditJSONLResponse> => {
-  return customFetch<exportAuditJSONLResponse>(getExportAuditJSONLUrl(tenant), {
+  return customFetch<exportAuditJSONLResponse>(getExportAuditJSONLUrl(tenant, params), {
     ...options,
     method: 'GET',
   });
 };
 
-export const getExportAuditJSONLQueryKey = (tenant: string) => {
-  return [`/api/v1/t/${tenant}/audit/export/jsonl`] as const;
+export const getExportAuditJSONLQueryKey = (tenant: string, params?: ExportAuditJSONLParams) => {
+  return [`/api/v1/t/${tenant}/audit/export/jsonl`, ...(params ? [params] : [])] as const;
 };
 
 export const getExportAuditJSONLInfiniteQueryOptions = <
@@ -543,6 +827,7 @@ export const getExportAuditJSONLInfiniteQueryOptions = <
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
@@ -551,10 +836,10 @@ export const getExportAuditJSONLInfiniteQueryOptions = <
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExportAuditJSONLQueryKey(tenant);
+  const queryKey = queryOptions?.queryKey ?? getExportAuditJSONLQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditJSONL>>> = ({ signal }) =>
-    exportAuditJSONL(tenant, signal);
+    exportAuditJSONL(tenant, params, signal);
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof exportAuditJSONL>>,
@@ -573,6 +858,7 @@ export function useExportAuditJSONLInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params: undefined | ExportAuditJSONLParams,
   options: {
     query: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
@@ -592,6 +878,7 @@ export function useExportAuditJSONLInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
@@ -611,6 +898,7 @@ export function useExportAuditJSONLInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
@@ -626,13 +914,14 @@ export function useExportAuditJSONLInfinite<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
     >;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExportAuditJSONLInfiniteQueryOptions(tenant, options);
+  const queryOptions = getExportAuditJSONLInfiniteQueryOptions(tenant, params, options);
 
   const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -648,16 +937,17 @@ export const getExportAuditJSONLQueryOptions = <
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>>;
   },
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExportAuditJSONLQueryKey(tenant);
+  const queryKey = queryOptions?.queryKey ?? getExportAuditJSONLQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditJSONL>>> = ({ signal }) =>
-    exportAuditJSONL(tenant, signal);
+    exportAuditJSONL(tenant, params, signal);
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof exportAuditJSONL>>,
@@ -674,6 +964,7 @@ export function useExportAuditJSONL<
   TError = unknown,
 >(
   tenant: string,
+  params: undefined | ExportAuditJSONLParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>> &
       Pick<
@@ -691,6 +982,7 @@ export function useExportAuditJSONL<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>> &
       Pick<
@@ -708,6 +1000,7 @@ export function useExportAuditJSONL<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>>;
   },
@@ -721,11 +1014,12 @@ export function useExportAuditJSONL<
   TError = unknown,
 >(
   tenant: string,
+  params?: ExportAuditJSONLParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExportAuditJSONLQueryOptions(tenant, options);
+  const queryOptions = getExportAuditJSONLQueryOptions(tenant, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -740,7 +1034,7 @@ export function useExportAuditJSONL<
  * @summary Distinct audit entity-id typeahead
  */
 export type listAuditResourceIDsResponse = {
-  data: void;
+  data: ListAuditResourceIDs200;
   status: number;
   headers: Headers;
 };
@@ -994,6 +1288,333 @@ export function useListAuditResourceIDs<
 }
 
 /**
+ * Returns defaults if no row exists for the tenant.
+ * @summary Get audit-retention config
+ */
+export type getAuditRetentionConfigResponse = {
+  data: AuditRetentionConfig;
+  status: number;
+  headers: Headers;
+};
+
+export const getGetAuditRetentionConfigUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/audit/retention`;
+};
+
+export const getAuditRetentionConfig = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<getAuditRetentionConfigResponse> => {
+  return customFetch<getAuditRetentionConfigResponse>(getGetAuditRetentionConfigUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetAuditRetentionConfigQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/audit/retention`] as const;
+};
+
+export const getGetAuditRetentionConfigInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getAuditRetentionConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    >;
+  },
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAuditRetentionConfigQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditRetentionConfig>>> = ({
+    signal,
+  }) => getAuditRetentionConfig(tenant, signal);
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetAuditRetentionConfigInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAuditRetentionConfig>>
+>;
+export type GetAuditRetentionConfigInfiniteQueryError = unknown;
+
+export function useGetAuditRetentionConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAuditRetentionConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>
+        >,
+        'initialData'
+      >;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAuditRetentionConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAuditRetentionConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>
+        >,
+        'initialData'
+      >;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAuditRetentionConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAuditRetentionConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    >;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get audit-retention config
+ */
+
+export function useGetAuditRetentionConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getAuditRetentionConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    >;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetAuditRetentionConfigInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGetAuditRetentionConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    >;
+  },
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAuditRetentionConfigQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditRetentionConfig>>> = ({
+    signal,
+  }) => getAuditRetentionConfig(tenant, signal);
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetAuditRetentionConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAuditRetentionConfig>>
+>;
+export type GetAuditRetentionConfigQueryError = unknown;
+
+export function useGetAuditRetentionConfig<
+  TData = Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>
+        >,
+        'initialData'
+      >;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAuditRetentionConfig<
+  TData = Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getAuditRetentionConfig>>
+        >,
+        'initialData'
+      >;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAuditRetentionConfig<
+  TData = Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    >;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get audit-retention config
+ */
+
+export function useGetAuditRetentionConfig<
+  TData = Awaited<ReturnType<typeof getAuditRetentionConfig>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditRetentionConfig>>, TError, TData>
+    >;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetAuditRetentionConfigQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Replace audit-retention config
+ */
+export type upsertAuditRetentionConfigResponse = {
+  data: AuditRetentionConfig | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getUpsertAuditRetentionConfigUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/audit/retention`;
+};
+
+export const upsertAuditRetentionConfig = async (
+  tenant: string,
+  upsertAuditRetentionConfigBody: UpsertAuditRetentionConfigBody,
+  options?: RequestInit,
+): Promise<upsertAuditRetentionConfigResponse> => {
+  return customFetch<upsertAuditRetentionConfigResponse>(getUpsertAuditRetentionConfigUrl(tenant), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(upsertAuditRetentionConfigBody),
+  });
+};
+
+export const getUpsertAuditRetentionConfigMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertAuditRetentionConfig>>,
+    TError,
+    { tenant: string; data: UpsertAuditRetentionConfigBody },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof upsertAuditRetentionConfig>>,
+  TError,
+  { tenant: string; data: UpsertAuditRetentionConfigBody },
+  TContext
+> => {
+  const mutationKey = ['upsertAuditRetentionConfig'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof upsertAuditRetentionConfig>>,
+    { tenant: string; data: UpsertAuditRetentionConfigBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return upsertAuditRetentionConfig(tenant, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpsertAuditRetentionConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof upsertAuditRetentionConfig>>
+>;
+export type UpsertAuditRetentionConfigMutationBody = UpsertAuditRetentionConfigBody;
+export type UpsertAuditRetentionConfigMutationError = void;
+
+/**
+ * @summary Replace audit-retention config
+ */
+export const useUpsertAuditRetentionConfig = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertAuditRetentionConfig>>,
+    TError,
+    { tenant: string; data: UpsertAuditRetentionConfigBody },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof upsertAuditRetentionConfig>>,
+  TError,
+  { tenant: string; data: UpsertAuditRetentionConfigBody },
+  TContext
+> => {
+  const mutationOptions = getUpsertAuditRetentionConfigMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
  * Server-Sent Events feed. Each event is named `audit` with a JSON
 payload of {id, actor, entityType, entityId, operation, occurredAt}.
 Backed by a 5-second poll today; will move to push once an audit
@@ -1231,7 +1852,7 @@ export function useStreamAuditEntries<
  * @summary Get a single audit entry by id
  */
 export type getAuditEntryResponse = {
-  data: GetAuditEntry200 | void;
+  data: AuditEntry | void;
   status: number;
   headers: Headers;
 };
@@ -1453,3 +2074,94 @@ export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry
 
   return query;
 }
+
+/**
+ * Records a follow-up audit row capturing the reveal action and the
+caller-supplied reason, then returns the original entry with
+sensitive fields (ip / user_agent / payload) included. Requires
+the `audit:read-sensitive` permission.
+
+ * @summary Reveal sensitive fields on an audit entry
+ */
+export type revealAuditEntryResponse = {
+  data: RevealAuditEntry200 | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getRevealAuditEntryUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/audit/${id}/reveal`;
+};
+
+export const revealAuditEntry = async (
+  tenant: string,
+  id: string,
+  revealAuditEntryBody: RevealAuditEntryBody,
+  options?: RequestInit,
+): Promise<revealAuditEntryResponse> => {
+  return customFetch<revealAuditEntryResponse>(getRevealAuditEntryUrl(tenant, id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(revealAuditEntryBody),
+  });
+};
+
+export const getRevealAuditEntryMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revealAuditEntry>>,
+    TError,
+    { tenant: string; id: string; data: RevealAuditEntryBody },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revealAuditEntry>>,
+  TError,
+  { tenant: string; id: string; data: RevealAuditEntryBody },
+  TContext
+> => {
+  const mutationKey = ['revealAuditEntry'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revealAuditEntry>>,
+    { tenant: string; id: string; data: RevealAuditEntryBody }
+  > = (props) => {
+    const { tenant, id, data } = props ?? {};
+
+    return revealAuditEntry(tenant, id, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevealAuditEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revealAuditEntry>>
+>;
+export type RevealAuditEntryMutationBody = RevealAuditEntryBody;
+export type RevealAuditEntryMutationError = void;
+
+/**
+ * @summary Reveal sensitive fields on an audit entry
+ */
+export const useRevealAuditEntry = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revealAuditEntry>>,
+    TError,
+    { tenant: string; id: string; data: RevealAuditEntryBody },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revealAuditEntry>>,
+  TError,
+  { tenant: string; id: string; data: RevealAuditEntryBody },
+  TContext
+> => {
+  const mutationOptions = getRevealAuditEntryMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};

@@ -220,6 +220,78 @@ func TestAuditExtra_ExportCSVAndJSONL(t *testing.T) {
 	}
 }
 
+// TestAuditExtra_Reveal verifies the reveal endpoint records a new
+// follow-up audit row carrying the supplied reason and returns the
+// original entry in the response.
+func TestAuditExtra_Reveal(t *testing.T) {
+	server, drv, client := setupAuditExtraTestServer(t)
+
+	id := "audit-reveal-1"
+	tx, _ := drv.Begin(context.Background(), store.TxOptions{})
+	_ = tx.AppendAuditEntry(context.Background(), &riokuv1.AuditEntry{
+		Id:         id,
+		Actor:      "alice",
+		EntityType: "service",
+		EntityId:   "svc-1",
+		Operation:  "create",
+		OccurredAt: timestamppb.New(time.Now().UTC()),
+	})
+	_ = tx.Commit()
+
+	// reason too short -> 400
+	resp := doJSONRaw(t, client, http.MethodPost,
+		server.URL+"/api/v1/t/default/audit/"+id+"/reveal",
+		map[string]any{"reason": "hi"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("short reason: expected 400, got %d", resp.StatusCode)
+	}
+	_ = resp.Body.Close()
+
+	// happy path
+	resp = doJSONRaw(t, client, http.MethodPost,
+		server.URL+"/api/v1/t/default/audit/"+id+"/reveal",
+		map[string]any{"reason": "Investigating incident #1234"})
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("reveal: %d body=%s", resp.StatusCode, body)
+	}
+	var got map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	_ = resp.Body.Close()
+	entry, _ := got["entry"].(map[string]any)
+	if entry["id"] != id {
+		t.Errorf("entry.id = %v, want %s", entry["id"], id)
+	}
+	revealEntry, _ := got["revealEntry"].(map[string]any)
+	if revealEntry["operation"] != "reveal" {
+		t.Errorf("revealEntry.operation = %v, want reveal", revealEntry["operation"])
+	}
+	if revealEntry["entityId"] != id {
+		t.Errorf("revealEntry.entityId = %v, want %s", revealEntry["entityId"], id)
+	}
+
+	// the new follow-up row should be persisted with the typed
+	// audit.sensitive_revealed.v1 schema
+	tx2, _ := drv.Begin(context.Background(), store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+	rows, err := tx2.QueryAuditLog(context.Background(), store.AuditQuery{
+		EntityType: "audit-entry",
+		EntityID:   id,
+	})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatalf("no follow-up reveal row persisted")
+	}
+	if got := rows[0].GetPayloadSchema(); got != "audit.sensitive_revealed.v1" {
+		t.Errorf("payloadSchema = %q, want audit.sensitive_revealed.v1", got)
+	}
+	if !strings.Contains(rows[0].GetPayload(), "Investigating incident") {
+		t.Errorf("payload missing reason: %s", rows[0].GetPayload())
+	}
+}
+
 func TestAuditExtra_OPTIONSCoverage(t *testing.T) {
 	_, drv, _ := setupAuditExtraTestServer(t)
 
@@ -231,6 +303,7 @@ func TestAuditExtra_OPTIONSCoverage(t *testing.T) {
 		methods string
 	}{
 		{"/api/v1/t/default/audit/abc", "GET, OPTIONS"},
+		{"/api/v1/t/default/audit/abc/reveal", "OPTIONS, POST"},
 		{"/api/v1/t/default/audit/stream", "GET, OPTIONS"},
 		{"/api/v1/t/default/audit/export/csv", "GET, OPTIONS"},
 		{"/api/v1/t/default/audit/export/jsonl", "GET, OPTIONS"},

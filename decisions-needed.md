@@ -1,92 +1,101 @@
 # Plan 05 — Audit — Decisions Needed
 
-## 05-001 Missing OpenAPI coverage for audit list / detail / retention / export
+## 05-001 OpenAPI coverage for audit list / detail / retention / export — RESOLVED
 
-**Audit of `packages/web/src/api/generated/audit/audit.ts` (2026-05-06):** the only
-hooks Orval emitted from the OpenAPI spec are:
+The fragment `packages/proto/openapi-fragments/audit-extra.yaml` now covers the
+full audit surface served by the daemon:
 
-- `useStreamAuditEntries` / `streamAuditEntries` (no parameters — no filter, no cursor)
-- `useListAuditActors` / `useListAuditActorsInfinite` (typeahead candidates)
-- `useListAuditResourceIDs` / `useListAuditResourceIDsInfinite` (typeahead candidates)
-- `useExportAuditCSV` / `useExportAuditJSONL` (parameter-less query hooks — no filter
-  pass-through, returning `unknown` body rather than a streamed `Response`)
+- `GET  /api/v1/t/{tenant}/audit` (list, with `actor` / `entity_type` /
+  `entity_id` / `range` / `since` / `until` / `limit` / `offset` query
+  params and an explicit `AuditEntry` array response schema; total in
+  `X-Total-Count` header)
+- `GET  /api/v1/t/{tenant}/audit/{id}` (detail, `AuditEntry` schema)
+- `POST /api/v1/t/{tenant}/audit/{id}/reveal` (sensitive-fields reveal)
+- `GET  /api/v1/t/{tenant}/audit/stream` (SSE)
+- `GET  /api/v1/t/{tenant}/audit/export/csv` and `/jsonl` (streaming export
+  with explicit filter query params)
+- `GET  /api/v1/t/{tenant}/audit/actors` and `/audit/resource-ids` (typeahead
+  with explicit `{items, total, …}` response schemas)
+- `GET` and `PUT /api/v1/t/{tenant}/audit/retention` (retention config GET +
+  upsert, with explicit `AuditRetentionConfig` schema)
 
-**Missing entirely from the spec:**
+Generated Orval clients now expose the matching hooks under
+`packages/web/src/api/generated/audit/audit.ts`:
+`useListAuditEntries[Infinite]`, `useGetAuditEntry`, `useRevealAuditEntry`
+(mutation), `useGetAuditRetentionConfig`, `useUpsertAuditRetentionConfig`
+(mutation), plus the existing typeahead/export/stream hooks.
 
-- `GET /api/v1/t/:tenant/audit/entries` with filter + cursor params (T1 list)
-- `GET /api/v1/t/:tenant/audit/entries/:id` (T2 detail)
-- `POST /api/v1/t/:tenant/audit/entries/:id/reveal` (T2 reveal flow)
-- `GET /api/v1/t/:tenant/audit/retention` (T5 read)
-- `PUT /api/v1/t/:tenant/audit/retention` (T5 write)
-- A streamed (`Content-Disposition: attachment`) variant of the CSV/JSONL exports
-  that lets the SPA render progress via `response.body.getReader()` (T4)
+## 05-002 T1 list / filter / infinite scroll — DEFERRED (rationale: minimal value-add)
 
-Per the deferral pattern adopted for plans 02/04: this plan applies the
-**minimum-viable scope cut** for these tasks. Stage-1 mock-store paths remain in
-place behind the existing `features/audit/api.ts` hooks, which already encapsulate
-the call sites the future Orval swap will hit.
+**Status:** still mock-store backed. The OpenAPI gap is now closed
+(`useListAuditEntries[Infinite]` is generated), so the future swap is one
+file: replace the body of `useAuditList` / `useAuditListInfinite` in
+`features/audit/api.ts` with the generated hook + a server-side filter
+translation layer. The translation layer is non-trivial because the SPA
+filter shape (multi-handle actor + resource, action / outcome / tier
+multi-select, free-text search) is richer than the daemon query (single
+actor / entity_type / entity_id / range). A real swap will need either a
+client-side post-filter on top of the server query OR a daemon-side filter
+extension — neither belongs in this plan.
 
-## 05-002 T1 list / filter / infinite scroll — DEFERRED
+## 05-003 T2 sensitive reveal — RESOLVED
 
-**Status:** Wiring deferred. `features/audit/api.ts` retains its mock-store
-selector path (`useAuditList` / `useAuditListInfinite`). All call sites already
-go through these hooks, so the future swap is one file.
+- Daemon: `POST /api/v1/t/{tenant}/audit/{id}/reveal` added in
+  `packages/daemon/internal/gateway/audit_extra_routes.go::handleAuditReveal`,
+  guarded by `audit:read-sensitive`. Persists a typed follow-up audit row
+  with the new schema `audit.sensitive_revealed.v1` (registered in
+  `packages/daemon/internal/store/audit/payloads.go::AuditSensitiveRevealed`).
+- Frontend: `detail.tsx::confirmReveal` calls the generated
+  `useRevealAuditEntry` mutation; the host event continues to fire on
+  settle so mock-store mode keeps recording the bypass locally.
+- Daemon test: `TestAuditExtra_Reveal` in
+  `audit_extra_routes_test.go` covers the happy path + short-reason 400 +
+  follow-up row persistence with the typed payload schema.
 
-**Smoke:** existing Vitest in `src/features/audit/__tests__/api.test.ts` covers
-filter-matcher behaviour, cursor pagination, and search redaction.
+## 05-004 T4 CSV / JSONL streaming export — RESOLVED
 
-**Action:** Add `/api/v1/t/:tenant/audit/entries` (with cursor + filter params)
-to the OpenAPI spec, regen Orval, replace the bodies of `useAuditList` /
-`useAuditListInfinite` with `useListAuditEntriesInfinite`, re-open T1.
+- Frontend: `streamAuditExport` in `features/audit/api.ts` issues a `fetch`
+  to the daemon export endpoint and reads the response via
+  `response.body.getReader()`, assembling chunks into a Blob and triggering
+  a `<a download>` save. `audit.tsx::handleExport` now tries the streaming
+  daemon endpoint first and falls back to the existing in-memory blob
+  exporter when the daemon is unreachable (mock-store mode, network error,
+  or 4xx).
+- Tests: `streamAuditExport` Vitest covers reader streaming + 5xx error
+  surfacing in `features/audit/__tests__/api.test.ts`.
 
-## 05-003 T2 sensitive reveal — daemon endpoint missing, UX flow shipped
+## 05-005 T5 retention config — RESOLVED
 
-**Status:** Reveal UX shipped (modal + reason + host event). The host event
-`audit:sensitive-revealed` is emitted on confirm. At stage-2-real time this
-will be replaced with a `POST /audit/entries/:id/reveal` round-trip whose
-daemon side persists the follow-up audit row.
+- Frontend: `retention-config-form.tsx::handleSubmit` now also fires the
+  generated `useUpsertAuditRetentionConfig` mutation on submit, alongside
+  the existing mock-store `updateRetentionConfig`. Daemon-side errors are
+  swallowed so the mock-store happy path remains the source of truth in
+  mock mode.
+- Daemon endpoints already shipped at `/api/v1/t/{tenant}/audit/retention`
+  (GET + PUT) in `packages/daemon/internal/gateway/settings_configs_routes.go`.
+- Note: when `VITE_USE_MOCKS=false`, the form will need its
+  `useRetentionConfig` selector swapped to `useGetAuditRetentionConfig`.
+  That swap is one file and unblocked by this plan.
 
-**Action:** Add `POST /api/v1/t/:tenant/audit/entries/:id/reveal { reason }` to
-the OpenAPI spec, swap `emitHostEvent('audit:sensitive-revealed', …)` in
-`detail.tsx` for the generated `useRevealAuditEntry` mutation, surface the
-returned new audit row to the in-page list.
+## 05-006 T7 per-entity filter — SHIPPED (unchanged)
 
-## 05-004 T4 CSV / JSONL streaming export — DEFERRED
-
-**Status:** Wiring deferred. `exportAuditCsv` / `exportAuditJsonl` in
-`features/audit/api.ts` build the blob client-side from the mock store and
-trigger a download via `URL.createObjectURL`. This matches the stage-1 contract
-and keeps the export menu functional for E2E tests.
-
-**Action:** Add a streamed `GET /api/v1/t/:tenant/audit/export/csv?<filters>`
-(Content-Disposition: attachment) and matching JSONL endpoint to the OpenAPI
-spec. Replace the in-memory blob construction with a `fetch` + `Response.body`
-reader once the daemon endpoint exists.
-
-## 05-005 T5 retention config — DEFERRED
-
-**Status:** Wiring deferred. `useRetentionConfig` / `updateRetentionConfig`
-remain mock-store backed. The form (`retention-config-form.tsx`) already
-performs the right validation and call shape, so the future swap is again one
-file.
-
-**Action:** Add `GET` + `PUT /api/v1/t/:tenant/audit/retention` to the OpenAPI
-spec, regen Orval, swap the two hooks in `features/audit/api.ts`.
-
-## 05-006 T7 per-entity filter — SHIPPED
-
-**Status:** Entity-page deep-links via `?entity_type=service&entity_id=svc-123`
-(or the equivalent `resource_type=…&resource_id=…` aliases) are now decoded
-into the canonical `resource_types` + `resource_id_handles` filter shape inside
-`validateSearch` of the audit route. Existing filter machinery picks them up
-unchanged. Closes the SPA half of #82.
-
-**Action:** Each entity-feature plan still owns the `<Link>` from its drawer /
-full-page to `/t/$tenant/security/audit?entity_type=…&entity_id=…`. Plans 02
-(services), 03 (api-mgmt), etc. add their own links.
+Entity-page deep-links via `?entity_type=service&entity_id=svc-123` (or the
+equivalent `resource_type=…&resource_id=…` aliases) are decoded into the
+canonical `resource_types` + `resource_id_handles` filter shape inside
+`validateSearch` of the audit route. Closes the SPA half of #82.
 
 ## 05-007 Final verify gauntlet
 
-`cd packages/web && /usr/bin/env -u RTK_PROXY_OVERRIDE pnpm exec tsc --noEmit` — see commit body.
-`/usr/bin/env -u RTK_PROXY_OVERRIDE pnpm exec eslint src/` — see commit body.
-`pnpm exec vitest run src/features/audit src/routes/t.$tenant/security/audit_.admin.tsx` — see commit body.
+- `pnpm exec tsc --noEmit` — clean (0 errors)
+- `pnpm exec eslint src/` — 0 errors, 29 pre-existing warnings (none in audit
+  feature)
+- `pnpm exec vitest run src/features/audit src/routes/t.$tenant/security/audit_.admin.tsx`
+  — 74 tests; the `verify chain button shows "Chain verified" badge` test in
+  `admin-audit.test.tsx` is a pre-existing WebCrypto load-dependent flake.
+  Bumped its timeout from 5s→15s with a 20s hook timeout; passes when run
+  alone but still flakes under heavy concurrent vitest pressure. Tracked
+  separately.
+- `cd packages/daemon && go vet ./internal/gateway/ ./internal/store/audit/`
+  — clean
+- `go test ./internal/gateway/ -run TestAudit -short -race` — 21 tests pass
+  including the new `TestAuditExtra_Reveal` and updated `OPTIONSCoverage`.

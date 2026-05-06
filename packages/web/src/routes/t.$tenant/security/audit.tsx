@@ -46,6 +46,7 @@ import {
   encodeResourceHandle,
   exportAuditCsv,
   exportAuditJsonl,
+  streamAuditExport,
   useAuditList,
   useAuditStream,
 } from '@/features/audit';
@@ -217,25 +218,48 @@ function AuditPage() {
 
   const handleExport = useCallback(
     (format: 'csv' | 'jsonl') => {
-      try {
-        const blob =
-          format === 'csv' ? exportAuditCsv(tenantId, filter) : exportAuditJsonl(tenantId, filter);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const datestamp = new Date().toISOString().slice(0, 10);
-        a.download = `audit-${tenantSlug}-${datestamp}.${format === 'csv' ? 'csv' : 'jsonl'}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        notify.success(
-          'Export complete',
-          `Downloaded ${String(rows.length)} entries as ${format.toUpperCase()}.`,
-        );
-      } catch {
-        notify.error('Export failed', 'Please try again.');
-      }
+      const datestamp = new Date().toISOString().slice(0, 10);
+      const filename = `audit-${tenantSlug}-${datestamp}.${format === 'csv' ? 'csv' : 'jsonl'}`;
+      const sinceISO = filter.date_from ? new Date(filter.date_from).toISOString() : undefined;
+      const untilISO = filter.date_to ? new Date(filter.date_to).toISOString() : undefined;
+      const daemonFilters: Parameters<typeof streamAuditExport>[3] = {
+        ...(sinceISO ? { since: sinceISO } : {}),
+        ...(untilISO ? { until: untilISO } : {}),
+      };
+
+      // Try the real streaming daemon endpoint first. On failure (mock-
+      // store mode, network error, or 4xx) fall back to the in-memory
+      // blob exporter so the button always produces a download.
+      void (async () => {
+        try {
+          await streamAuditExport(tenantSlug, format, filename, daemonFilters);
+          notify.success(
+            'Export complete',
+            `Streamed audit export as ${format.toUpperCase()}.`,
+          );
+        } catch {
+          try {
+            const blob =
+              format === 'csv'
+                ? exportAuditCsv(tenantId, filter)
+                : exportAuditJsonl(tenantId, filter);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            notify.success(
+              'Export complete',
+              `Downloaded ${String(rows.length)} entries as ${format.toUpperCase()}.`,
+            );
+          } catch {
+            notify.error('Export failed', 'Please try again.');
+          }
+        }
+      })();
     },
     [tenantId, tenantSlug, filter, rows.length],
   );

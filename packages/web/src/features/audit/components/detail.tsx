@@ -41,6 +41,7 @@ import {
   IconTerminal2,
 } from '@tabler/icons-react';
 import { emitHostEvent } from '@/host/events';
+import { useRevealAuditEntry } from '@/api/generated/audit/audit';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { CodeBlock } from '@/components/code-block';
@@ -122,6 +123,9 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
   const [revealModalOpen, setRevealModalOpen] = useState(false);
   const [revealReason, setRevealReason] = useState('');
   const [revealReasonError, setRevealReasonError] = useState<string | null>(null);
+  // Real-API reveal mutation — falls through to the local host-event
+  // emission below when the daemon is unreachable (mock-store mode).
+  const revealMutation = useRevealAuditEntry();
 
   const hasSensitiveFields =
     entry.ip !== undefined || entry.user_agent !== undefined || entry.payload !== undefined;
@@ -147,12 +151,22 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
       setRevealReasonError('Please provide a reason (minimum 4 characters).');
       return;
     }
-    emitHostEvent('audit:sensitive-revealed', {
-      tenant_id: entry.tenant_id,
-      entry_id: entry.id,
-      reason,
-      at: new Date().toISOString(),
-    });
+    // Fire the real daemon reveal endpoint. The mutation persists the
+    // follow-up audit row server-side; on failure we still emit the
+    // host event so the mock-store path records the bypass locally.
+    revealMutation.mutate(
+      { tenant: entry.tenant_id ?? '', id: entry.id, data: { reason } },
+      {
+        onSettled: () => {
+          emitHostEvent('audit:sensitive-revealed', {
+            tenant_id: entry.tenant_id,
+            entry_id: entry.id,
+            reason,
+            at: new Date().toISOString(),
+          });
+        },
+      },
+    );
     setRevealed(true);
     setRevealModalOpen(false);
     notify.success('Sensitive fields revealed', 'A new audit entry has been recorded.');

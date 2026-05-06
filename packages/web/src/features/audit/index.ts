@@ -10,6 +10,7 @@ export {
   useAuditDetail,
   exportAuditCsv,
   exportAuditJsonl,
+  streamAuditExport,
   searchActors,
   searchResourceIds,
   useRetentionConfig,
