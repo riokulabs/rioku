@@ -58,10 +58,10 @@ import { InboxDropdown } from '../components/inbox-dropdown';
 const TENANT = 'acme';
 
 /** Daemon-shaped notification items (camelCase from REST layer). */
-const ITEM_SYSTEM = {
+let ITEM_SYSTEM = {
   id: 'notif-sys-001',
   tenantId: 'tenant-acme',
-  userId: 'user-001',
+  userId: 'user-0001',
   category: 'system',
   severity: 'info',
   title: 'System test notification',
@@ -71,10 +71,10 @@ const ITEM_SYSTEM = {
   archivedAt: null,
 };
 
-const ITEM_SECURITY = {
+let ITEM_SECURITY = {
   id: 'notif-sec-001',
   tenantId: 'tenant-acme',
-  userId: 'user-001',
+  userId: 'user-0001',
   category: 'security',
   severity: 'warn',
   title: 'Security test notification',
@@ -84,10 +84,10 @@ const ITEM_SECURITY = {
   archivedAt: null,
 };
 
-const ITEM_PLUGIN = {
+let ITEM_PLUGIN = {
   id: 'notif-plg-001',
   tenantId: 'tenant-acme',
-  userId: 'user-001',
+  userId: 'user-0001',
   category: 'plugin:com.example.slack',
   severity: 'info',
   title: 'Plugin test notification',
@@ -97,7 +97,7 @@ const ITEM_PLUGIN = {
   archivedAt: null,
 };
 
-const ALL_ITEMS = [ITEM_SYSTEM, ITEM_SECURITY, ITEM_PLUGIN];
+let ALL_ITEMS = [ITEM_SYSTEM, ITEM_SECURITY, ITEM_PLUGIN];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -149,11 +149,16 @@ beforeEach(() => {
   useMockStore.getState().reset();
   seedStore(useMockStore);
 
+  // Refresh fixture userId to match the (counter-based) seeded current user
+  // so client-side userId filtering in useNotificationList lets items through.
+  const uid = useMockStore.getState().currentUserId!;
+  ITEM_SYSTEM = { ...ITEM_SYSTEM, userId: uid };
+  ITEM_SECURITY = { ...ITEM_SECURITY, userId: uid };
+  ITEM_PLUGIN = { ...ITEM_PLUGIN, userId: uid };
+  ALL_ITEMS = [ITEM_SYSTEM, ITEM_SECURITY, ITEM_PLUGIN];
+
   // Point window.location to a tenant URL so resolveTenant() returns 'acme'.
-  Object.defineProperty(window, 'location', {
-    value: { pathname: `/t/${TENANT}/notifications` },
-    writable: true,
-  });
+  window.history.replaceState(null, '', `/t/${TENANT}/notifications`);
 });
 
 afterEach(() => {
@@ -208,7 +213,9 @@ describe('<InboxDropdown>', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('inbox-group-system')).not.toBeInTheDocument();
     });
-    expect(screen.getByTestId('inbox-group-security')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('inbox-group-security')).toBeInTheDocument();
+    });
   });
 
   it('mark-read button POSTs to /notifications/:id/read', async () => {
@@ -250,13 +257,6 @@ describe('<InboxDropdown>', () => {
       }),
     );
 
-    // After archive, next list refetch returns only non-archived items.
-    server.use(
-      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
-        HttpResponse.json({ items: [ITEM_SECURITY, ITEM_PLUGIN], total: 2 }),
-      ),
-    );
-
     const userId = useMockStore.getState().currentUserId!;
     const qc = makeQueryClient();
     wrap(<InboxDropdown userId={userId} onClose={() => undefined} />, qc);
@@ -264,6 +264,13 @@ describe('<InboxDropdown>', () => {
     await waitFor(() => {
       expect(screen.getByTestId(`inbox-row-archive-${ITEM_SYSTEM.id}`)).toBeInTheDocument();
     });
+
+    // After archive, next list refetch returns only non-archived items.
+    server.use(
+      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+        HttpResponse.json({ items: [ITEM_SECURITY, ITEM_PLUGIN], total: 2 }),
+      ),
+    );
 
     fireEvent.click(screen.getByTestId(`inbox-row-archive-${ITEM_SYSTEM.id}`));
 

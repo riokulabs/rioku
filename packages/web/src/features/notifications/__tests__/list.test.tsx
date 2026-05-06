@@ -64,10 +64,7 @@ beforeEach(() => {
   useMockStore.getState().reset();
   seedStore(useMockStore);
 
-  Object.defineProperty(window, 'location', {
-    value: { pathname: `/t/${TENANT}/notifications` },
-    writable: true,
-  });
+  window.history.replaceState(null, '', `/t/${TENANT}/notifications`);
 });
 
 describe('<NotificationList>', () => {

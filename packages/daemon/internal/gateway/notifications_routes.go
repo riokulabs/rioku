@@ -128,6 +128,13 @@ func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("GET /api/v1/t/{tenant}/notification-log/{id}",
 		RequirePermission("notification-log:read")(http.HandlerFunc(handleGetDeliveryLog(st))))
 
+	// Sandbox / admin: bulk-seed inbox notifications. Restricted to
+	// notification:admin so only operators can seed; the sandbox seeder
+	// uses this to populate demo data without depending on an upstream
+	// event source.
+	mux.Handle("POST /api/v1/t/{tenant}/notifications/seed",
+		RequirePermission("notification:admin")(http.HandlerFunc(handleSeedNotifications(st))))
+
 	// Tenant notification config (singleton-per-tenant)
 	mux.Handle("GET /api/v1/t/{tenant}/settings/notifications",
 		RequirePermission("notification:admin")(http.HandlerFunc(handleGetTenantNotifConfig(st))))
@@ -289,6 +296,100 @@ func notificationQueryFromRequest(r *http.Request) store.NotificationItemQuery {
 		}
 	}
 	return q
+}
+
+// handleSeedNotifications accepts a JSON body of inbox notifications
+// and inserts each into the per-user inbox. Used by the sandbox seeder
+// to populate demo data; restricted to notification:admin so only
+// operators can call it.
+func handleSeedNotifications(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		var req struct {
+			Items []struct {
+				Username   string `json:"username"`
+				UserID     string `json:"userId"`
+				Category   string `json:"category"`
+				Severity   string `json:"severity"`
+				Title      string `json:"title"`
+				Body       string `json:"body"`
+				ActionLink string `json:"actionLink,omitempty"`
+				OccurredAt string `json:"occurredAt,omitempty"`
+				Read       bool   `json:"read,omitempty"`
+				Archived   bool   `json:"archived,omitempty"`
+			} `json:"items"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeBadRequest(w, r, "invalid JSON body")
+			return
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		// Resolve usernames -> user IDs once.
+		userIDs := make(map[string]string)
+		now := time.Now().UTC()
+		inserted := 0
+		for _, it := range req.Items {
+			uid := it.UserID
+			if uid == "" && it.Username != "" {
+				if cached, ok := userIDs[it.Username]; ok {
+					uid = cached
+				} else {
+					u, lookupErr := tx.GetUserByUsername(r.Context(), it.Username)
+					if lookupErr != nil || u == nil {
+						// Skip — log via response, do not fail the bulk op.
+						continue
+					}
+					uid = u.ID
+					userIDs[it.Username] = uid
+				}
+			}
+			if uid == "" {
+				continue
+			}
+			occurred := now
+			if it.OccurredAt != "" {
+				if parsed, parseErr := time.Parse(time.RFC3339, it.OccurredAt); parseErr == nil {
+					occurred = parsed.UTC()
+				}
+			}
+			tID := tenant.ID
+			n := &store.NotificationItem{
+				TenantID: &tID, UserID: uid, Category: it.Category, Severity: it.Severity,
+				Title: it.Title, Body: it.Body, OccurredAt: occurred,
+			}
+			if it.ActionLink != "" {
+				al := it.ActionLink
+				n.ActionLink = &al
+			}
+			if it.Read {
+				rt := occurred
+				n.ReadAt = &rt
+			}
+			if it.Archived {
+				at := occurred
+				n.ArchivedAt = &at
+			}
+			if _, appendErr := tx.AppendNotificationItem(r.Context(), n); appendErr != nil {
+				writeInternalError(w, r, "append")
+				return
+			}
+			inserted++
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"inserted": inserted})
+	}
 }
 
 func handleListNotifications(st store.Driver) http.HandlerFunc {

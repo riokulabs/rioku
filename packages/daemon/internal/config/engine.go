@@ -18,6 +18,31 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 )
 
+// AuditEventDispatchFn is the narrow surface the engine calls after
+// committing an audit entry. The notifications package wires a closure
+// that calls EventRouter.AsyncEvaluateAndDispatch with a translated
+// envelope. Using a function type (rather than an interface with a
+// struct param) keeps the config package free of any notifications
+// dependency while side-stepping Go's nominal type-identity rules.
+type AuditEventDispatchFn func(tenantID string, env AuditEventEnvelope)
+
+// AuditEventEnvelope describes the audit row in a kind-agnostic way so
+// the notifications package can match it against routing rules. Mirrors
+// notifications.AuditEnvelope; the engine projects into this neutral
+// shape so the config package never imports notifications.
+type AuditEventEnvelope struct {
+	Kind       string
+	Category   string
+	Subtype    string
+	Severity   string
+	Subject    string
+	Body       string
+	Actor      string
+	EntityType string
+	EntityID   string
+	Extra      map[string]any
+}
+
 // Engine orchestrates config validation, versioning, audit logging, and
 // Caddy config compilation. It is the single entry point for all config
 // mutations.
@@ -26,6 +51,18 @@ type Engine struct {
 	compiler       *caddy.Compiler
 	mu             sync.RWMutex
 	cachedSnapshot *riokuv1.ConfigSnapshot
+
+	// auditDispatcher (optional) receives an envelope after every
+	// successful audit-entry commit. Nil = no event routing.
+	auditDispatcher AuditEventDispatchFn
+}
+
+// SetAuditDispatcher installs (or clears) the post-commit audit event
+// dispatcher. Nil disables event routing.
+func (e *Engine) SetAuditDispatcher(fn AuditEventDispatchFn) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.auditDispatcher = fn
 }
 
 // NewEngine creates a new config engine backed by the given store and
@@ -194,6 +231,26 @@ func (e *Engine) ApplyChange(ctx context.Context, change *riokuv1.ConfigChange, 
 	// Update cached snapshot so subsequent reads reflect this mutation
 	// even if the store becomes unavailable.
 	e.cachedSnapshot = snap
+
+	// Fire-and-forget event routing for the just-committed audit entry.
+	// We are still holding e.mu (write lock) here, so it is safe to read
+	// e.auditDispatcher directly without an additional RLock — and the
+	// RWMutex is NOT re-entrant, so an explicit RLock would deadlock.
+	dispatcher := e.auditDispatcher
+	if dispatcher != nil {
+		tenantID := store.TenantIDFromContext(ctx)
+		dispatcher(tenantID, AuditEventEnvelope{
+			Kind:       entityType + "." + operation,
+			Category:   "audit",
+			Subtype:    operation,
+			Severity:   "info",
+			Subject:    fmt.Sprintf("%s %s", entityType, operation),
+			Body:       fmt.Sprintf("%s/%s by %s (config version %d)", entityType, entityID, actor, version),
+			Actor:      actor,
+			EntityType: entityType,
+			EntityID:   entityID,
+		})
+	}
 
 	return &riokuv1.ApplyResult{
 		Meta: &riokuv1.MutationMeta{

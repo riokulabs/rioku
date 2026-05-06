@@ -60,7 +60,11 @@
 
 ## Item 002 — Cross-feature mock-store reads in detail components
 
-- **Status:** open
+- **Status:** RESOLVED (2026-05-06) — deferred per recommendation; tracked
+  as plan-06 follow-up before the `VITE_USE_MOCKS=false` flip. The
+  supplemental panels degrade to empty-state in real-daemon mode without
+  blocking CRUD; audit-by-resource ownership remains with Plan 5 close-out
+  per the recommendation in this entry.
 - **Filed by:** plan-06 (stage2/plan-06-notifications), 2026-05-06
 - **Category:** scope-question
 - **What:** The notification-channel `detail.tsx` reads delivery-log + audit
@@ -97,5 +101,25 @@
   after this PR merges, before the master `VITE_USE_MOCKS=false` flip.
 - **Alternatives:** Land the component refactors in this PR (~150 LOC of
   diff, cross-cuts 6 files) — viable but lengthens review.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Deferred to follow-up commit per recommendation.
+- **Resolution date / commit:** 2026-05-06, on stage2/plan-06-notifications
+
+## Item 003 — Audit emission → event router → channel fan-out wiring
+
+- **Status:** RESOLVED (2026-05-06)
+- **Filed by:** plan-06 (stage2/plan-06-notifications), 2026-05-06
+- **Category:** integration
+- **What:** The channel send-side dispatcher (item 001) was wired only via
+  the `handleTestChannel` REST endpoint. Real audit emissions did not
+  trigger routing-rule evaluation, so notification routing rules were
+  inert in normal traffic.
+- **Resolution:** Added `internal/notifications/event_router.go` (LoadRules,
+  EvaluateAndDispatch, AsyncEvaluateAndDispatch, MatchesFilter, plus a
+  `MakeConfigAuditDispatchFn` adapter). The config engine now exposes
+  `SetAuditDispatcher(AuditEventDispatchFn)` and fires the closure after
+  every successful `AppendAuditEntry` commit. EventFilter grammar matches
+  the web UI's `<category>.<subtype>` pattern (with `*` wildcards plus a
+  severity fallback) — no `cel-go` dependency was added. Tests:
+  `event_router_test.go` covers matching, non-matching, malformed, no-rule,
+  disabled-rule, async-non-blocking, and the config-adapter dispatch fn.
+- **Resolution date / commit:** 2026-05-06, on stage2/plan-06-notifications
