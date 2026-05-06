@@ -1,30 +1,60 @@
 /**
- * API keys API — backed by the Zustand mock store.
+ * API keys API — backed by the real daemon via Orval-generated React Query hooks.
+ *
+ * Stage-2 plan-02 / Item 02-002. The stage-1 mock-store-backed surface
+ * has been removed; every selector and mutation now goes against
+ * `/api/v1/t/{tenant}/api-keys`. Capture-once secret: the daemon emits
+ * the plaintext key in the create + rotate response exactly once, so
+ * the mutator return values still expose `{ key, fullValue }` and the
+ * UI surfaces it via <SecretCaptureModal>.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { logAuditEntry } from '@/api/resources/audit';
-import { makeIdFactory } from '@/lib/id-generator';
+import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useListAPIKeys,
+  useGetAPIKey,
+  useCreateAPIKey,
+  useDeleteAPIKey,
+  useRevokeAPIKey,
+  useRotateAPIKey,
+  getListAPIKeysQueryKey,
+  getGetAPIKeyQueryKey,
+} from '@/api/generated/api-keys/api-keys';
 import type { ApiKey } from '@/api/resources';
 import type { ApiKeyWithMeta, ApiKeyFilter } from './types';
 
-const nextApiKeyId = makeIdFactory('apikey-new');
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
+// The Orval-generated wire types ship with `@ts-nocheck`, so we
+// re-declare the (small) subset we read here to keep eslint happy.
+interface RawAPIKey {
+  id?: string;
+  tenantId?: string;
+  ownerId?: string;
+  name?: string;
+  prefix?: string;
+  scopes?: string[];
+  expiresAt?: string;
+  createdAt?: string;
+  revokedAt?: string;
+  lastUsedAt?: string;
 }
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
+function adaptAPIKey(raw: RawAPIKey, tenantIdFallback: string): ApiKey {
+  const revokedAt = raw.revokedAt ?? '';
+  const result: ApiKey = {
+    id: raw.id ?? '',
+    tenant_id: raw.tenantId ?? tenantIdFallback,
+    user_id: raw.ownerId ?? '',
+    name: raw.name ?? '',
+    prefix: raw.prefix ?? '',
+    scope: raw.scopes ?? [],
+    revoked: revokedAt !== '',
+    created_at: raw.createdAt ?? new Date(0).toISOString(),
+  };
+  if (raw.expiresAt) result.expires_at = raw.expiresAt;
+  if (raw.lastUsedAt) result.last_used = raw.lastUsedAt;
+  return result;
 }
 
-function getCurrentTenantId(): string {
-  return useMockStore.getState().currentTenantId ?? '';
-}
-
-/** Compute relative "N units ago" summary (no external dep) */
 function relativeTime(isoStr: string): string {
   const diff = Date.now() - new Date(isoStr).getTime();
   const mins = Math.floor(diff / 60_000);
@@ -56,158 +86,132 @@ function enrichApiKey(key: ApiKey): ApiKeyWithMeta {
   };
 }
 
-/** Generate a random-looking API key value (shown once on creation) */
-function generateKeyValue(tenantSlug: string): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let rand = '';
-  for (let i = 0; i < 32; i++) {
-    rand += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `sk_${tenantSlug}_${rand}`;
-}
-
-// ─── Selectors ────────────────────────────────────────────────────────────────
-
 export function useApiKeyList(tenantId: string, filter: ApiKeyFilter): ApiKeyWithMeta[] {
-  const apiKeys = useMockStore((s) => s.apiKeys);
-
-  const results: ApiKeyWithMeta[] = [];
-  for (const key of Object.values(apiKeys)) {
-    if (key.tenant_id !== tenantId) continue;
-    const enriched = enrichApiKey(key);
-    if (filter.status !== 'all' && enriched.display_status !== filter.status) continue;
-    results.push(enriched);
-  }
-  return results;
+  const query = useListAPIKeys(tenantId, { query: { enabled: !!tenantId } });
+  return useMemo(() => {
+    const raw = (query.data?.data.apiKeys ?? []) as RawAPIKey[];
+    const out: ApiKeyWithMeta[] = [];
+    for (const r of raw) {
+      const enriched = enrichApiKey(adaptAPIKey(r, tenantId));
+      if (filter.status !== 'all' && enriched.display_status !== filter.status) continue;
+      out.push(enriched);
+    }
+    return out;
+  }, [query.data, filter.status, tenantId]);
 }
 
-export function useApiKey(id: string): ApiKeyWithMeta | null {
-  const key = useMockStore((s) => s.apiKeys[id]);
-  return key ? enrichApiKey(key) : null;
+export function useApiKey(tenantId: string, id: string): ApiKeyWithMeta | null {
+  const query = useGetAPIKey(tenantId, id, {
+    query: { enabled: !!tenantId && !!id },
+  });
+  return useMemo(() => {
+    const raw = query.data?.data;
+    if (!raw?.id) return null;
+    return enrichApiKey(adaptAPIKey(raw, tenantId));
+  }, [query.data, tenantId]);
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+interface CreateAPIKey201Body {
+  id?: string;
+  key?: string;
+  prefix?: string;
+}
 
-export function useApiKeyMutations() {
-  return { createApiKey, revokeApiKey, deleteApiKey, rotateApiKey };
+interface RotateAPIKey200Body {
+  id?: string;
+  key?: string;
+  prefix?: string;
 }
 
 export interface CreateApiKeyResult {
   key: ApiKeyWithMeta;
-  /** Full secret value — shown once, never stored */
   fullValue: string;
-}
-
-export async function createApiKey(
-  tenantId: string,
-  name: string,
-  scope: string[],
-  expiresAt?: string,
-): Promise<CreateApiKeyResult> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const actorId = getCurrentActorId();
-  const tenant = Object.values(state.tenants).find((t) => t.id === tenantId);
-  const tenantSlug = tenant?.slug ?? 'key';
-
-  const fullValue = generateKeyValue(tenantSlug);
-  const prefix = fullValue.slice(0, fullValue.lastIndexOf('_') + 9);
-
-  const id = nextApiKeyId();
-  const apiKey: ApiKey = {
-    id,
-    tenant_id: tenantId,
-    user_id: actorId,
-    name,
-    prefix,
-    scope,
-    ...(expiresAt ? { expires_at: expiresAt } : {}),
-    revoked: false,
-    created_at: now(),
-  };
-  state.addEntity('apiKeys', apiKey);
-
-  logAuditEntry({
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action: 'api-key:create',
-    resource_type: 'api-key',
-    resource_id: id,
-    tier: 'write',
-  });
-
-  return { key: enrichApiKey(apiKey), fullValue };
-}
-
-export async function revokeApiKey(id: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const key = state.apiKeys[id];
-  if (!key) return;
-
-  state.updateEntity('apiKeys', id, { revoked: true });
-
-  logAuditEntry({
-    tenant_id: key.tenant_id,
-    actor_id: getCurrentActorId(),
-    action: 'api-key:revoke',
-    resource_type: 'api-key',
-    resource_id: id,
-    tier: 'destructive',
-  });
-}
-
-export async function deleteApiKey(id: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const key = state.apiKeys[id];
-  if (!key) return;
-  const tenantId = key.tenant_id;
-
-  state.deleteEntity('apiKeys', id);
-
-  logAuditEntry({
-    tenant_id: tenantId,
-    actor_id: getCurrentActorId(),
-    action: 'api-key:delete',
-    resource_type: 'api-key',
-    resource_id: id,
-    tier: 'destructive',
-  });
 }
 
 export interface RotateApiKeyResult {
   key: ApiKeyWithMeta;
-  /** New full secret value — shown once */
   fullValue: string;
 }
 
-export async function rotateApiKey(id: string): Promise<RotateApiKeyResult> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const key = state.apiKeys[id];
-  if (!key) throw new Error('API key not found');
+export function useApiKeyMutations(tenantId: string) {
+  const qc = useQueryClient();
+  const create = useCreateAPIKey();
+  const del = useDeleteAPIKey();
+  const revoke = useRevokeAPIKey();
+  const rotate = useRotateAPIKey();
 
-  const tenant = Object.values(state.tenants).find((t) => t.id === key.tenant_id);
-  const tenantSlug = tenant?.slug ?? 'key';
+  function invalidateList(): Promise<void> {
+    return qc.invalidateQueries({ queryKey: getListAPIKeysQueryKey(tenantId) });
+  }
+  function invalidateOne(id: string): Promise<void> {
+    return qc.invalidateQueries({ queryKey: getGetAPIKeyQueryKey(tenantId, id) });
+  }
 
-  const fullValue = generateKeyValue(tenantSlug);
-  const prefix = fullValue.slice(0, fullValue.lastIndexOf('_') + 9);
+  async function createApiKey(
+    explicitTenantId: string,
+    name: string,
+    scope: string[],
+    expiresAt?: string,
+  ): Promise<CreateApiKeyResult> {
+    const tenant = explicitTenantId || tenantId;
+    const data: { name: string; scopes?: string; expires?: string } = { name };
+    if (scope.length > 0) data.scopes = scope.join(',');
+    if (expiresAt) {
+      const ms = new Date(expiresAt).getTime() - Date.now();
+      if (ms > 0) {
+        const hours = Math.max(1, Math.ceil(ms / 3_600_000));
+        data.expires = `${String(hours)}h`;
+      }
+    }
+    const resp = await create.mutateAsync({ tenant, data });
+    await invalidateList();
+    // Orval emits `data: void` for the create endpoint despite the daemon
+    // returning a JSON body — cast through the actual 201 schema.
+    const body = resp.data as unknown as CreateAPIKey201Body;
+    const fullValue = body.key ?? '';
+    const id = body.id ?? '';
+    const synthetic: ApiKey = {
+      id,
+      tenant_id: tenant,
+      user_id: '',
+      name,
+      prefix: body.prefix ?? '',
+      scope,
+      revoked: false,
+      created_at: new Date().toISOString(),
+      ...(expiresAt ? { expires_at: expiresAt } : {}),
+    };
+    return { key: enrichApiKey(synthetic), fullValue };
+  }
 
-  state.updateEntity('apiKeys', id, { prefix, revoked: false });
+  async function revokeApiKey(id: string): Promise<void> {
+    await revoke.mutateAsync({ tenant: tenantId, id });
+    await Promise.all([invalidateList(), invalidateOne(id)]);
+  }
 
-  logAuditEntry({
-    tenant_id: key.tenant_id,
-    actor_id: getCurrentActorId(),
-    action: 'api-key:rotate',
-    resource_type: 'api-key',
-    resource_id: id,
-    tier: 'destructive',
-  });
+  async function deleteApiKey(id: string): Promise<void> {
+    await del.mutateAsync({ tenant: tenantId, id });
+    await invalidateList();
+  }
 
-  const updated = useMockStore.getState().apiKeys[id];
-  return { key: enrichApiKey(updated ?? key), fullValue };
+  async function rotateApiKey(id: string): Promise<RotateApiKeyResult> {
+    const resp = await rotate.mutateAsync({ tenant: tenantId, id });
+    await Promise.all([invalidateList(), invalidateOne(id)]);
+    const body = resp.data as unknown as RotateAPIKey200Body;
+    const fullValue = body.key ?? '';
+    const newId = body.id ?? id;
+    const synthetic: ApiKey = {
+      id: newId,
+      tenant_id: tenantId,
+      user_id: '',
+      name: '',
+      prefix: body.prefix ?? '',
+      scope: [],
+      revoked: false,
+      created_at: new Date().toISOString(),
+    };
+    return { key: enrichApiKey(synthetic), fullValue };
+  }
+
+  return { createApiKey, revokeApiKey, deleteApiKey, rotateApiKey };
 }
-
-// Keep getCurrentTenantId available for components
-export { getCurrentTenantId };
