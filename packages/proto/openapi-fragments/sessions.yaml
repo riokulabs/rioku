@@ -1,0 +1,62 @@
+# Stage-2 plan-02 identity: session management.
+#
+# Mirrors RegisterAuthRoutes /sessions endpoints in
+# packages/daemon/internal/gateway/auth_routes.go. The list endpoint
+# returns the calling user's active sessions; admins can list-by-user via
+# /users/{id}/sessions (see users.yaml).
+
+paths:
+  /api/v1/t/{tenant}/sessions:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [sessions]
+      summary: List active sessions for the current principal
+      operationId: listSessions
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        userId: { type: string }
+                        tenantId: { type: string }
+                        userAgent: { type: string }
+                        ipAddress: { type: string }
+                        createdAt: { type: string, format: date-time }
+                        expiresAt: { type: string, format: date-time }
+                        lastActivityAt: { type: string, format: date-time }
+                        revoked: { type: boolean }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/sessions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    delete:
+      tags: [sessions]
+      summary: Revoke a session
+      operationId: revokeSession
+      responses: { "204": { description: revoked } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/sessions/revoke-others:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [sessions]
+      summary: Revoke all other sessions for the current principal
+      operationId: revokeOtherSessions
+      responses: { "204": { description: revoked } }
+    options:
+      responses: { "204": { description: no content } }

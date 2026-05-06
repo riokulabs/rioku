@@ -1,0 +1,172 @@
+# Stage-2 plan-02 identity: user management.
+#
+# Both legacy (/api/v1/users, default-tenant fallback) and tenant-scoped
+# (/api/v1/t/{tenant}/users) paths are documented to mirror the
+# RegisterUserRoutes registrar in packages/daemon/internal/gateway/user_routes.go.
+#
+# Resource action endpoints (suspend/activate/lock/unlock/reset-password)
+# follow the same shape — POST to the action sub-path, 204 No Content on
+# success, 404 if the user is missing.
+
+paths:
+  /api/v1/t/{tenant}/users:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [users]
+      summary: List users
+      operationId: listUsers
+      responses: { "200": { description: ok } }
+    post:
+      tags: [users]
+      summary: Create a user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                name: { type: string }
+                password: { type: string }
+                forcePasswordChange: { type: boolean }
+                disabled: { type: boolean }
+                roleIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        "201": { description: created }
+        "409": { description: duplicate email }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [users]
+      operationId: getUser
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  tenantId: { type: string }
+                  email: { type: string }
+                  name: { type: string }
+                  disabled: { type: boolean }
+                  totpEnabled: { type: boolean }
+                  totpEnrolled: { type: boolean }
+                  forcePasswordChange: { type: boolean }
+                  createdAt: { type: string, format: date-time }
+                  updatedAt: { type: string, format: date-time }
+                  _links: { $ref: "#/components/schemas/LinkSet" }
+        "404": { description: not found }
+    patch:
+      tags: [users]
+      operationId: patchUser
+      requestBody:
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                disabled: { type: boolean }
+      responses: { "200": { description: ok } }
+    put:
+      tags: [users]
+      operationId: replaceUser
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [users]
+      operationId: deleteUser
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/suspend:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [users]
+      summary: Suspend (disable) a user — alias `/disable`
+      operationId: suspendUser
+      responses: { "204": { description: suspended } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/activate:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [users]
+      summary: Activate (re-enable) a user — alias `/enable`
+      operationId: activateUser
+      responses: { "204": { description: activated } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/lock:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [users]
+      operationId: lockUser
+      responses: { "204": { description: locked } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/unlock:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [users]
+      operationId: unlockUser
+      responses: { "204": { description: unlocked } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/reset-password:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [users]
+      operationId: resetUserPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newPassword: { type: string }
+                forceChangeOnNextLogin: { type: boolean }
+      responses: { "200": { description: ok } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/sessions:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [users]
+      summary: List sessions for a user
+      operationId: listUserSessions
+      responses: { "200": { description: ok } }
+    options:
+      responses: { "204": { description: no content } }

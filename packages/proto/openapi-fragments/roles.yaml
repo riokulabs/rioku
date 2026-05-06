@@ -1,0 +1,123 @@
+# Stage-2 plan-02 identity: roles + grant management.
+#
+# Mirrors RegisterRBACRoutes in packages/daemon/internal/gateway/rbac_routes.go.
+# Roles are tenant-scoped — built-in role ids are returned as `source: builtin`.
+
+paths:
+  /api/v1/t/{tenant}/roles:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [roles]
+      summary: List roles
+      operationId: listRoles
+      responses: { "200": { description: ok } }
+    post:
+      tags: [roles]
+      summary: Create a role
+      operationId: createRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                permissions:
+                  type: array
+                  items: { type: string }
+      responses:
+        "201": { description: created }
+        "409": { description: duplicate name }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/roles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [roles]
+      operationId: getRole
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  tenantId: { type: string }
+                  name: { type: string }
+                  description: { type: string }
+                  source:
+                    type: string
+                    enum: [builtin, custom, plugin-manifest, plugin-dynamic]
+                  permissions:
+                    type: array
+                    items: { type: string }
+                  createdAt: { type: string, format: date-time }
+                  _links: { $ref: "#/components/schemas/LinkSet" }
+        "404": { description: not found }
+    patch:
+      tags: [roles]
+      operationId: patchRole
+      responses: { "200": { description: ok } }
+    put:
+      tags: [roles]
+      operationId: replaceRole
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [roles]
+      operationId: deleteRole
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/roles:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [roles]
+      summary: List roles assigned to a user
+      operationId: listUserRoles
+      responses: { "200": { description: ok } }
+    post:
+      tags: [roles]
+      summary: Assign a role to a user
+      operationId: assignUserRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roleId]
+              properties:
+                roleId: { type: string }
+      responses:
+        "201": { description: assigned }
+        "409": { description: already assigned }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/users/{id}/roles/{roleId}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+      - in: path
+        name: roleId
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [roles]
+      summary: Revoke a role from a user
+      operationId: revokeUserRole
+      responses: { "204": { description: revoked } }
+    options:
+      responses: { "204": { description: no content } }

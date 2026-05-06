@@ -1,0 +1,67 @@
+# Stage-2 plan-02 identity: access policies (CEL-evaluated authz rules).
+#
+# Mirrors RegisterAccessPolicyRoutes in
+# packages/daemon/internal/gateway/access_policies_routes.go.
+#
+# Both legacy /api/v1/auth/access-policies and tenant-scoped
+# /api/v1/t/{tenant}/access-policies paths are documented.
+
+paths:
+  /api/v1/t/{tenant}/access-policies:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [access-policies]
+      operationId: listAccessPolicies
+      responses: { "200": { description: ok } }
+    post:
+      tags: [access-policies]
+      operationId: createAccessPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, expression]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                expression:
+                  type: string
+                  description: "CEL expression evaluated against the request context."
+                effect:
+                  type: string
+                  enum: [allow, deny]
+                  default: allow
+                priority:
+                  type: integer
+                  description: "Lower priority numbers evaluate first."
+                enabled: { type: boolean, default: true }
+      responses:
+        "201": { description: created }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/access-policies/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [access-policies]
+      operationId: getAccessPolicy
+      responses: { "200": { description: ok }, "404": { description: not found } }
+    put:
+      tags: [access-policies]
+      operationId: replaceAccessPolicy
+      responses: { "200": { description: ok } }
+    patch:
+      tags: [access-policies]
+      operationId: patchAccessPolicy
+      responses: { "200": { description: ok } }
+    delete:
+      tags: [access-policies]
+      operationId: deleteAccessPolicy
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
