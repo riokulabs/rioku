@@ -57,6 +57,8 @@ import { Route as TTenantSecurityUsersRouteImport } from './routes/t.$tenant/sec
 import { Route as TTenantSecuritySessionsRouteImport } from './routes/t.$tenant/security/sessions'
 import { Route as TTenantSecurityRolesRouteImport } from './routes/t.$tenant/security/roles'
 import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$tenant/security/rbac-policies'
+import { Route as TTenantSecurityPermissionsCatalogRouteImport } from './routes/t.$tenant/security/permissions-catalog'
+import { Route as TTenantSecurityEffectivePermissionsRouteImport } from './routes/t.$tenant/security/effective-permissions'
 import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/security/audit'
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
@@ -319,6 +321,18 @@ const TTenantSecurityRbacPoliciesRoute =
     path: '/rbac-policies',
     getParentRoute: () => TTenantSecurityRoute,
   } as any)
+const TTenantSecurityPermissionsCatalogRoute =
+  TTenantSecurityPermissionsCatalogRouteImport.update({
+    id: '/permissions-catalog',
+    path: '/permissions-catalog',
+    getParentRoute: () => TTenantSecurityRoute,
+  } as any)
+const TTenantSecurityEffectivePermissionsRoute =
+  TTenantSecurityEffectivePermissionsRouteImport.update({
+    id: '/effective-permissions',
+    path: '/effective-permissions',
+    getParentRoute: () => TTenantSecurityRoute,
+  } as any)
 const TTenantSecurityAuditRoute = TTenantSecurityAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -440,6 +454,8 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
+  '/t/$tenant/security/effective-permissions': typeof TTenantSecurityEffectivePermissionsRoute
+  '/t/$tenant/security/permissions-catalog': typeof TTenantSecurityPermissionsCatalogRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
@@ -500,6 +516,8 @@ export interface FileRoutesByTo {
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
+  '/t/$tenant/security/effective-permissions': typeof TTenantSecurityEffectivePermissionsRoute
+  '/t/$tenant/security/permissions-catalog': typeof TTenantSecurityPermissionsCatalogRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
@@ -565,6 +583,8 @@ export interface FileRoutesById {
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
+  '/t/$tenant/security/effective-permissions': typeof TTenantSecurityEffectivePermissionsRoute
+  '/t/$tenant/security/permissions-catalog': typeof TTenantSecurityPermissionsCatalogRoute
   '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
   '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
@@ -630,6 +650,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/effective-permissions'
+    | '/t/$tenant/security/permissions-catalog'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -690,6 +712,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/effective-permissions'
+    | '/t/$tenant/security/permissions-catalog'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -754,6 +778,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/effective-permissions'
+    | '/t/$tenant/security/permissions-catalog'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -1119,6 +1145,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityRbacPoliciesRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/security/permissions-catalog': {
+      id: '/t/$tenant/security/permissions-catalog'
+      path: '/permissions-catalog'
+      fullPath: '/t/$tenant/security/permissions-catalog'
+      preLoaderRoute: typeof TTenantSecurityPermissionsCatalogRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
+    '/t/$tenant/security/effective-permissions': {
+      id: '/t/$tenant/security/effective-permissions'
+      path: '/effective-permissions'
+      fullPath: '/t/$tenant/security/effective-permissions'
+      preLoaderRoute: typeof TTenantSecurityEffectivePermissionsRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
     '/t/$tenant/security/audit': {
       id: '/t/$tenant/security/audit'
       path: '/audit'
@@ -1308,6 +1348,8 @@ interface TTenantSecurityRouteChildren {
   TTenantSecurityAccessPoliciesRoute: typeof TTenantSecurityAccessPoliciesRoute
   TTenantSecurityApiKeysRoute: typeof TTenantSecurityApiKeysRoute
   TTenantSecurityAuditRoute: typeof TTenantSecurityAuditRoute
+  TTenantSecurityEffectivePermissionsRoute: typeof TTenantSecurityEffectivePermissionsRoute
+  TTenantSecurityPermissionsCatalogRoute: typeof TTenantSecurityPermissionsCatalogRoute
   TTenantSecurityRbacPoliciesRoute: typeof TTenantSecurityRbacPoliciesRoute
   TTenantSecurityRolesRoute: typeof TTenantSecurityRolesRoute
   TTenantSecuritySessionsRoute: typeof TTenantSecuritySessionsRoute
@@ -1318,6 +1360,10 @@ const TTenantSecurityRouteChildren: TTenantSecurityRouteChildren = {
   TTenantSecurityAccessPoliciesRoute: TTenantSecurityAccessPoliciesRoute,
   TTenantSecurityApiKeysRoute: TTenantSecurityApiKeysRoute,
   TTenantSecurityAuditRoute: TTenantSecurityAuditRoute,
+  TTenantSecurityEffectivePermissionsRoute:
+    TTenantSecurityEffectivePermissionsRoute,
+  TTenantSecurityPermissionsCatalogRoute:
+    TTenantSecurityPermissionsCatalogRoute,
   TTenantSecurityRbacPoliciesRoute: TTenantSecurityRbacPoliciesRoute,
   TTenantSecurityRolesRoute: TTenantSecurityRolesRoute,
   TTenantSecuritySessionsRoute: TTenantSecuritySessionsRoute,

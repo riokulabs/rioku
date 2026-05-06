@@ -3,8 +3,10 @@ import {
   IconDevices,
   IconFileText,
   IconKey,
+  IconKeyOff,
   IconScale,
   IconShield,
+  IconUserShield,
   IconUsers,
 } from '@tabler/icons-react';
 import { registerNavEntries } from '@/components/app-shell/nav-registry';
@@ -49,6 +51,22 @@ registerNavEntries(
     suffix: 'security/sessions',
     group: 'security',
     order: 50,
+  },
+  {
+    id: 'security-permissions-catalog',
+    label: 'Permissions catalog',
+    icon: IconKeyOff,
+    suffix: 'security/permissions-catalog',
+    group: 'security',
+    order: 55,
+  },
+  {
+    id: 'security-effective-permissions',
+    label: 'Effective permissions',
+    icon: IconUserShield,
+    suffix: 'security/effective-permissions',
+    group: 'security',
+    order: 56,
   },
   {
     id: 'security-audit',
