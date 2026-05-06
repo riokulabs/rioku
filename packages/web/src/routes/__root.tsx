@@ -1,4 +1,14 @@
-import { createRootRoute, Outlet, useNavigate, useParams } from '@tanstack/react-router';
+import {
+  createRootRouteWithContext,
+  Outlet,
+  redirect,
+  useNavigate,
+  useParams,
+} from '@tanstack/react-router';
+import type { QueryClient } from '@tanstack/react-query';
+import { fetchBootstrapStatus } from '@/features/auth/api';
+import { fetchCurrentUser, currentUserQueryKey } from '@/features/auth/use-current-user';
+import { bootstrapStatusQueryKey } from '@/features/auth/use-bootstrap-status';
 import { Spotlight } from '@mantine/spotlight';
 import {
   IconSun,
@@ -330,7 +340,68 @@ function RootComponent() {
   );
 }
 
-export const Route = createRootRoute({
+export interface RouterContext {
+  queryClient: QueryClient;
+}
+
+/**
+ * Unauthenticated route prefixes that bypass auth checks. Anything starting
+ * with one of these is rendered without a session.
+ */
+const UNAUTH_PREFIXES = [
+  '/login',
+  '/totp',
+  '/totp-recovery',
+  '/totp-enroll',
+  '/bootstrap',
+  '/forgot-password',
+  '/reset-password',
+  '/invite',
+  '/access-denied',
+];
+
+function isUnauthRoute(pathname: string): boolean {
+  return UNAUTH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  beforeLoad: async ({ location, context }) => {
+    const pathname = location.pathname;
+
+    // 1. Check bootstrap status. If required, send everyone (except those
+    //    already on /bootstrap) to /bootstrap.
+    const status = await context.queryClient.fetchQuery({
+      queryKey: bootstrapStatusQueryKey,
+      queryFn: () => fetchBootstrapStatus(),
+      staleTime: 0,
+    });
+    if (status.required) {
+      if (pathname.startsWith('/bootstrap')) return;
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: '/bootstrap' });
+    }
+
+    // 2. Bootstrap not required. If we are on /bootstrap, kick to /login —
+    //    bootstrap is single-shot.
+    if (pathname.startsWith('/bootstrap')) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: '/login' });
+    }
+
+    // 3. Other unauth routes are always allowed.
+    if (isUnauthRoute(pathname)) return;
+
+    // 4. Tenant-scoped or admin route — require an authenticated user.
+    const me = await context.queryClient.fetchQuery({
+      queryKey: currentUserQueryKey,
+      queryFn: () => fetchCurrentUser(),
+      staleTime: 30_000,
+    });
+    if (me === null) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: '/login', search: { return: pathname } });
+    }
+  },
   component: RootComponent,
   errorComponent: ErrorBoundaryFallback,
 });
