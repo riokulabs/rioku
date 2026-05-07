@@ -58,29 +58,34 @@ function TenantAdminAuditPage() {
   const tenantSlug = tenantRecord?.slug ?? tenant;
   const users = useMockStore((s) => s.users);
 
-  // Filter adminAudit entries to this tenant only, sorted desc by at.
+  // Filter adminAudit entries to this tenant. Keep insertion (chronological)
+  // order as `ascending`; the table view sorts a copy by `at` descending.
+  // Note: we do NOT derive `ascending` from a reversed `at`-sorted list — when
+  // two entries share the same ISO timestamp (common in tests / fast bursts),
+  // `at` ties produce a sort order that does not match insertion order, which
+  // breaks hash-chain verification. Insertion order from the store is the
+  // authoritative chain order.
   const allAdminAudit = useMockStore((s) => s.adminAudit);
-  const entries = useMemo(
-    () =>
-      allAdminAudit
-        .filter((e) => e.tenant_id === tenantId)
-        .sort((a, b) => b.at.localeCompare(a.at)),
+  const ascending = useMemo(
+    () => allAdminAudit.filter((e) => e.tenant_id === tenantId),
     [allAdminAudit, tenantId],
+  );
+  const entries = useMemo(
+    () => [...ascending].sort((a, b) => b.at.localeCompare(a.at)),
+    [ascending],
   );
 
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>({ status: 'idle' });
 
   const handleVerify = useCallback(async () => {
     setVerifyStatus({ status: 'verifying' });
-    // Verify in ascending order (chain is built chronologically).
-    const ascending = [...entries].reverse();
     const result = await verifyAdminAuditChain(ascending);
     if (result.ok) {
       setVerifyStatus({ status: 'valid' });
     } else {
       setVerifyStatus({ status: 'broken', brokenAt: result.brokenAt ?? 0 });
     }
-  }, [entries]);
+  }, [ascending]);
 
   function actorLabel(entry: AdminAuditEntry): string {
     const user = users[entry.actor_id];
