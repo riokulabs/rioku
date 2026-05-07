@@ -73,6 +73,12 @@ interface InstallProgressModalProps {
   onComplete: (pluginId: string) => void;
   /** Called when the user clicks "View build log" on a failed install. */
   onViewLog?: (log: string) => void;
+  /**
+   * Tenant slug used to scope the daemon install POST + SSE
+   * subscription. Empty string skips the subscription (the modal
+   * remains in its empty state).
+   */
+  tenantSlug?: string;
 }
 
 interface RunState {
@@ -105,6 +111,7 @@ export function InstallProgressModal({
   onClose,
   onComplete,
   onViewLog,
+  tenantSlug = '',
 }: InstallProgressModalProps) {
   const [run, setRun] = useState<RunState>(EMPTY_STATE);
   const emitterRef = useRef<InstallProgressEmitter | null>(null);
@@ -117,7 +124,7 @@ export function InstallProgressModal({
   useEffect(() => {
     if (!opened || !candidate) return;
 
-    const emitter = installPluginWithProgress(candidate);
+    const emitter = installPluginWithProgress(candidate, tenantSlug);
     emitterRef.current = emitter;
     let firstTick = true;
 
@@ -195,7 +202,7 @@ export function InstallProgressModal({
     };
     // We intentionally depend only on `opened` + `candidate` identity so a
     // single install is kicked off per modal open, not on every parent re-render.
-  }, [opened, candidate, onComplete]);
+  }, [opened, candidate, onComplete, tenantSlug]);
 
   function handleCancel(): void {
     const emitter = emitterRef.current;

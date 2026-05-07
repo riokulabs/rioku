@@ -213,6 +213,9 @@ func NewGateway(
 	if cfg != nil && cfg.DataDir != "" {
 		SetPluginStagingDir(cfg.DataDir)
 	}
+	if cfg != nil {
+		SetCapabilities(cfg)
+	}
 	RegisterStage2FinalsRoutes(topMux, st)
 
 	// Dashboards + Widgets + Versions (stage-2).

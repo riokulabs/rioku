@@ -264,6 +264,15 @@ func handleUninstallPlugin(st store.Driver, global bool) http.HandlerFunc {
 			writeInternalError(w, r, "uninstall")
 			return
 		}
+		// Drop any catalog rows this plugin registered. Per migration
+		// 000049's source-handling rule, plugin-sourced rows are
+		// deleted outright (they were never built-in). Idempotent —
+		// returns 0 if the plugin never registered any.
+		if _, err := tx.UnregisterPluginPermissions(r.Context(), id); err != nil {
+			_ = tx.Rollback()
+			writeInternalError(w, r, "unregister plugin permissions")
+			return
+		}
 		if err := tx.Commit(); err != nil {
 			writeInternalError(w, r, "commit")
 			return

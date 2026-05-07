@@ -292,6 +292,24 @@ type Tx interface {
 
 	// ListPermissions returns all available atomic permissions.
 	ListPermissions(ctx context.Context) ([]*Permission, error)
+	// RegisterPluginPermissions inserts permissions declared by a plugin
+	// manifest into the catalog. Each permission is keyed on its `id`
+	// (resource:action). Existing rows with the same id are upserted in
+	// place so re-installs are idempotent. The `source` column is set
+	// to "plugin-manifest" and `source_plugin_id` to the supplied id.
+	//
+	// Permission ids must be unique across the entire catalog;
+	// returning ErrPermissionConflict signals a clash with a built-in
+	// permission of the same id (which the caller should treat as a
+	// validation error).
+	RegisterPluginPermissions(ctx context.Context, pluginID string, perms []*Permission) error
+	// UnregisterPluginPermissions removes catalog rows that originated
+	// from a given plugin. Per the source-handling rule from migration
+	// 000049, plugin-sourced rows are deleted outright on uninstall —
+	// they were never built-in, so no fallback target exists.
+	//
+	// Returns the count of removed rows.
+	UnregisterPluginPermissions(ctx context.Context, pluginID string) (int, error)
 	// GetUserScopes returns all granted scope strings for a user (may include wildcards).
 	GetUserScopes(ctx context.Context, userID string) ([]string, error)
 
@@ -1387,6 +1405,14 @@ var (
 	ErrPluginSlugTaken      = fmt.Errorf("store: plugin slug already in use in this scope")
 	ErrPluginSignerNotFound = fmt.Errorf("store: plugin signer not found")
 	ErrPluginSignerFPTaken  = fmt.Errorf("store: plugin signer fingerprint already in use in this scope")
+)
+
+// Permission registry sentinel errors.
+var (
+	// ErrPermissionConflict is returned by RegisterPluginPermissions
+	// when a plugin tries to register an id that's already owned by
+	// another source (built-in or another plugin).
+	ErrPermissionConflict = fmt.Errorf("store: permission id already registered by another source")
 )
 
 // CertAuthority is a per-tenant root or intermediate CA.

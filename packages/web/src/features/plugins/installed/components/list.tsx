@@ -80,10 +80,10 @@ export function InstalledPluginList({ tenantId, onSelect, onUninstall }: Install
     setTogglingId(plugin.id);
     try {
       if (next) {
-        await enablePlugin(plugin.id);
+        await enablePlugin(plugin.id, tenantId);
         notify.success('Plugin enabled', `${plugin.display_name} is now active.`);
       } else {
-        await disablePlugin(plugin.id);
+        await disablePlugin(plugin.id, tenantId);
         notify.info('Plugin disabled', `${plugin.display_name} is now inactive.`);
       }
     } catch {

@@ -23,10 +23,39 @@ import (
 	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/plugins"
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// daemonCapabilities snapshots feature-flag state for the
+// `/api/v1/capabilities` discovery endpoint.
+//
+// The admin panel calls this once on boot to decide which routes /
+// nav entries to show. New flags should be added in alphabetical
+// order so the JSON output is stable across versions.
+type daemonCapabilities struct {
+	SideloadEnabled bool `json:"sideload_enabled"`
+}
+
+// currentCapabilities is the package-level capabilities snapshot used
+// by `handleCapabilities`. It is populated by
+// `RegisterStage2FinalsRoutes` (via `SetCapabilities`) and read by the
+// HTTP handler. A nil snapshot means all flags default to false.
+//
+// Tests may override this directly via SetCapabilities(...).
+var currentCapabilities = &daemonCapabilities{}
+
+// SetCapabilities updates the discovery snapshot returned by the
+// `/api/v1/capabilities` endpoint. Callers should invoke this once at
+// server boot with the resolved daemon Config; tests may invoke it
+// repeatedly to flip flags between assertions.
+func SetCapabilities(cfg *config.Config) {
+	currentCapabilities = &daemonCapabilities{
+		SideloadEnabled: cfg.SideloadEnabled(),
+	}
+}
 
 // pluginStagingDir is the base directory under which sideloaded plugin
 // artifacts are persisted. The full path for a given plugin is
@@ -45,6 +74,25 @@ func RegisterStage2FinalsRoutes(mux *http.ServeMux, st store.Driver) {
 	registerSuperAdminExtras(mux, st)
 	registerAuthRecoveryFlow(mux, st)
 	registerDangerZone(mux, st)
+	registerCapabilities(mux)
+}
+
+// registerCapabilities wires `GET /api/v1/capabilities` — a cheap
+// auth-free feature-flag snapshot the admin panel calls once on boot
+// to decide which nav entries / routes to show. The handler reads the
+// package-level `currentCapabilities` snapshot, which is initialised
+// by `SetCapabilities` at gateway boot.
+func registerCapabilities(mux *http.ServeMux) {
+	mux.Handle("GET /api/v1/capabilities", http.HandlerFunc(handleCapabilities))
+	optionsutil.Register(mux, "/api/v1/capabilities", []string{"GET"})
+}
+
+func handleCapabilities(w http.ResponseWriter, _ *http.Request) {
+	caps := currentCapabilities
+	if caps == nil {
+		caps = &daemonCapabilities{}
+	}
+	writeJSON(w, http.StatusOK, caps)
 }
 
 // ─── Chunk 12: plugins install SSE + marketplace alias + build-log + audit ─
@@ -116,6 +164,17 @@ func handlePluginInstallMarketplace(_ store.Driver) http.HandlerFunc {
 // we best-effort remove the staging directory.
 func handlePluginSideload(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Dev-mode-only gate: when sideload is disabled (the default
+		// in production), return 404 (NOT 403) so the endpoint
+		// effectively does not exist. Admin panel reads
+		// `/api/v1/capabilities.sideload_enabled` to decide whether
+		// to render the sideload route at all. Returning 404 instead
+		// of 403 prevents endpoint-existence leakage.
+		if currentCapabilities == nil || !currentCapabilities.SideloadEnabled {
+			http.NotFound(w, r)
+			return
+		}
+
 		ctx := r.Context()
 		scope, ok := scopeForRequest(r, false)
 		if !ok || scope == "" {
@@ -164,10 +223,11 @@ func handlePluginSideload(st store.Driver) http.HandlerFunc {
 		// Pull a few canonical fields out of the manifest. The validator
 		// already guaranteed they exist + are non-empty strings.
 		var manifest struct {
-			ID      string `json:"id"`
-			Name    string `json:"name"`
-			Version string `json:"version"`
-			Arch    string `json:"arch,omitempty"`
+			ID          string   `json:"id"`
+			Name        string   `json:"name"`
+			Version     string   `json:"version"`
+			Arch        string   `json:"arch,omitempty"`
+			Permissions []string `json:"permissions"`
 		}
 		if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 			writeBadRequest(w, r, "manifest decode: "+err.Error())
@@ -297,6 +357,31 @@ func handlePluginSideload(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "create plugin")
 			return
 		}
+
+		// Register manifest-declared permissions in the catalog so role
+		// grants can target them. Same Tx as CreatePlugin so a perm
+		// registration failure rolls back the plugin row too.
+		if len(manifest.Permissions) > 0 {
+			rows, perr := plugins.BuildPermissionRows(manifest.Permissions)
+			if perr != nil {
+				_ = tx.Rollback()
+				writeBadRequest(w, r, "manifest permissions: "+perr.Error())
+				return
+			}
+			if err := tx.RegisterPluginPermissions(ctx, created.ID, rows); err != nil {
+				_ = tx.Rollback()
+				if errors.Is(err, store.ErrPermissionConflict) {
+					writeProblem(w, http.StatusConflict, errTypeConflict,
+						"Permission already registered",
+						"One or more manifest permissions clash with existing catalog entries",
+						r.URL.Path, nil)
+					return
+				}
+				writeInternalError(w, r, "register plugin permissions")
+				return
+			}
+		}
+
 		if err := tx.Commit(); err != nil {
 			writeInternalError(w, r, "commit plugin")
 			return
