@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	airegistry "github.com/riokulabs/rioku/internal/ai/registry"
@@ -54,6 +55,8 @@ type Daemon struct {
 	keyValidator    *keyvalidator.Server
 	aiGateway       *aigateway.Server
 	notifyDispatch  *notifications.Dispatcher
+	channelDisp     *notifications.ChannelDispatcher
+	eventRouter     *notifications.EventRouter
 	upstreamHealth  *caddy.UpstreamHealthPoller
 	traceStore      tracestore.Driver
 	ringBuffer      *tracestore.RingBuffer
@@ -231,6 +234,30 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}); ok {
 			setter.SetWebhookEmitter(notificationsAdapter{disp: d.notifyDispatch})
 		}
+
+		// Wire the channel send-side dispatcher and the audit-event router
+		// so config audit emissions fan out to notification channels per
+		// tenant routing rules. The router runs async (per-emit goroutine)
+		// so the originating request never blocks on dispatch.
+		d.channelDisp = notifications.NewChannelDispatcher(d.store, notifyLog)
+		if h := os.Getenv("RIOKU_SMTP_HOST"); h != "" {
+			d.channelDisp.DefaultSMTPHost = h
+		} else {
+			d.channelDisp.DefaultSMTPHost = "localhost"
+		}
+		if p := os.Getenv("RIOKU_SMTP_PORT"); p != "" {
+			if n, perr := strconv.Atoi(p); perr == nil {
+				d.channelDisp.DefaultSMTPPort = n
+			}
+		} else {
+			d.channelDisp.DefaultSMTPPort = 1025
+		}
+		// Share the dispatcher with the gateway's lazy-init slot so the
+		// admin "Test channel" endpoint and the audit-routing path use
+		// the same instance (and the same delivery-log writer).
+		gateway.SetChannelDispatcherForTest(d.channelDisp)
+		d.eventRouter = notifications.NewEventRouter(d.store, d.channelDisp, notifyLog)
+		d.engine.SetAuditDispatcher(notifications.MakeConfigAuditDispatchFn(d.eventRouter))
 	}
 
 	// 6a. Start the Caddy upstream-health poller (#122) when the
