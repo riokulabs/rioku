@@ -1,0 +1,255 @@
+# Stage-2 plan-16a: settings PKI sub-collections (CAs + cert enrollments).
+#
+# Mirrors the cert-authority + enrollment handlers in
+# packages/daemon/internal/gateway/pki_routes.go. This fragment
+# replaces the existing `/settings/pki` singleton stub in settings.yaml
+# with the real list/create/get/update/delete + revoke endpoints.
+
+paths:
+  /api/v1/t/{tenant}/settings/pki/cas:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: List certificate authorities for the tenant
+      operationId: listCertAuthorities
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/CertAuthority" }
+                  total: { type: integer }
+    post:
+      tags: [settings]
+      summary: Create a certificate authority
+      operationId: createCertAuthority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCertAuthorityBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertAuthority" }
+        "409":
+          description: name already in use
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/pki/cas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [settings]
+      operationId: getCertAuthority
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertAuthority" }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    put:
+      tags: [settings]
+      operationId: updateCertAuthority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateCertAuthorityBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertAuthority" }
+    delete:
+      tags: [settings]
+      operationId: deleteCertAuthority
+      responses:
+        "204": { description: deleted }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/pki/enrollments:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: List certificate enrollments for the tenant
+      operationId: listCertEnrollments
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/CertEnrollment" }
+                  total: { type: integer }
+    post:
+      tags: [settings]
+      summary: Create a certificate enrollment
+      operationId: createCertEnrollment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCertEnrollmentBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertEnrollment" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/pki/enrollments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [settings]
+      operationId: getCertEnrollment
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertEnrollment" }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/pki/enrollments/{id}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    post:
+      tags: [settings]
+      summary: Revoke a certificate enrollment
+      operationId: revokeCertEnrollment
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertEnrollment" }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    CertAuthority:
+      type: object
+      required: [id, tenantId, name, kind, subject, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        kind:
+          type: string
+          description: "CA kind: `internal`, `external`, `acme`, etc."
+        subject: { type: string, description: "Distinguished name." }
+        notBefore: { type: string, format: date-time }
+        notAfter: { type: string, format: date-time }
+        fingerprintSha256: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateCertAuthorityBody:
+      type: object
+      required: [name, kind, subject]
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        subject: { type: string }
+        certificatePem: { type: string }
+        privateKeyRef: { type: string }
+    UpdateCertAuthorityBody:
+      type: object
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        subject: { type: string }
+    CertEnrollment:
+      type: object
+      required: [id, tenantId, subject, dnsSans, state, requestedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        caId: { type: string }
+        subject: { type: string }
+        dnsSans:
+          type: array
+          items: { type: string }
+        state:
+          type: string
+          description: "Enrollment state: `pending`, `issued`, `revoked`, `failed`."
+        requestedAt: { type: string, format: date-time }
+        issuedAt: { type: string, format: date-time }
+        revokedAt: { type: string, format: date-time }
+        revocationReason: { type: string }
+        fingerprintSha256: { type: string }
+    CreateCertEnrollmentBody:
+      type: object
+      required: [subject]
+      properties:
+        caId: { type: string }
+        subject: { type: string }
+        dnsSans:
+          type: array
+          items: { type: string }

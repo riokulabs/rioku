@@ -40,7 +40,15 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  CertAuthority,
+  CertEnrollment,
+  CreateCertAuthorityBody,
+  CreateCertEnrollmentBody,
+  CreateTLSCertificateBody,
   GetDangerExport200,
+  ListCertAuthorities200,
+  ListCertEnrollments200,
+  ListTLSCertificates200,
   ManualCertResponse,
   ManualCertUpload,
   PatchSettingsProfileBody,
@@ -50,9 +58,11 @@ import type {
   PostSettingsBackupCodesReset200,
   PostSettingsPassword200,
   PostSettingsPasswordBody,
+  Problem,
   RevocationCreate,
   RevocationItem,
   RevocationList,
+  RevokeCertEnrollmentBody,
   SettingsAuthPolicy,
   SettingsIntegrations,
   SettingsLogs,
@@ -63,6 +73,12 @@ import type {
   SettingsTLS,
   SettingsTenant,
   SettingsTraces,
+  TLSCertificate,
+  TLSConfig,
+  ToggleTLSCertificateAutoRenewBody,
+  UpdateCertAuthorityBody,
+  UpdateTLSACMEBody,
+  UpdateTLSCiphersBody,
   WebhookTestResult,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
@@ -3655,6 +3671,1415 @@ export const usePutSettingsPKI = <TError = unknown, TContext = unknown>(options?
   return useMutation(mutationOptions);
 };
 /**
+ * @summary List certificate authorities for the tenant
+ */
+export type listCertAuthoritiesResponse = {
+  data: ListCertAuthorities200;
+  status: number;
+  headers: Headers;
+};
+
+export const getListCertAuthoritiesUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/cas`;
+};
+
+export const listCertAuthorities = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<listCertAuthoritiesResponse> => {
+  return customFetch<listCertAuthoritiesResponse>(getListCertAuthoritiesUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListCertAuthoritiesQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/settings/pki/cas`] as const;
+};
+
+export const getListCertAuthoritiesInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertAuthorities>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCertAuthoritiesQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCertAuthorities>>> = ({ signal }) =>
+    listCertAuthorities(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listCertAuthorities>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListCertAuthoritiesInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCertAuthorities>>
+>;
+export type ListCertAuthoritiesInfiniteQueryError = unknown;
+
+export function useListCertAuthoritiesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertAuthorities>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertAuthorities>>,
+          TError,
+          Awaited<ReturnType<typeof listCertAuthorities>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertAuthoritiesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertAuthorities>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertAuthorities>>,
+          TError,
+          Awaited<ReturnType<typeof listCertAuthorities>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertAuthoritiesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertAuthorities>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List certificate authorities for the tenant
+ */
+
+export function useListCertAuthoritiesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertAuthorities>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListCertAuthoritiesInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListCertAuthoritiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCertAuthorities>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCertAuthoritiesQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCertAuthorities>>> = ({ signal }) =>
+    listCertAuthorities(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCertAuthorities>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListCertAuthoritiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCertAuthorities>>
+>;
+export type ListCertAuthoritiesQueryError = unknown;
+
+export function useListCertAuthorities<
+  TData = Awaited<ReturnType<typeof listCertAuthorities>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertAuthorities>>,
+          TError,
+          Awaited<ReturnType<typeof listCertAuthorities>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertAuthorities<
+  TData = Awaited<ReturnType<typeof listCertAuthorities>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertAuthorities>>,
+          TError,
+          Awaited<ReturnType<typeof listCertAuthorities>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertAuthorities<
+  TData = Awaited<ReturnType<typeof listCertAuthorities>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List certificate authorities for the tenant
+ */
+
+export function useListCertAuthorities<
+  TData = Awaited<ReturnType<typeof listCertAuthorities>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertAuthorities>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListCertAuthoritiesQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Create a certificate authority
+ */
+export type createCertAuthorityResponse = {
+  data: CertAuthority | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getCreateCertAuthorityUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/cas`;
+};
+
+export const createCertAuthority = async (
+  tenant: string,
+  createCertAuthorityBody: CreateCertAuthorityBody,
+  options?: RequestInit,
+): Promise<createCertAuthorityResponse> => {
+  return customFetch<createCertAuthorityResponse>(getCreateCertAuthorityUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createCertAuthorityBody),
+  });
+};
+
+export const getCreateCertAuthorityMutationOptions = <
+  TError = Problem,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCertAuthority>>,
+    TError,
+    { tenant: string; data: CreateCertAuthorityBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCertAuthority>>,
+  TError,
+  { tenant: string; data: CreateCertAuthorityBody },
+  TContext
+> => {
+  const mutationKey = ['createCertAuthority'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCertAuthority>>,
+    { tenant: string; data: CreateCertAuthorityBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return createCertAuthority(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCertAuthorityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCertAuthority>>
+>;
+export type CreateCertAuthorityMutationBody = CreateCertAuthorityBody;
+export type CreateCertAuthorityMutationError = Problem;
+
+/**
+ * @summary Create a certificate authority
+ */
+export const useCreateCertAuthority = <TError = Problem, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCertAuthority>>,
+    TError,
+    { tenant: string; data: CreateCertAuthorityBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCertAuthority>>,
+  TError,
+  { tenant: string; data: CreateCertAuthorityBody },
+  TContext
+> => {
+  const mutationOptions = getCreateCertAuthorityMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+export type deleteCertAuthorityResponse = {
+  data: void | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getDeleteCertAuthorityUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/cas/${id}`;
+};
+
+export const deleteCertAuthority = async (
+  tenant: string,
+  id: string,
+  options?: RequestInit,
+): Promise<deleteCertAuthorityResponse> => {
+  return customFetch<deleteCertAuthorityResponse>(getDeleteCertAuthorityUrl(tenant, id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteCertAuthorityMutationOptions = <
+  TError = Problem,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCertAuthority>>,
+    TError,
+    { tenant: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCertAuthority>>,
+  TError,
+  { tenant: string; id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteCertAuthority'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCertAuthority>>,
+    { tenant: string; id: string }
+  > = (props) => {
+    const { tenant, id } = props ?? {};
+
+    return deleteCertAuthority(tenant, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCertAuthorityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCertAuthority>>
+>;
+
+export type DeleteCertAuthorityMutationError = Problem;
+
+export const useDeleteCertAuthority = <TError = Problem, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCertAuthority>>,
+    TError,
+    { tenant: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCertAuthority>>,
+  TError,
+  { tenant: string; id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteCertAuthorityMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+export type getCertAuthorityResponse = {
+  data: CertAuthority | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getGetCertAuthorityUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/cas/${id}`;
+};
+
+export const getCertAuthority = async (
+  tenant: string,
+  id: string,
+  options?: RequestInit,
+): Promise<getCertAuthorityResponse> => {
+  return customFetch<getCertAuthorityResponse>(getGetCertAuthorityUrl(tenant, id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetCertAuthorityQueryKey = (tenant: string, id: string) => {
+  return [`/api/v1/t/${tenant}/settings/pki/cas/${id}`] as const;
+};
+
+export const getGetCertAuthorityInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertAuthority>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCertAuthorityQueryKey(tenant, id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCertAuthority>>> = ({ signal }) =>
+    getCertAuthority(tenant, id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(tenant && id),
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetCertAuthorityInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCertAuthority>>
+>;
+export type GetCertAuthorityInfiniteQueryError = Problem;
+
+export function useGetCertAuthorityInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertAuthority>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertAuthority>>,
+          TError,
+          Awaited<ReturnType<typeof getCertAuthority>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertAuthorityInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertAuthority>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertAuthority>>,
+          TError,
+          Awaited<ReturnType<typeof getCertAuthority>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertAuthorityInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertAuthority>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetCertAuthorityInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertAuthority>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCertAuthorityInfiniteQueryOptions(tenant, id, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGetCertAuthorityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCertAuthority>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCertAuthorityQueryKey(tenant, id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCertAuthority>>> = ({ signal }) =>
+    getCertAuthority(tenant, id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCertAuthority>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCertAuthorityQueryResult = NonNullable<Awaited<ReturnType<typeof getCertAuthority>>>;
+export type GetCertAuthorityQueryError = Problem;
+
+export function useGetCertAuthority<
+  TData = Awaited<ReturnType<typeof getCertAuthority>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertAuthority>>,
+          TError,
+          Awaited<ReturnType<typeof getCertAuthority>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertAuthority<
+  TData = Awaited<ReturnType<typeof getCertAuthority>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertAuthority>>,
+          TError,
+          Awaited<ReturnType<typeof getCertAuthority>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertAuthority<
+  TData = Awaited<ReturnType<typeof getCertAuthority>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetCertAuthority<
+  TData = Awaited<ReturnType<typeof getCertAuthority>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertAuthority>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCertAuthorityQueryOptions(tenant, id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export type updateCertAuthorityResponse = {
+  data: CertAuthority;
+  status: number;
+  headers: Headers;
+};
+
+export const getUpdateCertAuthorityUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/cas/${id}`;
+};
+
+export const updateCertAuthority = async (
+  tenant: string,
+  id: string,
+  updateCertAuthorityBody: UpdateCertAuthorityBody,
+  options?: RequestInit,
+): Promise<updateCertAuthorityResponse> => {
+  return customFetch<updateCertAuthorityResponse>(getUpdateCertAuthorityUrl(tenant, id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateCertAuthorityBody),
+  });
+};
+
+export const getUpdateCertAuthorityMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCertAuthority>>,
+    TError,
+    { tenant: string; id: string; data: UpdateCertAuthorityBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCertAuthority>>,
+  TError,
+  { tenant: string; id: string; data: UpdateCertAuthorityBody },
+  TContext
+> => {
+  const mutationKey = ['updateCertAuthority'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCertAuthority>>,
+    { tenant: string; id: string; data: UpdateCertAuthorityBody }
+  > = (props) => {
+    const { tenant, id, data } = props ?? {};
+
+    return updateCertAuthority(tenant, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCertAuthorityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCertAuthority>>
+>;
+export type UpdateCertAuthorityMutationBody = UpdateCertAuthorityBody;
+export type UpdateCertAuthorityMutationError = unknown;
+
+export const useUpdateCertAuthority = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCertAuthority>>,
+    TError,
+    { tenant: string; id: string; data: UpdateCertAuthorityBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCertAuthority>>,
+  TError,
+  { tenant: string; id: string; data: UpdateCertAuthorityBody },
+  TContext
+> => {
+  const mutationOptions = getUpdateCertAuthorityMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary List certificate enrollments for the tenant
+ */
+export type listCertEnrollmentsResponse = {
+  data: ListCertEnrollments200;
+  status: number;
+  headers: Headers;
+};
+
+export const getListCertEnrollmentsUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/enrollments`;
+};
+
+export const listCertEnrollments = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<listCertEnrollmentsResponse> => {
+  return customFetch<listCertEnrollmentsResponse>(getListCertEnrollmentsUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListCertEnrollmentsQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/settings/pki/enrollments`] as const;
+};
+
+export const getListCertEnrollmentsInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertEnrollments>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCertEnrollmentsQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCertEnrollments>>> = ({ signal }) =>
+    listCertEnrollments(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listCertEnrollments>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListCertEnrollmentsInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCertEnrollments>>
+>;
+export type ListCertEnrollmentsInfiniteQueryError = unknown;
+
+export function useListCertEnrollmentsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertEnrollments>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertEnrollments>>,
+          TError,
+          Awaited<ReturnType<typeof listCertEnrollments>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertEnrollmentsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertEnrollments>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertEnrollments>>,
+          TError,
+          Awaited<ReturnType<typeof listCertEnrollments>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertEnrollmentsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertEnrollments>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List certificate enrollments for the tenant
+ */
+
+export function useListCertEnrollmentsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listCertEnrollments>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListCertEnrollmentsInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListCertEnrollmentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCertEnrollments>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCertEnrollmentsQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCertEnrollments>>> = ({ signal }) =>
+    listCertEnrollments(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCertEnrollments>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListCertEnrollmentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCertEnrollments>>
+>;
+export type ListCertEnrollmentsQueryError = unknown;
+
+export function useListCertEnrollments<
+  TData = Awaited<ReturnType<typeof listCertEnrollments>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertEnrollments>>,
+          TError,
+          Awaited<ReturnType<typeof listCertEnrollments>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertEnrollments<
+  TData = Awaited<ReturnType<typeof listCertEnrollments>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCertEnrollments>>,
+          TError,
+          Awaited<ReturnType<typeof listCertEnrollments>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCertEnrollments<
+  TData = Awaited<ReturnType<typeof listCertEnrollments>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List certificate enrollments for the tenant
+ */
+
+export function useListCertEnrollments<
+  TData = Awaited<ReturnType<typeof listCertEnrollments>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCertEnrollments>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListCertEnrollmentsQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Create a certificate enrollment
+ */
+export type createCertEnrollmentResponse = {
+  data: CertEnrollment;
+  status: number;
+  headers: Headers;
+};
+
+export const getCreateCertEnrollmentUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/enrollments`;
+};
+
+export const createCertEnrollment = async (
+  tenant: string,
+  createCertEnrollmentBody: CreateCertEnrollmentBody,
+  options?: RequestInit,
+): Promise<createCertEnrollmentResponse> => {
+  return customFetch<createCertEnrollmentResponse>(getCreateCertEnrollmentUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createCertEnrollmentBody),
+  });
+};
+
+export const getCreateCertEnrollmentMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCertEnrollment>>,
+    TError,
+    { tenant: string; data: CreateCertEnrollmentBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCertEnrollment>>,
+  TError,
+  { tenant: string; data: CreateCertEnrollmentBody },
+  TContext
+> => {
+  const mutationKey = ['createCertEnrollment'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCertEnrollment>>,
+    { tenant: string; data: CreateCertEnrollmentBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return createCertEnrollment(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCertEnrollmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCertEnrollment>>
+>;
+export type CreateCertEnrollmentMutationBody = CreateCertEnrollmentBody;
+export type CreateCertEnrollmentMutationError = unknown;
+
+/**
+ * @summary Create a certificate enrollment
+ */
+export const useCreateCertEnrollment = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCertEnrollment>>,
+    TError,
+    { tenant: string; data: CreateCertEnrollmentBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCertEnrollment>>,
+  TError,
+  { tenant: string; data: CreateCertEnrollmentBody },
+  TContext
+> => {
+  const mutationOptions = getCreateCertEnrollmentMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+export type getCertEnrollmentResponse = {
+  data: CertEnrollment | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getGetCertEnrollmentUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/enrollments/${id}`;
+};
+
+export const getCertEnrollment = async (
+  tenant: string,
+  id: string,
+  options?: RequestInit,
+): Promise<getCertEnrollmentResponse> => {
+  return customFetch<getCertEnrollmentResponse>(getGetCertEnrollmentUrl(tenant, id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetCertEnrollmentQueryKey = (tenant: string, id: string) => {
+  return [`/api/v1/t/${tenant}/settings/pki/enrollments/${id}`] as const;
+};
+
+export const getGetCertEnrollmentInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertEnrollment>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCertEnrollmentQueryKey(tenant, id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCertEnrollment>>> = ({ signal }) =>
+    getCertEnrollment(tenant, id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(tenant && id),
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetCertEnrollmentInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCertEnrollment>>
+>;
+export type GetCertEnrollmentInfiniteQueryError = Problem;
+
+export function useGetCertEnrollmentInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertEnrollment>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertEnrollment>>,
+          TError,
+          Awaited<ReturnType<typeof getCertEnrollment>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertEnrollmentInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertEnrollment>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertEnrollment>>,
+          TError,
+          Awaited<ReturnType<typeof getCertEnrollment>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertEnrollmentInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertEnrollment>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetCertEnrollmentInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getCertEnrollment>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCertEnrollmentInfiniteQueryOptions(tenant, id, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGetCertEnrollmentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCertEnrollment>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCertEnrollmentQueryKey(tenant, id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCertEnrollment>>> = ({ signal }) =>
+    getCertEnrollment(tenant, id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCertEnrollment>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCertEnrollmentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCertEnrollment>>
+>;
+export type GetCertEnrollmentQueryError = Problem;
+
+export function useGetCertEnrollment<
+  TData = Awaited<ReturnType<typeof getCertEnrollment>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertEnrollment>>,
+          TError,
+          Awaited<ReturnType<typeof getCertEnrollment>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertEnrollment<
+  TData = Awaited<ReturnType<typeof getCertEnrollment>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCertEnrollment>>,
+          TError,
+          Awaited<ReturnType<typeof getCertEnrollment>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCertEnrollment<
+  TData = Awaited<ReturnType<typeof getCertEnrollment>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetCertEnrollment<
+  TData = Awaited<ReturnType<typeof getCertEnrollment>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCertEnrollment>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCertEnrollmentQueryOptions(tenant, id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Revoke a certificate enrollment
+ */
+export type revokeCertEnrollmentResponse = {
+  data: CertEnrollment | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getRevokeCertEnrollmentUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/enrollments/${id}/revoke`;
+};
+
+export const revokeCertEnrollment = async (
+  tenant: string,
+  id: string,
+  revokeCertEnrollmentBody?: RevokeCertEnrollmentBody,
+  options?: RequestInit,
+): Promise<revokeCertEnrollmentResponse> => {
+  return customFetch<revokeCertEnrollmentResponse>(getRevokeCertEnrollmentUrl(tenant, id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(revokeCertEnrollmentBody),
+  });
+};
+
+export const getRevokeCertEnrollmentMutationOptions = <
+  TError = Problem,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeCertEnrollment>>,
+    TError,
+    { tenant: string; id: string; data: RevokeCertEnrollmentBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeCertEnrollment>>,
+  TError,
+  { tenant: string; id: string; data: RevokeCertEnrollmentBody },
+  TContext
+> => {
+  const mutationKey = ['revokeCertEnrollment'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeCertEnrollment>>,
+    { tenant: string; id: string; data: RevokeCertEnrollmentBody }
+  > = (props) => {
+    const { tenant, id, data } = props ?? {};
+
+    return revokeCertEnrollment(tenant, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeCertEnrollmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeCertEnrollment>>
+>;
+export type RevokeCertEnrollmentMutationBody = RevokeCertEnrollmentBody;
+export type RevokeCertEnrollmentMutationError = Problem;
+
+/**
+ * @summary Revoke a certificate enrollment
+ */
+export const useRevokeCertEnrollment = <TError = Problem, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeCertEnrollment>>,
+    TError,
+    { tenant: string; id: string; data: RevokeCertEnrollmentBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeCertEnrollment>>,
+  TError,
+  { tenant: string; id: string; data: RevokeCertEnrollmentBody },
+  TContext
+> => {
+  const mutationOptions = getRevokeCertEnrollmentMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
  * @summary List revoked certificates for the tenant
  */
 export type listPKIRevocationsResponse = {
@@ -4621,6 +6046,1154 @@ export const usePutSettingsTLS = <TError = unknown, TContext = unknown>(options?
   TContext
 > => {
   const mutationOptions = getPutSettingsTLSMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary List TLS certificates for the tenant
+ */
+export type listTLSCertificatesResponse = {
+  data: ListTLSCertificates200;
+  status: number;
+  headers: Headers;
+};
+
+export const getListTLSCertificatesUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/certificates`;
+};
+
+export const listTLSCertificates = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<listTLSCertificatesResponse> => {
+  return customFetch<listTLSCertificatesResponse>(getListTLSCertificatesUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListTLSCertificatesQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/settings/tls/certificates`] as const;
+};
+
+export const getListTLSCertificatesInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof listTLSCertificates>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTLSCertificatesQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTLSCertificates>>> = ({ signal }) =>
+    listTLSCertificates(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listTLSCertificates>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListTLSCertificatesInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTLSCertificates>>
+>;
+export type ListTLSCertificatesInfiniteQueryError = unknown;
+
+export function useListTLSCertificatesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listTLSCertificates>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTLSCertificates>>,
+          TError,
+          Awaited<ReturnType<typeof listTLSCertificates>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTLSCertificatesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listTLSCertificates>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTLSCertificates>>,
+          TError,
+          Awaited<ReturnType<typeof listTLSCertificates>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTLSCertificatesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listTLSCertificates>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List TLS certificates for the tenant
+ */
+
+export function useListTLSCertificatesInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listTLSCertificates>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListTLSCertificatesInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListTLSCertificatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTLSCertificates>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTLSCertificatesQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTLSCertificates>>> = ({ signal }) =>
+    listTLSCertificates(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTLSCertificates>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListTLSCertificatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTLSCertificates>>
+>;
+export type ListTLSCertificatesQueryError = unknown;
+
+export function useListTLSCertificates<
+  TData = Awaited<ReturnType<typeof listTLSCertificates>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTLSCertificates>>,
+          TError,
+          Awaited<ReturnType<typeof listTLSCertificates>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTLSCertificates<
+  TData = Awaited<ReturnType<typeof listTLSCertificates>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTLSCertificates>>,
+          TError,
+          Awaited<ReturnType<typeof listTLSCertificates>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTLSCertificates<
+  TData = Awaited<ReturnType<typeof listTLSCertificates>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List TLS certificates for the tenant
+ */
+
+export function useListTLSCertificates<
+  TData = Awaited<ReturnType<typeof listTLSCertificates>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTLSCertificates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListTLSCertificatesQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Upload a TLS certificate
+ */
+export type createTLSCertificateResponse = {
+  data: TLSCertificate | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getCreateTLSCertificateUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/certificates`;
+};
+
+export const createTLSCertificate = async (
+  tenant: string,
+  createTLSCertificateBody: CreateTLSCertificateBody,
+  options?: RequestInit,
+): Promise<createTLSCertificateResponse> => {
+  return customFetch<createTLSCertificateResponse>(getCreateTLSCertificateUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createTLSCertificateBody),
+  });
+};
+
+export const getCreateTLSCertificateMutationOptions = <
+  TError = Problem,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTLSCertificate>>,
+    TError,
+    { tenant: string; data: CreateTLSCertificateBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTLSCertificate>>,
+  TError,
+  { tenant: string; data: CreateTLSCertificateBody },
+  TContext
+> => {
+  const mutationKey = ['createTLSCertificate'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTLSCertificate>>,
+    { tenant: string; data: CreateTLSCertificateBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return createTLSCertificate(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTLSCertificateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTLSCertificate>>
+>;
+export type CreateTLSCertificateMutationBody = CreateTLSCertificateBody;
+export type CreateTLSCertificateMutationError = Problem;
+
+/**
+ * @summary Upload a TLS certificate
+ */
+export const useCreateTLSCertificate = <TError = Problem, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTLSCertificate>>,
+    TError,
+    { tenant: string; data: CreateTLSCertificateBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createTLSCertificate>>,
+  TError,
+  { tenant: string; data: CreateTLSCertificateBody },
+  TContext
+> => {
+  const mutationOptions = getCreateTLSCertificateMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+export type deleteTLSCertificateResponse = {
+  data: void | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getDeleteTLSCertificateUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/certificates/${id}`;
+};
+
+export const deleteTLSCertificate = async (
+  tenant: string,
+  id: string,
+  options?: RequestInit,
+): Promise<deleteTLSCertificateResponse> => {
+  return customFetch<deleteTLSCertificateResponse>(getDeleteTLSCertificateUrl(tenant, id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteTLSCertificateMutationOptions = <
+  TError = Problem,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTLSCertificate>>,
+    TError,
+    { tenant: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTLSCertificate>>,
+  TError,
+  { tenant: string; id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteTLSCertificate'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTLSCertificate>>,
+    { tenant: string; id: string }
+  > = (props) => {
+    const { tenant, id } = props ?? {};
+
+    return deleteTLSCertificate(tenant, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTLSCertificateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTLSCertificate>>
+>;
+
+export type DeleteTLSCertificateMutationError = Problem;
+
+export const useDeleteTLSCertificate = <TError = Problem, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTLSCertificate>>,
+    TError,
+    { tenant: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTLSCertificate>>,
+  TError,
+  { tenant: string; id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteTLSCertificateMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+export type getTLSCertificateResponse = {
+  data: TLSCertificate | Problem;
+  status: number;
+  headers: Headers;
+};
+
+export const getGetTLSCertificateUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/certificates/${id}`;
+};
+
+export const getTLSCertificate = async (
+  tenant: string,
+  id: string,
+  options?: RequestInit,
+): Promise<getTLSCertificateResponse> => {
+  return customFetch<getTLSCertificateResponse>(getGetTLSCertificateUrl(tenant, id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetTLSCertificateQueryKey = (tenant: string, id: string) => {
+  return [`/api/v1/t/${tenant}/settings/tls/certificates/${id}`] as const;
+};
+
+export const getGetTLSCertificateInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSCertificate>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTLSCertificateQueryKey(tenant, id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTLSCertificate>>> = ({ signal }) =>
+    getTLSCertificate(tenant, id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(tenant && id),
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetTLSCertificateInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTLSCertificate>>
+>;
+export type GetTLSCertificateInfiniteQueryError = Problem;
+
+export function useGetTLSCertificateInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSCertificate>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSCertificate>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSCertificate>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSCertificateInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSCertificate>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSCertificate>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSCertificate>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSCertificateInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSCertificate>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetTLSCertificateInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSCertificate>>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTLSCertificateInfiniteQueryOptions(tenant, id, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGetTLSCertificateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTLSCertificate>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTLSCertificateQueryKey(tenant, id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTLSCertificate>>> = ({ signal }) =>
+    getTLSCertificate(tenant, id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTLSCertificate>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTLSCertificateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTLSCertificate>>
+>;
+export type GetTLSCertificateQueryError = Problem;
+
+export function useGetTLSCertificate<
+  TData = Awaited<ReturnType<typeof getTLSCertificate>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSCertificate>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSCertificate>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSCertificate<
+  TData = Awaited<ReturnType<typeof getTLSCertificate>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSCertificate>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSCertificate>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSCertificate<
+  TData = Awaited<ReturnType<typeof getTLSCertificate>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetTLSCertificate<
+  TData = Awaited<ReturnType<typeof getTLSCertificate>>,
+  TError = Problem,
+>(
+  tenant: string,
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSCertificate>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTLSCertificateQueryOptions(tenant, id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Toggle auto-renew flag for a TLS certificate
+ */
+export type toggleTLSCertificateAutoRenewResponse = {
+  data: TLSCertificate;
+  status: number;
+  headers: Headers;
+};
+
+export const getToggleTLSCertificateAutoRenewUrl = (tenant: string, id: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/certificates/${id}/auto-renew`;
+};
+
+export const toggleTLSCertificateAutoRenew = async (
+  tenant: string,
+  id: string,
+  toggleTLSCertificateAutoRenewBody: ToggleTLSCertificateAutoRenewBody,
+  options?: RequestInit,
+): Promise<toggleTLSCertificateAutoRenewResponse> => {
+  return customFetch<toggleTLSCertificateAutoRenewResponse>(
+    getToggleTLSCertificateAutoRenewUrl(tenant, id),
+    {
+      ...options,
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      body: JSON.stringify(toggleTLSCertificateAutoRenewBody),
+    },
+  );
+};
+
+export const getToggleTLSCertificateAutoRenewMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleTLSCertificateAutoRenew>>,
+    TError,
+    { tenant: string; id: string; data: ToggleTLSCertificateAutoRenewBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleTLSCertificateAutoRenew>>,
+  TError,
+  { tenant: string; id: string; data: ToggleTLSCertificateAutoRenewBody },
+  TContext
+> => {
+  const mutationKey = ['toggleTLSCertificateAutoRenew'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleTLSCertificateAutoRenew>>,
+    { tenant: string; id: string; data: ToggleTLSCertificateAutoRenewBody }
+  > = (props) => {
+    const { tenant, id, data } = props ?? {};
+
+    return toggleTLSCertificateAutoRenew(tenant, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleTLSCertificateAutoRenewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleTLSCertificateAutoRenew>>
+>;
+export type ToggleTLSCertificateAutoRenewMutationBody = ToggleTLSCertificateAutoRenewBody;
+export type ToggleTLSCertificateAutoRenewMutationError = unknown;
+
+/**
+ * @summary Toggle auto-renew flag for a TLS certificate
+ */
+export const useToggleTLSCertificateAutoRenew = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleTLSCertificateAutoRenew>>,
+    TError,
+    { tenant: string; id: string; data: ToggleTLSCertificateAutoRenewBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleTLSCertificateAutoRenew>>,
+  TError,
+  { tenant: string; id: string; data: ToggleTLSCertificateAutoRenewBody },
+  TContext
+> => {
+  const mutationOptions = getToggleTLSCertificateAutoRenewMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Get tenant TLS config (ACME issuer + cipher policy)
+ */
+export type getTLSConfigResponse = {
+  data: TLSConfig;
+  status: number;
+  headers: Headers;
+};
+
+export const getGetTLSConfigUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/config`;
+};
+
+export const getTLSConfig = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<getTLSConfigResponse> => {
+  return customFetch<getTLSConfigResponse>(getGetTLSConfigUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetTLSConfigQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/settings/tls/config`] as const;
+};
+
+export const getGetTLSConfigInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTLSConfigQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTLSConfig>>> = ({ signal }) =>
+    getTLSConfig(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof getTLSConfig>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTLSConfigInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof getTLSConfig>>>;
+export type GetTLSConfigInfiniteQueryError = unknown;
+
+export function useGetTLSConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSConfig>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSConfig>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get tenant TLS config (ACME issuer + cipher policy)
+ */
+
+export function useGetTLSConfigInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof getTLSConfig>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTLSConfigInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGetTLSConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTLSConfig>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTLSConfigQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTLSConfig>>> = ({ signal }) =>
+    getTLSConfig(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTLSConfig>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTLSConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getTLSConfig>>>;
+export type GetTLSConfigQueryError = unknown;
+
+export function useGetTLSConfig<TData = Awaited<ReturnType<typeof getTLSConfig>>, TError = unknown>(
+  tenant: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSConfig>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSConfig<TData = Awaited<ReturnType<typeof getTLSConfig>>, TError = unknown>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTLSConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getTLSConfig>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTLSConfig<TData = Awaited<ReturnType<typeof getTLSConfig>>, TError = unknown>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get tenant TLS config (ACME issuer + cipher policy)
+ */
+
+export function useGetTLSConfig<TData = Awaited<ReturnType<typeof getTLSConfig>>, TError = unknown>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTLSConfig>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTLSConfigQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Update tenant ACME issuer settings
+ */
+export type putTLSConfigACMEResponse = {
+  data: TLSConfig;
+  status: number;
+  headers: Headers;
+};
+
+export const getPutTLSConfigACMEUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/config/acme`;
+};
+
+export const putTLSConfigACME = async (
+  tenant: string,
+  updateTLSACMEBody: UpdateTLSACMEBody,
+  options?: RequestInit,
+): Promise<putTLSConfigACMEResponse> => {
+  return customFetch<putTLSConfigACMEResponse>(getPutTLSConfigACMEUrl(tenant), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTLSACMEBody),
+  });
+};
+
+export const getPutTLSConfigACMEMutationOptions = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putTLSConfigACME>>,
+    TError,
+    { tenant: string; data: UpdateTLSACMEBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putTLSConfigACME>>,
+  TError,
+  { tenant: string; data: UpdateTLSACMEBody },
+  TContext
+> => {
+  const mutationKey = ['putTLSConfigACME'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putTLSConfigACME>>,
+    { tenant: string; data: UpdateTLSACMEBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return putTLSConfigACME(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutTLSConfigACMEMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putTLSConfigACME>>
+>;
+export type PutTLSConfigACMEMutationBody = UpdateTLSACMEBody;
+export type PutTLSConfigACMEMutationError = unknown;
+
+/**
+ * @summary Update tenant ACME issuer settings
+ */
+export const usePutTLSConfigACME = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putTLSConfigACME>>,
+    TError,
+    { tenant: string; data: UpdateTLSACMEBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putTLSConfigACME>>,
+  TError,
+  { tenant: string; data: UpdateTLSACMEBody },
+  TContext
+> => {
+  const mutationOptions = getPutTLSConfigACMEMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Update tenant TLS cipher policy
+ */
+export type putTLSConfigCiphersResponse = {
+  data: TLSConfig;
+  status: number;
+  headers: Headers;
+};
+
+export const getPutTLSConfigCiphersUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/config/ciphers`;
+};
+
+export const putTLSConfigCiphers = async (
+  tenant: string,
+  updateTLSCiphersBody: UpdateTLSCiphersBody,
+  options?: RequestInit,
+): Promise<putTLSConfigCiphersResponse> => {
+  return customFetch<putTLSConfigCiphersResponse>(getPutTLSConfigCiphersUrl(tenant), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTLSCiphersBody),
+  });
+};
+
+export const getPutTLSConfigCiphersMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putTLSConfigCiphers>>,
+    TError,
+    { tenant: string; data: UpdateTLSCiphersBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putTLSConfigCiphers>>,
+  TError,
+  { tenant: string; data: UpdateTLSCiphersBody },
+  TContext
+> => {
+  const mutationKey = ['putTLSConfigCiphers'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putTLSConfigCiphers>>,
+    { tenant: string; data: UpdateTLSCiphersBody }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return putTLSConfigCiphers(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutTLSConfigCiphersMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putTLSConfigCiphers>>
+>;
+export type PutTLSConfigCiphersMutationBody = UpdateTLSCiphersBody;
+export type PutTLSConfigCiphersMutationError = unknown;
+
+/**
+ * @summary Update tenant TLS cipher policy
+ */
+export const usePutTLSConfigCiphers = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putTLSConfigCiphers>>,
+    TError,
+    { tenant: string; data: UpdateTLSCiphersBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putTLSConfigCiphers>>,
+  TError,
+  { tenant: string; data: UpdateTLSCiphersBody },
+  TContext
+> => {
+  const mutationOptions = getPutTLSConfigCiphersMutationOptions(options);
 
   return useMutation(mutationOptions);
 };

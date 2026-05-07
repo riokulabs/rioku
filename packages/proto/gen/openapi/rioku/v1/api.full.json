@@ -3572,6 +3572,109 @@
         },
         "type": "object"
       },
+      "CertAuthority": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fingerprintSha256": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "CA kind: `internal`, `external`, `acme`, etc.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notAfter": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "notBefore": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "subject": {
+            "description": "Distinguished name.",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "kind",
+          "subject",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "CertEnrollment": {
+        "properties": {
+          "caId": {
+            "type": "string"
+          },
+          "dnsSans": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "fingerprintSha256": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "requestedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "revocationReason": {
+            "type": "string"
+          },
+          "revokedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "state": {
+            "description": "Enrollment state: `pending`, `issued`, `revoked`, `failed`.",
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "subject",
+          "dnsSans",
+          "state",
+          "requestedAt"
+        ],
+        "type": "object"
+      },
       "CreateAccessPolicyBody": {
         "properties": {
           "description": {
@@ -3604,6 +3707,51 @@
         "required": [
           "name",
           "expression"
+        ],
+        "type": "object"
+      },
+      "CreateCertAuthorityBody": {
+        "properties": {
+          "certificatePem": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "privateKeyRef": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "subject"
+        ],
+        "type": "object"
+      },
+      "CreateCertEnrollmentBody": {
+        "properties": {
+          "caId": {
+            "type": "string"
+          },
+          "dnsSans": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject"
         ],
         "type": "object"
       },
@@ -3694,6 +3842,26 @@
         },
         "required": [
           "name",
+          "domain"
+        ],
+        "type": "object"
+      },
+      "CreateTLSCertificateBody": {
+        "properties": {
+          "certificatePem": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
           "domain"
         ],
         "type": "object"
@@ -4919,6 +5087,89 @@
         },
         "type": "object"
       },
+      "TLSCertificate": {
+        "properties": {
+          "autoRenew": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fingerprintSha256": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "source": {
+            "description": "Certificate provenance: `manual`, `acme`, `auto`.",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "domain",
+          "issuer",
+          "source",
+          "autoRenew",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "TLSConfig": {
+        "properties": {
+          "acmeDirectory": {
+            "type": "string"
+          },
+          "acmeEmail": {
+            "type": "string"
+          },
+          "acmeProvider": {
+            "type": "string"
+          },
+          "allowedCiphers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minProtocol": {
+            "description": "Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).",
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "acmeProvider",
+          "acmeEmail",
+          "allowedCiphers",
+          "minProtocol",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "TestCELBody": {
         "properties": {
           "expr": {
@@ -4973,6 +5224,20 @@
           },
           "priority": {
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateCertAuthorityBody": {
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -5081,6 +5346,37 @@
             "type": "string"
           },
           "upstreamServiceId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTLSACMEBody": {
+        "properties": {
+          "directory": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "type": "object"
+      },
+      "UpdateTLSCiphersBody": {
+        "properties": {
+          "allowedCiphers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minProtocol": {
             "type": "string"
           }
         },
@@ -14567,6 +14863,385 @@
         ]
       }
     },
+    "/api/v1/t/{tenant}/settings/pki/cas": {
+      "get": {
+        "operationId": "listCertAuthorities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/CertAuthority"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List certificate authorities for the tenant",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createCertAuthority",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCertAuthorityBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertAuthority"
+                }
+              }
+            },
+            "description": "created"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "name already in use"
+          }
+        },
+        "summary": "Create a certificate authority",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/pki/cas/{id}": {
+      "delete": {
+        "operationId": "deleteCertAuthority",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "get": {
+        "operationId": "getCertAuthority",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertAuthority"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "operationId": "updateCertAuthority",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCertAuthorityBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertAuthority"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/pki/enrollments": {
+      "get": {
+        "operationId": "listCertEnrollments",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/CertEnrollment"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List certificate enrollments for the tenant",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createCertEnrollment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCertEnrollmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertEnrollment"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create a certificate enrollment",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/pki/enrollments/{id}": {
+      "get": {
+        "operationId": "getCertEnrollment",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertEnrollment"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/settings/pki/enrollments/{id}/revoke": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "revokeCertEnrollment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertEnrollment"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "summary": "Revoke a certificate enrollment",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/settings/pki/revocations": {
       "get": {
         "operationId": "listPKIRevocations",
@@ -14766,6 +15441,342 @@
           }
         },
         "summary": "Replace tenant TLS settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/certificates": {
+      "get": {
+        "operationId": "listTLSCertificates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/TLSCertificate"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List TLS certificates for the tenant",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createTLSCertificate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTLSCertificateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TLSCertificate"
+                }
+              }
+            },
+            "description": "created"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "domain already in use"
+          }
+        },
+        "summary": "Upload a TLS certificate",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/certificates/{id}": {
+      "delete": {
+        "operationId": "deleteTLSCertificate",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "get": {
+        "operationId": "getTLSCertificate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TLSCertificate"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/settings/tls/certificates/{id}/auto-renew": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "toggleTLSCertificateAutoRenew",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "autoRenew": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "autoRenew"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TLSCertificate"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Toggle auto-renew flag for a TLS certificate",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/config": {
+      "get": {
+        "operationId": "getTLSConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TLSConfig"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant TLS config (ACME issuer + cipher policy)",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/settings/tls/config/acme": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putTLSConfigACME",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTLSACMEBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TLSConfig"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Update tenant ACME issuer settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/config/ciphers": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putTLSConfigCiphers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTLSCiphersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TLSConfig"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Update tenant TLS cipher policy",
         "tags": [
           "settings"
         ]
