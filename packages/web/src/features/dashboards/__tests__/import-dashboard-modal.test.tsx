@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <ImportDashboardModal> tests — tab switching, validation error paths, and
  * the happy-path paste+import flow.

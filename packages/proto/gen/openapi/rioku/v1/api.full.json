@@ -3607,6 +3607,39 @@
         ],
         "type": "object"
       },
+      "CreateDashboardRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "sharedRoleIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "variables": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateMiddlewareBody": {
         "properties": {
           "config": {
@@ -3662,6 +3695,267 @@
         "required": [
           "name",
           "domain"
+        ],
+        "type": "object"
+      },
+      "CreateWidgetRequest": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "dataSource": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "layout": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title"
+        ],
+        "type": "object"
+      },
+      "Dashboard": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "homeForUsers": {
+            "description": "User ids that have set this dashboard as their personal home.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "mode": {
+            "description": "Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.",
+            "enum": [
+              "metabase",
+              "advanced",
+              ""
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "scope": {
+            "description": "Visibility scope. `tenant` is shared; `user` is private.",
+            "enum": [
+              "tenant",
+              "user",
+              ""
+            ],
+            "type": "string"
+          },
+          "sharedRoleIds": {
+            "description": "Role ids that the dashboard is shared with.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "variables": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "description",
+          "mode",
+          "scope",
+          "isDefault",
+          "sharedRoleIds",
+          "homeForUsers",
+          "variables",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "DashboardExport": {
+        "properties": {
+          "dashboard": {
+            "$ref": "#/components/schemas/Dashboard"
+          },
+          "widgets": {
+            "items": {
+              "$ref": "#/components/schemas/Widget"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "dashboard",
+          "widgets"
+        ],
+        "type": "object"
+      },
+      "DashboardList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Dashboard"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DashboardShare": {
+        "properties": {
+          "_links": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "dashboardId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "dashboardId",
+          "roleId",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "DashboardShareList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardShare"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DashboardVersion": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dashboardId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "description": "Full export payload captured at snapshot time.",
+            "type": "object"
+          },
+          "version": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "dashboardId",
+          "version",
+          "createdAt",
+          "note",
+          "snapshot"
+        ],
+        "type": "object"
+      },
+      "DashboardVersionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardVersion"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
         ],
         "type": "object"
       },
@@ -3932,6 +4226,39 @@
           "title",
           "status"
         ],
+        "type": "object"
+      },
+      "PromQLQueryRequest": {
+        "properties": {
+          "end": {
+            "description": "Range query end.",
+            "type": "string"
+          },
+          "query": {
+            "description": "PromQL expression. Tenant label injected server-side.",
+            "type": "string"
+          },
+          "start": {
+            "description": "Range query start.",
+            "type": "string"
+          },
+          "step": {
+            "description": "Range query step (e.g. `30s`, `1m`).",
+            "type": "string"
+          },
+          "time": {
+            "description": "RFC3339 or unix timestamp for instant query.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "PromQLQueryResponse": {
+        "additionalProperties": true,
+        "description": "Prometheus HTTP API response, forwarded verbatim.",
         "type": "object"
       },
       "RevocationCreate": {
@@ -4310,6 +4637,21 @@
         },
         "type": "object"
       },
+      "ShareDashboardRequest": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleId"
+        ],
+        "type": "object"
+      },
       "Site": {
         "properties": {
           "basicAuthEnabled": {
@@ -4351,6 +4693,14 @@
             "type": "string"
           },
           "upstreamServiceId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SnapshotRequest": {
+        "properties": {
+          "note": {
             "type": "string"
           }
         },
@@ -4414,6 +4764,65 @@
         },
         "type": "object"
       },
+      "UpdateDashboardRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "sharedRoleIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "variables": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateLayoutRequest": {
+        "properties": {
+          "layouts": {
+            "additionalProperties": {
+              "properties": {
+                "h": {
+                  "type": "integer"
+                },
+                "w": {
+                  "type": "integer"
+                },
+                "x": {
+                  "type": "integer"
+                },
+                "y": {
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "description": "Map of widget id → layout `{x,y,w,h}` object. Sent as a single bulk update after drag-drop reorder.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "layouts"
+        ],
+        "type": "object"
+      },
       "UpdateMiddlewareBody": {
         "properties": {
           "config": {
@@ -4464,6 +4873,35 @@
         },
         "type": "object"
       },
+      "UpdateWidgetRequest": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "dataSource": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "layout": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "lockedAdvanced": {
+            "type": "boolean"
+          },
+          "rawQuery": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "WebhookTestResult": {
         "properties": {
           "deliveredAt": {
@@ -4488,6 +4926,102 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "Widget": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dashboardId": {
+            "type": "string"
+          },
+          "dataSource": {
+            "description": "Logical source: `promql`, `audit`, `notifications`, `traces`, etc.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.",
+            "type": "string"
+          },
+          "layout": {
+            "properties": {
+              "h": {
+                "type": "integer"
+              },
+              "w": {
+                "type": "integer"
+              },
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "w",
+              "h"
+            ],
+            "type": "object"
+          },
+          "lockedAdvanced": {
+            "description": "True when the user flipped the widget to advanced mode and the wizard form is locked.",
+            "type": "boolean"
+          },
+          "rawQuery": {
+            "description": "Raw PromQL or other query when `lockedAdvanced` is true.",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dashboardId",
+          "kind",
+          "title",
+          "dataSource",
+          "config",
+          "lockedAdvanced",
+          "layout",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "WidgetList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Widget"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
         "type": "object"
       },
       "V1PluginConfigSchemaValue": {
@@ -10085,6 +10619,665 @@
         ]
       }
     },
+    "/api/v1/t/{tenant}/dashboards": {
+      "get": {
+        "operationId": "listDashboards",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List dashboards",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createDashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDashboardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create a dashboard",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/import": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "importDashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardExport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Import a dashboard from a JSON export",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/versions/{vid}/restore": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "vid",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "restoreDashboardVersion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Restore a dashboard from a captured version",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}": {
+      "delete": {
+        "operationId": "deleteDashboard",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Delete a dashboard",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "get": {
+        "operationId": "getDashboard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get a dashboard",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchDashboard",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDashboardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch a dashboard",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "put": {
+        "operationId": "updateDashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDashboardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Update a dashboard",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/export": {
+      "get": {
+        "operationId": "exportDashboard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardExport"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Export a dashboard as JSON",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/layout": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "put": {
+        "operationId": "updateDashboardLayout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "layout applied"
+          }
+        },
+        "summary": "Bulk update widget layouts after drag-drop reorder",
+        "tags": [
+          "widgets"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/set-default": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "setDefaultDashboard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Mark dashboard as the tenant default",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/set-home": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "setDashboardHome",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Set dashboard as the calling user's personal home",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/share": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "shareDashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareDashboardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardShare"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Share a dashboard with a role",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/shares": {
+      "get": {
+        "operationId": "listDashboardShares",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardShareList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List active dashboard shares",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/shares/{shareId}": {
+      "delete": {
+        "operationId": "deleteDashboardShare",
+        "responses": {
+          "204": {
+            "description": "revoked"
+          }
+        },
+        "summary": "Revoke a dashboard share",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        },
+        {
+          "in": "path",
+          "name": "shareId",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/snapshot": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "snapshotDashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardVersion"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Capture a versioned snapshot of the dashboard",
+        "tags": [
+          "dashboards"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/versions": {
+      "get": {
+        "operationId": "listDashboardVersions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardVersionList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List dashboard versions",
+        "tags": [
+          "dashboards"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/widgets": {
+      "get": {
+        "operationId": "listWidgets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List widgets for a dashboard",
+        "tags": [
+          "widgets"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "createWidget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWidgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Add a widget to the dashboard",
+        "tags": [
+          "widgets"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/dashboards/{id}/widgets/{wid}": {
+      "delete": {
+        "operationId": "deleteWidget",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Remove a widget from a dashboard",
+        "tags": [
+          "widgets"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        },
+        {
+          "in": "path",
+          "name": "wid",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/middlewares": {
       "get": {
         "operationId": "listMiddlewares",
@@ -10288,6 +11481,99 @@
           "$ref": "#/components/parameters/Tenant"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/promql/query": {
+      "get": {
+        "operationId": "queryPromQLGet",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "time",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "step",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromQLQueryResponse"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Run a PromQL query (instant or range)",
+        "tags": [
+          "promql"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "queryPromQL",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromQLQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromQLQueryResponse"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Run a PromQL query (instant or range)",
+        "tags": [
+          "promql"
+        ]
+      }
     },
     "/api/v1/t/{tenant}/rbac-policies": {
       "get": {
@@ -12219,6 +13505,139 @@
         },
         "tags": [
           "sites"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/widgets/{id}": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchWidget",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWidgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch a widget",
+        "tags": [
+          "widgets"
+        ]
+      },
+      "put": {
+        "operationId": "updateWidget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWidgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Update a widget",
+        "tags": [
+          "widgets"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/widgets/{id}/flip-advanced": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "flipWidgetAdvanced",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Lock the widget into advanced (raw query) mode",
+        "tags": [
+          "widgets"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/widgets/{id}/flip-wizard": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "flipWidgetWizard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Unlock the widget back to wizard (form) mode",
+        "tags": [
+          "widgets"
         ]
       }
     },

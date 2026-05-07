@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * Dashboards API tests — covers CRUD, version snapshot/restore, set-default
  * atomicity, set-as-my-home, and JSON export/import.
