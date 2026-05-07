@@ -47,6 +47,12 @@ import type { MarketplaceFilter, MarketplaceListing } from '../types';
 
 interface MarketplaceGridProps {
   onInstall: (listing: MarketplaceListing) => void;
+  /**
+   * Tenant slug used to scope the daemon catalog fetch + the install
+   * mutation. Empty string falls back to the global catalog. The page
+   * route always supplies a real slug.
+   */
+  tenantSlug?: string;
 }
 
 /** Valid sort modes. Persisted to the URL as `sort=<mode>`. */
@@ -89,7 +95,7 @@ function sortListings(listings: MarketplaceListing[], mode: SortMode): Marketpla
   }
 }
 
-export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
+export function MarketplaceGrid({ onInstall, tenantSlug = '' }: MarketplaceGridProps) {
   const navigate = useNavigate();
   const search = useSearch({ strict: false });
 
@@ -172,14 +178,14 @@ export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const baseFilter: MarketplaceFilter = { search: urlQuery, tags: urlTags };
-  const baseListings = useMarketplaceListings(baseFilter);
-  const allTags = useMarketplaceTags();
+  const baseListings = useMarketplaceListings(baseFilter, tenantSlug);
+  const allTags = useMarketplaceTags(tenantSlug);
 
   // Category counts are derived from the FULL unfiltered set so the sidebar
   // reflects the catalog shape, not the current filter (important for
   // discoverability — users should see "no plugins match this tag" rather
   // than the tag vanishing).
-  const allListings = useMarketplaceListings({ search: '', tags: [] });
+  const allListings = useMarketplaceListings({ search: '', tags: [] }, tenantSlug);
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const l of allListings) {

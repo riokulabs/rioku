@@ -243,6 +243,12 @@ func NewGateway(
 	// Stage-2 admin completion chunks 12, 16-19: plugins install
 	// alias, /settings/me profile family, super-admin surface,
 	// auth flow recovery, danger-zone.
+	if cfg != nil && cfg.DataDir != "" {
+		SetPluginStagingDir(cfg.DataDir)
+	}
+	if cfg != nil {
+		SetCapabilities(cfg)
+	}
 	RegisterStage2FinalsRoutes(topMux, st)
 
 	// Dashboards + Widgets + Versions (stage-2).

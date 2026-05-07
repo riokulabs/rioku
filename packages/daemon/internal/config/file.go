@@ -38,9 +38,49 @@ type Config struct {
 	AI              AIConfig        `yaml:"ai"`
 	Auth            AuthConfig      `yaml:"auth"`
 	SecurityHeaders SecurityHeaders `yaml:"security_headers"`
+	Daemon          DaemonConfig    `yaml:"daemon"`
 	DataDir         string          `yaml:"data_dir"`
 	LogLevel        string          `yaml:"log_level"` // kept for backwards compat
 	Logging         LoggingConfig   `yaml:"logging"`
+}
+
+// DaemonConfig collects daemon-level feature flags. These are
+// orthogonal to the major subsystems and ship as boolean toggles.
+//
+// SideloadEnabled gates the plugin sideload endpoint. When false (the
+// default) the daemon returns 404 from `POST /api/v1/t/{tenant}/plugins/sideload`
+// and the admin panel hides the sideload route via the
+// `/api/v1/capabilities` discovery endpoint. Set to true via the YAML
+// `daemon.sideload_enabled: true` key OR the `RIOKU_SIDELOAD_ENABLED=1`
+// env var.
+type DaemonConfig struct {
+	SideloadEnabled bool `yaml:"sideload_enabled"`
+}
+
+// SideloadEnabled reports whether plugin sideload is enabled. It
+// returns true when either the YAML flag is set OR
+// `RIOKU_SIDELOAD_ENABLED` env var is set to a truthy value
+// ("1"/"true"/"yes", case-insensitive). Other values — including the
+// empty string — return false.
+//
+// A nil receiver is safe and returns false.
+func (c *Config) SideloadEnabled() bool {
+	if c == nil {
+		return envSideloadEnabled()
+	}
+	if c.Daemon.SideloadEnabled {
+		return true
+	}
+	return envSideloadEnabled()
+}
+
+func envSideloadEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("RIOKU_SIDELOAD_ENABLED")))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }
 
 // LoggingConfig controls daemon log output.
