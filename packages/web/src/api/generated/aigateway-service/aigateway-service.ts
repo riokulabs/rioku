@@ -62,6 +62,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type aIGatewayServiceListVirtualKeysResponse = {
   data: V1ListVirtualKeysResponse | RpcStatus;
   status: number;
@@ -99,14 +101,15 @@ export const getAIGatewayServiceListVirtualKeysInfiniteQueryOptions = <
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceListVirtualKeysQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>> = ({
     signal,
-  }) => aIGatewayServiceListVirtualKeys(signal);
+  }) => aIGatewayServiceListVirtualKeys({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>,
@@ -139,6 +142,7 @@ export function useAIGatewayServiceListVirtualKeysInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListVirtualKeysInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>>,
@@ -159,6 +163,7 @@ export function useAIGatewayServiceListVirtualKeysInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListVirtualKeysInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>>,
@@ -171,6 +176,7 @@ export function useAIGatewayServiceListVirtualKeysInfinite<
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAIGatewayServiceListVirtualKeysInfinite<
@@ -184,6 +190,7 @@ export function useAIGatewayServiceListVirtualKeysInfinite<
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListVirtualKeysInfiniteQueryOptions(options);
 
@@ -203,14 +210,15 @@ export const getAIGatewayServiceListVirtualKeysQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceListVirtualKeysQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>> = ({
     signal,
-  }) => aIGatewayServiceListVirtualKeys(signal);
+  }) => aIGatewayServiceListVirtualKeys({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>,
@@ -239,6 +247,7 @@ export function useAIGatewayServiceListVirtualKeys<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListVirtualKeys<
   TData = Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>,
@@ -255,6 +264,7 @@ export function useAIGatewayServiceListVirtualKeys<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListVirtualKeys<
   TData = Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>,
@@ -263,6 +273,7 @@ export function useAIGatewayServiceListVirtualKeys<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAIGatewayServiceListVirtualKeys<
@@ -272,6 +283,7 @@ export function useAIGatewayServiceListVirtualKeys<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListVirtualKeys>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListVirtualKeysQueryOptions(options);
 
@@ -322,6 +334,7 @@ export const getAIGatewayServiceCreateVirtualKeyMutationOptions = <
     { data: V1CreateVirtualKeyRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceCreateVirtualKey>>,
   TError,
@@ -329,11 +342,11 @@ export const getAIGatewayServiceCreateVirtualKeyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceCreateVirtualKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceCreateVirtualKey>>,
@@ -341,7 +354,7 @@ export const getAIGatewayServiceCreateVirtualKeyMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return aIGatewayServiceCreateVirtualKey(data);
+    return aIGatewayServiceCreateVirtualKey(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -366,6 +379,7 @@ export const useAIGatewayServiceCreateVirtualKey = <
     { data: V1CreateVirtualKeyRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceCreateVirtualKey>>,
   TError,
@@ -409,6 +423,7 @@ export const getAIGatewayServiceDeleteVirtualKeyMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceDeleteVirtualKey>>,
   TError,
@@ -416,11 +431,11 @@ export const getAIGatewayServiceDeleteVirtualKeyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceDeleteVirtualKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceDeleteVirtualKey>>,
@@ -428,7 +443,7 @@ export const getAIGatewayServiceDeleteVirtualKeyMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return aIGatewayServiceDeleteVirtualKey(id);
+    return aIGatewayServiceDeleteVirtualKey(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -450,6 +465,7 @@ export const useAIGatewayServiceDeleteVirtualKey = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceDeleteVirtualKey>>,
   TError,
@@ -500,15 +516,16 @@ export const getAIGatewayServiceGetVirtualKeyInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceGetVirtualKeyQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>> = ({
     signal,
-  }) => aIGatewayServiceGetVirtualKey(id, signal);
+  }) => aIGatewayServiceGetVirtualKey(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>,
@@ -543,6 +560,7 @@ export function useAIGatewayServiceGetVirtualKeyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetVirtualKeyInfinite<
@@ -566,6 +584,7 @@ export function useAIGatewayServiceGetVirtualKeyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetVirtualKeyInfinite<
@@ -581,6 +600,7 @@ export function useAIGatewayServiceGetVirtualKeyInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -597,6 +617,7 @@ export function useAIGatewayServiceGetVirtualKeyInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceGetVirtualKeyInfiniteQueryOptions(id, options);
@@ -619,15 +640,16 @@ export const getAIGatewayServiceGetVirtualKeyQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceGetVirtualKeyQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>> = ({
     signal,
-  }) => aIGatewayServiceGetVirtualKey(id, signal);
+  }) => aIGatewayServiceGetVirtualKey(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>,
@@ -658,6 +680,7 @@ export function useAIGatewayServiceGetVirtualKey<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetVirtualKey<
@@ -677,6 +700,7 @@ export function useAIGatewayServiceGetVirtualKey<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetVirtualKey<
@@ -688,6 +712,7 @@ export function useAIGatewayServiceGetVirtualKey<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -700,6 +725,7 @@ export function useAIGatewayServiceGetVirtualKey<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetVirtualKey>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceGetVirtualKeyQueryOptions(id, options);
@@ -749,6 +775,7 @@ export const getAIGatewayServiceUpdateVirtualKeyMutationOptions = <
     { id: string; data: AIGatewayServiceUpdateVirtualKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceUpdateVirtualKey>>,
   TError,
@@ -756,11 +783,11 @@ export const getAIGatewayServiceUpdateVirtualKeyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceUpdateVirtualKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceUpdateVirtualKey>>,
@@ -768,7 +795,7 @@ export const getAIGatewayServiceUpdateVirtualKeyMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aIGatewayServiceUpdateVirtualKey(id, data);
+    return aIGatewayServiceUpdateVirtualKey(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -790,6 +817,7 @@ export const useAIGatewayServiceUpdateVirtualKey = <
     { id: string; data: AIGatewayServiceUpdateVirtualKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceUpdateVirtualKey>>,
   TError,
@@ -836,6 +864,7 @@ export const getAIGatewayServiceRevokeVirtualKeyMutationOptions = <
     { id: string; data: AIGatewayServiceRevokeVirtualKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceRevokeVirtualKey>>,
   TError,
@@ -843,11 +872,11 @@ export const getAIGatewayServiceRevokeVirtualKeyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceRevokeVirtualKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceRevokeVirtualKey>>,
@@ -855,7 +884,7 @@ export const getAIGatewayServiceRevokeVirtualKeyMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aIGatewayServiceRevokeVirtualKey(id, data);
+    return aIGatewayServiceRevokeVirtualKey(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -877,6 +906,7 @@ export const useAIGatewayServiceRevokeVirtualKey = <
     { id: string; data: AIGatewayServiceRevokeVirtualKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceRevokeVirtualKey>>,
   TError,
@@ -923,6 +953,7 @@ export const getAIGatewayServiceRotateVirtualKeyMutationOptions = <
     { id: string; data: AIGatewayServiceRotateVirtualKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceRotateVirtualKey>>,
   TError,
@@ -930,11 +961,11 @@ export const getAIGatewayServiceRotateVirtualKeyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceRotateVirtualKey'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceRotateVirtualKey>>,
@@ -942,7 +973,7 @@ export const getAIGatewayServiceRotateVirtualKeyMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aIGatewayServiceRotateVirtualKey(id, data);
+    return aIGatewayServiceRotateVirtualKey(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -964,6 +995,7 @@ export const useAIGatewayServiceRotateVirtualKey = <
     { id: string; data: AIGatewayServiceRotateVirtualKeyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceRotateVirtualKey>>,
   TError,
@@ -1007,6 +1039,7 @@ export const getAIGatewayServiceRemoveMCPTeamPermissionMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceRemoveMCPTeamPermission>>,
   TError,
@@ -1014,11 +1047,11 @@ export const getAIGatewayServiceRemoveMCPTeamPermissionMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceRemoveMCPTeamPermission'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceRemoveMCPTeamPermission>>,
@@ -1026,7 +1059,7 @@ export const getAIGatewayServiceRemoveMCPTeamPermissionMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return aIGatewayServiceRemoveMCPTeamPermission(id);
+    return aIGatewayServiceRemoveMCPTeamPermission(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1048,6 +1081,7 @@ export const useAIGatewayServiceRemoveMCPTeamPermission = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceRemoveMCPTeamPermission>>,
   TError,
@@ -1092,14 +1126,15 @@ export const getAIGatewayServiceListMCPRoutesInfiniteQueryOptions = <
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceListMCPRoutesQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>> = ({
     signal,
-  }) => aIGatewayServiceListMCPRoutes(signal);
+  }) => aIGatewayServiceListMCPRoutes({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>,
@@ -1132,6 +1167,7 @@ export function useAIGatewayServiceListMCPRoutesInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPRoutesInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>>,
@@ -1152,6 +1188,7 @@ export function useAIGatewayServiceListMCPRoutesInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPRoutesInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>>,
@@ -1164,6 +1201,7 @@ export function useAIGatewayServiceListMCPRoutesInfinite<
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAIGatewayServiceListMCPRoutesInfinite<
@@ -1177,6 +1215,7 @@ export function useAIGatewayServiceListMCPRoutesInfinite<
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListMCPRoutesInfiniteQueryOptions(options);
 
@@ -1196,14 +1235,15 @@ export const getAIGatewayServiceListMCPRoutesQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceListMCPRoutesQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>> = ({
     signal,
-  }) => aIGatewayServiceListMCPRoutes(signal);
+  }) => aIGatewayServiceListMCPRoutes({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>,
@@ -1232,6 +1272,7 @@ export function useAIGatewayServiceListMCPRoutes<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPRoutes<
   TData = Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>,
@@ -1248,6 +1289,7 @@ export function useAIGatewayServiceListMCPRoutes<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPRoutes<
   TData = Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>,
@@ -1256,6 +1298,7 @@ export function useAIGatewayServiceListMCPRoutes<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAIGatewayServiceListMCPRoutes<
@@ -1265,6 +1308,7 @@ export function useAIGatewayServiceListMCPRoutes<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPRoutes>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListMCPRoutesQueryOptions(options);
 
@@ -1315,6 +1359,7 @@ export const getAIGatewayServiceCreateMCPRouteMutationOptions = <
     { data: V1CreateMCPRouteRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceCreateMCPRoute>>,
   TError,
@@ -1322,11 +1367,11 @@ export const getAIGatewayServiceCreateMCPRouteMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceCreateMCPRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceCreateMCPRoute>>,
@@ -1334,7 +1379,7 @@ export const getAIGatewayServiceCreateMCPRouteMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return aIGatewayServiceCreateMCPRoute(data);
+    return aIGatewayServiceCreateMCPRoute(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1359,6 +1404,7 @@ export const useAIGatewayServiceCreateMCPRoute = <
     { data: V1CreateMCPRouteRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceCreateMCPRoute>>,
   TError,
@@ -1402,6 +1448,7 @@ export const getAIGatewayServiceDeleteMCPRouteMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceDeleteMCPRoute>>,
   TError,
@@ -1409,11 +1456,11 @@ export const getAIGatewayServiceDeleteMCPRouteMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceDeleteMCPRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceDeleteMCPRoute>>,
@@ -1421,7 +1468,7 @@ export const getAIGatewayServiceDeleteMCPRouteMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return aIGatewayServiceDeleteMCPRoute(id);
+    return aIGatewayServiceDeleteMCPRoute(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1443,6 +1490,7 @@ export const useAIGatewayServiceDeleteMCPRoute = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceDeleteMCPRoute>>,
   TError,
@@ -1490,15 +1538,16 @@ export const getAIGatewayServiceGetMCPRouteInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceGetMCPRouteQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>> = ({
     signal,
-  }) => aIGatewayServiceGetMCPRoute(id, signal);
+  }) => aIGatewayServiceGetMCPRoute(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>,
@@ -1533,6 +1582,7 @@ export function useAIGatewayServiceGetMCPRouteInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPRouteInfinite<
@@ -1556,6 +1606,7 @@ export function useAIGatewayServiceGetMCPRouteInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPRouteInfinite<
@@ -1571,6 +1622,7 @@ export function useAIGatewayServiceGetMCPRouteInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1587,6 +1639,7 @@ export function useAIGatewayServiceGetMCPRouteInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceGetMCPRouteInfiniteQueryOptions(id, options);
@@ -1609,15 +1662,16 @@ export const getAIGatewayServiceGetMCPRouteQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceGetMCPRouteQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>> = ({
     signal,
-  }) => aIGatewayServiceGetMCPRoute(id, signal);
+  }) => aIGatewayServiceGetMCPRoute(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>,
@@ -1648,6 +1702,7 @@ export function useAIGatewayServiceGetMCPRoute<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPRoute<
@@ -1667,6 +1722,7 @@ export function useAIGatewayServiceGetMCPRoute<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPRoute<
@@ -1678,6 +1734,7 @@ export function useAIGatewayServiceGetMCPRoute<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1690,6 +1747,7 @@ export function useAIGatewayServiceGetMCPRoute<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceGetMCPRouteQueryOptions(id, options);
@@ -1739,6 +1797,7 @@ export const getAIGatewayServiceUpdateMCPRouteMutationOptions = <
     { id: string; data: AIGatewayServiceUpdateMCPRouteBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceUpdateMCPRoute>>,
   TError,
@@ -1746,11 +1805,11 @@ export const getAIGatewayServiceUpdateMCPRouteMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceUpdateMCPRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceUpdateMCPRoute>>,
@@ -1758,7 +1817,7 @@ export const getAIGatewayServiceUpdateMCPRouteMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aIGatewayServiceUpdateMCPRoute(id, data);
+    return aIGatewayServiceUpdateMCPRoute(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1780,6 +1839,7 @@ export const useAIGatewayServiceUpdateMCPRoute = <
     { id: string; data: AIGatewayServiceUpdateMCPRouteBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceUpdateMCPRoute>>,
   TError,
@@ -1820,14 +1880,15 @@ export const getAIGatewayServiceListMCPTeamsInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceListMCPTeamsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>> = ({
     signal,
-  }) => aIGatewayServiceListMCPTeams(signal);
+  }) => aIGatewayServiceListMCPTeams({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>,
@@ -1856,6 +1917,7 @@ export function useAIGatewayServiceListMCPTeamsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeamsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>>,
@@ -1872,6 +1934,7 @@ export function useAIGatewayServiceListMCPTeamsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeamsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>>,
@@ -1880,6 +1943,7 @@ export function useAIGatewayServiceListMCPTeamsInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAIGatewayServiceListMCPTeamsInfinite<
@@ -1889,6 +1953,7 @@ export function useAIGatewayServiceListMCPTeamsInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListMCPTeamsInfiniteQueryOptions(options);
 
@@ -1908,14 +1973,15 @@ export const getAIGatewayServiceListMCPTeamsQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceListMCPTeamsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>> = ({
     signal,
-  }) => aIGatewayServiceListMCPTeams(signal);
+  }) => aIGatewayServiceListMCPTeams({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>,
@@ -1944,6 +2010,7 @@ export function useAIGatewayServiceListMCPTeams<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeams<
   TData = Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>,
@@ -1960,6 +2027,7 @@ export function useAIGatewayServiceListMCPTeams<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeams<
   TData = Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>,
@@ -1968,6 +2036,7 @@ export function useAIGatewayServiceListMCPTeams<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAIGatewayServiceListMCPTeams<
@@ -1977,6 +2046,7 @@ export function useAIGatewayServiceListMCPTeams<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceListMCPTeams>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListMCPTeamsQueryOptions(options);
 
@@ -2024,6 +2094,7 @@ export const getAIGatewayServiceCreateMCPTeamMutationOptions = <
     { data: V1CreateMCPTeamRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceCreateMCPTeam>>,
   TError,
@@ -2031,11 +2102,11 @@ export const getAIGatewayServiceCreateMCPTeamMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceCreateMCPTeam'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceCreateMCPTeam>>,
@@ -2043,7 +2114,7 @@ export const getAIGatewayServiceCreateMCPTeamMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return aIGatewayServiceCreateMCPTeam(data);
+    return aIGatewayServiceCreateMCPTeam(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2065,6 +2136,7 @@ export const useAIGatewayServiceCreateMCPTeam = <TError = RpcStatus, TContext = 
     { data: V1CreateMCPTeamRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceCreateMCPTeam>>,
   TError,
@@ -2108,6 +2180,7 @@ export const getAIGatewayServiceDeleteMCPTeamMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceDeleteMCPTeam>>,
   TError,
@@ -2115,11 +2188,11 @@ export const getAIGatewayServiceDeleteMCPTeamMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceDeleteMCPTeam'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceDeleteMCPTeam>>,
@@ -2127,7 +2200,7 @@ export const getAIGatewayServiceDeleteMCPTeamMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return aIGatewayServiceDeleteMCPTeam(id);
+    return aIGatewayServiceDeleteMCPTeam(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2146,6 +2219,7 @@ export const useAIGatewayServiceDeleteMCPTeam = <TError = RpcStatus, TContext = 
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceDeleteMCPTeam>>,
   TError,
@@ -2189,15 +2263,16 @@ export const getAIGatewayServiceGetMCPTeamInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceGetMCPTeamQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>> = ({
     signal,
-  }) => aIGatewayServiceGetMCPTeam(id, signal);
+  }) => aIGatewayServiceGetMCPTeam(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>,
@@ -2228,6 +2303,7 @@ export function useAIGatewayServiceGetMCPTeamInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPTeamInfinite<
@@ -2247,6 +2323,7 @@ export function useAIGatewayServiceGetMCPTeamInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPTeamInfinite<
@@ -2258,6 +2335,7 @@ export function useAIGatewayServiceGetMCPTeamInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2270,6 +2348,7 @@ export function useAIGatewayServiceGetMCPTeamInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceGetMCPTeamInfiniteQueryOptions(id, options);
@@ -2292,15 +2371,16 @@ export const getAIGatewayServiceGetMCPTeamQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAIGatewayServiceGetMCPTeamQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>> = ({
     signal,
-  }) => aIGatewayServiceGetMCPTeam(id, signal);
+  }) => aIGatewayServiceGetMCPTeam(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>,
@@ -2331,6 +2411,7 @@ export function useAIGatewayServiceGetMCPTeam<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPTeam<
@@ -2350,6 +2431,7 @@ export function useAIGatewayServiceGetMCPTeam<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceGetMCPTeam<
@@ -2361,6 +2443,7 @@ export function useAIGatewayServiceGetMCPTeam<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2373,6 +2456,7 @@ export function useAIGatewayServiceGetMCPTeam<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aIGatewayServiceGetMCPTeam>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceGetMCPTeamQueryOptions(id, options);
@@ -2422,6 +2506,7 @@ export const getAIGatewayServiceUpdateMCPTeamMutationOptions = <
     { id: string; data: AIGatewayServiceUpdateMCPTeamBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceUpdateMCPTeam>>,
   TError,
@@ -2429,11 +2514,11 @@ export const getAIGatewayServiceUpdateMCPTeamMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceUpdateMCPTeam'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceUpdateMCPTeam>>,
@@ -2441,7 +2526,7 @@ export const getAIGatewayServiceUpdateMCPTeamMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aIGatewayServiceUpdateMCPTeam(id, data);
+    return aIGatewayServiceUpdateMCPTeam(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2460,6 +2545,7 @@ export const useAIGatewayServiceUpdateMCPTeam = <TError = RpcStatus, TContext = 
     { id: string; data: AIGatewayServiceUpdateMCPTeamBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceUpdateMCPTeam>>,
   TError,
@@ -2510,16 +2596,17 @@ export const getAIGatewayServiceListMCPTeamPermissionsInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
     queryOptions?.queryKey ?? getAIGatewayServiceListMCPTeamPermissionsQueryKey(teamId);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPTeamPermissions>>
-  > = ({ signal }) => aIGatewayServiceListMCPTeamPermissions(teamId, signal);
+  > = ({ signal }) => aIGatewayServiceListMCPTeamPermissions(teamId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!teamId, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPTeamPermissions>>,
@@ -2554,6 +2641,7 @@ export function useAIGatewayServiceListMCPTeamPermissionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeamPermissionsInfinite<
@@ -2577,6 +2665,7 @@ export function useAIGatewayServiceListMCPTeamPermissionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeamPermissionsInfinite<
@@ -2592,6 +2681,7 @@ export function useAIGatewayServiceListMCPTeamPermissionsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2608,6 +2698,7 @@ export function useAIGatewayServiceListMCPTeamPermissionsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListMCPTeamPermissionsInfiniteQueryOptions(
@@ -2637,16 +2728,17 @@ export const getAIGatewayServiceListMCPTeamPermissionsQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
     queryOptions?.queryKey ?? getAIGatewayServiceListMCPTeamPermissionsQueryKey(teamId);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPTeamPermissions>>
-  > = ({ signal }) => aIGatewayServiceListMCPTeamPermissions(teamId, signal);
+  > = ({ signal }) => aIGatewayServiceListMCPTeamPermissions(teamId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!teamId, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aIGatewayServiceListMCPTeamPermissions>>,
@@ -2681,6 +2773,7 @@ export function useAIGatewayServiceListMCPTeamPermissions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeamPermissions<
@@ -2704,6 +2797,7 @@ export function useAIGatewayServiceListMCPTeamPermissions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAIGatewayServiceListMCPTeamPermissions<
@@ -2719,6 +2813,7 @@ export function useAIGatewayServiceListMCPTeamPermissions<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2735,6 +2830,7 @@ export function useAIGatewayServiceListMCPTeamPermissions<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAIGatewayServiceListMCPTeamPermissionsQueryOptions(teamId, options);
@@ -2787,6 +2883,7 @@ export const getAIGatewayServiceAddMCPTeamPermissionMutationOptions = <
     { teamId: string; data: AIGatewayServiceAddMCPTeamPermissionBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aIGatewayServiceAddMCPTeamPermission>>,
   TError,
@@ -2794,11 +2891,11 @@ export const getAIGatewayServiceAddMCPTeamPermissionMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aIGatewayServiceAddMCPTeamPermission'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aIGatewayServiceAddMCPTeamPermission>>,
@@ -2806,7 +2903,7 @@ export const getAIGatewayServiceAddMCPTeamPermissionMutationOptions = <
   > = (props) => {
     const { teamId, data } = props ?? {};
 
-    return aIGatewayServiceAddMCPTeamPermission(teamId, data);
+    return aIGatewayServiceAddMCPTeamPermission(teamId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2832,6 +2929,7 @@ export const useAIGatewayServiceAddMCPTeamPermission = <
     { teamId: string; data: AIGatewayServiceAddMCPTeamPermissionBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aIGatewayServiceAddMCPTeamPermission>>,
   TError,

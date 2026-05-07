@@ -1,5 +1,10 @@
 /**
  * Unit tests for <ServiceList> + <ServiceFilterBar>.
+ *
+ * Stage 2: <ServiceList> is real-endpoint backed via `useServiceListReal`.
+ * Tests stub the daemon `GET /api/v1/t/{tenant}/services` endpoint with MSW
+ * and verify the list renders the response. The filter-bar is a pure
+ * controlled component so it does not need any HTTP setup.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -9,19 +14,43 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn() }),
 }));
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw-server';
+import type { ListServices200, V1Service } from '@/api/generated/schemas';
 import { ServiceList } from '../components/list';
 import { ServiceFilterBar } from '../components/filter-bar';
 import type { ServiceFilter } from '../types';
+import { LBL_ENV, LBL_PROTOCOL, LBL_TAGS } from '../adapter';
 
-function wrap(ui: React.ReactNode) {
+const TENANT = 'tenant-list-1';
+
+function makeProtoService(overrides: Partial<V1Service> = {}): V1Service {
+  return {
+    id: 'svc-1',
+    name: 'fixture',
+    upstreams: [{ address: 'http://up:8080', healthy: true }],
+    labels: {
+      labels: { [LBL_ENV]: 'production', [LBL_PROTOCOL]: 'http', [LBL_TAGS]: '' },
+    },
+    createdAt: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function wrap(ui: ReactNode) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
+      <QueryClientProvider client={qc}>
+        <ModalsProvider>{ui}</ModalsProvider>
+      </QueryClientProvider>
     </MantineProvider>,
   );
 }
@@ -34,22 +63,28 @@ const DEFAULT_FILTER: ServiceFilter = {
 };
 
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
+  server.use(
+    http.get(`*/api/v1/t/${TENANT}/services`, () =>
+      HttpResponse.json<ListServices200>({
+        items: [
+          makeProtoService({ id: 'svc-1', name: 'auth-api' }),
+          makeProtoService({
+            id: 'svc-2',
+            name: 'billing-api',
+            upstreams: [{ address: 'http://billing:8080', healthy: false }],
+          }),
+        ],
+        total: 2,
+      }),
+    ),
+  );
 });
 
-function acmeId(): string {
-  const state = useMockStore.getState();
-  const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
-  if (!acme) throw new Error('No acme tenant seeded');
-  return acme.id;
-}
-
 describe('ServiceList', () => {
-  it('renders seeded services for acme tenant', () => {
+  it('renders services from the daemon list endpoint', async () => {
     wrap(
       <ServiceList
-        tenantId={acmeId()}
+        tenantId={TENANT}
         filter={DEFAULT_FILTER}
         onSelect={vi.fn()}
         onEdit={vi.fn()}
@@ -57,16 +92,18 @@ describe('ServiceList', () => {
         onForceReload={vi.fn()}
       />,
     );
-    // At least 1 header + N data rows
-    const rows = screen.getAllByRole('row');
-    expect(rows.length).toBeGreaterThan(1);
+
+    await waitFor(() => {
+      expect(screen.getByText('auth-api')).toBeInTheDocument();
+    });
+    expect(screen.getByText('billing-api')).toBeInTheDocument();
   });
 
-  it('fires onSelect when a row is clicked', () => {
+  it('fires onSelect when a row is clicked', async () => {
     const onSelect = vi.fn();
     wrap(
       <ServiceList
-        tenantId={acmeId()}
+        tenantId={TENANT}
         filter={DEFAULT_FILTER}
         onSelect={onSelect}
         onEdit={vi.fn()}
@@ -74,6 +111,9 @@ describe('ServiceList', () => {
         onForceReload={vi.fn()}
       />,
     );
+    await waitFor(() => {
+      expect(screen.getByText('auth-api')).toBeInTheDocument();
+    });
     const dataRows = screen.getAllByRole('row').slice(1);
     const firstRow = dataRows[0];
     if (!firstRow) throw new Error('No data rows');
@@ -81,42 +121,15 @@ describe('ServiceList', () => {
     expect(onSelect).toHaveBeenCalledOnce();
   });
 
-  it('narrows the list when health filter is set', () => {
-    const { rerender } = wrap(
-      <ServiceList
-        tenantId={acmeId()}
-        filter={DEFAULT_FILTER}
-        onSelect={vi.fn()}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-        onForceReload={vi.fn()}
-      />,
+  it('shows empty state when the daemon returns no services', async () => {
+    server.use(
+      http.get(`*/api/v1/t/empty-tenant/services`, () =>
+        HttpResponse.json<ListServices200>({ items: [], total: 0 }),
+      ),
     );
-    const allCount = screen.getAllByRole('row').length;
-
-    rerender(
-      <MantineProvider>
-        <ModalsProvider>
-          <ServiceList
-            tenantId={acmeId()}
-            filter={{ ...DEFAULT_FILTER, health: ['unhealthy'] }}
-            onSelect={vi.fn()}
-            onEdit={vi.fn()}
-            onDelete={vi.fn()}
-            onForceReload={vi.fn()}
-          />
-        </ModalsProvider>
-      </MantineProvider>,
-    );
-    const filteredCount = screen.queryAllByRole('row').length;
-    // Either narrower, or the empty-state renders (which has zero rows).
-    expect(filteredCount).toBeLessThanOrEqual(allCount);
-  });
-
-  it('shows empty state when tenant has no services', () => {
     wrap(
       <ServiceList
-        tenantId="nonexistent-tenant-id"
+        tenantId="empty-tenant"
         filter={DEFAULT_FILTER}
         onSelect={vi.fn()}
         onEdit={vi.fn()}
@@ -124,7 +137,9 @@ describe('ServiceList', () => {
         onForceReload={vi.fn()}
       />,
     );
-    expect(screen.getAllByText(/no services/i).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText(/no services/i).length).toBeGreaterThan(0);
+    });
   });
 });
 
@@ -138,7 +153,6 @@ describe('ServiceFilterBar', () => {
         tagOptions={['auth', 'billing']}
       />,
     );
-    // Mantine Select renders multiple aria-labelled elements; use getAllBy.
     expect(screen.getAllByLabelText('Filter by health').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Filter by environment').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Filter by tag').length).toBeGreaterThan(0);

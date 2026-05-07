@@ -42,6 +42,8 @@ import type {
 import type { V1Route } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List routes
  */
@@ -76,14 +78,15 @@ export const getListRoutesInfiniteQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoutes>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRoutesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoutes>>> = ({ signal }) =>
-    listRoutes(tenant, signal);
+    listRoutes(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listRoutes>>,
@@ -110,6 +113,7 @@ export function useListRoutesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutesInfinite<
@@ -129,6 +133,7 @@ export function useListRoutesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutesInfinite<
@@ -138,6 +143,7 @@ export function useListRoutesInfinite<
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoutes>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -151,6 +157,7 @@ export function useListRoutesInfinite<
   tenant: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoutes>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRoutesInfiniteQueryOptions(tenant, options);
@@ -171,14 +178,15 @@ export const getListRoutesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutes>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRoutesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoutes>>> = ({ signal }) =>
-    listRoutes(tenant, signal);
+    listRoutes(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listRoutes>>,
@@ -202,6 +210,7 @@ export function useListRoutes<TData = Awaited<ReturnType<typeof listRoutes>>, TE
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutes<TData = Awaited<ReturnType<typeof listRoutes>>, TError = unknown>(
@@ -216,12 +225,14 @@ export function useListRoutes<TData = Awaited<ReturnType<typeof listRoutes>>, TE
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutes<TData = Awaited<ReturnType<typeof listRoutes>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutes>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -232,6 +243,7 @@ export function useListRoutes<TData = Awaited<ReturnType<typeof listRoutes>>, TE
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutes>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRoutesQueryOptions(tenant, options);
@@ -278,6 +290,7 @@ export const getCreateRouteMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; data: V1Route },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createRoute>>,
   TError,
@@ -285,11 +298,11 @@ export const getCreateRouteMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['createRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createRoute>>,
@@ -297,7 +310,7 @@ export const getCreateRouteMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createRoute(tenant, data);
+    return createRoute(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -317,6 +330,7 @@ export const useCreateRoute = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; data: V1Route },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createRoute>>,
   TError,
@@ -355,6 +369,7 @@ export const getDeleteRouteMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteRoute>>,
   TError,
@@ -362,11 +377,11 @@ export const getDeleteRouteMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['deleteRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteRoute>>,
@@ -374,7 +389,7 @@ export const getDeleteRouteMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteRoute(tenant, id);
+    return deleteRoute(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -391,6 +406,7 @@ export const useDeleteRoute = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteRoute>>,
   TError,
@@ -434,14 +450,15 @@ export const getGetRouteInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRoute>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetRouteQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoute>>> = ({ signal }) =>
-    getRoute(tenant, id, signal);
+    getRoute(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -472,6 +489,7 @@ export function useGetRouteInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRouteInfinite<
@@ -490,6 +508,7 @@ export function useGetRouteInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRouteInfinite<
@@ -500,6 +519,7 @@ export function useGetRouteInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRoute>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -511,6 +531,7 @@ export function useGetRouteInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRoute>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRouteInfiniteQueryOptions(tenant, id, options);
@@ -532,14 +553,15 @@ export const getGetRouteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoute>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetRouteQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoute>>> = ({ signal }) =>
-    getRoute(tenant, id, signal);
+    getRoute(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getRoute>>,
@@ -564,6 +586,7 @@ export function useGetRoute<TData = Awaited<ReturnType<typeof getRoute>>, TError
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRoute<TData = Awaited<ReturnType<typeof getRoute>>, TError = unknown>(
@@ -579,6 +602,7 @@ export function useGetRoute<TData = Awaited<ReturnType<typeof getRoute>>, TError
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRoute<TData = Awaited<ReturnType<typeof getRoute>>, TError = unknown>(
@@ -586,6 +610,7 @@ export function useGetRoute<TData = Awaited<ReturnType<typeof getRoute>>, TError
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoute>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -594,6 +619,7 @@ export function useGetRoute<TData = Awaited<ReturnType<typeof getRoute>>, TError
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoute>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRouteQueryOptions(tenant, id, options);
@@ -638,6 +664,7 @@ export const getPatchRouteMutationOptions = <TError = unknown, TContext = unknow
     { tenant: string; id: string; data: V1Route },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchRoute>>,
   TError,
@@ -645,11 +672,11 @@ export const getPatchRouteMutationOptions = <TError = unknown, TContext = unknow
   TContext
 > => {
   const mutationKey = ['patchRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchRoute>>,
@@ -657,7 +684,7 @@ export const getPatchRouteMutationOptions = <TError = unknown, TContext = unknow
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchRoute(tenant, id, data);
+    return patchRoute(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -674,6 +701,7 @@ export const usePatchRoute = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string; data: V1Route },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchRoute>>,
   TError,
@@ -715,6 +743,7 @@ export const getReplaceRouteMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string; data: V1Route },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceRoute>>,
   TError,
@@ -722,11 +751,11 @@ export const getReplaceRouteMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['replaceRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceRoute>>,
@@ -734,7 +763,7 @@ export const getReplaceRouteMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return replaceRoute(tenant, id, data);
+    return replaceRoute(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -751,6 +780,7 @@ export const useReplaceRoute = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string; data: V1Route },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceRoute>>,
   TError,
@@ -799,14 +829,15 @@ export const getListPoliciesByRouteInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPoliciesByRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListPoliciesByRouteQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listPoliciesByRoute>>> = ({ signal }) =>
-    listPoliciesByRoute(tenant, id, signal);
+    listPoliciesByRoute(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -841,6 +872,7 @@ export function useListPoliciesByRouteInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPoliciesByRouteInfinite<
@@ -861,6 +893,7 @@ export function useListPoliciesByRouteInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPoliciesByRouteInfinite<
@@ -873,6 +906,7 @@ export function useListPoliciesByRouteInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPoliciesByRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -889,6 +923,7 @@ export function useListPoliciesByRouteInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPoliciesByRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListPoliciesByRouteInfiniteQueryOptions(tenant, id, options);
@@ -912,14 +947,15 @@ export const getListPoliciesByRouteQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listPoliciesByRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListPoliciesByRouteQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listPoliciesByRoute>>> = ({ signal }) =>
-    listPoliciesByRoute(tenant, id, signal);
+    listPoliciesByRoute(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listPoliciesByRoute>>,
@@ -951,6 +987,7 @@ export function useListPoliciesByRoute<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPoliciesByRoute<
@@ -971,6 +1008,7 @@ export function useListPoliciesByRoute<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPoliciesByRoute<
@@ -983,6 +1021,7 @@ export function useListPoliciesByRoute<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listPoliciesByRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -999,6 +1038,7 @@ export function useListPoliciesByRoute<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listPoliciesByRoute>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListPoliciesByRouteQueryOptions(tenant, id, options);
@@ -1050,6 +1090,7 @@ export const getDetachPolicyFromRouteMutationOptions = <
     { tenant: string; id: string; policyId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof detachPolicyFromRoute>>,
   TError,
@@ -1057,11 +1098,11 @@ export const getDetachPolicyFromRouteMutationOptions = <
   TContext
 > => {
   const mutationKey = ['detachPolicyFromRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof detachPolicyFromRoute>>,
@@ -1069,7 +1110,7 @@ export const getDetachPolicyFromRouteMutationOptions = <
   > = (props) => {
     const { tenant, id, policyId } = props ?? {};
 
-    return detachPolicyFromRoute(tenant, id, policyId);
+    return detachPolicyFromRoute(tenant, id, policyId, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1091,6 +1132,7 @@ export const useDetachPolicyFromRoute = <TError = unknown, TContext = unknown>(o
     { tenant: string; id: string; policyId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof detachPolicyFromRoute>>,
   TError,
@@ -1136,6 +1178,7 @@ export const getAttachPolicyToRouteMutationOptions = <
     { tenant: string; id: string; policyId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof attachPolicyToRoute>>,
   TError,
@@ -1143,11 +1186,11 @@ export const getAttachPolicyToRouteMutationOptions = <
   TContext
 > => {
   const mutationKey = ['attachPolicyToRoute'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof attachPolicyToRoute>>,
@@ -1155,7 +1198,7 @@ export const getAttachPolicyToRouteMutationOptions = <
   > = (props) => {
     const { tenant, id, policyId } = props ?? {};
 
-    return attachPolicyToRoute(tenant, id, policyId);
+    return attachPolicyToRoute(tenant, id, policyId, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1177,6 +1220,7 @@ export const useAttachPolicyToRoute = <TError = unknown, TContext = unknown>(opt
     { tenant: string; id: string; policyId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof attachPolicyToRoute>>,
   TError,

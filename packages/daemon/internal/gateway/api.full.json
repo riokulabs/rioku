@@ -2807,62 +2807,35 @@
         },
         "type": "object"
       },
-      "AuditEntry": {
+      "AccessPolicy": {
         "properties": {
-          "_links": {
-            "$ref": "#/components/schemas/LinkSet"
-          },
-          "actor": {
+          "createdAt": {
+            "format": "date-time",
             "type": "string"
           },
-          "configVersion": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "diff": {
+          "description": {
             "type": "string"
           },
-          "entityId": {
+          "effect": {
+            "enum": [
+              "allow",
+              "deny"
+            ],
             "type": "string"
           },
-          "entityType": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "expression": {
             "type": "string"
           },
           "id": {
             "type": "string"
           },
-          "occurredAt": {
-            "format": "date-time",
+          "name": {
             "type": "string"
           },
-          "operation": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "AuditRetentionConfig": {
-        "properties": {
-          "autoExport": {
-            "type": "string"
-          },
-          "autoExportDestination": {
-            "nullable": true,
-            "type": "string"
-          },
-          "autoExportFormat": {
-            "type": "string"
-          },
-          "retentionDaysDestructive": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "retentionDaysRead": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "retentionDaysWrite": {
-            "format": "int32",
+          "priority": {
             "type": "integer"
           },
           "tenantId": {
@@ -2873,6 +2846,99 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "CreateAccessPolicyBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "effect": {
+            "default": "allow",
+            "enum": [
+              "allow",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "type": "boolean"
+          },
+          "expression": {
+            "description": "CEL expression evaluated against the request context.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "description": "Lower priority numbers evaluate first.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "expression"
+        ],
+        "type": "object"
+      },
+      "CreateMiddlewareBody": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "orderHint": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "CreateSiteBody": {
+        "properties": {
+          "basicAuthEnabled": {
+            "type": "boolean"
+          },
+          "basicAuthRealm": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rateLimitPreset": {
+            "type": "string"
+          },
+          "redirectRules": {
+            "type": "string"
+          },
+          "tlsMode": {
+            "type": "string"
+          },
+          "upstreamServiceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "domain"
+        ],
         "type": "object"
       },
       "Link": {
@@ -2894,6 +2960,41 @@
       "LinkSet": {
         "additionalProperties": {
           "$ref": "#/components/schemas/Link"
+        },
+        "type": "object"
+      },
+      "Middleware": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "orderHint": {
+            "type": "integer"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
         },
         "type": "object"
       },
@@ -2936,6 +3037,160 @@
           "title",
           "status"
         ],
+        "type": "object"
+      },
+      "Site": {
+        "properties": {
+          "basicAuthEnabled": {
+            "type": "boolean"
+          },
+          "basicAuthRealm": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rateLimitPreset": {
+            "type": "string"
+          },
+          "redirectRules": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "tlsMode": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "upstreamServiceId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TestCELBody": {
+        "properties": {
+          "expr": {
+            "description": "CEL expression to evaluate.",
+            "type": "string"
+          },
+          "sample": {
+            "additionalProperties": true,
+            "description": "Sample event variables (request, user, env, etc.).",
+            "type": "object"
+          }
+        },
+        "required": [
+          "expr"
+        ],
+        "type": "object"
+      },
+      "TestCELResult": {
+        "properties": {
+          "durationMs": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          },
+          "matched": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateAccessPolicyBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "effect": {
+            "enum": [
+              "allow",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateMiddlewareBody": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "orderHint": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateSiteBody": {
+        "properties": {
+          "basicAuthEnabled": {
+            "type": "boolean"
+          },
+          "basicAuthRealm": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rateLimitPreset": {
+            "type": "string"
+          },
+          "redirectRules": {
+            "type": "string"
+          },
+          "tlsMode": {
+            "type": "string"
+          },
+          "upstreamServiceId": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "V1PluginConfigSchemaValue": {
@@ -5461,6 +5716,229 @@
         }
       }
     },
+    "/api/v1/t/{tenant}/access-policies": {
+      "get": {
+        "operationId": "listAccessPolicies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "accessPolicies": {
+                      "items": {
+                        "$ref": "#/components/schemas/AccessPolicy"
+                      },
+                      "type": "array"
+                    },
+                    "nextPageToken": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of access policies"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessPolicyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicy"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/access-policies/test-cel": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "description": "Compiles the given CEL expression and evaluates it against the supplied\nsample request event. Used by the policy editor's \"Test condition\"\nbutton (decisions-needed.md item 004). Errors surface as `error` in the\nresponse with the matched flag false.\n",
+        "operationId": "testAccessPolicyCEL",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCELBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCELResult"
+                }
+              }
+            },
+            "description": "evaluation result"
+          },
+          "400": {
+            "description": "invalid request body"
+          }
+        },
+        "summary": "Evaluate a CEL expression against a sample event",
+        "tags": [
+          "access-policies"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/access-policies/{id}": {
+      "delete": {
+        "operationId": "deleteAccessPolicy",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "get": {
+        "operationId": "getAccessPolicy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicy"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccessPolicyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicy"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      },
+      "put": {
+        "operationId": "replaceAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccessPolicyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicy"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "access-policies"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/api-keys": {
       "get": {
         "operationId": "listAPIKeys",
@@ -5777,143 +6255,11 @@
         }
       ]
     },
-    "/api/v1/t/{tenant}/audit": {
-      "get": {
-        "description": "Returns audit entries newest-first matching the supplied filters.\nTotal unpaginated match count is returned in the `X-Total-Count`\nheader so callers can render \"page 1 of N\" without a separate\ncount call.\n",
-        "operationId": "listAuditEntries",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AuditEntry"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "ok",
-            "headers": {
-              "X-Total-Count": {
-                "description": "Total number of entries matching the filter (ignores limit/offset).",
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
-          }
-        },
-        "summary": "List audit entries",
-        "tags": [
-          "audit"
-        ]
-      },
-      "options": {
-        "responses": {
-          "204": {
-            "description": "no content"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/Tenant"
-        },
-        {
-          "description": "Filter by actor id (exact match).",
-          "in": "query",
-          "name": "actor",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "description": "Filter by entity type (e.g. service, route, policy).",
-          "in": "query",
-          "name": "entity_type",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "description": "Filter by entity id.",
-          "in": "query",
-          "name": "entity_id",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "description": "Convenience range — Go-ish duration with `h` or `d` suffix (e.g. 24h, 7d).",
-          "in": "query",
-          "name": "range",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "description": "RFC3339 timestamp; takes precedence over `range`.",
-          "in": "query",
-          "name": "since",
-          "schema": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        {
-          "description": "RFC3339 upper bound.",
-          "in": "query",
-          "name": "until",
-          "schema": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "limit",
-          "schema": {
-            "default": 100,
-            "maximum": 1000,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        {
-          "in": "query",
-          "name": "offset",
-          "schema": {
-            "default": 0,
-            "minimum": 0,
-            "type": "integer"
-          }
-        }
-      ]
-    },
     "/api/v1/t/{tenant}/audit/actors": {
       "get": {
         "operationId": "listAuditActors",
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "items": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "total": {
-                      "type": "integer"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
             "description": "ok"
           }
         },
@@ -5954,7 +6300,7 @@
     },
     "/api/v1/t/{tenant}/audit/export/csv": {
       "get": {
-        "description": "Streams Content-Disposition: attachment CSV. Honours the same filter set as GET /audit.",
+        "description": "Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until).",
         "operationId": "exportAuditCSV",
         "responses": {
           "200": {
@@ -5983,56 +6329,11 @@
       "parameters": [
         {
           "$ref": "#/components/parameters/Tenant"
-        },
-        {
-          "in": "query",
-          "name": "actor",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "entity_type",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "entity_id",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "range",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "since",
-          "schema": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "until",
-          "schema": {
-            "format": "date-time",
-            "type": "string"
-          }
         }
       ]
     },
     "/api/v1/t/{tenant}/audit/export/jsonl": {
       "get": {
-        "description": "Streams Content-Disposition: attachment NDJSON.",
         "operationId": "exportAuditJSONL",
         "responses": {
           "200": {
@@ -6061,50 +6362,6 @@
       "parameters": [
         {
           "$ref": "#/components/parameters/Tenant"
-        },
-        {
-          "in": "query",
-          "name": "actor",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "entity_type",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "entity_id",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "range",
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "since",
-          "schema": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        {
-          "in": "query",
-          "name": "until",
-          "schema": {
-            "format": "date-time",
-            "type": "string"
-          }
         }
       ]
     },
@@ -6113,27 +6370,6 @@
         "operationId": "listAuditResourceIDs",
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "entityType": {
-                      "type": "string"
-                    },
-                    "items": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "total": {
-                      "type": "integer"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
             "description": "ok"
           }
         },
@@ -6180,110 +6416,6 @@
         }
       ]
     },
-    "/api/v1/t/{tenant}/audit/retention": {
-      "get": {
-        "description": "Returns defaults if no row exists for the tenant.",
-        "operationId": "getAuditRetentionConfig",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuditRetentionConfig"
-                }
-              }
-            },
-            "description": "ok"
-          }
-        },
-        "summary": "Get audit-retention config",
-        "tags": [
-          "audit"
-        ]
-      },
-      "options": {
-        "responses": {
-          "204": {
-            "description": "no content"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/Tenant"
-        }
-      ],
-      "put": {
-        "operationId": "upsertAuditRetentionConfig",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "autoExport": {
-                    "enum": [
-                      "off",
-                      "on"
-                    ],
-                    "type": "string"
-                  },
-                  "autoExportDestination": {
-                    "nullable": true,
-                    "type": "string"
-                  },
-                  "autoExportFormat": {
-                    "enum": [
-                      "csv",
-                      "jsonl"
-                    ],
-                    "type": "string"
-                  },
-                  "retentionDaysDestructive": {
-                    "format": "int32",
-                    "maximum": 3650,
-                    "minimum": 1,
-                    "type": "integer"
-                  },
-                  "retentionDaysRead": {
-                    "format": "int32",
-                    "maximum": 3650,
-                    "minimum": 1,
-                    "type": "integer"
-                  },
-                  "retentionDaysWrite": {
-                    "format": "int32",
-                    "maximum": 3650,
-                    "minimum": 1,
-                    "type": "integer"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuditRetentionConfig"
-                }
-              }
-            },
-            "description": "ok"
-          },
-          "400": {
-            "description": "invalid"
-          }
-        },
-        "summary": "Replace audit-retention config",
-        "tags": [
-          "audit"
-        ]
-      }
-    },
     "/api/v1/t/{tenant}/audit/stream": {
       "get": {
         "description": "Server-Sent Events feed. Each event is named `audit` with a JSON\npayload of {id, actor, entityType, entityId, operation, occurredAt}.\nBacked by a 5-second poll today; will move to push once an audit\nwatcher lands.\n",
@@ -6326,7 +6458,38 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuditEntry"
+                  "properties": {
+                    "_links": {
+                      "$ref": "#/components/schemas/LinkSet"
+                    },
+                    "actor": {
+                      "type": "string"
+                    },
+                    "configVersion": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "diff": {
+                      "type": "string"
+                    },
+                    "entityId": {
+                      "type": "string"
+                    },
+                    "entityType": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "operation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -6357,7 +6520,109 @@
         }
       ]
     },
-    "/api/v1/t/{tenant}/audit/{id}/reveal": {
+    "/api/v1/t/{tenant}/middlewares": {
+      "get": {
+        "operationId": "listMiddlewares",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/Middleware"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of middlewares"
+          }
+        },
+        "summary": "List middlewares",
+        "tags": [
+          "middlewares"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createMiddleware",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMiddlewareBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Middleware"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create middleware",
+        "tags": [
+          "middlewares"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/middlewares/{id}": {
+      "delete": {
+        "operationId": "deleteMiddleware",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "middlewares"
+        ]
+      },
+      "get": {
+        "operationId": "getMiddleware",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Middleware"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "middlewares"
+        ]
+      },
       "options": {
         "responses": {
           "204": {
@@ -6373,24 +6638,13 @@
           "$ref": "#/components/parameters/ID"
         }
       ],
-      "post": {
-        "description": "Records a follow-up audit row capturing the reveal action and the\ncaller-supplied reason, then returns the original entry with\nsensitive fields (ip / user_agent / payload) included. Requires\nthe `audit:read-sensitive` permission.\n",
-        "operationId": "revealAuditEntry",
+      "patch": {
+        "operationId": "patchMiddleware",
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/merge-patch+json": {
               "schema": {
-                "properties": {
-                  "reason": {
-                    "description": "Compliance justification, persisted with the new audit row.",
-                    "minLength": 4,
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "reason"
-                ],
-                "type": "object"
+                "$ref": "#/components/schemas/UpdateMiddlewareBody"
               }
             }
           },
@@ -6401,33 +6655,43 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "entry": {
-                      "$ref": "#/components/schemas/AuditEntry"
-                    },
-                    "revealEntry": {
-                      "$ref": "#/components/schemas/AuditEntry"
-                    }
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/Middleware"
                 }
               }
             },
             "description": "ok"
-          },
-          "400": {
-            "description": "invalid reason"
-          },
-          "403": {
-            "description": "forbidden"
-          },
-          "404": {
-            "description": "not found"
           }
         },
-        "summary": "Reveal sensitive fields on an audit entry",
         "tags": [
-          "audit"
+          "middlewares"
+        ]
+      },
+      "put": {
+        "operationId": "replaceMiddleware",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMiddlewareBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Middleware"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "middlewares"
         ]
       }
     },
@@ -7080,6 +7344,227 @@
           "$ref": "#/components/parameters/ID"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/sites": {
+      "get": {
+        "operationId": "listSites",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/Site"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of sites"
+          }
+        },
+        "summary": "List sites",
+        "tags": [
+          "sites"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createSite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSiteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Site"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create site",
+        "tags": [
+          "sites"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/sites/{id}": {
+      "delete": {
+        "operationId": "deleteSite",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "sites"
+        ]
+      },
+      "get": {
+        "operationId": "getSite",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Site"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "sites"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchSite",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSiteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Site"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "sites"
+        ]
+      },
+      "put": {
+        "operationId": "replaceSite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSiteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Site"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "sites"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/sites/{id}/enabled": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "toggleSite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        },
+        "tags": [
+          "sites"
+        ]
+      }
     },
     "/api/v1/traffic/sessions": {
       "get": {

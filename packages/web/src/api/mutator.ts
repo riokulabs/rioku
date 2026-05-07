@@ -85,47 +85,36 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 /**
- * Two call shapes are supported:
- *
- *   1. The hand-rolled shape `{ url, method, data?, signal?, params? }` used
- *      throughout the admin SPA prior to Orval codegen.
- *   2. The positional `(url, init)` shape that Orval-generated clients use,
- *      where `init` is a `RequestInit` (method/body/headers/signal already
- *      packed in by the caller).
- *
- * Internally both shapes converge on the `{ url, method, ... }` form before
- * issuing the actual fetch. The body/headers from the Orval `init` are
- * forwarded as-is so generated `Content-Type: application/json` + pre-
- * serialised JSON bodies survive the trip.
+ * Orval `httpClient: 'fetch'` calls the mutator as
+ *   customFetch<{data, status, headers}>(url, RequestInit)
+ * and the generated hooks read `.data` from the result. To keep both the
+ * legacy `{url, method, data}` callsites and the orval generated callsites
+ * working through a single mutator, this function accepts either form.
  */
+export interface OrvalFetchResponse<T> {
+  data: T;
+  status: number;
+  headers: Headers;
+}
+
 export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
 export async function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
 export async function customFetch<T>(
   argsOrUrl: CustomFetchArgs | string,
-  initArg?: RequestInit,
+  init?: RequestInit,
 ): Promise<T> {
-  const { url, method, data, signal, params, init } =
-    typeof argsOrUrl === 'string'
-      ? {
-          url: argsOrUrl,
-          method: initArg?.method ?? 'GET',
-          data: undefined as unknown,
-          signal: initArg?.signal ?? undefined,
-          params: undefined,
-          init: initArg,
-        }
-      : { ...argsOrUrl, init: undefined as RequestInit | undefined };
-
-  let fullUrl: string;
-  if (url.startsWith('http')) {
-    fullUrl = url;
-  } else if (url.startsWith('/api/')) {
-    // Generated Orval clients already include the /api/v1 prefix in
-    // their URL builders; don't double-prepend the base.
-    fullUrl = url;
-  } else {
-    fullUrl = `${BASE}${url}`;
+  // Path A — generated orval client: (url, RequestInit) → {data, status, headers}
+  if (typeof argsOrUrl === 'string') {
+    return runOrvalFetch<T>(argsOrUrl, init);
   }
+  // Path B — legacy callers (apiClient shim, use-openapi-spec, use-opaque-filter)
+  return runLegacyFetch<T>(argsOrUrl);
+}
+
+async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
+  const { url, method, data, signal, params } = args;
+
+  let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -145,16 +134,6 @@ export async function customFetch<T>(
     fetchInit.body = JSON.stringify(data);
   }
   if (signal !== undefined) fetchInit.signal = signal;
-
-  // When called via the Orval positional shape, the body / headers are
-  // already packed into `init` — forward them onto the fetch init.
-  if (init) {
-    if (init.body !== undefined && init.body !== null) fetchInit.body = init.body;
-    if (init.headers) {
-      const ih = init.headers as Record<string, string>;
-      for (const [k, v] of Object.entries(ih)) headers[k.toLowerCase()] = v;
-    }
-  }
 
   let res: Response;
   try {
@@ -182,4 +161,51 @@ export async function customFetch<T>(
     }
   }
   return (await res.text()) as T;
+}
+
+async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url.replace(/^\/api\/v1/, '')}`;
+
+  const baseHeaders = new Headers(init?.headers);
+  if (init?.body !== undefined && !baseHeaders.has('content-type')) {
+    baseHeaders.set('content-type', 'application/json');
+  }
+  const fetchInit: RequestInit = {
+    ...init,
+    headers: baseHeaders,
+    credentials: init?.credentials ?? 'include',
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(fullUrl, fetchInit);
+  } catch (cause) {
+    throw new NetworkError({ cause });
+  }
+
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (err instanceof AuthFailureError) {
+      _authFailureHandler?.(window.location.pathname + window.location.search);
+    }
+    throw err;
+  }
+
+  let data: unknown;
+  if (res.status === 204) {
+    data = undefined;
+  } else {
+    const ct = res.headers.get('content-type');
+    if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
+      try {
+        data = await res.json();
+      } catch (cause) {
+        throw new ApiError('Failed to parse response JSON', { cause });
+      }
+    } else {
+      data = await res.text();
+    }
+  }
+
+  return { data, status: res.status, headers: res.headers } as T;
 }

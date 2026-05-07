@@ -446,6 +446,19 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.engine.SetCompiler(compiler)
 	slog.Info("compiler updated with admin config", "component", "config")
 
+	// 8a. Wire the Caddy admin-API reload hook (Plan 03 / decision item 005).
+	// Every config-mutating REST handler calls triggerCaddyReload after its
+	// transaction commits; the hook here POSTs the freshly compiled config
+	// to Caddy's /load endpoint. The sync agent below remains responsible
+	// for store-watcher triggered reloads (initial sync + cluster changes);
+	// the hook adds synchronous reloads for direct admin-panel mutations.
+	caddyAdminURL := "http://" + d.cfg.Caddy.AdminAddr
+	gateway.SetCaddyReloadHook(gateway.NewCaddyAdminReloader(gateway.CaddyReloaderConfig{
+		AdminURL: caddyAdminURL,
+		Compile:  d.engine.CompileCaddyConfig,
+		Logger:   slog.Default().With("component", "caddy-reload"),
+	}))
+
 	// 8. Start sync agent (watches config changes, pushes to Caddy).
 	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy, syncLog)
 	d.syncAgent.Start(ctx)

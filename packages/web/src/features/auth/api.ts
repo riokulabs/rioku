@@ -1,17 +1,28 @@
 /**
- * Auth feature — mock auth operations backed by the Zustand mock store.
+ * Auth feature — real daemon-backed auth operations.
  *
- * Stage-1 semantics (spec §14.1 "UI present, backend deferred"):
- *  - Passwords are not checked — any non-empty string passes.
- *  - TOTP: any 6-digit numeric code passes.
- *  - All real cryptography happens in the daemon; these mocks satisfy the UI flow.
+ * All functions here issue HTTP requests to the daemon's `/api/v1/auth/*`
+ * endpoints via `customFetch`. The daemon manages the HttpOnly session cookie;
+ * the SPA never sees or stores tokens.
  *
- * spec §6 / Task 1e.83
+ * Daemon endpoint mapping:
+ *  - login                → POST /auth/login (re-called with totpCode for step 2)
+ *  - logout               → POST /auth/logout
+ *  - whoami / current     → GET  /auth/me
+ *  - bootstrap status     → GET  /auth/bootstrap-status
+ *  - bootstrap            → POST /auth/bootstrap
+ *  - totp setup           → POST /auth/totp/setup
+ *  - totp verify (enroll) → POST /auth/totp/verify  → returns backup codes
+ *  - password reset req   → POST /auth/password-reset/request
+ *  - password reset valid → GET  /auth/password-reset/validate?token=…
+ *  - password reset apply → POST /auth/password-reset/apply
+ *  - invite accept        → POST /auth/invite/accept
+ *
+ * Plan 01 — stage 2 wiring.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import type { User } from '@/api/resources';
+
+import { customFetch } from '@/api/mutator';
+import { ApiError, AuthFailureError, ValidationError } from '@/api/errors';
 import type {
   LoginResult,
   TotpResult,
@@ -22,486 +33,400 @@ import type {
   InviteSetup,
 } from './types';
 
-const nextUserId = makeIdFactory('bootstrap-user');
-const nextTenantId = makeIdFactory('bootstrap-tenant');
-const nextMembershipId = makeIdFactory('bootstrap-membership');
+// ─── Pending-credentials holder for two-step login ────────────────────────────
+//
+// When the daemon answers a /auth/login with `requiresTotp: true`, the SPA
+// must re-submit the same credentials together with a `totpCode` to complete
+// the login. The credentials are kept in memory only — never persisted to
+// localStorage / sessionStorage / cookies — and cleared on every terminal
+// outcome (success, hard error, logout).
 
-// ─── Audit helper ─────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
+interface PendingCredentials {
+  username: string;
+  password: string;
+  userId: string;
 }
 
-let _auditSeq = 0;
+let _pendingCredentials: PendingCredentials | null = null;
 
-function auditId(): string {
-  _auditSeq += 1;
-  return `auth-audit-${String(_auditSeq).padStart(4, '0')}`;
+/** Test/utility access — exposed so tests can reset between runs. */
+export function _resetPendingCredentialsForTests(): void {
+  _pendingCredentials = null;
 }
 
-// ─── login ────────────────────────────────────────────────────────────────────
+/** Read-only view used by other modules that need to know the pending userId. */
+export function getPendingAuthUserId(): string | null {
+  return _pendingCredentials?.userId ?? null;
+}
+
+// ─── Daemon response shapes ──────────────────────────────────────────────────
+
+interface DaemonLoginUser {
+  id: string;
+  username: string;
+  displayName?: string;
+  forcePasswordChange: boolean;
+}
+
+interface DaemonLoginSession {
+  id: string;
+  expiresAt: string;
+}
+
+interface DaemonLoginResponse {
+  user: DaemonLoginUser;
+  session: DaemonLoginSession;
+}
+
+interface DaemonTotpRequiredResponse {
+  requiresTotp: true;
+  userId: string;
+}
+
+type DaemonLoginEither = DaemonLoginResponse | DaemonTotpRequiredResponse;
+
+interface DaemonBootstrapResponse {
+  tenantId: string;
+  userId: string;
+}
+
+interface DaemonTotpSetupResponse {
+  secret: string;
+  qrUri: string;
+}
+
+interface DaemonTotpVerifyResponse {
+  backupCodes: string[];
+}
+
+interface DaemonBootstrapStatus {
+  required: boolean;
+}
+
+// ─── login (step 1) ──────────────────────────────────────────────────────────
 
 /**
- * Attempt login with email + password.
- *
- * Stage-1: password is not validated — any non-empty string succeeds if the
- * email matches a user in the store.
+ * Submit username + password. Returns either:
+ *  - a TOTP challenge (`requires_totp: true`) — the SPA must navigate to /totp
+ *    and call `verifyTotp(code)` next.
+ *  - a successful session (`requires_totp: false`) — daemon set the session
+ *    cookie; subsequent requests are authenticated.
+ *  - an error envelope.
  */
 export async function login(email: string, password: string): Promise<LoginResult> {
-  await simulateLatency('query');
-
   if (!password) {
     return { error: 'Password is required' };
   }
 
-  const state = useMockStore.getState();
-  const user = Object.values(state.users).find((u) => u.email === email);
+  // Reset any leftover pending state from a previous half-login.
+  _pendingCredentials = null;
 
-  if (!user) {
-    return { error: 'Invalid email or password' };
+  try {
+    const resp = await customFetch<DaemonLoginEither>({
+      url: '/auth/login',
+      method: 'POST',
+      data: { username: email, password },
+    });
+
+    if ('requiresTotp' in resp) {
+      _pendingCredentials = { username: email, password, userId: resp.userId };
+      return { requires_totp: true, pending_user_id: resp.userId };
+    }
+
+    return {
+      requires_totp: false,
+      user_id: resp.user.id,
+      // Daemon login does not return tenant context — the consumer fetches
+      // /auth/me or /me/memberships separately. Empty string keeps the
+      // `LoginResult` discriminator intact.
+      tenant_id: '',
+    };
+  } catch (err) {
+    return { error: errorMessage(err, 'Login failed') };
   }
-
-  if (user.disabled) {
-    return { error: 'Your account has been disabled. Contact your administrator.' };
-  }
-
-  if (user.totp_enrolled) {
-    // Store the pending userId in mock-store for TOTP challenge step.
-    useMockStore.setState({ pendingAuthUserId: user.id });
-    return { requires_totp: true, pending_user_id: user.id };
-  }
-
-  // No TOTP — find primary tenant membership and resolve tenant slug.
-  const membership = Object.values(state.memberships).find(
-    (m) => m.user_id === user.id && m.state === 'active',
-  );
-  const tenantId = membership?.tenant_id ?? null;
-  const tenant = tenantId ? state.tenants[tenantId] : null;
-  const tenantSlug = tenant?.slug ?? null;
-
-  useMockStore.setState({ currentUserId: user.id, currentTenantId: tenantId });
-
-  state.appendAudit({
-    id: auditId(),
-    tenant_id: tenantId,
-    actor_id: user.id,
-    action: 'user.login',
-    resource_type: 'user',
-    resource_id: user.id,
-    outcome: 'success',
-    at: now(),
-    tier: 'read-sensitive',
-  });
-
-  return { requires_totp: false, user_id: user.id, tenant_id: tenantSlug ?? '' };
 }
 
-// ─── logout ───────────────────────────────────────────────────────────────────
+// ─── logout ──────────────────────────────────────────────────────────────────
 
 export async function logout(): Promise<void> {
-  await simulateLatency('query');
-
-  const state = useMockStore.getState();
-  const userId = state.currentUserId;
-  const tenantId = state.currentTenantId;
-
-  if (userId) {
-    state.appendAudit({
-      id: auditId(),
-      tenant_id: tenantId,
-      actor_id: userId,
-      action: 'user.logout',
-      resource_type: 'user',
-      resource_id: userId,
-      outcome: 'success',
-      at: now(),
-      tier: 'read-sensitive',
-    });
+  _pendingCredentials = null;
+  try {
+    await customFetch<unknown>({ url: '/auth/logout', method: 'POST' });
+  } catch (err) {
+    // 401 after logout is fine — we are intentionally unauthenticated now.
+    if (err instanceof AuthFailureError) return;
+    // Any other error is not surfaced — logout is best-effort. The session
+    // cookie is gone server-side regardless.
   }
-
-  useMockStore.setState({
-    currentUserId: null,
-    currentTenantId: null,
-    pendingAuthUserId: null,
-  });
 }
 
-// ─── verifyTotp ───────────────────────────────────────────────────────────────
+// ─── verifyTotp (login step 2) ───────────────────────────────────────────────
 
 /**
- * Stage-1: any 6-digit numeric code accepts.
- * Real RFC 6238 validation is on the daemon (spec §14.1).
+ * Submit the 6-digit TOTP code following a `requires_totp` login result.
+ *
+ * Implementation: re-call `/auth/login` with the saved username/password plus
+ * the new totp code. Daemon falls back to backup codes if the TOTP is invalid.
  */
 export async function verifyTotp(code: string): Promise<TotpResult> {
-  await simulateLatency('query');
-
-  const isValid = /^\d{6}$/.test(code);
-  if (!isValid) {
-    return { ok: false, error: 'Code must be exactly 6 digits' };
-  }
-
-  const state = useMockStore.getState();
-  const userId = state.pendingAuthUserId;
-
-  if (!userId) {
-    return { ok: false, error: 'No pending authentication session' };
-  }
-
-  const membership = Object.values(state.memberships).find(
-    (m) => m.user_id === userId && m.state === 'active',
-  );
-  const tenantId = membership?.tenant_id ?? null;
-  const tenant = tenantId ? state.tenants[tenantId] : null;
-  const tenantSlug = tenant?.slug ?? null;
-
-  useMockStore.setState({
-    currentUserId: userId,
-    currentTenantId: tenantId,
-    pendingAuthUserId: null,
-  });
-
-  state.appendAudit({
-    id: auditId(),
-    tenant_id: tenantId,
-    actor_id: userId,
-    action: 'user.totp_verify',
-    resource_type: 'user',
-    resource_id: userId,
-    outcome: 'success',
-    at: now(),
-    tier: 'read-sensitive',
-  });
-
-  return { ok: true, user_id: userId, tenant_id: tenantSlug ?? '' };
-}
-
-// ─── enrollTotp ───────────────────────────────────────────────────────────────
-
-/**
- * Generate a mock TOTP enrollment payload.
- * Stores totp_secret + backup_codes on the User record.
- */
-export async function enrollTotp(userId: string): Promise<TotpEnrollment> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const user = state.users[userId];
-  if (!user) throw new Error('User not found');
-
-  // Mock base32 secret — 16 chars (real = 20-byte random base32).
-  const secret = 'JBSWY3DPEHPK3PXP';
-  const issuer = 'Rioku';
-  const label = encodeURIComponent(`${issuer}:${user.email}`);
-  const qr_url = `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
-
-  // Generate 10 backup codes (10 chars, alphanumeric, uppercase).
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const backup_codes: string[] = [];
-  for (let i = 0; i < 10; i++) {
-    let code = '';
-    // Deterministic but varied per index — mock only, not cryptographic.
-    for (let j = 0; j < 10; j++) {
-      code += chars[(i * 37 + j * 13 + 7) % chars.length] ?? '';
-    }
-    backup_codes.push(code);
-  }
-
-  state.updateEntity('users', userId, {
-    totp_secret: secret,
-    backup_codes,
-  });
-
-  return { secret, qr_url, backup_codes };
-}
-
-// ─── confirmTotpEnrollment ────────────────────────────────────────────────────
-
-/**
- * Confirm TOTP enrollment with a code from the authenticator.
- * Stage-1: any 6-digit code passes.
- */
-export async function confirmTotpEnrollment(
-  userId: string,
-  code: string,
-): Promise<{ ok: boolean; error?: string }> {
-  await simulateLatency('mutation');
-
   if (!/^\d{6}$/.test(code)) {
     return { ok: false, error: 'Code must be exactly 6 digits' };
   }
 
-  useMockStore.getState().updateEntity('users', userId, {
-    totp_enrolled: true,
-    totp_enabled: true,
-  });
-
-  return { ok: true };
-}
-
-// ─── verifyBackupCode ─────────────────────────────────────────────────────────
-
-/**
- * Check a backup code, burn it on success, set session.
- */
-export async function verifyBackupCode(code: string): Promise<BackupCodeResult> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const userId = state.pendingAuthUserId;
-
-  if (!userId) {
+  const pending = _pendingCredentials;
+  if (!pending) {
     return { ok: false, error: 'No pending authentication session' };
   }
 
-  const user = state.users[userId];
-  if (!user) {
-    return { ok: false, error: 'User not found' };
-  }
+  try {
+    const resp = await customFetch<DaemonLoginEither>({
+      url: '/auth/login',
+      method: 'POST',
+      data: { username: pending.username, password: pending.password, totpCode: code },
+    });
 
-  const codes = user.backup_codes ?? [];
-  const normalised = code.trim().toUpperCase();
-  const index = codes.indexOf(normalised);
-
-  if (index === -1) {
-    return { ok: false, error: 'Invalid backup code' };
-  }
-
-  // Burn the used code.
-  const remaining = [...codes.slice(0, index), ...codes.slice(index + 1)];
-  state.updateEntity('users', userId, { backup_codes: remaining });
-
-  const membership = Object.values(state.memberships).find(
-    (m) => m.user_id === userId && m.state === 'active',
-  );
-  const tenantId = membership?.tenant_id ?? null;
-  const tenant = tenantId ? state.tenants[tenantId] : null;
-  const tenantSlug = tenant?.slug ?? null;
-
-  useMockStore.setState({
-    currentUserId: userId,
-    currentTenantId: tenantId,
-    pendingAuthUserId: null,
-  });
-
-  state.appendAudit({
-    id: auditId(),
-    tenant_id: tenantId,
-    actor_id: userId,
-    action: 'user.backup_code_used',
-    resource_type: 'user',
-    resource_id: userId,
-    outcome: 'success',
-    at: now(),
-    tier: 'destructive',
-  });
-
-  return { ok: true, user_id: userId, tenant_id: tenantSlug ?? '', remaining: remaining.length };
-}
-
-// ─── requestPasswordReset ─────────────────────────────────────────────────────
-
-/**
- * Generate a mock password-reset link for display in the UI.
- * In real mode the daemon sends this link via email.
- */
-export async function requestPasswordReset(
-  email: string,
-): Promise<MockPasswordResetResult | { error: string }> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const user = Object.values(state.users).find((u) => u.email === email);
-
-  if (!user) {
-    // Return success anyway to avoid email enumeration (spec §6).
-    const token = `mock-reset-${String(Date.now())}`;
-    return { mock_reset_link: `/reset-password/${token}` };
-  }
-
-  const token = `mock-reset-${String(Date.now())}-${user.id}`;
-  return { mock_reset_link: `/reset-password/${token}` };
-}
-
-// ─── validateResetToken ───────────────────────────────────────────────────────
-
-/**
- * Check if a reset token is valid and return minimal user info.
- * Stage-1: token is valid if it matches the mock-reset-<timestamp>-<userId> format
- * AND the userId exists. Force-reset tokens (force-reset-<userId>) are also accepted.
- */
-export async function validateResetToken(
-  token: string,
-): Promise<{ ok: true; user_id: string; email: string } | { ok: false; error: string }> {
-  await simulateLatency('query');
-
-  const state = useMockStore.getState();
-
-  // Force-reset token format: force-reset-<userId>
-  if (token.startsWith('force-reset-')) {
-    const userId = token.slice('force-reset-'.length);
-    const user = state.users[userId];
-    if (user) {
-      return { ok: true, user_id: user.id, email: user.email };
+    if ('requiresTotp' in resp) {
+      // Should not happen if the daemon accepted the code — defensive.
+      return { ok: false, error: 'Authentication failed' };
     }
-    return { ok: false, error: 'Invalid or expired password reset link' };
-  }
 
-  // Mock-reset token format: mock-reset-<timestamp>-<userId>
-  // userId itself may contain hyphens (e.g. "user-0001"), so we scan all users.
-  if (token.startsWith('mock-reset-')) {
-    // Try to find a user whose id appears as a suffix in the token.
-    const user = Object.values(state.users).find((u) => token.endsWith(`-${u.id}`));
-    if (user) {
-      return { ok: true, user_id: user.id, email: user.email };
-    }
-    return { ok: false, error: 'Invalid or expired password reset link' };
+    _pendingCredentials = null;
+    return { ok: true, user_id: resp.user.id, tenant_id: '' };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Invalid code — try again') };
   }
-
-  return { ok: false, error: 'Invalid or expired password reset link' };
 }
 
-// ─── generateForcePasswordToken ───────────────────────────────────────────────
+// ─── verifyBackupCode ────────────────────────────────────────────────────────
 
 /**
- * Generate a force-password-change token for the given user.
- * Returns a token that navigates to the reset-password flow.
+ * Submit a backup code instead of a TOTP code. The daemon's `/auth/login`
+ * handler tries backup codes when the TOTP code does not validate, so we
+ * route through the same endpoint.
  */
-export function generateForcePasswordToken(userId: string): string {
-  return `force-reset-${userId}`;
+export async function verifyBackupCode(code: string): Promise<BackupCodeResult> {
+  const trimmed = code.trim();
+  if (trimmed.length === 0) {
+    return { ok: false, error: 'Backup code is required' };
+  }
+
+  const pending = _pendingCredentials;
+  if (!pending) {
+    return { ok: false, error: 'No pending authentication session' };
+  }
+
+  try {
+    const resp = await customFetch<DaemonLoginEither>({
+      url: '/auth/login',
+      method: 'POST',
+      data: { username: pending.username, password: pending.password, totpCode: trimmed },
+    });
+
+    if ('requiresTotp' in resp) {
+      return { ok: false, error: 'Invalid backup code' };
+    }
+
+    _pendingCredentials = null;
+    // The daemon does not currently return remaining-backup-code count; a
+    // follow-up GET to /auth/me or a settings page surfaces it. We surface 0
+    // here as a placeholder — the recovery UI shows the message but does not
+    // depend on the precise number.
+    return { ok: true, user_id: resp.user.id, tenant_id: '', remaining: 0 };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Invalid backup code') };
+  }
 }
 
-// ─── applyPasswordReset ───────────────────────────────────────────────────────
+// ─── enrollTotp (start setup; requires authenticated session) ────────────────
 
 /**
- * Validate a reset token and update the user's password.
- * Stage-1: token is not validated — any token that contains a userId suffix passes.
+ * Begin TOTP enrollment. Returns the shared secret + provisioning URI. The
+ * daemon does not return backup codes at this stage — those are returned by
+ * `confirmTotpEnrollment` after a valid 6-digit code is presented.
  */
-export async function applyPasswordReset(
-  token: string,
-  _newPassword: string,
-): Promise<{ ok: boolean; error?: string }> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-
-  // Handle force-reset-<userId> format.
-  if (token.startsWith('force-reset-')) {
-    const userId = token.slice('force-reset-'.length);
-    const user = state.users[userId];
-    if (user) {
-      state.updateEntity('users', user.id, { force_password_change: false });
-    }
-  } else if (token.startsWith('mock-reset-')) {
-    // Mock-reset token format: mock-reset-<timestamp>-<userId> (userId may contain hyphens).
-    const user = Object.values(state.users).find((u) => token.endsWith(`-${u.id}`));
-    if (user) {
-      state.updateEntity('users', user.id, { force_password_change: false });
-    }
-  }
-
-  return { ok: true };
-}
-
-// ─── acceptInvite ─────────────────────────────────────────────────────────────
-
-/**
- * Accept a pending membership invite.
- */
-export async function acceptInvite(
-  token: string,
-  _setup: InviteSetup,
-): Promise<{ ok: boolean; user_id?: string; tenant_id?: string; error?: string }> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const membership = Object.values(state.memberships).find(
-    (m) => m.invite_token === token && m.state === 'pending',
-  );
-
-  if (!membership) {
-    return { ok: false, error: 'Invalid or expired invite token' };
-  }
-
-  const expired =
-    membership.invite_expires_at && new Date(membership.invite_expires_at) < new Date();
-  if (expired) {
-    return { ok: false, error: 'This invite has expired' };
-  }
-
-  state.updateEntity('memberships', membership.id, {
-    state: 'active',
-    joined_at: now(),
+export async function enrollTotp(_userId?: string): Promise<TotpEnrollment> {
+  const resp = await customFetch<DaemonTotpSetupResponse>({
+    url: '/auth/totp/setup',
+    method: 'POST',
+    data: {},
   });
+  return {
+    secret: resp.secret,
+    qr_url: resp.qrUri,
+    backup_codes: [], // populated by confirm step
+  };
+}
 
-  useMockStore.setState({
-    currentUserId: membership.user_id,
-    currentTenantId: membership.tenant_id,
+// ─── confirmTotpEnrollment ───────────────────────────────────────────────────
+
+/**
+ * Confirm TOTP enrollment. On success the daemon enables TOTP for the user
+ * and returns a fresh set of backup codes (one-time view).
+ */
+export async function confirmTotpEnrollment(
+  _userId: string,
+  code: string,
+): Promise<{ ok: boolean; error?: string; backup_codes?: string[] }> {
+  if (!/^\d{6}$/.test(code)) {
+    return { ok: false, error: 'Code must be exactly 6 digits' };
+  }
+
+  try {
+    const resp = await customFetch<DaemonTotpVerifyResponse>({
+      url: '/auth/totp/verify',
+      method: 'POST',
+      data: { code },
+    });
+    return { ok: true, backup_codes: resp.backupCodes };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Invalid code') };
+  }
+}
+
+// ─── bootstrap-status ────────────────────────────────────────────────────────
+
+export async function fetchBootstrapStatus(): Promise<{ required: boolean }> {
+  return customFetch<DaemonBootstrapStatus>({
+    url: '/auth/bootstrap-status',
+    method: 'GET',
   });
-
-  return { ok: true, user_id: membership.user_id, tenant_id: membership.tenant_id };
 }
 
 // ─── bootstrap ───────────────────────────────────────────────────────────────
 
-/**
- * Create the first root user + tenant. Only callable when no users exist.
- */
 export async function bootstrap(
   setup: BootstrapSetup,
 ): Promise<{ ok: boolean; user_id?: string; tenant_id?: string; error?: string }> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  if (Object.keys(state.users).length > 0) {
-    return { ok: false, error: 'Cannot bootstrap: users already exist' };
+  try {
+    const resp = await customFetch<DaemonBootstrapResponse>({
+      url: '/auth/bootstrap',
+      method: 'POST',
+      data: {
+        email: setup.email,
+        password: setup.password,
+        tenantSlug: setup.tenant_slug,
+        tenantName: setup.tenant_name,
+      },
+    });
+    return { ok: true, user_id: resp.userId, tenant_id: resp.tenantId };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Bootstrap failed') };
   }
+}
 
-  const tenantId = nextTenantId();
-  const userId = nextUserId();
-  const membershipId = nextMembershipId();
+// ─── password reset ──────────────────────────────────────────────────────────
 
-  const tenant = {
-    id: tenantId,
-    slug: setup.tenant_slug,
-    name: setup.tenant_name,
-    accent: '#22c55e',
-    plan: 'community' as const,
-    url_mode: 'path' as const,
-    created_at: now(),
-    updated_at: now(),
-  };
+/**
+ * Request a password-reset email. The daemon always returns 202 regardless of
+ * whether the email matches a real user (anti-enumeration). The SPA mirrors
+ * that by returning the same shape on every successful response.
+ */
+export async function requestPasswordReset(
+  email: string,
+): Promise<MockPasswordResetResult | { error: string }> {
+  try {
+    await customFetch<unknown>({
+      url: '/auth/password-reset/request',
+      method: 'POST',
+      data: { email },
+    });
+    // The daemon emails the link directly; the SPA never sees it. The
+    // `mock_reset_link` field is preserved for type-compatibility with the
+    // stage-1 surface but is now an empty string — the UI renders the
+    // "check your inbox" success state and does not display a clickable link.
+    return { mock_reset_link: '' };
+  } catch (err) {
+    return { error: errorMessage(err, 'Could not request a reset') };
+  }
+}
 
-  const user: User = {
-    id: userId,
-    email: setup.email,
-    name: setup.name,
-    disabled: false,
-    totp_enabled: false,
-    totp_enrolled: false,
-    force_password_change: false,
-    timezone: 'America/Los_Angeles',
-    locale: 'en',
-    reduced_motion: false,
-    notification_preferences: { email: true, in_app: true, categories_muted: [] },
-    created_at: now(),
-    updated_at: now(),
-  };
+export async function validateResetToken(
+  token: string,
+): Promise<{ ok: true; user_id: string; email: string } | { ok: false; error: string }> {
+  try {
+    interface ValidateResponse {
+      valid: boolean;
+    }
+    const resp = await customFetch<ValidateResponse>({
+      url: '/auth/password-reset/validate',
+      method: 'GET',
+      params: { token },
+    });
+    if (!resp.valid) {
+      return { ok: false, error: 'Invalid or expired password reset link' };
+    }
+    // The daemon's validate response intentionally does not echo user info
+    // (anti-enumeration); the SPA only needs to know the token is currently
+    // usable so the form can render.
+    return { ok: true, user_id: '', email: '' };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Invalid or expired password reset link') };
+  }
+}
 
-  const membership = {
-    id: membershipId,
-    tenant_id: tenantId,
-    user_id: userId,
-    role_ids: [] as string[],
-    state: 'active' as const,
-    invited_at: now(),
-    joined_at: now(),
-  };
+export async function applyPasswordReset(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await customFetch<unknown>({
+      url: '/auth/password-reset/apply',
+      method: 'POST',
+      data: { token, password: newPassword },
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Could not reset password') };
+  }
+}
 
-  state.addEntity('tenants', tenant);
-  state.addEntity('users', user);
-  state.addEntity('memberships', membership);
+// Force-reset is a daemon concern (admin sets `forcePasswordChange=true` on a
+// user); the legacy mock helper is preserved as a no-op shim so existing
+// callers compile, but the daemon-side flow surfaces the requirement via
+// `/auth/me` and the SPA's `<ForcePasswordChangeGuard>` redirects to the
+// settings change-password page rather than minting an in-band token.
+export function generateForcePasswordToken(_userId: string): string {
+  return '';
+}
 
-  useMockStore.setState({ currentUserId: userId, currentTenantId: tenantId });
+// ─── invite accept ───────────────────────────────────────────────────────────
 
-  return { ok: true, user_id: userId, tenant_id: tenantId };
+export async function acceptInvite(
+  token: string,
+  setup: InviteSetup & { name?: string },
+): Promise<{ ok: boolean; user_id?: string; tenant_id?: string; error?: string }> {
+  try {
+    interface AcceptResponse {
+      userId: string;
+      sessionId?: string;
+      status?: string;
+    }
+    const resp = await customFetch<AcceptResponse>({
+      url: '/auth/invite/accept',
+      method: 'POST',
+      data: {
+        token,
+        name: setup.name ?? '',
+        password: setup.password,
+      },
+    });
+    return { ok: true, user_id: resp.userId };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err, 'Could not accept invite') };
+  }
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ValidationError) {
+    if (err.fields !== undefined) {
+      const first = Object.values(err.fields).flat()[0];
+      if (typeof first === 'string' && first.length > 0) return first;
+    }
+    return err.message || fallback;
+  }
+  if (err instanceof ApiError) return err.message || fallback;
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
 }

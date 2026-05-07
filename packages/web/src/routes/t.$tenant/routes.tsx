@@ -118,7 +118,7 @@ function RoutesPage() {
 
   async function handleDeleteFromList(r: RouteRecord) {
     try {
-      await deleteRoute(r.id);
+      await deleteRoute(tenantId, r.id);
       notify.success('Route deleted', `${r.name} was removed.`);
     } catch {
       notify.error('Failed to delete route', 'Please try again.');

@@ -1,8 +1,9 @@
 /**
  * <BindingList> — DataTable list of AI tool bindings for a tenant.
  *
- * Columns: agent, tool, CEL condition (monospace truncated), enabled Switch,
- * actions.
+ * Wired to the daemon via `useBindingList` (TanStack Query). Agents + tools
+ * for column denormalisation come from `useAgentRefs` / `useToolRefs`,
+ * which themselves call the AI agents + tools list endpoints.
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -10,8 +11,8 @@ import { Badge, Text, Stack, Menu, ActionIcon, Switch } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash, IconRouter } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
-import { useBindingList, updateBinding } from '../api';
+import { useBindingList, updateBinding, useInvalidateBindings } from '../api';
+import { useAgentRefs, useToolRefs } from '../refs';
 import type { AiToolBinding, BindingFilter } from '../types';
 
 interface BindingListProps {
@@ -24,8 +25,9 @@ interface BindingListProps {
 
 export function BindingList({ tenantId, filter, onSelect, onEdit, onDelete }: BindingListProps) {
   const bindings = useBindingList(tenantId, filter);
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
+  const { byId: agents } = useAgentRefs(tenantId);
+  const { byId: tools } = useToolRefs(tenantId);
+  const invalidate = useInvalidateBindings(tenantId);
 
   const columns = useMemo<ColumnDef<AiToolBinding>[]>(
     () => [
@@ -112,7 +114,10 @@ export function BindingList({ tenantId, filter, onSelect, onEdit, onDelete }: Bi
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateBinding(b.id, { enabled: e.currentTarget.checked });
+                const next = e.currentTarget.checked;
+                void updateBinding(tenantId, b.id, { enabled: next }).then(() => {
+                  invalidate();
+                });
               }}
             />
           );
@@ -164,7 +169,7 @@ export function BindingList({ tenantId, filter, onSelect, onEdit, onDelete }: Bi
         },
       },
     ],
-    [agents, tools, onEdit, onDelete],
+    [agents, tools, onEdit, onDelete, tenantId, invalidate],
   );
 
   return (

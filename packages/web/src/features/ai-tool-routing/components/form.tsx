@@ -2,15 +2,20 @@
  * <BindingForm> — create / edit a tool-routing binding.
  *
  * Fields: agent Select, tool Select, CEL condition Textarea with Preview
- * button, enabled Switch.
+ * button (calls daemon `/preview-condition`), enabled Switch.
  */
 import { useState } from 'react';
 import { Alert, Button, Group, Select, Stack, Switch, Text, Textarea } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconEye } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
-import { createBinding, previewCondition, updateBinding } from '../api';
+import {
+  createBinding,
+  previewCondition,
+  updateBinding,
+  useInvalidateBindings,
+} from '../api';
+import { useAgentRefs, useToolRefs } from '../refs';
 import { createBindingSchema, updateBindingSchema } from '../schemas';
 import type { AiToolBinding, PreviewConditionResult } from '../types';
 
@@ -59,16 +64,13 @@ export function BindingForm({
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewConditionResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const invalidate = useInvalidateBindings(tenantId);
 
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
+  const { list: agents } = useAgentRefs(tenantId);
+  const { list: tools } = useToolRefs(tenantId);
 
-  const agentOptions = Object.values(agents)
-    .filter((a) => a.tenant_id === tenantId)
-    .map((a) => ({ value: a.id, label: a.name }));
-  const toolOptions = Object.values(tools)
-    .filter((t) => t.tenant_id === tenantId)
-    .map((t) => ({ value: t.id, label: t.name }));
+  const agentOptions = agents.map((a) => ({ value: a.id, label: a.name }));
+  const toolOptions = tools.map((t) => ({ value: t.id, label: t.name }));
 
   const schema = mode === 'create' ? createBindingSchema : updateBindingSchema;
 
@@ -81,7 +83,7 @@ export function BindingForm({
     setPreviewing(true);
     setPreview(null);
     try {
-      const result = await previewCondition(form.values.condition, {});
+      const result = await previewCondition(tenantId, form.values.condition, {});
       setPreview(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Preview failed';
@@ -97,7 +99,7 @@ export function BindingForm({
     try {
       // Validate CEL condition if present before saving.
       if (values.condition.trim() !== '') {
-        const p = await previewCondition(values.condition, {});
+        const p = await previewCondition(tenantId, values.condition, {});
         if (!p.parses) {
           setError(p.error ?? 'CEL condition is invalid');
           setLoading(false);
@@ -111,15 +113,15 @@ export function BindingForm({
           condition: values.condition,
           enabled: values.enabled,
         });
+        invalidate();
         notify.success('Binding created', 'Tool attached to agent.');
         onSuccess(binding);
       } else if (initialValues) {
-        const binding = await updateBinding(initialValues.id, {
-          agent_id: values.agent_id,
-          tool_id: values.tool_id,
+        const binding = await updateBinding(tenantId, initialValues.id, {
           condition: values.condition,
           enabled: values.enabled,
         });
+        invalidate();
         notify.success('Binding updated', 'Binding saved.');
         onSuccess(binding);
       }
