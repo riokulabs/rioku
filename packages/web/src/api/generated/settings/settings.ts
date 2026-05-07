@@ -41,6 +41,8 @@ import type {
 } from '@tanstack/react-query';
 import type {
   GetDangerExport200,
+  ManualCertResponse,
+  ManualCertUpload,
   PatchSettingsProfileBody,
   PatchSettingsTenantBody,
   PostDangerHardReset200,
@@ -48,6 +50,9 @@ import type {
   PostSettingsBackupCodesReset200,
   PostSettingsPassword200,
   PostSettingsPasswordBody,
+  RevocationCreate,
+  RevocationItem,
+  RevocationList,
   SettingsAuthPolicy,
   SettingsIntegrations,
   SettingsLogs,
@@ -61,6 +66,255 @@ import type {
   WebhookTestResult,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
+
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
+/**
+ * @summary SSE stream of recent + live daemon log lines
+ */
+export type tailObservabilityLogsResponse = {
+  data: string | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getTailObservabilityLogsUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/observability/logs/tail`;
+};
+
+export const tailObservabilityLogs = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<tailObservabilityLogsResponse> => {
+  return customFetch<tailObservabilityLogsResponse>(getTailObservabilityLogsUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getTailObservabilityLogsQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/observability/logs/tail`] as const;
+};
+
+export const getTailObservabilityLogsInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof tailObservabilityLogs>>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTailObservabilityLogsQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof tailObservabilityLogs>>> = ({ signal }) =>
+    tailObservabilityLogs(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof tailObservabilityLogs>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TailObservabilityLogsInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof tailObservabilityLogs>>
+>;
+export type TailObservabilityLogsInfiniteQueryError = void;
+
+export function useTailObservabilityLogsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof tailObservabilityLogs>>>,
+  TError = void,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof tailObservabilityLogs>>,
+          TError,
+          Awaited<ReturnType<typeof tailObservabilityLogs>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTailObservabilityLogsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof tailObservabilityLogs>>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof tailObservabilityLogs>>,
+          TError,
+          Awaited<ReturnType<typeof tailObservabilityLogs>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTailObservabilityLogsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof tailObservabilityLogs>>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary SSE stream of recent + live daemon log lines
+ */
+
+export function useTailObservabilityLogsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof tailObservabilityLogs>>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTailObservabilityLogsInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getTailObservabilityLogsQueryOptions = <
+  TData = Awaited<ReturnType<typeof tailObservabilityLogs>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTailObservabilityLogsQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof tailObservabilityLogs>>> = ({ signal }) =>
+    tailObservabilityLogs(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof tailObservabilityLogs>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TailObservabilityLogsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof tailObservabilityLogs>>
+>;
+export type TailObservabilityLogsQueryError = void;
+
+export function useTailObservabilityLogs<
+  TData = Awaited<ReturnType<typeof tailObservabilityLogs>>,
+  TError = void,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof tailObservabilityLogs>>,
+          TError,
+          Awaited<ReturnType<typeof tailObservabilityLogs>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTailObservabilityLogs<
+  TData = Awaited<ReturnType<typeof tailObservabilityLogs>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof tailObservabilityLogs>>,
+          TError,
+          Awaited<ReturnType<typeof tailObservabilityLogs>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTailObservabilityLogs<
+  TData = Awaited<ReturnType<typeof tailObservabilityLogs>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary SSE stream of recent + live daemon log lines
+ */
+
+export function useTailObservabilityLogs<
+  TData = Awaited<ReturnType<typeof tailObservabilityLogs>>,
+  TError = void,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof tailObservabilityLogs>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTailObservabilityLogsQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
 
 /**
  * @summary Get tenant auth policy
@@ -98,14 +352,15 @@ export const getGetSettingsAuthPolicyInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsAuthPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsAuthPolicyQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsAuthPolicy>>> = ({ signal }) =>
-    getSettingsAuthPolicy(tenant, signal);
+    getSettingsAuthPolicy(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsAuthPolicy>>,
@@ -136,6 +391,7 @@ export function useGetSettingsAuthPolicyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsAuthPolicyInfinite<
@@ -155,6 +411,7 @@ export function useGetSettingsAuthPolicyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsAuthPolicyInfinite<
@@ -166,6 +423,7 @@ export function useGetSettingsAuthPolicyInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsAuthPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -181,6 +439,7 @@ export function useGetSettingsAuthPolicyInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsAuthPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsAuthPolicyInfiniteQueryOptions(tenant, options);
@@ -203,14 +462,15 @@ export const getGetSettingsAuthPolicyQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsAuthPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsAuthPolicyQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsAuthPolicy>>> = ({ signal }) =>
-    getSettingsAuthPolicy(tenant, signal);
+    getSettingsAuthPolicy(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsAuthPolicy>>,
@@ -241,6 +501,7 @@ export function useGetSettingsAuthPolicy<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsAuthPolicy<
@@ -260,6 +521,7 @@ export function useGetSettingsAuthPolicy<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsAuthPolicy<
@@ -271,6 +533,7 @@ export function useGetSettingsAuthPolicy<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsAuthPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -286,6 +549,7 @@ export function useGetSettingsAuthPolicy<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsAuthPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsAuthPolicyQueryOptions(tenant, options);
@@ -335,6 +599,7 @@ export const getPutSettingsAuthPolicyMutationOptions = <
     { tenant: string; data: SettingsAuthPolicy },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsAuthPolicy>>,
   TError,
@@ -342,11 +607,11 @@ export const getPutSettingsAuthPolicyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['putSettingsAuthPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsAuthPolicy>>,
@@ -354,7 +619,7 @@ export const getPutSettingsAuthPolicyMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsAuthPolicy(tenant, data);
+    return putSettingsAuthPolicy(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -376,6 +641,7 @@ export const usePutSettingsAuthPolicy = <TError = unknown, TContext = unknown>(o
     { tenant: string; data: SettingsAuthPolicy },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsAuthPolicy>>,
   TError,
@@ -422,14 +688,15 @@ export const getGetDangerExportInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getDangerExport>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetDangerExportQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getDangerExport>>> = ({ signal }) =>
-    getDangerExport(tenant, signal);
+    getDangerExport(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getDangerExport>>,
@@ -460,6 +727,7 @@ export function useGetDangerExportInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDangerExportInfinite<
@@ -479,6 +747,7 @@ export function useGetDangerExportInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDangerExportInfinite<
@@ -490,6 +759,7 @@ export function useGetDangerExportInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getDangerExport>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -505,6 +775,7 @@ export function useGetDangerExportInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getDangerExport>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetDangerExportInfiniteQueryOptions(tenant, options);
@@ -525,14 +796,15 @@ export const getGetDangerExportQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDangerExport>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetDangerExportQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getDangerExport>>> = ({ signal }) =>
-    getDangerExport(tenant, signal);
+    getDangerExport(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getDangerExport>>,
@@ -559,6 +831,7 @@ export function useGetDangerExport<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDangerExport<
@@ -576,6 +849,7 @@ export function useGetDangerExport<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDangerExport<
@@ -585,6 +859,7 @@ export function useGetDangerExport<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDangerExport>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -598,6 +873,7 @@ export function useGetDangerExport<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDangerExport>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetDangerExportQueryOptions(tenant, options);
@@ -652,6 +928,7 @@ export const getPostDangerHardResetMutationOptions = <
     { tenant: string; data: PostDangerHardResetBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof postDangerHardReset>>,
   TError,
@@ -659,11 +936,11 @@ export const getPostDangerHardResetMutationOptions = <
   TContext
 > => {
   const mutationKey = ['postDangerHardReset'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof postDangerHardReset>>,
@@ -671,7 +948,7 @@ export const getPostDangerHardResetMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return postDangerHardReset(tenant, data);
+    return postDangerHardReset(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -693,6 +970,7 @@ export const usePostDangerHardReset = <TError = unknown, TContext = unknown>(opt
     { tenant: string; data: PostDangerHardResetBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof postDangerHardReset>>,
   TError,
@@ -736,6 +1014,7 @@ export const getDeleteDangerTenantMutationOptions = <
     { tenant: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteDangerTenant>>,
   TError,
@@ -743,11 +1022,11 @@ export const getDeleteDangerTenantMutationOptions = <
   TContext
 > => {
   const mutationKey = ['deleteDangerTenant'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteDangerTenant>>,
@@ -755,7 +1034,7 @@ export const getDeleteDangerTenantMutationOptions = <
   > = (props) => {
     const { tenant } = props ?? {};
 
-    return deleteDangerTenant(tenant);
+    return deleteDangerTenant(tenant, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -777,6 +1056,7 @@ export const useDeleteDangerTenant = <TError = unknown, TContext = unknown>(opti
     { tenant: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteDangerTenant>>,
   TError,
@@ -823,15 +1103,16 @@ export const getGetSettingsIntegrationsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsIntegrations>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsIntegrationsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsIntegrations>>> = ({
     signal,
-  }) => getSettingsIntegrations(tenant, signal);
+  }) => getSettingsIntegrations(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsIntegrations>>,
@@ -862,6 +1143,7 @@ export function useGetSettingsIntegrationsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsIntegrationsInfinite<
@@ -881,6 +1163,7 @@ export function useGetSettingsIntegrationsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsIntegrationsInfinite<
@@ -892,6 +1175,7 @@ export function useGetSettingsIntegrationsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsIntegrations>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -907,6 +1191,7 @@ export function useGetSettingsIntegrationsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsIntegrations>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsIntegrationsInfiniteQueryOptions(tenant, options);
@@ -929,15 +1214,16 @@ export const getGetSettingsIntegrationsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsIntegrations>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsIntegrationsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsIntegrations>>> = ({
     signal,
-  }) => getSettingsIntegrations(tenant, signal);
+  }) => getSettingsIntegrations(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsIntegrations>>,
@@ -968,6 +1254,7 @@ export function useGetSettingsIntegrations<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsIntegrations<
@@ -987,6 +1274,7 @@ export function useGetSettingsIntegrations<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsIntegrations<
@@ -998,6 +1286,7 @@ export function useGetSettingsIntegrations<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsIntegrations>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1013,6 +1302,7 @@ export function useGetSettingsIntegrations<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsIntegrations>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsIntegrationsQueryOptions(tenant, options);
@@ -1062,6 +1352,7 @@ export const getPutSettingsIntegrationsMutationOptions = <
     { tenant: string; data: SettingsIntegrations },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsIntegrations>>,
   TError,
@@ -1069,11 +1360,11 @@ export const getPutSettingsIntegrationsMutationOptions = <
   TContext
 > => {
   const mutationKey = ['putSettingsIntegrations'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsIntegrations>>,
@@ -1081,7 +1372,7 @@ export const getPutSettingsIntegrationsMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsIntegrations(tenant, data);
+    return putSettingsIntegrations(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1103,6 +1394,7 @@ export const usePutSettingsIntegrations = <TError = unknown, TContext = unknown>
     { tenant: string; data: SettingsIntegrations },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsIntegrations>>,
   TError,
@@ -1149,14 +1441,15 @@ export const getGetSettingsProfileInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsProfile>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsProfileQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsProfile>>> = ({ signal }) =>
-    getSettingsProfile(tenant, signal);
+    getSettingsProfile(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsProfile>>,
@@ -1187,6 +1480,7 @@ export function useGetSettingsProfileInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsProfileInfinite<
@@ -1206,6 +1500,7 @@ export function useGetSettingsProfileInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsProfileInfinite<
@@ -1217,6 +1512,7 @@ export function useGetSettingsProfileInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsProfile>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1232,6 +1528,7 @@ export function useGetSettingsProfileInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsProfile>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsProfileInfiniteQueryOptions(tenant, options);
@@ -1252,14 +1549,15 @@ export const getGetSettingsProfileQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsProfile>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsProfileQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsProfile>>> = ({ signal }) =>
-    getSettingsProfile(tenant, signal);
+    getSettingsProfile(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsProfile>>,
@@ -1288,6 +1586,7 @@ export function useGetSettingsProfile<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsProfile<
@@ -1307,6 +1606,7 @@ export function useGetSettingsProfile<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsProfile<
@@ -1316,6 +1616,7 @@ export function useGetSettingsProfile<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsProfile>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1329,6 +1630,7 @@ export function useGetSettingsProfile<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsProfile>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsProfileQueryOptions(tenant, options);
@@ -1378,6 +1680,7 @@ export const getPatchSettingsProfileMutationOptions = <
     { tenant: string; data: PatchSettingsProfileBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchSettingsProfile>>,
   TError,
@@ -1385,11 +1688,11 @@ export const getPatchSettingsProfileMutationOptions = <
   TContext
 > => {
   const mutationKey = ['patchSettingsProfile'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchSettingsProfile>>,
@@ -1397,7 +1700,7 @@ export const getPatchSettingsProfileMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return patchSettingsProfile(tenant, data);
+    return patchSettingsProfile(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1419,6 +1722,7 @@ export const usePatchSettingsProfile = <TError = unknown, TContext = unknown>(op
     { tenant: string; data: PatchSettingsProfileBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchSettingsProfile>>,
   TError,
@@ -1465,6 +1769,7 @@ export const getPostSettingsBackupCodesResetMutationOptions = <
     { tenant: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof postSettingsBackupCodesReset>>,
   TError,
@@ -1472,11 +1777,11 @@ export const getPostSettingsBackupCodesResetMutationOptions = <
   TContext
 > => {
   const mutationKey = ['postSettingsBackupCodesReset'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof postSettingsBackupCodesReset>>,
@@ -1484,7 +1789,7 @@ export const getPostSettingsBackupCodesResetMutationOptions = <
   > = (props) => {
     const { tenant } = props ?? {};
 
-    return postSettingsBackupCodesReset(tenant);
+    return postSettingsBackupCodesReset(tenant, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1506,6 +1811,7 @@ export const usePostSettingsBackupCodesReset = <TError = unknown, TContext = unk
     { tenant: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof postSettingsBackupCodesReset>>,
   TError,
@@ -1552,6 +1858,7 @@ export const getPostSettingsPasswordMutationOptions = <
     { tenant: string; data: PostSettingsPasswordBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof postSettingsPassword>>,
   TError,
@@ -1559,11 +1866,11 @@ export const getPostSettingsPasswordMutationOptions = <
   TContext
 > => {
   const mutationKey = ['postSettingsPassword'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof postSettingsPassword>>,
@@ -1571,7 +1878,7 @@ export const getPostSettingsPasswordMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return postSettingsPassword(tenant, data);
+    return postSettingsPassword(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1593,6 +1900,7 @@ export const usePostSettingsPassword = <TError = unknown, TContext = unknown>(op
     { tenant: string; data: PostSettingsPasswordBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof postSettingsPassword>>,
   TError,
@@ -1639,14 +1947,15 @@ export const getGetSettingsNetworkInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsNetwork>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsNetworkQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsNetwork>>> = ({ signal }) =>
-    getSettingsNetwork(tenant, signal);
+    getSettingsNetwork(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsNetwork>>,
@@ -1677,6 +1986,7 @@ export function useGetSettingsNetworkInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsNetworkInfinite<
@@ -1696,6 +2006,7 @@ export function useGetSettingsNetworkInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsNetworkInfinite<
@@ -1707,6 +2018,7 @@ export function useGetSettingsNetworkInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsNetwork>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1722,6 +2034,7 @@ export function useGetSettingsNetworkInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsNetwork>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsNetworkInfiniteQueryOptions(tenant, options);
@@ -1742,14 +2055,15 @@ export const getGetSettingsNetworkQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsNetwork>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsNetworkQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsNetwork>>> = ({ signal }) =>
-    getSettingsNetwork(tenant, signal);
+    getSettingsNetwork(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsNetwork>>,
@@ -1778,6 +2092,7 @@ export function useGetSettingsNetwork<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsNetwork<
@@ -1797,6 +2112,7 @@ export function useGetSettingsNetwork<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsNetwork<
@@ -1806,6 +2122,7 @@ export function useGetSettingsNetwork<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsNetwork>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1819,6 +2136,7 @@ export function useGetSettingsNetwork<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsNetwork>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsNetworkQueryOptions(tenant, options);
@@ -1872,6 +2190,7 @@ export const getPutSettingsNetworkMutationOptions = <
     { tenant: string; data: SettingsNetwork },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsNetwork>>,
   TError,
@@ -1879,11 +2198,11 @@ export const getPutSettingsNetworkMutationOptions = <
   TContext
 > => {
   const mutationKey = ['putSettingsNetwork'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsNetwork>>,
@@ -1891,7 +2210,7 @@ export const getPutSettingsNetworkMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsNetwork(tenant, data);
+    return putSettingsNetwork(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1913,6 +2232,7 @@ export const usePutSettingsNetwork = <TError = unknown, TContext = unknown>(opti
     { tenant: string; data: SettingsNetwork },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsNetwork>>,
   TError,
@@ -1966,15 +2286,16 @@ export const getGetSettingsObservabilityLogsInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsObservabilityLogsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsObservabilityLogs>>> = ({
     signal,
-  }) => getSettingsObservabilityLogs(tenant, signal);
+  }) => getSettingsObservabilityLogs(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsObservabilityLogs>>,
@@ -2009,6 +2330,7 @@ export function useGetSettingsObservabilityLogsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityLogsInfinite<
@@ -2032,6 +2354,7 @@ export function useGetSettingsObservabilityLogsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityLogsInfinite<
@@ -2047,6 +2370,7 @@ export function useGetSettingsObservabilityLogsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2066,6 +2390,7 @@ export function useGetSettingsObservabilityLogsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsObservabilityLogsInfiniteQueryOptions(tenant, options);
@@ -2088,15 +2413,16 @@ export const getGetSettingsObservabilityLogsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityLogs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsObservabilityLogsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsObservabilityLogs>>> = ({
     signal,
-  }) => getSettingsObservabilityLogs(tenant, signal);
+  }) => getSettingsObservabilityLogs(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsObservabilityLogs>>,
@@ -2127,6 +2453,7 @@ export function useGetSettingsObservabilityLogs<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityLogs<
@@ -2146,6 +2473,7 @@ export function useGetSettingsObservabilityLogs<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityLogs<
@@ -2157,6 +2485,7 @@ export function useGetSettingsObservabilityLogs<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityLogs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2172,6 +2501,7 @@ export function useGetSettingsObservabilityLogs<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityLogs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsObservabilityLogsQueryOptions(tenant, options);
@@ -2224,6 +2554,7 @@ export const getPutSettingsObservabilityLogsMutationOptions = <
     { tenant: string; data: SettingsLogs },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsObservabilityLogs>>,
   TError,
@@ -2231,11 +2562,11 @@ export const getPutSettingsObservabilityLogsMutationOptions = <
   TContext
 > => {
   const mutationKey = ['putSettingsObservabilityLogs'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsObservabilityLogs>>,
@@ -2243,7 +2574,7 @@ export const getPutSettingsObservabilityLogsMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsObservabilityLogs(tenant, data);
+    return putSettingsObservabilityLogs(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2265,6 +2596,7 @@ export const usePutSettingsObservabilityLogs = <TError = unknown, TContext = unk
     { tenant: string; data: SettingsLogs },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsObservabilityLogs>>,
   TError,
@@ -2318,15 +2650,16 @@ export const getGetSettingsObservabilityMetricsInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsObservabilityMetricsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>> = ({
     signal,
-  }) => getSettingsObservabilityMetrics(tenant, signal);
+  }) => getSettingsObservabilityMetrics(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>,
@@ -2361,6 +2694,7 @@ export function useGetSettingsObservabilityMetricsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityMetricsInfinite<
@@ -2384,6 +2718,7 @@ export function useGetSettingsObservabilityMetricsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityMetricsInfinite<
@@ -2399,6 +2734,7 @@ export function useGetSettingsObservabilityMetricsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2418,6 +2754,7 @@ export function useGetSettingsObservabilityMetricsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsObservabilityMetricsInfiniteQueryOptions(tenant, options);
@@ -2440,15 +2777,16 @@ export const getGetSettingsObservabilityMetricsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsObservabilityMetricsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>> = ({
     signal,
-  }) => getSettingsObservabilityMetrics(tenant, signal);
+  }) => getSettingsObservabilityMetrics(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>,
@@ -2479,6 +2817,7 @@ export function useGetSettingsObservabilityMetrics<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityMetrics<
@@ -2498,6 +2837,7 @@ export function useGetSettingsObservabilityMetrics<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityMetrics<
@@ -2509,6 +2849,7 @@ export function useGetSettingsObservabilityMetrics<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2524,6 +2865,7 @@ export function useGetSettingsObservabilityMetrics<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityMetrics>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsObservabilityMetricsQueryOptions(tenant, options);
@@ -2576,6 +2918,7 @@ export const getPutSettingsObservabilityMetricsMutationOptions = <
     { tenant: string; data: SettingsMetrics },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsObservabilityMetrics>>,
   TError,
@@ -2583,11 +2926,11 @@ export const getPutSettingsObservabilityMetricsMutationOptions = <
   TContext
 > => {
   const mutationKey = ['putSettingsObservabilityMetrics'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsObservabilityMetrics>>,
@@ -2595,7 +2938,7 @@ export const getPutSettingsObservabilityMetricsMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsObservabilityMetrics(tenant, data);
+    return putSettingsObservabilityMetrics(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2617,6 +2960,7 @@ export const usePutSettingsObservabilityMetrics = <TError = unknown, TContext = 
     { tenant: string; data: SettingsMetrics },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsObservabilityMetrics>>,
   TError,
@@ -2670,15 +3014,16 @@ export const getGetSettingsObservabilityTracesInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsObservabilityTracesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsObservabilityTraces>>> = ({
     signal,
-  }) => getSettingsObservabilityTraces(tenant, signal);
+  }) => getSettingsObservabilityTraces(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsObservabilityTraces>>,
@@ -2713,6 +3058,7 @@ export function useGetSettingsObservabilityTracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityTracesInfinite<
@@ -2736,6 +3082,7 @@ export function useGetSettingsObservabilityTracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityTracesInfinite<
@@ -2751,6 +3098,7 @@ export function useGetSettingsObservabilityTracesInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2770,6 +3118,7 @@ export function useGetSettingsObservabilityTracesInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsObservabilityTracesInfiniteQueryOptions(tenant, options);
@@ -2792,15 +3141,16 @@ export const getGetSettingsObservabilityTracesQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsObservabilityTracesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsObservabilityTraces>>> = ({
     signal,
-  }) => getSettingsObservabilityTraces(tenant, signal);
+  }) => getSettingsObservabilityTraces(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsObservabilityTraces>>,
@@ -2831,6 +3181,7 @@ export function useGetSettingsObservabilityTraces<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityTraces<
@@ -2850,6 +3201,7 @@ export function useGetSettingsObservabilityTraces<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsObservabilityTraces<
@@ -2861,6 +3213,7 @@ export function useGetSettingsObservabilityTraces<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2876,6 +3229,7 @@ export function useGetSettingsObservabilityTraces<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getSettingsObservabilityTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsObservabilityTracesQueryOptions(tenant, options);
@@ -2928,6 +3282,7 @@ export const getPutSettingsObservabilityTracesMutationOptions = <
     { tenant: string; data: SettingsTraces },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsObservabilityTraces>>,
   TError,
@@ -2935,11 +3290,11 @@ export const getPutSettingsObservabilityTracesMutationOptions = <
   TContext
 > => {
   const mutationKey = ['putSettingsObservabilityTraces'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsObservabilityTraces>>,
@@ -2947,7 +3302,7 @@ export const getPutSettingsObservabilityTracesMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsObservabilityTraces(tenant, data);
+    return putSettingsObservabilityTraces(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2969,6 +3324,7 @@ export const usePutSettingsObservabilityTraces = <TError = unknown, TContext = u
     { tenant: string; data: SettingsTraces },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsObservabilityTraces>>,
   TError,
@@ -3015,14 +3371,15 @@ export const getGetSettingsPKIInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsPKI>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsPKIQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsPKI>>> = ({ signal }) =>
-    getSettingsPKI(tenant, signal);
+    getSettingsPKI(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsPKI>>,
@@ -3053,6 +3410,7 @@ export function useGetSettingsPKIInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsPKIInfinite<
@@ -3072,6 +3430,7 @@ export function useGetSettingsPKIInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsPKIInfinite<
@@ -3083,6 +3442,7 @@ export function useGetSettingsPKIInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsPKI>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -3098,6 +3458,7 @@ export function useGetSettingsPKIInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsPKI>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsPKIInfiniteQueryOptions(tenant, options);
@@ -3118,14 +3479,15 @@ export const getGetSettingsPKIQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsPKI>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsPKIQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsPKI>>> = ({ signal }) =>
-    getSettingsPKI(tenant, signal);
+    getSettingsPKI(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsPKI>>,
@@ -3152,6 +3514,7 @@ export function useGetSettingsPKI<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsPKI<
@@ -3169,6 +3532,7 @@ export function useGetSettingsPKI<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsPKI<
@@ -3178,6 +3542,7 @@ export function useGetSettingsPKI<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsPKI>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -3191,6 +3556,7 @@ export function useGetSettingsPKI<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsPKI>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsPKIQueryOptions(tenant, options);
@@ -3237,6 +3603,7 @@ export const getPutSettingsPKIMutationOptions = <TError = unknown, TContext = un
     { tenant: string; data: SettingsPKI },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsPKI>>,
   TError,
@@ -3244,11 +3611,11 @@ export const getPutSettingsPKIMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['putSettingsPKI'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsPKI>>,
@@ -3256,7 +3623,7 @@ export const getPutSettingsPKIMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsPKI(tenant, data);
+    return putSettingsPKI(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3276,6 +3643,7 @@ export const usePutSettingsPKI = <TError = unknown, TContext = unknown>(options?
     { tenant: string; data: SettingsPKI },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsPKI>>,
   TError,
@@ -3283,6 +3651,331 @@ export const usePutSettingsPKI = <TError = unknown, TContext = unknown>(options?
   TContext
 > => {
   const mutationOptions = getPutSettingsPKIMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary List revoked certificates for the tenant
+ */
+export type listPKIRevocationsResponse = {
+  data: RevocationList;
+  status: number;
+  headers: Headers;
+};
+
+export const getListPKIRevocationsUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/revocations`;
+};
+
+export const listPKIRevocations = async (
+  tenant: string,
+  options?: RequestInit,
+): Promise<listPKIRevocationsResponse> => {
+  return customFetch<listPKIRevocationsResponse>(getListPKIRevocationsUrl(tenant), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListPKIRevocationsQueryKey = (tenant: string) => {
+  return [`/api/v1/t/${tenant}/settings/pki/revocations`] as const;
+};
+
+export const getListPKIRevocationsInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof listPKIRevocations>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPKIRevocationsQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listPKIRevocations>>> = ({ signal }) =>
+    listPKIRevocations(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listPKIRevocations>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListPKIRevocationsInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPKIRevocations>>
+>;
+export type ListPKIRevocationsInfiniteQueryError = unknown;
+
+export function useListPKIRevocationsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listPKIRevocations>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPKIRevocations>>,
+          TError,
+          Awaited<ReturnType<typeof listPKIRevocations>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListPKIRevocationsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listPKIRevocations>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPKIRevocations>>,
+          TError,
+          Awaited<ReturnType<typeof listPKIRevocations>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListPKIRevocationsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listPKIRevocations>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List revoked certificates for the tenant
+ */
+
+export function useListPKIRevocationsInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listPKIRevocations>>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListPKIRevocationsInfiniteQueryOptions(tenant, options);
+
+  const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListPKIRevocationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPKIRevocations>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPKIRevocationsQueryKey(tenant);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listPKIRevocations>>> = ({ signal }) =>
+    listPKIRevocations(tenant, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPKIRevocations>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListPKIRevocationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPKIRevocations>>
+>;
+export type ListPKIRevocationsQueryError = unknown;
+
+export function useListPKIRevocations<
+  TData = Awaited<ReturnType<typeof listPKIRevocations>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPKIRevocations>>,
+          TError,
+          Awaited<ReturnType<typeof listPKIRevocations>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListPKIRevocations<
+  TData = Awaited<ReturnType<typeof listPKIRevocations>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPKIRevocations>>,
+          TError,
+          Awaited<ReturnType<typeof listPKIRevocations>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListPKIRevocations<
+  TData = Awaited<ReturnType<typeof listPKIRevocations>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List revoked certificates for the tenant
+ */
+
+export function useListPKIRevocations<
+  TData = Awaited<ReturnType<typeof listPKIRevocations>>,
+  TError = unknown,
+>(
+  tenant: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPKIRevocations>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListPKIRevocationsQueryOptions(tenant, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Record a revocation (by serial)
+ */
+export type createPKIRevocationResponse = {
+  data: RevocationItem | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getCreatePKIRevocationUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/pki/revocations`;
+};
+
+export const createPKIRevocation = async (
+  tenant: string,
+  revocationCreate: RevocationCreate,
+  options?: RequestInit,
+): Promise<createPKIRevocationResponse> => {
+  return customFetch<createPKIRevocationResponse>(getCreatePKIRevocationUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(revocationCreate),
+  });
+};
+
+export const getCreatePKIRevocationMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPKIRevocation>>,
+    TError,
+    { tenant: string; data: RevocationCreate },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPKIRevocation>>,
+  TError,
+  { tenant: string; data: RevocationCreate },
+  TContext
+> => {
+  const mutationKey = ['createPKIRevocation'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPKIRevocation>>,
+    { tenant: string; data: RevocationCreate }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return createPKIRevocation(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePKIRevocationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPKIRevocation>>
+>;
+export type CreatePKIRevocationMutationBody = RevocationCreate;
+export type CreatePKIRevocationMutationError = void;
+
+/**
+ * @summary Record a revocation (by serial)
+ */
+export const useCreatePKIRevocation = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPKIRevocation>>,
+    TError,
+    { tenant: string; data: RevocationCreate },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPKIRevocation>>,
+  TError,
+  { tenant: string; data: RevocationCreate },
+  TContext
+> => {
+  const mutationOptions = getCreatePKIRevocationMutationOptions(options);
 
   return useMutation(mutationOptions);
 };
@@ -3322,14 +4015,15 @@ export const getGetSettingsTenantInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsTenant>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsTenantQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsTenant>>> = ({ signal }) =>
-    getSettingsTenant(tenant, signal);
+    getSettingsTenant(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsTenant>>,
@@ -3360,6 +4054,7 @@ export function useGetSettingsTenantInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTenantInfinite<
@@ -3379,6 +4074,7 @@ export function useGetSettingsTenantInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTenantInfinite<
@@ -3390,6 +4086,7 @@ export function useGetSettingsTenantInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsTenant>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -3405,6 +4102,7 @@ export function useGetSettingsTenantInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsTenant>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsTenantInfiniteQueryOptions(tenant, options);
@@ -3425,14 +4123,15 @@ export const getGetSettingsTenantQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsTenant>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsTenantQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsTenant>>> = ({ signal }) =>
-    getSettingsTenant(tenant, signal);
+    getSettingsTenant(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsTenant>>,
@@ -3461,6 +4160,7 @@ export function useGetSettingsTenant<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTenant<
@@ -3478,6 +4178,7 @@ export function useGetSettingsTenant<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTenant<
@@ -3487,6 +4188,7 @@ export function useGetSettingsTenant<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsTenant>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -3500,6 +4202,7 @@ export function useGetSettingsTenant<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsTenant>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsTenantQueryOptions(tenant, options);
@@ -3549,6 +4252,7 @@ export const getPatchSettingsTenantMutationOptions = <
     { tenant: string; data: PatchSettingsTenantBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchSettingsTenant>>,
   TError,
@@ -3556,11 +4260,11 @@ export const getPatchSettingsTenantMutationOptions = <
   TContext
 > => {
   const mutationKey = ['patchSettingsTenant'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchSettingsTenant>>,
@@ -3568,7 +4272,7 @@ export const getPatchSettingsTenantMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return patchSettingsTenant(tenant, data);
+    return patchSettingsTenant(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3590,6 +4294,7 @@ export const usePatchSettingsTenant = <TError = unknown, TContext = unknown>(opt
     { tenant: string; data: PatchSettingsTenantBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchSettingsTenant>>,
   TError,
@@ -3636,14 +4341,15 @@ export const getGetSettingsTLSInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsTLS>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsTLSQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsTLS>>> = ({ signal }) =>
-    getSettingsTLS(tenant, signal);
+    getSettingsTLS(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getSettingsTLS>>,
@@ -3674,6 +4380,7 @@ export function useGetSettingsTLSInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTLSInfinite<
@@ -3693,6 +4400,7 @@ export function useGetSettingsTLSInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTLSInfinite<
@@ -3704,6 +4412,7 @@ export function useGetSettingsTLSInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsTLS>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -3719,6 +4428,7 @@ export function useGetSettingsTLSInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getSettingsTLS>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsTLSInfiniteQueryOptions(tenant, options);
@@ -3739,14 +4449,15 @@ export const getGetSettingsTLSQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsTLS>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetSettingsTLSQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsTLS>>> = ({ signal }) =>
-    getSettingsTLS(tenant, signal);
+    getSettingsTLS(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getSettingsTLS>>,
@@ -3773,6 +4484,7 @@ export function useGetSettingsTLS<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTLS<
@@ -3790,6 +4502,7 @@ export function useGetSettingsTLS<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetSettingsTLS<
@@ -3799,6 +4512,7 @@ export function useGetSettingsTLS<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsTLS>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -3812,6 +4526,7 @@ export function useGetSettingsTLS<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSettingsTLS>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetSettingsTLSQueryOptions(tenant, options);
@@ -3858,6 +4573,7 @@ export const getPutSettingsTLSMutationOptions = <TError = unknown, TContext = un
     { tenant: string; data: SettingsTLS },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof putSettingsTLS>>,
   TError,
@@ -3865,11 +4581,11 @@ export const getPutSettingsTLSMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['putSettingsTLS'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof putSettingsTLS>>,
@@ -3877,7 +4593,7 @@ export const getPutSettingsTLSMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return putSettingsTLS(tenant, data);
+    return putSettingsTLS(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3897,6 +4613,7 @@ export const usePutSettingsTLS = <TError = unknown, TContext = unknown>(options?
     { tenant: string; data: SettingsTLS },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof putSettingsTLS>>,
   TError,
@@ -3904,6 +4621,176 @@ export const usePutSettingsTLS = <TError = unknown, TContext = unknown>(options?
   TContext
 > => {
   const mutationOptions = getPutSettingsTLSMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Upload a manual TLS certificate (PEM cert + key)
+ */
+export type uploadManualCertResponse = {
+  data: ManualCertResponse | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getUploadManualCertUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/manual`;
+};
+
+export const uploadManualCert = async (
+  tenant: string,
+  manualCertUpload: ManualCertUpload,
+  options?: RequestInit,
+): Promise<uploadManualCertResponse> => {
+  return customFetch<uploadManualCertResponse>(getUploadManualCertUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(manualCertUpload),
+  });
+};
+
+export const getUploadManualCertMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadManualCert>>,
+    TError,
+    { tenant: string; data: ManualCertUpload },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadManualCert>>,
+  TError,
+  { tenant: string; data: ManualCertUpload },
+  TContext
+> => {
+  const mutationKey = ['uploadManualCert'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadManualCert>>,
+    { tenant: string; data: ManualCertUpload }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return uploadManualCert(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadManualCertMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadManualCert>>
+>;
+export type UploadManualCertMutationBody = ManualCertUpload;
+export type UploadManualCertMutationError = void;
+
+/**
+ * @summary Upload a manual TLS certificate (PEM cert + key)
+ */
+export const useUploadManualCert = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadManualCert>>,
+    TError,
+    { tenant: string; data: ManualCertUpload },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadManualCert>>,
+  TError,
+  { tenant: string; data: ManualCertUpload },
+  TContext
+> => {
+  const mutationOptions = getUploadManualCertMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Delete a manually-uploaded TLS certificate
+ */
+export type deleteManualCertResponse = {
+  data: void | void;
+  status: number;
+  headers: Headers;
+};
+
+export const getDeleteManualCertUrl = (tenant: string, certId: string) => {
+  return `/api/v1/t/${tenant}/settings/tls/manual/${certId}`;
+};
+
+export const deleteManualCert = async (
+  tenant: string,
+  certId: string,
+  options?: RequestInit,
+): Promise<deleteManualCertResponse> => {
+  return customFetch<deleteManualCertResponse>(getDeleteManualCertUrl(tenant, certId), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteManualCertMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteManualCert>>,
+    TError,
+    { tenant: string; certId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteManualCert>>,
+  TError,
+  { tenant: string; certId: string },
+  TContext
+> => {
+  const mutationKey = ['deleteManualCert'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteManualCert>>,
+    { tenant: string; certId: string }
+  > = (props) => {
+    const { tenant, certId } = props ?? {};
+
+    return deleteManualCert(tenant, certId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteManualCertMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteManualCert>>
+>;
+
+export type DeleteManualCertMutationError = void;
+
+/**
+ * @summary Delete a manually-uploaded TLS certificate
+ */
+export const useDeleteManualCert = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteManualCert>>,
+    TError,
+    { tenant: string; certId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteManualCert>>,
+  TError,
+  { tenant: string; certId: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteManualCertMutationOptions(options);
 
   return useMutation(mutationOptions);
 };
@@ -3938,6 +4825,7 @@ export const getPostWebhookTestMutationOptions = <TError = unknown, TContext = u
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof postWebhookTest>>,
   TError,
@@ -3945,11 +4833,11 @@ export const getPostWebhookTestMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['postWebhookTest'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof postWebhookTest>>,
@@ -3957,7 +4845,7 @@ export const getPostWebhookTestMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return postWebhookTest(tenant, id);
+    return postWebhookTest(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3979,6 +4867,7 @@ export const usePostWebhookTest = <TError = unknown, TContext = unknown>(options
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof postWebhookTest>>,
   TError,

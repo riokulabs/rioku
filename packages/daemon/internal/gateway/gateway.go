@@ -63,6 +63,7 @@ func NewGateway(
 	traceStore tracestore.Driver,
 	upstreamHealth UpstreamHealthSource,
 	jwksRegistry *observability.JWKSRegistry,
+	logTail *LogTailBuffer,
 	logger *slog.Logger,
 	levelVar *slog.LevelVar,
 ) (*Gateway, error) {
@@ -183,7 +184,7 @@ func NewGateway(
 	// JWKS rotation observability (#191). Registry may be nil when
 	// no rioku_jwt route is configured — handler returns an empty
 	// "unavailable" payload in that case.
-	RegisterObservabilityRoutes(topMux, jwksRegistry)
+	RegisterObservabilityRoutes(topMux, jwksRegistry, logTail)
 
 	// Tenant + membership management (stage-2).
 	RegisterTenantRoutes(topMux, st)
@@ -229,6 +230,11 @@ func NewGateway(
 
 	// PKI/TLS (stage-2): CAs, enrollments, certificates, config.
 	RegisterPKIRoutes(topMux, st)
+
+	// Plan 07-002: manual TLS cert PEM upload + delete.
+	RegisterSettingsTLSRoutes(topMux, st)
+	// Plan 07-003: PKI revocation list + create endpoints.
+	RegisterSettingsPKIRoutes(topMux, st)
 
 	// Settings config singletons (stage-2): network, auth-policy, observability, audit retention.
 	RegisterSettingsConfigRoutes(topMux, st)

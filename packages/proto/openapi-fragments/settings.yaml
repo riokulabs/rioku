@@ -518,6 +518,91 @@ paths:
     options:
       responses: { "204": { description: no content } }
 
+  /api/v1/t/{tenant}/settings/tls/manual:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [settings]
+      summary: Upload a manual TLS certificate (PEM cert + key)
+      operationId: uploadManualCert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManualCertUpload" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ManualCertResponse" }
+        "400": { description: invalid PEM or mismatched key }
+        "403": { description: requires tls:write }
+        "409": { description: domain already in use }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/manual/{certId}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: certId
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [settings]
+      summary: Delete a manually-uploaded TLS certificate
+      operationId: deleteManualCert
+      responses:
+        "204": { description: no content }
+        "403": { description: requires tls:write }
+        "404": { description: cert not found }
+
+  /api/v1/t/{tenant}/settings/pki/revocations:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: List revoked certificates for the tenant
+      operationId: listPKIRevocations
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevocationList" }
+    post:
+      tags: [settings]
+      summary: Record a revocation (by serial)
+      operationId: createPKIRevocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevocationCreate" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevocationItem" }
+        "400": { description: missing serial or reason }
+
+  /api/v1/t/{tenant}/observability/logs/tail:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: SSE stream of recent + live daemon log lines
+      operationId: tailObservabilityLogs
+      responses:
+        "200":
+          description: text/event-stream of LogRecord events
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "403": { description: requires observability:read }
+
 components:
   schemas:
     SettingsProfile:
@@ -681,3 +766,56 @@ components:
         latencyMs: { type: integer, format: int64 }
         durationMs: { type: integer, format: int64 }
         error: { type: string }
+
+    ManualCertUpload:
+      type: object
+      required: [cert_pem, key_pem]
+      properties:
+        cert_pem: { type: string }
+        key_pem: { type: string }
+        auto_renew: { type: boolean }
+
+    ManualCertResponse:
+      type: object
+      properties:
+        cert_id: { type: string }
+        ref:
+          type: object
+          properties:
+            id: { type: string }
+            subject: { type: string }
+            expiresAt: { type: string, format: date-time }
+            sans:
+              type: array
+              items: { type: string }
+            autoRenew: { type: boolean }
+        sha256_fingerprint: { type: string }
+        expires_at: { type: string, format: date-time }
+        subject: { type: string }
+        sans:
+          type: array
+          items: { type: string }
+
+    RevocationItem:
+      type: object
+      properties:
+        cert_id: { type: string }
+        serial: { type: string }
+        subject: { type: string }
+        revoked_at: { type: string, format: date-time }
+        reason: { type: string }
+
+    RevocationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RevocationItem" }
+
+    RevocationCreate:
+      type: object
+      required: [serial, reason]
+      properties:
+        serial: { type: string }
+        reason: { type: string }
+        subject: { type: string }

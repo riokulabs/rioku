@@ -25,9 +25,12 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
 import type {
   GetDangerExport200,
+  ManualCertResponse,
   PostDangerHardReset200,
   PostSettingsBackupCodesReset200,
   PostSettingsPassword200,
+  RevocationItem,
+  RevocationList,
   SettingsAuthPolicy,
   SettingsIntegrations,
   SettingsLogs,
@@ -40,6 +43,8 @@ import type {
   SettingsTraces,
   WebhookTestResult,
 } from '.././schemas';
+
+export const getTailObservabilityLogsResponseMock = (): string => faker.word.sample();
 
 export const getGetSettingsAuthPolicyResponseMock = (
   overrideResponse: Partial<SettingsAuthPolicy> = {},
@@ -407,6 +412,39 @@ export const getPutSettingsPKIResponseMock = (
   ...overrideResponse,
 });
 
+export const getListPKIRevocationsResponseMock = (
+  overrideResponse: Partial<RevocationList> = {},
+): RevocationList => ({
+  items: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      cert_id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      reason: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      revoked_at: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      serial: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      subject: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    })),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getCreatePKIRevocationResponseMock = (
+  overrideResponse: Partial<RevocationItem> = {},
+): RevocationItem => ({
+  cert_id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  reason: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  revoked_at: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  serial: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  subject: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  ...overrideResponse,
+});
+
 export const getGetSettingsTenantResponseMock = (
   overrideResponse: Partial<SettingsTenant> = {},
 ): SettingsTenant => ({
@@ -535,6 +573,43 @@ export const getPutSettingsTLSResponseMock = (
   ...overrideResponse,
 });
 
+export const getUploadManualCertResponseMock = (
+  overrideResponse: Partial<ManualCertResponse> = {},
+): ManualCertResponse => ({
+  cert_id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  expires_at: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  ref: faker.helpers.arrayElement([
+    {
+      autoRenew: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      expiresAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      sans: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+          faker.string.alpha(20),
+        ),
+        undefined,
+      ]),
+      subject: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    },
+    undefined,
+  ]),
+  sans: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+      faker.string.alpha(20),
+    ),
+    undefined,
+  ]),
+  sha256_fingerprint: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  subject: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  ...overrideResponse,
+});
+
 export const getPostWebhookTestResponseMock = (
   overrideResponse: Partial<WebhookTestResult> = {},
 ): WebhookTestResult => ({
@@ -558,6 +633,27 @@ export const getPostWebhookTestResponseMock = (
   success: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
   ...overrideResponse,
 });
+
+export const getTailObservabilityLogsMockHandler = (
+  overrideResponse?:
+    | string
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<string> | string),
+) => {
+  return http.get('*/api/v1/t/:tenant/observability/logs/tail', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getTailObservabilityLogsResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
 
 export const getGetSettingsAuthPolicyMockHandler = (
   overrideResponse?:
@@ -1029,6 +1125,52 @@ export const getPutSettingsPKIMockHandler = (
   });
 };
 
+export const getListPKIRevocationsMockHandler = (
+  overrideResponse?:
+    | RevocationList
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<RevocationList> | RevocationList),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/pki/revocations', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListPKIRevocationsResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getCreatePKIRevocationMockHandler = (
+  overrideResponse?:
+    | RevocationItem
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<RevocationItem> | RevocationItem),
+) => {
+  return http.post('*/api/v1/t/:tenant/settings/pki/revocations', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreatePKIRevocationResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
 export const getGetSettingsTenantMockHandler = (
   overrideResponse?:
     | SettingsTenant
@@ -1117,6 +1259,43 @@ export const getPutSettingsTLSMockHandler = (
   });
 };
 
+export const getUploadManualCertMockHandler = (
+  overrideResponse?:
+    | ManualCertResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ManualCertResponse> | ManualCertResponse),
+) => {
+  return http.post('*/api/v1/t/:tenant/settings/tls/manual', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getUploadManualCertResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getDeleteManualCertMockHandler = (
+  overrideResponse?:
+    | void
+    | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+) => {
+  return http.delete('*/api/v1/t/:tenant/settings/tls/manual/:certId', async (info) => {
+    await delay(1000);
+    if (typeof overrideResponse === 'function') {
+      await overrideResponse(info);
+    }
+    return new HttpResponse(null, { status: 204 });
+  });
+};
+
 export const getPostWebhookTestMockHandler = (
   overrideResponse?:
     | WebhookTestResult
@@ -1140,6 +1319,7 @@ export const getPostWebhookTestMockHandler = (
   });
 };
 export const getSettingsMock = () => [
+  getTailObservabilityLogsMockHandler(),
   getGetSettingsAuthPolicyMockHandler(),
   getPutSettingsAuthPolicyMockHandler(),
   getGetDangerExportMockHandler(),
@@ -1161,9 +1341,13 @@ export const getSettingsMock = () => [
   getPutSettingsObservabilityTracesMockHandler(),
   getGetSettingsPKIMockHandler(),
   getPutSettingsPKIMockHandler(),
+  getListPKIRevocationsMockHandler(),
+  getCreatePKIRevocationMockHandler(),
   getGetSettingsTenantMockHandler(),
   getPatchSettingsTenantMockHandler(),
   getGetSettingsTLSMockHandler(),
   getPutSettingsTLSMockHandler(),
+  getUploadManualCertMockHandler(),
+  getDeleteManualCertMockHandler(),
   getPostWebhookTestMockHandler(),
 ];

@@ -73,8 +73,18 @@
 
 ## Item 07-002 — TLS settings (Pebble + manual cert upload) deferred
 
-- **Status:** RESOLVED (frontend); daemon-side manual upload + Pebble seed
-  remain open. The new `<TlsRealSection>` in
+- **Status:** RESOLVED. Daemon manual-upload endpoints
+  (`POST /api/v1/t/{tenant}/settings/tls/manual` +
+  `DELETE .../manual/{certId}`) shipped in
+  `packages/daemon/internal/gateway/settings_tls_routes.go` with PEM
+  parse + `tls.X509KeyPair` mismatch detection, SHA-256 fingerprint
+  return, RBAC gating on `tls:write`, and a `triggerCaddyReload(ctx,
+  "settings.tls.manual")` after every mutation. Tests:
+  `settings_tls_routes_test.go` covers happy path, malformed PEM,
+  mismatched key, viewer-cannot-upload (403), upload→delete round-trip,
+  and 404 on unknown id. Pebble sandbox seed remains a Plan 0b
+  follow-up; the daemon API is now usable independently. Frontend
+  `<TlsRealSection>` in
   `packages/web/src/features/settings/sections-real/tls-real.tsx` wires
   ACME issuer selection, account email, custom directory URL (for Pebble),
   manual PEM upload form, and a list of uploaded certs with delete. The
@@ -108,7 +118,19 @@
 
 ## Item 07-003 — PKI internal CA + enrollment + revoke deferred
 
-- **Status:** RESOLVED (frontend); daemon revocation list endpoint open.
+- **Status:** RESOLVED. Daemon revocation list + create endpoints
+  (`GET/POST /api/v1/t/{tenant}/settings/pki/revocations`) shipped in
+  `packages/daemon/internal/gateway/settings_pki_routes.go`, sourced
+  from the existing `cert_enrollments` table (revoked rows surface as
+  `{cert_id, serial, subject, revoked_at, reason}`). POST accepts
+  `{serial, reason, subject?}`, resolves an existing enrollment when
+  the serial is known and otherwise creates a synthetic revoked row so
+  out-of-band revocations land in the same list. RBAC gated on
+  `settings:read` / `settings:write`. Tests:
+  `settings_pki_routes_test.go` covers list-empty, create-then-list
+  round-trip, and validation (missing serial / missing reason). The
+  earlier note about a daemon revocation list endpoint being open is
+  now closed.
   `<PkiRealSection>` in
   `packages/web/src/features/settings/sections-real/pki-real.tsx` wires the
   CA-chain PEM textarea, enrollment endpoint config, key-algo dropdown, and
@@ -182,8 +204,19 @@
 
 ## Item 07-006 — Caddy reload-after-network-PUT verification
 
-- **Status:** still open; daemon-side hook plumbing not landed in plan-07
-  scope. Frontend section is wired and labels the save action with the
+- **Status:** RESOLVED. The gateway now exposes a process-global reload
+  hook (`packages/daemon/internal/gateway/caddy_reload_hook.go`) wired
+  by the daemon at startup (`packages/daemon/internal/daemon/daemon.go`
+  after `caddy.Start`). Settings handlers fire-and-forget through
+  `triggerCaddyReload(ctx, reason)`: Network PUT
+  (`settings_configs_routes.go`) emits `"settings.network"`, manual
+  TLS upload + delete (`settings_tls_routes.go`) emit
+  `"settings.tls.manual"`. Hook errors are logged at warn level but
+  never propagate to the HTTP response. Tests:
+  `caddy_reload_hook_test.go` confirms the network PUT fires the hook
+  with the documented reason and that hook errors do not surface to
+  the caller. The earlier note about daemon-side hook plumbing not
+  landing in plan-07 scope is now closed. Frontend section is wired and labels the save action with the
   caddy-reload contract; daemon hook surface, integration test, and
   cluster-broadcast ladder remain Plan 03 ownership.
 - **Filed by:** plan-07, 2026-05-06
@@ -205,7 +238,21 @@
 
 ## Item 07-007 — Observability live preview (metrics tail) deferred
 
-- **Status:** RESOLVED (frontend); daemon SSE endpoint open.
+- **Status:** RESOLVED. Daemon SSE endpoint
+  `GET /api/v1/t/{tenant}/observability/logs/tail` shipped in
+  `packages/daemon/internal/gateway/observability_routes.go`. A
+  `LogTailBuffer` (slog.Handler with a 1000-line ring) is constructed
+  in `daemon.Start` and fan-out-attached to the existing slog default
+  via the new `daemon.newMultiHandler`. The SSE handler replays the
+  ring snapshot on connect, then streams live records as
+  `data: {timestamp, level, msg, fields}` events. Permission gated on
+  `observability:read`. When the tail buffer isn't wired (early
+  bootstrap / CLI subcommands) the stream emits a single
+  `event: disabled` line so callers can render a clear "feature not
+  active" state. Tests: `observability_logtail_test.go` covers Handle/
+  Subscribe broadcast, ring trim, snapshot+live SSE replay, and the
+  nil-buffer disabled fallback. The earlier note about the daemon SSE
+  endpoint being open is now closed.
   `<ObservabilityRealSection>` ships an SSE-based log-tail preview against
   `/api/v1/t/{tenant}/observability/logs/tail`; if the daemon endpoint is
   unavailable the UI surfaces a clear "daemon endpoint may not be available"

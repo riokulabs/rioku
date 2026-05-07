@@ -393,6 +393,32 @@ export const putSettingsPKIResponse = zod.object({
 });
 
 /**
+ * @summary List revoked certificates for the tenant
+ */
+export const listPKIRevocationsResponse = zod.object({
+  items: zod
+    .array(
+      zod.object({
+        cert_id: zod.string().optional(),
+        reason: zod.string().optional(),
+        revoked_at: zod.string().datetime().optional(),
+        serial: zod.string().optional(),
+        subject: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Record a revocation (by serial)
+ */
+export const createPKIRevocationBody = zod.object({
+  reason: zod.string(),
+  serial: zod.string(),
+  subject: zod.string().optional(),
+});
+
+/**
  * @summary Get tenant general settings
  */
 export const getSettingsTenantResponse = zod.object({
@@ -489,6 +515,15 @@ export const putSettingsTLSResponse = zod.object({
       }),
     )
     .optional(),
+});
+
+/**
+ * @summary Upload a manual TLS certificate (PEM cert + key)
+ */
+export const uploadManualCertBody = zod.object({
+  auto_renew: zod.boolean().optional(),
+  cert_pem: zod.string(),
+  key_pem: zod.string(),
 });
 
 /**

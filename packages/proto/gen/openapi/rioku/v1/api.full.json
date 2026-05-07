@@ -2829,6 +2829,72 @@
         },
         "type": "object"
       },
+      "ManualCertResponse": {
+        "properties": {
+          "cert_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ref": {
+            "properties": {
+              "autoRenew": {
+                "type": "boolean"
+              },
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "sans": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "subject": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "sans": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256_fingerprint": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ManualCertUpload": {
+        "properties": {
+          "auto_renew": {
+            "type": "boolean"
+          },
+          "cert_pem": {
+            "type": "string"
+          },
+          "key_pem": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cert_pem",
+          "key_pem"
+        ],
+        "type": "object"
+      },
       "Problem": {
         "description": "RFC 7807 problem+json error envelope.",
         "properties": {
@@ -2868,6 +2934,56 @@
           "title",
           "status"
         ],
+        "type": "object"
+      },
+      "RevocationCreate": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "serial",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RevocationItem": {
+        "properties": {
+          "cert_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RevocationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RevocationItem"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "SettingsAuthPolicy": {
@@ -6326,6 +6442,35 @@
         }
       ]
     },
+    "/api/v1/t/{tenant}/observability/logs/tail": {
+      "get": {
+        "operationId": "tailObservabilityLogs",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "text/event-stream of LogRecord events"
+          },
+          "403": {
+            "description": "requires observability:read"
+          }
+        },
+        "summary": "SSE stream of recent + live daemon log lines",
+        "tags": [
+          "settings"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/rbac-policies": {
       "get": {
         "operationId": "listRbacPolicies",
@@ -7713,6 +7858,64 @@
         ]
       }
     },
+    "/api/v1/t/{tenant}/settings/pki/revocations": {
+      "get": {
+        "operationId": "listPKIRevocations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevocationList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List revoked certificates for the tenant",
+        "tags": [
+          "settings"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createPKIRevocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevocationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevocationItem"
+                }
+              }
+            },
+            "description": "created"
+          },
+          "400": {
+            "description": "missing serial or reason"
+          }
+        },
+        "summary": "Record a revocation (by serial)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/t/{tenant}/settings/tenant": {
       "get": {
         "operationId": "getSettingsTenant",
@@ -7858,6 +8061,91 @@
           "settings"
         ]
       }
+    },
+    "/api/v1/t/{tenant}/settings/tls/manual": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "uploadManualCert",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualCertUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualCertResponse"
+                }
+              }
+            },
+            "description": "created"
+          },
+          "400": {
+            "description": "invalid PEM or mismatched key"
+          },
+          "403": {
+            "description": "requires tls:write"
+          },
+          "409": {
+            "description": "domain already in use"
+          }
+        },
+        "summary": "Upload a manual TLS certificate (PEM cert + key)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/manual/{certId}": {
+      "delete": {
+        "operationId": "deleteManualCert",
+        "responses": {
+          "204": {
+            "description": "no content"
+          },
+          "403": {
+            "description": "requires tls:write"
+          },
+          "404": {
+            "description": "cert not found"
+          }
+        },
+        "summary": "Delete a manually-uploaded TLS certificate",
+        "tags": [
+          "settings"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "certId",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/v1/t/{tenant}/settings/webhooks/{id}/test": {
       "options": {
