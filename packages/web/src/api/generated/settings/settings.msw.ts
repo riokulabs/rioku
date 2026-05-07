@@ -667,6 +667,10 @@ export const getGetSettingsTenantResponseMock = (
     `${faker.date.past().toISOString().split('.')[0]}Z`,
     undefined,
   ]),
+  urlMode: faker.helpers.arrayElement([
+    faker.helpers.arrayElement(['path', 'subdomain'] as const),
+    undefined,
+  ]),
   ...overrideResponse,
 });
 
@@ -689,6 +693,10 @@ export const getPatchSettingsTenantResponseMock = (
   slug: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
   updatedAt: faker.helpers.arrayElement([
     `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  urlMode: faker.helpers.arrayElement([
+    faker.helpers.arrayElement(['path', 'subdomain'] as const),
     undefined,
   ]),
   ...overrideResponse,

@@ -139,6 +139,12 @@ paths:
                 defaultTheme:
                   type: string
                   enum: [light, dark, auto]
+                urlMode:
+                  type: string
+                  enum: [path, subdomain]
+                  description: |
+                    Tenant addressing mode. Switching invalidates all
+                    existing sessions; clients must re-authenticate.
       responses:
         "200":
           description: ok
@@ -635,6 +641,10 @@ components:
         defaultTheme:
           type: string
           enum: [light, dark, auto]
+        urlMode:
+          type: string
+          enum: [path, subdomain]
+          description: "Tenant addressing mode (path or subdomain)."
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 

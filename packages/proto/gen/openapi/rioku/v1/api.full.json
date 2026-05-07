@@ -4997,6 +4997,14 @@
           "updatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "urlMode": {
+            "description": "Tenant addressing mode (path or subdomain).",
+            "enum": [
+              "path",
+              "subdomain"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -15357,6 +15365,14 @@
                     "type": "string"
                   },
                   "parentDomain": {
+                    "type": "string"
+                  },
+                  "urlMode": {
+                    "description": "Tenant addressing mode. Switching invalidates all\nexisting sessions; clients must re-authenticate.\n",
+                    "enum": [
+                      "path",
+                      "subdomain"
+                    ],
                     "type": "string"
                   }
                 },
