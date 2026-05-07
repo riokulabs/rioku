@@ -9,14 +9,14 @@ import { useRoleList } from '../api';
 import { roleCreateSchema, type RoleCreateFormValues } from '../schemas';
 
 interface RoleCreateProps {
-  tenantId: string;
+  tenant: string;
   onSave: (values: RoleCreateFormValues) => Promise<void>;
   onCancel: () => void;
 }
 
-export function RoleCreate({ tenantId: _tenantId, onSave, onCancel }: RoleCreateProps) {
+export function RoleCreate({ tenant, onSave, onCancel }: RoleCreateProps) {
   const [saving, setSaving] = useState(false);
-  const roles = useRoleList();
+  const roles = useRoleList(tenant);
 
   const parentOptions = roles.map((r) => ({ value: r.id, label: r.name }));
 

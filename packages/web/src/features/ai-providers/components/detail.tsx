@@ -9,7 +9,7 @@
  *   - Actions (Edit, Test connection, Delete — typed-name confirm)
  *   - Audit tail (last 10 entries for resource_type='ai-provider')
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Badge,
@@ -20,7 +20,6 @@ import {
   PasswordInput,
   Stack,
   Switch,
-  Table,
   Text,
   TextInput,
   Title,
@@ -29,50 +28,37 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconPlugConnected, IconRobot, IconRotate } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { ProviderKindBadge } from '@/features/ai-shared';
 import {
-  deleteProvider,
-  testProvider,
-  updateProvider,
-  useProviderAgents,
+  useDeleteProvider,
+  useTestProvider,
+  useUpdateProvider,
   useProviderDetail,
 } from '../api';
-import { ProviderInUseError } from '../types';
 import type { TestProviderResult } from '../types';
 import { ModelManager } from './model-manager';
 
 dayjs.extend(relativeTime);
 
 interface ProviderDetailProps {
+  tenant: string;
   providerId: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailProps) {
-  const provider = useProviderDetail(providerId);
-  const agentsUsing = useProviderAgents(providerId);
-  const auditEntries = useMockStore((s) => s.audit);
-
-  const auditTail = useMemo(() => {
-    if (!provider) return [];
-    return auditEntries
-      .filter((e) => e.resource_type === 'ai-provider' && e.resource_id === provider.id)
-      .slice()
-      .sort((a, b) => b.at.localeCompare(a.at))
-      .slice(0, 10);
-  }, [auditEntries, provider]);
+export function ProviderDetail({ tenant, providerId, onEdit, onClose }: ProviderDetailProps) {
+  const provider = useProviderDetail(tenant, providerId);
+  const updateProviderMut = useUpdateProvider(tenant);
+  const deleteProviderMut = useDeleteProvider(tenant);
+  const testProviderMut = useTestProvider(tenant);
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [rotateOpened, { open: openRotate, close: closeRotate }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestProviderResult | null>(null);
   const [rotateValue, setRotateValue] = useState('');
-  const [rotating, setRotating] = useState(false);
 
   if (!provider) {
     return (
@@ -84,10 +70,9 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
 
   async function handleTest() {
     if (!provider) return;
-    setTesting(true);
     setTestResult(null);
     try {
-      const result = await testProvider(provider.id);
+      const result = await testProviderMut.mutateAsync(provider.id);
       setTestResult(result);
       if (result.ok) {
         notify.success(
@@ -99,31 +84,20 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
       }
     } catch {
       notify.error('Failed to test provider', 'Please try again.');
-    } finally {
-      setTesting(false);
     }
   }
 
   async function handleDelete() {
     if (!provider) return;
     if (deleteInput !== provider.name) return;
-    setDeleting(true);
     try {
-      await deleteProvider(provider.id);
+      await deleteProviderMut.mutateAsync(provider.id);
       notify.success('Provider deleted', `${provider.name} was removed.`);
       closeDelete();
       onClose();
-    } catch (err) {
-      if (err instanceof ProviderInUseError) {
-        notify.error(
-          'Cannot delete — in use',
-          `${String(err.agentIds.length)} agent(s) still reference this provider.`,
-        );
-      } else {
-        notify.error('Failed to delete provider', 'Please try again.');
-      }
+    } catch {
+      notify.error('Failed to delete provider', 'Please try again.');
     } finally {
-      setDeleting(false);
       setDeleteInput('');
     }
   }
@@ -131,29 +105,24 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
   async function handleRotate() {
     if (!provider) return;
     if (rotateValue === '') return;
-    setRotating(true);
     try {
-      await updateProvider(provider.id, { credential: rotateValue });
+      await updateProviderMut.mutateAsync({ id: provider.id, input: { credential: rotateValue } });
       notify.success('Credential rotated', `${provider.name} credential updated.`);
       closeRotate();
       setRotateValue('');
     } catch {
       notify.error('Failed to rotate credential', 'Please try again.');
-    } finally {
-      setRotating(false);
     }
   }
 
   async function handleToggleEnabled(enabled: boolean) {
     if (!provider) return;
     try {
-      await updateProvider(provider.id, { enabled });
+      await updateProviderMut.mutateAsync({ id: provider.id, input: { enabled } });
     } catch {
       notify.error('Failed to update provider', 'Please try again.');
     }
   }
-
-  const deleteBlocked = agentsUsing.length > 0;
 
   return (
     <Stack gap="md">
@@ -229,7 +198,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
           size="sm"
           variant="light"
           leftSection={<IconPlugConnected size={14} />}
-          loading={testing}
+          loading={testProviderMut.isPending}
           onClick={() => void handleTest()}
         >
           Test connection
@@ -238,9 +207,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
           size="sm"
           variant="subtle"
           color="red.8"
-          disabled={deleteBlocked}
           onClick={openDelete}
-          title={deleteBlocked ? 'Remove dependent agents before deleting' : undefined}
         >
           Delete…
         </Button>
@@ -254,70 +221,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
       <Divider />
 
       {/* Models */}
-      <ModelManager providerId={provider.id} />
-
-      <Divider />
-
-      {/* Agents using this provider */}
-      <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Agents using this provider ({String(agentsUsing.length)})
-        </Text>
-        {agentsUsing.length === 0 ? (
-          <Text size="xs" c="var(--mantine-color-gray-7)">
-            No agents bound to this provider yet.
-          </Text>
-        ) : (
-          <Group gap={6}>
-            {agentsUsing.map((a) => (
-              <Badge key={a.id} size="xs" variant="light" color="blue">
-                {a.name} · {a.model}
-              </Badge>
-            ))}
-          </Group>
-        )}
-      </Stack>
-
-      <Divider />
-
-      {/* Audit tail */}
-      <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Recent activity
-        </Text>
-        {auditTail.length === 0 ? (
-          <Text size="xs" c="var(--mantine-color-gray-7)">
-            No audit entries for this provider yet.
-          </Text>
-        ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Action</Table.Th>
-                <Table.Th>Actor</Table.Th>
-                <Table.Th>When</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {auditTail.map((e) => (
-                <Table.Tr key={e.id}>
-                  <Table.Td>
-                    <Text size="xs" ff="monospace">
-                      {e.action}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">{e.actor_id}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Stack>
+      <ModelManager tenant={tenant} providerId={provider.id} />
 
       {/* Rotate modal */}
       <Modal
@@ -354,7 +258,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
             </Button>
             <Button
               size="sm"
-              loading={rotating}
+              loading={updateProviderMut.isPending}
               disabled={rotateValue === ''}
               onClick={() => void handleRotate()}
             >
@@ -408,7 +312,7 @@ export function ProviderDetail({ providerId, onEdit, onClose }: ProviderDetailPr
             <Button
               color="red.8"
               size="sm"
-              loading={deleting}
+              loading={deleteProviderMut.isPending}
               disabled={deleteInput !== provider.name}
               onClick={() => void handleDelete()}
             >

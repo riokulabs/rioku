@@ -64,6 +64,21 @@ type SeedFile struct {
 	AuditRetentionConfig *SeedAuditRetentionConfig `yaml:"audit_retention"`
 	NotificationConfig   *SeedNotificationConfig   `yaml:"notification_config"`
 	WebhookEndpoints     []SeedWebhookEndpoint     `yaml:"webhook_endpoints"`
+	ClusterNodes         []SeedClusterNode         `yaml:"cluster_nodes"`
+}
+
+// SeedClusterNode declares an expected cluster member for the sandbox.
+//
+// Cluster nodes are not creatable through the REST API — daemons join the
+// cluster by presenting an enrollment token at startup. This declaration
+// exists so the sandbox seed bundle documents the expected topology and the
+// loader can warn when the running cluster doesn't match. Missing nodes are
+// logged at info level and counted, never error-out — the sandbox should
+// still come up so non-cluster tests can run.
+type SeedClusterNode struct {
+	Name string `yaml:"name"`
+	Role string `yaml:"role"`
+	Note string `yaml:"note,omitempty"`
 }
 
 // SeedRole defines a custom role to create.
@@ -136,10 +151,11 @@ type SeedAPIKey struct {
 
 // SeedTenant creates an extra tenant beyond the seeded "default".
 type SeedTenant struct {
-	Slug    string `yaml:"slug"`
-	Name    string `yaml:"name"`
-	Plan    string `yaml:"plan,omitempty"`
-	URLMode string `yaml:"url_mode,omitempty"`
+	Slug         string `yaml:"slug"`
+	Name         string `yaml:"name"`
+	Plan         string `yaml:"plan,omitempty"`
+	URLMode      string `yaml:"url_mode,omitempty"`
+	ParentDomain string `yaml:"parent_domain,omitempty"`
 }
 
 // SeedMembership ties a username to a tenant with a role set.
@@ -770,6 +786,7 @@ type stage2Counts struct {
 	notifChannels, notifRules                            int
 	plugins, pluginSigners                               int
 	cas, enrollments, tlsCerts, webhooks                 int
+	clusterNodes                                         int
 	singletonsApplied                                    string
 }
 
@@ -790,7 +807,7 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 	// 1. Tenants (must come first — everything else may reference them)
 	for _, tn := range seed.Tenants {
 		payload, _ := json.Marshal(map[string]any{
-			"slug": tn.Slug, "name": tn.Name, "plan": tn.Plan, "urlMode": tn.URLMode,
+			"slug": tn.Slug, "name": tn.Name, "plan": tn.Plan, "urlMode": tn.URLMode, "parentDomain": tn.ParentDomain,
 		})
 		status, _ := apiCall(client, sessionCookie, "POST", base+"/api/v1/admin/tenants", payload)
 		logSeed(logger, "tenant", tn.Slug, status)
@@ -1243,6 +1260,24 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 		c.webhooks++
 	}
 
+	// 21. Cluster nodes — declarative-only.
+	//
+	// Cluster membership is established by the daemon presenting an
+	// enrollment token at boot, not by a REST POST. The seed bundle still
+	// carries a `cluster_nodes:` block so smoke tests / sandbox tooling
+	// can compare expected topology to live membership; the seed loader
+	// just logs each declared node and records the count.
+	for _, n := range seed.ClusterNodes {
+		role := n.Role
+		if role == "" {
+			role = "member"
+		}
+		logger.Info("cluster node declared",
+			"name", n.Name, "role", role, "note", n.Note,
+			"hint", "cluster nodes are seeded via enrollment tokens, not REST")
+		c.clusterNodes++
+	}
+
 	return c
 }
 
@@ -1312,6 +1347,7 @@ func mergeSeed(dst, src *SeedFile) {
 	dst.CertEnrollments = append(dst.CertEnrollments, src.CertEnrollments...)
 	dst.TLSCertificates = append(dst.TLSCertificates, src.TLSCertificates...)
 	dst.WebhookEndpoints = append(dst.WebhookEndpoints, src.WebhookEndpoints...)
+	dst.ClusterNodes = append(dst.ClusterNodes, src.ClusterNodes...)
 	// Pointer/singleton fields: last-write-wins.
 	if src.TLSConfig != nil {
 		dst.TLSConfig = src.TLSConfig

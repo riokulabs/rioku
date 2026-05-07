@@ -63,7 +63,7 @@ func seedAPIKey(t *testing.T, drv store.Driver, name string, scopes []string, ex
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err = tx.CreateAPIKey(ctx, name, hash, scopes, expiresAt, "")
+	id, err = tx.CreateAPIKey(ctx, name, hash, "", scopes, expiresAt, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func seedBootstrapToken(t *testing.T, drv store.Driver) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken(token), []string{"admin"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken(token), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
@@ -468,7 +468,7 @@ func TestJWT_RefreshTokens_Expired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "refresh:expired-user", hash, []string{"refresh", "subject:expired-user", "admin"}, &pastExpiry, "")
+	_, err = tx.CreateAPIKey(ctx, "refresh:expired-user", hash, "", []string{"refresh", "subject:expired-user", "admin"}, &pastExpiry, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)

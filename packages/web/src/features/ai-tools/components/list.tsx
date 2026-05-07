@@ -1,8 +1,8 @@
 /**
  * <ToolList> — DataTable list of AI tools for a tenant.
  *
- * Columns: name/description, kind badge, dangerous flag, mcp_server or
- * http_endpoint preview, enabled Switch, bound-agent count, actions.
+ * Columns: name/description, kind badge, dangerous flag, target preview,
+ * enabled Switch, actions.
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -10,40 +10,21 @@ import { Badge, Text, Stack, Group, Menu, ActionIcon, Switch } from '@mantine/co
 import { IconDots, IconPencil, IconTool, IconTrash } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
 import { DangerousToolBadge, ToolKindBadge } from '@/features/ai-shared';
-import { useToolList, updateTool } from '../api';
+import { useToolList, useUpdateTool } from '../api';
 import type { AiTool, ToolFilter } from '../types';
 
 interface ToolListProps {
-  tenantId: string;
+  tenant: string;
   filter: ToolFilter;
   onSelect: (tool: AiTool) => void;
   onEdit: (tool: AiTool) => void;
   onDelete: (tool: AiTool) => void;
 }
 
-export function ToolList({ tenantId, filter, onSelect, onEdit, onDelete }: ToolListProps) {
-  const tools = useToolList(tenantId, filter);
-  const agents = useMockStore((s) => s.aiAgents);
-  const bindings = useMockStore((s) => s.aiToolBindings);
-  const mcpServers = useMockStore((s) => s.mcpServers);
-
-  // Derive bound-agent counts per tool (agent.tool_ids ∪ bindings).
-  const boundCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const t of tools) {
-      const ids = new Set<string>();
-      for (const a of Object.values(agents)) {
-        if (a.tool_ids.includes(t.id)) ids.add(a.id);
-      }
-      for (const b of Object.values(bindings)) {
-        if (b.tool_id === t.id) ids.add(b.agent_id);
-      }
-      counts[t.id] = ids.size;
-    }
-    return counts;
-  }, [tools, agents, bindings]);
+export function ToolList({ tenant, filter, onSelect, onEdit, onDelete }: ToolListProps) {
+  const tools = useToolList(tenant, filter);
+  const updateMutation = useUpdateTool(tenant);
 
   const columns = useMemo<ColumnDef<AiTool>[]>(
     () => [
@@ -84,10 +65,9 @@ export function ToolList({ tenantId, filter, onSelect, onEdit, onDelete }: ToolL
         cell: ({ row }) => {
           const t = row.original;
           if (t.kind === 'mcp' && t.mcp_server_id) {
-            const server = mcpServers[t.mcp_server_id];
             return (
               <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
-                MCP · {server?.name ?? t.mcp_server_id}
+                MCP · {t.mcp_server_id}
               </Text>
             );
           }
@@ -106,17 +86,6 @@ export function ToolList({ tenantId, filter, onSelect, onEdit, onDelete }: ToolL
         },
       },
       {
-        id: 'agents',
-        header: 'Agents',
-        size: 90,
-        accessorFn: (row) => boundCounts[row.id] ?? 0,
-        cell: ({ getValue }) => (
-          <Badge size="xs" variant="light" color="gray">
-            {String(getValue<number>())}
-          </Badge>
-        ),
-      },
-      {
         id: 'enabled',
         header: 'Enabled',
         size: 100,
@@ -131,7 +100,8 @@ export function ToolList({ tenantId, filter, onSelect, onEdit, onDelete }: ToolL
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateTool(t.id, { enabled: e.currentTarget.checked });
+                const enabled = e.currentTarget.checked;
+                updateMutation.mutate({ id: t.id, input: { enabled } });
               }}
             />
           );
@@ -183,8 +153,11 @@ export function ToolList({ tenantId, filter, onSelect, onEdit, onDelete }: ToolL
         },
       },
     ],
-    [boundCounts, mcpServers, onEdit, onDelete],
+    [onEdit, onDelete, updateMutation],
   );
+
+  // Suppress unused warning when no tools are present.
+  void Badge;
 
   return (
     <DataTable

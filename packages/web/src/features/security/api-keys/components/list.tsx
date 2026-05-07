@@ -1,5 +1,9 @@
 /**
  * <ApiKeyList> — DataTable list of API keys with status filter.
+ *
+ * Stage-2 plan-02. Wired to the real daemon via `useApiKeyList` /
+ * `useApiKeyMutations`. Bulk export serializes the same fields the
+ * API returns — no secret material.
  */
 import { useMemo, useState, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -12,12 +16,11 @@ import {
   IconBan,
   IconDownload,
 } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
 import { notify } from '@/hooks/use-notify';
-import { useApiKeyList, revokeApiKey, deleteApiKey, rotateApiKey } from '../api';
+import { useApiKeyList, useApiKeyMutations } from '../api';
 import type { ApiKeyWithMeta, ApiKeyFilter } from '../types';
 
 const STATUS_OPTIONS = [
@@ -38,10 +41,10 @@ const DEFAULT_FILTER: ApiKeyFilter = { status: 'all' };
 interface ApiKeyListProps {
   tenantId: string;
   onSelect?: (key: ApiKeyWithMeta) => void;
-  onCreated?: (fullValue: string) => void;
+  onRotated?: (fullValue: string) => void;
 }
 
-export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
+export function ApiKeyList({ tenantId, onSelect, onRotated }: ApiKeyListProps) {
   const [filter, setFilter] = useState<ApiKeyFilter>(DEFAULT_FILTER);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -51,6 +54,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   }, []);
 
   const keys = useApiKeyList(tenantId, filter);
+  const mut = useApiKeyMutations(tenantId);
 
   const filteredKeys = useMemo(() => {
     if (!search.trim()) return keys;
@@ -63,7 +67,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   async function handleRevoke(id: string) {
     setLoadingId(id);
     try {
-      await revokeApiKey(id);
+      await mut.revokeApiKey(id);
       notify.success('API key revoked', 'The key has been invalidated.');
     } catch {
       notify.error('Failed to revoke key', 'Please try again.');
@@ -75,7 +79,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   async function handleDelete(id: string) {
     setLoadingId(id);
     try {
-      await deleteApiKey(id);
+      await mut.deleteApiKey(id);
       notify.success('API key deleted', 'The key has been removed.');
     } catch {
       notify.error('Failed to delete key', 'Please try again.');
@@ -87,11 +91,9 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
   async function handleRotate(id: string) {
     setLoadingId(id);
     try {
-      const result = await rotateApiKey(id);
-      notify.success(
-        'API key rotated',
-        `New key generated. Copy it now: ${result.fullValue.slice(0, 20)}…`,
-      );
+      const result = await mut.rotateApiKey(id);
+      onRotated?.(result.fullValue);
+      notify.success('API key rotated', 'A new key value has been generated.');
     } catch {
       notify.error('Failed to rotate key', 'Please try again.');
     } finally {
@@ -99,84 +101,104 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
     }
   }
 
-  const handleBulkRevoke = useCallback(async (ids: string[]) => {
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        await revokeApiKey(id);
-      } catch {
-        failed++;
+  const handleBulkRevoke = useCallback(
+    async (ids: string[]) => {
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await mut.revokeApiKey(id);
+        } catch {
+          failed++;
+        }
       }
-    }
-    const succeeded = ids.length - failed;
-    if (succeeded > 0) {
-      notify.success(
-        'Keys revoked',
-        `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} revoked.`,
-      );
-    }
-    if (failed > 0) {
-      notify.error(
-        'Some revocations failed',
-        `${String(failed)} key${failed !== 1 ? 's' : ''} could not be revoked.`,
-      );
-    }
-  }, []);
-
-  const handleBulkDelete = useCallback(async (ids: string[]) => {
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        await deleteApiKey(id);
-      } catch {
-        failed++;
+      const succeeded = ids.length - failed;
+      if (succeeded > 0) {
+        notify.success(
+          'Keys revoked',
+          `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} revoked.`,
+        );
       }
-    }
-    const succeeded = ids.length - failed;
-    if (succeeded > 0) {
-      notify.success(
-        'Keys deleted',
-        `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} deleted.`,
-      );
-    }
-    if (failed > 0) {
-      notify.error(
-        'Some deletions failed',
-        `${String(failed)} key${failed !== 1 ? 's' : ''} could not be deleted.`,
-      );
-    }
-  }, []);
+      if (failed > 0) {
+        notify.error(
+          'Some revocations failed',
+          `${String(failed)} key${failed !== 1 ? 's' : ''} could not be revoked.`,
+        );
+      }
+    },
+    [mut],
+  );
 
-  const handleBulkExportMetadata = useCallback((ids: string[]) => {
-    const state = useMockStore.getState();
-    const selected = ids
-      .map((id) => state.apiKeys[id])
-      .filter((k): k is NonNullable<typeof k> => k !== undefined)
-      .map(
-        ({ id, name, prefix, scope, tenant_id, created_at, expires_at, revoked, last_used }) => ({
-          id,
-          name,
-          prefix,
-          scope,
-          tenant_id,
-          created_at,
-          ...(expires_at !== undefined ? { expires_at } : {}),
-          revoked,
-          ...(last_used !== undefined ? { last_used } : {}),
-        }),
+  const handleBulkDelete = useCallback(
+    async (ids: string[]) => {
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await mut.deleteApiKey(id);
+        } catch {
+          failed++;
+        }
+      }
+      const succeeded = ids.length - failed;
+      if (succeeded > 0) {
+        notify.success(
+          'Keys deleted',
+          `${String(succeeded)} key${succeeded !== 1 ? 's' : ''} deleted.`,
+        );
+      }
+      if (failed > 0) {
+        notify.error(
+          'Some deletions failed',
+          `${String(failed)} key${failed !== 1 ? 's' : ''} could not be deleted.`,
+        );
+      }
+    },
+    [mut],
+  );
+
+  const handleBulkExportMetadata = useCallback(
+    (ids: string[]) => {
+      const idSet = new Set(ids);
+      const selected = keys
+        .filter((k) => idSet.has(k.id))
+        .map(
+          ({
+            id,
+            name,
+            prefix,
+            scope,
+            tenant_id,
+            created_at,
+            expires_at,
+            revoked,
+            last_used,
+          }) => ({
+            id,
+            name,
+            prefix,
+            scope,
+            tenant_id,
+            created_at,
+            ...(expires_at !== undefined ? { expires_at } : {}),
+            revoked,
+            ...(last_used !== undefined ? { last_used } : {}),
+          }),
+        );
+      const blob = new Blob([JSON.stringify(selected, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `api-keys-metadata-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      notify.success(
+        'Export ready',
+        `${String(selected.length)} key${selected.length !== 1 ? 's' : ''} exported (no secrets).`,
       );
-    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `api-keys-metadata-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    notify.success(
-      'Export ready',
-      `${String(selected.length)} key${selected.length !== 1 ? 's' : ''} exported (no secrets).`,
-    );
-  }, []);
+    },
+    [keys],
+  );
 
   const bulkActions = useMemo<BulkAction[]>(
     () => [
@@ -222,11 +244,14 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         id: 'prefix',
         header: 'Key prefix',
         accessorFn: (row) => row.prefix,
-        cell: ({ getValue }) => (
-          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
-            {getValue<string>()}…
-          </Text>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue<string>();
+          return (
+            <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
+              {v ? `${v}…` : '—'}
+            </Text>
+          );
+        },
       },
       {
         id: 'scope',
@@ -342,6 +367,7 @@ export function ApiKeyList({ tenantId, onSelect }: ApiKeyListProps) {
         },
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [loadingId],
   );
 

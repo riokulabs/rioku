@@ -50,6 +50,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type clusterServiceJoinResponse = {
   data: V1JoinResult | RpcStatus;
   status: number;
@@ -82,6 +84,7 @@ export const getClusterServiceJoinMutationOptions = <
     { data: V1JoinRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof clusterServiceJoin>>,
   TError,
@@ -89,11 +92,11 @@ export const getClusterServiceJoinMutationOptions = <
   TContext
 > => {
   const mutationKey = ['clusterServiceJoin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof clusterServiceJoin>>,
@@ -101,7 +104,7 @@ export const getClusterServiceJoinMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return clusterServiceJoin(data);
+    return clusterServiceJoin(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -120,6 +123,7 @@ export const useClusterServiceJoin = <TError = RpcStatus, TContext = unknown>(op
     { data: V1JoinRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof clusterServiceJoin>>,
   TError,
@@ -162,6 +166,7 @@ export const getClusterServiceLeaveMutationOptions = <
     { data: V1LeaveRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof clusterServiceLeave>>,
   TError,
@@ -169,11 +174,11 @@ export const getClusterServiceLeaveMutationOptions = <
   TContext
 > => {
   const mutationKey = ['clusterServiceLeave'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof clusterServiceLeave>>,
@@ -181,7 +186,7 @@ export const getClusterServiceLeaveMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return clusterServiceLeave(data);
+    return clusterServiceLeave(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -200,6 +205,7 @@ export const useClusterServiceLeave = <TError = RpcStatus, TContext = unknown>(o
     { data: V1LeaveRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof clusterServiceLeave>>,
   TError,
@@ -253,15 +259,16 @@ export const getClusterServiceListNodesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof clusterServiceListNodes>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getClusterServiceListNodesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof clusterServiceListNodes>>> = ({
     signal,
-  }) => clusterServiceListNodes(params, signal);
+  }) => clusterServiceListNodes(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof clusterServiceListNodes>>,
@@ -292,6 +299,7 @@ export function useClusterServiceListNodesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useClusterServiceListNodesInfinite<
@@ -311,6 +319,7 @@ export function useClusterServiceListNodesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useClusterServiceListNodesInfinite<
@@ -322,6 +331,7 @@ export function useClusterServiceListNodesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof clusterServiceListNodes>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -334,6 +344,7 @@ export function useClusterServiceListNodesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof clusterServiceListNodes>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getClusterServiceListNodesInfiniteQueryOptions(params, options);
@@ -356,15 +367,16 @@ export const getClusterServiceListNodesQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof clusterServiceListNodes>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getClusterServiceListNodesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof clusterServiceListNodes>>> = ({
     signal,
-  }) => clusterServiceListNodes(params, signal);
+  }) => clusterServiceListNodes(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof clusterServiceListNodes>>,
@@ -395,6 +407,7 @@ export function useClusterServiceListNodes<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useClusterServiceListNodes<
@@ -414,6 +427,7 @@ export function useClusterServiceListNodes<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useClusterServiceListNodes<
@@ -425,6 +439,7 @@ export function useClusterServiceListNodes<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof clusterServiceListNodes>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -437,6 +452,7 @@ export function useClusterServiceListNodes<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof clusterServiceListNodes>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getClusterServiceListNodesQueryOptions(params, options);

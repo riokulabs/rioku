@@ -65,7 +65,7 @@ export function ServiceList({
     let failed = 0;
     for (const id of ids) {
       try {
-        await deleteService(id);
+        await deleteService(tenantId, id);
       } catch {
         failed++;
       }
@@ -83,13 +83,13 @@ export function ServiceList({
         `${String(failed)} service${failed !== 1 ? 's' : ''} could not be deleted (may have attached routes).`,
       );
     }
-  }, []);
+  }, [tenantId]);
 
   const handleBulkEnable = useCallback(async (ids: string[]) => {
     let failed = 0;
     for (const id of ids) {
       try {
-        await enableService(id);
+        await enableService(tenantId, id);
       } catch {
         failed++;
       }
@@ -107,13 +107,13 @@ export function ServiceList({
         `${String(failed)} service${failed !== 1 ? 's' : ''} could not be enabled.`,
       );
     }
-  }, []);
+  }, [tenantId]);
 
   const handleBulkDisable = useCallback(async (ids: string[]) => {
     let failed = 0;
     for (const id of ids) {
       try {
-        await disableService(id);
+        await disableService(tenantId, id);
       } catch {
         failed++;
       }
@@ -131,7 +131,7 @@ export function ServiceList({
         `${String(failed)} service${failed !== 1 ? 's' : ''} could not be disabled.`,
       );
     }
-  }, []);
+  }, [tenantId]);
 
   const handleBulkExportJson = useCallback((ids: string[]) => {
     const state = useMockStore.getState();

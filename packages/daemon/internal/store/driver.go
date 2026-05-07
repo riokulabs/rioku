@@ -182,7 +182,10 @@ type Tx interface {
 	// --- API Keys ---
 
 	// CreateAPIKey stores a new API key and returns its generated ID.
-	CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
+	// `prefix` is the non-secret display fragment of the raw token
+	// (e.g. `rku_tok_AbCd`); pass "" for system / refresh / bootstrap
+	// keys whose raw form is never shown to humans.
+	CreateAPIKey(ctx context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
 	GetAPIKey(ctx context.Context, id string) (*APIKey, error)
 	// GetAPIKeyByHash looks up a key by its hash (used during authentication).
 	GetAPIKeyByHash(ctx context.Context, keyHash string) (*APIKey, error)
@@ -239,8 +242,26 @@ type Tx interface {
 	GetUser(ctx context.Context, id string) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	ListUsers(ctx context.Context) ([]*User, error)
+	// CountUsers returns the total number of users in the store.
+	// Used by the bootstrap-status endpoint to determine if any admin
+	// account exists.
+	CountUsers(ctx context.Context) (int, error)
+	// GetUserByEmail looks up a user by email address (case-insensitive).
+	// Returns sql.ErrNoRows when not found.
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, u *User) (*User, error)
 	DeleteUser(ctx context.Context, id string) error
+
+	// --- Password Reset Tokens ---
+
+	// CreatePasswordResetToken stores a hashed token for the given user
+	// that expires at expiresAt. The raw token is never stored.
+	CreatePasswordResetToken(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error
+	// GetPasswordResetToken returns the token row for a given hash.
+	// Returns sql.ErrNoRows when not found.
+	GetPasswordResetToken(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	// ConsumePasswordResetToken marks the token as consumed (sets consumed_at).
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) error
 
 	// IncrementFailedAttempts increments failed_attempts and optionally sets
 	// locked_until + status='locked' if threshold is reached.
@@ -292,6 +313,24 @@ type Tx interface {
 
 	// ListPermissions returns all available atomic permissions.
 	ListPermissions(ctx context.Context) ([]*Permission, error)
+	// RegisterPluginPermissions inserts permissions declared by a plugin
+	// manifest into the catalog. Each permission is keyed on its `id`
+	// (resource:action). Existing rows with the same id are upserted in
+	// place so re-installs are idempotent. The `source` column is set
+	// to "plugin-manifest" and `source_plugin_id` to the supplied id.
+	//
+	// Permission ids must be unique across the entire catalog;
+	// returning ErrPermissionConflict signals a clash with a built-in
+	// permission of the same id (which the caller should treat as a
+	// validation error).
+	RegisterPluginPermissions(ctx context.Context, pluginID string, perms []*Permission) error
+	// UnregisterPluginPermissions removes catalog rows that originated
+	// from a given plugin. Per the source-handling rule from migration
+	// 000049, plugin-sourced rows are deleted outright on uninstall —
+	// they were never built-in, so no fallback target exists.
+	//
+	// Returns the count of removed rows.
+	UnregisterPluginPermissions(ctx context.Context, pluginID string) (int, error)
 	// GetUserScopes returns all granted scope strings for a user (may include wildcards).
 	GetUserScopes(ctx context.Context, userID string) ([]string, error)
 
@@ -482,6 +521,12 @@ type Tx interface {
 	// machine (pending -> active -> deactivated -> removed). Invalid
 	// transitions return ErrMembershipInvalidState.
 	UpdateMembershipState(ctx context.Context, id, state string) (*Membership, error)
+	// GetMembershipByInviteToken looks up a pending membership by its hashed
+	// invite token. Returns ErrMembershipNotFound when not found.
+	GetMembershipByInviteToken(ctx context.Context, tokenHash string) (*Membership, error)
+	// AcceptInvite activates a pending membership: sets user_id, clears
+	// invite_token_hash, sets state=active, and sets joined_at=now.
+	AcceptInvite(ctx context.Context, membershipID, userID string) error
 	// DeleteMembership hard-deletes a membership. Prefer
 	// UpdateMembershipState("removed") for audit retention; this is for
 	// administrative cleanup.
@@ -794,6 +839,11 @@ type Tenant struct {
 	Name               string
 	Plan               string  // community | pro | enterprise
 	URLMode            string  // path | subdomain
+	// ParentDomain is the base domain used for subdomain routing cookie scoping.
+	// When URLMode=subdomain, session cookies are issued with Domain=.<ParentDomain>
+	// and SameSite=Lax. E.g. "localhost" for dev, "mycompany.com" for prod.
+	// Empty string means fall back to host-scoped cookies.
+	ParentDomain       string
 	Accent             *string // hex color, nullable
 	LogoURL            *string
 	DefaultDashboardID *string
@@ -807,9 +857,21 @@ type UpdateTenantParams struct {
 	Name               *string
 	Plan               *string
 	URLMode            *string
+	// ParentDomain, when non-nil, sets the parent domain for subdomain cookie scoping.
+	ParentDomain       *string
 	Accent             *string
 	LogoURL            *string
 	DefaultDashboardID *string
+}
+
+// PasswordResetToken represents a single-use token for password reset.
+// The raw token is never stored; only its SHA-256 hex hash is persisted.
+type PasswordResetToken struct {
+	TokenHash  string
+	UserID     string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
 }
 
 // Membership ties a User to a Tenant with a state machine
@@ -1389,6 +1451,14 @@ var (
 	ErrPluginSignerFPTaken  = fmt.Errorf("store: plugin signer fingerprint already in use in this scope")
 )
 
+// Permission registry sentinel errors.
+var (
+	// ErrPermissionConflict is returned by RegisterPluginPermissions
+	// when a plugin tries to register an id that's already owned by
+	// another source (built-in or another plugin).
+	ErrPermissionConflict = fmt.Errorf("store: permission id already registered by another source")
+)
+
 // CertAuthority is a per-tenant root or intermediate CA.
 type CertAuthority struct {
 	ID                string
@@ -1642,6 +1712,10 @@ type APIKey struct {
 	TenantID   string
 	Name       string
 	KeyHash    string
+	// Prefix is a non-secret display fragment of the raw key (e.g. the
+	// first 12 chars: `rku_tok_AbCd`). Empty for legacy keys created
+	// before migration #51 and for system / refresh / bootstrap keys.
+	Prefix     string
 	Scopes     []string
 	OwnerID    string // user ID of creator, empty for system keys
 	ExpiresAt  *time.Time

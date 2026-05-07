@@ -1,16 +1,16 @@
 /**
  * Audit feature — barrel exports.
  *
- * Stage 1: read-only API, streaming tail, async-search, export helpers,
- * retention-config CRUD. UI components land in Phase 5b + 5c.
+ * Stage 2: list/detail/search/export/retention all backed by mock store
+ * (pending real daemon flip). Live tail via `useAuditStream` (SSE).
  */
 export {
   useAuditList,
   useAuditListInfinite,
   useAuditDetail,
-  subscribeAuditStream,
   exportAuditCsv,
   exportAuditJsonl,
+  streamAuditExport,
   searchActors,
   searchResourceIds,
   useRetentionConfig,
@@ -31,7 +31,6 @@ export type {
   AuditFilter,
   AuditListInfiniteResult,
   AuditRetentionConfig,
-  AuditStreamListener,
   ResourceIdCandidate,
   UpdateRetentionConfigInput,
 } from './types';

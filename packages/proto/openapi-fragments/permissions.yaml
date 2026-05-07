@@ -1,0 +1,55 @@
+# Stage-2 plan-02 identity: permission catalog.
+#
+# Mirrors handleListPermissions in packages/daemon/internal/gateway/rbac_routes.go.
+# The daemon currently exposes the catalog under both legacy and tenant-scoped
+# paths (RegisterRBACRoutes loops both). The list is used by the Mantine admin
+# panel's permissions-catalog page (RD6 — source badge + filter UX).
+#
+# A per-user "effective permissions" view is computed client-side today; this
+# fragment only documents the catalog endpoint. effective-for-user remains
+# tracked in decisions-needed.md (next iteration).
+
+paths:
+  /api/v1/t/{tenant}/permissions:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [permissions]
+      summary: List the permission catalog
+      operationId: listPermissions
+      parameters:
+        - in: query
+          name: source
+          schema:
+            type: string
+            enum: [builtin, plugin-manifest, plugin-dynamic]
+          description: "Optional filter by permission source."
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permissions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Permission" }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    Permission:
+      type: object
+      properties:
+        id: { type: string, description: "resource:action canonical id" }
+        resource: { type: string }
+        action: { type: string }
+        description: { type: string }
+        source:
+          type: string
+          enum: [built-in, plugin-manifest, plugin-dynamic]
+        sourcePluginId:
+          type: string
+          description: "Set when source is plugin-manifest or plugin-dynamic."

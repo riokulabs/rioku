@@ -181,6 +181,7 @@ func handleCreateSite(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		triggerCaddyReload(r.Context(), "site.create")
 		writeJSON(w, http.StatusCreated, siteToResponse(created))
 	}
 }
@@ -257,6 +258,7 @@ func handleUpdateSite(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		triggerCaddyReload(r.Context(), "site.update")
 		writeJSON(w, http.StatusOK, siteToResponse(updated))
 	}
 }
@@ -293,6 +295,7 @@ func handleToggleSite(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		triggerCaddyReload(r.Context(), "site.toggle")
 		writeJSON(w, http.StatusOK, siteToResponse(updated))
 	}
 }
@@ -323,6 +326,7 @@ func handleDeleteSite(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		triggerCaddyReload(r.Context(), "site.delete")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

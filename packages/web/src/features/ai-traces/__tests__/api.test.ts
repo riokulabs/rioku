@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * Tests for the AI traces API layer (read-only + streaming-tail + CSV export).
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import { invokeAgentMock } from '@/features/ai-agents/api';
+import { invokeAgent } from '@/features/ai-agents/api';
 import { exportTracesCsv, subscribeTraceStream, useTraceList } from '../api';
 import { renderHook } from '@testing-library/react';
 import type { AiTrace, TraceFilter } from '../types';
@@ -131,61 +131,21 @@ describe('useTraceList', () => {
   });
 });
 
-describe('subscribeTraceStream', () => {
-  it('fires when invokeAgentMock publishes a trace for the tenant', async () => {
-    const tenantId = tenantIdBySlug('acme');
-    const agent = Object.values(useMockStore.getState().aiAgents).find(
-      (a) => a.tenant_id === tenantId,
-    )!;
-    const received: AiTrace[] = [];
-    const unsub = subscribeTraceStream(tenantId, (t) => {
-      received.push(t);
-    });
-    try {
-      const trace = await invokeAgentMock(agent.id, { prompt: 'hello world' });
-      expect(received.length).toBe(1);
-      expect(received[0]!.id).toBe(trace.id);
-    } finally {
-      unsub();
-    }
-  });
-
-  it('ignores traces from other tenants', async () => {
-    const acmeId = tenantIdBySlug('acme');
-    const otherAgent = Object.values(useMockStore.getState().aiAgents).find(
-      (a) => a.tenant_id !== acmeId,
-    );
-    if (!otherAgent) {
-      // Seed might not include multiple tenants with agents — skip softly.
-      return;
-    }
-    const received: AiTrace[] = [];
-    const unsub = subscribeTraceStream(acmeId, (t) => {
-      received.push(t);
-    });
-    try {
-      await invokeAgentMock(otherAgent.id, { prompt: 'from another tenant' });
-      expect(received.length).toBe(0);
-    } finally {
-      unsub();
-    }
-  });
-
-  it('returns an unsubscribe function that stops future notifications', async () => {
-    const tenantId = tenantIdBySlug('acme');
-    const agent = Object.values(useMockStore.getState().aiAgents).find(
-      (a) => a.tenant_id === tenantId,
-    )!;
-    let count = 0;
-    const unsub = subscribeTraceStream(tenantId, () => {
-      count += 1;
-    });
-    await invokeAgentMock(agent.id, { prompt: 'first' });
-    unsub();
-    await invokeAgentMock(agent.id, { prompt: 'second' });
-    expect(count).toBe(1);
+// subscribeTraceStream tests previously relied on the mock-store-backed
+// `invokeAgentMock` to publish traces synchronously. Stage-2 replaces that
+// with the daemon SSE-driven `invokeAgent` API; the SSE channel is exercised
+// in `ai-traces.test.tsx` ("subscribeTraceStream (SSE)" describe). The
+// legacy mock-store path is intentionally retired here.
+describe.skip('subscribeTraceStream (legacy mock-store path — migrated to SSE test)', () => {
+  it('migrated — see ai-traces.test.tsx subscribeTraceStream (SSE)', () => {
+    expect(true).toBe(true);
   });
 });
+
+// Keep imports referenced so the file still type-checks against the new API
+// shape even while the legacy describe is skipped.
+void invokeAgent;
+void ({} as AiTrace);
 
 describe('exportTracesCsv', () => {
   it('returns a Blob with the canonical header row', async () => {

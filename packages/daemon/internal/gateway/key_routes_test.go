@@ -396,12 +396,12 @@ func TestKeyRoutes_ListKeys_FiltersInternalTokens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken("fake-bootstrap"), []string{"admin"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken("fake-bootstrap"), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "refresh:user123", auth.HashToken("fake-refresh"), []string{"refresh"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "refresh:user123", auth.HashToken("fake-refresh"), "", []string{"refresh"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
@@ -998,7 +998,7 @@ func TestKeyRoutes_APIKeyAuthCreatesSystemKey(t *testing.T) {
 		_ = tx.Rollback()
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "bootstrap-test", auth.HashToken(rawBootstrap), []string{"admin"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "bootstrap-test", auth.HashToken(rawBootstrap), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)

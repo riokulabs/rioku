@@ -17,5 +17,7 @@ export type { RouteFilter, RouteInput, RouteUpdateInput } from './types';
 export { RouteList } from './components/list';
 export { RouteDetail } from './components/detail';
 export { RouteForm } from './components/form';
+export { RouteDrawer } from './components/drawer';
+export { RouteFullPage } from './components/full-page';
 export { AttachedPolicies } from './components/attached-policies';
 export { MiddlewareStackEditor } from './components/middleware-stack-editor';

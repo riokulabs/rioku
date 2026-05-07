@@ -35,7 +35,7 @@ import { UserDetail } from '@/features/security/users';
 import { AgentDetail } from '@/features/ai-agents';
 import { ProviderDetail } from '@/features/ai-providers';
 import { ToolDetail } from '@/features/ai-tools';
-import { McpServerDetail } from '@/features/ai-mcp-servers';
+import { McpServerDrawer } from '@/features/ai-mcp-servers';
 import { TraceDetail } from '@/features/ai-traces';
 import { RateLimitDetail } from '@/features/ai-rate-limits';
 
@@ -43,12 +43,11 @@ import { RateLimitDetail } from '@/features/ai-rate-limits';
 import { MiddlewareDetail } from '@/features/middlewares';
 
 // ── Security ────────────────────────────────────────────────────────────────
-import { ApiKeyDetailDrawer } from '@/features/security/api-keys/components/detail-drawer';
-import { SessionDetail } from '@/features/security/sessions';
+import { ApiKeyDrawer } from '@/features/security/api-keys/components/drawer';
 import { AuditDetail } from '@/features/audit';
-import { RoleDetail } from '@/features/security/roles';
+import { RoleDetail, useRole } from '@/features/security/roles';
 import { AccessPolicyDetail } from '@/features/security/access-policies';
-import { RbacPolicyDetail } from '@/features/security/rbac-policies';
+import { RbacPolicyDetail, useRbacPolicy } from '@/features/security/rbac-policies';
 import { useApiKey } from '@/features/security/api-keys/api';
 
 // ── Plugins / Notifications ─────────────────────────────────────────────────
@@ -77,7 +76,7 @@ function NotFound({ what }: { what: string }) {
 
 function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const service = useServiceDetail(entityId);
+  const service = useServiceDetail(tenantId, entityId);
   const [editing, setEditing] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -133,7 +132,7 @@ function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
 
 function RouteDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const route = useRouteDetail(entityId);
+  const route = useRouteDetail(tenantId, entityId);
   const [editing, setEditing] = useState(false);
   if (!route) return <NotFound what="Route" />;
   return (
@@ -215,6 +214,7 @@ function ProviderDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
     <ProviderDetail
+      tenant={tenantSlug}
       providerId={entityId}
       onEdit={() => {
         void navigate({
@@ -238,7 +238,7 @@ function ToolDetailPage({ entityId, tenantSlug }: RendererProps) {
   return (
     <ToolDetail
       toolId={entityId}
-      tenantSlug={tenantSlug}
+      tenant={tenantSlug}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/ai/tools',
@@ -259,9 +259,9 @@ function ToolDetailPage({ entityId, tenantSlug }: RendererProps) {
 function McpServerDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
-    <McpServerDetail
+    <McpServerDrawer
       serverId={entityId}
-      tenantSlug={tenantSlug}
+      tenant={tenantSlug}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/ai/mcp-servers',
@@ -295,11 +295,12 @@ function TraceDetailPage({ entityId, tenantSlug }: RendererProps) {
   );
 }
 
-function RateLimitDetailPage({ entityId, tenantSlug }: RendererProps) {
+function RateLimitDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
     <RateLimitDetail
       ruleId={entityId}
+      tenantId={tenantId}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/ai/rate-limits',
@@ -337,13 +338,14 @@ function MiddlewareDetailPage({ entityId, tenantSlug }: RendererProps) {
   );
 }
 
-function ApiKeyDetailPage({ entityId, tenantSlug }: RendererProps) {
+function ApiKeyDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const key = useApiKey(entityId);
+  const key = useApiKey(tenantId, entityId);
   if (!key) return <NotFound what="API key" />;
   return (
-    <ApiKeyDetailDrawer
+    <ApiKeyDrawer
       keyId={entityId}
+      tenantId={tenantId}
       onClose={() => {
         void navigate({
           to: '/t/$tenant/security/api-keys',
@@ -354,30 +356,36 @@ function ApiKeyDetailPage({ entityId, tenantSlug }: RendererProps) {
   );
 }
 
-function SessionDetailPage({ entityId, tenantSlug }: RendererProps) {
+/**
+ * Sessions render inline (RD5) — there is no full-page detail. Direct
+ * deep-links to /t/$tenant/_detail/session/$id render an explanation
+ * alert with a "Back to sessions" button so old links don't 404.
+ */
+function SessionDetailPage({ tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const session = useMockStore((s) => {
-    const raw = s.sessions[entityId];
-    if (!raw) return null;
-    return {
-      ...raw,
-      device: raw.user_agent || 'Unknown device',
-      location: '—',
-      is_current: false,
-      last_seen_relative: '',
-    };
-  });
-  if (!session) return <NotFound what="Session" />;
   return (
-    <SessionDetail
-      session={session}
-      onClose={() => {
-        void navigate({
-          to: '/t/$tenant/security/sessions',
-          params: { tenant: tenantSlug },
-        } as unknown as Parameters<typeof navigate>[0]);
-      }}
-    />
+    <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
+      <Stack gap="sm">
+        <Text size="sm">
+          Sessions are shown inline on the sessions page. There is no full-page detail.
+        </Text>
+        <Group>
+          <Button
+            size="xs"
+            variant="default"
+            leftSection={<IconArrowLeft size={14} />}
+            onClick={() => {
+              void navigate({
+                to: '/t/$tenant/security/sessions',
+                params: { tenant: tenantSlug },
+              } as unknown as Parameters<typeof navigate>[0]);
+            }}
+          >
+            Back to sessions
+          </Button>
+        </Group>
+      </Stack>
+    </Alert>
   );
 }
 
@@ -400,10 +408,11 @@ function AuditDetailPage({ entityId, tenantSlug }: RendererProps) {
 
 function RoleDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const role = useMockStore((s) => s.roles[entityId] ?? null);
+  const role = useRole(tenantSlug, entityId);
   if (!role) return <NotFound what="Role" />;
   return (
     <RoleDetail
+      tenant={tenantSlug}
       role={role}
       onClose={() => {
         void navigate({
@@ -446,16 +455,11 @@ function AccessPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
 
 function RbacPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const policy = useMockStore((s) => {
-    const raw = s.rbacPolicies[entityId];
-    if (!raw) return null;
-    return raw;
-  });
+  const policy = useRbacPolicy(tenantSlug, entityId);
   if (!policy) return <NotFound what="RBAC policy" />;
   return (
     <RbacPolicyDetail
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-      policy={policy as any}
+      policy={policy}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/security/rbac-policies',

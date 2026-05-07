@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { customFetch } from './mutator';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { customFetch, setActiveImpersonationIdAccessor } from './mutator';
 import { AuthFailureError, ServerError, ValidationError } from './errors';
 
 const mockFetch = vi.fn();
@@ -87,6 +87,86 @@ describe('customFetch', () => {
     mockFetch.mockResolvedValue(new Response(null, { status: 204 }));
     const result = await customFetch({ url: '/api/v1/foo', method: 'DELETE' });
     expect(result).toBeUndefined();
+  });
+
+  // ─── Impersonation header reflection ─────────────────────────────────────
+
+  describe('impersonation header reflection', () => {
+    afterEach(() => {
+      setActiveImpersonationIdAccessor(null);
+    });
+
+    it('stamps X-Impersonation-Id when a session is active', async () => {
+      setActiveImpersonationIdAccessor(() => 'imp-abc-123');
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      await customFetch('/api/v1/services', { method: 'GET' });
+      const init = mockFetch.mock.calls[0]![1] as RequestInit;
+      expect(init.headers).toMatchObject({ 'x-impersonation-id': 'imp-abc-123' });
+    });
+
+    it('does not stamp the header when no session is active', async () => {
+      setActiveImpersonationIdAccessor(() => null);
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      await customFetch('/api/v1/services', { method: 'GET' });
+      const init = mockFetch.mock.calls[0]![1] as RequestInit;
+      expect((init.headers as Record<string, string>)['x-impersonation-id']).toBeUndefined();
+    });
+
+    it('does not stamp the header on impersonation-management requests', async () => {
+      setActiveImpersonationIdAccessor(() => 'imp-abc-123');
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      // Self-list of admin sessions — must not echo own session id.
+      await customFetch('/api/v1/admin/impersonation', { method: 'GET' });
+      const init = mockFetch.mock.calls[0]![1] as RequestInit;
+      expect((init.headers as Record<string, string>)['x-impersonation-id']).toBeUndefined();
+    });
+
+    it('does not overwrite an explicit X-Impersonation-Id header', async () => {
+      setActiveImpersonationIdAccessor(() => 'imp-abc-123');
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      await customFetch('/api/v1/services', {
+        method: 'GET',
+        headers: { 'X-Impersonation-Id': 'override-id' },
+      });
+      const init = mockFetch.mock.calls[0]![1] as RequestInit;
+      const headers = init.headers as Record<string, string>;
+      // The explicit override wins. Either casing is acceptable.
+      const stamped = headers['x-impersonation-id'] ?? headers['X-Impersonation-Id'];
+      expect(stamped).toBe('override-id');
+    });
+
+    it('also stamps the header when using the hand-written args shape', async () => {
+      setActiveImpersonationIdAccessor(() => 'imp-xyz');
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      await customFetch({ url: '/api/v1/services', method: 'POST', data: { x: 1 } });
+      const init = mockFetch.mock.calls[0]![1] as RequestInit;
+      expect((init.headers as Record<string, string>)['x-impersonation-id']).toBe('imp-xyz');
+    });
   });
 
   it('@read-only sends JSON body and content-type for POST/PUT/PATCH', async () => {

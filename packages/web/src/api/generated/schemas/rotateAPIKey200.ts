@@ -29,4 +29,6 @@ export type RotateAPIKey200 = {
   id?: string;
   /** Plaintext secret (returned once) */
   key?: string;
+  /** Non-secret display fragment of the new raw key */
+  prefix?: string;
 };

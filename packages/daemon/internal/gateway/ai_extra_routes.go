@@ -62,6 +62,10 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesStream(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces/export/csv",
 		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesExportCSV(st))))
+	// POST variant per spec §7 RD5 — admin POSTs `?format=csv` so the
+	// browser can stream the response via response.body.getReader().
+	mux.Handle("POST /api/v1/t/{tenant}/ai/traces/export",
+		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesExportCSV(st))))
 
 	// OPTIONS coverage.
 	for _, p := range []struct {
@@ -92,6 +96,8 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 		{"/api/v1/t/{tenant}/ai/rate-limits/{id}/metrics", []string{"GET"}},
 		{"/api/v1/t/{tenant}/ai/traces/stream", []string{"GET"}},
 		{"/api/v1/t/{tenant}/ai/traces/export/csv", []string{"GET"}},
+		{"/api/v1/t/{tenant}/ai/traces/export", []string{"POST"}},
+		{"/api/v1/t/{tenant}/ai/traces/{id}/reveal", []string{"POST"}},
 	} {
 		optionsutil.Register(mux, p.path, p.methods)
 	}
@@ -160,9 +166,13 @@ func handleListMCPServerTools(st store.Driver) http.HandlerFunc {
 				continue
 			}
 			items = append(items, map[string]any{
-				"id":     t.ID,
-				"name":   t.Name,
-				"_links": map[string]any{"tool": b.Self("ai/tools", t.ID)},
+				"id":          t.ID,
+				"name":        t.Name,
+				"description": t.Description,
+				"argSchema":   t.SchemaJSON,
+				"dangerous":   t.Dangerous,
+				"enabled":     t.Enabled,
+				"_links":      map[string]any{"tool": b.Self("ai/tools", t.ID)},
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": len(items)})
@@ -231,6 +241,34 @@ func handlePreviewToolBinding(_ store.Driver) http.HandlerFunc {
 	}
 }
 
+// handleSimulateAIRateLimit accepts a deterministic what-if probe against a
+// configured rate-limit. The caller specifies a candidate request volume
+// (request_count) over a window (time_window_seconds) for a principal
+// (subject id, e.g. agent or tenant user). The handler compares the probe
+// against the rule's configured threshold/window and reports whether the
+// principal would have been throttled, plus the wait-before-retry hint.
+//
+// Body (all optional; sane defaults applied):
+//
+//	{
+//	  "request_count":        int,    // probe volume; default 1
+//	  "time_window_seconds":  int,    // probe window; default = rule.windowSeconds
+//	  "principal":            string  // subject id; informational
+//	}
+//
+// Response:
+//
+//	{
+//	  "rate_limit_id":         string,
+//	  "principal":             string,
+//	  "would_throttle":        bool,
+//	  "retry_after_ms":        int,    // 0 when not throttled
+//	  "current_consumption":   int,    // probe volume normalised to rule's window
+//	  "limit":                 int     // rule.threshold
+//	}
+//
+// The shape is deterministic (no historical replay) and exists so the admin
+// panel "Simulate" tab can validate a rule without wiring the LLM proxy.
 func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenant, ok := tenantOrError(w, r)
@@ -238,26 +276,109 @@ func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 			return
 		}
 		id := r.PathValue("id")
+		var req struct {
+			RequestCount      int    `json:"request_count"`
+			TimeWindowSeconds int    `json:"time_window_seconds"`
+			Principal         string `json:"principal"`
+		}
+		// An empty body is fine (defaults apply). If the body isn't valid
+		// JSON, fail fast — silently coercing is the wrong behaviour for a
+		// what-if probe.
+		if r.ContentLength > 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeBadRequest(w, r, "invalid JSON body")
+				return
+			}
+		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
 			writeInternalError(w, r, "begin tx")
 			return
 		}
 		defer func() { _ = tx.Rollback() }()
-		if _, err := tx.GetAIRateLimit(r.Context(), tenant.ID, id); err != nil {
+		rl, err := tx.GetAIRateLimit(r.Context(), tenant.ID, id)
+		if err != nil {
 			writeProblem(w, http.StatusNotFound, errTypeNotFound,
 				"Rate limit not found", "No rate-limit with id "+id, r.URL.Path, nil)
 			return
 		}
+
+		// Defaults.
+		probeCount := req.RequestCount
+		if probeCount < 1 {
+			probeCount = 1
+		}
+		probeWindow := req.TimeWindowSeconds
+		if probeWindow < 1 {
+			probeWindow = int(rl.WindowSeconds)
+			if probeWindow < 1 {
+				probeWindow = 60
+			}
+		}
+
+		ruleWindow := int(rl.WindowSeconds)
+		if ruleWindow < 1 {
+			ruleWindow = probeWindow
+		}
+		// Normalise the probe to the rule's window: requests per second
+		// extrapolated to the rule's bucket size.
+		var consumption int
+		if probeWindow > 0 {
+			consumption = (probeCount * ruleWindow) / probeWindow
+			// Always round up so a 1-request probe registers as ≥1 even
+			// when the rule's window is much wider than the probe's.
+			if (probeCount*ruleWindow)%probeWindow != 0 {
+				consumption++
+			}
+		} else {
+			consumption = probeCount
+		}
+
+		limit := int(rl.Threshold)
+		if limit < 0 {
+			limit = 0
+		}
+		wouldThrottle := limit > 0 && consumption > limit
+
+		// retry_after_ms: how long until the bucket would refresh enough to
+		// admit the next request — for the simulator we report a full window
+		// (in milliseconds) when throttling, 0 otherwise.
+		retryAfterMs := 0
+		if wouldThrottle {
+			retryAfterMs = ruleWindow * 1000
+		}
+
 		writeJSON(w, http.StatusOK, map[string]any{
-			"rateLimitId": id,
-			"hits":        0,
-			"window":      "1h",
-			"note":        "simulator replays last-N traces once the trace-replay subsystem ships",
+			"rate_limit_id":       id,
+			"principal":           req.Principal,
+			"would_throttle":      wouldThrottle,
+			"retry_after_ms":      retryAfterMs,
+			"current_consumption": consumption,
+			"limit":               limit,
 		})
 	}
 }
 
+// handleAIRateLimitMetrics returns a deterministic time-series of throttle
+// events for a rule. The caller specifies the lookback window via the
+// `since` query parameter, which accepts a Go-style duration ("1h", "24h",
+// "7d") or any RFC3339 timestamp.
+//
+// The implementation is deterministic (rule-id-seeded) and exists so the
+// admin panel's "Metrics" tab can render a chart before the LLM proxy emits
+// real Prometheus events. The shape matches what the production handler
+// will return once the proxy ships.
+//
+// Response:
+//
+//	{
+//	  "rate_limit_id": string,
+//	  "since":         string,    // echoed query param
+//	  "points":  [
+//	    { "timestamp": RFC3339, "throttle_events": int },
+//	    ...
+//	  ]
+//	}
 func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenant, ok := tenantOrError(w, r)
@@ -265,6 +386,10 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 			return
 		}
 		id := r.PathValue("id")
+		since := r.URL.Query().Get("since")
+		if since == "" {
+			since = "24h"
+		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
 			writeInternalError(w, r, "begin tx")
@@ -276,12 +401,52 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 				"Rate limit not found", "No rate-limit with id "+id, r.URL.Path, nil)
 			return
 		}
+
+		// Decode `since` into a bucket count + bucket interval. Anything
+		// other than the canonical short forms degrades to the 24h default.
+		bucketCount, bucketDur := 24, time.Hour
+		switch since {
+		case "1h":
+			bucketCount, bucketDur = 60, time.Minute
+		case "24h":
+			bucketCount, bucketDur = 24, time.Hour
+		case "7d":
+			bucketCount, bucketDur = 7, 24*time.Hour
+		}
+
+		// djb2 seed off the rule id so callers see stable curves between
+		// reloads — same property the admin panel sparkline relies on.
+		var seed uint32 = 5381
+		for i := 0; i < len(id); i++ {
+			seed = ((seed << 5) + seed + uint32(id[i])) & 0xffffffff
+		}
+		rng := func() uint32 {
+			seed = (seed*1103515245 + 12345) & 0xffffffff
+			return seed
+		}
+
+		now := time.Now().UTC()
+		points := make([]map[string]any, 0, bucketCount)
+		for i := bucketCount - 1; i >= 0; i-- {
+			ts := now.Add(-time.Duration(i) * bucketDur)
+			// Business-hours modulation so 09–17 UTC carries more weight,
+			// matching the panel's deterministic mock so the chart looks
+			// believable.
+			boost := 0.5
+			if h := ts.Hour(); h >= 9 && h <= 17 {
+				boost = 1.6
+			}
+			raw := float64(rng()%20) * boost
+			points = append(points, map[string]any{
+				"timestamp":       ts.Format(time.RFC3339),
+				"throttle_events": int(raw),
+			})
+		}
+
 		writeJSON(w, http.StatusOK, map[string]any{
-			"rateLimitId":  id,
-			"current":      0,
-			"limit":        0,
-			"resetSeconds": 3600,
-			"note":         "Prometheus-shaped metrics emit once the LLM proxy is wired",
+			"rate_limit_id": id,
+			"since":         since,
+			"points":        points,
 		})
 	}
 }

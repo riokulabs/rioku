@@ -1,13 +1,10 @@
 /**
- * <UserDetail> — detail drawer with four tabs:
+ * <UserDetail> — drawer-form detail view with four tabs:
  *   Profile | Memberships | Sessions | Effective permissions
  *
- * 1e.92 additions:
- *   - Disable / Re-enable user action (Profile tab)
- *   - Delete user action with typed email confirmation (Profile tab)
- *   - Impersonate button (Profile tab — super-admin only via user:impersonate perm)
- *   - Per-membership role edit (Memberships tab)
- *   - Pending-invite resend / revoke (Memberships tab)
+ * Stage-2 plan-02: every user/role/session selector + mutation comes from
+ * the real-API surface in `../api`. Effective-permissions still reads from
+ * the mock-store-backed permissions catalog (out of plan-02 scope).
  */
 import { useState } from 'react';
 import {
@@ -26,6 +23,7 @@ import {
   Modal,
   TextInput,
   MultiSelect,
+  Loader,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconShieldHalf, IconUserSearch } from '@tabler/icons-react';
@@ -35,17 +33,12 @@ import { EffectivePermissionsPanel } from '@/components/effective-permissions-pa
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 import {
   useUserDetail,
   useUserSessions,
-  revokeSession,
-  disableUser,
-  enableUser,
-  deleteUser,
-  resendInvite,
-  revokeInvite,
-  updateMembershipRoles,
+  useUserMutations,
+  useTenantRoles,
 } from '../api';
 import { StatusBadge } from '@/components/status-badge';
 import { Zone } from '@/components/zone';
@@ -61,11 +54,21 @@ interface UserDetailProps {
 }
 
 export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: UserDetailProps) {
-  const detail = useUserDetail(userId);
-  const sessions = useUserSessions(userId);
-  const tenants = useMockStore((s) => s.tenants);
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const roles = useMockStore((s) => s.roles);
+  const { detail, isLoading } = useUserDetail(currentTenantId, userId);
+  const { sessions } = useUserSessions(currentTenantId, userId);
+  const tenantRoles = useTenantRoles(currentTenantId);
+  const { data: currentUser } = useCurrentUser();
+  const currentUserId = currentUser?.id ?? null;
+
+  const {
+    revokeSession,
+    disableUser,
+    enableUser,
+    deleteUser,
+    resendInvite,
+    revokeInvite,
+    updateMembershipRoles,
+  } = useUserMutations(currentTenantId);
 
   const [tracedPermission, setTracedPermission] = useState(SAMPLE_PERMISSIONS[0] ?? '');
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
@@ -88,8 +91,17 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
   const permOptions = allPerms.map((p) => ({ value: p.key, label: p.key }));
 
   const canImpersonate = usePermission('user:impersonate');
+  const canDelete = usePermission('user:delete');
 
   const navigate = useNavigate();
+
+  if (isLoading) {
+    return (
+      <Group justify="center" p="xl">
+        <Loader />
+      </Group>
+    );
+  }
 
   if (!detail) {
     return (
@@ -105,15 +117,12 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
 
   const isSelf = currentUserId === userId;
 
-  // Role options for the MultiSelect
-  const allRoleOptions = Object.values(roles)
-    .filter((r) => r.tenant_id === currentTenantId)
-    .map((r) => ({ value: r.id, label: r.name }));
+  const allRoleOptions = tenantRoles.map((r) => ({ value: r.id, label: r.name }));
 
   async function handleRevokeSession(sessionId: string) {
     setRevokingSessionId(sessionId);
     try {
-      await revokeSession(sessionId);
+      await revokeSession(sessionId, userId);
       notify.success('Session revoked', 'The session has been invalidated.');
     } catch {
       notify.error('Failed to revoke session', 'Please try again.');
@@ -152,7 +161,7 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
     setActionLoading(true);
     try {
       await deleteUser(userId);
-      notify.success('User deleted', 'The user and all memberships have been removed.');
+      notify.success('User deleted', 'The user has been removed.');
       closeDelete();
       onClose();
     } catch {
@@ -236,7 +245,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
         </Group>
       </Group>
 
-      {/* Zone: service.detail.header-actions — plugins can add actions here */}
       <Zone id="service.detail.header-actions" />
 
       <Divider />
@@ -297,13 +305,11 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
 
             <Divider mt="sm" />
 
-            {/* ── Actions ── */}
             <Stack gap="xs">
               <Text size="xs" fw={500} c="var(--mantine-color-gray-7)" tt="uppercase">
                 Actions
               </Text>
 
-              {/* Impersonate — only for super-admins viewing a non-self user */}
               {canImpersonate && !isSelf && (
                 <Button
                   size="xs"
@@ -316,7 +322,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                 </Button>
               )}
 
-              {/* Disable / Re-enable */}
               {!isSelf && !user.disabled && (
                 <Button
                   size="xs"
@@ -340,9 +345,14 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                 </Button>
               )}
 
-              {/* Delete */}
-              {!isSelf && (
-                <Button size="xs" variant="subtle" color="red.8" onClick={openDelete}>
+              {!isSelf && canDelete && (
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red.8"
+                  onClick={openDelete}
+                  data-testid="user-delete-btn"
+                >
                   Delete user…
                 </Button>
               )}
@@ -359,7 +369,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
               </Text>
             )}
             {memberships.map((m) => {
-              const tenant = tenants[m.tenant_id];
               const memberRoles = m.role_ids
                 .map((rid) => detail.roles[rid])
                 .filter((r): r is NonNullable<typeof r> => r !== undefined);
@@ -374,7 +383,7 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                     <Stack gap={2}>
                       <Group gap={6} wrap="nowrap" align="center">
                         <Text size="sm" fw={500}>
-                          {tenant?.name ?? m.tenant_id}
+                          {tenantSlug}
                         </Text>
                         {m.tenant_id === currentTenantId && (
                           <Badge size="xs" variant="outline" color="blue">
@@ -383,7 +392,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                         )}
                       </Group>
 
-                      {/* Role edit inline */}
                       {m.tenant_id === currentTenantId && !isEditingRoles && (
                         <Text size="xs" c="var(--mantine-color-gray-7)">
                           Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
@@ -421,11 +429,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                           </Group>
                         </Stack>
                       )}
-                      {m.tenant_id !== currentTenantId && (
-                        <Text size="xs" c="var(--mantine-color-gray-7)">
-                          Roles: {memberRoles.map((r) => r.name).join(', ') || '—'}
-                        </Text>
-                      )}
                     </Stack>
 
                     <Group gap="xs" align="center">
@@ -449,7 +452,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                         <MembershipActions membership={m} tenantSlug={tenantSlug} />
                       )}
 
-                      {/* Role edit toggle (current tenant only, non-pending) */}
                       {m.tenant_id === currentTenantId &&
                         m.state !== 'pending' &&
                         !isEditingRoles && (
@@ -466,7 +468,6 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                     </Group>
                   </Group>
 
-                  {/* Pending invite actions */}
                   {m.state === 'pending' && m.tenant_id === currentTenantId && (
                     <Stack gap="xs">
                       <Group gap="xs">
@@ -492,7 +493,7 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
                       {token && (
                         <Alert color="blue" variant="light" p="xs">
                           <Text size="xs" ff="monospace">
-                            Invite link (mock):{' '}
+                            Invite link (placeholder):{' '}
                             <Text component="span" fw={600}>
                               /auth/invite?token={token}
                             </Text>
@@ -590,12 +591,10 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
               <Tabs.Tab value="trace">Trace permission</Tabs.Tab>
             </Tabs.List>
 
-            {/* ── Overview: full computed set ── */}
             <Tabs.Panel value="overview" pt="md">
               <EffectivePermissionsPanel scope="user" id={userId} tenantId={currentTenantId} />
             </Tabs.Panel>
 
-            {/* ── Trace: single-permission debugger ── */}
             <Tabs.Panel value="trace" pt="md">
               <Stack gap="sm">
                 <Text size="sm" c="var(--mantine-color-gray-7)">
@@ -629,8 +628,8 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
             <Text component="span" fw={600}>
               {user.name}
             </Text>{' '}
-            will prevent them from logging in across all tenants. Their data is preserved and the
-            user can be re-enabled at any time.
+            will prevent them from logging in. Their data is preserved and the user can be
+            re-enabled at any time.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="default" size="sm" onClick={closeDisable}>
@@ -660,8 +659,8 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
       >
         <Stack gap="md">
           <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-            This permanently deletes the user. All memberships will be set to removed, all sessions
-            revoked, and all API keys revoked. This action cannot be undone.
+            This permanently deletes the user. All sessions are revoked and their roles released.
+            This action cannot be undone.
           </Alert>
           <Text size="sm">
             Type{' '}
@@ -677,6 +676,7 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
             }}
             placeholder={user.email}
             data-autofocus
+            data-testid="user-delete-confirm-input"
           />
           <Group justify="flex-end" gap="sm">
             <Button
@@ -695,6 +695,7 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
               loading={actionLoading}
               disabled={deleteEmailInput !== user.email}
               onClick={() => void handleDeleteConfirm()}
+              data-testid="user-delete-confirm-btn"
             >
               Delete user permanently
             </Button>

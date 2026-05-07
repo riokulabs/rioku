@@ -24,7 +24,13 @@ interface ProgressData {
 }
 
 function isProgressData(data: unknown): data is ProgressData {
-  return typeof data === 'object' && data !== null;
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
+  // Must have either a numeric value or an items array. A bare object with
+  // unrelated fields should fall through to the invalid-data alert.
+  if (typeof d.value === 'number') return true;
+  if (Array.isArray(d.items)) return true;
+  return false;
 }
 
 const FALLBACK_ACCENT = 'riokuOrange';

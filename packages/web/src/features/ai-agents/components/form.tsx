@@ -46,6 +46,9 @@ interface AgentFormValues {
 
 interface AgentFormProps {
   mode: 'create' | 'edit';
+  /** Tenant slug — passed to the daemon for create/update calls. */
+  tenant: string;
+  /** Mock-store tenant id — used for filtering provider/role/tool option lists. */
   tenantId: string;
   initialValues?: AiAgent;
   onSuccess: (agent: AiAgent) => void;
@@ -69,7 +72,7 @@ function initialFromAgent(a?: AiAgent): AgentFormValues {
   };
 }
 
-export function AgentForm({ mode, tenantId, initialValues, onSuccess, onCancel }: AgentFormProps) {
+export function AgentForm({ mode, tenant, tenantId, initialValues, onSuccess, onCancel }: AgentFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,7 +112,7 @@ export function AgentForm({ mode, tenantId, initialValues, onSuccess, onCancel }
     try {
       const description = values.description.trim();
       if (mode === 'create') {
-        const agent = await createAgent(tenantId, {
+        const agent = await createAgent(tenant, {
           name: values.name.trim(),
           provider_id: values.provider_id,
           model: values.model.trim(),
@@ -128,7 +131,7 @@ export function AgentForm({ mode, tenantId, initialValues, onSuccess, onCancel }
         notify.success('Agent created', `${agent.name} is ready.`);
         onSuccess(agent);
       } else if (initialValues) {
-        const agent = await updateAgent(initialValues.id, {
+        const agent = await updateAgent(tenant, initialValues.id, {
           name: values.name.trim(),
           provider_id: values.provider_id,
           model: values.model.trim(),

@@ -142,14 +142,14 @@ export function RouteForm({
       };
 
       if (mode === 'create') {
-        const r = await createRoute({
+        const r = await createRoute(tenantId, {
           service_id: values.service_id,
           ...payload,
         });
         notify.success('Route created', `${r.name} is ready.`);
         onSuccess(r);
       } else if (initialValues) {
-        const r = await updateRoute(initialValues.id, payload);
+        const r = await updateRoute(tenantId, initialValues.id, payload);
         notify.success('Route updated', `${r.name} saved.`);
         onSuccess(r);
       }

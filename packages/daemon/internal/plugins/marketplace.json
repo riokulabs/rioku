@@ -1,0 +1,103 @@
+{
+  "items": [
+    {
+      "id": "rioku_jwt",
+      "name": "JWT Auth",
+      "description": "Validate and sign JWTs at the gateway edge. Supports HS256, RS256, and ES256 algorithms.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_jwt/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["auth", "security"],
+      "verified": true
+    },
+    {
+      "id": "rioku_apikey",
+      "name": "API Key Auth",
+      "description": "Issue and validate API keys with scopes, expiry, and per-key rate limits.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_apikey/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["auth", "keys"],
+      "verified": true
+    },
+    {
+      "id": "rioku_ratelimit",
+      "name": "Rate Limiter",
+      "description": "Token-bucket and sliding-window rate limiting with Redis or in-memory counters.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_ratelimit/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["traffic", "performance"],
+      "verified": true
+    },
+    {
+      "id": "rioku_oidc",
+      "name": "OIDC / OAuth2",
+      "description": "Full OpenID Connect relying-party with PKCE, token introspection, and session bridging.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_oidc/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["auth", "security", "oidc"],
+      "verified": true
+    },
+    {
+      "id": "rioku_cors",
+      "name": "CORS",
+      "description": "Cross-origin resource sharing headers with per-route allow-list and preflight caching.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_cors/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["security", "headers"],
+      "verified": true
+    },
+    {
+      "id": "rioku_circuit_breaker",
+      "name": "Circuit Breaker",
+      "description": "Protect upstreams from cascading failures with half-open probes and configurable thresholds.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_circuit_breaker/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["resilience", "traffic"],
+      "verified": true
+    },
+    {
+      "id": "rioku_mirror",
+      "name": "Traffic Mirror",
+      "description": "Shadow-copy requests to a secondary upstream for testing and observability without affecting production.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_mirror/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["traffic", "testing"],
+      "verified": true
+    },
+    {
+      "id": "rioku_canary",
+      "name": "Canary Releases",
+      "description": "Gradual traffic shifting between upstream versions with header-based overrides.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_canary/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["traffic", "deployments"],
+      "verified": true
+    },
+    {
+      "id": "rioku_transform",
+      "name": "Request/Response Transform",
+      "description": "Header injection, body rewriting, and path rewriting via CEL expressions.",
+      "version": "1.0.0",
+      "signer_fingerprint": "sha256:4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b2c1d0e9f8e7d6c5b4a3b",
+      "manifest_url": "https://plugins.rioku.dev/rioku_transform/1.0.0/manifest.json",
+      "author": "Rioku Labs",
+      "tags": ["transform", "traffic"],
+      "verified": true
+    }
+  ]
+}

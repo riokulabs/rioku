@@ -1,17 +1,25 @@
 /**
  * API keys page — /t/$tenant/security/api-keys
  *
- * Shows the list + create drawer + detail drawer.
- * Permission guard: requires api-key:read.
+ * Stage-2 plan-02. Wired to the real daemon. Renders the list, the
+ * quick-info drawer, the create form, and a `<SecretCaptureModal>`
+ * that surfaces the one-time plaintext returned by `useCreateAPIKey`
+ * + `useRotateAPIKey`.
  */
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Stack, Title, Group, Button, Drawer, Text } from '@mantine/core';
+import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconKey } from '@tabler/icons-react';
-import { ApiKeyList, ApiKeyCreateDrawer, ApiKeyDetailDrawer } from '@/features/security/api-keys';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { notify } from '@/hooks/use-notify';
+import {
+  ApiKeyList,
+  ApiKeyCreateDrawer,
+  ApiKeyDrawer,
+  SecretCaptureModal,
+} from '@/features/security/api-keys';
 import type { ApiKeyWithMeta } from '@/features/security/api-keys';
 
 type DrawerMode = 'create' | 'detail';
@@ -25,7 +33,8 @@ function ApiKeysPage() {
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('create');
   const [selectedKey, setSelectedKey] = useState<ApiKeyWithMeta | null>(null);
-  const [rotatedKeyValue, setRotatedKeyValue] = useState<string | null>(null);
+  const [capturedSecret, setCapturedSecret] = useState('');
+  const [secretTitle, setSecretTitle] = useState('API key created — copy the secret');
 
   function handleCreate() {
     setSelectedKey(null);
@@ -35,13 +44,19 @@ function ApiKeysPage() {
 
   function handleRowClick(key: ApiKeyWithMeta) {
     setSelectedKey(key);
-    setRotatedKeyValue(null);
     setDrawerMode('detail');
     openDrawer();
   }
 
+  function handleCreated(fullValue: string) {
+    closeDrawer();
+    setSecretTitle('API key created — copy the secret');
+    setCapturedSecret(fullValue);
+  }
+
   function handleRotated(fullValue: string) {
-    setRotatedKeyValue(fullValue);
+    setSecretTitle('API key rotated — copy the new secret');
+    setCapturedSecret(fullValue);
   }
 
   const drawerTitle =
@@ -59,13 +74,7 @@ function ApiKeysPage() {
         </Button>
       </Group>
 
-      {rotatedKeyValue && (
-        <Text size="xs" c="dimmed" ff="monospace">
-          Rotated key (copy now): {rotatedKeyValue}
-        </Text>
-      )}
-
-      <ApiKeyList tenantId={tenantId} onSelect={handleRowClick} />
+      <ApiKeyList tenantId={tenantId} onSelect={handleRowClick} onRotated={handleRotated} />
 
       {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
@@ -78,16 +87,26 @@ function ApiKeysPage() {
         padding="md"
       >
         {drawerMode === 'create' && (
-          <ApiKeyCreateDrawer tenantId={tenantId} onSuccess={closeDrawer} onCancel={closeDrawer} />
-        )}
-        {drawerMode === 'detail' && selectedKey && (
-          <ApiKeyDetailDrawer
-            keyId={selectedKey.id}
-            onClose={closeDrawer}
-            onRotated={handleRotated}
+          <ApiKeyCreateDrawer
+            tenantId={tenantId}
+            onCreated={handleCreated}
+            onCancel={closeDrawer}
           />
         )}
+        {drawerMode === 'detail' && selectedKey && (
+          <ApiKeyDrawer keyId={selectedKey.id} tenantId={tenantId} onClose={closeDrawer} />
+        )}
       </Drawer>
+
+      <SecretCaptureModal
+        opened={capturedSecret !== ''}
+        secret={capturedSecret}
+        title={secretTitle}
+        onConfirmCopied={() => {
+          setCapturedSecret('');
+          notify.success('Secret captured', 'The key value will not be shown again.');
+        }}
+      />
     </Stack>
   );
 }

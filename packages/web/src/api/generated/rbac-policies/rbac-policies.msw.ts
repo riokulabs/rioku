@@ -23,7 +23,34 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { TestRbacPolicy200 } from '.././schemas';
+import type { ListRbacPolicies200, TestRbacPolicy200 } from '.././schemas';
+
+export const getListRbacPoliciesResponseMock = (
+  overrideResponse: Partial<ListRbacPolicies200> = {},
+): ListRbacPolicies200 => ({
+  nextPageToken: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  rbacPolicies: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      createdAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      roleId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      subjectId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      subjectType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement(['user', 'group', 'service-account'] as const),
+        undefined,
+      ]),
+      tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    })),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
 
 export const getTestRbacPolicyResponseMock = (
   overrideResponse: Partial<TestRbacPolicy200> = {},
@@ -36,15 +63,24 @@ export const getTestRbacPolicyResponseMock = (
 
 export const getListRbacPoliciesMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListRbacPolicies200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListRbacPolicies200> | ListRbacPolicies200),
 ) => {
   return http.get('*/api/v1/t/:tenant/rbac-policies', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListRbacPoliciesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 

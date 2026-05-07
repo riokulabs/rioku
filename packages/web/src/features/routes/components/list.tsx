@@ -62,7 +62,7 @@ export function RouteList({
   async function handleToggle(route: Route, next: boolean) {
     setTogglingId(route.id);
     try {
-      await updateRoute(route.id, { enabled: next });
+      await updateRoute(tenantId, route.id, { enabled: next });
       notify.success(
         next ? 'Route enabled' : 'Route disabled',
         `${route.name} is now ${next ? 'active' : 'inactive'}.`,
@@ -201,6 +201,10 @@ export function RouteList({
         },
       },
     ],
+    // handleToggle is intentionally omitted — it's a stable closure over
+    // tenantId / setTogglingId and recreating columns on every render is
+    // measurably wasteful for large route lists.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [togglingId, onEdit, onDelete],
   );
 

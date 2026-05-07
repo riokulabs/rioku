@@ -7,13 +7,14 @@ import { useRoleUserCounts } from '../api';
 import type { Role } from '../types';
 
 interface RoleDeleteConfirmProps {
+  tenant: string;
   role: Role;
   onConfirm: () => Promise<void>;
   onCancel: () => void;
 }
 
-export function RoleDeleteConfirm({ role, onConfirm, onCancel }: RoleDeleteConfirmProps) {
-  const userCounts = useRoleUserCounts();
+export function RoleDeleteConfirm({ tenant, role, onConfirm, onCancel }: RoleDeleteConfirmProps) {
+  const userCounts = useRoleUserCounts(tenant);
   const affectedCount = userCounts[role.id] ?? 0;
 
   return (

@@ -17,22 +17,24 @@ import {
   MultiSelect,
   ActionIcon,
   Alert,
-  Select,
   Paper,
   Tabs,
 } from '@mantine/core';
 import { IconTrash, IconPlus, IconAlertCircle } from '@tabler/icons-react';
 import { PermissionSelector } from '@/components/permission-selector';
-import { PermissionPathTrace } from '@/components/permission-path-trace';
 import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
 import { ConditionEditor } from '@/components/condition-editor';
 import { validateRoleSave } from '@/host/role-resolver';
-import { useMockStore } from '@/api/mock-store';
-import { useRoleUserCounts, useRolesMap, updateRoleMutation } from '../api';
+import { useListPermissions } from '@/api/generated/permissions/permissions';
+import type { Permission as GenPermission } from '@/api/generated/schemas';
+import { useRoleUserCounts, useRolesMap, useRoleMutations } from '../api';
 import type { Role, GrantRow } from '../types';
 
 interface RoleDetailProps {
+  tenant: string;
   role: Role;
+  /** When false, mutating controls (Delete, Save, Add grant) are hidden. */
+  canWrite?: boolean;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -40,13 +42,31 @@ interface RoleDetailProps {
 // ─── Grant row editor ─────────────────────────────────────────────────────────
 
 interface GrantRowEditorProps {
+  catalog: GenPermission[];
   row: GrantRow;
   onChange: (updated: GrantRow) => void;
   onRemove: () => void;
 }
 
-function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
+function GrantRowEditor({ catalog, row, onChange, onRemove }: GrantRowEditorProps) {
   const [showCondition, setShowCondition] = useState(!!row.when);
+
+  // RD6: surface the permission source ('built-in' / 'plugin-manifest' /
+  // 'plugin-dynamic') as a small Mantine Badge next to the permission name.
+  // Cross-references the live daemon catalog (useListPermissions) so a
+  // grant that targets a permission no longer published by the daemon
+  // renders an ORPHANED alert.
+  const matched = row.permission ? catalog.find((p) => (p.id ?? '') === row.permission) : undefined;
+  const isOrphan = !!row.permission && !matched;
+  const sourceLabel = matched?.source ?? null;
+  const sourceColor =
+    sourceLabel === 'built-in'
+      ? 'gray'
+      : sourceLabel === 'plugin-manifest'
+        ? 'blue'
+        : sourceLabel === 'plugin-dynamic'
+          ? 'violet'
+          : 'gray';
 
   return (
     <Paper withBorder p="xs" radius="sm">
@@ -59,10 +79,32 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
             }}
             label="Permission"
           />
+          {sourceLabel && (
+            <Badge
+              color={sourceColor}
+              variant="light"
+              size="sm"
+              aria-label={`Source: ${sourceLabel}`}
+              data-testid="grant-source-badge"
+            >
+              {sourceLabel}
+            </Badge>
+          )}
           <ActionIcon color="red.8" variant="subtle" onClick={onRemove} aria-label="Remove grant">
             <IconTrash size={14} />
           </ActionIcon>
         </Group>
+        {isOrphan && (
+          <Alert
+            color="red"
+            variant="light"
+            icon={<IconAlertCircle size={14} />}
+            data-testid="grant-orphan-alert"
+          >
+            ORPHANED — permission <code>{row.permission}</code> no longer exists in the catalog.
+            Re-select a valid permission or remove this grant.
+          </Alert>
+        )}
         {!showCondition && (
           <Button
             size="xs"
@@ -91,13 +133,22 @@ function GrantRowEditor({ row, onChange, onRemove }: GrantRowEditorProps) {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-const SAMPLE_PERMISSIONS = ['rioku.viewer.read', 'rioku.ops.read', 'rioku.admin.read'];
+export function RoleDetail({
+  tenant,
+  role,
+  canWrite = true,
+  onDelete,
+  onClose: _onClose,
+}: RoleDetailProps) {
+  const allRoles = useRolesMap(tenant);
+  const userCounts = useRoleUserCounts(tenant);
+  const { update } = useRoleMutations(tenant);
 
-export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProps) {
-  const allRoles = useRolesMap();
-  const userCounts = useRoleUserCounts();
-  const users = useMockStore((s) => s.users);
-  const memberships = useMockStore((s) => s.memberships);
+  // Permission catalog — sourced from the real daemon endpoint so the
+  // RD6 source badge + orphan alert reflect installed plugins, not the
+  // mock store.
+  const catalogQuery = useListPermissions(tenant);
+  const catalog: GenPermission[] = catalogQuery.data?.data.permissions ?? [];
 
   // Parent editor state
   const [parentIds, setParentIds] = useState<string[]>(role.parent_ids);
@@ -115,10 +166,6 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
   // Denies editor state
   const [denies, setDenies] = useState<string[]>(role.denies);
 
-  // Effective-perms preview state
-  const [previewUserId, setPreviewUserId] = useState<string | null>(null);
-  const [previewPermission, setPreviewPermission] = useState(SAMPLE_PERMISSIONS[0] ?? '');
-
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -126,17 +173,6 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
   const parentOptions = Object.values(allRoles)
     .filter((r) => r.id !== role.id)
     .map((r) => ({ value: r.id, label: r.name }));
-
-  // User options for effective-perms preview
-  // Find users who have this tenant's memberships
-  const userOptions = Object.values(users).map((u) => ({
-    value: u.id,
-    label: `${u.name} (${u.email})`,
-  }));
-
-  // Find a tenant ID from any membership to pass to PermissionPathTrace
-  const firstMembership = Object.values(memberships)[0];
-  const previewTenantId = firstMembership?.tenant_id ?? '';
 
   const addGrantRow = useCallback(() => {
     setGrantRows((prev) => [
@@ -175,7 +211,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
 
     setSaving(true);
     try {
-      await updateRoleMutation(role.id, {
+      await update(role.id, {
         parent_ids: candidate.parent_ids,
         grants: candidate.grants,
         denies: candidate.denies,
@@ -205,11 +241,19 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
             </Badge>
           </Group>
         </Stack>
-        <Group gap="xs">
-          <Button size="xs" variant="light" color="red.8" onClick={onDelete}>
-            Delete
-          </Button>
-        </Group>
+        {canWrite && (
+          <Group gap="xs">
+            <Button
+              size="xs"
+              variant="light"
+              color="red.8"
+              onClick={onDelete}
+              data-testid="role-delete-button"
+            >
+              Delete
+            </Button>
+          </Group>
+        )}
       </Group>
 
       <Divider />
@@ -222,7 +266,6 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
           <Tabs.Tab value="preview">Effective Perms</Tabs.Tab>
         </Tabs.List>
 
-        {/* ── Parents ── */}
         <Tabs.Panel value="parents" pt="md">
           <Stack gap="sm">
             <Text size="sm" c="var(--mantine-color-gray-7)">
@@ -243,11 +286,11 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
               }}
               searchable
               clearable
+              disabled={!canWrite}
             />
           </Stack>
         </Tabs.Panel>
 
-        {/* ── Grants ── */}
         <Tabs.Panel value="grants" pt="md">
           <Stack gap="sm">
             <Text size="sm" c="var(--mantine-color-gray-7)">
@@ -256,6 +299,7 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
             {grantRows.map((row) => (
               <GrantRowEditor
                 key={row._key}
+                catalog={catalog}
                 row={row}
                 onChange={updateGrantRow}
                 onRemove={() => {
@@ -263,18 +307,19 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
                 }}
               />
             ))}
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<IconPlus size={14} />}
-              onClick={addGrantRow}
-            >
-              Add grant
-            </Button>
+            {canWrite && (
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconPlus size={14} />}
+                onClick={addGrantRow}
+              >
+                Add grant
+              </Button>
+            )}
           </Stack>
         </Tabs.Panel>
 
-        {/* ── Denies ── */}
         <Tabs.Panel value="denies" pt="md">
           <Stack gap="sm">
             <Text size="sm" c="var(--mantine-color-gray-7)">
@@ -284,62 +329,14 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
           </Stack>
         </Tabs.Panel>
 
-        {/* ── Effective perms preview ── */}
         <Tabs.Panel value="preview" pt="md">
-          <Tabs defaultValue="overview" variant="outline">
-            <Tabs.List>
-              <Tabs.Tab value="overview">Role overview</Tabs.Tab>
-              <Tabs.Tab value="trace">Trace for user</Tabs.Tab>
-            </Tabs.List>
-
-            {/* ── Overview: all permissions this role effectively grants ── */}
-            <Tabs.Panel value="overview" pt="md">
-              <Stack gap="xs">
-                <Text size="sm" c="var(--mantine-color-gray-7)">
-                  Full set of permissions this role effectively grants (own grants + inherited from
-                  parents).
-                </Text>
-                <EffectivePermissionsPanel scope="role" id={role.id} />
-              </Stack>
-            </Tabs.Panel>
-
-            {/* ── Trace: single-permission debugger for a specific user ── */}
-            <Tabs.Panel value="trace" pt="md">
-              <Stack gap="sm">
-                <Select
-                  label="Preview for user"
-                  data={userOptions}
-                  value={previewUserId}
-                  onChange={setPreviewUserId}
-                  searchable
-                  clearable
-                  placeholder="Select a user…"
-                />
-                {previewUserId && (
-                  <>
-                    <Select
-                      label="Permission to trace"
-                      data={SAMPLE_PERMISSIONS}
-                      value={previewPermission}
-                      onChange={(v) => {
-                        if (v) setPreviewPermission(v);
-                      }}
-                    />
-                    <PermissionPathTrace
-                      userId={previewUserId}
-                      tenantId={previewTenantId}
-                      permission={previewPermission}
-                    />
-                  </>
-                )}
-                {!previewUserId && (
-                  <Text size="sm" c="var(--mantine-color-gray-7)">
-                    Select a user to trace effective permissions.
-                  </Text>
-                )}
-              </Stack>
-            </Tabs.Panel>
-          </Tabs>
+          <Stack gap="xs">
+            <Text size="sm" c="var(--mantine-color-gray-7)">
+              Full set of permissions this role effectively grants (own grants + inherited from
+              parents).
+            </Text>
+            <EffectivePermissionsPanel scope="role" id={role.id} />
+          </Stack>
         </Tabs.Panel>
       </Tabs>
 
@@ -351,11 +348,17 @@ export function RoleDetail({ role, onDelete, onClose: _onClose }: RoleDetailProp
         </Alert>
       )}
 
-      <Group justify="flex-end">
-        <Button onClick={() => void handleSaveAll()} loading={saving}>
-          Save changes
-        </Button>
-      </Group>
+      {canWrite && (
+        <Group justify="flex-end">
+          <Button
+            onClick={() => void handleSaveAll()}
+            loading={saving}
+            data-testid="role-save-button"
+          >
+            Save changes
+          </Button>
+        </Group>
+      )}
     </Stack>
   );
 }

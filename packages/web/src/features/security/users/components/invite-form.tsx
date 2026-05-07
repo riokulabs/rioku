@@ -1,8 +1,9 @@
 /**
- * <UserInviteForm> — invite a new (or existing) user to a tenant.
+ * <UserInviteForm> — invite a new user to a tenant.
  *
- * Creates a User (if email is new) + Membership(state: pending) + audit entry.
- * Shows invite token in a copy badge on success.
+ * Stage-2 plan-02: backed by the real `POST /users` endpoint via
+ * `useUserMutations`. Roles for the MultiSelect are sourced from the
+ * generated roles list hook; no mock-store reads remain.
  */
 import { useState } from 'react';
 import {
@@ -20,8 +21,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconMail } from '@tabler/icons-react';
 import { IdBadge } from '@/components/id-badge';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
-import { inviteUser } from '../api';
+import { useUserMutations, useTenantRoles } from '../api';
 import { inviteUserSchema } from '../schemas';
 import type { InviteUserFormValues } from '../schemas';
 
@@ -36,9 +36,10 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const allRoles = useMockStore((s) => s.roles);
-  const roles = Object.values(allRoles).filter((r) => r.tenant_id === tenantId);
+  const roles = useTenantRoles(tenantId);
   const roleOptions = roles.map((r) => ({ value: r.id, label: r.name }));
+
+  const { inviteUser } = useUserMutations(tenantId);
 
   const form = useForm<InviteUserFormValues>({
     validate: schemaResolver(inviteUserSchema, { sync: true }),
@@ -80,11 +81,11 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
           variant="light"
           title="Invitation created"
         >
-          The user has been invited and their membership is now pending.
+          The user has been invited.
         </Alert>
         <Stack gap="xs">
           <Text size="sm" fw={500}>
-            Invite link (stage-1):
+            Invite link (placeholder — daemon SMTP integration is stage-2 deferred):
           </Text>
           <Paper withBorder p="sm" radius="sm">
             <Group gap="sm" align="center">
@@ -94,9 +95,6 @@ export function UserInviteForm({ tenantId, onSuccess, onCancel }: UserInviteForm
               <IdBadge id={inviteToken} label={inviteToken} />
             </Group>
           </Paper>
-          <Text size="xs" c="var(--mantine-color-gray-7)">
-            In Phase 1e, this link will be emailed to the user. For now, copy it manually.
-          </Text>
         </Stack>
         <Button onClick={onSuccess}>Done</Button>
       </Stack>

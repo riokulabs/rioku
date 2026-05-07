@@ -391,8 +391,10 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			return
 		}
 
-		// Set session cookie.
-		sm.SetCookie(w, session.ID)
+		// Set session cookie. No tenant context at the global login endpoint;
+		// callers using tenant-scoped login (subdomain mode) pass opts via the
+		// tenant-scoped login handler when one exists. Use zero options here.
+		sm.SetCookie(w, session.ID, auth.CookieOptions{})
 
 		// Build display name.
 		displayName := ""
@@ -455,7 +457,7 @@ func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
 
 		// Revoke the session (ignore errors — idempotent).
 		_ = sm.RevokeSession(r.Context(), cookie.Value)
-		sm.ClearCookie(w)
+		sm.ClearCookie(w, auth.CookieOptions{})
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

@@ -1,0 +1,167 @@
+# Stage-2 Plan 11 — super-admin (cross-tenant) endpoints.
+# Surfaces the daemon's existing /api/v1/admin/* handlers in the OpenAPI
+# snapshot so Orval can generate React Query hooks for the admin panel.
+#
+# Implemented by:
+#   - packages/daemon/internal/gateway/tenant_routes.go
+#   - packages/daemon/internal/gateway/stage2_finals_routes.go
+
+paths:
+  /api/v1/admin/tenants:
+    get:
+      tags: [admin]
+      summary: List all tenants (super-admin)
+      operationId: listAdminTenants
+      description: Requires `admin:cross-tenant-read`. Returns every tenant in the cluster.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminTenant" }
+                  total: { type: integer }
+    post:
+      tags: [admin]
+      summary: Create tenant (super-admin)
+      operationId: createAdminTenant
+      description: Requires `admin:cross-tenant-write`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name]
+              properties:
+                slug: { type: string }
+                name: { type: string }
+                plan: { type: string, enum: [community, pro, enterprise] }
+                urlMode: { type: string, enum: [path, subdomain] }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTenant" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/admin/tenants/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [admin]
+      summary: Get tenant detail (super-admin)
+      operationId: getAdminTenant
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTenant" }
+    patch:
+      tags: [admin]
+      summary: Update tenant (super-admin)
+      operationId: updateAdminTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                plan: { type: string }
+                urlMode: { type: string }
+                accent: { type: string, nullable: true }
+                logoUrl: { type: string, nullable: true }
+                defaultDashboardId: { type: string, nullable: true }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTenant" }
+    delete:
+      tags: [admin]
+      summary: Delete tenant (super-admin)
+      operationId: deleteAdminTenant
+      responses:
+        "204": { description: no content }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/admin/users:
+    get:
+      tags: [admin]
+      summary: List all users across tenants (super-admin)
+      operationId: listAdminUsers
+      description: Requires `admin:cross-tenant-read`.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        username: { type: string }
+                        status: { type: string }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/admin/audit:
+    get:
+      tags: [admin]
+      summary: Cross-tenant admin audit log (super-admin)
+      operationId: listAdminAudit
+      description: |
+        Requires `admin:cross-tenant-read`. Returns hash-chained super-admin
+        audit entries. Until migration 26 lands the daemon proxies the
+        per-tenant audit log filtered to `entity_type = "tenant"` operations.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { type: object }
+                  total: { type: integer }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AdminTenant:
+      type: object
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        plan: { type: string }
+        urlMode: { type: string }
+        accent: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        defaultDashboardId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }

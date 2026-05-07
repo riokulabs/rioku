@@ -238,7 +238,7 @@ func initStore(t *testing.T, tmpDir string, raftBindAddr string) string {
 		_ = drv.Close()
 		t.Fatalf("begin tx: %v", err)
 	}
-	if _, err := tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), []string{"admin"}, nil, ""); err != nil {
+	if _, err := tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), "", []string{"admin"}, nil, ""); err != nil {
 		_ = tx.Rollback()
 		_ = drv.Close()
 		t.Fatalf("store bootstrap token: %v", err)

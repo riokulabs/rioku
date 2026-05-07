@@ -518,7 +518,7 @@ func (t *raftTx) ListPoliciesByTarget(_ context.Context, targetType, targetID st
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
+func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
 	id := uuid.New().String()
 	now := nowUTC()
 
@@ -526,6 +526,7 @@ func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []
 		"id":         id,
 		"name":       name,
 		"key_hash":   keyHash,
+		"prefix":     prefix,
 		"scopes":     scopes,
 		"created_at": now.Format(timeFormat),
 	}
@@ -910,8 +911,28 @@ func (t *raftTx) GetUserByUsername(_ context.Context, _ string) (*store.User, er
 	return nil, fmt.Errorf("raft: GetUserByUsername not implemented")
 }
 
+func (t *raftTx) GetUserByEmail(_ context.Context, _ string) (*store.User, error) {
+	return nil, fmt.Errorf("raft: GetUserByEmail not implemented")
+}
+
 func (t *raftTx) ListUsers(_ context.Context) ([]*store.User, error) {
 	return nil, fmt.Errorf("raft: ListUsers not implemented")
+}
+
+func (t *raftTx) CountUsers(_ context.Context) (int, error) {
+	return 0, fmt.Errorf("raft: CountUsers not implemented")
+}
+
+func (t *raftTx) CreatePasswordResetToken(_ context.Context, _, _ string, _ time.Time) error {
+	return fmt.Errorf("raft: CreatePasswordResetToken not implemented")
+}
+
+func (t *raftTx) GetPasswordResetToken(_ context.Context, _ string) (*store.PasswordResetToken, error) {
+	return nil, fmt.Errorf("raft: GetPasswordResetToken not implemented")
+}
+
+func (t *raftTx) ConsumePasswordResetToken(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: ConsumePasswordResetToken not implemented")
 }
 
 func (t *raftTx) UpdateUser(_ context.Context, _ *store.User) (*store.User, error) {
@@ -1130,6 +1151,7 @@ func unmarshalAPIKey(data []byte) (*store.APIKey, error) {
 		ID:      getString(entry, "id"),
 		Name:    getString(entry, "name"),
 		KeyHash: getString(entry, "key_hash"),
+		Prefix:  getString(entry, "prefix"),
 	}
 
 	if scopesRaw, ok := entry["scopes"]; ok {
@@ -1227,6 +1249,14 @@ func (t *raftTx) GetMembership(_ context.Context, _ string) (*store.Membership, 
 
 func (t *raftTx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*store.Membership, error) {
 	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) GetMembershipByInviteToken(_ context.Context, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) AcceptInvite(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: AcceptInvite not implemented")
 }
 
 func (t *raftTx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {

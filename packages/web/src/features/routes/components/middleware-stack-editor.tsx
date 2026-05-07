@@ -1,23 +1,56 @@
 /**
- * <MiddlewareStackEditor> — ordered list of middlewares attached to a route.
+ * <MiddlewareStackEditor> — ordered list of middlewares attached to a route
+ * with drag-and-drop reorder powered by `@dnd-kit/sortable`.
  *
- * The list supports reorder via up/down arrow buttons. Per plan directive we
- * do NOT install any drag-drop dependency — arrow buttons only. An "Add
- * middleware" Select lets the user pick from tenant middlewares not already
- * in the stack.
+ * The route's middleware IDs come from the real (Stage-2) route fetched
+ * via `useRouteDetail(tenantId, routeId)`. After a sortable drop the
+ * ordered list is PUT to the dedicated endpoint
+ * `/api/v1/t/{tenant}/routes/{id}/middlewares/order`. The daemon updates
+ * the `rioku.admin/middleware-ids` label and triggers a Caddy reload; the
+ * route query is invalidated so the next render picks up the new order.
+ *
+ * Middleware display metadata (`name`, `kind`) is read from the
+ * mock-store-backed `useMiddlewareList` selector for now; flipping the
+ * middlewares feature to real endpoints is owned by Plan 04. The UI
+ * gracefully degrades to "id only" if the metadata is missing.
  */
 import { useMemo, useState } from 'react';
-import { ActionIcon, Alert, Badge, Button, Group, Select, Stack, Table, Text } from '@mantine/core';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Group,
+  Select,
+  Stack,
+  Text,
+} from '@mantine/core';
 import {
   IconAlertCircle,
-  IconArrowDown,
-  IconArrowUp,
+  IconGripVertical,
   IconPlus,
   IconTrash,
 } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useMiddlewareList } from '@/features/middlewares';
 import { notify } from '@/hooks/use-notify';
-import { reorderMiddlewares } from '../api';
+import { useRouteDetail, useReorderMiddlewaresMutation } from '../api';
 
 interface MiddlewareStackEditorProps {
   routeId: string;
@@ -34,60 +67,107 @@ const KIND_COLORS: Record<string, string> = {
   custom: 'grape',
 };
 
-export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEditorProps) {
-  const routes = useMockStore((s) => s.routes);
-  const middlewares = useMockStore((s) => s.middlewares);
+interface StackRowProps {
+  id: string;
+  index: number;
+  name: string;
+  kind: string | undefined;
+  onRemove: () => void;
+  busy: boolean;
+}
 
-  const route = routes[routeId];
-  const stackIds = route?.middleware_ids ?? [];
-
-  const stack = useMemo(
-    () =>
-      stackIds
-        .map((id) => middlewares[id])
-        .filter((m): m is NonNullable<typeof m> => m !== undefined),
-    [stackIds, middlewares],
+function SortableStackRow({ id, index, name, kind, onRemove, busy }: StackRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    display: 'grid',
+    gridTemplateColumns: '24px 24px 1fr 100px 32px',
+    alignItems: 'center',
+    gap: 8,
+    padding: '6px 8px',
+    border: '1px solid var(--mantine-color-gray-3)',
+    borderRadius: 4,
+    background: 'var(--mantine-color-body)',
+  };
+  return (
+    <div ref={setNodeRef} style={style} data-testid={`stack-row-${id}`}>
+      <ActionIcon
+        size="sm"
+        variant="subtle"
+        aria-label={`Drag handle for ${name}`}
+        {...attributes}
+        {...listeners}
+        style={{ cursor: 'grab' }}
+      >
+        <IconGripVertical size={14} />
+      </ActionIcon>
+      <Text size="xs" ff="monospace">
+        {String(index + 1)}
+      </Text>
+      <Text size="xs">{name}</Text>
+      <Badge size="xs" variant="light" color={KIND_COLORS[kind ?? 'custom'] ?? 'gray'}>
+        {kind ?? 'unknown'}
+      </Badge>
+      <ActionIcon
+        size="sm"
+        variant="subtle"
+        color="red.8"
+        disabled={busy}
+        aria-label={`Remove ${name} from stack`}
+        onClick={onRemove}
+      >
+        <IconTrash size={14} />
+      </ActionIcon>
+    </div>
   );
+}
+
+export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEditorProps) {
+  const route = useRouteDetail(tenantId, routeId);
+  const middlewares = useMiddlewareList(tenantId, { search: '', kind: 'all', enabled: 'all' });
+
+  const stackIds = useMemo<string[]>(() => route?.middleware_ids ?? [], [route]);
+
+  const middlewaresById = useMemo(() => {
+    const map = new Map<string, { name: string; kind: string }>();
+    for (const m of middlewares) {
+      map.set(m.id, { name: m.name, kind: m.kind });
+    }
+    return map;
+  }, [middlewares]);
 
   const candidates = useMemo(() => {
     const inStack = new Set(stackIds);
-    return Object.values(middlewares).filter((m) => m.tenant_id === tenantId && !inStack.has(m.id));
-  }, [middlewares, stackIds, tenantId]);
+    return middlewares.filter((m) => !inStack.has(m.id));
+  }, [middlewares, stackIds]);
 
   const [picker, setPicker] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const reorder = useReorderMiddlewaresMutation(tenantId);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   async function applyOrder(nextOrder: string[]) {
-    setBusy(true);
     try {
-      await reorderMiddlewares(routeId, nextOrder);
+      await reorder.mutateAsync({ routeId, middlewareIds: nextOrder });
     } catch {
       notify.error('Failed to reorder middlewares', 'Please try again.');
-    } finally {
-      setBusy(false);
     }
   }
 
-  async function moveUp(index: number) {
-    if (index <= 0) return;
-    const next = [...stackIds];
-    const a = next[index - 1];
-    const b = next[index];
-    if (a === undefined || b === undefined) return;
-    next[index - 1] = b;
-    next[index] = a;
-    await applyOrder(next);
-  }
-
-  async function moveDown(index: number) {
-    if (index >= stackIds.length - 1) return;
-    const next = [...stackIds];
-    const a = next[index];
-    const b = next[index + 1];
-    if (a === undefined || b === undefined) return;
-    next[index] = b;
-    next[index + 1] = a;
-    await applyOrder(next);
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+    const oldIndex = stackIds.indexOf(String(active.id));
+    const newIndex = stackIds.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(stackIds, oldIndex, newIndex);
+    void applyOrder(next);
   }
 
   async function removeAt(index: number) {
@@ -110,80 +190,40 @@ export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEdit
   }
 
   return (
-    <Stack gap="xs">
+    <Stack gap="xs" data-testid="middleware-stack-editor">
       <Text size="sm" fw={600}>
-        Middleware stack ({String(stack.length)})
+        Middleware stack ({String(stackIds.length)})
       </Text>
 
-      {stack.length === 0 ? (
+      {stackIds.length === 0 ? (
         <Alert icon={<IconAlertCircle size={14} />} variant="light" color="gray" p="xs">
           <Text size="xs">No middlewares attached. Stack executes in list order.</Text>
         </Alert>
       ) : (
-        <Table striped>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th style={{ width: 40 }}>#</Table.Th>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Kind</Table.Th>
-              <Table.Th style={{ width: 140 }}>Reorder</Table.Th>
-              <Table.Th style={{ width: 60 }} />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {stack.map((m, i) => (
-              <Table.Tr key={m.id}>
-                <Table.Td>
-                  <Text size="xs" ff="monospace">
-                    {String(i + 1)}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">{m.name}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Badge size="xs" variant="light" color={KIND_COLORS[m.kind] ?? 'gray'}>
-                    {m.kind}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4}>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      disabled={i === 0 || busy}
-                      aria-label={`Move ${m.name} up`}
-                      onClick={() => void moveUp(i)}
-                    >
-                      <IconArrowUp size={14} />
-                    </ActionIcon>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      disabled={i === stack.length - 1 || busy}
-                      aria-label={`Move ${m.name} down`}
-                      onClick={() => void moveDown(i)}
-                    >
-                      <IconArrowDown size={14} />
-                    </ActionIcon>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <ActionIcon
-                    size="sm"
-                    variant="subtle"
-                    color="red.8"
-                    disabled={busy}
-                    aria-label={`Remove ${m.name} from stack`}
-                    onClick={() => void removeAt(i)}
-                  >
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={stackIds} strategy={verticalListSortingStrategy}>
+            <Stack gap={4}>
+              {stackIds.map((id, i) => {
+                const meta = middlewaresById.get(id);
+                return (
+                  <SortableStackRow
+                    key={id}
+                    id={id}
+                    index={i}
+                    name={meta?.name ?? id}
+                    kind={meta?.kind}
+                    onRemove={() => void removeAt(i)}
+                    busy={reorder.isPending}
+                  />
+                );
+              })}
+            </Stack>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Add middleware picker */}
@@ -197,14 +237,14 @@ export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEdit
           value={picker}
           onChange={setPicker}
           searchable
-          disabled={candidates.length === 0 || busy}
+          disabled={candidates.length === 0 || reorder.isPending}
           style={{ flex: 1 }}
           aria-label="Select middleware to add to stack"
         />
         <Button
           leftSection={<IconPlus size={14} />}
           size="sm"
-          disabled={picker === null || busy}
+          disabled={picker === null || reorder.isPending}
           onClick={() => void addToStack()}
         >
           Add

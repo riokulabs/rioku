@@ -39,14 +39,21 @@ import type {
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import type { CreateRbacPolicyBody, TestRbacPolicy200, TestRbacPolicyBody } from '.././schemas';
+import type {
+  CreateRbacPolicyBody,
+  ListRbacPolicies200,
+  TestRbacPolicy200,
+  TestRbacPolicyBody,
+} from '.././schemas';
 import { customFetch } from '../../mutator';
+
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
 
 /**
  * @summary List RBAC policies
  */
 export type listRbacPoliciesResponse = {
-  data: void;
+  data: ListRbacPolicies200;
   status: number;
   headers: Headers;
 };
@@ -78,14 +85,15 @@ export const getListRbacPoliciesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRbacPolicies>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRbacPoliciesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRbacPolicies>>> = ({ signal }) =>
-    listRbacPolicies(tenant, signal);
+    listRbacPolicies(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listRbacPolicies>>,
@@ -116,6 +124,7 @@ export function useListRbacPoliciesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRbacPoliciesInfinite<
@@ -135,6 +144,7 @@ export function useListRbacPoliciesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRbacPoliciesInfinite<
@@ -146,6 +156,7 @@ export function useListRbacPoliciesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRbacPolicies>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -161,6 +172,7 @@ export function useListRbacPoliciesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRbacPolicies>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRbacPoliciesInfiniteQueryOptions(tenant, options);
@@ -181,14 +193,15 @@ export const getListRbacPoliciesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRbacPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRbacPoliciesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRbacPolicies>>> = ({ signal }) =>
-    listRbacPolicies(tenant, signal);
+    listRbacPolicies(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listRbacPolicies>>,
@@ -215,6 +228,7 @@ export function useListRbacPolicies<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRbacPolicies<
@@ -232,6 +246,7 @@ export function useListRbacPolicies<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRbacPolicies<
@@ -241,6 +256,7 @@ export function useListRbacPolicies<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRbacPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -254,6 +270,7 @@ export function useListRbacPolicies<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRbacPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRbacPoliciesQueryOptions(tenant, options);
@@ -300,6 +317,7 @@ export const getCreateRbacPolicyMutationOptions = <TError = void, TContext = unk
     { tenant: string; data: CreateRbacPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createRbacPolicy>>,
   TError,
@@ -307,11 +325,11 @@ export const getCreateRbacPolicyMutationOptions = <TError = void, TContext = unk
   TContext
 > => {
   const mutationKey = ['createRbacPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createRbacPolicy>>,
@@ -319,7 +337,7 @@ export const getCreateRbacPolicyMutationOptions = <TError = void, TContext = unk
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createRbacPolicy(tenant, data);
+    return createRbacPolicy(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -341,6 +359,7 @@ export const useCreateRbacPolicy = <TError = void, TContext = unknown>(options?:
     { tenant: string; data: CreateRbacPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createRbacPolicy>>,
   TError,
@@ -379,6 +398,7 @@ export const getDeleteRbacPolicyMutationOptions = <TError = unknown, TContext = 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteRbacPolicy>>,
   TError,
@@ -386,11 +406,11 @@ export const getDeleteRbacPolicyMutationOptions = <TError = unknown, TContext = 
   TContext
 > => {
   const mutationKey = ['deleteRbacPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteRbacPolicy>>,
@@ -398,7 +418,7 @@ export const getDeleteRbacPolicyMutationOptions = <TError = unknown, TContext = 
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteRbacPolicy(tenant, id);
+    return deleteRbacPolicy(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -417,6 +437,7 @@ export const useDeleteRbacPolicy = <TError = unknown, TContext = unknown>(option
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteRbacPolicy>>,
   TError,
@@ -462,14 +483,15 @@ export const getGetRbacPolicyInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRbacPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetRbacPolicyQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRbacPolicy>>> = ({ signal }) =>
-    getRbacPolicy(tenant, id, signal);
+    getRbacPolicy(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -504,6 +526,7 @@ export function useGetRbacPolicyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRbacPolicyInfinite<
@@ -524,6 +547,7 @@ export function useGetRbacPolicyInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRbacPolicyInfinite<
@@ -536,6 +560,7 @@ export function useGetRbacPolicyInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRbacPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -549,6 +574,7 @@ export function useGetRbacPolicyInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getRbacPolicy>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRbacPolicyInfiniteQueryOptions(tenant, id, options);
@@ -570,14 +596,15 @@ export const getGetRbacPolicyQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRbacPolicy>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetRbacPolicyQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRbacPolicy>>> = ({ signal }) =>
-    getRbacPolicy(tenant, id, signal);
+    getRbacPolicy(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getRbacPolicy>>,
@@ -602,6 +629,7 @@ export function useGetRbacPolicy<TData = Awaited<ReturnType<typeof getRbacPolicy
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRbacPolicy<TData = Awaited<ReturnType<typeof getRbacPolicy>>, TError = void>(
@@ -617,6 +645,7 @@ export function useGetRbacPolicy<TData = Awaited<ReturnType<typeof getRbacPolicy
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetRbacPolicy<TData = Awaited<ReturnType<typeof getRbacPolicy>>, TError = void>(
@@ -624,6 +653,7 @@ export function useGetRbacPolicy<TData = Awaited<ReturnType<typeof getRbacPolicy
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRbacPolicy>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -632,6 +662,7 @@ export function useGetRbacPolicy<TData = Awaited<ReturnType<typeof getRbacPolicy
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRbacPolicy>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRbacPolicyQueryOptions(tenant, id, options);
@@ -673,6 +704,7 @@ export const getPatchRbacPolicyMutationOptions = <TError = unknown, TContext = u
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchRbacPolicy>>,
   TError,
@@ -680,11 +712,11 @@ export const getPatchRbacPolicyMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['patchRbacPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchRbacPolicy>>,
@@ -692,7 +724,7 @@ export const getPatchRbacPolicyMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return patchRbacPolicy(tenant, id);
+    return patchRbacPolicy(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -711,6 +743,7 @@ export const usePatchRbacPolicy = <TError = unknown, TContext = unknown>(options
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchRbacPolicy>>,
   TError,
@@ -752,6 +785,7 @@ export const getReplaceRbacPolicyMutationOptions = <
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceRbacPolicy>>,
   TError,
@@ -759,11 +793,11 @@ export const getReplaceRbacPolicyMutationOptions = <
   TContext
 > => {
   const mutationKey = ['replaceRbacPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceRbacPolicy>>,
@@ -771,7 +805,7 @@ export const getReplaceRbacPolicyMutationOptions = <
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return replaceRbacPolicy(tenant, id);
+    return replaceRbacPolicy(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -790,6 +824,7 @@ export const useReplaceRbacPolicy = <TError = unknown, TContext = unknown>(optio
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceRbacPolicy>>,
   TError,
@@ -834,6 +869,7 @@ export const getTestRbacPolicyMutationOptions = <TError = unknown, TContext = un
     { tenant: string; id: string; data: TestRbacPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof testRbacPolicy>>,
   TError,
@@ -841,11 +877,11 @@ export const getTestRbacPolicyMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['testRbacPolicy'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof testRbacPolicy>>,
@@ -853,7 +889,7 @@ export const getTestRbacPolicyMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return testRbacPolicy(tenant, id, data);
+    return testRbacPolicy(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -873,6 +909,7 @@ export const useTestRbacPolicy = <TError = unknown, TContext = unknown>(options?
     { tenant: string; id: string; data: TestRbacPolicyBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof testRbacPolicy>>,
   TError,

@@ -31,6 +31,8 @@ export type GetAPIKey200 = {
   lastUsedAt?: string;
   name?: string;
   ownerId?: string;
+  /** Non-secret display fragment of the raw key (e.g. rku_tok_AbCd). Empty for legacy keys created before migration #51. */
+  prefix?: string;
   revokedAt?: string;
   scopes?: string[];
   tenantId?: string;
