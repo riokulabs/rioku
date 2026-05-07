@@ -29,7 +29,7 @@ export interface MiddlewareDrawerProps {
 }
 
 export function MiddlewareDrawer({ middlewareId, tenantSlug }: MiddlewareDrawerProps) {
-  const middleware = useMiddlewareDetail(middlewareId);
+  const middleware = useMiddlewareDetail(tenantSlug, middlewareId);
 
   if (!middleware) {
     return (

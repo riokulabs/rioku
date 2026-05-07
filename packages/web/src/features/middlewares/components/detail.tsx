@@ -23,7 +23,8 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconStack } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useRouteListReal } from '@/features/routes/api.stage2';
+import { useServiceListReal } from '@/features/services/api.stage2';
 import { notify } from '@/hooks/use-notify';
 import { isDestructiveMiddleware } from '@/features/api-mgmt-shared';
 import { useMiddlewareDetail, deleteMiddleware } from '../api';
@@ -31,6 +32,7 @@ import { MiddlewareInUseError } from '../types';
 import { KindConfigPanel } from './kind-config-panel';
 
 interface MiddlewareDetailProps {
+  tenantId: string;
   middlewareId: string;
   onEdit: () => void;
   onClose: () => void;
@@ -46,14 +48,29 @@ const KIND_COLORS: Record<string, string> = {
   custom: 'grape',
 };
 
-export function MiddlewareDetail({ middlewareId, onEdit, onClose }: MiddlewareDetailProps) {
-  const middleware = useMiddlewareDetail(middlewareId);
-  const routes = useMockStore((s) => s.routes);
-  const services = useMockStore((s) => s.services);
+export function MiddlewareDetail({
+  tenantId,
+  middlewareId,
+  onEdit,
+  onClose,
+}: MiddlewareDetailProps) {
+  const middleware = useMiddlewareDetail(tenantId, middlewareId);
+  const { routes } = useRouteListReal(tenantId, undefined);
+  const { services: serviceList } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const services = useMemo(() => {
+    const m: Record<string, (typeof serviceList)[number]> = {};
+    for (const s of serviceList) m[s.id] = s;
+    return m;
+  }, [serviceList]);
 
   const referencingRoutes = useMemo(() => {
     if (!middleware) return [];
-    return Object.values(routes).filter((r) => r.middleware_ids.includes(middleware.id));
+    return routes.filter((r) => r.middleware_ids.includes(middleware.id));
   }, [routes, middleware]);
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
@@ -73,7 +90,7 @@ export function MiddlewareDetail({ middlewareId, onEdit, onClose }: MiddlewareDe
     if (deleteInput !== middleware.name) return;
     setDeleting(true);
     try {
-      await deleteMiddleware(middleware.id);
+      await deleteMiddleware(tenantId, middleware.id);
       notify.success('Middleware deleted', `${middleware.name} was removed.`);
       closeDelete();
       onClose();

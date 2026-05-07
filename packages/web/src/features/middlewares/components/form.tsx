@@ -129,7 +129,7 @@ export function MiddlewareForm({
         notify.success('Middleware created', `${m.name} is ready.`);
         onSuccess(m);
       } else if (initialValues) {
-        const m = await updateMiddleware(initialValues.id, payload);
+        const m = await updateMiddleware(tenantId, initialValues.id, payload);
         notify.success('Middleware updated', `${m.name} saved.`);
         onSuccess(m);
       }

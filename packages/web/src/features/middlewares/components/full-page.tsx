@@ -29,7 +29,8 @@ import {
 } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 import { IconAlertCircle, IconDeviceFloppy, IconStack } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useRouteListReal } from '@/features/routes/api.stage2';
+import { useServiceListReal } from '@/features/services/api.stage2';
 import { notify } from '@/hooks/use-notify';
 import { AuditList, useAuditList, encodeResourceHandle } from '@/features/audit';
 import type { AuditFilter } from '@/features/audit';
@@ -113,9 +114,19 @@ export function MiddlewareFullPage({
   tenantId,
   tenantSlug,
 }: MiddlewareFullPageProps) {
-  const middleware = useMiddlewareDetail(middlewareId);
-  const routes = useMockStore((s) => s.routes);
-  const services = useMockStore((s) => s.services);
+  const middleware = useMiddlewareDetail(tenantId, middlewareId);
+  const { routes } = useRouteListReal(tenantId, undefined);
+  const { services: serviceList } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const services = useMemo(() => {
+    const m: Record<string, (typeof serviceList)[number]> = {};
+    for (const s of serviceList) m[s.id] = s;
+    return m;
+  }, [serviceList]);
 
   const [draft, setDraft] = useState<string>(() =>
     JSON.stringify(middleware?.config ?? {}, null, 2),
@@ -135,7 +146,7 @@ export function MiddlewareFullPage({
 
   const referencingRoutes = useMemo(() => {
     if (!middleware) return [];
-    return Object.values(routes).filter((r) => r.middleware_ids.includes(middleware.id));
+    return routes.filter((r) => r.middleware_ids.includes(middleware.id));
   }, [routes, middleware]);
 
   const validateJson = useCallback((): Record<string, unknown> | null => {
@@ -166,14 +177,14 @@ export function MiddlewareFullPage({
     }
     setSaving(true);
     try {
-      await updateMiddleware(middleware.id, { config: parsed });
+      await updateMiddleware(tenantId, middleware.id, { config: parsed });
       notify.success('Middleware saved', `${middleware.name} config updated.`);
     } catch (e) {
       notify.error('Save failed', (e as Error).message);
     } finally {
       setSaving(false);
     }
-  }, [middleware, validateJson]);
+  }, [middleware, validateJson, tenantId]);
 
   if (!middleware) {
     return (
