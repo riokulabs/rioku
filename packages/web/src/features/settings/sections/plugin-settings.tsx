@@ -37,19 +37,19 @@ import { IconLock, IconPlug, IconSettings } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
 import { Zone } from '@/components/zone';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
+import { useInstalledPluginList } from '@/features/plugins/installed/api';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import type { Plugin } from '@/api/resources';
 
 // ─── Plugin list selector ─────────────────────────────────────────────────────
 
 /**
- * Returns all installed plugins from the mock store as a stable array.
- * Selector reads the record map; array is derived outside the selector to
- * avoid the Zustand "snapshot changed every render" trap.
+ * Returns all installed plugins for the active tenant as a stable array.
+ * Reads from the real daemon list endpoint via `useInstalledPluginList`.
  */
 function useAllPlugins(): Plugin[] {
-  const pluginsById = useMockStore((s) => s.plugins);
-  return Object.values(pluginsById);
+  const tenantId = useActiveTenantSlug() ?? '';
+  return useInstalledPluginList(tenantId, { search: '', enabled: 'all' });
 }
 
 // ─── Plugin row ───────────────────────────────────────────────────────────────
