@@ -118,7 +118,7 @@
 
 ## Item 004 — access-policy-cel-test-endpoint-missing
 
-- **Status:** RESOLVED (parse-only stub) 2026-05-06
+- **Status:** RESOLVED 2026-05-06
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-endpoint
 - **What:** Plan 3 Task 6 requires a `POST /api/v1/t/{tenant}/policies/{id}/test` endpoint
@@ -137,17 +137,31 @@
 - **Alternatives:**
   (a) Add a generic tenant-scoped CEL eval endpoint (`POST /api/v1/t/{tenant}/cel/evaluate`)
   not tied to a specific policy ID — accepts expression + context, returns result + cost.
-- **User decision:** Ship a parse-only validator now (no cel-go dependency)
-  to unblock the frontend "Test condition" button; full cel-go evaluation
-  lands when the auth-middleware gains runtime CEL evaluation, at which
-  point the same dependency can be reused here.
+- **User decision:** Ship a real cel-go evaluator now (no stub) so the
+  frontend's "Test condition" button reflects production semantics. The
+  same dependency will be reused when the auth-middleware gains runtime
+  CEL evaluation.
 - **Resolution date / commit:** 2026-05-06 — added
-  `POST /api/v1/t/{tenant}/access-policies/test-cel` backed by
-  `evaluateCELStub` in
-  `packages/daemon/internal/gateway/access_policies_test_cel.go`.
-  Performs balanced-paren / quote validation and returns
-  `{ matched, error?, durationMs }`. Frontend hook `useTestCEL` is wired
-  in `packages/web/src/features/security/access-policies/api.stage2.ts`.
+  `github.com/google/cel-go v0.28.0` to `packages/daemon/go.mod`.
+  `POST /api/v1/t/{tenant}/access-policies/test-cel` is wired in
+  `packages/daemon/internal/gateway/access_policies_routes.go:62-65` and
+  served by `handleTestAccessPolicyCEL` →
+  `evaluateCEL(ctx, expression, sample)` in
+  `packages/daemon/internal/gateway/access_policies_test_cel.go:39-113`.
+  The handler compiles via `cel.NewEnv` + `env.Compile`, evaluates with
+  `prg.Eval` against an activation that exposes `sample`, `envelope`, and
+  every hoisted top-level key (so `service == "users"` and
+  `sample.service == "users"` both work). Non-bool results surface as
+  `{ matched: false, error: "cel: expression must return bool, got <T>", durationMs }`.
+  Coverage in
+  `packages/daemon/internal/gateway/access_policies_test_cel_test.go`:
+  `TestEvaluateCEL` (8 sub-cases: matched true/false, syntax error,
+  non-bool result, hoisted top-level key, envelope alias, nested field
+  access, logical-or with hoisted keys); HTTP-level
+  `TestHandleTestAccessPolicyCEL_Endpoint`,
+  `_HoistedKey`, `_BadRequest`, `_SyntaxError`, `_NonBool`. Frontend hook
+  `useTestCEL` continues to work unchanged via
+  `packages/web/src/features/security/access-policies/api.stage2.ts`.
 
 ---
 

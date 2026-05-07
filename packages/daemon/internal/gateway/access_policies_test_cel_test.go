@@ -6,42 +6,93 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
-func TestEvaluateCELStub(t *testing.T) {
+func TestEvaluateCEL(t *testing.T) {
 	cases := []struct {
-		name     string
-		expr     string
-		matched  bool
-		errSub   string
+		name    string
+		expr    string
+		sample  map[string]any
+		matched bool
+		errSub  string
 	}{
-		{name: "simple equality", expr: `user.role == "admin"`, matched: true},
-		{name: "balanced parens", expr: `(a == b) || (c == d)`, matched: true},
-		{name: "empty", expr: "   ", matched: false, errSub: "empty"},
-		{name: "unbalanced open paren", expr: `(a == b`, matched: false, errSub: "unbalanced '('"},
-		{name: "unbalanced close paren", expr: `a == b)`, matched: false, errSub: "unbalanced ')'"},
-		{name: "unterminated double quote", expr: `user.name == "alice`, matched: false, errSub: "double-quoted"},
-		{name: "parens in quotes do not count", expr: `user.name == "(admin)"`, matched: true},
+		{
+			name:    "matched true via sample.field",
+			expr:    `sample.service == "users"`,
+			sample:  map[string]any{"service": "users"},
+			matched: true,
+		},
+		{
+			name:    "matched false",
+			expr:    `sample.service == "users"`,
+			sample:  map[string]any{"service": "billing"},
+			matched: false,
+		},
+		{
+			name:    "top-level key hoisting",
+			expr:    `service == "users"`,
+			sample:  map[string]any{"service": "users"},
+			matched: true,
+		},
+		{
+			name:    "envelope alias",
+			expr:    `envelope.service == "users"`,
+			sample:  map[string]any{"service": "users"},
+			matched: true,
+		},
+		{
+			name:    "syntax error",
+			expr:    `sample.service ==`,
+			sample:  map[string]any{"service": "users"},
+			matched: false,
+			errSub:  "Syntax error",
+		},
+		{
+			name:    "non-bool result",
+			expr:    `1 + 2`,
+			sample:  map[string]any{},
+			matched: false,
+			errSub:  "must return bool",
+		},
+		{
+			name:    "nested field access",
+			expr:    `sample.user.role == "admin"`,
+			sample:  map[string]any{"user": map[string]any{"role": "admin"}},
+			matched: true,
+		},
+		{
+			name:    "logical or with hoisted keys",
+			expr:    `service == "users" || service == "billing"`,
+			sample:  map[string]any{"service": "billing"},
+			matched: true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			res := evaluateCELStub(tc.expr)
-			if res.Matched != tc.matched {
-				t.Errorf("matched=%v, want %v (err=%q)", res.Matched, tc.matched, res.Error)
+			matched, err, durationMs := evaluateCEL(context.Background(), tc.expr, tc.sample)
+			if matched != tc.matched {
+				t.Errorf("matched=%v, want %v (err=%v)", matched, tc.matched, err)
 			}
-			if tc.errSub != "" && !contains(res.Error, tc.errSub) {
-				t.Errorf("error=%q, want substring %q", res.Error, tc.errSub)
+			if tc.errSub == "" && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tc.errSub != "" {
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tc.errSub)
+				} else if !strings.Contains(err.Error(), tc.errSub) {
+					t.Errorf("error=%q, want substring %q", err.Error(), tc.errSub)
+				}
+			}
+			if durationMs < 0 {
+				t.Errorf("durationMs=%d, want >= 0", durationMs)
 			}
 		})
 	}
-}
-
-func contains(haystack, needle string) bool {
-	return len(needle) == 0 || (len(haystack) >= len(needle) && bytes.Contains([]byte(haystack), []byte(needle)))
 }
 
 // rawAuthedTenantRequest mirrors authedTenantRequest but accepts a raw body
@@ -76,7 +127,7 @@ func TestHandleTestAccessPolicyCEL_Endpoint(t *testing.T) {
 	RegisterAccessPolicyRoutes(mux, drv)
 
 	body := map[string]any{
-		"expr":   `user.role == "admin"`,
+		"expr":   `sample.user.role == "admin"`,
 		"sample": map[string]any{"user": map[string]any{"role": "admin"}},
 	}
 	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
@@ -97,6 +148,30 @@ func TestHandleTestAccessPolicyCEL_Endpoint(t *testing.T) {
 	}
 }
 
+func TestHandleTestAccessPolicyCEL_HoistedKey(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
+
+	body := map[string]any{
+		"expr":   `service == "users"`,
+		"sample": map[string]any{"service": "users"},
+	}
+	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var got testCELResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !got.Matched || got.Error != "" {
+		t.Errorf("hoisted-key eval: matched=%v error=%q, want matched=true error=\"\"", got.Matched, got.Error)
+	}
+}
+
 func TestHandleTestAccessPolicyCEL_BadRequest(t *testing.T) {
 	drv := openTenantTestStore(t)
 	mux := http.NewServeMux()
@@ -112,17 +187,17 @@ func TestHandleTestAccessPolicyCEL_BadRequest(t *testing.T) {
 	}
 }
 
-func TestHandleTestAccessPolicyCEL_StructuralError(t *testing.T) {
+func TestHandleTestAccessPolicyCEL_SyntaxError(t *testing.T) {
 	drv := openTenantTestStore(t)
 	mux := http.NewServeMux()
 	RegisterAccessPolicyRoutes(mux, drv)
 
-	body := map[string]any{"expr": `(a == b`}
+	body := map[string]any{"expr": `sample.service ==`}
 	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 (structural errors are non-transport), got %d body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("expected 200 (syntax errors are non-transport), got %d body=%s", rec.Code, rec.Body.String())
 	}
 	var got testCELResult
 	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
@@ -133,5 +208,29 @@ func TestHandleTestAccessPolicyCEL_StructuralError(t *testing.T) {
 	}
 	if got.Error == "" {
 		t.Errorf("error empty, want explanation")
+	}
+}
+
+func TestHandleTestAccessPolicyCEL_NonBool(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
+
+	body := map[string]any{"expr": `1 + 2`}
+	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var got testCELResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Matched {
+		t.Errorf("matched=true, want false (non-bool result)")
+	}
+	if !strings.Contains(got.Error, "must return bool") {
+		t.Errorf("error=%q, want substring %q", got.Error, "must return bool")
 	}
 }
