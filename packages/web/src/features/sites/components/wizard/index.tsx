@@ -15,8 +15,9 @@ import { useMemo, useState } from 'react';
 import { Alert, Button, Group, Stack, Stepper } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
+import { useServiceListReal } from '@/features/services/api.stage2';
+import { createService as orvalCreateService } from '@/api/generated/services/services';
 import { createSite } from '../../api';
 import { createSiteWizardSchema } from '../../schemas';
 import type { SiteWizardInput } from '../../types';
@@ -94,16 +95,16 @@ export function SiteCreateWizard({ tenantId, onSuccess, onCancel }: SiteCreateWi
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const allServices = useMockStore((s) => s.services);
-  const serviceOptions = useMemo(() => {
-    const out: { value: string; label: string }[] = [];
-    for (const svc of Object.values(allServices)) {
-      if (svc.tenant_id === tenantId) {
-        out.push({ value: svc.id, label: svc.name });
-      }
-    }
-    return out;
-  }, [allServices, tenantId]);
+  const { services: allServices } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const serviceOptions = useMemo(
+    () => allServices.map((svc) => ({ value: svc.id, label: svc.name })),
+    [allServices],
+  );
 
   const form = useForm<WizardFormValues>({
     initialValues: {
@@ -243,7 +244,37 @@ export function SiteCreateWizard({ tenantId, onSuccess, onCancel }: SiteCreateWi
             }
           : {}),
       };
-      const result = await createSite(tenantId, payload);
+      // For new_upstream mode, first create the upstream service so the site
+      // create has an `upstream_service_id` to bind to. The mock-store path
+      // used to do this atomically inside `createSite`; in stage 2 we
+      // orchestrate the two daemon calls here.
+      let resolvedPayload: SiteWizardInput = payload;
+      if (
+        parsed.upstream_mode === 'new_upstream' &&
+        parsed.upstream_protocol !== undefined &&
+        parsed.upstream_host !== undefined
+      ) {
+        const upstreamUrl =
+          parsed.upstream_port !== undefined
+            ? `${parsed.upstream_protocol}://${parsed.upstream_host}:${String(parsed.upstream_port)}`
+            : `${parsed.upstream_protocol}://${parsed.upstream_host}`;
+        const svcRes = (await orvalCreateService(tenantId, {
+          name: `${parsed.name}-upstream`,
+          upstream: { address: upstreamUrl },
+          // Adapter labels are applied server-side from explicit body fields.
+        } as unknown as Parameters<typeof orvalCreateService>[1])) as unknown as {
+          data: { id?: string };
+        };
+        const newServiceId = svcRes.data.id;
+        if (newServiceId !== undefined) {
+          resolvedPayload = {
+            ...payload,
+            upstream_mode: 'existing_service',
+            upstream_service_id: newServiceId,
+          };
+        }
+      }
+      const result = await createSite(tenantId, resolvedPayload);
       notify.success('Site created', `${result.site.domain} is ready.`);
       onSuccess(result.site);
     } catch (err) {

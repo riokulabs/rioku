@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Group, TextInput, MultiSelect, Switch } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useUserList } from '@/features/security/users/api';
 import type { Dashboard, DashboardFilter } from '../types';
 
 type Mode = Dashboard['mode'];
@@ -50,25 +50,17 @@ export function DashboardFilterBar({
     }
   }, [debouncedSearch, filter, onChange]);
 
-  const users = useMockStore((s) => s.users);
-  const memberships = useMockStore((s) => s.memberships);
+  const userList = useUserList(tenantId, { search: '', status: 'active' });
 
   const ownerOptions = useMemo(() => {
-    const tenantUserIds = new Set<string>();
-    for (const m of Object.values(memberships)) {
-      if (m.tenant_id === tenantId && m.state === 'active') {
-        tenantUserIds.add(m.user_id);
-      }
-    }
     const opts: { value: string; label: string }[] = [
       { value: '__shared__', label: 'Tenant-shared' },
     ];
-    for (const uid of tenantUserIds) {
-      const u = users[uid];
-      opts.push({ value: uid, label: u?.name ?? uid });
+    for (const { user } of userList.items) {
+      opts.push({ value: user.id, label: user.name });
     }
     return opts;
-  }, [memberships, users, tenantId]);
+  }, [userList.items]);
 
   return (
     <Group gap="sm" align="flex-end" wrap="wrap">

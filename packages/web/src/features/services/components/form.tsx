@@ -24,7 +24,7 @@ import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useServiceListReal } from '../api.stage2';
 import { TagsInput } from '@/features/api-mgmt-shared';
 import { createService, updateService } from '../api';
 import { createServiceSchema } from '../schemas';
@@ -80,11 +80,14 @@ export function ServiceForm({
     initialValues?.health_check !== undefined,
   );
 
-  const envsSeen = useMockStore((s) => s.services);
+  const { services: envsSeen } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
   const envSet = new Set<string>();
-  for (const svc of Object.values(envsSeen)) {
-    if (svc.tenant_id === tenantId) envSet.add(svc.env);
-  }
+  for (const svc of envsSeen) envSet.add(svc.env);
   const envOptions = Array.from(envSet).sort();
   if (!envOptions.includes('production')) envOptions.unshift('production');
 

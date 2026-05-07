@@ -18,7 +18,7 @@ interface AttachedPoliciesProps {
 }
 
 export function AttachedPolicies({ routeId, tenant }: AttachedPoliciesProps) {
-  const attached = usePoliciesAttachedToRoute(routeId);
+  const attached = usePoliciesAttachedToRoute(tenant, routeId);
   const { data: allPolicies } = usePolicyList(tenant);
 
   const [pickerOpened, { open: openPicker, close: closePicker }] = useDisclosure(false);

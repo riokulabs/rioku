@@ -38,6 +38,8 @@ import { installPlugin, isAdminLevelPermission, adminLevelPermissions } from '..
 import type { ApprovalCandidate, Plugin } from '../types';
 
 interface InstallApprovalModalProps {
+  /** Tenant slug — required by the real install endpoint. */
+  tenantId: string;
   candidate: ApprovalCandidate | null;
   opened: boolean;
   /**
@@ -85,6 +87,7 @@ function extractApiScopes(manifest: unknown): string[] {
 }
 
 export function InstallApprovalModal({
+  tenantId,
   candidate,
   opened,
   onApprove,
@@ -114,7 +117,7 @@ export function InstallApprovalModal({
     }
     setInstalling(true);
     try {
-      const plugin = await installPlugin(candidate);
+      const plugin = await installPlugin(tenantId, candidate);
       notify.success(
         'Plugin installed',
         `${plugin.display_name} v${plugin.version} is now active.`,

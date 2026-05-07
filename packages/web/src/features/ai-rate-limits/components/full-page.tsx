@@ -18,8 +18,14 @@
 import { useMemo } from 'react';
 import { Alert, Badge, Group, Stack, Tabs, Table, Text, Title } from '@mantine/core';
 import { IconAlertCircle, IconGauge } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentList } from '@/features/ai-agents/api';
+import type { AgentFilter } from '@/features/ai-agents/types';
+import { useToolList } from '@/features/ai-tools/api';
+import type { ToolFilter } from '@/features/ai-tools/types';
 import { AuditList, useAuditList, encodeResourceHandle } from '@/features/audit';
+
+const EMPTY_AGENT_FILTER: AgentFilter = { search: '', provider_ids: [], role_ids: [] };
+const EMPTY_TOOL_FILTER: ToolFilter = { search: '', kinds: [] };
 import type { AuditFilter } from '@/features/audit';
 import type { AuditEntry, AiSemanticRateLimit } from '@/api/resources';
 import { useRateLimitDetail } from '../api';
@@ -55,8 +61,18 @@ export interface RateLimitFullPageProps {
 
 export function RateLimitFullPage({ ruleId, tenantId }: RateLimitFullPageProps) {
   const rule = useRateLimitDetail(tenantId, ruleId);
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
+  const agentList = useAgentList(tenantId, EMPTY_AGENT_FILTER);
+  const toolList = useToolList(tenantId, EMPTY_TOOL_FILTER);
+  const agents = useMemo(() => {
+    const m: Record<string, (typeof agentList)[number]> = {};
+    for (const a of agentList) m[a.id] = a;
+    return m;
+  }, [agentList]);
+  const tools = useMemo(() => {
+    const m: Record<string, (typeof toolList)[number]> = {};
+    for (const t of toolList) m[t.id] = t;
+    return m;
+  }, [toolList]);
 
   const auditFilter: AuditFilter = useMemo(
     () => ({

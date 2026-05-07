@@ -142,14 +142,3 @@ export function useDeleteMiddlewareMutation(tenantId: string) {
   });
 }
 
-// ─── Compatibility re-exports (mock fallback) ────────────────────────────────
-// The components still import `useMiddlewareList`, `createMiddleware`, etc.
-// from the feature barrel. Until `VITE_USE_MOCKS=false` is flipped via
-// `src/api/mode.ts`, the barrel re-exports the mock implementations.
-export {
-  useMiddlewareList,
-  useMiddlewareDetail,
-  createMiddleware,
-  updateMiddleware,
-  deleteMiddleware,
-} from './api';

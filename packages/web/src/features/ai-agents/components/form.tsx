@@ -23,8 +23,12 @@ import {
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useProviderList } from '@/features/ai-providers/api';
+import type { ProviderFilter } from '@/features/ai-providers/types';
+import { useRoleList } from '@/features/security/roles/api';
 import { createAgent, updateAgent } from '../api';
+
+const EMPTY_PROVIDER_FILTER: ProviderFilter = { search: '', kinds: [] };
 import { createAgentSchema, updateAgentSchema } from '../schemas';
 import type { AiAgent } from '../types';
 import { ToolSelector } from './tool-selector';
@@ -76,20 +80,28 @@ export function AgentForm({ mode, tenant, tenantId, initialValues, onSuccess, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const providers = useMockStore((s) => s.aiProviders);
-  const roles = useMockStore((s) => s.roles);
+  const providerList = useProviderList(tenant, EMPTY_PROVIDER_FILTER);
+  const providers = useMemo(() => {
+    const m: Record<string, (typeof providerList)[number]> = {};
+    for (const p of providerList) m[p.id] = p;
+    return m;
+  }, [providerList]);
+  const roleList = useRoleList(tenant);
+  const roles = useMemo(() => {
+    const m: Record<string, (typeof roleList)[number]> = {};
+    for (const r of roleList) m[r.id] = r;
+    return m;
+  }, [roleList]);
 
-  const providerOptions = useMemo(() => {
-    return Object.values(providers)
-      .filter((p) => p.tenant_id === tenantId)
-      .map((p) => ({ value: p.id, label: `${p.name} (${p.kind})` }));
-  }, [providers, tenantId]);
+  const providerOptions = useMemo(
+    () => providerList.map((p) => ({ value: p.id, label: `${p.name} (${p.kind})` })),
+    [providerList],
+  );
 
-  const roleOptions = useMemo(() => {
-    return Object.values(roles)
-      .filter((r) => r.tenant_id === tenantId)
-      .map((r) => ({ value: r.id, label: r.name }));
-  }, [roles, tenantId]);
+  const roleOptions = useMemo(
+    () => roleList.map((r) => ({ value: r.id, label: r.name })),
+    [roleList],
+  );
 
   const form = useForm<AgentFormValues>({
     initialValues: initialFromAgent(initialValues),

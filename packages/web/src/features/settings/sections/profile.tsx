@@ -33,7 +33,7 @@ import { Link } from '@tanstack/react-router';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { isFeatureEnabled } from '@/host/feature-flags';
-import { useMockStore } from '@/api/mock-store';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import { useCurrentUser, resetBackupCodes } from '../api';
 import { ProfilePersonalInfo } from './profile-personal-info';
 import { ProfilePasswordModal } from './profile-password-modal';
@@ -43,10 +43,7 @@ import { ProfilePreferences } from './profile-preferences';
 export function ProfileSection() {
   const user = useCurrentUser();
   const canUpdate = usePermission('user:update-own');
-  const tenantSlug = useMockStore((s) => {
-    const tenant = s.tenants[s.currentTenantId ?? ''];
-    return tenant?.slug ?? '';
-  });
+  const tenantSlug = useActiveTenantSlug() ?? '';
 
   const [passwordOpened, { open: openPassword, close: closePassword }] = useDisclosure(false);
 

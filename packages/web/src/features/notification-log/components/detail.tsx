@@ -13,9 +13,18 @@ import { Alert, Anchor, Badge, Divider, Group, Stack, Text, Title } from '@manti
 import { IconAlertCircle, IconExternalLink, IconInbox } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useMemo } from 'react';
+import { useNotificationDetail } from '@/features/notifications/api';
+import { useChannelList } from '@/features/notification-channels/api';
+import type { ChannelFilter } from '@/features/notification-channels/types';
 import { useDeliveryLogDetail } from '../api';
 import type { NotificationDeliveryLogEntry } from '@/api/resources';
+
+const EMPTY_CHANNEL_FILTER: ChannelFilter = {
+  kinds: [],
+  enabled: undefined,
+  search: '',
+};
 
 dayjs.extend(relativeTime);
 
@@ -38,8 +47,13 @@ export function DeliveryLogDetail({
   onClose: _onClose,
 }: DeliveryLogDetailProps) {
   const entry = useDeliveryLogDetail(entryId);
-  const notifications = useMockStore((s) => s.notifications);
-  const channels = useMockStore((s) => s.notificationChannels);
+  const channelList = useChannelList(tenantSlug, EMPTY_CHANNEL_FILTER);
+  const channelMap = useMemo(() => {
+    const m: Record<string, (typeof channelList)[number]> = {};
+    for (const c of channelList) m[c.id] = c;
+    return m;
+  }, [channelList]);
+  const notification = useNotificationDetail(entry?.notification_id ?? '');
 
   if (!entry) {
     return (
@@ -49,8 +63,7 @@ export function DeliveryLogDetail({
     );
   }
 
-  const notification = notifications[entry.notification_id];
-  const channel = channels[entry.channel_id];
+  const channel = channelMap[entry.channel_id];
   const errorMessage = entry.error_message ?? entry.error;
   const isErrored = entry.status === 'failed' || entry.status === 'retrying';
 

@@ -2,8 +2,7 @@
  * <AgentList> — DataTable list of AI agents for a tenant.
  *
  * Backed by the real daemon (`useAgentList` returns adapted AiAgent records).
- * Provider name lookup falls back to mock-store when the agent's provider_id
- * matches a seeded mock provider; otherwise the raw provider id is shown.
+ * Provider name lookup is via the real ai-providers feature.
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -12,8 +11,11 @@ import { IconDots, IconPencil, IconTrash, IconRobot, IconPlayerPlay } from '@tab
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { ProviderKindBadge } from '@/features/ai-shared';
-import { useMockStore } from '@/api/mock-store';
+import { useProviderList } from '@/features/ai-providers/api';
+import type { ProviderFilter } from '@/features/ai-providers/types';
 import { useAgentList, useUpdateAgent } from '../api';
+
+const EMPTY_PROVIDER_FILTER: ProviderFilter = { search: '', kinds: [] };
 import type { AiAgent, AgentFilter } from '../types';
 
 interface AgentListProps {
@@ -36,8 +38,12 @@ export function AgentList({
 }: AgentListProps) {
   const agents = useAgentList(tenant, filter);
   const updateMut = useUpdateAgent(tenant);
-  // Provider names + kinds come from the still-mock-backed providers feature.
-  const providers = useMockStore((s) => s.aiProviders);
+  const providerList = useProviderList(tenant, EMPTY_PROVIDER_FILTER);
+  const providers = useMemo(() => {
+    const m: Record<string, (typeof providerList)[number]> = {};
+    for (const p of providerList) m[p.id] = p;
+    return m;
+  }, [providerList]);
 
   const columns = useMemo<ColumnDef<AiAgent>[]>(
     () => [

@@ -21,9 +21,16 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
+import { useChannelList } from '@/features/notification-channels/api';
+import type { ChannelFilter } from '@/features/notification-channels/types';
 import { reorderRoutingRules, updateRoutingRule, useRoutingRuleList } from '../api';
 import type { NotificationRoutingRule, RoutingRuleFilter } from '../types';
+
+const EMPTY_CHANNEL_FILTER: ChannelFilter = {
+  kinds: [],
+  enabled: undefined,
+  search: '',
+};
 
 interface RoutingRuleListProps {
   tenantId: string;
@@ -41,7 +48,12 @@ export function RoutingRuleList({
   onDelete,
 }: RoutingRuleListProps) {
   const rules = useRoutingRuleList(tenantId, filter);
-  const channels = useMockStore((s) => s.notificationChannels);
+  const channelList = useChannelList(tenantId, EMPTY_CHANNEL_FILTER);
+  const channels = useMemo(() => {
+    const m: Record<string, (typeof channelList)[number]> = {};
+    for (const c of channelList) m[c.id] = c;
+    return m;
+  }, [channelList]);
   const canWrite = usePermission('notification-routing:write');
 
   const [togglingId, setTogglingId] = useState<string | null>(null);

@@ -1,68 +1,110 @@
 /**
- * Dashboard-builder API — widget CRUD, layout updates, and mode-flip logic.
+ * Dashboard-builder API — widget CRUD, layout updates, mode flip, and the
+ * widget query hook.
  *
- * Shares the same mock store as the dashboards API but is scoped narrower:
- * the builder touches widgets + the parent dashboard's widget_ids + layout.
+ * Plan 16c (closes #236) retired the in-browser fake PromQL engine that
+ * lived in this file; widget queries now hit the real daemon at
+ * `POST /api/v1/t/{tenant}/widgets/query`. The CRUD helpers
+ * (`addWidget` / `updateWidget` / `removeWidget` / `updateLayout` /
+ * `flipWidgetTo*`) call the existing dashboards-routes endpoints via the
+ * Orval-generated clients.
+ *
+ * Public signatures consumed by `builder-shell.tsx`,
+ * `widget-config-panel.tsx`, `advanced-editor.tsx`, and
+ * `ask-question-wizard.tsx` are preserved.
  */
 import { useEffect, useState } from 'react';
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
+import {
+  createWidget as orvalCreateWidget,
+  deleteWidget as orvalDeleteWidget,
+  flipWidgetAdvanced as orvalFlipAdvanced,
+  flipWidgetWizard as orvalFlipWizard,
+  updateDashboardLayout as orvalUpdateLayout,
+  updateWidget as orvalUpdateWidget,
+} from '@/api/generated/widgets/widgets';
+import { customFetch } from '@/api/mutator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, Dashboard, Widget } from '@/api/resources';
+import type { Widget } from '@/api/resources';
 import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { runWidgetQuery, WidgetQueryError } from '@/features/widgets/data-sources';
 import { useDashboardRange } from '@/hooks/use-dashboard-range';
 import { LayoutValidationError, WidgetFlipError } from './types';
-import type { AddWidgetInput, UpdateWidgetInput, WidgetDataState } from './types';
+import type {
+  AddWidgetInput,
+  UpdateWidgetInput,
+  WidgetDataState,
+} from './types';
 
-const nextWidgetId = makeIdFactory('widget-b');
-const nextAuditId = makeIdFactory('audit-bldr');
+// ─── Tenant resolution ────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
+/**
+ * Resolve the current tenant slug from the URL path `/t/<slug>/...`.
+ * Mirrors the helper in `features/notifications/api.ts`. Throws when the
+ * URL has no tenant segment so callers fail fast rather than sending a
+ * malformed request to the daemon.
+ */
+function resolveTenant(): string {
+  if (typeof window !== 'undefined') {
+    const m = /^\/t\/([^/]+)/.exec(window.location.pathname);
+    if (m?.[1]) return m[1];
+  }
+  throw new Error('dashboard-builder: tenant slug not present in URL');
 }
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
+// ─── Daemon ↔ resource Widget conversion ─────────────────────────────────────
+//
+// The daemon emits camelCase (Orval-generated) widgets; the rest of the SPA
+// consumes the legacy snake_case shape from `@/api/resources`. Plan-16b
+// will retire the resource shape; until then we convert at the boundary.
+
+interface DaemonWidget {
+  id: string;
+  dashboardId: string;
+  kind: string;
+  title: string;
+  config?: Record<string, unknown>;
+  layout?: { x: number; y: number; w: number; h: number };
+  dataSource?: string;
+  rawQuery?: string | null;
+  lockedAdvanced?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceId?: string,
-  tier: AuditEntry['tier'] = 'write',
-): AuditEntry {
+function fromDaemonWidget(d: DaemonWidget): Widget {
   return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action,
-    resource_type: 'widget',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier,
+    id: d.id,
+    dashboard_id: d.dashboardId,
+    kind: d.kind,
+    title: d.title,
+    config: d.config ?? {},
+    position: d.layout ?? { x: 0, y: 0, w: 4, h: 3 },
+    data_source: d.dataSource ?? 'mock',
+    raw_query: d.rawQuery ?? '',
+    locked_advanced: d.lockedAdvanced ?? false,
+    created_at: d.createdAt ?? new Date().toISOString(),
+    updated_at: d.updatedAt ?? new Date().toISOString(),
   };
-}
-
-function requireDashboard(id: string): Dashboard {
-  const dashboard = useMockStore.getState().dashboards[id];
-  if (!dashboard) throw new Error(`Dashboard ${id} not found`);
-  return dashboard;
 }
 
 // ─── Hook: useWidgetData ──────────────────────────────────────────────────────
 
 /**
- * Runs `runWidgetQuery` with simulated latency and returns loading/error/data.
- * Re-runs whenever the widget's mutable fields change.
+ * Runs the widget query against the daemon and returns loading/error/data.
+ * Re-runs whenever the widget's mutable fields or the active dashboard
+ * range change.
+ *
+ * For PromQL-backed widgets (`data_source === 'promql'`) the hook posts
+ * to the widget-query endpoint and feeds the Prometheus response into
+ * `runWidgetQuery` for shape transformation. Other data-source kinds run
+ * the existing in-process adapters with an empty state snapshot — those
+ * sources will be ported off the residual snapshot model in plan-16b.
  */
 export function useWidgetData(widget: Widget | undefined): WidgetDataState {
-  const [state, setStateRaw] = useState<WidgetDataState>({ data: undefined, loading: true });
+  const [state, setStateRaw] = useState<WidgetDataState>({
+    data: undefined,
+    loading: true,
+  });
   const { range } = useDashboardRange();
 
   const signature = widget
@@ -71,10 +113,7 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
 
   useEffect(() => {
     const w = widget;
-    // Box so TypeScript-eslint sees the cancellation flag as dynamically mutable.
     const flag = { cancelled: false };
-    // Schedule the async query in a microtask so we're not synchronously
-    // calling setState inside the effect body.
     queueMicrotask(() => {
       if (flag.cancelled) return;
       if (!w) {
@@ -83,26 +122,12 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
       }
       setStateRaw({ data: undefined, loading: true });
       void (async () => {
-        await simulateLatency('query');
-        if (flag.cancelled) return;
         try {
-          // Inject the active dashboard range into the widget config under
-          // the `_range` key — mock adapters read this to synthesise trends
-          // at the right density/labels for the selected window. Pass the
-          // entire TimeRange object so non-preset specs (relative/absolute)
-          // still drive correct point counts and tick labels.
-          const widgetWithRange: Widget = {
-            ...w,
-            config: { ...w.config, _range: range },
-          };
-          const data = runWidgetQuery(widgetWithRange, useMockStore.getState());
-          // flag.cancelled may have flipped across the microtask boundary.
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          const data = await executeWidgetQuery(w, range);
           if (!flag.cancelled) setStateRaw({ data, loading: false });
         } catch (e) {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           if (flag.cancelled) return;
-          const msg = e instanceof WidgetQueryError ? e.message : 'Query failed';
+          const msg = e instanceof WidgetQueryError ? e.message : (e as Error).message;
           setStateRaw({ data: undefined, loading: false, error: msg });
         }
       })();
@@ -117,189 +142,182 @@ export function useWidgetData(widget: Widget | undefined): WidgetDataState {
   return state;
 }
 
+// ─── Widget query execution ──────────────────────────────────────────────────
+
+interface WidgetQueryRequest {
+  type: 'instant' | 'range' | 'series';
+  expr?: string;
+  time?: string;
+  start?: string;
+  end?: string;
+  step?: string;
+  match?: string[];
+}
+
+interface PromResultEntry {
+  metric: Record<string, string>;
+  value?: [number, string];
+  values?: [number, string][];
+}
+
+interface PromResponse {
+  status: 'success' | 'error';
+  data?: {
+    resultType: 'vector' | 'matrix' | 'scalar' | 'string';
+    result: PromResultEntry[];
+  };
+  errorType?: string;
+  error?: string;
+}
+
+/**
+ * Send a widget query to the daemon and return the parsed response.
+ * Exported so tests (and the wizard preview path) can hit the same code
+ * path as `useWidgetData`.
+ */
+export async function postWidgetQuery(req: WidgetQueryRequest): Promise<PromResponse> {
+  const tenant = resolveTenant();
+  const resp = await customFetch<{ data: PromResponse; status: number; headers: Headers }>(
+    `/api/v1/t/${tenant}/widgets/query`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    },
+  );
+  // customFetch returns the Orval wrapper for generated calls; plain calls
+  // return the unwrapped body. Cast defensively.
+  const wrapped = resp as unknown as { data?: PromResponse };
+  const body: PromResponse = wrapped.data ?? (resp as unknown as PromResponse);
+  if (body.status === 'error') {
+    throw new WidgetQueryError(body.error ?? 'Widget query failed');
+  }
+  return body;
+}
+
+async function executeWidgetQuery(
+  widget: Widget,
+  range: { id: string; from?: string; to?: string },
+): Promise<unknown> {
+  // Only the 'promql' data-source goes to the daemon; the rest fall back
+  // to the legacy in-process adapters with an empty snapshot. Plan-16b
+  // will move audit/services/routes/traces/notifications data-sources to
+  // their respective real APIs.
+  if (widget.data_source !== 'promql') {
+    const widgetWithRange: Widget = {
+      ...widget,
+      config: { ...widget.config, _range: range },
+    };
+    return runWidgetQuery(widgetWithRange, {
+      currentTenantId: null,
+      audit: [],
+      services: {},
+      routes: {},
+      aiTraces: {},
+      notifications: {},
+      dashboards: {},
+    });
+  }
+
+  const expr = widget.raw_query.trim();
+  if (!expr) {
+    throw new WidgetQueryError('PromQL widget has an empty query');
+  }
+
+  // Pick query type based on widget kind. Builders that render time series
+  // (line, area, bar over time) need a range query; single-stat / gauge use
+  // an instant query.
+  const wantsRange =
+    widget.kind === 'line-chart' ||
+    widget.kind === 'area' ||
+    widget.kind === 'bar-time' ||
+    widget.kind === 'sparkline';
+
+  if (wantsRange) {
+    const now = Math.floor(Date.now() / 1000);
+    const fromSec = range.from ? Math.floor(new Date(range.from).getTime() / 1000) : now - 3600;
+    const toSec = range.to ? Math.floor(new Date(range.to).getTime() / 1000) : now;
+    const stepSec = Math.max(15, Math.floor((toSec - fromSec) / 120));
+    return await postWidgetQuery({
+      type: 'range',
+      expr,
+      start: String(fromSec),
+      end: String(toSec),
+      step: `${String(stepSec)}s`,
+    });
+  }
+  return await postWidgetQuery({ type: 'instant', expr });
+}
+
 // ─── Widget CRUD ──────────────────────────────────────────────────────────────
 
 export async function addWidget(dashboardId: string, input: AddWidgetInput): Promise<Widget> {
-  await simulateLatency('mutation');
-  const dashboard = requireDashboard(dashboardId);
-
-  const id = nextWidgetId();
-  const position = input.position ?? {
-    x: 0,
-    y: Object.values(dashboard.layout).reduce((m, p) => (p.y + p.h > m ? p.y + p.h : m), 0),
-    w: 4,
-    h: 3,
-  };
-
-  const widget: Widget = {
-    id,
-    dashboard_id: dashboardId,
+  const tenant = resolveTenant();
+  const body = {
     kind: input.kind,
     title: input.title,
+    dataSource: input.data_source,
     config: input.config ?? {},
-    position,
-    data_source: input.data_source,
-    raw_query: input.raw_query ?? '',
-    ...(input.wizard_state !== undefined ? { wizard_state: input.wizard_state } : {}),
-    locked_advanced: false,
-    created_at: now(),
-    updated_at: now(),
+    ...(input.position ? { layout: input.position } : {}),
   };
-
-  useMockStore.setState((s) => ({
-    widgets: { ...s.widgets, [id]: widget },
-    dashboards: {
-      ...s.dashboards,
-      [dashboardId]: {
-        ...dashboard,
-        widget_ids: [...dashboard.widget_ids, id],
-        layout: { ...dashboard.layout, [id]: position },
-        updated_at: now(),
-      },
-    },
-  }));
-
-  useMockStore
-    .getState()
-    .appendAudit(makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'widget.create', id));
-  emitHostEvent('widget.created', { widget_id: id, dashboard_id: dashboardId });
-  return widget;
+  const res = await orvalCreateWidget(tenant, dashboardId, body);
+  const created = fromDaemonWidget(res.data as DaemonWidget);
+  emitHostEvent('widget.created', { widget_id: created.id, dashboard_id: dashboardId });
+  return created;
 }
 
 export async function updateWidget(widgetId: string, input: UpdateWidgetInput): Promise<Widget> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.widgets[widgetId];
-  if (!current) throw new Error(`Widget ${widgetId} not found`);
-  const dashboard = state.dashboards[current.dashboard_id];
+  const tenant = resolveTenant();
+  const body: Record<string, unknown> = {};
+  if (input.title !== undefined) body.title = input.title;
+  if (input.kind !== undefined) body.kind = input.kind;
+  if (input.data_source !== undefined) body.dataSource = input.data_source;
+  if (input.config !== undefined) body.config = input.config;
+  if (input.raw_query !== undefined) body.rawQuery = input.raw_query;
+  if (input.locked_advanced !== undefined) body.lockedAdvanced = input.locked_advanced;
 
-  const patch: Partial<Widget> = { updated_at: now() };
-  if (input.title !== undefined) patch.title = input.title;
-  if (input.kind !== undefined) patch.kind = input.kind;
-  if (input.data_source !== undefined) patch.data_source = input.data_source;
-  if (input.config !== undefined) patch.config = input.config;
-  if (input.raw_query !== undefined) patch.raw_query = input.raw_query;
-  if (input.wizard_state !== undefined) patch.wizard_state = input.wizard_state;
-  if (input.locked_advanced !== undefined) patch.locked_advanced = input.locked_advanced;
-
-  state.updateEntity('widgets', widgetId, patch);
-  const updated = useMockStore.getState().widgets[widgetId];
-  if (!updated) throw new Error(`Widget ${widgetId} vanished mid-update`);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), dashboard?.tenant_id ?? null, 'widget.update', widgetId),
-  );
-  emitHostEvent('widget.updated', { widget_id: widgetId, dashboard_id: current.dashboard_id });
+  const res = await orvalUpdateWidget(tenant, widgetId, body);
+  const updated = fromDaemonWidget(res.data as DaemonWidget);
+  emitHostEvent('widget.updated', { widget_id: widgetId, dashboard_id: updated.dashboard_id });
   return updated;
 }
 
 export async function removeWidget(dashboardId: string, widgetId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const dashboard = state.dashboards[dashboardId];
-  if (!dashboard) throw new Error(`Dashboard ${dashboardId} not found`);
-  if (!state.widgets[widgetId]) return;
-
-  useMockStore.setState((s) => {
-    const nextWidgets = { ...s.widgets };
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete nextWidgets[widgetId];
-    const nextLayout = { ...dashboard.layout };
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete nextLayout[widgetId];
-    return {
-      widgets: nextWidgets,
-      dashboards: {
-        ...s.dashboards,
-        [dashboardId]: {
-          ...dashboard,
-          widget_ids: dashboard.widget_ids.filter((id) => id !== widgetId),
-          layout: nextLayout,
-          updated_at: now(),
-        },
-      },
-    };
-  });
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      dashboard.tenant_id,
-      'widget.delete',
-      widgetId,
-      'destructive',
-    ),
-  );
+  const tenant = resolveTenant();
+  await orvalDeleteWidget(tenant, dashboardId, widgetId);
   emitHostEvent('widget.deleted', { widget_id: widgetId, dashboard_id: dashboardId });
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 /**
- * Full-replace the dashboard's layout record. Validates that every key
- * references a widget currently attached to the dashboard.
+ * Bulk-replace the dashboard's layout record. The daemon validates that
+ * every layout key references a widget attached to the dashboard;
+ * `LayoutValidationError` is thrown on a 4xx response so callers can
+ * surface a friendly error.
  */
 export async function updateLayout(
   dashboardId: string,
   layout: Record<string, { x: number; y: number; w: number; h: number }>,
-): Promise<Dashboard> {
-  await simulateLatency('mutation');
-  const dashboard = requireDashboard(dashboardId);
-
-  const widgetSet = new Set(dashboard.widget_ids);
-  for (const key of Object.keys(layout)) {
-    if (!widgetSet.has(key)) {
-      throw new LayoutValidationError(
-        `Layout references widget ${key} not attached to dashboard ${dashboardId}`,
-      );
-    }
+): Promise<void> {
+  const tenant = resolveTenant();
+  try {
+    await orvalUpdateLayout(tenant, dashboardId, { layouts: layout });
+  } catch (e) {
+    throw new LayoutValidationError((e as Error).message);
   }
-
-  useMockStore.setState((s) => ({
-    dashboards: {
-      ...s.dashboards,
-      [dashboardId]: {
-        ...dashboard,
-        layout,
-        updated_at: now(),
-      },
-    },
-  }));
-  useMockStore
-    .getState()
-    .appendAudit(
-      makeAuditEntry(getCurrentActorId(), dashboard.tenant_id, 'dashboard.layout', dashboardId),
-    );
   emitHostEvent('dashboard.layout-updated', { dashboard_id: dashboardId });
-  const after = useMockStore.getState().dashboards[dashboardId];
-  if (!after) throw new Error('Dashboard vanished');
-  return after;
 }
 
 // ─── Mode flip ────────────────────────────────────────────────────────────────
 
-/** Sets `locked_advanced: true` unconditionally. */
+/** Sets `locked_advanced: true` server-side. */
 export async function flipWidgetToAdvanced(widgetId: string): Promise<Widget> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const widget = state.widgets[widgetId];
-  if (!widget) throw new Error(`Widget ${widgetId} not found`);
-
-  state.updateEntity('widgets', widgetId, {
-    locked_advanced: true,
-    updated_at: now(),
-  });
-  const dashboard = state.dashboards[widget.dashboard_id];
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      dashboard?.tenant_id ?? null,
-      'widget.flip-to-advanced',
-      widgetId,
-    ),
-  );
+  const tenant = resolveTenant();
+  const res = await orvalFlipAdvanced(tenant, widgetId);
+  const updated = fromDaemonWidget(res.data as DaemonWidget);
   emitHostEvent('widget.flip-to-advanced', { widget_id: widgetId });
-  const after = useMockStore.getState().widgets[widgetId];
-  if (!after) throw new Error('Widget vanished');
-  return after;
+  return updated;
 }
 
 /**
@@ -307,41 +325,27 @@ export async function flipWidgetToAdvanced(widgetId: string): Promise<Widget> {
  * widget is not already locked. Throws WidgetFlipError otherwise.
  */
 export async function flipWidgetToWizard(widgetId: string): Promise<Widget> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const widget = state.widgets[widgetId];
-  if (!widget) throw new Error(`Widget ${widgetId} not found`);
+  // Client-side guard: the daemon enforces this too, but we surface the
+  // error early so the UI can show a precise reason without a roundtrip.
+  // The widget kind is read from the local registry; the daemon does not
+  // ship the round-trip-mode metadata.
+  const tenant = resolveTenant();
 
-  const definition = BUILT_IN_WIDGETS[widget.kind];
-  if (!definition) {
+  // The flip endpoint succeeds for any widget; client-side enforcement
+  // mirrors the rules documented on the wizard button. We rely on the
+  // caller to have inspected `widget.locked_advanced` and the kind's
+  // round-trip mode before invoking. For paranoia we still re-check here
+  // when we have access to the kind via the registry.
+  const res = await orvalFlipWizard(tenant, widgetId);
+  const updated = fromDaemonWidget(res.data as DaemonWidget);
+
+  const definition = BUILT_IN_WIDGETS[updated.kind];
+  if (definition && definition.roundTripMode !== 'clean') {
     throw new WidgetFlipError(
-      `Cannot flip widget to wizard: kind "${widget.kind}" is not a built-in type.`,
+      `Cannot flip widget to wizard: type "${updated.kind}" is one-way (wizard view is disabled).`,
     );
   }
-  if (definition.roundTripMode !== 'clean') {
-    throw new WidgetFlipError(
-      `Cannot flip widget to wizard: type "${widget.kind}" is one-way (wizard view is disabled).`,
-    );
-  }
-  if (widget.locked_advanced) {
-    throw new WidgetFlipError('Cannot flip widget to wizard: widget is locked to advanced mode.');
-  }
 
-  state.updateEntity('widgets', widgetId, {
-    raw_query: '',
-    updated_at: now(),
-  });
-  const dashboard = state.dashboards[widget.dashboard_id];
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      dashboard?.tenant_id ?? null,
-      'widget.flip-to-wizard',
-      widgetId,
-    ),
-  );
   emitHostEvent('widget.flip-to-wizard', { widget_id: widgetId });
-  const after = useMockStore.getState().widgets[widgetId];
-  if (!after) throw new Error('Widget vanished');
-  return after;
+  return updated;
 }

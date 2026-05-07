@@ -21,8 +21,15 @@ import { EmptyState } from '@/components/empty-state';
 import { IdBadge } from '@/components/id-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { formatCost, formatTokens } from '@/features/ai-shared';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentList } from '@/features/ai-agents/api';
+import type { AgentFilter } from '@/features/ai-agents/types';
 import type { AiTrace } from '@/api/resources';
+
+const EMPTY_AGENT_FILTER: AgentFilter = {
+  search: '',
+  provider_ids: [],
+  role_ids: [],
+};
 
 dayjs.extend(relativeTime);
 
@@ -33,13 +40,20 @@ const STATUS_KIND = {
 } as const satisfies Record<AiTrace['status'], 'success' | 'error' | 'warn'>;
 
 interface TraceListProps {
+  /** Tenant slug — used to resolve agent display names. */
+  tenantId: string;
   /** Pre-filtered + sorted + sliced trace rows to render. */
   rows: AiTrace[];
   onSelect: (trace: AiTrace) => void;
 }
 
-export function TraceList({ rows, onSelect }: TraceListProps) {
-  const agents = useMockStore((s) => s.aiAgents);
+export function TraceList({ tenantId, rows, onSelect }: TraceListProps) {
+  const agentList = useAgentList(tenantId, EMPTY_AGENT_FILTER);
+  const agents = useMemo(() => {
+    const map: Record<string, { name: string }> = {};
+    for (const a of agentList) map[a.id] = { name: a.name };
+    return map;
+  }, [agentList]);
 
   const columns = useMemo<ColumnDef<AiTrace>[]>(
     () => [

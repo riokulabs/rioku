@@ -95,7 +95,7 @@ function MiddlewaresPage() {
 
   async function handleDeleteFromList(m: Middleware) {
     try {
-      await deleteMiddleware(m.id);
+      await deleteMiddleware(tenantId, m.id);
       notify.success('Middleware deleted', `${m.name} was removed.`);
     } catch (err) {
       if (err instanceof MiddlewareInUseError) {

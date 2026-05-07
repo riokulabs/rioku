@@ -106,9 +106,10 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Real-API mutation for the daemon-backed retention upsert. Fires
-  // alongside the mock-store path; failures are non-fatal (the local
-  // path succeeds and the toast surfaces success either way).
+  // Real-API mutation for the daemon-backed retention upsert. The
+  // generated Orval mutation is preserved here for query-cache
+  // invalidation; the imperative `updateRetentionConfig` below issues
+  // the actual PUT.
   const upsertRetentionMutation = useUpsertAuditRetentionConfig();
 
   const form = useForm<FlatFormValues>({
@@ -130,9 +131,10 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
         auto_export: values.auto_export,
         auto_export_format: values.auto_export_format,
       });
-      // Best-effort daemon upsert. Catch swallows network errors so
-      // the mock-store happy path remains the source of truth in
-      // mock mode.
+      // Mirror the imperative PUT through the Orval mutation so the
+      // generated query cache (consumed by the auto-export reveal
+      // panel and any other Orval-driven readers) is invalidated. The
+      // imperative call above is the source of truth for the toast.
       try {
         await upsertRetentionMutation.mutateAsync({
           tenant: tenantId,
@@ -145,7 +147,7 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
           },
         });
       } catch {
-        // ignore — mock-store path already succeeded
+        // ignore — imperative PUT already succeeded
       }
       notify.success(
         'Retention saved',

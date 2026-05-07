@@ -101,7 +101,7 @@ export function SiteEditForm({ initialValues, onSuccess, onCancel }: SiteEditFor
         rate_limit_preset: values.rate_limit_preset,
         redirect_rules: values.redirect_rules,
       };
-      const updated = await updateSite(initialValues.id, patch);
+      const updated = await updateSite(initialValues.tenant_id, initialValues.id, patch);
       notify.success('Site saved', `${updated.domain} updated.`);
       onSuccess(updated);
     } catch (err) {

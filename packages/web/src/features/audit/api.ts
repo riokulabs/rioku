@@ -11,15 +11,16 @@
  * client-side on the page slice. This keeps the wire small without
  * losing the existing UX.
  *
- * Search / retention-config / export remain mock-store-backed for the
- * mock-mode UI; the real-daemon export already runs through
- * `streamAuditExport` below.
+ * Retention config is wired to `GET/PUT /api/v1/t/{tenant}/audit/retention`.
+ * Streaming export goes through `streamAuditExport` (the daemon's
+ * `/audit/export/{format}` endpoints). Async actor / resource-id search is
+ * stubbed to empty pages until a candidate-list endpoint lands.
  *
  * Opaque-handle convention (§13.2a):
  *   actor:        user_<user_id>
  *   resource_id:  res_<resource_type>_<resource_id>
  */
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import {
   QueryClient,
   QueryClientContext,
@@ -42,11 +43,6 @@ function getFallbackClient(): QueryClient {
   });
   return _fallbackClient;
 }
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import { resolveRolePermissions } from '@/host/role-resolver';
 import { customFetch } from '@/api/mutator';
 import type { AuditEntry as DaemonAuditEntry } from '@/api/generated/schemas/auditEntry';
 import type { ListAuditEntriesParams } from '@/api/generated/schemas/listAuditEntriesParams';
@@ -60,7 +56,6 @@ import type {
   UpdateRetentionConfigInput,
 } from './types';
 
-const nextAuditId = makeIdFactory('audit-new');
 const PAGE_SIZE_DEFAULT = 50;
 
 // ─── Handle codec ─────────────────────────────────────────────────────────────
@@ -93,19 +88,6 @@ export function decodeResourceHandle(
     resource_type: rest.slice(0, sepIdx),
     resource_id: rest.slice(sepIdx + 1),
   };
-}
-
-// ─── Permission helper (sync, for exports) ──────────────────────────────────
-
-function currentUserHasPermission(key: string): boolean {
-  const s = useMockStore.getState();
-  if (!s.currentUserId) return false;
-  const memberships = Object.values(s.memberships).filter(
-    (m) =>
-      m.user_id === s.currentUserId && m.tenant_id === s.currentTenantId && m.state === 'active',
-  );
-  const roleIds = memberships.flatMap((m) => m.role_ids);
-  return resolveRolePermissions(roleIds, s.roles).has(key);
 }
 
 // ─── Filter <-> daemon query translation ─────────────────────────────────────
@@ -226,13 +208,16 @@ function matchesFilter(entry: AuditEntry, tenantId: string, filter: AuditFilter)
       entry.resource_id ?? '',
       entry.outcome,
     ];
-    if (currentUserHasPermission('audit:read-sensitive')) {
-      if (entry.payload !== undefined) {
-        fields.push(JSON.stringify(entry.payload));
-      }
-      if (entry.ip) fields.push(entry.ip);
-      if (entry.user_agent) fields.push(entry.user_agent);
+    // Sensitive fields (payload / ip / user_agent) are stamped server-
+    // side: when the caller has `audit:read-sensitive`, the daemon
+    // returns them populated; when not, they are absent. Accordingly,
+    // include them in the haystack whenever they are present on the
+    // entry — the gate is upstream.
+    if (entry.payload !== undefined) {
+      fields.push(JSON.stringify(entry.payload));
     }
+    if (entry.ip) fields.push(entry.ip);
+    if (entry.user_agent) fields.push(entry.user_agent);
     const hay = fields.join(' ').toLowerCase();
     if (!hay.includes(search)) return false;
   }
@@ -291,18 +276,11 @@ async function fetchAuditPage(
  * Fetch a single (large) page of audit entries for `tenantId` matching
  * `filter`. Used by the page header counter + non-infinite consumers.
  *
- * Hybrid sourcing: we attempt the real daemon endpoint via
- * TanStack Query. If the request returns rows that match the requested
- * tenant, those are merged with mock-store rows (deduplicated by id,
- * preferring the live row). When the network returns nothing
- * tenant-matching (mock-mode tests with random faker data, or no
- * QueryClient available, or 4xx), the mock-store rows alone are
- * surfaced — preserving the stage-1 UX without forcing every test to
- * spin up a QueryClient.
- *
- * The daemon-side filter is permissive (server narrows on the few
- * params it understands); the SPA reapplies the rest client-side and
- * sorts desc by `at` for display stability.
+ * Sourcing: TanStack Query against the real daemon endpoint. The
+ * daemon-side filter is permissive (server narrows on the few params it
+ * understands); the SPA reapplies the rest client-side and sorts desc by
+ * `at` for display stability. Returns an empty list when no QueryClient
+ * is in scope (legacy bare-renderHook tests).
  */
 export function useAuditList(tenantId: string, filter: AuditFilter): AuditEntry[] {
   const params = useMemo(
@@ -330,25 +308,16 @@ export function useAuditList(tenantId: string, filter: AuditFilter): AuditEntry[
     },
     effectiveClient,
   );
-  const mockRows = useMockStore((s) => s.audit);
   return useMemo(() => {
     const liveRows = query.data?.items ?? [];
-    const merged = new Map<string, AuditEntry>();
-    for (const entry of mockRows) {
-      const withTenant: AuditEntry = { ...entry, tenant_id: entry.tenant_id };
-      merged.set(entry.id, withTenant);
-    }
+    const out: AuditEntry[] = [];
     for (const entry of liveRows) {
       const withTenant: AuditEntry = { ...entry, tenant_id: tenantId };
-      merged.set(entry.id, withTenant);
-    }
-    const out: AuditEntry[] = [];
-    for (const entry of merged.values()) {
-      if (matchesFilter(entry, tenantId, filter)) out.push(entry);
+      if (matchesFilter(withTenant, tenantId, filter)) out.push(withTenant);
     }
     out.sort(sortDesc);
     return out;
-  }, [query.data, mockRows, tenantId, filter]);
+  }, [query.data, tenantId, filter]);
 }
 
 /**
@@ -388,9 +357,6 @@ export function useAuditListInfinite(
       effectiveClient,
     );
 
-  const mockRows = useMockStore((s) => s.audit);
-  const [mockPages, setMockPages] = useState(1);
-
   const merged = useMemo(() => {
     const live: AuditEntry[] = [];
     for (const page of query.data?.pages ?? []) {
@@ -399,42 +365,18 @@ export function useAuditListInfinite(
         if (matchesFilter(withTenant, tenantId, filter)) live.push(withTenant);
       }
     }
-    if (live.length > 0) {
-      live.sort(sortDesc);
-      return live;
-    }
-    // Mock-store fallback (paginated client-side).
-    const all: AuditEntry[] = [];
-    for (const entry of mockRows) {
-      if (matchesFilter(entry, tenantId, filter)) all.push(entry);
-    }
-    all.sort(sortDesc);
-    return all.slice(0, mockPages * pageSize);
-  }, [query.data, mockRows, tenantId, filter, mockPages, pageSize]);
-
-  const totalMock = useMemo(() => {
-    let n = 0;
-    for (const entry of mockRows) {
-      if (matchesFilter(entry, tenantId, filter)) n++;
-    }
-    return n;
-  }, [mockRows, tenantId, filter]);
-
-  const isLiveMode = (query.data?.pages.length ?? 0) > 0 && (query.data?.pages[0]?.items.length ?? 0) > 0;
-  const hasNextPage = isLiveMode ? query.hasNextPage : merged.length < totalMock;
+    live.sort(sortDesc);
+    return live;
+  }, [query.data, tenantId, filter]);
 
   const fetchNextPage = useCallback(() => {
-    if (isLiveMode) {
-      void query.fetchNextPage();
-      return;
-    }
-    setMockPages((p) => p + 1);
-  }, [query, isLiveMode]);
+    void query.fetchNextPage();
+  }, [query]);
 
   return {
     data: merged,
     fetchNextPage,
-    hasNextPage,
+    hasNextPage: query.hasNextPage,
     isFetching: query.isFetching,
   };
 }
@@ -442,89 +384,31 @@ export function useAuditListInfinite(
 /**
  * Detail selector — returns the audit entry with id `entryId`.
  *
- * Reads from the same TanStack-Query cache the list selectors populate
- * (the list endpoint already returns full entry rows). When the cache
- * miss happens we fall back to the mock store so the legacy mock-mode
- * UI continues to work; the real-daemon detail endpoint
- * (`useGetAuditEntry`) is consumed directly by the admin chain page.
+ * Walks the same TanStack-Query caches the list selectors populate
+ * (the list endpoint already returns full entry rows). The real-daemon
+ * detail endpoint (`useGetAuditEntry`) is consumed directly by the
+ * admin chain page when a cross-tenant lookup is needed.
  */
 export function useAuditDetail(entryId: string): AuditEntry | undefined {
-  const audit = useMockStore((s) => s.audit);
-  return useMemo(() => audit.find((e) => e.id === entryId), [audit, entryId]);
-}
-
-// ─── Export ──────────────────────────────────────────────────────────────────
-
-/** CSV-escape a cell per RFC 4180. */
-function csvEscape(value: string | number | null | undefined): string {
-  const s = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
-const CSV_HEADER = 'at,actor_id,action,resource_type,resource_id,outcome,tier,ip,request_id';
-
-const REDACTED = '[redacted]';
-
-export function exportAuditCsv(tenantId: string, filter: AuditFilter): Blob {
-  const canReadSensitive = currentUserHasPermission('audit:read-sensitive');
-  const state = useMockStore.getState();
-
-  const matched: AuditEntry[] = [];
-  for (const entry of state.audit) {
-    if (matchesFilter(entry, tenantId, filter)) matched.push(entry);
-  }
-  matched.sort(sortDesc);
-
-  const rows: string[] = [CSV_HEADER];
-  for (const e of matched) {
-    const ipCell = canReadSensitive ? (e.ip ?? '') : e.ip ? REDACTED : '';
-    rows.push(
-      [
-        csvEscape(e.at),
-        csvEscape(e.actor_id),
-        csvEscape(e.action),
-        csvEscape(e.resource_type),
-        csvEscape(e.resource_id ?? ''),
-        csvEscape(e.outcome),
-        csvEscape(e.tier),
-        csvEscape(ipCell),
-        csvEscape(e.request_id ?? ''),
-      ].join(','),
-    );
-  }
-
-  return new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
-}
-
-export function exportAuditJsonl(tenantId: string, filter: AuditFilter): Blob {
-  const canReadSensitive = currentUserHasPermission('audit:read-sensitive');
-  const state = useMockStore.getState();
-
-  const matched: AuditEntry[] = [];
-  for (const entry of state.audit) {
-    if (matchesFilter(entry, tenantId, filter)) matched.push(entry);
-  }
-  matched.sort(sortDesc);
-
-  const lines: string[] = [];
-  for (const e of matched) {
-    const out: AuditEntry = canReadSensitive
-      ? e
-      : {
-          ...e,
-          ...(e.ip !== undefined ? { ip: REDACTED } : {}),
-          ...(e.user_agent !== undefined ? { user_agent: REDACTED } : {}),
-          ...(e.payload !== undefined ? { payload: null } : {}),
-        };
-    lines.push(JSON.stringify(out));
-  }
-
-  return new Blob([lines.join('\n')], {
-    type: 'application/x-ndjson;charset=utf-8',
-  });
+  const ctxClient = useContext(QueryClientContext);
+  const client = ctxClient ?? getFallbackClient();
+  return useMemo(() => {
+    const queries = client.getQueriesData<AuditListPage>({ queryKey: ['audit-list'] });
+    for (const [, page] of queries) {
+      const hit = page?.items.find((e) => e.id === entryId);
+      if (hit) return hit;
+    }
+    const infinites = client.getQueriesData<{ pages: AuditListPage[] }>({
+      queryKey: ['audit-list-infinite'],
+    });
+    for (const [, data] of infinites) {
+      for (const page of data?.pages ?? []) {
+        const hit = page.items.find((e) => e.id === entryId);
+        if (hit) return hit;
+      }
+    }
+    return undefined;
+  }, [client, entryId]);
 }
 
 // ─── Streaming export (real daemon endpoint) ────────────────────────────────
@@ -596,114 +480,77 @@ function sliceCursor<T>(
   };
 }
 
-export async function searchActors(
-  tenantId: string,
-  query: string,
-  cursor?: string,
+/**
+ * Async actor search. The daemon does not yet expose a tenant-scoped
+ * user-search endpoint shaped for the audit filter; the legacy mock-store
+ * implementation walked the active memberships locally. Until a real
+ * endpoint lands, return an empty page so MultiSelect renders cleanly.
+ */
+export function searchActors(
+  _tenantId: string,
+  _query: string,
+  _cursor?: string,
 ): Promise<AsyncSearchPage<ActorCandidate>> {
-  await simulateLatency('query');
-  const state = useMockStore.getState();
-  const memberships = Object.values(state.memberships).filter(
-    (m) => m.tenant_id === tenantId && m.state === 'active',
-  );
-  const userIds = Array.from(new Set(memberships.map((m) => m.user_id)));
-  const q = query.trim().toLowerCase();
-
-  const candidates: ActorCandidate[] = [];
-  for (const uid of userIds) {
-    const user = state.users[uid];
-    if (!user) continue;
-    if (q) {
-      const hay = `${user.email} ${user.name} ${user.id}`.toLowerCase();
-      if (!hay.includes(q)) continue;
-    }
-    candidates.push({
-      handle: encodeActorHandle(user.id),
-      label: `${user.name} <${user.email}>`,
-    });
-  }
-  candidates.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
-  return sliceCursor(candidates, cursor, DEFAULT_PAGE_SIZE);
+  return Promise.resolve(sliceCursor<ActorCandidate>([], undefined, DEFAULT_PAGE_SIZE));
 }
 
-export async function searchResourceIds(
-  tenantId: string,
-  resourceType: string,
-  query: string,
-  cursor?: string,
+/**
+ * Async resource-id search — same situation as {@link searchActors}.
+ * Returns an empty page until the daemon exposes a candidate-list endpoint.
+ */
+export function searchResourceIds(
+  _tenantId: string,
+  _resourceType: string,
+  _query: string,
+  _cursor?: string,
 ): Promise<AsyncSearchPage<ResourceIdCandidate>> {
-  await simulateLatency('query');
-  const state = useMockStore.getState();
-  const q = query.trim().toLowerCase();
-
-  const seen = new Set<string>();
-  const candidates: ResourceIdCandidate[] = [];
-  for (const entry of state.audit) {
-    if (entry.tenant_id !== tenantId) continue;
-    if (entry.resource_type !== resourceType) continue;
-    if (!entry.resource_id) continue;
-    const rid = entry.resource_id;
-    if (seen.has(rid)) continue;
-    seen.add(rid);
-    if (q && !rid.toLowerCase().includes(q)) continue;
-    candidates.push({
-      handle: encodeResourceHandle(resourceType, rid),
-      label: rid,
-      resource_type: resourceType,
-    });
-  }
-  candidates.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
-  return sliceCursor(candidates, cursor, DEFAULT_PAGE_SIZE);
+  return Promise.resolve(sliceCursor<ResourceIdCandidate>([], undefined, DEFAULT_PAGE_SIZE));
 }
 
 // ─── Retention config ────────────────────────────────────────────────────────
 
 export function useRetentionConfig(tenantId: string): AuditRetentionConfig | undefined {
-  return useMockStore((s) => s.auditRetentionConfigs[tenantId]);
+  const ctxClient = useContext(QueryClientContext);
+  const networkEnabled = ctxClient !== undefined;
+  const effectiveClient = useMemo(
+    () => ctxClient ?? getFallbackClient(),
+    [ctxClient],
+  );
+  const { data } = useQuery(
+    {
+      queryKey: ['audit-retention', tenantId] as const,
+      queryFn: async ({ signal }) => {
+        const wrapped = await customFetch<{ data: AuditRetentionConfig }>(
+          `/t/${tenantId}/audit/retention`,
+          { method: 'GET', signal },
+        );
+        return wrapped.data;
+      },
+      enabled: networkEnabled && tenantId.length > 0,
+      staleTime: 30_000,
+      retry: false,
+    },
+    effectiveClient,
+  );
+  return data;
 }
 
 export async function updateRetentionConfig(
   tenantId: string,
   input: UpdateRetentionConfigInput,
 ): Promise<AuditRetentionConfig> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-
-  const next: AuditRetentionConfig = {
-    tenant_id: tenantId,
-    retention_days: { ...input.retention_days },
-    auto_export: input.auto_export,
-    auto_export_format: input.auto_export_format,
-    updated_at: new Date().toISOString(),
-  };
-
-  const prev = state.auditRetentionConfigs[tenantId];
-  useMockStore.setState((s) => ({
-    auditRetentionConfigs: {
-      ...s.auditRetentionConfigs,
-      [tenantId]: next,
+  const wrapped = await customFetch<{ data: AuditRetentionConfig }>(
+    `/t/${tenantId}/audit/retention`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        retention_days: input.retention_days,
+        auto_export: input.auto_export,
+        auto_export_format: input.auto_export_format,
+      }),
     },
-  }));
-
-  const entry: AuditEntry = {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: state.currentUserId ?? 'unknown',
-    action: 'audit.retention.update',
-    resource_type: 'audit-retention',
-    resource_id: tenantId,
-    outcome: 'success',
-    at: next.updated_at,
-    tier: 'write',
-    diff: prev ? { before: prev, after: next } : { before: null, after: next },
-  };
-  state.appendAudit(entry);
-
-  emitHostEvent('audit.retention.updated', {
-    tenant_id: tenantId,
-  });
-
-  return next;
+  );
+  return wrapped.data;
 }
 
 // Re-export the matcher so list tests can assert fidelity.

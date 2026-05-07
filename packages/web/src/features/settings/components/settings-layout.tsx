@@ -27,7 +27,7 @@ import { Link, useSearch, useNavigate } from '@tanstack/react-router';
 import type { Icon } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
 import { SettingsSearch } from './settings-search';
-import { useMockStore } from '@/api/mock-store';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import { ProfileSection } from '../sections/profile';
 import { TenantSection } from '../sections/tenant';
 import { AuthenticationSection } from '../sections/authentication';
@@ -87,13 +87,10 @@ export function SettingsLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
 
-  // Derive tenant slug from the active mock-store tenant — the layout is
-  // rendered inside a `/t/$tenant` tree, but the test harness stubs the router
-  // so we avoid `useParams()` here.
-  const tenantSlug = useMockStore((s) => {
-    const tenant = s.tenants[s.currentTenantId ?? ''];
-    return tenant?.slug ?? '';
-  });
+  // Derive tenant slug from the URL — the layout is rendered inside a
+  // `/t/$tenant` tree. `useActiveTenantSlug` reads the URL directly so the
+  // test harness's stubbed router doesn't have to provide `useParams()`.
+  const tenantSlug = useActiveTenantSlug() ?? '';
 
   const activeSlug =
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

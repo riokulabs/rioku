@@ -41,9 +41,26 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useProviderList } from '@/features/ai-providers/api';
+import type { ProviderFilter } from '@/features/ai-providers/types';
+import { useRolesMap } from '@/features/security/roles/api';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { ProviderKindBadge, formatCost, formatTokens, shortenPrompt } from '@/features/ai-shared';
+
+const EMPTY_PROVIDER_FILTER: ProviderFilter = { search: '', kinds: [] };
+const AGENT_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['ai-agent'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import {
   deleteAgent,
   rotateScopedCredential,
@@ -68,16 +85,21 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
   const agent = useAgentDetail(tenantSlug, agentId);
   const tools = useAgentTools(tenantSlug, agentId);
   const recentTraces = useAgentTraces(tenantSlug, agentId, 10);
-  const auditEntries = useMockStore((s) => s.audit);
-  const providers = useMockStore((s) => s.aiProviders);
-  const roles = useMockStore((s) => s.roles);
+  const auditEntries = useAuditList(tenantSlug, AGENT_AUDIT_FILTER);
+  const providerList = useProviderList(tenantSlug, EMPTY_PROVIDER_FILTER);
+  const providers = useMemo(() => {
+    const m: Record<string, (typeof providerList)[number]> = {};
+    for (const p of providerList) m[p.id] = p;
+    return m;
+  }, [providerList]);
+  const roles = useRolesMap(tenantSlug);
 
   const provider = agent ? providers[agent.provider_id] : undefined;
 
   const auditTail = useMemo(() => {
     if (!agent) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'ai-agent' && e.resource_id === agent.id)
+      .filter((e) => e.resource_id === agent.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);

@@ -1,19 +1,13 @@
 /**
- * Install-approval API — `installPlugin` inserts into the mock store
- * and emits an audit entry + host event.
+ * Install-approval API — `installPlugin` posts to the real daemon endpoint
+ * `POST /api/v1/t/{tenant}/plugins` and returns the resulting Plugin.
  *
  * Also exports permission-risk helpers used by the modal to decide
  * whether a second-confirm checkbox is required.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import type { Plugin, AuditEntry } from '@/api/resources';
+import { installPlugin as orvalInstallPlugin } from '@/api/generated/plugins/plugins';
+import type { Plugin } from '@/api/resources';
 import type { ApprovalCandidate } from './types';
-
-const nextPluginId = makeIdFactory('plugin-installed');
-const nextAuditId = makeIdFactory('audit-plugin-install');
 
 // ─── Permission risk heuristics ──────────────────────────────────────────────
 
@@ -41,66 +35,58 @@ export function adminLevelPermissions(declared: string[]): string[] {
 
 // ─── Installer ───────────────────────────────────────────────────────────────
 
-function now(): string {
-  return new Date().toISOString();
+interface DaemonPluginResponse {
+  id?: string;
+  slug?: string;
+  name?: string;
+  display_name?: string;
+  version?: string;
+  enabled?: boolean;
+  tenantScope?: string | null;
+  buildState?: string;
+  cosignVerified?: boolean;
 }
 
-function currentActor(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
-}
-
-function currentTenant(): string | null {
-  return useMockStore.getState().currentTenantId;
+function adaptInstalled(
+  resp: DaemonPluginResponse,
+  candidate: ApprovalCandidate,
+  tenantId: string,
+): Plugin {
+  return {
+    id: resp.id ?? `plugin-${candidate.slug}`,
+    tenant_scope: resp.tenantScope ?? tenantId,
+    slug: resp.slug ?? candidate.slug,
+    display_name: resp.display_name ?? resp.name ?? candidate.display_name,
+    version: resp.version ?? candidate.version,
+    enabled: resp.enabled ?? true,
+    parts: candidate.parts,
+    declared_permissions: candidate.declared_permissions,
+    manifest:
+      candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
+    has_errors: false,
+    build_state:
+      resp.buildState !== undefined
+        ? (resp.buildState as Plugin['build_state'])
+        : 'stable',
+    cosign_verified: resp.cosignVerified ?? true,
+  };
 }
 
 /**
- * Install a plugin from an approval candidate. Adds a new Plugin to the store
- * scoped to the current tenant (stage 1 behavior: always null-scoped global
- * is fine, but we honour the current tenant so that tenant-scoped installs
- * in stage 2 drop in naturally).
+ * Install a plugin from an approval candidate. Posts the candidate to the
+ * tenant-scoped install endpoint and adapts the response back into the
+ * admin Plugin shape.
  */
-export async function installPlugin(candidate: ApprovalCandidate): Promise<Plugin> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const id = nextPluginId();
-
-  const plugin: Plugin = {
-    id,
-    tenant_scope: currentTenant(),
+export async function installPlugin(
+  tenantId: string,
+  candidate: ApprovalCandidate,
+): Promise<Plugin> {
+  const wrapped = await orvalInstallPlugin(tenantId, {
+    name: candidate.display_name,
     slug: candidate.slug,
-    display_name: candidate.display_name,
     version: candidate.version,
-    enabled: true,
-    parts: candidate.parts,
-    declared_permissions: candidate.declared_permissions,
-    manifest: candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
-    has_errors: false,
-    // Plan 6 additions — direct installs land as stable + cosign-verified.
-    build_state: 'stable',
-    cosign_verified: true,
-  };
-  state.addEntity('plugins', plugin);
-
-  const audit: AuditEntry = {
-    id: nextAuditId(),
-    tenant_id: currentTenant(),
-    actor_id: currentActor(),
-    action: 'plugin:install',
-    resource_type: 'plugin',
-    resource_id: id,
-    outcome: 'success',
-    at: now(),
-    tier: 'write',
-  };
-  state.appendAudit(audit);
-
-  emitHostEvent('plugin:installed', {
-    plugin_id: id,
-    slug: plugin.slug,
-    tenant_id: plugin.tenant_scope,
-    source_reference: candidate.reference ?? null,
   });
-
-  return plugin;
+  // customFetch (orval form) returns {data, status, headers}; unwrap.
+  const body = (wrapped as unknown as { data: DaemonPluginResponse }).data;
+  return adaptInstalled(body, candidate, tenantId);
 }

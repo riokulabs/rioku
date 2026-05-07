@@ -37,11 +37,34 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useDeliveryLogList } from '@/features/notification-log/api';
+import type { DeliveryLogFilter } from '@/features/notification-log/types';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { NotificationChannel } from '@/api/resources';
 import { deleteChannel, updateChannel, useChannelDetail } from '../api';
+
+const EMPTY_DELIVERY_LOG_FILTER: DeliveryLogFilter = {
+  statuses: [],
+  channel_ids: [],
+  date_from: null,
+  date_to: null,
+  search: '',
+};
+
+const CHANNEL_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['notification-channel'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import { ChannelKindConfigPanel } from './kind-config-panel';
 import { TestPanel } from './test-panel';
 
@@ -73,21 +96,22 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 interface ChannelDetailProps {
+  tenantId: string;
   channelId: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps) {
+export function ChannelDetail({ tenantId, channelId, onEdit, onClose }: ChannelDetailProps) {
   const channel = useChannelDetail(channelId);
-  const deliveryLog = useMockStore((s) => s.notificationDeliveryLog);
-  const auditEntries = useMockStore((s) => s.audit);
+  const deliveryLog = useDeliveryLogList(tenantId, EMPTY_DELIVERY_LOG_FILTER);
+  const auditEntries = useAuditList(tenantId, CHANNEL_AUDIT_FILTER);
 
   const canWrite = usePermission('notification-channel:write');
 
   const recentDeliveries = useMemo(() => {
     if (!channel) return [];
-    return Object.values(deliveryLog)
+    return deliveryLog
       .filter((e) => e.channel_id === channel.id)
       .slice()
       .sort((a, b) => b.last_attempted_at.localeCompare(a.last_attempted_at))
@@ -97,7 +121,7 @@ export function ChannelDetail({ channelId, onEdit, onClose }: ChannelDetailProps
   const auditTail = useMemo(() => {
     if (!channel) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'notification-channel' && e.resource_id === channel.id)
+      .filter((e) => e.resource_id === channel.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);

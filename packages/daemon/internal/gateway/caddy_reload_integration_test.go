@@ -36,10 +36,11 @@ func TestCaddyReload_HookIsInvokedOnEveryMutation(t *testing.T) {
 		mu    sync.Mutex
 		calls []call
 	)
-	prev := SetCaddyReloadHook(func(_ context.Context, reason string) {
+	prev := SetCaddyReloadHook(func(_ context.Context, reason string) error {
 		mu.Lock()
 		defer mu.Unlock()
 		calls = append(calls, call{reason: reason})
+		return nil
 	})
 	t.Cleanup(func() { SetCaddyReloadHook(prev) })
 

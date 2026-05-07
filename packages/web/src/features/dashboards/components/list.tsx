@@ -22,7 +22,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
+import { useUserList } from '@/features/security/users/api';
 import { useDashboardList } from '../api';
 import type { Dashboard, DashboardFilter } from '../types';
 
@@ -72,7 +72,12 @@ export function DashboardList({
 }: DashboardListProps) {
   const baseDashboards = useDashboardList(tenantId, filter);
   const dashboards = extraFilter ? baseDashboards.filter(extraFilter) : baseDashboards;
-  const users = useMockStore((s) => s.users);
+  const userList = useUserList(tenantId, { search: '', status: 'all' });
+  const users = useMemo(() => {
+    const m: Record<string, { name: string }> = {};
+    for (const { user } of userList.items) m[user.id] = { name: user.name };
+    return m;
+  }, [userList.items]);
 
   const columns = useMemo<ColumnDef<Dashboard>[]>(
     () => [

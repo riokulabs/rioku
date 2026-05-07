@@ -3,7 +3,7 @@
  *
  * Public function names (`useSessionList`, `useSessionMutations`,
  * `revokeSession`, `revokeAllOtherSessions`, `parseDevice`) are
- * preserved from the stage-1 mock-store surface so existing
+ * preserved across the legacy and real-API surfaces so existing
  * consumers continue to compile.
  *
  * RD5: sessions are inline-only — no drawer, no full-page detail.

@@ -1,19 +1,29 @@
 # packages/web — Rioku Admin SPA
 
-Stage-2 complete. The admin panel is now wired to the real Rioku daemon at
-`:7778`. There is no mock-only mode; mock-store / mock-seed code paths have
-been retired.
+Stage-2 complete. The admin panel is wired to the real Rioku daemon at
+`:7778`. The bulk of the SPA (auth, identity, API management, AI, audit,
+notifications, plugins, cluster, sites/services/routes/middlewares,
+ai-rate-limits, ai-traces) runs against real daemon endpoints. Plan 15
+retired mock-store reads from feature components; the remaining
+exceptions are listed below.
 
 ## Operating mode
 
-- **Real API only.** `VITE_USE_MOCKS` is no longer toggled. All hooks resolve
+- **Real API.** `VITE_USE_MOCKS` is no longer toggled. Most hooks resolve
   through `src/api/mutator.ts → customFetch` against the running daemon.
 - **Sandbox required.** All development must validate against `make sandbox`
   (root daemon at `:7778`, SMTP via mailpit, Pebble for ACME).
-- **Do not import** `src/api/mock-store/`, `src/api/mock-seed/`, or any
-  `useMockStore` hook. These were removed in Plan 13. If you need fixture
-  data, use sandbox seed bundles or test factories under
-  `src/test-utils/` (where present).
+- **Mock-store deprecation.** New feature code must NOT import
+  `src/api/mock-store/`, `src/api/mock-seed/`, or any `useMockStore`
+  hook. The few feature `api.ts` files that still consume the store
+  (settings, dashboards, dashboard-builder) are scoped to UIs whose
+  daemon endpoints have not yet been built (settings sub-CRUD,
+  dashboards CRUD + versions, dashboard-builder query engine). Each
+  carries a TODO and a tracking link; new sub-features on these
+  surfaces should land alongside their daemon endpoints, not extend
+  the mock paths.
+- For fixture data, prefer sandbox seed bundles or test factories
+  under `src/test-utils/` (where present).
 
 ## Tech stack
 

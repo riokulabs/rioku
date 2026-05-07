@@ -268,6 +268,7 @@ function PluginsPage() {
       />
 
       <InstallApprovalModal
+        tenantId={tenantId}
         candidate={approvalCandidate}
         opened={approvalOpened}
         streaming

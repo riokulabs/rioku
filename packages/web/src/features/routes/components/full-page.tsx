@@ -8,8 +8,8 @@
  *   - Audit        — recent audit entries for this route
  *
  * Loaded by the route file `routes/t.$tenant/api-mgmt/routes.$routeId.tsx`.
- * Reads the route from the real Stage-2 endpoint via `useRouteDetail`; reads
- * the audit tail from the mock-store for now (audit is owned by Plan 05).
+ * Reads the route via `useRouteDetail` and the audit tail via
+ * `useAuditList` (resource_types: ['route']).
  */
 import { useMemo } from 'react';
 import {
@@ -35,9 +35,22 @@ import {
   IconInfoCircle,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useMockStore } from '@/api/mock-store';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { buildMatchPreview } from '@/features/api-mgmt-shared';
 import { useRouteDetail } from '../api';
+
+const ROUTE_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['route'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import { AttachedPolicies } from './attached-policies';
 import { MiddlewareStackEditor } from './middleware-stack-editor';
 
@@ -59,14 +72,12 @@ const METHOD_COLORS: Record<string, string> = {
 
 export function RouteFullPage({ tenantId, routeId, onBack }: RouteFullPageProps) {
   const route = useRouteDetail(tenantId, routeId);
-  // Audit tail still comes from the mock store; Plan 05 owns the real
-  // audit endpoint and will swap this for a real query.
-  const auditEntries = useMockStore((s) => s.audit);
+  const auditEntries = useAuditList(tenantId, ROUTE_AUDIT_FILTER);
 
   const auditTail = useMemo(() => {
     if (!route) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'route' && e.resource_id === route.id)
+      .filter((e) => e.resource_id === route.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 25);

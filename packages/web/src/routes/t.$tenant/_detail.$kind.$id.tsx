@@ -320,6 +320,7 @@ function MiddlewareDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
     <MiddlewareDetail
+      tenantId={tenantSlug}
       middlewareId={entityId}
       onEdit={() => {
         void navigate({
