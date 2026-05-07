@@ -48,7 +48,8 @@ import { CodeBlock } from '@/components/code-block';
 import { DiffView } from '@/components/diff-view';
 import { IdBadge } from '@/components/id-badge';
 import { StatusBadge } from '@/components/status-badge';
-import { useMockStore } from '@/api/mock-store';
+import { useUserList } from '@/features/security/users/api';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { AuditEntry } from '@/api/resources';
@@ -111,7 +112,15 @@ export interface AuditDetailProps {
 }
 
 export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
-  const users = useMockStore((s) => s.users);
+  const tenantId = useActiveTenantSlug() ?? '';
+  const userList = useUserList(tenantId, { search: '', status: 'all' });
+  const users = useMemo(() => {
+    const m: Record<string, { name: string; email: string }> = {};
+    for (const { user } of userList.items) {
+      m[user.id] = { name: user.name, email: user.email };
+    }
+    return m;
+  }, [userList.items]);
   const canReadSensitive = usePermission('audit:read-sensitive');
 
   // Reveal flow: even when the caller holds `audit:read-sensitive`,
@@ -123,8 +132,8 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
   const [revealModalOpen, setRevealModalOpen] = useState(false);
   const [revealReason, setRevealReason] = useState('');
   const [revealReasonError, setRevealReasonError] = useState<string | null>(null);
-  // Real-API reveal mutation — falls through to the local host-event
-  // emission below when the daemon is unreachable (mock-store mode).
+  // Real-API reveal mutation. The host-event emission below still fires
+  // so any local listeners (analytics, dev panel) see the bypass.
   const revealMutation = useRevealAuditEntry();
 
   const hasSensitiveFields =
@@ -153,7 +162,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
     }
     // Fire the real daemon reveal endpoint. The mutation persists the
     // follow-up audit row server-side; on failure we still emit the
-    // host event so the mock-store path records the bypass locally.
+    // host event so any local listeners record the bypass attempt.
     revealMutation.mutate(
       { tenant: entry.tenant_id ?? '', id: entry.id, data: { reason } },
       {

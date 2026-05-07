@@ -43,8 +43,6 @@ import {
   AuditList,
   LiveTailBadge,
   encodeResourceHandle,
-  exportAuditCsv,
-  exportAuditJsonl,
   streamAuditExport,
   useAuditList,
   useAuditStream,
@@ -225,9 +223,9 @@ function AuditPage() {
         ...(untilISO ? { until: untilISO } : {}),
       };
 
-      // Try the real streaming daemon endpoint first. On failure (mock-
-      // store mode, network error, or 4xx) fall back to the in-memory
-      // blob exporter so the button always produces a download.
+      // The daemon streams the server-side export and triggers the
+      // browser download. No client-side fallback — the in-memory blob
+      // builders shipped no rows after the mock-store removal.
       void (async () => {
         try {
           await streamAuditExport(tenantSlug, format, filename, daemonFilters);
@@ -236,30 +234,11 @@ function AuditPage() {
             `Streamed audit export as ${format.toUpperCase()}.`,
           );
         } catch {
-          try {
-            const blob =
-              format === 'csv'
-                ? exportAuditCsv(tenantId, filter)
-                : exportAuditJsonl(tenantId, filter);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            notify.success(
-              'Export complete',
-              `Downloaded ${String(rows.length)} entries as ${format.toUpperCase()}.`,
-            );
-          } catch {
-            notify.error('Export failed', 'Please try again.');
-          }
+          notify.error('Export failed', 'Please try again.');
         }
       })();
     },
-    [tenantId, tenantSlug, filter, rows.length],
+    [tenantSlug, filter],
   );
 
   return (

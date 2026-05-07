@@ -1,15 +1,15 @@
 /**
  * Audit feature — barrel exports.
  *
- * Stage 2: list/detail/search/export/retention all backed by mock store
- * (pending real daemon flip). Live tail via `useAuditStream` (SSE).
+ * List / detail / retention all wired to the real daemon endpoints. Live
+ * tail via `useAuditStream` (SSE). Streaming CSV / JSONL export goes
+ * through `streamAuditExport`. Async actor / resource-id search returns
+ * empty pages until the daemon ships a candidate-list endpoint.
  */
 export {
   useAuditList,
   useAuditListInfinite,
   useAuditDetail,
-  exportAuditCsv,
-  exportAuditJsonl,
   streamAuditExport,
   searchActors,
   searchResourceIds,
