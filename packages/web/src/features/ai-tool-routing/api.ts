@@ -1,7 +1,7 @@
 /**
  * AI Tool Routing (bindings) API — wired to the real daemon (stage-2).
  *
- * Public names preserved from the previous mock-store layer:
+ * Public names:
  *   - useBindingList
  *   - useBindingDetail
  *   - createBinding

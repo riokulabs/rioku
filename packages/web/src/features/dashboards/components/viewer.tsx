@@ -45,7 +45,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { EmptyState } from '@/components/empty-state';
 import { WidgetRenderer } from '@/components/widget-renderer';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { DashboardRangeProvider, useDashboardRange } from '@/hooks/use-dashboard-range';
@@ -102,7 +102,8 @@ function DashboardViewerInner({
 }: DashboardViewerProps) {
   const dashboard = useDashboardDetail(dashboardId);
   const widgets = useDashboardWidgets(dashboardId);
-  const currentUserId = useMockStore((s) => s.currentUserId);
+  const currentUserQuery = useCurrentUser();
+  const currentUserId = currentUserQuery.data?.id ?? null;
   // Effective per-dashboard access — combines tenant write perm + dashboard
   // owner/scope/grants. Edit/Delete buttons gate on this, not on the raw
   // tenant-level permission alone.

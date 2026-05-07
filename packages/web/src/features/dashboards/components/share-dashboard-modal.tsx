@@ -34,7 +34,8 @@ import {
   IconUsers,
   IconWorld,
 } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useRoleList } from '@/features/security/roles/api';
+import { useUserList } from '@/features/security/users/api';
 import { notify } from '@/hooks/use-notify';
 import type {
   Dashboard,
@@ -53,27 +54,36 @@ interface ShareDashboardModalProps {
 }
 
 export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboardModalProps) {
-  const allRoles = useMockStore((s) => s.roles);
-  const allUsers = useMockStore((s) => s.users);
-  const memberships = useMockStore((s) => s.memberships);
+  const tenantId = dashboard.tenant_id;
+  const roleList = useRoleList(tenantId);
+  const userList = useUserList(tenantId, { search: '', status: 'active' });
+  const allRoles = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const r of roleList) m[r.id] = { id: r.id, name: r.name };
+    return m;
+  }, [roleList]);
+  const allUsers = useMemo(() => {
+    const m: Record<string, { id: string; name: string; email: string }> = {};
+    for (const { user } of userList.items) {
+      m[user.id] = { id: user.id, name: user.name, email: user.email };
+    }
+    return m;
+  }, [userList.items]);
 
   // Tenant-scoped role + user options.
-  const tenantRoleOptions = useMemo(() => {
-    return Object.values(allRoles)
-      .filter((r) => r.tenant_id === dashboard.tenant_id)
-      .map((r) => ({ value: r.id, label: r.name }));
-  }, [allRoles, dashboard.tenant_id]);
+  const tenantRoleOptions = useMemo(
+    () => roleList.map((r) => ({ value: r.id, label: r.name })),
+    [roleList],
+  );
 
-  const tenantUserOptions = useMemo(() => {
-    const ids = new Set<string>();
-    for (const m of Object.values(memberships)) {
-      if (m.tenant_id === dashboard.tenant_id && m.state === 'active') ids.add(m.user_id);
-    }
-    return Array.from(ids).map((uid) => {
-      const u = allUsers[uid];
-      return { value: uid, label: u?.name ?? u?.email ?? uid };
-    });
-  }, [memberships, allUsers, dashboard.tenant_id]);
+  const tenantUserOptions = useMemo(
+    () =>
+      userList.items.map(({ user }) => ({
+        value: user.id,
+        label: user.name || user.email || user.id,
+      })),
+    [userList.items],
+  );
 
   // Local form state — seeded from the dashboard.
   const [visibility, setVisibility] = useState<Visibility>(dashboard.scope);
