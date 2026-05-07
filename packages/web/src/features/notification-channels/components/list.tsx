@@ -25,9 +25,18 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
+import { useDeliveryLogList } from '@/features/notification-log/api';
+import type { DeliveryLogFilter } from '@/features/notification-log/types';
 import { useChannelList, updateChannel } from '../api';
 import type { ChannelFilter, NotificationChannel } from '../types';
+
+const EMPTY_DELIVERY_LOG_FILTER: DeliveryLogFilter = {
+  statuses: [],
+  channel_ids: [],
+  date_from: null,
+  date_to: null,
+  search: '',
+};
 
 const KIND_COLORS: Record<NotificationChannel['kind'], string> = {
   email: 'blue',
@@ -65,18 +74,16 @@ export function ChannelList({
   onDelete,
 }: ChannelListProps) {
   const channels = useChannelList(tenantId, filter);
-  const deliveryLog = useMockStore((s) => s.notificationDeliveryLog);
+  const deliveryLog = useDeliveryLogList(tenantId, EMPTY_DELIVERY_LOG_FILTER);
   const canWrite = usePermission('notification-channel:write');
   const canTest = usePermission('notification-channel:test');
 
-  // Derive "deliveries in the last 24h" counts outside the selector so the
-  // store selector stays referentially stable. The 24h cutoff is captured once
-  // at first render (pure from React's POV) — stage 1 mock data doesn't shift
-  // under our feet.
+  // Derive "deliveries in the last 24h" counts. The 24h cutoff is captured
+  // once at first render (pure from React's POV).
   const [cutoffAt] = useState(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
   const last24hCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const entry of Object.values(deliveryLog)) {
+    for (const entry of deliveryLog) {
       if (entry.last_attempted_at < cutoffAt) continue;
       counts[entry.channel_id] = (counts[entry.channel_id] ?? 0) + 1;
     }

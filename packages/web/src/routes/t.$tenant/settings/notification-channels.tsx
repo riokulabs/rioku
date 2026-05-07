@@ -181,6 +181,7 @@ function NotificationChannelsPage() {
       >
         {drawerMode === 'detail' && selected && (
           <ChannelDetail
+            tenantId={tenantId}
             channelId={selected.id}
             onEdit={() => {
               setDrawerMode('edit');
