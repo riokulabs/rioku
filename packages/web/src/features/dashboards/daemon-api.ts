@@ -68,14 +68,18 @@ export type {
 
 /**
  * The orval `httpClient: 'fetch'` mode generates response wrappers
- * shaped as `{ data, status, headers }`, but our `customFetch` mutator
- * returns the parsed JSON body directly. The wrapper is a type fiction
- * — at runtime each generated call resolves to the body. We funnel
- * every call through `unwrap()` to reflect that and keep the daemon-api
- * surface typed against the daemon DTO schemas.
+ * shaped as `{ data, status, headers }`. Our `customFetch` mutator
+ * returns that wrapper at runtime (see `runOrvalFetch` in
+ * `src/api/mutator.ts`). For tests that mock `customFetch` to return
+ * the body directly, we fall back to the value when no `.data`
+ * attribute is present.
  */
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 function unwrap<T>(result: unknown): T {
+  if (result !== null && typeof result === 'object' && 'data' in result) {
+    const r = result as { data: unknown };
+    if (r.data !== undefined) return r.data as T;
+  }
   return result as T;
 }
 
