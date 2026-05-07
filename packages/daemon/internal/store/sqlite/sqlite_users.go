@@ -119,6 +119,25 @@ func (t *tx) ListUsers(ctx context.Context) ([]*store.User, error) {
 	return users, rows.Err()
 }
 
+func (t *tx) CountUsers(ctx context.Context) (int, error) {
+	var n int
+	err := t.sqlTx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("sqlite: count users: %w", err)
+	}
+	return n, nil
+}
+
+func (t *tx) GetUserByEmail(ctx context.Context, email string) (*store.User, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, username, email, display_name, password_hash, status,
+		        totp_secret, totp_enabled, force_password_change,
+		        failed_attempts, locked_until, last_login,
+		        password_changed_at, created_at, updated_at
+		 FROM users WHERE LOWER(email) = LOWER(?)`, email)
+	return scanUser(row)
+}
+
 func (t *tx) UpdateUser(ctx context.Context, u *store.User) (*store.User, error) {
 	now := nowUTC()
 
