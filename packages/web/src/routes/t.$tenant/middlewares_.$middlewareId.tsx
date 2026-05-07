@@ -11,16 +11,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { MiddlewareFullPage } from '@/features/middlewares/components/full-page';
 
 function MiddlewareDetailPage() {
   const { tenant, middlewareId } = Route.useParams();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md">

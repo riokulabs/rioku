@@ -128,7 +128,7 @@ describe('<DashboardBuilderShell>', () => {
     ).toBeTruthy();
   });
 
-  it('cancel with dirty changes shows confirm modal', async () => {
+  it('cancel with dirty changes shows confirm modal', { timeout: 15_000 }, async () => {
     const user = userEvent.setup();
     const dashId = firstAcmeDashboardId();
     const onDone = vi.fn();

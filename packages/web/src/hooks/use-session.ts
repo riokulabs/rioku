@@ -1,33 +1,37 @@
 /**
- * useSession — returns the current authentication context from the mock store.
+ * useSession — returns the current authentication context.
  *
- * Stage-1 stub: currentUserId and currentTenantId are always null until the
- * login flow is implemented in Phase 1e. This hook is intentionally read-only;
- * mutations (login, logout, switch-tenant) land in 1e.
- *
- * spec §7 / Task 1d.68
+ * Stage-2: backed by the daemon's `/auth/me` endpoint via `useCurrentUser`.
+ * Tenant slug is derived from the active route (`/t/:tenant/...`); no
+ * persisted "current tenant id" exists at the session layer because the
+ * daemon does not lock a user to one tenant per session.
  */
 
-import { useMockStore } from '../api/mock-store';
-import type { ID } from '../api/resources';
+import { useCurrentUser } from '@/features/auth/use-current-user';
+import { useActiveTenantSlug } from './use-tenant';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SessionContext {
-  currentUserId: ID | null;
-  currentTenantId: ID | null;
+  /** Daemon-issued user id, or null when unauthenticated. */
+  currentUserId: string | null;
+  /**
+   * Active tenant identifier — daemon paths key on the tenant slug, so
+   * we surface the slug from the route here rather than a numeric/UUID id.
+   */
+  currentTenantId: string | null;
   isAuthenticated: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useSession(): SessionContext {
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const currentTenantId = useMockStore((s) => s.currentTenantId);
+  const me = useCurrentUser().data ?? null;
+  const tenantSlug = useActiveTenantSlug();
 
   return {
-    currentUserId,
-    currentTenantId,
-    isAuthenticated: currentUserId !== null,
+    currentUserId: me?.id ?? null,
+    currentTenantId: tenantSlug,
+    isAuthenticated: me !== null,
   };
 }

@@ -11,7 +11,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconKey } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
 import {
@@ -27,8 +26,8 @@ type DrawerMode = 'create' | 'detail';
 function ApiKeysPage() {
   const { tenant } = Route.useParams();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
+  // Stage-2: tenantId is the URL slug; daemon resolves it.
+  const tenantId = tenant;
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('create');

@@ -11,7 +11,6 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Anchor, Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { requirePermissions } from '@/hooks/use-before-load';
@@ -59,9 +58,8 @@ function NotificationChannelsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const canWrite = usePermission('notification-channel:write');
 

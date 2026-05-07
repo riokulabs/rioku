@@ -33,11 +33,10 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertTriangle, IconArrowLeft, IconInfoCircle } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import { updateTenantUrlModeWithDomain } from '@/features/settings/api';
+import { updateTenantUrlModeWithDomain, useCurrentTenant } from '@/features/settings/api';
 
 // ─── URL mode options ─────────────────────────────────────────────────────────
 
@@ -57,10 +56,8 @@ interface UrlModeFormValues {
 
 function UrlModeSettingsPage() {
   const { tenant: tenantSlug } = Route.useParams();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenantSlug),
-  );
-  const tenantId = tenantRecord?.id ?? '';
+  const tenantRecord = useCurrentTenant();
+  const tenantId = tenantRecord?.id ?? tenantSlug;
   const canWrite = usePermission('tenant:write');
 
   const [loading, setLoading] = useState(false);

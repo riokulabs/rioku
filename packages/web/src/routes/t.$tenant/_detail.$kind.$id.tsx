@@ -21,7 +21,6 @@ import { useState } from 'react';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { Alert, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
 
@@ -44,9 +43,9 @@ import { MiddlewareDetail } from '@/features/middlewares';
 
 // ── Security ────────────────────────────────────────────────────────────────
 import { ApiKeyDrawer } from '@/features/security/api-keys/components/drawer';
-import { AuditDetail } from '@/features/audit';
+import { AuditDetail, useAuditDetail } from '@/features/audit';
 import { RoleDetail, useRole } from '@/features/security/roles';
-import { AccessPolicyDetail } from '@/features/security/access-policies';
+import { AccessPolicyDetail, useAccessPolicy } from '@/features/security/access-policies';
 import { RbacPolicyDetail, useRbacPolicy } from '@/features/security/rbac-policies';
 import { useApiKey } from '@/features/security/api-keys/api';
 
@@ -391,7 +390,7 @@ function SessionDetailPage({ tenantSlug }: RendererProps) {
 
 function AuditDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const entry = useMockStore((s) => s.audit.find((e) => e.id === entityId) ?? null);
+  const entry = useAuditDetail(entityId) ?? null;
   if (!entry) return <NotFound what="Audit entry" />;
   return (
     <AuditDetail
@@ -432,7 +431,7 @@ function RoleDetailPage({ entityId, tenantSlug }: RendererProps) {
 
 function AccessPolicyDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const policy = useMockStore((s) => s.accessPolicies[entityId] ?? null);
+  const { data: policy } = useAccessPolicy(tenantSlug, entityId);
   if (!policy) return <NotFound what="Access policy" />;
   return (
     <AccessPolicyDetail
@@ -585,9 +584,8 @@ const DETAIL_REGISTRY: Record<string, DetailEntry> = {
 function DetailPage() {
   const { tenant, kind, id } = Route.useParams();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const entry = DETAIL_REGISTRY[kind];
   const DetailComponent = entry?.renderer;

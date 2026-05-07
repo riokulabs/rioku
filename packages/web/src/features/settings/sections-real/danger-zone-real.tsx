@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect -- form state hydrates from server fetch on first load; this is the correct pattern */
+ 
 /**
  * Real-API DangerZoneSection — stage-2 wiring with triple-confirm UX.
  *

@@ -14,7 +14,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer, SegmentedControl, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconLink } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
@@ -63,11 +62,8 @@ function AiToolRoutingPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('ai-tool:write');
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  // Stage-2 daemon-backed feature: identify tenant by slug (the value in the URL
-  // path `/api/v1/t/{tenant}/...`). Fall back to the route param when the
-  // mock store isn't seeded.
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  // Stage-2 daemon-backed feature: tenantId is the URL slug; daemon resolves it.
+  const tenantSlug = tenant;
   const tenantId = tenantSlug;
 
   /** Effective filter — merges multi-select csv with deep-link single ids. */

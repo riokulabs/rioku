@@ -19,38 +19,25 @@
 import { Alert, Group, Text, Button, Anchor, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconEye } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
-import { isRealApi } from '@/api/mode';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
 import { useImpersonation } from '@/hooks/use-impersonation';
-import { useImpersonationSession } from '@/features/security/impersonation/use-impersonation-session';
-import {
-  useEndImpersonation,
-  getListImpersonationSessionsQueryKey,
-} from '@/features/security/impersonation/realApi';
 import { ImpersonationIdleModal } from '@/features/security/impersonation/components/idle-modal';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ImpersonationBanner() {
-  const { session: mockSession, exit } = useImpersonation();
-  // RD: when real-API mode is enabled, prefer the daemon-reported
-  // session over the mock store. In mock mode the bridge hook returns
-  // the same value as `useImpersonation().session`.
-  const realSession = useImpersonationSession();
-  const session = realSession ?? mockSession;
+  const { session, exit } = useImpersonation();
   const navigate = useNavigate();
-  const tenants = useMockStore((s) => s.tenants);
-  const queryClient = useQueryClient();
-  const endMutation = useEndImpersonation();
+  const tenantsQuery = useListAdminTenants();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const tenants = tenantsQuery.data?.data?.items ?? [];
 
   if (!session) return null;
-  // Stable reference for use inside async closures where TS narrowing
-  // does not propagate (the session field is read inside `onConfirm`).
-  const liveSession = session;
 
-  const tenant = tenants[session.tenant_id];
+  const tenant = tenants.find(
+    (t) => t.id === session.tenant_id || t.slug === session.tenant_id,
+  );
   const tenantName = tenant?.name ?? session.tenant_id;
   const shortId = session.id.slice(0, 12);
 
@@ -67,20 +54,8 @@ export function ImpersonationBanner() {
       confirmProps: { color: 'orange' },
       onConfirm: () => {
         void (async () => {
-          // Real-API mode: hit the daemon DELETE endpoint and let the
-          // listImpersonationSessions query refresh so the banner unmounts
-          // when the daemon returns the ended state. Then clear the mock
-          // store so `getActiveImpersonationId` stops stamping the
-          // impersonation header on subsequent requests.
-          if (isRealApi()) {
-            try {
-              await endMutation.mutateAsync({ id: liveSession.id });
-            } finally {
-              await queryClient.invalidateQueries({
-                queryKey: getListImpersonationSessionsQueryKey(),
-              });
-            }
-          }
+          // useImpersonation.exit() handles the daemon DELETE,
+          // active-id clear, and list-query invalidation in one shot.
           await exit();
           void navigate({ to: '/admin' as string });
         })();
@@ -163,7 +138,6 @@ export function ImpersonationBanner() {
             variant="filled"
             onClick={handleExit}
             styles={{ root: { flexShrink: 0 } }}
-            loading={endMutation.isPending}
           >
             End session
           </Button>

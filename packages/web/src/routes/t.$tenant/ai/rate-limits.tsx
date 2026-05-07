@@ -13,7 +13,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import {
@@ -66,9 +65,8 @@ function AiRateLimitsPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('ai-rate-limit:write');
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: RateLimitFilter = {
     search: search.search,

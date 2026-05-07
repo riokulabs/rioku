@@ -1,7 +1,14 @@
 /**
  * Unit tests for <TraceDetail>, <PromptCompletionView>, <ToolCallList>.
+ *
+ * Stage-2: <TraceDetail> is daemon-backed via Orval `useGetAITrace`. Tests
+ * stub the GET handler with MSW and provide a QueryClientProvider. The
+ * legacy mock-store path is retired; the only behaviour kept here is
+ * surface coverage for the not-found alert, the error alert, the basic
+ * header render, plus PromptCompletionView gating + ToolCallList.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -12,75 +19,103 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
-import { render, screen } from '@testing-library/react';
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
+import { render, screen, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { server } from '@/test/msw-server';
 import { TraceDetail } from '../components/detail';
 import { PromptCompletionView } from '../components/prompt-completion-view';
 import { ToolCallList } from '../components/tool-call-list';
 import type { AiTraceToolCall } from '@/api/resources';
+import type { AITrace } from '@/api/generated/schemas';
+
+const TENANT = 'acme';
+const TRACE_ID = 'aitrace-1';
+const GET_PATH = `*/api/v1/t/${TENANT}/ai/traces/:id`;
+
+const baseTrace: AITrace = {
+  id: TRACE_ID,
+  tenantId: 'tenant-acme',
+  agentId: 'aiagent-1',
+  providerId: 'aiprov-1',
+  model: 'gpt-4o',
+  status: 'success',
+  inputTokens: 100,
+  outputTokens: 50,
+  durationMs: 250,
+  prompt: null,
+  completion: null,
+  toolCalls: [],
+  error: null,
+  occurredAt: '2026-05-06T00:00:00.000Z',
+};
 
 function wrap(ui: React.ReactNode) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+  });
   return render(
-    <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+    <QueryClientProvider client={qc}>
+      <MantineProvider>
+        <ModalsProvider>{ui}</ModalsProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
   );
-}
-
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
-
-function firstAcmeTrace() {
-  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
-  if (!acme) throw new Error('No acme tenant');
-  const trace = Object.values(useMockStore.getState().aiTraces).find(
-    (t) => t.tenant_id === acme.id,
-  );
-  if (!trace) throw new Error('No trace seeded');
-  return trace;
 }
 
 describe('TraceDetail', () => {
-  it('renders header with agent + status chip', () => {
-    const trace = firstAcmeTrace();
-    wrap(<TraceDetail traceId={trace.id} tenantSlug="acme" onClose={vi.fn()} />);
-    // Status chip
-    expect(screen.getAllByText(trace.status).length).toBeGreaterThan(0);
-    // Agent name
-    const agent = useMockStore.getState().aiAgents[trace.agent_id];
-    if (agent) {
-      expect(screen.getByText(agent.name)).toBeInTheDocument();
-    }
+  beforeEach(() => {
+    server.use(http.get(GET_PATH, () => HttpResponse.json(baseTrace)));
   });
 
-  it('surfaces the error alert when status === "error"', () => {
-    const errTrace = Object.values(useMockStore.getState().aiTraces).find(
-      (t) => t.status === 'error' && t.error_message,
+  it('renders header with agent + status chip', async () => {
+    wrap(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trace-detail')).toBeInTheDocument();
+    });
+    // Status chip ("success") + agent id are surfaced in the header.
+    expect(screen.getAllByText('success').length).toBeGreaterThan(0);
+    expect(screen.getByText('aiagent-1')).toBeInTheDocument();
+  });
+
+  it('surfaces the error alert when status === "error"', async () => {
+    server.use(
+      http.get(GET_PATH, () =>
+        HttpResponse.json({
+          ...baseTrace,
+          status: 'error',
+          error: 'upstream timeout',
+        }),
+      ),
     );
-    if (!errTrace) return;
-    wrap(<TraceDetail traceId={errTrace.id} tenantSlug="acme" onClose={vi.fn()} />);
-    expect(screen.getByTestId('trace-error-alert')).toBeInTheDocument();
+    wrap(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trace-error-alert')).toBeInTheDocument();
+    });
   });
 
-  it('shows "not found" alert for unknown trace', () => {
-    wrap(<TraceDetail traceId="nonexistent" tenantSlug="acme" onClose={vi.fn()} />);
+  it('shows "trace not found" alert when the daemon returns 404', async () => {
+    server.use(http.get(GET_PATH, () => new HttpResponse(null, { status: 404 })));
+    wrap(<TraceDetail traceId="nonexistent" tenantSlug={TENANT} onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('trace-not-found')).toBeInTheDocument();
+    });
     expect(screen.getByText(/trace not found/i)).toBeInTheDocument();
   });
 });
 
 describe('PromptCompletionView', () => {
-  it('renders prompt + completion when user has ai-trace:read-sensitive', () => {
-    wrap(<PromptCompletionView prompt="hello world" completion="world!" />);
+  it('renders prompt + completion when unmasked === true', () => {
+    wrap(<PromptCompletionView prompt="hello world" completion="world!" unmasked />);
     expect(screen.getByTestId('trace-prompt-completion')).toBeInTheDocument();
   });
 
-  it('renders a redacted placeholder when user lacks ai-trace:read-sensitive', () => {
-    useMockStore.setState({ currentUserId: null });
+  it('renders a redacted placeholder when unmasked is omitted', () => {
     wrap(<PromptCompletionView prompt="hello" completion="world" />);
     expect(screen.getByTestId('trace-redacted')).toBeInTheDocument();
     expect(screen.queryByTestId('trace-prompt-completion')).toBeNull();

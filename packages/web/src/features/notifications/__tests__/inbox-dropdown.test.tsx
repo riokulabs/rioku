@@ -49,6 +49,10 @@ vi.mock('@/api/sse-client', () => ({
   _resetForTests: vi.fn(),
 }));
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { InboxDropdown } from '../components/inbox-dropdown';
@@ -126,7 +130,7 @@ function wrap(ui: React.ReactNode, qc?: QueryClient) {
 /** Register a default MSW handler returning all fixture items. */
 function useAllItems() {
   server.use(
-    http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+    http.get(`*/api/v1/t/${TENANT}/notifications`, () =>
       HttpResponse.json({ items: ALL_ITEMS, total: ALL_ITEMS.length }),
     ),
   );
@@ -135,7 +139,7 @@ function useAllItems() {
 /** Register an MSW handler returning an empty list. */
 function useNoItems() {
   server.use(
-    http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+    http.get(`*/api/v1/t/${TENANT}/notifications`, () =>
       HttpResponse.json({ items: [], total: 0 }),
     ),
   );
@@ -202,7 +206,7 @@ describe('<InboxDropdown>', () => {
     // After data loads, clicking the security chip should filter to security only.
     // Server is re-queried; register a handler for the filtered request too.
     server.use(
-      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+      http.get(`*/api/v1/t/${TENANT}/notifications`, () =>
         HttpResponse.json({ items: [ITEM_SECURITY], total: 1 }),
       ),
     );
@@ -223,7 +227,7 @@ describe('<InboxDropdown>', () => {
 
     let markReadCalled = false;
     server.use(
-      http.post(`/api/v1/t/${TENANT}/notifications/${ITEM_SYSTEM.id}/read`, () => {
+      http.post(`*/api/v1/t/${TENANT}/notifications/${ITEM_SYSTEM.id}/read`, () => {
         markReadCalled = true;
         return HttpResponse.json({ ...ITEM_SYSTEM, readAt: '2026-01-02T00:00:00.000Z' });
       }),
@@ -248,7 +252,7 @@ describe('<InboxDropdown>', () => {
 
     let archiveCalled = false;
     server.use(
-      http.post(`/api/v1/t/${TENANT}/notifications/${ITEM_SYSTEM.id}/archive`, () => {
+      http.post(`*/api/v1/t/${TENANT}/notifications/${ITEM_SYSTEM.id}/archive`, () => {
         archiveCalled = true;
         return HttpResponse.json({
           ...ITEM_SYSTEM,
@@ -267,7 +271,7 @@ describe('<InboxDropdown>', () => {
 
     // After archive, next list refetch returns only non-archived items.
     server.use(
-      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+      http.get(`*/api/v1/t/${TENANT}/notifications`, () =>
         HttpResponse.json({ items: [ITEM_SECURITY, ITEM_PLUGIN], total: 2 }),
       ),
     );
@@ -320,7 +324,7 @@ describe('<InboxDropdown>', () => {
     // Simulate cache invalidation (what useInboxStream does on SSE delta):
     // override the MSW handler then manually invalidate the query.
     server.use(
-      http.get(`/api/v1/t/${TENANT}/notifications`, () =>
+      http.get(`*/api/v1/t/${TENANT}/notifications`, () =>
         HttpResponse.json({ items: [ITEM_SYSTEM], total: 1 }),
       ),
     );

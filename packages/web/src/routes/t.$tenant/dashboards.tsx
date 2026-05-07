@@ -11,7 +11,6 @@ import { useMemo, useState } from 'react';
 import { Outlet, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { deleteDashboard } from '@/features/dashboards';
@@ -24,8 +23,7 @@ function DashboardsLayoutPage() {
   const { tenant } = Route.useParams();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantSlug = tenant;
 
   const [deleteTarget, setDeleteTarget] = useState<Dashboard | null>(null);
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);

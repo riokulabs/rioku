@@ -36,10 +36,11 @@ import { IconArrowLeft, IconShieldCheck, IconShieldOff } from '@tabler/icons-rea
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { IdBadge } from '@/components/id-badge';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { verifyAdminAuditChain } from '@/api/resources/audit';
 import type { AdminAuditEntry } from '@/api/resources';
+import { useListAdminAudit } from '@/api/generated/admin/admin';
+import { useUserList } from '@/features/security/users';
 
 // ─── Verify state ────────────────────────────────────────────────────────────
 
@@ -53,19 +54,29 @@ type VerifyStatus =
 
 function TenantAdminAuditPage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
-  const users = useMockStore((s) => s.users);
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
-  // Filter adminAudit entries to this tenant. Keep insertion (chronological)
-  // order as `ascending`; the table view sorts a copy by `at` descending.
-  // Note: we do NOT derive `ascending` from a reversed `at`-sorted list — when
-  // two entries share the same ISO timestamp (common in tests / fast bursts),
-  // `at` ties produce a sort order that does not match insertion order, which
-  // breaks hash-chain verification. Insertion order from the store is the
-  // authoritative chain order.
-  const allAdminAudit = useMockStore((s) => s.adminAudit);
+  // Stage-2: hydrate user lookup from the daemon-backed user list.
+  const usersResult = useUserList(tenantId, { search: '', status: 'all' });
+  const users = useMemo(() => {
+    const out: Record<string, { id: string; name: string; email: string }> = {};
+    for (const item of usersResult.items) {
+      out[item.user.id] = {
+        id: item.user.id,
+        name: item.user.name,
+        email: item.user.email,
+      };
+    }
+    return out;
+  }, [usersResult.items]);
+
+  // Stage-2: admin audit feed comes from the cross-tenant admin endpoint.
+  const { data: adminAuditResp } = useListAdminAudit();
+  const allAdminAudit = useMemo<AdminAuditEntry[]>(() => {
+    const raw = adminAuditResp?.data.items;
+    return Array.isArray(raw) ? (raw as unknown as AdminAuditEntry[]) : [];
+  }, [adminAuditResp]);
   const ascending = useMemo(
     () => allAdminAudit.filter((e) => e.tenant_id === tenantId),
     [allAdminAudit, tenantId],

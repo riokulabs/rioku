@@ -17,10 +17,10 @@ import { useCallback, useMemo } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Badge, Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 import {
   NotificationDetail,
   NotificationFilterBar,
@@ -88,9 +88,8 @@ function NotificationsPage() {
   const { tenant } = Route.useParams();
   const navigate = useNavigate();
 
-  const currentUserId = useMockStore((s) => s.currentUserId) ?? '';
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const currentUserId = useCurrentUser().data?.id ?? '';
+  const tenantSlug = tenant;
 
   const canManageOwn = usePermission('notification:manage-own');
 

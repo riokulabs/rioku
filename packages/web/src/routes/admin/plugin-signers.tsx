@@ -14,7 +14,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Badge, Button, Drawer, Group, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconShieldCheck, IconWorld, IconBuilding } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
@@ -25,8 +24,10 @@ import {
   SignerList,
   revokeSigner,
   verifySigner,
+  useSignerList,
 } from '@/features/plugin-signers';
 import type { PluginSigner, SignerFilter } from '@/features/plugin-signers';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 /** Active tab — either the sentinel 'global' OR a tenant id string. The
@@ -65,18 +66,27 @@ function AdminPluginSignersPage() {
 
   const canWrite = usePermission('plugin-signer:write');
 
-  // Collect the distinct tenant_scopes that appear among signers so super-admin
-  // gets one tab per tenant that actually has signers (+ a Global tab first).
-  const signerScopes = useMockStore((s) => s.pluginSigners);
-  const tenants = useMockStore((s) => s.tenants);
+  // Stage-2: list global signers + collect distinct tenant_scopes from them.
+  // Super-admin sees one tab per tenant that has signers (+ Global first).
+  const allSigners = useSignerList(null);
+  const { data: tenantsResp } = useListAdminTenants();
+  const tenants = useMemo(() => {
+    const out: Record<string, { name: string; slug: string }> = {};
+    for (const t of tenantsResp?.data.items ?? []) {
+      if (t.id !== undefined) {
+        out[t.id] = { name: t.name ?? t.slug ?? '', slug: t.slug ?? '' };
+      }
+    }
+    return out;
+  }, [tenantsResp]);
 
   const tenantScopeIds = useMemo(() => {
     const set = new Set<string>();
-    for (const s of Object.values(signerScopes)) {
+    for (const s of allSigners) {
       if (s.tenant_scope !== null) set.add(s.tenant_scope);
     }
     return [...set].sort();
-  }, [signerScopes]);
+  }, [allSigners]);
 
   const activeScope: ScopeTab =
     search.scope === undefined || search.scope === '' ? 'global' : search.scope;

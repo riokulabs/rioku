@@ -9,7 +9,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer, TextInput, Select } from '@mantine/core';
 import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { DrawerTitleExpand } from '@/components/drawer-title-expand';
@@ -46,9 +45,8 @@ function RoutesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: RouteFilter = useMemo(
     () => ({

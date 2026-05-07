@@ -10,7 +10,6 @@ import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUserPlus } from '@tabler/icons-react';
 import { UserList, UserDetail, UserInviteForm } from '@/features/security/users';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { DrawerTitleExpand } from '@/components/drawer-title-expand';
 import type { UserWithMembership } from '@/features/security/users';
@@ -20,9 +19,8 @@ type DrawerMode = 'detail' | 'invite';
 function UsersPage() {
   const { tenant } = Route.useParams();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
   const navigate = useNavigate();
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);

@@ -53,7 +53,13 @@ export function TraceFullPage({ tenantSlug, traceId }: TraceFullPageProps) {
         </Tabs.List>
 
         <Tabs.Panel value="overview" pt="md">
-          <TraceDetail traceId={traceId} tenantSlug={tenantSlug} onClose={() => {}} />
+          <TraceDetail
+            traceId={traceId}
+            tenantSlug={tenantSlug}
+            onClose={() => {
+              // No-op — the full page lives at its own URL; closing isn't applicable.
+            }}
+          />
         </Tabs.Panel>
 
         <Tabs.Panel value="spans" pt="md">

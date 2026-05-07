@@ -17,6 +17,14 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
+let _mockPermission: (key: string) => boolean = () => true;
+function setMockPermission(fn: (key: string) => boolean): void {
+  _mockPermission = fn;
+}
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (key: string) => _mockPermission(key),
+}));
+
 vi.mock('@monaco-editor/react', () => {
   const Editor = ({
     value,
@@ -68,6 +76,7 @@ beforeEach(() => {
   server.use(...aiToolHandlers);
   useMockStore.getState().reset();
   seedStore(useMockStore);
+  setMockPermission(() => true);
 });
 
 describe('<TestInvocation>', () => {
@@ -140,13 +149,7 @@ describe('<TestInvocation>', () => {
   });
 
   it('viewers cannot invoke (button disabled)', async () => {
-    const state = useMockStore.getState();
-    const viewerMembership = Object.values(state.memberships).find((m) => {
-      const role = state.roles[m.role_ids[0] ?? ''];
-      return role?.name.toLowerCase() === 'viewer' && m.tenant_id === state.currentTenantId;
-    });
-    if (!viewerMembership) throw new Error('seed missing viewer membership');
-    useMockStore.setState({ currentUserId: viewerMembership.user_id });
+    setMockPermission(() => false);
 
     wrap(<TestInvocation tenant={TENANT} toolId="aitool-1" />);
     const btn = await screen.findByTestId('invoke-button');

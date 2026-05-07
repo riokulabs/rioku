@@ -30,10 +30,12 @@ import { useNavigate } from '@tanstack/react-router';
 import { useTenant, detectTenantMode } from '@/hooks/use-tenant';
 import { useActiveTheme } from '@/hooks/use-active-theme';
 import { useSession } from '@/hooks/use-session';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
+import { useImpersonationSession } from '@/features/security/impersonation/use-impersonation-session';
 import { BUILTIN_THEMES } from '@/theme';
 import { usePluginThemes } from '@/hooks/use-plugin-themes';
-import type { Tenant } from '@/api/resources';
+import type { AdminTenant } from '@/api/generated/schemas';
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -59,40 +61,46 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
   const { i18n } = useTranslation();
 
   // Subdomain-mode: track which tenant the user wants to switch to
-  const [switchTarget, setSwitchTarget] = useState<Tenant | null>(null);
+  const [switchTarget, setSwitchTarget] = useState<AdminTenant | null>(null);
   const [subdomainConfirmOpen, { open: openSubdomainConfirm, close: closeSubdomainConfirm }] =
     useDisclosure(false);
 
-  // Get memberships + tenants for the current user
-  const allMemberships = useMockStore((s) => s.memberships);
-  const allTenants = useMockStore((s) => s.tenants);
-  const allUsers = useMockStore((s) => s.users);
-  const activeImpersonationId = useMockStore((s) => s.activeImpersonationId);
+  // Tenant directory comes from the daemon admin endpoint. Non-super-admin
+  // users get a 403 — the query falls back to an empty list and the
+  // switcher quietly disables.
+  const tenantsQuery = useListAdminTenants();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const allTenants: AdminTenant[] = (tenantsQuery.data?.data?.items ?? []).filter(
+    (t): t is AdminTenant => t.id !== undefined && t.slug !== undefined,
+  );
+  const me = useCurrentUser().data ?? null;
+  const impersonationSession = useImpersonationSession();
 
-  // Derive the tenants the current user belongs to, sorted by name
-  const userTenants = Object.values(allMemberships)
-    .filter((m) => m.user_id === currentUserId && m.state === 'active')
-    .map((m) => allTenants[m.tenant_id])
-    .filter((t): t is NonNullable<typeof t> => t != null)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Sorted tenant list for the switcher.
+  const userTenants = [...allTenants].sort((a, b) =>
+    (a.name ?? '').localeCompare(b.name ?? ''),
+  );
 
-  // Current tenant for display
-  const currentTenant = currentTenantId ? allTenants[currentTenantId] : null;
+  // Current tenant for display — match by slug from the route since
+  // `currentTenantId` at the session layer is the slug.
+  const currentTenant =
+    allTenants.find((t) => t.slug === currentTenantId || t.id === currentTenantId) ?? null;
   const tenantLabel = currentTenant?.slug ?? slug ?? 'acme';
   const tenantInitial = tenantLabel.slice(0, 1).toUpperCase();
 
   // Current user for display
-  const currentUser = currentUserId ? allUsers[currentUserId] : null;
-  const userDisplayName = currentUser?.name ?? 'User';
-  const userEmail = currentUser?.email ?? '';
+  const userDisplayName = me?.displayName ?? me?.username ?? 'User';
+  const userEmail = me?.email ?? '';
   const userInitial = userDisplayName.slice(0, 1).toUpperCase();
+  void currentUserId;
 
   // Amber highlight when impersonating
-  const isImpersonating = activeImpersonationId !== null;
+  const isImpersonating = impersonationSession !== null;
 
   const tenantMode = detectTenantMode();
 
-  function handleTenantSwitch(target: Tenant) {
+  function handleTenantSwitch(target: AdminTenant) {
+    if (target.slug === undefined) return;
     if (tenantMode === 'subdomain') {
       // Subdomain mode: warn user about session boundary
       setSwitchTarget(target);
@@ -104,8 +112,7 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
   }
 
   function confirmSubdomainSwitch() {
-    if (switchTarget) {
-      // In stage-1: cookie-clear is a no-op; just navigate
+    if (switchTarget?.slug) {
       void navigate({ to: '/t/$tenant/dashboard', params: { tenant: switchTarget.slug } });
     }
     closeSubdomainConfirm();
@@ -164,40 +171,28 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Label>Switch tenant</Menu.Label>
-          {userTenants.length > 0
-            ? userTenants.map((t) => (
-                <Menu.Item
-                  key={t.id}
-                  leftSection={
-                    t.id === currentTenantId ? (
-                      <IconCheck size={14} />
-                    ) : (
-                      <Box style={{ width: 14 }} />
-                    )
-                  }
-                  onClick={() => {
-                    handleTenantSwitch(t);
-                  }}
-                  data-testid={`tenant-option-${t.slug}`}
-                >
-                  {t.slug}
-                </Menu.Item>
-              ))
-            : // Fallback when no currentUserId (e.g. not yet authenticated) —
-              // show all tenants from the store
-              Object.values(allTenants)
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((t) => (
-                  <Menu.Item
-                    key={t.id}
-                    onClick={() => {
-                      handleTenantSwitch(t);
-                    }}
-                    data-testid={`tenant-option-${t.slug}`}
-                  >
-                    {t.slug}
-                  </Menu.Item>
-                ))}
+          {userTenants.length > 0 ? (
+            userTenants.map((t) => (
+              <Menu.Item
+                key={t.id}
+                leftSection={
+                  t.slug === currentTenantId || t.id === currentTenantId ? (
+                    <IconCheck size={14} />
+                  ) : (
+                    <Box style={{ width: 14 }} />
+                  )
+                }
+                onClick={() => {
+                  handleTenantSwitch(t);
+                }}
+                data-testid={`tenant-option-${t.slug ?? t.id ?? 'unknown'}`}
+              >
+                {t.slug ?? t.id}
+              </Menu.Item>
+            ))
+          ) : (
+            <Menu.Item disabled>No tenants available</Menu.Item>
+          )}
         </Menu.Dropdown>
       </Menu>
 
@@ -364,8 +359,8 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
         size="sm"
       >
         <Text size="sm" mb="md">
-          Switching to <strong>{switchTarget?.name ?? ''}</strong> will sign you out of{' '}
-          <strong>{currentTenant?.name ?? tenantLabel}</strong>. Continue?
+          Switching to <strong>{switchTarget?.name ?? switchTarget?.slug ?? ''}</strong> will sign
+          you out of <strong>{currentTenant?.name ?? tenantLabel}</strong>. Continue?
         </Text>
         <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={closeSubdomainConfirm}>

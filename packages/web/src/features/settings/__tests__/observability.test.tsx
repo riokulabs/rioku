@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Router stub ──────────────────────────────────────────────────────────────
 
@@ -66,7 +67,12 @@ import { ObservabilityTraces } from '../sections/observability-traces';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <MantineProvider>{children}</MantineProvider>;
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={qc}>
+      <MantineProvider>{children}</MantineProvider>
+    </QueryClientProvider>
+  );
 }
 
 function getAcmeTenantId(): string {

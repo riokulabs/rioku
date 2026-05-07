@@ -1,22 +1,21 @@
 /**
- * usePermissionsCatalog — bridge hook for permission catalog data.
+ * usePermissionsCatalog — bridge hook for the permission catalog.
  *
- * Reads the permissions map from the Zustand mock store and returns a
- * stable, grouped structure for use by <PermissionSelector> and similar
- * components. Lives in hooks/ so that the components/ boundary is not
- * violated (components/ must not import from api/).
+ * Stage-2: backed by the daemon's `GET /api/v1/t/{tenant}/permissions`
+ * endpoint via the Orval-generated `useListPermissions` hook. We adapt
+ * the wire shape (id, source, sourcePluginId) into the local
+ * `Permission` type used by `<PermissionSelector>` and friends.
  *
  * Grouping strategy:
- *   - Built-in permissions are grouped under "Built-in" with the namespace
- *     prefix (e.g. "service", "route") as the sub-group key.
- *   - Plugin permissions (plugin-manifest, plugin-dynamic) are grouped under
- *     their reverse-DNS namespace (the part before the first ':').
- *
- * spec §7.1 / Task 1d.66
+ *   - Built-in permissions are grouped under "Built-in".
+ *   - Plugin permissions (plugin-manifest, plugin-dynamic) are grouped
+ *     under their reverse-DNS namespace (the part before the first ':').
  */
 
-import { useMockStore } from '../api/mock-store';
+import { useListPermissions } from '@/api/generated/permissions/permissions';
+import type { Permission as GenPermission } from '@/api/generated/schemas';
 import type { Permission } from '../api/resources';
+import { useActiveTenantSlug } from './use-tenant';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,18 +32,32 @@ export interface PermissionsCatalog {
   groups: PermissionGroup[];
 }
 
+// ─── Adapter ──────────────────────────────────────────────────────────────────
+
+function adapt(p: GenPermission): Permission {
+  return {
+    key: p.id ?? '',
+    description: p.description ?? '',
+    source: p.source ?? 'built-in',
+  };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function usePermissionsCatalog(): PermissionsCatalog {
-  const permissions = useMockStore((s) => s.permissions);
-
-  const all = Object.values(permissions);
+  const tenant = useActiveTenantSlug() ?? '';
+  const query = useListPermissions(tenant, undefined, {
+    query: { enabled: tenant !== '' },
+  });
+  const raw: GenPermission[] = query.data?.data.permissions ?? [];
+  const all: Permission[] = raw
+    .filter((p) => typeof p.id === 'string' && p.id.length > 0)
+    .map(adapt);
 
   // Separate built-ins from plugin permissions
   const builtIns = all.filter((p) => p.source === 'built-in');
   const pluginPerms = all.filter((p) => p.source !== 'built-in');
 
-  // Group built-ins by namespace prefix (before ':')
   const builtInGroup: PermissionGroup = {
     label: 'Built-in',
     permissions: builtIns,
@@ -60,8 +73,6 @@ export function usePermissionsCatalog(): PermissionsCatalog {
     pluginGroupMap.set(ns, existing);
   }
 
-  // Prefix plugin namespace groups with "Plugin: " so the UI clearly identifies
-  // dynamically-contributed permission sections (spec §9.6.1 / Task 1f.109).
   const pluginGroups: PermissionGroup[] = Array.from(pluginGroupMap.entries()).map(
     ([ns, perms]) => ({ label: `Plugin: ${ns}`, permissions: perms }),
   );

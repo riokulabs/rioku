@@ -203,7 +203,7 @@
 
 ## Item 02-005 — Server-side `effective-permissions` for a user
 
-- **Status:** open (low-priority follow-up)
+- **Status:** open (low-priority follow-up — Plan 13 close-out: file follow-up GitHub issue tagged `post-stage-2`, area `identity`. Not blocking the SPA flip; client-side join is correct and cheap.)
 - **Filed by:** plan-02-identity (stage2/plan-02-identity), 2026-05-06
 - **Category:** missing-endpoint (low priority)
 - **What:** The admin panel computes "effective permissions for user X" client-side by joining the permission catalog with the user's role grants. There is no daemon endpoint that returns the join result directly.
@@ -785,7 +785,7 @@ ClusterNode mock type.
 
 ## Item 07-009 — Audit emission verification gated on Plan 05
 
-- **Status:** open
+- **Status:** open (Plan 13 close-out note: Plan 05 audit list/detail/retention surface is now `EXISTS` per the endpoint manifest; the Vitest assertions referenced here can now be authored. File follow-up GitHub issue tagged `post-stage-2`, area `audit/settings`, to wire per-section audit-emission tests in the settings feature directories.)
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** missing-test
 - **What:** Every Task 1–9 sub-bullet ends with "audit emission verification."
@@ -1149,7 +1149,7 @@ regen Orval, swap to `subscribeSSE`, delete `src/api/trace-stream-bus.ts`, re-op
 
 ## Item 001 — admin-service-type-vs-proto-mismatch
 
-- **Status:** open
+- **Status:** open (Plan 13 close-out: Plan 03 shipped using the proto-native `V1Service` shape with adapter mapping; admin-only metadata (`env`, `tags`, computed health) is currently surfaced via labels. File follow-up GitHub issue tagged `post-stage-2`, area `services/proto`, to evaluate whether a dedicated `ServiceMeta` table or label-key contract should be formalised. Not blocking the SPA flip.)
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-data | scope-question
 - **What:** The admin panel's `Service` resource type (`src/api/resources/services.ts`) uses a
@@ -1345,7 +1345,7 @@ regen Orval, swap to `subscribeSSE`, delete `src/api/trace-stream-bus.ts`, re-op
 
 ## Item 006a — orval-mutator-signature-mismatch-blocks-all-hooks
 
-- **Status:** open
+- **Status:** RESOLVED 2026-05-06 (superseded by Item 085). Plan 13 close-out: `src/api/mutator.ts` `customFetch` now accepts BOTH the legacy `(args)` object shape AND the Orval-generated `(url, RequestInit)` positional shape, and skips the BASE prefix when the URL is already canonical. All Stage-2 plans wired generated hooks against the fixed mutator. See Item 085 for the resolving commit.
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-data | dependency | other
 - **What:** The Orval-generated hooks (all files under `src/api/generated/`) call
@@ -1386,7 +1386,7 @@ regen Orval, swap to `subscribeSSE`, delete `src/api/trace-stream-bus.ts`, re-op
 
 ## Item 006 — enable-disable-service-not-in-daemon-api
 
-- **Status:** open
+- **Status:** open (Plan 13 close-out: paired with Item 001. Plan 03 shipped without explicit enable/disable toggles; the UI maps disable to Caddy-config removal-without-deletion using a label flag. File follow-up GitHub issue tagged `post-stage-2`, area `services`, to formalise enable/disable endpoints if/when management metadata lands in proto.)
 - **Filed by:** plan-03-api-mgmt (stage2/plan-03-api-mgmt), 2026-05-05
 - **Category:** missing-endpoint | missing-data
 - **What:** The admin panel's `enableService` / `disableService` mock functions set

@@ -1,99 +1,62 @@
 /**
  * <PermissionPathTrace> tests.
  *
- * We mock useMockStore to control membership and role data without Zustand
- * persistence. resolveRolePermissions and the deny-walking logic in
- * usePermissionTrace are exercised via the real hook.
+ * The hook beneath the component (`usePermissionTrace`) reads from the
+ * daemon's flat per-tenant role API. We mock those generated hooks so the
+ * trace component renders deterministic outcomes.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 
-// ─── Fixture data ─────────────────────────────────────────────────────────────
+// ─── Fixtures ────────────────────────────────────────────────────────────────
 
-const VIEWER_ROLE_ID = 'role-viewer';
-const ADMIN_ROLE_ID = 'role-admin';
-const DENY_ROLE_ID = 'role-deny';
+interface FakeRole {
+  id: string;
+  name: string;
+  permissions: string[];
+}
 
-const MOCK_ROLES = {
-  [VIEWER_ROLE_ID]: {
-    id: VIEWER_ROLE_ID,
-    tenant_id: 'tenant-1',
-    name: 'viewer',
-    parent_ids: [],
-    grants: [{ permission: 'service:read' }],
-    denies: [],
-    system: true,
-  },
-  [ADMIN_ROLE_ID]: {
-    id: ADMIN_ROLE_ID,
-    tenant_id: 'tenant-1',
-    name: 'admin',
-    parent_ids: [VIEWER_ROLE_ID],
-    grants: [{ permission: 'service:write', when: "user.plan == 'pro'" }],
-    denies: [],
-    system: true,
-  },
-  [DENY_ROLE_ID]: {
-    id: DENY_ROLE_ID,
-    tenant_id: 'tenant-1',
-    name: 'restricted',
-    parent_ids: [],
-    grants: [{ permission: 'service:read' }],
-    denies: ['service:read'], // explicitly denies a permission it also grants
-    system: false,
-  },
-};
+let allRoles: FakeRole[] = [];
+let userRoleAssignments: Record<string, { id: string; name: string }[]> = {};
 
-const MOCK_MEMBERSHIPS = {
-  'mem-granted': {
-    id: 'mem-granted',
-    tenant_id: 'tenant-1',
-    user_id: 'user-granted',
-    role_ids: [ADMIN_ROLE_ID],
-    state: 'active' as const,
-    invited_at: '2024-01-01T00:00:00Z',
-    joined_at: '2024-01-01T00:00:00Z',
-  },
-  'mem-denied': {
-    id: 'mem-denied',
-    tenant_id: 'tenant-1',
-    user_id: 'user-denied',
-    role_ids: [DENY_ROLE_ID],
-    state: 'active' as const,
-    invited_at: '2024-01-01T00:00:00Z',
-    joined_at: '2024-01-01T00:00:00Z',
-  },
-  'mem-no-perm': {
-    id: 'mem-no-perm',
-    tenant_id: 'tenant-1',
-    user_id: 'user-noperm',
-    role_ids: [VIEWER_ROLE_ID],
-    state: 'active' as const,
-    invited_at: '2024-01-01T00:00:00Z',
-    joined_at: '2024-01-01T00:00:00Z',
-  },
-};
-
-// ── Mock useMockStore ─────────────────────────────────────────────────────────
-
-vi.mock('../../api/mock-store', () => ({
-  useMockStore: (
-    selector: (s: { memberships: typeof MOCK_MEMBERSHIPS; roles: typeof MOCK_ROLES }) => unknown,
-  ) => selector({ memberships: MOCK_MEMBERSHIPS, roles: MOCK_ROLES }),
+vi.mock('@/api/generated/roles/roles', () => ({
+  useListRoles: () => ({ data: { data: { roles: allRoles } } }),
+  useListUserRoles: (
+    _tenant: string,
+    userId: string,
+  ) => ({
+    data: { data: { roles: userRoleAssignments[userId] ?? [] } },
+    isLoading: false,
+  }),
 }));
 
-// Import AFTER mocks
 import { PermissionPathTrace } from './index';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function wrap(ui: React.ReactElement) {
   return render(<MantineProvider>{ui}</MantineProvider>);
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+const ADMIN: FakeRole = {
+  id: 'role-admin',
+  name: 'admin',
+  permissions: ['service:read', 'service:write'],
+};
+
+const VIEWER: FakeRole = {
+  id: 'role-viewer',
+  name: 'viewer',
+  permissions: ['service:read'],
+};
+
+beforeEach(() => {
+  allRoles = [ADMIN, VIEWER];
+  userRoleAssignments = {
+    'user-granted': [{ id: 'role-admin', name: 'admin' }],
+    'user-noperm': [{ id: 'role-viewer', name: 'viewer' }],
+  };
+});
 
 describe('<PermissionPathTrace>', () => {
   it('renders "granted" outcome when user has the permission', () => {
@@ -105,44 +68,17 @@ describe('<PermissionPathTrace>', () => {
     expect(screen.getByText('Grant found')).toBeInTheDocument();
   });
 
-  it('renders inherited path for permission granted via parent role', () => {
-    // admin inherits from viewer which has service:read
-    wrap(
-      <PermissionPathTrace userId="user-granted" tenantId="tenant-1" permission="service:read" />,
-    );
-
-    // The viewer role should appear in the path (inherited)
-    expect(screen.getByText('Permission granted')).toBeInTheDocument();
-  });
-
-  it('renders conditional badge when grant has a CEL condition', () => {
-    // admin has service:write with when condition
+  it('shows the granting role name in the trace', () => {
     wrap(
       <PermissionPathTrace userId="user-granted" tenantId="tenant-1" permission="service:write" />,
     );
 
     expect(screen.getByText('Permission granted')).toBeInTheDocument();
-    // The condition text should be shown
-    expect(screen.getByText(/Conditional:/)).toBeInTheDocument();
+    // role list renders the admin role name
+    expect(screen.getAllByText(/admin/).length).toBeGreaterThan(0);
   });
 
-  it('renders "denied" outcome when role has explicit deny', () => {
-    wrap(
-      <PermissionPathTrace userId="user-denied" tenantId="tenant-1" permission="service:read" />,
-    );
-
-    expect(screen.getByText('Permission denied')).toBeInTheDocument();
-    // "Denied in role ... via deny entry" — the text is split across elements
-    // so match the container element that includes "Denied in role"
-    const deniedNode = screen.getByText(/Denied in role/);
-    expect(deniedNode).toBeInTheDocument();
-    // "restricted" appears in both the role list and the deny message — check
-    // that at least one instance mentions it in the deny context
-    const allRestricted = screen.getAllByText(/restricted/);
-    expect(allRestricted.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders "no-source" when user has no role granting the permission', () => {
+  it('renders "no-source" when none of the assigned roles list the permission', () => {
     wrap(
       <PermissionPathTrace userId="user-noperm" tenantId="tenant-1" permission="service:write" />,
     );
@@ -161,7 +97,7 @@ describe('<PermissionPathTrace>', () => {
     );
 
     expect(screen.getByText('Permission not found')).toBeInTheDocument();
-    expect(screen.getByText(/No membership found/)).toBeInTheDocument();
+    expect(screen.getByText(/No role assignments found/)).toBeInTheDocument();
   });
 
   it('shows permission key as badge', () => {

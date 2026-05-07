@@ -219,7 +219,7 @@ describe('<PromptCompletionView> viewer gating', () => {
   });
 
   it('renders unmasked content when unmasked === true', () => {
-    wrap(<PromptCompletionView prompt="hello" completion="world" />);
+    wrap(<PromptCompletionView prompt="hello" completion="world" unmasked />);
     expect(screen.getByTestId('trace-prompt-completion')).toBeInTheDocument();
     expect(screen.queryByTestId('trace-redacted')).toBeNull();
   });

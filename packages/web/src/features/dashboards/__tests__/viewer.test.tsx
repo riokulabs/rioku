@@ -10,6 +10,10 @@ import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { DashboardViewer } from '../components/viewer';
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 function wrap(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);
 }

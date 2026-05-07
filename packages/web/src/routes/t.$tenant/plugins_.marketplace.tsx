@@ -12,7 +12,6 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Anchor, Breadcrumbs, Stack, Title, Text } from '@mantine/core';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
 import {
   MarketplaceGrid,
   useInstallFromMarketplaceMutation,
@@ -21,11 +20,8 @@ import type { MarketplaceListing } from '@/features/plugins/marketplace';
 
 function MarketplaceBrowsePage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
-  const tenantId = tenantRecord?.id ?? tenant;
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
   const installMutation = useInstallFromMarketplaceMutation(tenantId);
 
   const handleInstall = useCallback(

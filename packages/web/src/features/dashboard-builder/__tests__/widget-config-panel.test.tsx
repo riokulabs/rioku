@@ -9,6 +9,10 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 // Monaco is lazy-loaded by AdvancedEditor. Stub with a plain textarea so
 // jsdom doesn't choke on ResizeObserver / workers.
 vi.mock('@monaco-editor/react', () => {

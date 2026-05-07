@@ -5,17 +5,15 @@
  * (filtered to active memberships in the current tenant) and renders the
  * existing `<EffectivePermissionsPanel>` with `scope="user"`.
  *
- * Stage-1 carve-out: backed by mock-store data via `useMockStore`. Plan-13
- * will swap the user-list source to a real daemon endpoint when the Identity
- * proto coverage lands (decisions-needed.md item 02-001).
+ * Stage-2: user list comes from the daemon-backed `useUserList` hook.
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Stack, Title, Group, Select, Text, Card, Alert } from '@mantine/core';
 import { IconUserShield, IconInfoCircle } from '@tabler/icons-react';
 import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
+import { useUserList } from '@/features/security/users';
 
 interface UserOption {
   value: string;
@@ -24,26 +22,21 @@ interface UserOption {
 
 function EffectivePermissionsPage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
-  const tenantId = tenantRecord?.id ?? '';
+  const tenantId = tenant;
 
-  const memberships = useMockStore((s) => s.memberships);
-  const users = useMockStore((s) => s.users);
+  // Stage-2: pull active memberships from the daemon-backed user list.
+  const usersResult = useUserList(tenantId, { search: '', status: 'active' });
 
   const userOptions: UserOption[] = useMemo(() => {
     const opts: UserOption[] = [];
-    for (const m of Object.values(memberships)) {
-      if (m.tenant_id !== tenantId) continue;
-      if (m.state !== 'active') continue;
-      const u = users[m.user_id];
-      if (!u) continue;
+    for (const item of usersResult.items) {
+      if (item.membership.state !== 'active') continue;
+      const u = item.user;
       opts.push({ value: u.id, label: `${u.name} <${u.email}>` });
     }
     opts.sort((a, b) => a.label.localeCompare(b.label));
     return opts;
-  }, [memberships, users, tenantId]);
+  }, [usersResult.items]);
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(
     userOptions[0]?.value ?? null,

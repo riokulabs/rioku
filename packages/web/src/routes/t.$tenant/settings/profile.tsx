@@ -14,14 +14,13 @@
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { ProfileRealSection } from '@/features/settings/sections-real/profile-real';
 
 function ProfileSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
-  const activeTenant: string = tenant ?? tenantSlug ?? "";
+  const tenantSlug = tenant ?? "";
+  const activeTenant: string = tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="settings-profile-page">

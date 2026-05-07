@@ -11,7 +11,6 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Anchor, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   DeliveryLogDetail,
@@ -59,9 +58,8 @@ function NotificationDeliveryPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: DeliveryLogFilter = {
     statuses: search.statuses,

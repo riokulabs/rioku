@@ -19,6 +19,10 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: mockNavigate }),
 }));
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
@@ -226,7 +230,7 @@ describe('<EnrollmentTokensPage> consumed-toggle', () => {
     wrap(<EnrollmentTokensPage />);
 
     // Default: only active tokens visible — toggle is off.
-    const toggle = screen.getByTestId('show-consumed-toggle') as HTMLInputElement;
+    const toggle = screen.getByTestId<HTMLInputElement>('show-consumed-toggle');
     expect(toggle.checked).toBe(false);
 
     // Default render — at least one row, none are consumed/expired.

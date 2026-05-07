@@ -1,7 +1,16 @@
 # Stage-2 Admin Endpoint Manifest
 
-> Updated by every parallel plan as it lands work. Plan 13 close-out asserts every entry is `EXISTS`
-> (or explicitly classified as out-of-scope).
+> Updated by every parallel plan as it lands work. Plan 13 close-out (2026-05-07) verified the
+> manifest: every admin-required endpoint is `EXISTS`. Four entries remain `EXISTS-INCOMPLETE` and
+> are explicitly classified as out-of-scope follow-ups (tracked separately):
+>
+> 1. `POST /api/v1/t/{tenant}/promql/query` — daemon-side Prometheus proxy is a post-stage-2 task; admin reads metrics directly from configured Prometheus today.
+> 2. `GET /api/v1/plugins` (global) — global cross-tenant plugin index; the per-tenant list under `/api/v1/t/{tenant}/plugins` is fully implemented.
+> 3. `GET /api/v1/plugins/manifest` (global) — same scope as above.
+> 4. The remaining infrastructure entry under "Infrastructure (health, openapi, events, JWKS)" is the public marketing-style index endpoint, not used by the admin SPA.
+>
+> All four are documented in their respective sections below and are not blockers for the admin
+> SPA flip. None are referenced by any Orval-generated client call site under `packages/web`.
 
 > **Source of truth**: `packages/daemon/internal/gateway/api.full.json` (OAS 3.0.3) plus
 > registered `mux.Handle` patterns in `packages/daemon/internal/gateway/`. When either changes,

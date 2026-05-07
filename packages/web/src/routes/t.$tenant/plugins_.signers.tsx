@@ -13,7 +13,6 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { Anchor, Breadcrumbs, Button, Drawer, Group, Stack, Text, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconShieldCheck } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
@@ -59,9 +58,8 @@ function PluginSignersPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const canWrite = usePermission('plugin-signer:write');
 

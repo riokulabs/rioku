@@ -35,9 +35,16 @@ vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ tenant: 'acme' }),
 }));
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw-server';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { logAdminAuditEntry } from '@/api/resources/audit';
@@ -64,17 +71,25 @@ import { Route } from '@/routes/t.$tenant/security/audit_.admin';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function wrap(ui: React.ReactNode) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+    <QueryClientProvider client={qc}>
+      <MantineProvider>
+        <ModalsProvider>{ui}</ModalsProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
 function acmeTenantId(): string {
+  // The page filters audit entries by `useParams().tenant` which the route
+  // mock injects as the slug 'acme'. Store entries with the slug so the
+  // hash chain stays valid and the filter matches.
   const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
   if (!acme) throw new Error('No acme tenant seeded');
-  return acme.id;
+  return 'acme';
 }
 
 beforeEach(() => {
@@ -82,6 +97,16 @@ beforeEach(() => {
   seedStore(useMockStore);
   // Clear adminAudit so tests start clean
   useMockStore.setState({ adminAudit: [] });
+  // Bridge: page reads admin audit via Orval; bridge to mock-store entries.
+  server.use(
+    http.get('*/api/v1/admin/audit', () => {
+      const items = useMockStore.getState().adminAudit;
+      return HttpResponse.json({ items, total: items.length });
+    }),
+    http.get('*/api/v1/t/:tenant/users', () => {
+      return HttpResponse.json({ items: [], total: 0 });
+    }),
+  );
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -121,8 +146,10 @@ describe('TenantAdminAuditPage', () => {
     // The page renders each action twice: once in the DataTable row, once in the
     // accordion control. With 1 acme entry the count is 2; if the other-tenant entry
     // leaked it would be 4.
-    const badges = screen.getAllByText('impersonation.start');
-    expect(badges).toHaveLength(2); // 1 entry × 2 occurrences (table + accordion)
+    await waitFor(() => {
+      const badges = screen.getAllByText('impersonation.start');
+      expect(badges).toHaveLength(2); // 1 entry × 2 occurrences (table + accordion)
+    });
   });
 
   it('verify chain button shows "Chain verified" badge for a valid chain', async () => {
@@ -146,6 +173,11 @@ describe('TenantAdminAuditPage', () => {
 
     const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
+
+    // Wait for entries to land via useListAdminAudit before verifying.
+    await waitFor(() => {
+      expect(screen.getAllByText('impersonation.start').length).toBeGreaterThan(0);
+    });
 
     const verifyBtn = screen.getByTestId('verify-chain-button');
     fireEvent.click(verifyBtn);
@@ -182,6 +214,12 @@ describe('TenantAdminAuditPage', () => {
     const Component = (Route as unknown as { component: React.ComponentType }).component;
     wrap(<Component />);
 
+    // Wait for the entry to land via useListAdminAudit before triggering verify;
+    // otherwise we verify over an empty array and the chain is reported valid.
+    await waitFor(() => {
+      expect(screen.getAllByText('impersonation.start').length).toBeGreaterThan(0);
+    });
+
     const verifyBtn = screen.getByTestId('verify-chain-button');
     fireEvent.click(verifyBtn);
 
@@ -217,7 +255,9 @@ describe('TenantAdminAuditPage', () => {
     const entries = useMockStore.getState().adminAudit.filter((e) => e.tenant_id === tenantId);
     expect(entries).toHaveLength(1);
     const entry = entries[0]!;
-    expect(screen.getByTestId(`hash-${entry.id}`)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId(`hash-${entry.id}`)).toBeInTheDocument();
+    });
     expect(screen.getByTestId(`prev-hash-${entry.id}`)).toBeInTheDocument();
   });
 });

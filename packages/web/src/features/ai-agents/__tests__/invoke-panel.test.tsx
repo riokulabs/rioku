@@ -10,6 +10,10 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn() }),
 }));
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';

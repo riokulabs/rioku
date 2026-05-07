@@ -9,6 +9,14 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn() }),
 }));
 
+let _mockPermission: (key: string) => boolean = () => true;
+function setMockPermission(fn: (key: string) => boolean): void {
+  _mockPermission = fn;
+}
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (key: string) => _mockPermission(key),
+}));
+
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
@@ -35,6 +43,7 @@ const EMPTY_FILTER: TraceFilter = {
 beforeEach(() => {
   useMockStore.getState().reset();
   seedStore(useMockStore);
+  setMockPermission(() => true);
 });
 
 function acmeTenantId(): string {
@@ -83,9 +92,8 @@ describe('TraceList', () => {
 
 describe('TraceFilterBar', () => {
   it('disables text search when user lacks ai-trace:read-sensitive', () => {
-    // Clear currentUserId → usePermission returns false for every key, which
-    // exercises the gate without needing a finely-scoped user.
-    useMockStore.setState({ currentUserId: null });
+    // Override usePermission to mimic a user without ai-trace:read-sensitive.
+    setMockPermission((k) => k !== 'ai-trace:read-sensitive');
 
     const tenantId = acmeTenantId();
     const range: RangePreset = 'all';

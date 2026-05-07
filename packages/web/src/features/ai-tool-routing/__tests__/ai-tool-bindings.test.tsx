@@ -167,13 +167,26 @@ describe('viewer-gating', () => {
     // Without the ai-tool:write permission key resolved, the buttons are
     // rendered disabled by the route page. Here we verify the lower-level
     // contract: usePermission('ai-tool:write') drives the disabled flag,
-    // and a freshly-reset store (no memberships → no permissions) returns
-    // false so the gating kicks in.
-    const { usePermission } = await import('@/hooks/use-permission');
-    const { renderHook } = await import('@testing-library/react');
+    // and a 401 from /auth/me (no signed-in user) returns false so gating
+    // kicks in.
+    const { http, HttpResponse } = await import('msw');
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({ title: 'Unauthorized' }, { status: 401 }),
+      ),
+    );
 
-    useMockStore.getState().reset();
-    const { result: viewer } = renderHook(() => usePermission('ai-tool:write'));
-    expect(viewer.current).toBe(false);
+    const { usePermission } = await import('@/hooks/use-permission');
+    const { renderHook, waitFor: waitForHook } = await import('@testing-library/react');
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+    const { result: viewer } = renderHook(() => usePermission('ai-tool:write'), {
+      wrapper: Wrapper,
+    });
+    await waitForHook(() => {
+      expect(viewer.current).toBe(false);
+    });
   });
 });

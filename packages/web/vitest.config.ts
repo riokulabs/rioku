@@ -8,7 +8,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**', '.tsc-node-out/**'],
     css: true,
     // Default to dot reporter in CI for compact output; set VITEST_REPORTER=verbose for full output.
     reporters: process.env.VITEST_REPORTER === 'verbose' ? ['verbose'] : process.env.CI ? ['dot'] : ['default'],

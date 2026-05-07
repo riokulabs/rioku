@@ -14,12 +14,15 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Title, SimpleGrid, Card, Text, Stack, Group, Badge } from '@mantine/core';
 import dayjs from 'dayjs';
-import { useMockStore } from '@/api/mock-store';
 import { EmptyState } from '@/components/empty-state';
 import { Zone } from '@/components/zone';
 import { IconActivity } from '@tabler/icons-react';
-import { DashboardViewer, useUserHomeDashboard } from '@/features/dashboards';
-import type { Dashboard } from '@/api/resources';
+import { DashboardViewer, useUserHomeDashboard, useDashboardList } from '@/features/dashboards';
+import { useServiceList } from '@/features/services';
+import { useSiteList } from '@/features/sites';
+import { useUserList } from '@/features/security/users';
+import { useAuditList } from '@/features/audit';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
@@ -43,19 +46,40 @@ function StatCard({ label, value }: StatCardProps) {
 
 // ─── Placeholder (stock) dashboard ────────────────────────────────────────────
 
-function StockDashboard() {
-  const services = useMockStore((s) => s.services);
-  const users = useMockStore((s) => s.users);
-  const sites = useMockStore((s) => s.sites);
-  const audit = useMockStore((s) => s.audit);
+function StockDashboard({ tenantId }: { tenantId: string }) {
+  const services = useServiceList(tenantId, {
+    search: '',
+    env: [],
+    health: [],
+    tags: [],
+  });
+  const usersResult = useUserList(tenantId, { search: '', status: 'all' });
+  const users = usersResult.items;
+  const sites = useSiteList(tenantId, {
+    search: '',
+    tls_mode: [],
+    enabled: [],
+    linked_service_ids: [],
+  });
+  const audit = useAuditList(tenantId, {
+    actions: [],
+    outcomes: [],
+    resource_types: [],
+    tiers: [],
+    date_from: null,
+    date_to: null,
+    actor_handles: [],
+    resource_id_handles: [],
+    search: '',
+  });
 
   const todayStart = dayjs().startOf('day');
   const todayAuditCount = audit.filter((e) => dayjs(e.at).isAfter(todayStart)).length;
   const recentAudit = [...audit].reverse().slice(0, 10);
 
-  const servicesCount = Object.keys(services).length;
-  const usersCount = Object.keys(users).length;
-  const sitesCount = Object.keys(sites).length;
+  const servicesCount = services.length;
+  const usersCount = users.length;
+  const sitesCount = sites.length;
 
   return (
     <Stack gap="xl" p="md">
@@ -78,8 +102,8 @@ function StockDashboard() {
         ) : (
           <Stack gap="xs">
             {recentAudit.map((entry) => {
-              const actor = users[entry.actor_id];
-              const actorName = actor?.name ?? entry.actor_id;
+              const actor = users.find((u) => u.user.id === entry.actor_id);
+              const actorName = actor?.user.name ?? entry.actor_id;
               const timestamp = dayjs(entry.at).format('MMM D, HH:mm');
               return (
                 <Card key={entry.id} withBorder radius="sm" p="xs">
@@ -120,34 +144,34 @@ function StockDashboard() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function DashboardPage() {
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const currentTenantId = useMockStore((s) => s.currentTenantId);
-  const dashboards = useMockStore((s) => s.dashboards);
+  const { tenant } = Route.useParams();
+  const tenantId = tenant;
+  const currentUser = useCurrentUser().data ?? null;
+  const currentUserId = currentUser?.id ?? null;
+  const dashboards = useDashboardList(tenantId, {
+    search: '',
+    modes: [],
+    scopes: [],
+  });
   const userHomeId = useUserHomeDashboard(currentUserId ?? '');
 
   // 1. User's explicit home override (if it still exists and belongs to the
   //    active tenant).
   if (userHomeId) {
-    const home = dashboards[userHomeId];
-    if (home?.tenant_id === currentTenantId) {
+    const home = dashboards.find((d) => d.id === userHomeId);
+    if (home) {
       return <DashboardViewer dashboardId={userHomeId} hideMakeHome />;
     }
   }
 
   // 2. Tenant default dashboard.
-  let tenantDefault: Dashboard | undefined;
-  for (const d of Object.values(dashboards)) {
-    if (d.tenant_id === currentTenantId && d.default) {
-      tenantDefault = d;
-      break;
-    }
-  }
+  const tenantDefault = dashboards.find((d) => d.default);
   if (tenantDefault) {
     return <DashboardViewer dashboardId={tenantDefault.id} hideMakeHome />;
   }
 
   // 3. Stock placeholder.
-  return <StockDashboard />;
+  return <StockDashboard tenantId={tenantId} />;
 }
 
 export const Route = createFileRoute('/t/$tenant/dashboard')({

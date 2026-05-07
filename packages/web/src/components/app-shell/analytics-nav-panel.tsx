@@ -17,7 +17,8 @@ import {
 } from '@tabler/icons-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { useDisclosure } from '@mantine/hooks';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { ImportDashboardModal, createDashboard, useDashboardList } from '@/features/dashboards';
@@ -38,11 +39,11 @@ const MODE_COLORS: Record<Dashboard['mode'], string> = {
 export function AnalyticsNavPanel({ tenantSlug, onNavLinkClick }: AnalyticsNavPanelProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenantSlug),
-  );
+  const tenantsQuery = useListAdminTenants();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const tenantRecord = (tenantsQuery.data?.data?.items ?? []).find((t) => t.slug === tenantSlug);
   const tenantId = tenantRecord?.id ?? '';
-  const currentUserId = useMockStore((s) => s.currentUserId);
+  const currentUserId = useCurrentUser().data?.id ?? null;
   const canWrite = usePermission('dashboard:write');
 
   const [query, setQuery] = useState('');
@@ -103,6 +104,21 @@ export function AnalyticsNavPanel({ tenantSlug, onNavLinkClick }: AnalyticsNavPa
       </Box>
 
       <Box style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
+        {/* Static "Insights" entry — links to the dashboards index page so the
+            secondary panel always exposes a stable landing surface even before
+            any dashboards have been created. */}
+        <Stack gap={2} px={6} pb={4}>
+          <NavLink
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+            component={Link as any}
+            to={`/t/${tenantSlug}/dashboards`}
+            label="Insights"
+            leftSection={<IconLayoutDashboard size={14} />}
+            active={location.pathname === `/t/${tenantSlug}/dashboards`}
+            {...(onNavLinkClick !== undefined && { onClick: onNavLinkClick })}
+            data-testid="analytics-nav-insights"
+          />
+        </Stack>
         {sorted.length === 0 ? (
           <Text size="xs" c="dimmed" px="md" py="sm">
             {query.trim().length > 0

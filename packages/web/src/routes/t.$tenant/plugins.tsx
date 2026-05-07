@@ -16,7 +16,6 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconLink, IconPlug, IconShieldCheck, IconShoppingBag } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   InstalledPluginList,
@@ -78,9 +77,8 @@ function PluginsPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const canReadSigners = usePermission('plugin-signer:read');
 
