@@ -13,6 +13,10 @@ import { seedStore } from '@/api/mock-seed';
 import type { Widget } from '@/api/resources';
 import { AdvancedEditor } from '../components/advanced-editor';
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 // Lazy-loaded Monaco stubbed as a plain textarea.
 vi.mock('@monaco-editor/react', () => {
   const MockEditor = ({

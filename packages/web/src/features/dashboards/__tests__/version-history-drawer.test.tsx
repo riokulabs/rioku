@@ -13,6 +13,10 @@ import type { Dashboard } from '@/api/resources';
 import { VersionHistoryDrawer } from '../components/version-history-drawer';
 import { snapshotDashboard } from '../api';
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 function wrap(ui: React.ReactNode) {
   return render(
     <MantineProvider>

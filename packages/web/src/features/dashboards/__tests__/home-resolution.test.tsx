@@ -9,7 +9,11 @@
  *   - Resolution order in /t/$tenant/dashboard inline page: per-user home
  *     overrides tenant default; tenant default falls back when no override.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
 import { MantineProvider } from '@mantine/core';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

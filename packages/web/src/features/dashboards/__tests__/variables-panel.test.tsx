@@ -13,6 +13,10 @@ import { seedStore } from '@/api/mock-seed';
 import type { Dashboard } from '@/api/resources';
 import { VariablesPanel } from '../components/variables-panel';
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 function wrap(ui: React.ReactNode) {
   return render(
     <MantineProvider>

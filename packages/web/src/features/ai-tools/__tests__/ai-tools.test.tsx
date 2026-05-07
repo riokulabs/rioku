@@ -19,6 +19,15 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
+// Permission mock — toggled by tests via setMockPermission.
+let _mockPermission: (key: string) => boolean = () => true;
+function setMockPermission(fn: (key: string) => boolean): void {
+  _mockPermission = fn;
+}
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (key: string) => _mockPermission(key),
+}));
+
 vi.mock('@monaco-editor/react', () => {
   const Editor = ({
     value,
@@ -75,6 +84,7 @@ beforeEach(() => {
   // Reset + seed mock store for usePermission gating + tenant context.
   useMockStore.getState().reset();
   seedStore(useMockStore);
+  setMockPermission(() => true);
 });
 
 describe('ToolList', () => {
@@ -162,16 +172,7 @@ describe('deleteTool', () => {
 
 describe('viewer-gating on the Invoke button', () => {
   it('disables Invoke for viewers (no ai-tool:invoke permission)', async () => {
-    // Switch the seeded current user to a viewer-only membership.
-    const state = useMockStore.getState();
-    const viewerMembership = Object.values(state.memberships).find((m) => {
-      const role = state.roles[m.role_ids[0] ?? ''];
-      return role?.name.toLowerCase() === 'viewer' && m.tenant_id === state.currentTenantId;
-    });
-    if (!viewerMembership) {
-      throw new Error('seed has no viewer membership for the current tenant');
-    }
-    useMockStore.setState({ currentUserId: viewerMembership.user_id });
+    setMockPermission(() => false);
 
     wrap(<TestInvocation tenant={TENANT} toolId="aitool-1" />);
     const button = await screen.findByTestId('invoke-button');
@@ -179,8 +180,7 @@ describe('viewer-gating on the Invoke button', () => {
   });
 
   it('enables Invoke for the seeded admin user', async () => {
-    // The default seeded user (Derrick) is admin/super-admin and has
-    // ai-tool:invoke. Just render and assert.
+    setMockPermission(() => true);
     wrap(<TestInvocation tenant={TENANT} toolId="aitool-1" />);
     const button = await screen.findByTestId('invoke-button');
     expect(button).not.toBeDisabled();

@@ -20,6 +20,10 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn() }),
 }));
 
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: () => true,
+}));
+
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { NotificationList } from '../components/list';
@@ -90,7 +94,7 @@ describe('<NotificationList>', () => {
   it('mark-read action POSTs to /notifications/:id/read', async () => {
     let markReadCalled = false;
     server.use(
-      http.post(`/api/v1/t/${TENANT}/notifications/n-1/read`, () => {
+      http.post(`*/api/v1/t/${TENANT}/notifications/n-1/read`, () => {
         markReadCalled = true;
         return HttpResponse.json({
           ...makeItem(),
@@ -112,7 +116,7 @@ describe('<NotificationList>', () => {
   it('archive action POSTs to /notifications/:id/archive', async () => {
     let archiveCalled = false;
     server.use(
-      http.post(`/api/v1/t/${TENANT}/notifications/n-1/archive`, () => {
+      http.post(`*/api/v1/t/${TENANT}/notifications/n-1/archive`, () => {
         archiveCalled = true;
         return HttpResponse.json({
           ...makeItem(),
