@@ -38,6 +38,12 @@ vi.mock('@/hooks/use-permission', () => ({
   usePermission: (key: string) => (key === 'tenant-auth:write' ? grantWrite : true),
 }));
 
+// ─── Feature flags mock ───────────────────────────────────────────────────────
+// SSO flag is off in tests — the section should be hidden until stage-2 wires it.
+vi.mock('@/host/feature-flags', () => ({
+  isFeatureEnabled: (flag: string) => flag !== 'sso',
+}));
+
 // ─── Imports ─────────────────────────────────────────────────────────────────
 
 import { useMockStore } from '@/api/mock-store';

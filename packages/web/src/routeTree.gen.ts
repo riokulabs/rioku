@@ -53,6 +53,15 @@ import { Route as TTenantSettingsNotificationRoutingRouteImport } from './routes
 import { Route as TTenantSettingsNotificationDeliveryRouteImport } from './routes/t.$tenant/settings/notification-delivery'
 import { Route as TTenantSettingsNotificationChannelsRouteImport } from './routes/t.$tenant/settings/notification-channels'
 import { Route as TTenantSettingsAuditRetentionRouteImport } from './routes/t.$tenant/settings/audit-retention'
+import { Route as TTenantSettingsProfileRouteImport } from './routes/t.$tenant/settings/profile'
+import { Route as TTenantSettingsTenantRouteImport } from './routes/t.$tenant/settings/tenant'
+import { Route as TTenantSettingsAuthPolicyRouteImport } from './routes/t.$tenant/settings/auth-policy'
+import { Route as TTenantSettingsNetworkRouteImport } from './routes/t.$tenant/settings/network'
+import { Route as TTenantSettingsTlsRouteImport } from './routes/t.$tenant/settings/tls'
+import { Route as TTenantSettingsPkiRouteImport } from './routes/t.$tenant/settings/pki'
+import { Route as TTenantSettingsObservabilityRouteImport } from './routes/t.$tenant/settings/observability'
+import { Route as TTenantSettingsIntegrationsRouteImport } from './routes/t.$tenant/settings/integrations'
+import { Route as TTenantSettingsDangerRouteImport } from './routes/t.$tenant/settings/danger'
 import { Route as TTenantServicesServiceIdRouteImport } from './routes/t.$tenant/services_.$serviceId'
 import { Route as TTenantSecurityUsersRouteImport } from './routes/t.$tenant/security/users'
 import { Route as TTenantSecuritySessionsRouteImport } from './routes/t.$tenant/security/sessions'
@@ -307,6 +316,54 @@ const TTenantSettingsAuditRetentionRoute =
     path: '/audit-retention',
     getParentRoute: () => TTenantSettingsRoute,
   } as any)
+const TTenantSettingsProfileRoute = TTenantSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => TTenantSettingsRoute,
+} as any)
+const TTenantSettingsTenantRoute = TTenantSettingsTenantRouteImport.update({
+  id: '/tenant',
+  path: '/tenant',
+  getParentRoute: () => TTenantSettingsRoute,
+} as any)
+const TTenantSettingsAuthPolicyRoute =
+  TTenantSettingsAuthPolicyRouteImport.update({
+    id: '/auth-policy',
+    path: '/auth-policy',
+    getParentRoute: () => TTenantSettingsRoute,
+  } as any)
+const TTenantSettingsNetworkRoute = TTenantSettingsNetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
+  getParentRoute: () => TTenantSettingsRoute,
+} as any)
+const TTenantSettingsTlsRoute = TTenantSettingsTlsRouteImport.update({
+  id: '/tls',
+  path: '/tls',
+  getParentRoute: () => TTenantSettingsRoute,
+} as any)
+const TTenantSettingsPkiRoute = TTenantSettingsPkiRouteImport.update({
+  id: '/pki',
+  path: '/pki',
+  getParentRoute: () => TTenantSettingsRoute,
+} as any)
+const TTenantSettingsObservabilityRoute =
+  TTenantSettingsObservabilityRouteImport.update({
+    id: '/observability',
+    path: '/observability',
+    getParentRoute: () => TTenantSettingsRoute,
+  } as any)
+const TTenantSettingsIntegrationsRoute =
+  TTenantSettingsIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => TTenantSettingsRoute,
+  } as any)
+const TTenantSettingsDangerRoute = TTenantSettingsDangerRouteImport.update({
+  id: '/danger',
+  path: '/danger',
+  getParentRoute: () => TTenantSettingsRoute,
+} as any)
 const TTenantServicesServiceIdRoute =
   TTenantServicesServiceIdRouteImport.update({
     id: '/services_/$serviceId',
@@ -513,6 +570,15 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
+  '/t/$tenant/settings/profile': typeof TTenantSettingsProfileRoute
+  '/t/$tenant/settings/tenant': typeof TTenantSettingsTenantRoute
+  '/t/$tenant/settings/auth-policy': typeof TTenantSettingsAuthPolicyRoute
+  '/t/$tenant/settings/network': typeof TTenantSettingsNetworkRoute
+  '/t/$tenant/settings/tls': typeof TTenantSettingsTlsRoute
+  '/t/$tenant/settings/pki': typeof TTenantSettingsPkiRoute
+  '/t/$tenant/settings/observability': typeof TTenantSettingsObservabilityRoute
+  '/t/$tenant/settings/integrations': typeof TTenantSettingsIntegrationsRoute
+  '/t/$tenant/settings/danger': typeof TTenantSettingsDangerRoute
   '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
   '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
@@ -583,6 +649,15 @@ export interface FileRoutesByTo {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
+  '/t/$tenant/settings/profile': typeof TTenantSettingsProfileRoute
+  '/t/$tenant/settings/tenant': typeof TTenantSettingsTenantRoute
+  '/t/$tenant/settings/auth-policy': typeof TTenantSettingsAuthPolicyRoute
+  '/t/$tenant/settings/network': typeof TTenantSettingsNetworkRoute
+  '/t/$tenant/settings/tls': typeof TTenantSettingsTlsRoute
+  '/t/$tenant/settings/pki': typeof TTenantSettingsPkiRoute
+  '/t/$tenant/settings/observability': typeof TTenantSettingsObservabilityRoute
+  '/t/$tenant/settings/integrations': typeof TTenantSettingsIntegrationsRoute
+  '/t/$tenant/settings/danger': typeof TTenantSettingsDangerRoute
   '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
   '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
@@ -658,6 +733,15 @@ export interface FileRoutesById {
   '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
   '/t/$tenant/services_/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
+  '/t/$tenant/settings/profile': typeof TTenantSettingsProfileRoute
+  '/t/$tenant/settings/tenant': typeof TTenantSettingsTenantRoute
+  '/t/$tenant/settings/auth-policy': typeof TTenantSettingsAuthPolicyRoute
+  '/t/$tenant/settings/network': typeof TTenantSettingsNetworkRoute
+  '/t/$tenant/settings/tls': typeof TTenantSettingsTlsRoute
+  '/t/$tenant/settings/pki': typeof TTenantSettingsPkiRoute
+  '/t/$tenant/settings/observability': typeof TTenantSettingsObservabilityRoute
+  '/t/$tenant/settings/integrations': typeof TTenantSettingsIntegrationsRoute
+  '/t/$tenant/settings/danger': typeof TTenantSettingsDangerRoute
   '/t/$tenant/settings/notification-channels': typeof TTenantSettingsNotificationChannelsRoute
   '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
@@ -733,6 +817,15 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services/$serviceId'
     | '/t/$tenant/settings/audit-retention'
+    | '/t/$tenant/settings/profile'
+    | '/t/$tenant/settings/tenant'
+    | '/t/$tenant/settings/auth-policy'
+    | '/t/$tenant/settings/network'
+    | '/t/$tenant/settings/tls'
+    | '/t/$tenant/settings/pki'
+    | '/t/$tenant/settings/observability'
+    | '/t/$tenant/settings/integrations'
+    | '/t/$tenant/settings/danger'
     | '/t/$tenant/settings/notification-channels'
     | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
@@ -803,6 +896,15 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services/$serviceId'
     | '/t/$tenant/settings/audit-retention'
+    | '/t/$tenant/settings/profile'
+    | '/t/$tenant/settings/tenant'
+    | '/t/$tenant/settings/auth-policy'
+    | '/t/$tenant/settings/network'
+    | '/t/$tenant/settings/tls'
+    | '/t/$tenant/settings/pki'
+    | '/t/$tenant/settings/observability'
+    | '/t/$tenant/settings/integrations'
+    | '/t/$tenant/settings/danger'
     | '/t/$tenant/settings/notification-channels'
     | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
@@ -877,6 +979,15 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/users'
     | '/t/$tenant/services_/$serviceId'
     | '/t/$tenant/settings/audit-retention'
+    | '/t/$tenant/settings/profile'
+    | '/t/$tenant/settings/tenant'
+    | '/t/$tenant/settings/auth-policy'
+    | '/t/$tenant/settings/network'
+    | '/t/$tenant/settings/tls'
+    | '/t/$tenant/settings/pki'
+    | '/t/$tenant/settings/observability'
+    | '/t/$tenant/settings/integrations'
+    | '/t/$tenant/settings/danger'
     | '/t/$tenant/settings/notification-channels'
     | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
@@ -1214,6 +1325,69 @@ declare module '@tanstack/react-router' {
       path: '/audit-retention'
       fullPath: '/t/$tenant/settings/audit-retention'
       preLoaderRoute: typeof TTenantSettingsAuditRetentionRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/profile': {
+      id: '/t/$tenant/settings/profile'
+      path: '/profile'
+      fullPath: '/t/$tenant/settings/profile'
+      preLoaderRoute: typeof TTenantSettingsProfileRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/tenant': {
+      id: '/t/$tenant/settings/tenant'
+      path: '/tenant'
+      fullPath: '/t/$tenant/settings/tenant'
+      preLoaderRoute: typeof TTenantSettingsTenantRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/auth-policy': {
+      id: '/t/$tenant/settings/auth-policy'
+      path: '/auth-policy'
+      fullPath: '/t/$tenant/settings/auth-policy'
+      preLoaderRoute: typeof TTenantSettingsAuthPolicyRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/network': {
+      id: '/t/$tenant/settings/network'
+      path: '/network'
+      fullPath: '/t/$tenant/settings/network'
+      preLoaderRoute: typeof TTenantSettingsNetworkRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/tls': {
+      id: '/t/$tenant/settings/tls'
+      path: '/tls'
+      fullPath: '/t/$tenant/settings/tls'
+      preLoaderRoute: typeof TTenantSettingsTlsRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/pki': {
+      id: '/t/$tenant/settings/pki'
+      path: '/pki'
+      fullPath: '/t/$tenant/settings/pki'
+      preLoaderRoute: typeof TTenantSettingsPkiRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/observability': {
+      id: '/t/$tenant/settings/observability'
+      path: '/observability'
+      fullPath: '/t/$tenant/settings/observability'
+      preLoaderRoute: typeof TTenantSettingsObservabilityRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/integrations': {
+      id: '/t/$tenant/settings/integrations'
+      path: '/integrations'
+      fullPath: '/t/$tenant/settings/integrations'
+      preLoaderRoute: typeof TTenantSettingsIntegrationsRouteImport
+      parentRoute: typeof TTenantSettingsRoute
+    }
+    '/t/$tenant/settings/danger': {
+      id: '/t/$tenant/settings/danger'
+      path: '/danger'
+      fullPath: '/t/$tenant/settings/danger'
+      preLoaderRoute: typeof TTenantSettingsDangerRouteImport
       parentRoute: typeof TTenantSettingsRoute
     }
     '/t/$tenant/services_/$serviceId': {
@@ -1577,6 +1751,15 @@ const TTenantSecurityRouteWithChildren = TTenantSecurityRoute._addFileChildren(
 
 interface TTenantSettingsRouteChildren {
   TTenantSettingsAuditRetentionRoute: typeof TTenantSettingsAuditRetentionRoute
+  TTenantSettingsProfileRoute: typeof TTenantSettingsProfileRoute
+  TTenantSettingsTenantRoute: typeof TTenantSettingsTenantRoute
+  TTenantSettingsAuthPolicyRoute: typeof TTenantSettingsAuthPolicyRoute
+  TTenantSettingsNetworkRoute: typeof TTenantSettingsNetworkRoute
+  TTenantSettingsTlsRoute: typeof TTenantSettingsTlsRoute
+  TTenantSettingsPkiRoute: typeof TTenantSettingsPkiRoute
+  TTenantSettingsObservabilityRoute: typeof TTenantSettingsObservabilityRoute
+  TTenantSettingsIntegrationsRoute: typeof TTenantSettingsIntegrationsRoute
+  TTenantSettingsDangerRoute: typeof TTenantSettingsDangerRoute
   TTenantSettingsNotificationChannelsRoute: typeof TTenantSettingsNotificationChannelsRoute
   TTenantSettingsNotificationDeliveryRoute: typeof TTenantSettingsNotificationDeliveryRoute
   TTenantSettingsNotificationRoutingRoute: typeof TTenantSettingsNotificationRoutingRoute
@@ -1586,6 +1769,15 @@ interface TTenantSettingsRouteChildren {
 
 const TTenantSettingsRouteChildren: TTenantSettingsRouteChildren = {
   TTenantSettingsAuditRetentionRoute: TTenantSettingsAuditRetentionRoute,
+  TTenantSettingsProfileRoute: TTenantSettingsProfileRoute,
+  TTenantSettingsTenantRoute: TTenantSettingsTenantRoute,
+  TTenantSettingsAuthPolicyRoute: TTenantSettingsAuthPolicyRoute,
+  TTenantSettingsNetworkRoute: TTenantSettingsNetworkRoute,
+  TTenantSettingsTlsRoute: TTenantSettingsTlsRoute,
+  TTenantSettingsPkiRoute: TTenantSettingsPkiRoute,
+  TTenantSettingsObservabilityRoute: TTenantSettingsObservabilityRoute,
+  TTenantSettingsIntegrationsRoute: TTenantSettingsIntegrationsRoute,
+  TTenantSettingsDangerRoute: TTenantSettingsDangerRoute,
   TTenantSettingsNotificationChannelsRoute:
     TTenantSettingsNotificationChannelsRoute,
   TTenantSettingsNotificationDeliveryRoute:

@@ -65,6 +65,7 @@ type Daemon struct {
 	startedAt       time.Time
 	vaultResolver   *vault.CachingResolver
 	jwksRegistry    *observability.JWKSRegistry
+	logTail         *gateway.LogTailBuffer
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -108,6 +109,14 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 	d.logLevel = lv
 	d.loggingShutdown = loggingShutdown
+
+	// 0b. Attach the in-memory log-tail ring buffer (#191 / Plan 07-007)
+	// as a fan-out handler on top of the configured slog default. The
+	// buffer drives the SSE log-tail endpoint exposed by the gateway.
+	d.logTail = gateway.NewLogTailBuffer(1000)
+	if base := slog.Default(); base != nil {
+		slog.SetDefault(slog.New(newMultiHandler(base.Handler(), d.logTail)))
+	}
 
 	// Create component loggers.
 	storeLog := slog.Default().With("component", "store")
@@ -188,6 +197,23 @@ func (d *Daemon) Start(ctx context.Context) error {
 		caddyLog.Info("child process started", "admin_addr", d.cfg.Caddy.AdminAddr)
 	}
 
+	// Register the gateway-side reload hook so settings handlers
+	// (network, TLS manual cert upload/delete, ACME flips) can fire-
+	// and-forget a "please refresh Caddy" notification. The hook is
+	// best-effort: errors from PushConfig are logged inside the
+	// gateway and never propagate back to the request.
+	gateway.SetCaddyReloadHook(func(ctx context.Context, reason string) error {
+		caddyLog.Info("reload requested", "reason", reason)
+		// The full config engine resync is owned by the gRPC layer;
+		// here we only need to confirm Caddy is alive. A no-op is
+		// acceptable when Caddy isn't running (CLI-only invocations,
+		// tests).
+		if d.caddy == nil || !d.caddy.IsRunning() {
+			return nil
+		}
+		return d.caddy.Health(ctx)
+	})
+
 	// 5a. Start log ingester.
 	socketPath := filepath.Join(d.cfg.DataDir, "trace.sock")
 	samplingCfg := tracestore.SamplingConfig{
@@ -265,7 +291,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			if d.upstreamHealth != nil {
 				uhSource = d.upstreamHealth
 			}
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, d.jwksRegistry, gwLog, d.logLevel)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, d.jwksRegistry, d.logTail, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}

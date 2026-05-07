@@ -3792,6 +3792,72 @@
         },
         "type": "object"
       },
+      "ManualCertResponse": {
+        "properties": {
+          "cert_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ref": {
+            "properties": {
+              "autoRenew": {
+                "type": "boolean"
+              },
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "sans": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "subject": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "sans": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256_fingerprint": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ManualCertUpload": {
+        "properties": {
+          "auto_renew": {
+            "type": "boolean"
+          },
+          "cert_pem": {
+            "type": "string"
+          },
+          "key_pem": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cert_pem",
+          "key_pem"
+        ],
+        "type": "object"
+      },
       "Middleware": {
         "properties": {
           "config": {
@@ -3866,6 +3932,382 @@
           "title",
           "status"
         ],
+        "type": "object"
+      },
+      "RevocationCreate": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "serial",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RevocationItem": {
+        "properties": {
+          "cert_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RevocationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RevocationItem"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsAuthPolicy": {
+        "properties": {
+          "absoluteSessionTimeoutSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "idleSessionTimeoutSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "passwordMinLength": {
+            "maximum": 256,
+            "minimum": 6,
+            "type": "integer"
+          },
+          "totpPolicy": {
+            "enum": [
+              "all",
+              "admins",
+              "optional"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsIntegrations": {
+        "properties": {
+          "pagerduty": {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "integrationKey": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "slack": {
+            "properties": {
+              "channel": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "webhookUrl": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "webhooks": {
+            "items": {
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "events": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsLogs": {
+        "properties": {
+          "format": {
+            "enum": [
+              "json",
+              "text"
+            ],
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error"
+            ],
+            "type": "string"
+          },
+          "rotationDays": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsMetrics": {
+        "properties": {
+          "retentionDays": {
+            "type": "integer"
+          },
+          "scrapeAuth": {
+            "enum": [
+              "none",
+              "basic",
+              "bearer"
+            ],
+            "type": "string"
+          },
+          "scrapeEndpoint": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsNetwork": {
+        "properties": {
+          "caddyOverrides": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "http3Enabled": {
+            "type": "boolean"
+          },
+          "idleTimeoutSeconds": {
+            "type": "integer"
+          },
+          "listenAddresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readTimeoutSeconds": {
+            "type": "integer"
+          },
+          "writeTimeoutSeconds": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsPKI": {
+        "properties": {
+          "caChainPem": {
+            "description": "PEM-encoded CA chain. Read-only on GET; replaced on PUT.",
+            "type": "string"
+          },
+          "enrollmentEndpoint": {
+            "description": "URL clients hit to request short-lived certs.",
+            "type": "string"
+          },
+          "enrollmentTokenTtlSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "keyAlgorithm": {
+            "enum": [
+              "ed25519",
+              "ecdsa-p256",
+              "rsa-2048",
+              "rsa-4096"
+            ],
+            "type": "string"
+          },
+          "nodeValiditySeconds": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsProfile": {
+        "properties": {
+          "avatarUrl": {
+            "type": "string"
+          },
+          "email": {
+            "description": "Read-only — managed by the auth provider.",
+            "format": "email",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mfaEnabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "preferences": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsTLS": {
+        "properties": {
+          "acmeDirectoryUrl": {
+            "description": "Required when acmeIssuer is `custom`.",
+            "type": "string"
+          },
+          "acmeEmail": {
+            "format": "email",
+            "type": "string"
+          },
+          "acmeIssuer": {
+            "enum": [
+              "lets-encrypt-prod",
+              "lets-encrypt-staging",
+              "zerossl",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "allowedCiphers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "manualCertRefs": {
+            "description": "References to uploaded PEM cert/key bundles in the cert store.",
+            "items": {
+              "properties": {
+                "autoRenew": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "issuer": {
+                  "type": "string"
+                },
+                "notAfter": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "notBefore": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsTenant": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "defaultTheme": {
+            "enum": [
+              "light",
+              "dark",
+              "auto"
+            ],
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentDomain": {
+            "type": "string"
+          },
+          "slug": {
+            "description": "Read-only after creation.",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsTraces": {
+        "properties": {
+          "otlpEndpoint": {
+            "type": "string"
+          },
+          "retentionDays": {
+            "type": "integer"
+          },
+          "sampleRate": {
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
         "type": "object"
       },
       "Site": {
@@ -4018,6 +4460,32 @@
           },
           "upstreamServiceId": {
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "WebhookTestResult": {
+        "properties": {
+          "deliveredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "durationMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "httpStatus": {
+            "type": "integer"
+          },
+          "latencyMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "success": {
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -9792,6 +10260,35 @@
         ]
       }
     },
+    "/api/v1/t/{tenant}/observability/logs/tail": {
+      "get": {
+        "operationId": "tailObservabilityLogs",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "text/event-stream of LogRecord events"
+          },
+          "403": {
+            "description": "requires observability:read"
+          }
+        },
+        "summary": "SSE stream of recent + live daemon log lines",
+        "tags": [
+          "settings"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
     "/api/v1/t/{tenant}/rbac-policies": {
       "get": {
         "operationId": "listRbacPolicies",
@@ -10441,6 +10938,1068 @@
           "$ref": "#/components/parameters/ID"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/settings/auth-policy": {
+      "get": {
+        "operationId": "getSettingsAuthPolicy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsAuthPolicy"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant auth policy",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsAuthPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsAuthPolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsAuthPolicy"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace tenant auth policy",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/danger/export": {
+      "get": {
+        "operationId": "getDangerExport",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "description": "Full tenant export blob (services, routes, policies, members, etc.)",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Export the entire tenant as a JSON dump",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/settings/danger/hard-reset": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "description": "Clears all non-config data for the tenant: traces, audit entries,\nruntime metrics, ephemeral sessions. Config (services, routes,\npolicies) is preserved. Requires the operator to type the tenant\nslug three times in the request body as `confirmation`.\n",
+        "operationId": "postDangerHardReset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "confirmation": {
+                    "description": "tenant slug repeated three times, joined by newlines",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "confirmation"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "resetAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Hard-reset tenant non-config data (super-admin)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/danger/tenant": {
+      "delete": {
+        "operationId": "deleteDangerTenant",
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "summary": "Soft-delete the tenant (super-admin; restorable for 30d)",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/settings/integrations": {
+      "get": {
+        "operationId": "getSettingsIntegrations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsIntegrations"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant integrations config",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsIntegrations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsIntegrations"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsIntegrations"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace tenant integrations config",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/me": {
+      "get": {
+        "operationId": "getSettingsProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsProfile"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get the current user's profile",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "patch": {
+        "operationId": "patchSettingsProfile",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "properties": {
+                  "avatarUrl": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "preferences": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsProfile"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch the current user's profile (RFC 7396 merge-patch)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/me/backup-codes/reset": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "postSettingsBackupCodesReset",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "codes": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "generatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Regenerate the current user's TOTP backup codes",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/me/password": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "postSettingsPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "currentPassword": {
+                    "type": "string"
+                  },
+                  "newPassword": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Change the current user's password",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/network": {
+      "get": {
+        "operationId": "getSettingsNetwork",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsNetwork"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant network settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "description": "After persist the daemon invokes `caddy.Reload()` to apply the new\nlisten addresses / Caddy overrides. A 200 response indicates both\nthe config-store write and the Caddy reload completed.\n",
+        "operationId": "putSettingsNetwork",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsNetwork"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsNetwork"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace tenant network settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/observability/logs": {
+      "get": {
+        "operationId": "getSettingsObservabilityLogs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsLogs"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get observability logs config",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsObservabilityLogs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsLogs"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsLogs"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace observability logs config",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/observability/metrics": {
+      "get": {
+        "operationId": "getSettingsObservabilityMetrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsMetrics"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get observability metrics config",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsObservabilityMetrics",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsMetrics"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsMetrics"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace observability metrics config",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/observability/traces": {
+      "get": {
+        "operationId": "getSettingsObservabilityTraces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsTraces"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get observability traces config",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsObservabilityTraces",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsTraces"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsTraces"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace observability traces config",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/pki": {
+      "get": {
+        "operationId": "getSettingsPKI",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsPKI"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant PKI settings (CA chain + enrollment endpoint)",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsPKI",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPKI"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsPKI"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace tenant PKI settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/pki/revocations": {
+      "get": {
+        "operationId": "listPKIRevocations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevocationList"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List revoked certificates for the tenant",
+        "tags": [
+          "settings"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createPKIRevocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevocationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevocationItem"
+                }
+              }
+            },
+            "description": "created"
+          },
+          "400": {
+            "description": "missing serial or reason"
+          }
+        },
+        "summary": "Record a revocation (by serial)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tenant": {
+      "get": {
+        "operationId": "getSettingsTenant",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsTenant"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant general settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "patch": {
+        "operationId": "patchSettingsTenant",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "properties": {
+                  "defaultTheme": {
+                    "enum": [
+                      "light",
+                      "dark",
+                      "auto"
+                    ],
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "logoUrl": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "parentDomain": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsTenant"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch tenant general settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls": {
+      "get": {
+        "operationId": "getSettingsTLS",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsTLS"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant TLS settings (ACME issuer + uploaded cert refs)",
+        "tags": [
+          "settings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "put": {
+        "operationId": "putSettingsTLS",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsTLS"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsTLS"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace tenant TLS settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/manual": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "uploadManualCert",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualCertUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualCertResponse"
+                }
+              }
+            },
+            "description": "created"
+          },
+          "400": {
+            "description": "invalid PEM or mismatched key"
+          },
+          "403": {
+            "description": "requires tls:write"
+          },
+          "409": {
+            "description": "domain already in use"
+          }
+        },
+        "summary": "Upload a manual TLS certificate (PEM cert + key)",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/settings/tls/manual/{certId}": {
+      "delete": {
+        "operationId": "deleteManualCert",
+        "responses": {
+          "204": {
+            "description": "no content"
+          },
+          "403": {
+            "description": "requires tls:write"
+          },
+          "404": {
+            "description": "cert not found"
+          }
+        },
+        "summary": "Delete a manually-uploaded TLS certificate",
+        "tags": [
+          "settings"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "in": "path",
+          "name": "certId",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/settings/webhooks/{id}/test": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "postWebhookTest",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookTestResult"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Dispatch a synthetic test event to the named webhook",
+        "tags": [
+          "settings"
+        ]
+      }
     },
     "/api/v1/t/{tenant}/sites": {
       "get": {
