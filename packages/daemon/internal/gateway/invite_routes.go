@@ -256,7 +256,7 @@ func handleInviteAccept(st store.Driver, sm *auth.SessionManager, cfg *config.Co
 			})
 			return
 		}
-		sm.SetCookie(w, session.ID)
+		sm.SetCookie(w, session.ID, auth.CookieOptions{})
 
 		writeJSON(w, http.StatusCreated, map[string]string{
 			"userId":    user.ID,

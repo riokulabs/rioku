@@ -260,6 +260,52 @@ components:
       description: "Prometheus HTTP API response, forwarded verbatim."
       additionalProperties: true
 
+    WidgetQueryRequest:
+      type: object
+      required: [type]
+      description: |
+        Dashboard widget query body. The daemon dispatches to the
+        Prometheus endpoint matching `type`:
+
+        - `instant` → `/api/v1/query` (uses `expr`, optional `time`)
+        - `range`   → `/api/v1/query_range` (uses `expr`, `start`, `end`, `step`)
+        - `series`  → `/api/v1/series` (uses `match[]`, optional `start`/`end`)
+
+        Tenant isolation is enforced at the AST layer — every
+        VectorSelector / `match[]` selector is rewritten with
+        `tenant_id="<tenant>"` and selected bypass patterns
+        (label_replace targeting tenant_id, on/ignoring with tenant_id,
+        regex `__name__` matchers, mismatched explicit tenant_id) are
+        rejected with HTTP 400.
+      properties:
+        type:
+          type: string
+          enum: [instant, range, series]
+        expr:
+          type: string
+          description: "PromQL expression for instant/range queries."
+        time:
+          type: string
+          description: "Instant query timestamp (Prometheus-formatted)."
+        start:
+          type: string
+          description: "Range/series query window start."
+        end:
+          type: string
+          description: "Range/series query window end."
+        step:
+          type: string
+          description: "Range query step (e.g. `30s`, `1m`)."
+        match:
+          type: array
+          description: "Series query match[] selectors."
+          items: { type: string }
+
+    WidgetQueryResponse:
+      type: object
+      description: "Prometheus HTTP API response shape, forwarded verbatim with tenant-scoped data."
+      additionalProperties: true
+
 paths:
   /api/v1/t/{tenant}/dashboards:
     parameters:
@@ -694,3 +740,52 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PromQLQueryResponse" }
+
+  /api/v1/t/{tenant}/widgets/query:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [widgets]
+      summary: Execute a dashboard widget query (instant / range / series)
+      description: |
+        Dashboard-builder query engine (#236, plan-16c). Reuses the
+        PromQL AST-injection pipeline so widget queries cannot leak
+        across tenants. Subject to a per-tenant token-bucket rate limit
+        (default 60 queries/minute/tenant; configurable via #237).
+      operationId: queryWidget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WidgetQueryRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WidgetQueryResponse" }
+        "400":
+          description: |
+            Query rejected — malformed JSON, unknown query type, empty
+            expression / match[], or a tenant-isolation bypass pattern
+            (label_replace targeting tenant_id, regex __name__ matcher,
+            mismatched explicit tenant_id).
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true
+        "429":
+          description: Per-tenant widget query rate limit exceeded.
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true
+        "502":
+          description: Upstream Prometheus error.
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true

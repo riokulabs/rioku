@@ -122,6 +122,9 @@ func NewGateway(
 	// PromQL proxy with tenant label injection (Plan 8 — Dashboards).
 	RegisterPromQLRoutes(topMux, st)
 
+	// Dashboard widget query engine (Plan 16c — closes #236).
+	RegisterWidgetQueryRoutes(topMux, st)
+
 	// Opaque-handle store: PII → short token mapping (plan 00c).
 	RegisterOpaqueRoutes(topMux, st)
 
