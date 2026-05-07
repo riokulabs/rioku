@@ -9,8 +9,15 @@ import { Alert, Button, Group, MultiSelect, Stack, Switch, Text, TextInput } fro
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useChannelList } from '@/features/notification-channels/api';
+import type { ChannelFilter } from '@/features/notification-channels/types';
 import { createRoutingRule, updateRoutingRule } from '../api';
+
+const EMPTY_CHANNEL_FILTER: ChannelFilter = {
+  kinds: [],
+  enabled: undefined,
+  search: '',
+};
 import { createRoutingRuleSchema, updateRoutingRuleSchema } from '../schemas';
 import type { NotificationRoutingRule } from '../types';
 
@@ -39,16 +46,16 @@ export function RoutingRuleForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const channels = useMockStore((s) => s.notificationChannels);
+  const channels = useChannelList(tenantId, EMPTY_CHANNEL_FILTER);
 
-  const channelOptions = useMemo(() => {
-    return Object.values(channels)
-      .filter((c) => c.tenant_id === tenantId)
-      .map((c) => ({
+  const channelOptions = useMemo(
+    () =>
+      channels.map((c) => ({
         value: c.id,
         label: `${c.name} — ${c.kind}`,
-      }));
-  }, [channels, tenantId]);
+      })),
+    [channels],
+  );
 
   const form = useForm<RoutingRuleFormValues>({
     initialValues: {

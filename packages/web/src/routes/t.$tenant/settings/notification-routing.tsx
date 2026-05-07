@@ -142,6 +142,7 @@ function NotificationRoutingPage() {
       >
         {drawerMode === 'detail' && selected && (
           <RoutingRuleDetail
+            tenantId={tenantId}
             ruleId={selected.id}
             onEdit={() => {
               setDrawerMode('edit');

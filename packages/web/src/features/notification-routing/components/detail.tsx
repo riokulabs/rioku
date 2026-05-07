@@ -29,10 +29,39 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconRoute } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useChannelList } from '@/features/notification-channels/api';
+import type { ChannelFilter } from '@/features/notification-channels/types';
+import { useDeliveryLogList } from '@/features/notification-log/api';
+import type { DeliveryLogFilter } from '@/features/notification-log/types';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { deleteRoutingRule, updateRoutingRule, useRoutingRuleDetail } from '../api';
+
+const EMPTY_CHANNEL_FILTER: ChannelFilter = {
+  kinds: [],
+  enabled: undefined,
+  search: '',
+};
+const EMPTY_DELIVERY_LOG_FILTER: DeliveryLogFilter = {
+  statuses: [],
+  channel_ids: [],
+  date_from: null,
+  date_to: null,
+  search: '',
+};
+const ROUTING_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['notification-routing-rule'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 
 dayjs.extend(relativeTime);
 
@@ -44,16 +73,27 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 interface RoutingRuleDetailProps {
+  tenantId: string;
   ruleId: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function RoutingRuleDetail({ ruleId, onEdit, onClose }: RoutingRuleDetailProps) {
+export function RoutingRuleDetail({
+  tenantId,
+  ruleId,
+  onEdit,
+  onClose,
+}: RoutingRuleDetailProps) {
   const rule = useRoutingRuleDetail(ruleId);
-  const channels = useMockStore((s) => s.notificationChannels);
-  const deliveryLog = useMockStore((s) => s.notificationDeliveryLog);
-  const auditEntries = useMockStore((s) => s.audit);
+  const channelList = useChannelList(tenantId, EMPTY_CHANNEL_FILTER);
+  const channels = useMemo(() => {
+    const m: Record<string, (typeof channelList)[number]> = {};
+    for (const c of channelList) m[c.id] = c;
+    return m;
+  }, [channelList]);
+  const deliveryLog = useDeliveryLogList(tenantId, EMPTY_DELIVERY_LOG_FILTER);
+  const auditEntries = useAuditList(tenantId, ROUTING_AUDIT_FILTER);
 
   const canWrite = usePermission('notification-routing:write');
 
@@ -67,7 +107,7 @@ export function RoutingRuleDetail({ ruleId, onEdit, onClose }: RoutingRuleDetail
   const recentMatches = useMemo(() => {
     if (!rule) return [];
     const channelSet = new Set(rule.channel_ids);
-    return Object.values(deliveryLog)
+    return deliveryLog
       .filter((d) => channelSet.has(d.channel_id))
       .slice()
       .sort((a, b) => b.last_attempted_at.localeCompare(a.last_attempted_at))
@@ -77,7 +117,7 @@ export function RoutingRuleDetail({ ruleId, onEdit, onClose }: RoutingRuleDetail
   const auditTail = useMemo(() => {
     if (!rule) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'notification-routing-rule' && e.resource_id === rule.id)
+      .filter((e) => e.resource_id === rule.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
