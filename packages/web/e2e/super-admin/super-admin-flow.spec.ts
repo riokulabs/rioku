@@ -71,26 +71,29 @@ test.describe('super-admin: tenant inventory', () => {
 
     await page.goto('/admin/tenants');
 
-    // All three seeded tenants render.
+    // All three seeded tenants render. Scope assertions to the data table to
+    // avoid colliding with "acme" elsewhere in the AdminLayout (tenant
+    // switcher etc.).
     await expect(page.getByRole('heading', { name: /^tenants$/i })).toBeVisible();
-    await expect(page.getByText('acme')).toBeVisible();
-    await expect(page.getByText('beta')).toBeVisible();
-    await expect(page.getByText('gamma')).toBeVisible();
+    const table = page.getByRole('table');
+    await expect(table.getByRole('cell', { name: 'Acme Corp' })).toBeVisible();
+    await expect(table.getByRole('cell', { name: 'Beta Industries' })).toBeVisible();
+    await expect(table.getByRole('cell', { name: 'Gamma Co' })).toBeVisible();
 
-    // Filter by plan = enterprise → only acme remains.
+    // Filter by plan = enterprise → only acme (Acme Corp) remains.
     const planFilter = page.getByTestId('plan-filter');
     await planFilter.click();
     await page.getByRole('option', { name: /^Enterprise$/ }).click();
-    await expect(page.getByText('acme')).toBeVisible();
-    await expect(page.getByText('beta')).toHaveCount(0);
-    await expect(page.getByText('gamma')).toHaveCount(0);
+    await expect(table.getByRole('cell', { name: 'Acme Corp' })).toBeVisible();
+    await expect(table.getByRole('cell', { name: 'Beta Industries' })).toHaveCount(0);
+    await expect(table.getByRole('cell', { name: 'Gamma Co' })).toHaveCount(0);
 
     // Reset filter, then search by slug "beta".
     await planFilter.click();
     await page.getByRole('option', { name: /^All plans$/ }).click();
     await page.getByTestId('tenant-search').fill('beta');
-    await expect(page.getByText('beta')).toBeVisible();
-    await expect(page.getByText('acme')).toHaveCount(0);
+    await expect(table.getByRole('cell', { name: 'Beta Industries' })).toBeVisible();
+    await expect(table.getByRole('cell', { name: 'Acme Corp' })).toHaveCount(0);
 
     // Click View on the beta row → detail drawer opens with quick info + Open in tenant.
     await page.getByRole('button', { name: /^view beta$/i }).click();
