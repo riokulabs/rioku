@@ -63,6 +63,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type aPIManagementServiceListApplicationsResponse = {
   data: V1ListApplicationsResponse | RpcStatus;
   status: number;
@@ -100,14 +102,15 @@ export const getAPIManagementServiceListApplicationsInfiniteQueryOptions = <
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceListApplicationsQueryKey();
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof aPIManagementServiceListApplications>>
-  > = ({ signal }) => aPIManagementServiceListApplications(signal);
+  > = ({ signal }) => aPIManagementServiceListApplications({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceListApplications>>,
@@ -140,6 +143,7 @@ export function useAPIManagementServiceListApplicationsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListApplicationsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aPIManagementServiceListApplications>>>,
@@ -160,6 +164,7 @@ export function useAPIManagementServiceListApplicationsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListApplicationsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof aPIManagementServiceListApplications>>>,
@@ -172,6 +177,7 @@ export function useAPIManagementServiceListApplicationsInfinite<
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAPIManagementServiceListApplicationsInfinite<
@@ -185,6 +191,7 @@ export function useAPIManagementServiceListApplicationsInfinite<
       TData
     >
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceListApplicationsInfiniteQueryOptions(options);
 
@@ -204,14 +211,15 @@ export const getAPIManagementServiceListApplicationsQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceListApplications>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceListApplicationsQueryKey();
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof aPIManagementServiceListApplications>>
-  > = ({ signal }) => aPIManagementServiceListApplications(signal);
+  > = ({ signal }) => aPIManagementServiceListApplications({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceListApplications>>,
@@ -240,6 +248,7 @@ export function useAPIManagementServiceListApplications<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListApplications<
   TData = Awaited<ReturnType<typeof aPIManagementServiceListApplications>>,
@@ -256,6 +265,7 @@ export function useAPIManagementServiceListApplications<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListApplications<
   TData = Awaited<ReturnType<typeof aPIManagementServiceListApplications>>,
@@ -264,6 +274,7 @@ export function useAPIManagementServiceListApplications<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceListApplications>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useAPIManagementServiceListApplications<
@@ -273,6 +284,7 @@ export function useAPIManagementServiceListApplications<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceListApplications>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceListApplicationsQueryOptions(options);
 
@@ -323,6 +335,7 @@ export const getAPIManagementServiceCreateApplicationMutationOptions = <
     { data: V1CreateApplicationRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceCreateApplication>>,
   TError,
@@ -330,11 +343,11 @@ export const getAPIManagementServiceCreateApplicationMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceCreateApplication'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceCreateApplication>>,
@@ -342,7 +355,7 @@ export const getAPIManagementServiceCreateApplicationMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return aPIManagementServiceCreateApplication(data);
+    return aPIManagementServiceCreateApplication(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -367,6 +380,7 @@ export const useAPIManagementServiceCreateApplication = <
     { data: V1CreateApplicationRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceCreateApplication>>,
   TError,
@@ -410,6 +424,7 @@ export const getAPIManagementServiceDeleteApplicationMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceDeleteApplication>>,
   TError,
@@ -417,11 +432,11 @@ export const getAPIManagementServiceDeleteApplicationMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceDeleteApplication'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceDeleteApplication>>,
@@ -429,7 +444,7 @@ export const getAPIManagementServiceDeleteApplicationMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return aPIManagementServiceDeleteApplication(id);
+    return aPIManagementServiceDeleteApplication(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -451,6 +466,7 @@ export const useAPIManagementServiceDeleteApplication = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceDeleteApplication>>,
   TError,
@@ -501,15 +517,16 @@ export const getAPIManagementServiceGetApplicationInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceGetApplicationQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>> = ({
     signal,
-  }) => aPIManagementServiceGetApplication(id, signal);
+  }) => aPIManagementServiceGetApplication(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>,
@@ -544,6 +561,7 @@ export function useAPIManagementServiceGetApplicationInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetApplicationInfinite<
@@ -567,6 +585,7 @@ export function useAPIManagementServiceGetApplicationInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetApplicationInfinite<
@@ -582,6 +601,7 @@ export function useAPIManagementServiceGetApplicationInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -598,6 +618,7 @@ export function useAPIManagementServiceGetApplicationInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceGetApplicationInfiniteQueryOptions(id, options);
@@ -620,15 +641,16 @@ export const getAPIManagementServiceGetApplicationQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceGetApplicationQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>> = ({
     signal,
-  }) => aPIManagementServiceGetApplication(id, signal);
+  }) => aPIManagementServiceGetApplication(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>,
@@ -659,6 +681,7 @@ export function useAPIManagementServiceGetApplication<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetApplication<
@@ -678,6 +701,7 @@ export function useAPIManagementServiceGetApplication<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetApplication<
@@ -689,6 +713,7 @@ export function useAPIManagementServiceGetApplication<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -701,6 +726,7 @@ export function useAPIManagementServiceGetApplication<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceGetApplication>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceGetApplicationQueryOptions(id, options);
@@ -750,6 +776,7 @@ export const getAPIManagementServiceUpdateApplicationMutationOptions = <
     { id: string; data: APIManagementServiceUpdateApplicationBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceUpdateApplication>>,
   TError,
@@ -757,11 +784,11 @@ export const getAPIManagementServiceUpdateApplicationMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceUpdateApplication'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceUpdateApplication>>,
@@ -769,7 +796,7 @@ export const getAPIManagementServiceUpdateApplicationMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceUpdateApplication(id, data);
+    return aPIManagementServiceUpdateApplication(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -792,6 +819,7 @@ export const useAPIManagementServiceUpdateApplication = <
     { id: string; data: APIManagementServiceUpdateApplicationBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceUpdateApplication>>,
   TError,
@@ -838,6 +866,7 @@ export const getAPIManagementServiceTransitionApplicationMutationOptions = <
     { id: string; data: APIManagementServiceTransitionApplicationBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceTransitionApplication>>,
   TError,
@@ -845,11 +874,11 @@ export const getAPIManagementServiceTransitionApplicationMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceTransitionApplication'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceTransitionApplication>>,
@@ -857,7 +886,7 @@ export const getAPIManagementServiceTransitionApplicationMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceTransitionApplication(id, data);
+    return aPIManagementServiceTransitionApplication(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -880,6 +909,7 @@ export const useAPIManagementServiceTransitionApplication = <
     { id: string; data: APIManagementServiceTransitionApplicationBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceTransitionApplication>>,
   TError,
@@ -942,15 +972,16 @@ export const getAPIManagementServiceListPlansInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceListPlansQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceListPlans>>> = ({
     signal,
-  }) => aPIManagementServiceListPlans(params, signal);
+  }) => aPIManagementServiceListPlans(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceListPlans>>,
@@ -985,6 +1016,7 @@ export function useAPIManagementServiceListPlansInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListPlansInfinite<
@@ -1008,6 +1040,7 @@ export function useAPIManagementServiceListPlansInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListPlansInfinite<
@@ -1023,6 +1056,7 @@ export function useAPIManagementServiceListPlansInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1039,6 +1073,7 @@ export function useAPIManagementServiceListPlansInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceListPlansInfiniteQueryOptions(params, options);
@@ -1061,15 +1096,16 @@ export const getAPIManagementServiceListPlansQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceListPlans>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceListPlansQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceListPlans>>> = ({
     signal,
-  }) => aPIManagementServiceListPlans(params, signal);
+  }) => aPIManagementServiceListPlans(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceListPlans>>,
@@ -1100,6 +1136,7 @@ export function useAPIManagementServiceListPlans<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListPlans<
@@ -1119,6 +1156,7 @@ export function useAPIManagementServiceListPlans<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListPlans<
@@ -1130,6 +1168,7 @@ export function useAPIManagementServiceListPlans<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceListPlans>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1142,6 +1181,7 @@ export function useAPIManagementServiceListPlans<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceListPlans>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceListPlansQueryOptions(params, options);
@@ -1193,6 +1233,7 @@ export const getAPIManagementServiceCreatePlan2MutationOptions = <
     { data: V1CreatePlanRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceCreatePlan2>>,
   TError,
@@ -1200,11 +1241,11 @@ export const getAPIManagementServiceCreatePlan2MutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceCreatePlan2'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceCreatePlan2>>,
@@ -1212,7 +1253,7 @@ export const getAPIManagementServiceCreatePlan2MutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return aPIManagementServiceCreatePlan2(data);
+    return aPIManagementServiceCreatePlan2(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1237,6 +1278,7 @@ export const useAPIManagementServiceCreatePlan2 = <
     { data: V1CreatePlanRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceCreatePlan2>>,
   TError,
@@ -1280,6 +1322,7 @@ export const getAPIManagementServiceDeletePlanMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceDeletePlan>>,
   TError,
@@ -1287,11 +1330,11 @@ export const getAPIManagementServiceDeletePlanMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceDeletePlan'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceDeletePlan>>,
@@ -1299,7 +1342,7 @@ export const getAPIManagementServiceDeletePlanMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return aPIManagementServiceDeletePlan(id);
+    return aPIManagementServiceDeletePlan(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1321,6 +1364,7 @@ export const useAPIManagementServiceDeletePlan = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceDeletePlan>>,
   TError,
@@ -1368,15 +1412,16 @@ export const getAPIManagementServiceGetPlanInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceGetPlanQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>> = ({
     signal,
-  }) => aPIManagementServiceGetPlan(id, signal);
+  }) => aPIManagementServiceGetPlan(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>,
@@ -1411,6 +1456,7 @@ export function useAPIManagementServiceGetPlanInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetPlanInfinite<
@@ -1434,6 +1480,7 @@ export function useAPIManagementServiceGetPlanInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetPlanInfinite<
@@ -1449,6 +1496,7 @@ export function useAPIManagementServiceGetPlanInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1465,6 +1513,7 @@ export function useAPIManagementServiceGetPlanInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceGetPlanInfiniteQueryOptions(id, options);
@@ -1487,15 +1536,16 @@ export const getAPIManagementServiceGetPlanQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceGetPlanQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>> = ({
     signal,
-  }) => aPIManagementServiceGetPlan(id, signal);
+  }) => aPIManagementServiceGetPlan(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>,
@@ -1526,6 +1576,7 @@ export function useAPIManagementServiceGetPlan<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetPlan<
@@ -1545,6 +1596,7 @@ export function useAPIManagementServiceGetPlan<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetPlan<
@@ -1556,6 +1608,7 @@ export function useAPIManagementServiceGetPlan<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1568,6 +1621,7 @@ export function useAPIManagementServiceGetPlan<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof aPIManagementServiceGetPlan>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceGetPlanQueryOptions(id, options);
@@ -1617,6 +1671,7 @@ export const getAPIManagementServiceUpdatePlanMutationOptions = <
     { id: string; data: APIManagementServiceUpdatePlanBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceUpdatePlan>>,
   TError,
@@ -1624,11 +1679,11 @@ export const getAPIManagementServiceUpdatePlanMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceUpdatePlan'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceUpdatePlan>>,
@@ -1636,7 +1691,7 @@ export const getAPIManagementServiceUpdatePlanMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceUpdatePlan(id, data);
+    return aPIManagementServiceUpdatePlan(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1658,6 +1713,7 @@ export const useAPIManagementServiceUpdatePlan = <
     { id: string; data: APIManagementServiceUpdatePlanBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceUpdatePlan>>,
   TError,
@@ -1704,6 +1760,7 @@ export const getAPIManagementServiceTransitionPlanMutationOptions = <
     { id: string; data: APIManagementServiceTransitionPlanBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceTransitionPlan>>,
   TError,
@@ -1711,11 +1768,11 @@ export const getAPIManagementServiceTransitionPlanMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceTransitionPlan'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceTransitionPlan>>,
@@ -1723,7 +1780,7 @@ export const getAPIManagementServiceTransitionPlanMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceTransitionPlan(id, data);
+    return aPIManagementServiceTransitionPlan(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1745,6 +1802,7 @@ export const useAPIManagementServiceTransitionPlan = <
     { id: string; data: APIManagementServiceTransitionPlanBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceTransitionPlan>>,
   TError,
@@ -1809,16 +1867,17 @@ export const getAPIManagementServiceListSubscriptionsInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
     queryOptions?.queryKey ?? getAPIManagementServiceListSubscriptionsQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof aPIManagementServiceListSubscriptions>>
-  > = ({ signal }) => aPIManagementServiceListSubscriptions(params, signal);
+  > = ({ signal }) => aPIManagementServiceListSubscriptions(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceListSubscriptions>>,
@@ -1853,6 +1912,7 @@ export function useAPIManagementServiceListSubscriptionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListSubscriptionsInfinite<
@@ -1876,6 +1936,7 @@ export function useAPIManagementServiceListSubscriptionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListSubscriptionsInfinite<
@@ -1891,6 +1952,7 @@ export function useAPIManagementServiceListSubscriptionsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1907,6 +1969,7 @@ export function useAPIManagementServiceListSubscriptionsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceListSubscriptionsInfiniteQueryOptions(
@@ -1936,16 +1999,17 @@ export const getAPIManagementServiceListSubscriptionsQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
     queryOptions?.queryKey ?? getAPIManagementServiceListSubscriptionsQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof aPIManagementServiceListSubscriptions>>
-  > = ({ signal }) => aPIManagementServiceListSubscriptions(params, signal);
+  > = ({ signal }) => aPIManagementServiceListSubscriptions(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceListSubscriptions>>,
@@ -1980,6 +2044,7 @@ export function useAPIManagementServiceListSubscriptions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListSubscriptions<
@@ -2003,6 +2068,7 @@ export function useAPIManagementServiceListSubscriptions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceListSubscriptions<
@@ -2018,6 +2084,7 @@ export function useAPIManagementServiceListSubscriptions<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2034,6 +2101,7 @@ export function useAPIManagementServiceListSubscriptions<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceListSubscriptionsQueryOptions(params, options);
@@ -2085,6 +2153,7 @@ export const getAPIManagementServiceCreateSubscriptionMutationOptions = <
     { data: V1CreateSubscriptionRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceCreateSubscription>>,
   TError,
@@ -2092,11 +2161,11 @@ export const getAPIManagementServiceCreateSubscriptionMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceCreateSubscription'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceCreateSubscription>>,
@@ -2104,7 +2173,7 @@ export const getAPIManagementServiceCreateSubscriptionMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return aPIManagementServiceCreateSubscription(data);
+    return aPIManagementServiceCreateSubscription(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2129,6 +2198,7 @@ export const useAPIManagementServiceCreateSubscription = <
     { data: V1CreateSubscriptionRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceCreateSubscription>>,
   TError,
@@ -2179,15 +2249,16 @@ export const getAPIManagementServiceGetSubscriptionInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceGetSubscriptionQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceGetSubscription>>> = ({
     signal,
-  }) => aPIManagementServiceGetSubscription(id, signal);
+  }) => aPIManagementServiceGetSubscription(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceGetSubscription>>,
@@ -2222,6 +2293,7 @@ export function useAPIManagementServiceGetSubscriptionInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetSubscriptionInfinite<
@@ -2245,6 +2317,7 @@ export function useAPIManagementServiceGetSubscriptionInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetSubscriptionInfinite<
@@ -2260,6 +2333,7 @@ export function useAPIManagementServiceGetSubscriptionInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2276,6 +2350,7 @@ export function useAPIManagementServiceGetSubscriptionInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceGetSubscriptionInfiniteQueryOptions(id, options);
@@ -2302,15 +2377,16 @@ export const getAPIManagementServiceGetSubscriptionQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getAPIManagementServiceGetSubscriptionQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof aPIManagementServiceGetSubscription>>> = ({
     signal,
-  }) => aPIManagementServiceGetSubscription(id, signal);
+  }) => aPIManagementServiceGetSubscription(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof aPIManagementServiceGetSubscription>>,
@@ -2345,6 +2421,7 @@ export function useAPIManagementServiceGetSubscription<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetSubscription<
@@ -2368,6 +2445,7 @@ export function useAPIManagementServiceGetSubscription<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useAPIManagementServiceGetSubscription<
@@ -2383,6 +2461,7 @@ export function useAPIManagementServiceGetSubscription<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2399,6 +2478,7 @@ export function useAPIManagementServiceGetSubscription<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAPIManagementServiceGetSubscriptionQueryOptions(id, options);
@@ -2448,6 +2528,7 @@ export const getAPIManagementServiceUpdateSubscriptionMutationOptions = <
     { id: string; data: APIManagementServiceUpdateSubscriptionBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceUpdateSubscription>>,
   TError,
@@ -2455,11 +2536,11 @@ export const getAPIManagementServiceUpdateSubscriptionMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceUpdateSubscription'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceUpdateSubscription>>,
@@ -2467,7 +2548,7 @@ export const getAPIManagementServiceUpdateSubscriptionMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceUpdateSubscription(id, data);
+    return aPIManagementServiceUpdateSubscription(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2490,6 +2571,7 @@ export const useAPIManagementServiceUpdateSubscription = <
     { id: string; data: APIManagementServiceUpdateSubscriptionBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceUpdateSubscription>>,
   TError,
@@ -2536,6 +2618,7 @@ export const getAPIManagementServiceTransitionSubscriptionMutationOptions = <
     { id: string; data: APIManagementServiceTransitionSubscriptionBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceTransitionSubscription>>,
   TError,
@@ -2543,11 +2626,11 @@ export const getAPIManagementServiceTransitionSubscriptionMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceTransitionSubscription'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceTransitionSubscription>>,
@@ -2555,7 +2638,7 @@ export const getAPIManagementServiceTransitionSubscriptionMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceTransitionSubscription(id, data);
+    return aPIManagementServiceTransitionSubscription(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2578,6 +2661,7 @@ export const useAPIManagementServiceTransitionSubscription = <
     { id: string; data: APIManagementServiceTransitionSubscriptionBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceTransitionSubscription>>,
   TError,
@@ -2627,6 +2711,7 @@ export const getAPIManagementServiceCreatePlanMutationOptions = <
     { id: string; data: APIManagementServiceCreatePlanBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof aPIManagementServiceCreatePlan>>,
   TError,
@@ -2634,11 +2719,11 @@ export const getAPIManagementServiceCreatePlanMutationOptions = <
   TContext
 > => {
   const mutationKey = ['aPIManagementServiceCreatePlan'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof aPIManagementServiceCreatePlan>>,
@@ -2646,7 +2731,7 @@ export const getAPIManagementServiceCreatePlanMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return aPIManagementServiceCreatePlan(id, data);
+    return aPIManagementServiceCreatePlan(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2671,6 +2756,7 @@ export const useAPIManagementServiceCreatePlan = <
     { id: string; data: APIManagementServiceCreatePlanBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof aPIManagementServiceCreatePlan>>,
   TError,

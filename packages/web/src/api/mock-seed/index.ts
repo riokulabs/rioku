@@ -8,11 +8,7 @@ export * from './api-keys';
 export * from './rbac-policies';
 export * from './impersonation';
 export * from './access-policies';
-// Plan 03 (api-mgmt)
-export * from './services';
-export * from './routes';
-export * from './middlewares';
-export * from './sites';
+// Plan 03 (api-mgmt) feature slices retired — seed lives in _internal.ts
 // Plan 04 (ai)
 export * from './ai-providers';
 export * from './ai-agents';

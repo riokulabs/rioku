@@ -49,6 +49,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * Requires `admin:cross-tenant-read`. Returns hash-chained super-admin
 audit entries. Until migration 26 lands the daemon proxies the
@@ -84,13 +86,14 @@ export const getListAdminAuditInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAdminAuditQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminAudit>>> = ({ signal }) =>
-    listAdminAudit(signal);
+    listAdminAudit({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAdminAudit>>,
@@ -119,6 +122,7 @@ export function useListAdminAuditInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminAuditInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listAdminAudit>>>,
@@ -135,6 +139,7 @@ export function useListAdminAuditInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminAuditInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listAdminAudit>>>,
@@ -143,6 +148,7 @@ export function useListAdminAuditInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Cross-tenant admin audit log (super-admin)
@@ -155,6 +161,7 @@ export function useListAdminAuditInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAdminAuditInfiniteQueryOptions(options);
 
@@ -172,13 +179,14 @@ export const getListAdminAuditQueryOptions = <
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAdminAuditQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminAudit>>> = ({ signal }) =>
-    listAdminAudit(signal);
+    listAdminAudit({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAdminAudit>>,
@@ -203,6 +211,7 @@ export function useListAdminAudit<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminAudit<
   TData = Awaited<ReturnType<typeof listAdminAudit>>,
@@ -217,12 +226,14 @@ export function useListAdminAudit<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminAudit<
   TData = Awaited<ReturnType<typeof listAdminAudit>>,
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Cross-tenant admin audit log (super-admin)
@@ -233,6 +244,7 @@ export function useListAdminAudit<
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAdminAuditQueryOptions(options);
 
@@ -279,13 +291,14 @@ export const getListAdminTenantsInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminTenants>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAdminTenantsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminTenants>>> = ({ signal }) =>
-    listAdminTenants(signal);
+    listAdminTenants({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAdminTenants>>,
@@ -314,6 +327,7 @@ export function useListAdminTenantsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminTenantsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listAdminTenants>>>,
@@ -330,6 +344,7 @@ export function useListAdminTenantsInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminTenantsInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listAdminTenants>>>,
@@ -338,6 +353,7 @@ export function useListAdminTenantsInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminTenants>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List all tenants (super-admin)
@@ -350,6 +366,7 @@ export function useListAdminTenantsInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminTenants>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAdminTenantsInfiniteQueryOptions(options);
 
@@ -367,13 +384,14 @@ export const getListAdminTenantsQueryOptions = <
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminTenants>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAdminTenantsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminTenants>>> = ({ signal }) =>
-    listAdminTenants(signal);
+    listAdminTenants({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAdminTenants>>,
@@ -398,6 +416,7 @@ export function useListAdminTenants<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminTenants<
   TData = Awaited<ReturnType<typeof listAdminTenants>>,
@@ -412,12 +431,14 @@ export function useListAdminTenants<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminTenants<
   TData = Awaited<ReturnType<typeof listAdminTenants>>,
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminTenants>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List all tenants (super-admin)
@@ -428,6 +449,7 @@ export function useListAdminTenants<
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminTenants>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAdminTenantsQueryOptions(options);
 
@@ -476,6 +498,7 @@ export const getCreateAdminTenantMutationOptions = <
     { data: CreateAdminTenantBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createAdminTenant>>,
   TError,
@@ -483,11 +506,11 @@ export const getCreateAdminTenantMutationOptions = <
   TContext
 > => {
   const mutationKey = ['createAdminTenant'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createAdminTenant>>,
@@ -495,7 +518,7 @@ export const getCreateAdminTenantMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return createAdminTenant(data);
+    return createAdminTenant(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -517,6 +540,7 @@ export const useCreateAdminTenant = <TError = unknown, TContext = unknown>(optio
     { data: CreateAdminTenantBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createAdminTenant>>,
   TError,
@@ -560,6 +584,7 @@ export const getDeleteAdminTenantMutationOptions = <
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteAdminTenant>>,
   TError,
@@ -567,11 +592,11 @@ export const getDeleteAdminTenantMutationOptions = <
   TContext
 > => {
   const mutationKey = ['deleteAdminTenant'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteAdminTenant>>,
@@ -579,7 +604,7 @@ export const getDeleteAdminTenantMutationOptions = <
   > = (props) => {
     const { id } = props ?? {};
 
-    return deleteAdminTenant(id);
+    return deleteAdminTenant(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -601,6 +626,7 @@ export const useDeleteAdminTenant = <TError = unknown, TContext = unknown>(optio
     { id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteAdminTenant>>,
   TError,
@@ -647,14 +673,15 @@ export const getGetAdminTenantInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAdminTenant>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAdminTenantQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminTenant>>> = ({ signal }) =>
-    getAdminTenant(id, signal);
+    getAdminTenant(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof getAdminTenant>>,
@@ -685,6 +712,7 @@ export function useGetAdminTenantInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAdminTenantInfinite<
@@ -704,6 +732,7 @@ export function useGetAdminTenantInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAdminTenantInfinite<
@@ -715,6 +744,7 @@ export function useGetAdminTenantInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAdminTenant>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -730,6 +760,7 @@ export function useGetAdminTenantInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAdminTenant>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAdminTenantInfiniteQueryOptions(id, options);
@@ -750,14 +781,15 @@ export const getGetAdminTenantQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminTenant>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAdminTenantQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminTenant>>> = ({ signal }) =>
-    getAdminTenant(id, signal);
+    getAdminTenant(id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAdminTenant>>,
@@ -784,6 +816,7 @@ export function useGetAdminTenant<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAdminTenant<
@@ -801,6 +834,7 @@ export function useGetAdminTenant<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAdminTenant<
@@ -810,6 +844,7 @@ export function useGetAdminTenant<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminTenant>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -823,6 +858,7 @@ export function useGetAdminTenant<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminTenant>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAdminTenantQueryOptions(id, options);
@@ -872,6 +908,7 @@ export const getUpdateAdminTenantMutationOptions = <
     { id: string; data: UpdateAdminTenantBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateAdminTenant>>,
   TError,
@@ -879,11 +916,11 @@ export const getUpdateAdminTenantMutationOptions = <
   TContext
 > => {
   const mutationKey = ['updateAdminTenant'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateAdminTenant>>,
@@ -891,7 +928,7 @@ export const getUpdateAdminTenantMutationOptions = <
   > = (props) => {
     const { id, data } = props ?? {};
 
-    return updateAdminTenant(id, data);
+    return updateAdminTenant(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -913,6 +950,7 @@ export const useUpdateAdminTenant = <TError = unknown, TContext = unknown>(optio
     { id: string; data: UpdateAdminTenantBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateAdminTenant>>,
   TError,
@@ -955,13 +993,14 @@ export const getListAdminUsersInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminUsers>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAdminUsersQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminUsers>>> = ({ signal }) =>
-    listAdminUsers(signal);
+    listAdminUsers({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAdminUsers>>,
@@ -990,6 +1029,7 @@ export function useListAdminUsersInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminUsersInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listAdminUsers>>>,
@@ -1006,6 +1046,7 @@ export function useListAdminUsersInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminUsersInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listAdminUsers>>>,
@@ -1014,6 +1055,7 @@ export function useListAdminUsersInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminUsers>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List all users across tenants (super-admin)
@@ -1026,6 +1068,7 @@ export function useListAdminUsersInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAdminUsers>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAdminUsersInfiniteQueryOptions(options);
 
@@ -1043,13 +1086,14 @@ export const getListAdminUsersQueryOptions = <
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminUsers>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAdminUsersQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminUsers>>> = ({ signal }) =>
-    listAdminUsers(signal);
+    listAdminUsers({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAdminUsers>>,
@@ -1074,6 +1118,7 @@ export function useListAdminUsers<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminUsers<
   TData = Awaited<ReturnType<typeof listAdminUsers>>,
@@ -1088,12 +1133,14 @@ export function useListAdminUsers<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAdminUsers<
   TData = Awaited<ReturnType<typeof listAdminUsers>>,
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminUsers>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List all users across tenants (super-admin)
@@ -1104,6 +1151,7 @@ export function useListAdminUsers<
   TError = unknown,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAdminUsers>>, TError, TData>>;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAdminUsersQueryOptions(options);
 

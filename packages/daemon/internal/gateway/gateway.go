@@ -229,6 +229,7 @@ func NewGateway(
 	// tenant via `store.TenantIDFromContext`'s fallback.
 	RegisterServicesRoutes(topMux, st)
 	RegisterRoutesRoutes(topMux, st)
+	RegisterRouteMiddlewareOrderRoutes(topMux, st)
 
 	// RBAC policies (chunk 7b): subject ↔ role mappings per tenant.
 	RegisterRbacPolicyRoutes(topMux, st)

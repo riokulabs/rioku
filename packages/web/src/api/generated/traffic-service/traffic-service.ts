@@ -51,6 +51,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type trafficServiceListSessionsResponse = {
   data: V1SessionList | RpcStatus;
   status: number;
@@ -96,15 +98,16 @@ export const getTrafficServiceListSessionsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceListSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceListSessionsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceListSessions>>> = ({
     signal,
-  }) => trafficServiceListSessions(params, signal);
+  }) => trafficServiceListSessions(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof trafficServiceListSessions>>,
@@ -135,6 +138,7 @@ export function useTrafficServiceListSessionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceListSessionsInfinite<
@@ -154,6 +158,7 @@ export function useTrafficServiceListSessionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceListSessionsInfinite<
@@ -165,6 +170,7 @@ export function useTrafficServiceListSessionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceListSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -177,6 +183,7 @@ export function useTrafficServiceListSessionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceListSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceListSessionsInfiniteQueryOptions(params, options);
@@ -199,15 +206,16 @@ export const getTrafficServiceListSessionsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceListSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceListSessionsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceListSessions>>> = ({
     signal,
-  }) => trafficServiceListSessions(params, signal);
+  }) => trafficServiceListSessions(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof trafficServiceListSessions>>,
@@ -238,6 +246,7 @@ export function useTrafficServiceListSessions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceListSessions<
@@ -257,6 +266,7 @@ export function useTrafficServiceListSessions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceListSessions<
@@ -268,6 +278,7 @@ export function useTrafficServiceListSessions<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceListSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -280,6 +291,7 @@ export function useTrafficServiceListSessions<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceListSessions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceListSessionsQueryOptions(params, options);
@@ -326,15 +338,16 @@ export const getTrafficServiceGetSessionInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetSession>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetSessionQueryKey(sessionId);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetSession>>> = ({
     signal,
-  }) => trafficServiceGetSession(sessionId, signal);
+  }) => trafficServiceGetSession(sessionId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!sessionId, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetSession>>,
@@ -365,6 +378,7 @@ export function useTrafficServiceGetSessionInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetSessionInfinite<
@@ -384,6 +398,7 @@ export function useTrafficServiceGetSessionInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetSessionInfinite<
@@ -395,6 +410,7 @@ export function useTrafficServiceGetSessionInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetSession>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -407,6 +423,7 @@ export function useTrafficServiceGetSessionInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetSession>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetSessionInfiniteQueryOptions(sessionId, options);
@@ -429,15 +446,16 @@ export const getTrafficServiceGetSessionQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetSession>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetSessionQueryKey(sessionId);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetSession>>> = ({
     signal,
-  }) => trafficServiceGetSession(sessionId, signal);
+  }) => trafficServiceGetSession(sessionId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!sessionId, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetSession>>,
@@ -468,6 +486,7 @@ export function useTrafficServiceGetSession<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetSession<
@@ -487,6 +506,7 @@ export function useTrafficServiceGetSession<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetSession<
@@ -498,6 +518,7 @@ export function useTrafficServiceGetSession<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetSession>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -510,6 +531,7 @@ export function useTrafficServiceGetSession<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetSession>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetSessionQueryOptions(sessionId, options);
@@ -573,14 +595,15 @@ export const getTrafficServiceGetStatsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetStatsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetStats>>> = ({ signal }) =>
-    trafficServiceGetStats(params, signal);
+    trafficServiceGetStats(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetStats>>,
@@ -611,6 +634,7 @@ export function useTrafficServiceGetStatsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetStatsInfinite<
@@ -630,6 +654,7 @@ export function useTrafficServiceGetStatsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetStatsInfinite<
@@ -641,6 +666,7 @@ export function useTrafficServiceGetStatsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -653,6 +679,7 @@ export function useTrafficServiceGetStatsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetStatsInfiniteQueryOptions(params, options);
@@ -675,14 +702,15 @@ export const getTrafficServiceGetStatsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetStatsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetStats>>> = ({ signal }) =>
-    trafficServiceGetStats(params, signal);
+    trafficServiceGetStats(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetStats>>,
@@ -713,6 +741,7 @@ export function useTrafficServiceGetStats<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetStats<
@@ -732,6 +761,7 @@ export function useTrafficServiceGetStats<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetStats<
@@ -743,6 +773,7 @@ export function useTrafficServiceGetStats<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -755,6 +786,7 @@ export function useTrafficServiceGetStats<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetStatsQueryOptions(params, options);
@@ -820,15 +852,16 @@ export const getTrafficServiceGetTokenStatsInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetTokenStatsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetTokenStats>>> = ({
     signal,
-  }) => trafficServiceGetTokenStats(params, signal);
+  }) => trafficServiceGetTokenStats(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetTokenStats>>,
@@ -863,6 +896,7 @@ export function useTrafficServiceGetTokenStatsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTokenStatsInfinite<
@@ -886,6 +920,7 @@ export function useTrafficServiceGetTokenStatsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTokenStatsInfinite<
@@ -901,6 +936,7 @@ export function useTrafficServiceGetTokenStatsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -917,6 +953,7 @@ export function useTrafficServiceGetTokenStatsInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetTokenStatsInfiniteQueryOptions(params, options);
@@ -939,15 +976,16 @@ export const getTrafficServiceGetTokenStatsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTokenStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetTokenStatsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetTokenStats>>> = ({
     signal,
-  }) => trafficServiceGetTokenStats(params, signal);
+  }) => trafficServiceGetTokenStats(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetTokenStats>>,
@@ -978,6 +1016,7 @@ export function useTrafficServiceGetTokenStats<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTokenStats<
@@ -997,6 +1036,7 @@ export function useTrafficServiceGetTokenStats<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTokenStats<
@@ -1008,6 +1048,7 @@ export function useTrafficServiceGetTokenStats<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTokenStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1020,6 +1061,7 @@ export function useTrafficServiceGetTokenStats<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTokenStats>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetTokenStatsQueryOptions(params, options);
@@ -1083,15 +1125,16 @@ export const getTrafficServiceQueryTracesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceQueryTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceQueryTracesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceQueryTraces>>> = ({
     signal,
-  }) => trafficServiceQueryTraces(params, signal);
+  }) => trafficServiceQueryTraces(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof trafficServiceQueryTraces>>,
@@ -1122,6 +1165,7 @@ export function useTrafficServiceQueryTracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceQueryTracesInfinite<
@@ -1141,6 +1185,7 @@ export function useTrafficServiceQueryTracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceQueryTracesInfinite<
@@ -1152,6 +1197,7 @@ export function useTrafficServiceQueryTracesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceQueryTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1164,6 +1210,7 @@ export function useTrafficServiceQueryTracesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceQueryTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceQueryTracesInfiniteQueryOptions(params, options);
@@ -1186,15 +1233,16 @@ export const getTrafficServiceQueryTracesQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceQueryTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceQueryTracesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceQueryTraces>>> = ({
     signal,
-  }) => trafficServiceQueryTraces(params, signal);
+  }) => trafficServiceQueryTraces(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof trafficServiceQueryTraces>>,
@@ -1225,6 +1273,7 @@ export function useTrafficServiceQueryTraces<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceQueryTraces<
@@ -1244,6 +1293,7 @@ export function useTrafficServiceQueryTraces<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceQueryTraces<
@@ -1255,6 +1305,7 @@ export function useTrafficServiceQueryTraces<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceQueryTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1267,6 +1318,7 @@ export function useTrafficServiceQueryTraces<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceQueryTraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceQueryTracesQueryOptions(params, options);
@@ -1313,14 +1365,15 @@ export const getTrafficServiceGetTraceInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTrace>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetTraceQueryKey(traceId);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetTrace>>> = ({ signal }) =>
-    trafficServiceGetTrace(traceId, signal);
+    trafficServiceGetTrace(traceId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!traceId, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetTrace>>,
@@ -1351,6 +1404,7 @@ export function useTrafficServiceGetTraceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTraceInfinite<
@@ -1370,6 +1424,7 @@ export function useTrafficServiceGetTraceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTraceInfinite<
@@ -1381,6 +1436,7 @@ export function useTrafficServiceGetTraceInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTrace>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1393,6 +1449,7 @@ export function useTrafficServiceGetTraceInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTrace>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetTraceInfiniteQueryOptions(traceId, options);
@@ -1415,14 +1472,15 @@ export const getTrafficServiceGetTraceQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTrace>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getTrafficServiceGetTraceQueryKey(traceId);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof trafficServiceGetTrace>>> = ({ signal }) =>
-    trafficServiceGetTrace(traceId, signal);
+    trafficServiceGetTrace(traceId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!traceId, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof trafficServiceGetTrace>>,
@@ -1453,6 +1511,7 @@ export function useTrafficServiceGetTrace<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTrace<
@@ -1472,6 +1531,7 @@ export function useTrafficServiceGetTrace<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useTrafficServiceGetTrace<
@@ -1483,6 +1543,7 @@ export function useTrafficServiceGetTrace<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTrace>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1495,6 +1556,7 @@ export function useTrafficServiceGetTrace<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof trafficServiceGetTrace>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getTrafficServiceGetTraceQueryOptions(traceId, options);
