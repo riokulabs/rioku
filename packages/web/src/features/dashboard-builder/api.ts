@@ -1,8 +1,11 @@
 /**
  * Dashboard-builder API — widget CRUD, layout updates, and mode-flip logic.
  *
- * Shares the same mock store as the dashboards API but is scoped narrower:
- * the builder touches widgets + the parent dashboard's widget_ids + layout.
+ * TODO(#236): the widget query engine (`POST /api/v1/t/{tenant}/widgets/query`)
+ * is the only genuinely-new daemon endpoint blocking this surface — widget
+ * CRUD + flip handlers already exist; the PromQL execution proxy with
+ * tenant-label AST injection is what's missing. Plan 16c is the migration
+ * vehicle. This module stays mock-store-backed until that lands.
  */
 import { useEffect, useState } from 'react';
 import { useMockStore } from '@/api/mock-store';

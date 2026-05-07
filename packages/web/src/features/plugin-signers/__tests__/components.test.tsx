@@ -188,7 +188,7 @@ describe('<SignerDetail>', () => {
       ),
     );
 
-    wrap(<SignerDetail signerId={signer.id} onClose={vi.fn()} />);
+    wrap(<SignerDetail tenantId="t-test" signerId={signer.id} onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText(signer.name)).toBeTruthy();
@@ -207,7 +207,7 @@ describe('<SignerDetail>', () => {
       ),
     );
 
-    wrap(<SignerDetail signerId={signer.id} onClose={vi.fn()} />);
+    wrap(<SignerDetail tenantId="t-test" signerId={signer.id} onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText(signer.name)).toBeTruthy();
@@ -228,7 +228,7 @@ describe('<SignerDetail>', () => {
       ),
     );
 
-    wrap(<SignerDetail signerId={signer.id} onClose={vi.fn()} />);
+    wrap(<SignerDetail tenantId="t-test" signerId={signer.id} onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText(signer.name)).toBeTruthy();

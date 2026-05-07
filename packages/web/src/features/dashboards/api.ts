@@ -1,9 +1,11 @@
 /**
- * Dashboards API — backed by the Zustand mock store.
+ * Dashboards API — mock-store-backed pending typed client surface.
  *
- * Exports CRUD for dashboards + widget lookup, version snapshot/restore,
- * default / home assignment, and JSON export/import. Every mutation logs an
- * audit entry and emits a host event.
+ * TODO(#235): the daemon-side dashboards CRUD + version + widget handlers
+ * already exist in `packages/daemon/internal/gateway/dashboards_routes.go`
+ * (24 registered routes). This module stays mock-store-backed until proto
+ * messages, an OpenAPI fragment, and Orval-generated hooks land for those
+ * handlers. Plan 16b is the migration vehicle.
  */
 import { useMockStore } from '@/api/mock-store';
 import { simulateLatency } from '@/api/mock-latency';

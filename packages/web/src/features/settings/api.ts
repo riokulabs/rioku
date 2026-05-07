@@ -1,21 +1,12 @@
 /**
- * Settings feature — mock API for Profile and Tenant mutations.
+ * Settings feature — mock-store-backed API for the legacy settings sections.
  *
- * Backed by the Zustand mock store. Follows the conventions from
- * features/notification-channels/api.ts:
- *   - simulateLatency for realistic UX
- *   - appendAudit entry on every mutation
- *   - emitHostEvent on every mutation
- *   - atomic setState(s => ({...})) for multi-field patches
- *
- * Task 8a.2 — Profile section.
- * Task 8a.3 — Tenant section.
- * Task 8b.7 — PKI section.
- * Task 8b.8 — TLS section.
- * Task 8b.9 — Observability section.
- * Task 8c.11 — Integrations section (webhook endpoints).
- * Task 8c.13 — Danger zone (hard reset, export, delete tenant).
- * Task (notifications) — Tenant-scoped notification config.
+ * TODO(#237): retire this file once proto + OpenAPI fragments + Orval hooks
+ * land for the existing daemon settings sub-entity handlers (PKI, TLS,
+ * audit retention, network, tenant auth policy, observability) plus new
+ * handlers for SSO providers, ACME config, and plugin settings. The Go
+ * handlers exist; the missing artifact is the typed client surface.
+ * Plan 16a is the migration vehicle.
  */
 import { useMemo } from 'react';
 import { useMockStore } from '@/api/mock-store';
