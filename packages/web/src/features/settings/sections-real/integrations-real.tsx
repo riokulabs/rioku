@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect -- form state hydrates from server fetch on first load; this is the correct pattern */
+ 
 /**
  * Real-API Integrations section — webhook CRUD + test send.
  *

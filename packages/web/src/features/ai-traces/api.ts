@@ -1,127 +1,261 @@
 /**
- * AI Traces API — read-only surface + streaming tail + CSV export.
+ * AI Traces API — daemon-backed read-only surface + SSE live tail + CSV export.
  *
- * Traces are produced by `invokeAgentMock` (features/ai-agents/api.ts) which
- * writes them to the store AND publishes them on `traceStreamBus`. This
- * module exposes list/detail selectors for historical traces plus a thin
- * subscribe wrapper over the bus for live-tail UIs.
+ * Stage-2 (Plan 04 / 13): traces are owned by the daemon at
+ * `/api/v1/t/{tenant}/ai/traces/...`. This module exposes:
  *
- * CSV export is returned as a `Blob` so callers can decide how to deliver
- * it (download link, FileSystemAccessAPI, test assertion, etc.).
+ *   - `useTraceList(tenantSlug, filter)` — TanStack Query against the Orval
+ *     `useListAITraces` hook. Server filters (`status`) are pushed through
+ *     when exactly one is selected; multi-status / agent / search filtering
+ *     is done client-side on the returned slice. The daemon shape is
+ *     adapted into the legacy snake-case `AiTrace` shape consumed by stage-1
+ *     UI components, so the existing list/detail/CSV code keeps working.
+ *
+ *   - `useTraceDetail(tenantSlug, traceId)` — daemon GET-by-id; returns the
+ *     adapted snake-case trace.
+ *
+ *   - `subscribeTraceStream(tenantSlug, onTrace)` — opens an `EventSource`
+ *     against `/api/v1/events?topic=ai-traces&tenant={tenantSlug}` and
+ *     fires `onTrace` for every JSON event landing on the multiplexed
+ *     channel. Returns an unsubscribe.
+ *
+ *   - `revealTrace(tenantSlug, traceId, reason)` — POSTs to
+ *     `/api/v1/t/{tenant}/ai/traces/{id}/reveal` with `{ reason }` and
+ *     returns the unmasked trace. Audited daemon-side.
+ *
+ *   - `exportTracesCsv(tenantSlug, filter)` — POSTs
+ *     `/api/v1/t/{tenant}/ai/traces/export?format=csv[&status=...]` and
+ *     streams the response body via `getReader()` into a single Blob. Throws
+ *     when the daemon returns non-2xx. Falls back to `arrayBuffer()` when
+ *     the response has a null body (synthesised test responses).
  */
-import { useMockStore } from '@/api/mock-store';
-import { TRACE_STREAM_TOPIC, traceStreamBus } from '@/api/trace-stream-bus';
+import { useMemo } from 'react';
+import { useListAITraces, useGetAITrace } from '@/api/generated/ai-traces/ai-traces';
+import type { AITrace, ListAITracesParams } from '@/api/generated/schemas';
 import type { AiTrace } from '@/api/resources';
 import type { TraceFilter, TraceStreamListener } from './types';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Daemon → legacy shape adapter ────────────────────────────────────────────
 
-function matchesFilter(trace: AiTrace, tenantId: string, filter: TraceFilter): boolean {
-  if (trace.tenant_id !== tenantId) return false;
-  if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(trace.agent_id)) return false;
-  if (filter.statuses.length > 0 && !filter.statuses.includes(trace.status)) return false;
-  if (filter.since && trace.at < filter.since) return false;
-  if (filter.until && trace.at >= filter.until) return false;
-  const search = filter.search.trim().toLowerCase();
-  if (search) {
-    const promptMatch = trace.prompt_text.toLowerCase().includes(search);
-    const completionMatch = trace.completion_text.toLowerCase().includes(search);
-    if (!promptMatch && !completionMatch) return false;
+function parseJsonObject(v: unknown): Record<string, unknown> {
+  if (typeof v !== 'string' || v === '') return {};
+  try {
+    const out = JSON.parse(v) as unknown;
+    return out !== null && typeof out === 'object' ? (out as Record<string, unknown>) : {};
+  } catch {
+    return {};
   }
-  return true;
 }
 
-/** CSV-escape a cell per RFC 4180 — wrap in quotes when it contains special chars. */
-function csvEscape(value: string | number): string {
-  const s = String(value);
-  if (/[",\r\n]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
+function parseJsonValue(v: unknown): unknown {
+  if (typeof v !== 'string' || v === '') return null;
+  try {
+    return JSON.parse(v) as unknown;
+  } catch {
+    return v;
   }
-  return s;
 }
 
-// ─── Selectors ────────────────────────────────────────────────────────────────
-
-/**
- * All traces for `tenantId` that match the filter, sorted desc by `at`.
- *
- * Zustand selector body only grabs the raw record — filter + sort happens
- * outside the selector so the hook identity is stable across renders that
- * don't actually touch the filtered output.
- */
-export function useTraceList(tenantId: string, filter: TraceFilter): AiTrace[] {
-  const traces = useMockStore((s) => s.aiTraces);
-  const out: AiTrace[] = [];
-  for (const t of Object.values(traces)) {
-    if (matchesFilter(t, tenantId, filter)) out.push(t);
-  }
-  out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  return out;
-}
-
-export function useTraceDetail(id: string): AiTrace | undefined {
-  return useMockStore((s) => s.aiTraces[id]);
-}
-
-// ─── Stream subscription ─────────────────────────────────────────────────────
-
-/**
- * Subscribe to newly-emitted traces for a given tenant. Invokes `onTrace` for
- * every `publishTrace` call where `trace.tenant_id === tenantId`. Returns an
- * unsubscribe function.
- */
-export function subscribeTraceStream(tenantId: string, onTrace: TraceStreamListener): () => void {
-  const handler = (e: Event): void => {
-    const detail = (e as CustomEvent<AiTrace>).detail;
-    if (detail.tenant_id !== tenantId) return;
-    onTrace(detail);
+function adaptTrace(d: AITrace): AiTrace {
+  // Map camelCase daemon fields to the snake-case shape expected by the stage-1
+  // UI components. `request_id` is synthesised from the trace id when the
+  // daemon doesn't surface a separate column.
+  return {
+    id: d.id,
+    tenant_id: d.tenantId,
+    agent_id: (d.agentId ?? ''),
+    provider_id: (d.providerId ?? ''),
+    model: d.model,
+    status: d.status as AiTrace['status'],
+    input_tokens: d.inputTokens,
+    output_tokens: d.outputTokens,
+    latency_ms: d.durationMs,
+    cost_usd: 0,
+    request_id: d.id,
+    at: d.occurredAt,
+    prompt_text: d.prompt ?? '',
+    completion_text: d.completion ?? '',
+    tool_calls: (d.toolCalls ?? []).map((tc) => {
+      const t = tc as Record<string, unknown>;
+      return {
+        tool_id: (t.toolId as string | undefined) ?? '',
+        tool_name: (t.name as string | undefined) ?? '',
+        arguments: parseJsonObject(t.argsJson),
+        result: parseJsonValue(t.resultJson),
+        latency_ms: (t.durationMs as number | undefined) ?? 0,
+        status: ((t.status as string | undefined) ??
+          'success') as AiTrace['tool_calls'][number]['status'],
+        ...(typeof t.error === 'string' ? { error_message: t.error } : {}),
+      };
+    }),
+    error_message: d.error ?? '',
   };
-  traceStreamBus.addEventListener(TRACE_STREAM_TOPIC, handler);
+}
+
+// ─── List ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Daemon-backed trace list for `tenantSlug` filtered by `filter`. The hook
+ * returns the array directly (not a query result) to preserve the stage-1
+ * call-site contract: `const rows = useTraceList(tenant, filter)`.
+ */
+export function useTraceList(tenantSlug: string, filter: TraceFilter): AiTrace[] {
+  const firstStatus = filter.statuses[0];
+  const params: ListAITracesParams | undefined =
+    filter.statuses.length === 1 && firstStatus !== undefined ? { status: firstStatus } : undefined;
+
+  const { data } = useListAITraces(tenantSlug, params);
+
+  return useMemo(() => {
+    const items: AITrace[] = data?.data.items ?? [];
+    const rows = items.map(adaptTrace);
+    const search = filter.search.trim().toLowerCase();
+    return rows
+      .filter((t) => {
+        if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(t.agent_id)) return false;
+        if (filter.statuses.length > 0 && !filter.statuses.includes(t.status)) return false;
+        if (filter.since && t.at < filter.since) return false;
+        if (filter.until && t.at >= filter.until) return false;
+        if (search) {
+          const promptMatch = t.prompt_text.toLowerCase().includes(search);
+          const completionMatch = t.completion_text.toLowerCase().includes(search);
+          if (!promptMatch && !completionMatch) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  }, [data, filter]);
+}
+
+/** Daemon-backed detail result with explicit loading + missing states. */
+export interface TraceDetailResult {
+  trace: AiTrace | undefined;
+  isLoading: boolean;
+  isMissing: boolean;
+}
+
+/** Daemon-backed detail; returns the adapted snake-case trace, or `undefined`. */
+export function useTraceDetail(tenantSlug: string, traceId: string): TraceDetailResult {
+  const { data, isLoading, isError } = useGetAITrace(tenantSlug, traceId);
+  const raw: AITrace | undefined = (data as { data?: AITrace } | undefined)?.data;
+  const trace = useMemo(() => (raw ? adaptTrace(raw) : undefined), [raw]);
+  return {
+    trace,
+    isLoading,
+    isMissing: isError && !isLoading,
+  };
+}
+
+// ─── SSE live tail ────────────────────────────────────────────────────────────
+
+/**
+ * Subscribe to the per-tenant trace stream over the multiplexed
+ * `/api/v1/events?topic=ai-traces&tenant=<slug>` SSE channel. Each `message`
+ * event payload is JSON-encoded; we parse and adapt to the legacy shape
+ * before invoking `onTrace`.
+ */
+export function subscribeTraceStream(
+  tenantSlug: string,
+  onTrace: TraceStreamListener,
+): () => void {
+  const url = `/api/v1/events?topic=ai-traces&tenant=${encodeURIComponent(tenantSlug)}`;
+  const es = new EventSource(url, { withCredentials: true });
+
+  const handler = (ev: MessageEvent<string>): void => {
+    try {
+      const parsed = JSON.parse(ev.data) as AITrace;
+      onTrace(adaptTrace(parsed));
+    } catch {
+      // Drop malformed payloads — daemon contract is JSON-only on this channel.
+    }
+  };
+
+  es.addEventListener('message', handler as (ev: Event) => void);
+
   return () => {
-    traceStreamBus.removeEventListener(TRACE_STREAM_TOPIC, handler);
+    es.removeEventListener('message', handler as (ev: Event) => void);
+    es.close();
   };
 }
 
-// ─── Export ──────────────────────────────────────────────────────────────────
-
-const CSV_HEADER =
-  'at,request_id,agent_name,model,status,input_tokens,output_tokens,latency_ms,cost_usd';
+// ─── Reveal ───────────────────────────────────────────────────────────────────
 
 /**
- * Build a CSV blob from traces matching `filter`, for the given tenant.
- *
- * Columns (RFC 4180-escaped):
- *   at,request_id,agent_name,model,status,input_tokens,output_tokens,latency_ms,cost_usd
- *
- * Rows are sorted desc by `at` to mirror the list view. The caller is
- * responsible for triggering the download (e.g. via a synthetic `<a download>`).
+ * Reveal sensitive prompt + completion for a trace. Audited daemon-side; the
+ * caller must supply a free-text justification ≥ 10 chars (UI enforced).
  */
-export function exportTracesCsv(tenantId: string, filter: TraceFilter): Blob {
-  const state = useMockStore.getState();
-  const rows: string[] = [CSV_HEADER];
-  const matched: AiTrace[] = [];
-  for (const t of Object.values(state.aiTraces)) {
-    if (matchesFilter(t, tenantId, filter)) matched.push(t);
+export async function revealTrace(
+  tenantSlug: string,
+  traceId: string,
+  reason: string,
+): Promise<AiTrace> {
+  const url = `/api/v1/t/${tenantSlug}/ai/traces/${traceId}/reveal`;
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    throw new Error(`Trace reveal failed: ${String(res.status)} ${res.statusText}`);
   }
-  matched.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  const body = (await res.json()) as AITrace;
+  return adaptTrace(body);
+}
 
-  for (const t of matched) {
-    const agent = state.aiAgents[t.agent_id];
-    const agentName = agent?.name ?? t.agent_id;
-    rows.push(
-      [
-        csvEscape(t.at),
-        csvEscape(t.request_id),
-        csvEscape(agentName),
-        csvEscape(t.model),
-        csvEscape(t.status),
-        csvEscape(t.input_tokens),
-        csvEscape(t.output_tokens),
-        csvEscape(t.latency_ms),
-        csvEscape(t.cost_usd),
-      ].join(','),
-    );
+// ─── CSV export ───────────────────────────────────────────────────────────────
+
+/**
+ * POST `/ai/traces/export?format=csv[&status=...]` and assemble the streamed
+ * response body into a single Blob. Throws on non-2xx.
+ */
+export async function exportTracesCsv(tenantSlug: string, filter: TraceFilter): Promise<Blob> {
+  const params = new URLSearchParams();
+  params.set('format', 'csv');
+  if (filter.statuses.length === 1) {
+    params.set('status', filter.statuses[0] ?? '');
+  }
+  const url = `/api/v1/t/${tenantSlug}/ai/traces/export?${params.toString()}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      agentIds: filter.agent_ids,
+      statuses: filter.statuses,
+      search: filter.search,
+      since: filter.since ?? null,
+      until: filter.until ?? null,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`CSV export failed: ${String(res.status)} ${res.statusText}`);
   }
 
-  return new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const mime = res.headers.get('content-type') ?? 'text/csv;charset=utf-8';
+
+  // Streaming reader path (preferred): assemble chunks as the daemon emits
+  // them. Falls back to arrayBuffer() when the synthesised test response has
+  // no readable body.
+  if (res.body) {
+    const reader = res.body.getReader();
+    const parts: BlobPart[] = [];
+    let done = false;
+    while (!done) {
+      const chunk = await reader.read();
+      done = chunk.done;
+      if (chunk.value !== undefined) {
+        // Copy into a fresh ArrayBuffer-backed view so the Blob constructor's
+        // `BlobPart` constraint (ArrayBuffer, not SharedArrayBuffer) is satisfied
+        // under TypeScript 5.5+ stricter typings.
+        parts.push(new Uint8Array(chunk.value).buffer);
+      }
+    }
+    return new Blob(parts, { type: mime });
+  }
+
+  const buf = await res.arrayBuffer();
+  return new Blob([buf], { type: mime });
 }

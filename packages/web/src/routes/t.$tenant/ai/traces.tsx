@@ -121,7 +121,7 @@ function AiTracesPage() {
     [navigate, tenantSlug],
   );
 
-  const baseRows = useTraceList(tenantId, filter);
+  const baseRows = useTraceList(tenantSlug, filter);
   const visibleRows = useMemo(() => baseRows.slice(0, MAX_ROWS), [baseRows]);
   const totalCount = baseRows.length;
 
@@ -133,7 +133,7 @@ function AiTracesPage() {
   const handleLiveTrace = useCallback(() => {
     setLiveCount((c) => c + 1);
   }, []);
-  useTraceStream(tenantId, tailEnabled, handleLiveTrace);
+  useTraceStream(tenantSlug, tailEnabled, handleLiveTrace);
 
   const handleTailToggle = useCallback((next: boolean) => {
     setTailEnabled(next);
@@ -151,9 +151,9 @@ function AiTracesPage() {
     openDrawer();
   }
 
-  function handleExport() {
+  async function handleExport() {
     try {
-      const blob = exportTracesCsv(tenantId, filter);
+      const blob = await exportTracesCsv(tenantSlug, filter);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -192,7 +192,9 @@ function AiTracesPage() {
           <Button
             variant="subtle"
             leftSection={<IconDownload size={14} />}
-            onClick={handleExport}
+            onClick={() => {
+              void handleExport();
+            }}
             aria-label="Export traces as CSV"
             data-testid="export-csv"
           >
