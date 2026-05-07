@@ -9,28 +9,27 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { IconLock } from '@tabler/icons-react';
 import { useRbacPolicyList } from '../api';
-import type { RbacPolicyFull, RbacPolicyType } from '../types';
+import type { RbacPolicyFull, RbacSubjectType } from '../types';
 
 interface RbacPolicyListProps {
+  tenant: string;
   onSelect: (policy: RbacPolicyFull) => void;
 }
 
-const TYPE_COLORS: Record<RbacPolicyType, string> = {
-  'totp-required': 'violet',
-  'step-up-required': 'orange',
-  'login-window': 'blue',
-  custom: 'gray',
+const SUBJECT_COLORS: Record<RbacSubjectType, string> = {
+  user: 'violet',
+  group: 'blue',
+  'service-account': 'orange',
 };
 
-const TYPE_LABELS: Record<RbacPolicyType, string> = {
-  'totp-required': 'TOTP Required',
-  'step-up-required': 'Step-up Required',
-  'login-window': 'Login Window',
-  custom: 'Custom',
+const SUBJECT_LABELS: Record<RbacSubjectType, string> = {
+  user: 'User',
+  group: 'Group',
+  'service-account': 'Service account',
 };
 
-export function RbacPolicyList({ onSelect }: RbacPolicyListProps) {
-  const policies = useRbacPolicyList();
+export function RbacPolicyList({ tenant, onSelect }: RbacPolicyListProps) {
+  const policies = useRbacPolicyList(tenant);
 
   const columns = useMemo<ColumnDef<RbacPolicyFull>[]>(
     () => [
@@ -44,40 +43,55 @@ export function RbacPolicyList({ onSelect }: RbacPolicyListProps) {
         ),
       },
       {
-        accessorKey: 'policy_type',
-        header: 'Type',
+        accessorKey: 'subject_type',
+        header: 'Subject',
         size: 160,
         cell: ({ getValue }) => {
-          const t = getValue<RbacPolicyType>();
+          const t = getValue<RbacSubjectType>();
           return (
-            <Badge color={TYPE_COLORS[t]} variant="light" size="sm">
-              {TYPE_LABELS[t]}
+            <Badge color={SUBJECT_COLORS[t]} variant="light" size="sm">
+              {SUBJECT_LABELS[t]}
             </Badge>
           );
         },
       },
       {
-        accessorKey: 'affected_role_ids',
-        header: 'Affected Roles',
-        size: 120,
-        cell: ({ getValue }) => {
-          const ids = getValue<string[]>();
-          return (
-            <Text size="sm">
-              {ids.length} role{ids.length !== 1 ? 's' : ''}
-            </Text>
-          );
-        },
+        accessorKey: 'role_id',
+        header: 'Role',
+        size: 160,
+        cell: ({ getValue }) => (
+          <Text size="sm" style={{ fontFamily: 'monospace' }}>
+            {getValue<string>()}
+          </Text>
+        ),
+      },
+      {
+        accessorKey: 'enabled',
+        header: 'Status',
+        size: 100,
+        cell: ({ getValue }) =>
+          getValue<boolean>() ? (
+            <Badge variant="light" color="green" size="sm">
+              Enabled
+            </Badge>
+          ) : (
+            <Badge variant="light" color="gray" size="sm">
+              Disabled
+            </Badge>
+          ),
       },
       {
         accessorKey: 'created_at',
         header: 'Created',
         size: 140,
-        cell: ({ getValue }) => (
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            {dayjs(getValue<string>()).format('MMM D, YYYY')}
-          </Text>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue<string>();
+          return (
+            <Text size="sm" c="var(--mantine-color-gray-7)">
+              {v ? dayjs(v).format('MMM D, YYYY') : '—'}
+            </Text>
+          );
+        },
       },
     ],
     [],

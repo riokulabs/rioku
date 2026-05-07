@@ -39,7 +39,12 @@ import type {
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import type { CreateRbacPolicyBody, TestRbacPolicy200, TestRbacPolicyBody } from '.././schemas';
+import type {
+  CreateRbacPolicyBody,
+  ListRbacPolicies200,
+  TestRbacPolicy200,
+  TestRbacPolicyBody,
+} from '.././schemas';
 import { customFetch } from '../../mutator';
 
 type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
@@ -48,7 +53,7 @@ type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
  * @summary List RBAC policies
  */
 export type listRbacPoliciesResponse = {
-  data: void;
+  data: ListRbacPolicies200;
   status: number;
   headers: Headers;
 };

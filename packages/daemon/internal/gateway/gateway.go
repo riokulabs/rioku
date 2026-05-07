@@ -181,7 +181,7 @@ func NewGateway(
 	// typeahead.
 	RegisterAuditExtraRoutes(topMux, st)
 
-	// Access policy CRUD (#80).
+	// Access policy CRUD (#80) — includes test-cel endpoint.
 	RegisterAccessPolicyRoutes(topMux, st)
 
 	// Settings endpoints (replaces old monolithic GET /api/v1/settings stub).

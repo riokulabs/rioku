@@ -13,7 +13,7 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './global.css';
 import { router } from './app/router';
-import { setAuthFailureHandler } from './api/mutator';
+import { setAuthFailureHandler, setActiveImpersonationIdAccessor } from './api/mutator';
 import { setAuthFailureRouter, handleAuthFailure } from './api/auth-failure';
 
 // Wire auth-failure interceptors before any network calls happen.
@@ -22,9 +22,18 @@ setAuthFailureHandler((url) => {
   handleAuthFailure(url);
 });
 
+// The impersonation-id accessor is replaced once the store module
+// finishes loading (see `bootstrapStore`). Until then, the mutator
+// returns null and never stamps the header.
+setActiveImpersonationIdAccessor(null);
+
 async function bootstrapStore(): Promise<void> {
   if (import.meta.env.VITEST) return;
   const { useMockStore } = await import('./api/mock-store');
+  // Replace the null accessor so `customFetch` can stamp the
+  // X-Impersonation-Id header on every daemon-bound request once the
+  // super-admin has started a session.
+  setActiveImpersonationIdAccessor(() => useMockStore.getState().activeImpersonationId);
   // Expose the store on window in dev so Playwright E2E tests can read and
   // mutate state without going through the UI.  Guarded by DEV flag — never
   // ships to production builds.

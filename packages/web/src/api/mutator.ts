@@ -21,6 +21,39 @@ export function setAuthFailureHandler(fn: (currentUrl: string) => void): void {
   _authFailureHandler = fn;
 }
 
+let _activeImpersonationIdAccessor: (() => string | null) | null = null;
+
+/**
+ * Register an accessor that returns the active super-admin impersonation
+ * session id (or null when none is active). When set, the mutator stamps
+ * `X-Impersonation-Id` on every daemon-bound request except impersonation-
+ * management endpoints (which would otherwise echo the caller's own id).
+ *
+ * Pass `null` to clear (test cleanup / sign-out).
+ */
+export function setActiveImpersonationIdAccessor(
+  accessor: (() => string | null) | null,
+): void {
+  _activeImpersonationIdAccessor = accessor;
+}
+
+function isImpersonationManagementUrl(url: string): boolean {
+  return /\/admin\/impersonation(?:[/?#]|$)/.test(url);
+}
+
+function applyImpersonationHeader(headers: Record<string, string>, url: string): void {
+  if (_activeImpersonationIdAccessor === null) return;
+  if (isImpersonationManagementUrl(url)) return;
+  // Skip if any casing of the header is already present (explicit override wins).
+  for (const k of Object.keys(headers)) {
+    if (k.toLowerCase() === 'x-impersonation-id') return;
+  }
+  const id = _activeImpersonationIdAccessor();
+  if (id === null) return;
+  headers['x-impersonation-id'] = id;
+}
+
+
 const BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
 
 function isProblemContentType(ct: string | null): boolean {
@@ -135,6 +168,8 @@ async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
   }
   if (signal !== undefined) fetchInit.signal = signal;
 
+  applyImpersonationHeader(headers, fullUrl);
+
   let res: Response;
   try {
     res = await fetch(fullUrl, fetchInit);
@@ -166,13 +201,34 @@ async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
 async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const fullUrl = url.startsWith('http') ? url : `${BASE}${url.replace(/^\/api\/v1/, '')}`;
 
-  const baseHeaders = new Headers(init?.headers);
-  if (init?.body !== undefined && !baseHeaders.has('content-type')) {
-    baseHeaders.set('content-type', 'application/json');
+  // Use a plain Record so tests can introspect via toMatchObject and to
+  // honour explicit caller-supplied casing (e.g. `X-Impersonation-Id`).
+  const headersRecord: Record<string, string> = {};
+  if (init?.headers !== undefined) {
+    if (init.headers instanceof Headers) {
+      init.headers.forEach((v, k) => {
+        headersRecord[k] = v;
+      });
+    } else if (Array.isArray(init.headers)) {
+      for (const [k, v] of init.headers) headersRecord[k] = v;
+    } else {
+      Object.assign(headersRecord, init.headers);
+    }
   }
+  if (init?.body !== undefined) {
+    let hasCT = false;
+    for (const k of Object.keys(headersRecord)) {
+      if (k.toLowerCase() === 'content-type') {
+        hasCT = true;
+        break;
+      }
+    }
+    if (!hasCT) headersRecord['content-type'] = 'application/json';
+  }
+  applyImpersonationHeader(headersRecord, fullUrl);
   const fetchInit: RequestInit = {
     ...init,
-    headers: baseHeaders,
+    headers: headersRecord,
     credentials: init?.credentials ?? 'include',
   };
 

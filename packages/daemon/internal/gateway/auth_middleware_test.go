@@ -64,7 +64,7 @@ func setupAuthMiddlewareTest(t *testing.T) (*auth.Auth, *auth.SessionManager, st
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx2.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), []string{"admin"}, nil, "")
+	_, err = tx2.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx2.Rollback()
 		t.Fatal(err)

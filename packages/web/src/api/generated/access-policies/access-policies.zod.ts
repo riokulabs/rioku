@@ -60,12 +60,12 @@ response with the matched flag false.
 
  * @summary Evaluate a CEL expression against a sample event
  */
-export const testAccessPolicyCELBody = zod.object({
+export const testAccessPolicyCelBody = zod.object({
   expr: zod.string(),
   sample: zod.record(zod.string(), zod.any()).optional(),
 });
 
-export const testAccessPolicyCELResponse = zod.object({
+export const testAccessPolicyCelResponse = zod.object({
   durationMs: zod.number().optional(),
   error: zod.string().optional(),
   matched: zod.boolean().optional(),

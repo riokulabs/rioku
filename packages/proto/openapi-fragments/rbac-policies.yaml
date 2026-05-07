@@ -9,7 +9,31 @@ paths:
       tags: [rbac-policies]
       summary: List RBAC policies
       operationId: listRbacPolicies
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rbacPolicies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        tenantId: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+                        subjectType:
+                          type: string
+                          enum: [user, group, service-account]
+                        subjectId: { type: string }
+                        roleId: { type: string }
+                        enabled: { type: boolean }
+                        createdAt: { type: string, format: date-time }
+                  nextPageToken: { type: string }
     post:
       tags: [rbac-policies]
       summary: Create an RBAC policy

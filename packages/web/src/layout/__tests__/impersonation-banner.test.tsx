@@ -48,6 +48,32 @@ vi.mock('@/hooks/use-impersonation', () => ({
   }),
 }));
 
+// Bridge hook mock — banner reads daemon-reported session through this.
+vi.mock('@/features/security/impersonation/use-impersonation-session', () => ({
+  useImpersonationSession: () => null,
+}));
+
+// Real-API mode flag — flipped per-test below.
+const realApiMock = vi.hoisted(() => ({ value: false }));
+vi.mock('@/api/mode', () => ({
+  isRealApi: () => realApiMock.value,
+  useMocks: () => !realApiMock.value,
+}));
+
+// Generated impersonation client — banner uses useEndImpersonation when in real mode.
+const mockEndMutate = vi.fn().mockResolvedValue({ data: undefined, status: 204 });
+vi.mock('@/features/security/impersonation/realApi', () => ({
+  useEndImpersonation: () => ({
+    mutateAsync: mockEndMutate,
+    isPending: false,
+  }),
+  getListImpersonationSessionsQueryKey: () => ['/api/v1/admin/impersonation'],
+  // Also re-export the touch + start hooks because the idle-modal subtree
+  // (mounted by the banner) imports them from this module.
+  useTouchImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useStartImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 // Also stub modals since they're opened imperatively
 vi.mock('@mantine/modals', () => ({
   modals: {
@@ -81,6 +107,9 @@ describe('ImpersonationBanner', () => {
     mockExit.mockReset();
     mockExit.mockResolvedValue(undefined);
     mockNavigate.mockReset();
+    mockEndMutate.mockReset();
+    mockEndMutate.mockResolvedValue({ data: undefined, status: 204 });
+    realApiMock.value = false;
     seedStoreWithTenant();
   });
 
@@ -149,5 +178,36 @@ describe('ImpersonationBanner', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith({ to: '/admin' });
     });
+  });
+
+  it('does NOT call the daemon DELETE in mock-API mode', async () => {
+    mockSession = activeSession;
+    realApiMock.value = false;
+    const user = userEvent.setup();
+    renderWithProviders(<ImpersonationBanner />);
+
+    const exitBtn = screen.getByRole('button', { name: /end session/i });
+    await user.click(exitBtn);
+
+    await waitFor(() => {
+      expect(mockExit).toHaveBeenCalled();
+    });
+    expect(mockEndMutate).not.toHaveBeenCalled();
+  });
+
+  it('calls the daemon DELETE endpoint in real-API mode and then exits locally', async () => {
+    mockSession = activeSession;
+    realApiMock.value = true;
+    const user = userEvent.setup();
+    renderWithProviders(<ImpersonationBanner />);
+
+    const exitBtn = screen.getByRole('button', { name: /end session/i });
+    await user.click(exitBtn);
+
+    await waitFor(() => {
+      expect(mockEndMutate).toHaveBeenCalledWith({ id: 'imp-0001' });
+    });
+    expect(mockExit).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/admin' });
   });
 });

@@ -372,22 +372,22 @@ response with the matched flag false.
 
  * @summary Evaluate a CEL expression against a sample event
  */
-export type testAccessPolicyCELResponse = {
+export type testAccessPolicyCelResponse = {
   data: TestCELResult | void;
   status: number;
   headers: Headers;
 };
 
-export const getTestAccessPolicyCELUrl = (tenant: string) => {
+export const getTestAccessPolicyCelUrl = (tenant: string) => {
   return `/api/v1/t/${tenant}/access-policies/test-cel`;
 };
 
-export const testAccessPolicyCEL = async (
+export const testAccessPolicyCel = async (
   tenant: string,
   testCELBody: TestCELBody,
   options?: RequestInit,
-): Promise<testAccessPolicyCELResponse> => {
-  return customFetch<testAccessPolicyCELResponse>(getTestAccessPolicyCELUrl(tenant), {
+): Promise<testAccessPolicyCelResponse> => {
+  return customFetch<testAccessPolicyCelResponse>(getTestAccessPolicyCelUrl(tenant), {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -395,21 +395,21 @@ export const testAccessPolicyCEL = async (
   });
 };
 
-export const getTestAccessPolicyCELMutationOptions = <TError = void, TContext = unknown>(options?: {
+export const getTestAccessPolicyCelMutationOptions = <TError = void, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof testAccessPolicyCEL>>,
+    Awaited<ReturnType<typeof testAccessPolicyCel>>,
     TError,
     { tenant: string; data: TestCELBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof testAccessPolicyCEL>>,
+  Awaited<ReturnType<typeof testAccessPolicyCel>>,
   TError,
   { tenant: string; data: TestCELBody },
   TContext
 > => {
-  const mutationKey = ['testAccessPolicyCEL'];
+  const mutationKey = ['testAccessPolicyCel'];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -417,41 +417,41 @@ export const getTestAccessPolicyCELMutationOptions = <TError = void, TContext = 
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof testAccessPolicyCEL>>,
+    Awaited<ReturnType<typeof testAccessPolicyCel>>,
     { tenant: string; data: TestCELBody }
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return testAccessPolicyCEL(tenant, data, requestOptions);
+    return testAccessPolicyCel(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type TestAccessPolicyCELMutationResult = NonNullable<
-  Awaited<ReturnType<typeof testAccessPolicyCEL>>
+export type TestAccessPolicyCelMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testAccessPolicyCel>>
 >;
-export type TestAccessPolicyCELMutationBody = TestCELBody;
-export type TestAccessPolicyCELMutationError = void;
+export type TestAccessPolicyCelMutationBody = TestCELBody;
+export type TestAccessPolicyCelMutationError = void;
 
 /**
  * @summary Evaluate a CEL expression against a sample event
  */
-export const useTestAccessPolicyCEL = <TError = void, TContext = unknown>(options?: {
+export const useTestAccessPolicyCel = <TError = void, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof testAccessPolicyCEL>>,
+    Awaited<ReturnType<typeof testAccessPolicyCel>>,
     TError,
     { tenant: string; data: TestCELBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
-  Awaited<ReturnType<typeof testAccessPolicyCEL>>,
+  Awaited<ReturnType<typeof testAccessPolicyCel>>,
   TError,
   { tenant: string; data: TestCELBody },
   TContext
 > => {
-  const mutationOptions = getTestAccessPolicyCELMutationOptions(options);
+  const mutationOptions = getTestAccessPolicyCelMutationOptions(options);
 
   return useMutation(mutationOptions);
 };

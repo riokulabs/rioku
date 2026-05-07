@@ -2,12 +2,7 @@
 // Each parallel plan owns one slice file in this directory and one line below.
 export * from './_internal';
 // Plan 01 (auth-bootstrap) feature slices retired — seed lives in _internal.ts
-// Plan 02 (identity)
-export * from './roles';
-export * from './api-keys';
-export * from './rbac-policies';
-export * from './impersonation';
-export * from './access-policies';
+// Plan 02 (identity) feature slices retired — seed lives in _internal.ts
 // Plan 03 (api-mgmt) feature slices retired — seed lives in _internal.ts
 // Plan 04 (ai) feature slices retired — seed lives in _internal.ts
 // Plan 05 (audit) feature slices retired — seed lives in _internal.ts

@@ -40,8 +40,10 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  CreateAPIKey201,
   CreateAPIKeyBody,
   GetAPIKey200,
+  ListAPIKeys200,
   PatchAPIKeyBody,
   RotateAPIKey200,
 } from '.././schemas';
@@ -53,7 +55,7 @@ type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
  * @summary List API keys
  */
 export type listAPIKeysResponse = {
-  data: void;
+  data: ListAPIKeys200;
   status: number;
   headers: Headers;
 };
@@ -274,7 +276,7 @@ export function useListAPIKeys<TData = Awaited<ReturnType<typeof listAPIKeys>>, 
  * @summary Create an API key
  */
 export type createAPIKeyResponse = {
-  data: void;
+  data: CreateAPIKey201;
   status: number;
   headers: Headers;
 };

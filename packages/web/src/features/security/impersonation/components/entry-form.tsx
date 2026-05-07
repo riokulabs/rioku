@@ -2,8 +2,10 @@
  * <ImpersonationEntryForm> — form for entering a super-admin impersonation session.
  *
  * Fields:
- *   - Tenant picker (from mock-store tenants)
- *   - Optional user picker (filtered by selected tenant's memberships)
+ *   - Tenant ID (free-form; canonical tenant directory lands in plan-11
+ *     super-admin and replaces this with a real Select)
+ *   - Optional user picker (populated from the daemon `useListUsers`
+ *     once a tenant id is entered)
  *   - Reason textarea (required, 20–500 chars)
  *   - Ticket ref URL/ID (optional)
  *   - TOTP code (6 digits, required)
@@ -28,10 +30,17 @@ import {
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertTriangle } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
+import { setActiveImpersonationId } from '@/api/active-impersonation';
+import { isRealApi } from '@/api/mode';
+import { useListUsers } from '@/api/generated/users/users';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
 import { useImpersonation } from '@/hooks/use-impersonation';
+import {
+  useStartImpersonation,
+  getListImpersonationSessionsQueryKey,
+} from '../realApi';
 import { ProfileToggle } from './profile-toggle';
 import { impersonationFormSchema, type ImpersonationFormValues } from '../schemas';
 
@@ -51,16 +60,8 @@ export function ImpersonationEntryForm() {
 
   const navigate = useNavigate();
   const { entry } = useImpersonation();
-
-  // Read tenants + memberships from store
-  const tenants = useMockStore((s) => s.tenants);
-  const memberships = useMockStore((s) => s.memberships);
-  const users = useMockStore((s) => s.users);
-
-  const tenantOptions = Object.values(tenants).map((t) => ({
-    value: t.id,
-    label: `${t.name} (${t.slug})`,
-  }));
+  const queryClient = useQueryClient();
+  const startMutation = useStartImpersonation();
 
   const form = useForm<ImpersonationFormValues>({
     validate: schemaResolver(impersonationFormSchema, { sync: true }),
@@ -78,17 +79,21 @@ export function ImpersonationEntryForm() {
 
   useDirtyForm(form);
 
-  // Derive user options based on selected tenant
   const selectedTenantId = form.values.tenant_id;
-  const tenantUserOptions = selectedTenantId
-    ? Object.values(memberships)
-        .filter((m) => m.tenant_id === selectedTenantId && m.state === 'active')
-        .map((m) => {
-          const user = users[m.user_id];
-          return user ? { value: user.id, label: `${user.name} (${user.email})` } : null;
-        })
-        .filter((opt): opt is NonNullable<typeof opt> => opt !== null)
-    : [];
+
+  // Fetch users for the selected tenant from the daemon. Disabled until a
+  // tenant id is entered; per-tenant scope mirrors the daemon's auth model.
+  const usersQuery = useListUsers(selectedTenantId, {
+    query: { enabled: selectedTenantId.trim() !== '' },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const tenantUsers = usersQuery.data?.data?.users ?? [];
+  const tenantUserOptions = tenantUsers
+    .filter((u): u is { id: string; name?: string; email?: string } => typeof u.id === 'string')
+    .map((u) => ({
+      value: u.id,
+      label: u.name ? `${u.name} (${u.email ?? ''})` : (u.email ?? u.id),
+    }));
 
   const profile = form.values.profile;
 
@@ -96,6 +101,34 @@ export function ImpersonationEntryForm() {
     setSaving(true);
     setError(null);
     try {
+      // Real-API mode: POST /api/v1/admin/impersonation. The TOTP code
+      // is forwarded as an `X-TOTP-Code` header so the daemon can
+      // enforce step-up auth without leaking it in the audit log
+      // payload. The wire body matches the OpenAPI contract.
+      if (isRealApi()) {
+        const res = await startMutation.mutateAsync({
+          data: {
+            tenantId: values.tenant_id,
+            targetUserId: values.user_id ?? '',
+            reason: values.reason,
+            ...(values.ticketRef?.trim() ? { ticketRef: values.ticketRef.trim() } : {}),
+          },
+        });
+        await queryClient.invalidateQueries({
+          queryKey: getListImpersonationSessionsQueryKey(),
+        });
+        // Mirror the daemon-issued session id into the active-impersonation
+        // holder so the mutator can stamp the `X-Impersonation-Id` header
+        // on subsequent requests.
+        const newId = res.data?.id;
+        if (typeof newId === 'string' && newId !== '') {
+          setActiveImpersonationId(newId);
+        }
+      }
+      // Always run the local entry — it owns the two-sided audit emission
+      // and the timer state machine. In real-API mode it duplicates the
+      // session into the local mirror; the bridge hook prefers the
+      // daemon-reported session, so the banner shows the canonical one.
       await entry({
         tenant_id: values.tenant_id,
         ...(values.user_id ? { user_id: values.user_id } : {}),
@@ -106,13 +139,11 @@ export function ImpersonationEntryForm() {
         additionalScope: values.additionalScope,
       });
 
-      // Navigate to target tenant dashboard
-      const targetTenant = tenants[values.tenant_id];
-      const tenantSlug = targetTenant?.slug ?? values.tenant_id;
       form.resetDirty(form.values);
 
-      // Navigate — use typed route params; tenantSlug is a runtime value
-      void navigate({ to: '/t/$tenant/dashboard', params: { tenant: tenantSlug } });
+      // Navigate — tenant id is the route segment until the directory API
+      // (plan-11) exposes a slug lookup we can resolve client-side.
+      void navigate({ to: '/t/$tenant/dashboard', params: { tenant: values.tenant_id } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start session');
     } finally {
@@ -137,15 +168,14 @@ export function ImpersonationEntryForm() {
           </Text>
         </Alert>
 
-        <Select
+        <TextInput
           label="Target tenant"
-          placeholder="Select a tenant…"
-          data={tenantOptions}
+          placeholder="Enter the tenant id (e.g. tenant-acme)"
           required
-          searchable
+          description="The tenant directory lands in plan-11; until then, paste the tenant id directly."
           {...form.getInputProps('tenant_id')}
-          onChange={(v: string | null) => {
-            form.setFieldValue('tenant_id', v ?? '');
+          onChange={(e) => {
+            form.setFieldValue('tenant_id', e.currentTarget.value);
             form.setFieldValue('user_id', undefined);
           }}
         />
@@ -153,12 +183,12 @@ export function ImpersonationEntryForm() {
         <Select
           label="Target user (optional)"
           placeholder={
-            selectedTenantId
-              ? 'Impersonate as tenant-level (no specific user)…'
-              : 'Select a tenant first'
+            selectedTenantId.trim() === ''
+              ? 'Enter a tenant id first'
+              : 'Impersonate as tenant-level (no specific user)…'
           }
           data={tenantUserOptions}
-          disabled={!selectedTenantId}
+          disabled={selectedTenantId.trim() === '' || usersQuery.isLoading}
           searchable
           clearable
           {...form.getInputProps('user_id')}

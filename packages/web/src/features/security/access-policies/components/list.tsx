@@ -1,28 +1,30 @@
 /**
  * <AccessPolicyList> — DataTable list of access policies.
  *
- * Columns: name, action, priority, condition (truncated), enabled, created_at.
- * Clicking a row calls onSelect to open the detail drawer.
+ * Stage-2: data is fetched from the daemon via Orval-generated React-Query
+ * hooks. While the request is in flight an empty array is rendered;
+ * React Query handles refetch + caching.
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Text, Tooltip } from '@mantine/core';
+import { Alert, Text, Tooltip } from '@mantine/core';
 import dayjs from 'dayjs';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
-import { IconShield } from '@tabler/icons-react';
+import { IconAlertCircle, IconShield } from '@tabler/icons-react';
 import { useAccessPolicyList } from '../api';
 import type { AccessPolicy } from '../types';
 
 interface AccessPolicyListProps {
+  tenant: string;
   onSelect: (policy: AccessPolicy) => void;
 }
 
 const MAX_CONDITION_LEN = 60;
 
-export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
-  const policies = useAccessPolicyList();
+export function AccessPolicyList({ tenant, onSelect }: AccessPolicyListProps) {
+  const { data: policies, error } = useAccessPolicyList(tenant);
 
   const columns = useMemo<ColumnDef<AccessPolicy>[]>(
     () => [
@@ -90,15 +92,26 @@ export function AccessPolicyList({ onSelect }: AccessPolicyListProps) {
         accessorKey: 'created_at',
         header: 'Created',
         size: 140,
-        cell: ({ getValue }) => (
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            {dayjs(getValue<string>()).format('MMM D, YYYY')}
-          </Text>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue<string>();
+          return (
+            <Text size="sm" c="var(--mantine-color-gray-7)">
+              {v ? dayjs(v).format('MMM D, YYYY') : '—'}
+            </Text>
+          );
+        },
       },
     ],
     [],
   );
+
+  if (error) {
+    return (
+      <Alert color="red" icon={<IconAlertCircle size={16} />} title="Failed to load policies">
+        {error.message}
+      </Alert>
+    );
+  }
 
   return (
     <DataTable

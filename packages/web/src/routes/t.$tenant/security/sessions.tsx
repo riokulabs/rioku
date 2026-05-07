@@ -1,33 +1,19 @@
 /**
  * Sessions page — /t/$tenant/security/sessions
  *
- * Shows the current user's sessions. Includes a link to Authentication settings.
- * Permission guard: requires session:read.
+ * RD5: sessions render inline. No drawer, no detail page. The list
+ * view is the canonical surface; rows expose Revoke directly.
+ *
+ * Permission guard: requires `session:read`.
  */
-import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Stack, Title, Group, Text, Anchor, Drawer } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { Stack, Title, Group, Text, Anchor } from '@mantine/core';
 import { IconShieldLock } from '@tabler/icons-react';
-import { SessionList, SessionDetail } from '@/features/security/sessions';
-import type { SessionWithMeta } from '@/features/security/sessions';
-import { useMockStore } from '@/api/mock-store';
+import { SessionList } from '@/features/security/sessions';
 import { requirePermissions } from '@/hooks/use-before-load';
 
 function SessionsPage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-
-  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
-  const [selected, setSelected] = useState<SessionWithMeta | null>(null);
-
-  function handleRowClick(session: SessionWithMeta) {
-    setSelected(session);
-    openDrawer();
-  }
-
-  const drawerTitle = selected ? `Session — ${selected.device}` : 'Session detail';
 
   return (
     <Stack gap="md" p="md">
@@ -45,20 +31,7 @@ function SessionsPage() {
         Active sessions for your account. Revoke any session you don&apos;t recognise.
       </Text>
 
-      <SessionList tenantId={tenantId} onSelect={handleRowClick} />
-
-      {/* duration=0 prevents JSDOM animation hangs in tests */}
-      <Drawer
-        transitionProps={{ duration: 0 }}
-        opened={drawerOpened}
-        onClose={closeDrawer}
-        title={drawerTitle}
-        position="right"
-        size="min(480px, 95vw)"
-        padding="md"
-      >
-        {selected && <SessionDetail session={selected} onClose={closeDrawer} />}
-      </Drawer>
+      <SessionList tenant={tenant} />
     </Stack>
   );
 }

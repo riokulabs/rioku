@@ -213,7 +213,7 @@ export function RouteFullPage({ tenantId, routeId, onBack }: RouteFullPageProps)
 
         {/* Policies */}
         <Tabs.Panel value="policies" pt="md">
-          <AttachedPolicies routeId={route.id} tenantId={tenantId} />
+          <AttachedPolicies routeId={route.id} tenant={tenantId} />
         </Tabs.Panel>
 
         {/* Audit */}

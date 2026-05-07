@@ -32,7 +32,7 @@ func TestResolveAPIKeyChain_StandaloneKey(t *testing.T) {
 	hash := hashKey(rawKey)
 
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	if _, err := tx.CreateAPIKey(ctx, "standalone", hash, []string{"keys:demo", "config:read"}, nil, ""); err != nil {
+	if _, err := tx.CreateAPIKey(ctx, "standalone", hash, "", []string{"keys:demo", "config:read"}, nil, ""); err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -93,7 +93,7 @@ func TestResolveAPIKeyChain_RevokedKey(t *testing.T) {
 	hash := hashKey(rawKey)
 
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	keyID, err := tx.CreateAPIKey(ctx, "revoke-me", hash, []string{"keys:demo"}, nil, "")
+	keyID, err := tx.CreateAPIKey(ctx, "revoke-me", hash, "", []string{"keys:demo"}, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestResolveAPIKeyChain_ExpiredKey(t *testing.T) {
 	pastExpiry := time.Now().Add(-time.Hour)
 
 	tx, _ := d.Begin(ctx, store.TxOptions{})
-	if _, err := tx.CreateAPIKey(ctx, "expired", hash, []string{"keys:demo"}, &pastExpiry, ""); err != nil {
+	if _, err := tx.CreateAPIKey(ctx, "expired", hash, "", []string{"keys:demo"}, &pastExpiry, ""); err != nil {
 		t.Fatal(err)
 	}
 	_ = tx.Commit()

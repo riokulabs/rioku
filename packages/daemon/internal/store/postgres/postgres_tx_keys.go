@@ -18,7 +18,7 @@ import (
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
+func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
 	id := uuid.New().String()
 	now := nowUTC()
 
@@ -34,9 +34,9 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 
 	tenantID := store.TenantIDFromContext(ctx)
 	_, err = t.sqlTx.ExecContext(ctx, rewritePlaceholders(
-		`INSERT INTO api_keys (id, tenant_id, name, key_hash, scopes, expires_at, created_at, owner_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`),
-		id, tenantID, name, keyHash, string(scopesJSON), expiresAt, now, ownerIDVal,
+		`INSERT INTO api_keys (id, tenant_id, name, key_hash, prefix, scopes, expires_at, created_at, owner_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		id, tenantID, name, keyHash, prefix, string(scopesJSON), expiresAt, now, ownerIDVal,
 	)
 	if err != nil {
 		return "", fmt.Errorf("postgres: insert api_key: %w", err)
@@ -50,7 +50,7 @@ func (t *tx) CreateAPIKey(ctx context.Context, name, keyHash string, scopes []st
 func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
+		`SELECT id, tenant_id, name, key_hash, prefix, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE id = ? AND tenant_id = ?`), id, tenantID)
 	return scanAPIKey(row)
 }
@@ -61,7 +61,7 @@ func (t *tx) GetAPIKey(ctx context.Context, id string) (*store.APIKey, error) {
 // context for downstream tenant filtering.
 func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey, error) {
 	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
+		`SELECT id, tenant_id, name, key_hash, prefix, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE key_hash = ?`), keyHash)
 	key, err := scanAPIKey(row)
 	if err != nil {
@@ -76,7 +76,7 @@ func (t *tx) GetAPIKeyByHash(ctx context.Context, keyHash string) (*store.APIKey
 func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
+		`SELECT id, tenant_id, name, key_hash, prefix, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE revoked_at IS NULL AND tenant_id = ?`), tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list api_keys: %w", err)
@@ -97,7 +97,7 @@ func (t *tx) ListAPIKeys(ctx context.Context) ([]*store.APIKey, error) {
 func (t *tx) ListAPIKeysByOwner(ctx context.Context, ownerID string) ([]*store.APIKey, error) {
 	tenantID := store.TenantIDFromContext(ctx)
 	rows, err := t.sqlTx.QueryContext(ctx, rewritePlaceholders(
-		`SELECT id, tenant_id, name, key_hash, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
+		`SELECT id, tenant_id, name, key_hash, prefix, scopes, expires_at, created_at, revoked_at, owner_id, last_used_at, usage_count, subscription_id, application_id, mcp_team_id
 		 FROM api_keys WHERE revoked_at IS NULL AND owner_id = ? AND tenant_id = ?`), ownerID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: list api_keys by owner: %w", err)

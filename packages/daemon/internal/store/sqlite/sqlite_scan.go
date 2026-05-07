@@ -327,6 +327,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		tenantID       string
 		name           string
 		keyHash        string
+		prefix         string
 		scopesJSON     string
 		expiresAt      *string
 		createdAt      string
@@ -338,7 +339,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		applicationID  *string
 		mcpTeamID      *string
 	)
-	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount, &subscriptionID, &applicationID, &mcpTeamID); err != nil {
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &prefix, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount, &subscriptionID, &applicationID, &mcpTeamID); err != nil {
 		return nil, fmt.Errorf("sqlite: scan api_key: %w", err)
 	}
 
@@ -352,6 +353,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		TenantID:       tenantID,
 		Name:           name,
 		KeyHash:        keyHash,
+		Prefix:         prefix,
 		Scopes:         scopes,
 		CreatedAt:      parseTime(createdAt),
 		UsageCount:     usageCount,

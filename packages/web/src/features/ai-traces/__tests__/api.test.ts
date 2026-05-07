@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * Tests for the AI traces API layer (read-only + streaming-tail + CSV export).
  */

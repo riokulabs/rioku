@@ -13,12 +13,13 @@ import { attachPolicy, detachPolicy } from '../api';
 
 interface AttachedPoliciesProps {
   routeId: string;
-  tenantId: string;
+  /** Tenant slug for the access-policies query (stage-2 real-API). */
+  tenant: string;
 }
 
-export function AttachedPolicies({ routeId, tenantId }: AttachedPoliciesProps) {
+export function AttachedPolicies({ routeId, tenant }: AttachedPoliciesProps) {
   const attached = usePoliciesAttachedToRoute(routeId);
-  const allPolicies = usePolicyList();
+  const { data: allPolicies } = usePolicyList(tenant);
 
   const [pickerOpened, { open: openPicker, close: closePicker }] = useDisclosure(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function AttachedPolicies({ routeId, tenantId }: AttachedPoliciesProps) {
   async function handleAttach(policyId: string) {
     setBusyId(policyId);
     try {
-      await attachPolicy(tenantId, routeId, policyId);
+      await attachPolicy(tenant, routeId, policyId);
       notify.success('Policy attached', 'The policy now applies to this route.');
     } catch {
       notify.error('Failed to attach policy', 'Please try again.');
@@ -44,7 +45,7 @@ export function AttachedPolicies({ routeId, tenantId }: AttachedPoliciesProps) {
   async function handleDetach(policyId: string) {
     setBusyId(policyId);
     try {
-      await detachPolicy(tenantId, routeId, policyId);
+      await detachPolicy(tenant, routeId, policyId);
       notify.success('Policy detached', 'The policy no longer applies.');
     } catch {
       notify.error('Failed to detach policy', 'Please try again.');

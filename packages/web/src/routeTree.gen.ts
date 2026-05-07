@@ -69,6 +69,8 @@ import { Route as TTenantSecurityUsersRouteImport } from './routes/t.$tenant/sec
 import { Route as TTenantSecuritySessionsRouteImport } from './routes/t.$tenant/security/sessions'
 import { Route as TTenantSecurityRolesRouteImport } from './routes/t.$tenant/security/roles'
 import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$tenant/security/rbac-policies'
+import { Route as TTenantSecurityPermissionsCatalogRouteImport } from './routes/t.$tenant/security/permissions-catalog'
+import { Route as TTenantSecurityEffectivePermissionsRouteImport } from './routes/t.$tenant/security/effective-permissions'
 import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/security/audit'
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
@@ -87,7 +89,12 @@ import { Route as TTenantAiRateLimitsRouteImport } from './routes/t.$tenant/ai/r
 import { Route as TTenantAiProvidersRouteImport } from './routes/t.$tenant/ai/providers'
 import { Route as TTenantAiMcpServersRouteImport } from './routes/t.$tenant/ai/mcp-servers'
 import { Route as TTenantAiAgentsRouteImport } from './routes/t.$tenant/ai/agents'
+import { Route as TTenantSecurityUsersUserIdRouteImport } from './routes/t.$tenant/security/users.$userId'
+import { Route as TTenantSecurityRolesRoleIdRouteImport } from './routes/t.$tenant/security/roles.$roleId'
+import { Route as TTenantSecurityRbacPoliciesPolicyIdRouteImport } from './routes/t.$tenant/security/rbac-policies.$policyId'
 import { Route as TTenantSecurityAuditAdminRouteImport } from './routes/t.$tenant/security/audit_.admin'
+import { Route as TTenantSecurityApiKeysKeyIdRouteImport } from './routes/t.$tenant/security/api-keys.$keyId'
+import { Route as TTenantSecurityAccessPoliciesPolicyIdRouteImport } from './routes/t.$tenant/security/access-policies.$policyId'
 import { Route as TTenantDashboardsDashboardIdEditRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId_.edit'
 import { Route as TTenantClusterNodesNodeIdRouteImport } from './routes/t.$tenant/cluster.nodes.$nodeId'
 import { Route as TTenantAiTracesTraceIdRouteImport } from './routes/t.$tenant/ai/traces.$traceId'
@@ -408,6 +415,18 @@ const TTenantSecurityRbacPoliciesRoute =
     path: '/rbac-policies',
     getParentRoute: () => TTenantSecurityRoute,
   } as any)
+const TTenantSecurityPermissionsCatalogRoute =
+  TTenantSecurityPermissionsCatalogRouteImport.update({
+    id: '/permissions-catalog',
+    path: '/permissions-catalog',
+    getParentRoute: () => TTenantSecurityRoute,
+  } as any)
+const TTenantSecurityEffectivePermissionsRoute =
+  TTenantSecurityEffectivePermissionsRouteImport.update({
+    id: '/effective-permissions',
+    path: '/effective-permissions',
+    getParentRoute: () => TTenantSecurityRoute,
+  } as any)
 const TTenantSecurityAuditRoute = TTenantSecurityAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -503,11 +522,41 @@ const TTenantAiAgentsRoute = TTenantAiAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => TTenantAiRoute,
 } as any)
+const TTenantSecurityUsersUserIdRoute =
+  TTenantSecurityUsersUserIdRouteImport.update({
+    id: '/$userId',
+    path: '/$userId',
+    getParentRoute: () => TTenantSecurityUsersRoute,
+  } as any)
+const TTenantSecurityRolesRoleIdRoute =
+  TTenantSecurityRolesRoleIdRouteImport.update({
+    id: '/$roleId',
+    path: '/$roleId',
+    getParentRoute: () => TTenantSecurityRolesRoute,
+  } as any)
+const TTenantSecurityRbacPoliciesPolicyIdRoute =
+  TTenantSecurityRbacPoliciesPolicyIdRouteImport.update({
+    id: '/$policyId',
+    path: '/$policyId',
+    getParentRoute: () => TTenantSecurityRbacPoliciesRoute,
+  } as any)
 const TTenantSecurityAuditAdminRoute =
   TTenantSecurityAuditAdminRouteImport.update({
     id: '/audit_/admin',
     path: '/audit/admin',
     getParentRoute: () => TTenantSecurityRoute,
+  } as any)
+const TTenantSecurityApiKeysKeyIdRoute =
+  TTenantSecurityApiKeysKeyIdRouteImport.update({
+    id: '/$keyId',
+    path: '/$keyId',
+    getParentRoute: () => TTenantSecurityApiKeysRoute,
+  } as any)
+const TTenantSecurityAccessPoliciesPolicyIdRoute =
+  TTenantSecurityAccessPoliciesPolicyIdRouteImport.update({
+    id: '/$policyId',
+    path: '/$policyId',
+    getParentRoute: () => TTenantSecurityAccessPoliciesRoute,
   } as any)
 const TTenantDashboardsDashboardIdEditRoute =
   TTenantDashboardsDashboardIdEditRouteImport.update({
@@ -610,13 +659,15 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/plugins/sideload': typeof TTenantPluginsSideloadRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/routes/$routeId': typeof TTenantRoutesRouteIdRoute
-  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
-  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
+  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRouteWithChildren
+  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRouteWithChildren
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
-  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
-  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
+  '/t/$tenant/security/effective-permissions': typeof TTenantSecurityEffectivePermissionsRoute
+  '/t/$tenant/security/permissions-catalog': typeof TTenantSecurityPermissionsCatalogRoute
+  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRouteWithChildren
+  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRouteWithChildren
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
-  '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
+  '/t/$tenant/security/users': typeof TTenantSecurityUsersRouteWithChildren
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
   '/t/$tenant/settings/auth-policy': typeof TTenantSettingsAuthPolicyRoute
@@ -647,7 +698,12 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/ai/traces/$traceId': typeof TTenantAiTracesTraceIdRoute
   '/t/$tenant/cluster/nodes/$nodeId': typeof TTenantClusterNodesNodeIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
+  '/t/$tenant/security/access-policies/$policyId': typeof TTenantSecurityAccessPoliciesPolicyIdRoute
+  '/t/$tenant/security/api-keys/$keyId': typeof TTenantSecurityApiKeysKeyIdRoute
   '/t/$tenant/security/audit/admin': typeof TTenantSecurityAuditAdminRoute
+  '/t/$tenant/security/rbac-policies/$policyId': typeof TTenantSecurityRbacPoliciesPolicyIdRoute
+  '/t/$tenant/security/roles/$roleId': typeof TTenantSecurityRolesRoleIdRoute
+  '/t/$tenant/security/users/$userId': typeof TTenantSecurityUsersUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -695,13 +751,15 @@ export interface FileRoutesByTo {
   '/t/$tenant/plugins/sideload': typeof TTenantPluginsSideloadRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/routes/$routeId': typeof TTenantRoutesRouteIdRoute
-  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
-  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
+  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRouteWithChildren
+  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRouteWithChildren
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
-  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
-  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
+  '/t/$tenant/security/effective-permissions': typeof TTenantSecurityEffectivePermissionsRoute
+  '/t/$tenant/security/permissions-catalog': typeof TTenantSecurityPermissionsCatalogRoute
+  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRouteWithChildren
+  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRouteWithChildren
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
-  '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
+  '/t/$tenant/security/users': typeof TTenantSecurityUsersRouteWithChildren
   '/t/$tenant/services/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
   '/t/$tenant/settings/auth-policy': typeof TTenantSettingsAuthPolicyRoute
@@ -732,7 +790,12 @@ export interface FileRoutesByTo {
   '/t/$tenant/ai/traces/$traceId': typeof TTenantAiTracesTraceIdRoute
   '/t/$tenant/cluster/nodes/$nodeId': typeof TTenantClusterNodesNodeIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
+  '/t/$tenant/security/access-policies/$policyId': typeof TTenantSecurityAccessPoliciesPolicyIdRoute
+  '/t/$tenant/security/api-keys/$keyId': typeof TTenantSecurityApiKeysKeyIdRoute
   '/t/$tenant/security/audit/admin': typeof TTenantSecurityAuditAdminRoute
+  '/t/$tenant/security/rbac-policies/$policyId': typeof TTenantSecurityRbacPoliciesPolicyIdRoute
+  '/t/$tenant/security/roles/$roleId': typeof TTenantSecurityRolesRoleIdRoute
+  '/t/$tenant/security/users/$userId': typeof TTenantSecurityUsersUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -786,13 +849,15 @@ export interface FileRoutesById {
   '/t/$tenant/plugins_/sideload': typeof TTenantPluginsSideloadRoute
   '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
   '/t/$tenant/routes_/$routeId': typeof TTenantRoutesRouteIdRoute
-  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
-  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
+  '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRouteWithChildren
+  '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRouteWithChildren
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
-  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRoute
-  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRoute
+  '/t/$tenant/security/effective-permissions': typeof TTenantSecurityEffectivePermissionsRoute
+  '/t/$tenant/security/permissions-catalog': typeof TTenantSecurityPermissionsCatalogRoute
+  '/t/$tenant/security/rbac-policies': typeof TTenantSecurityRbacPoliciesRouteWithChildren
+  '/t/$tenant/security/roles': typeof TTenantSecurityRolesRouteWithChildren
   '/t/$tenant/security/sessions': typeof TTenantSecuritySessionsRoute
-  '/t/$tenant/security/users': typeof TTenantSecurityUsersRoute
+  '/t/$tenant/security/users': typeof TTenantSecurityUsersRouteWithChildren
   '/t/$tenant/services_/$serviceId': typeof TTenantServicesServiceIdRoute
   '/t/$tenant/settings/audit-retention': typeof TTenantSettingsAuditRetentionRoute
   '/t/$tenant/settings/auth-policy': typeof TTenantSettingsAuthPolicyRoute
@@ -823,7 +888,12 @@ export interface FileRoutesById {
   '/t/$tenant/ai/traces/$traceId': typeof TTenantAiTracesTraceIdRoute
   '/t/$tenant/cluster/nodes/$nodeId': typeof TTenantClusterNodesNodeIdRoute
   '/t/$tenant/dashboards_/$dashboardId_/edit': typeof TTenantDashboardsDashboardIdEditRoute
+  '/t/$tenant/security/access-policies/$policyId': typeof TTenantSecurityAccessPoliciesPolicyIdRoute
+  '/t/$tenant/security/api-keys/$keyId': typeof TTenantSecurityApiKeysKeyIdRoute
   '/t/$tenant/security/audit_/admin': typeof TTenantSecurityAuditAdminRoute
+  '/t/$tenant/security/rbac-policies/$policyId': typeof TTenantSecurityRbacPoliciesPolicyIdRoute
+  '/t/$tenant/security/roles/$roleId': typeof TTenantSecurityRolesRoleIdRoute
+  '/t/$tenant/security/users/$userId': typeof TTenantSecurityUsersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -880,6 +950,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/effective-permissions'
+    | '/t/$tenant/security/permissions-catalog'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -914,7 +986,12 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/traces/$traceId'
     | '/t/$tenant/cluster/nodes/$nodeId'
     | '/t/$tenant/dashboards/$dashboardId/edit'
+    | '/t/$tenant/security/access-policies/$policyId'
+    | '/t/$tenant/security/api-keys/$keyId'
     | '/t/$tenant/security/audit/admin'
+    | '/t/$tenant/security/rbac-policies/$policyId'
+    | '/t/$tenant/security/roles/$roleId'
+    | '/t/$tenant/security/users/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -965,6 +1042,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/effective-permissions'
+    | '/t/$tenant/security/permissions-catalog'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -999,7 +1078,12 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/traces/$traceId'
     | '/t/$tenant/cluster/nodes/$nodeId'
     | '/t/$tenant/dashboards/$dashboardId/edit'
+    | '/t/$tenant/security/access-policies/$policyId'
+    | '/t/$tenant/security/api-keys/$keyId'
     | '/t/$tenant/security/audit/admin'
+    | '/t/$tenant/security/rbac-policies/$policyId'
+    | '/t/$tenant/security/roles/$roleId'
+    | '/t/$tenant/security/users/$userId'
   id:
     | '__root__'
     | '/'
@@ -1055,6 +1139,8 @@ export interface FileRouteTypes {
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
+    | '/t/$tenant/security/effective-permissions'
+    | '/t/$tenant/security/permissions-catalog'
     | '/t/$tenant/security/rbac-policies'
     | '/t/$tenant/security/roles'
     | '/t/$tenant/security/sessions'
@@ -1089,7 +1175,12 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/traces/$traceId'
     | '/t/$tenant/cluster/nodes/$nodeId'
     | '/t/$tenant/dashboards_/$dashboardId_/edit'
+    | '/t/$tenant/security/access-policies/$policyId'
+    | '/t/$tenant/security/api-keys/$keyId'
     | '/t/$tenant/security/audit_/admin'
+    | '/t/$tenant/security/rbac-policies/$policyId'
+    | '/t/$tenant/security/roles/$roleId'
+    | '/t/$tenant/security/users/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1524,6 +1615,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityRbacPoliciesRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/security/permissions-catalog': {
+      id: '/t/$tenant/security/permissions-catalog'
+      path: '/permissions-catalog'
+      fullPath: '/t/$tenant/security/permissions-catalog'
+      preLoaderRoute: typeof TTenantSecurityPermissionsCatalogRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
+    '/t/$tenant/security/effective-permissions': {
+      id: '/t/$tenant/security/effective-permissions'
+      path: '/effective-permissions'
+      fullPath: '/t/$tenant/security/effective-permissions'
+      preLoaderRoute: typeof TTenantSecurityEffectivePermissionsRouteImport
+      parentRoute: typeof TTenantSecurityRoute
+    }
     '/t/$tenant/security/audit': {
       id: '/t/$tenant/security/audit'
       path: '/audit'
@@ -1650,12 +1755,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantAiAgentsRouteImport
       parentRoute: typeof TTenantAiRoute
     }
+    '/t/$tenant/security/users/$userId': {
+      id: '/t/$tenant/security/users/$userId'
+      path: '/$userId'
+      fullPath: '/t/$tenant/security/users/$userId'
+      preLoaderRoute: typeof TTenantSecurityUsersUserIdRouteImport
+      parentRoute: typeof TTenantSecurityUsersRoute
+    }
+    '/t/$tenant/security/roles/$roleId': {
+      id: '/t/$tenant/security/roles/$roleId'
+      path: '/$roleId'
+      fullPath: '/t/$tenant/security/roles/$roleId'
+      preLoaderRoute: typeof TTenantSecurityRolesRoleIdRouteImport
+      parentRoute: typeof TTenantSecurityRolesRoute
+    }
+    '/t/$tenant/security/rbac-policies/$policyId': {
+      id: '/t/$tenant/security/rbac-policies/$policyId'
+      path: '/$policyId'
+      fullPath: '/t/$tenant/security/rbac-policies/$policyId'
+      preLoaderRoute: typeof TTenantSecurityRbacPoliciesPolicyIdRouteImport
+      parentRoute: typeof TTenantSecurityRbacPoliciesRoute
+    }
     '/t/$tenant/security/audit_/admin': {
       id: '/t/$tenant/security/audit_/admin'
       path: '/audit/admin'
       fullPath: '/t/$tenant/security/audit/admin'
       preLoaderRoute: typeof TTenantSecurityAuditAdminRouteImport
       parentRoute: typeof TTenantSecurityRoute
+    }
+    '/t/$tenant/security/api-keys/$keyId': {
+      id: '/t/$tenant/security/api-keys/$keyId'
+      path: '/$keyId'
+      fullPath: '/t/$tenant/security/api-keys/$keyId'
+      preLoaderRoute: typeof TTenantSecurityApiKeysKeyIdRouteImport
+      parentRoute: typeof TTenantSecurityApiKeysRoute
+    }
+    '/t/$tenant/security/access-policies/$policyId': {
+      id: '/t/$tenant/security/access-policies/$policyId'
+      path: '/$policyId'
+      fullPath: '/t/$tenant/security/access-policies/$policyId'
+      preLoaderRoute: typeof TTenantSecurityAccessPoliciesPolicyIdRouteImport
+      parentRoute: typeof TTenantSecurityAccessPoliciesRoute
     }
     '/t/$tenant/dashboards_/$dashboardId_/edit': {
       id: '/t/$tenant/dashboards_/$dashboardId_/edit'
@@ -1884,25 +2024,99 @@ const TTenantDashboardsRouteChildren: TTenantDashboardsRouteChildren = {
 const TTenantDashboardsRouteWithChildren =
   TTenantDashboardsRoute._addFileChildren(TTenantDashboardsRouteChildren)
 
+interface TTenantSecurityAccessPoliciesRouteChildren {
+  TTenantSecurityAccessPoliciesPolicyIdRoute: typeof TTenantSecurityAccessPoliciesPolicyIdRoute
+}
+
+const TTenantSecurityAccessPoliciesRouteChildren: TTenantSecurityAccessPoliciesRouteChildren =
+  {
+    TTenantSecurityAccessPoliciesPolicyIdRoute:
+      TTenantSecurityAccessPoliciesPolicyIdRoute,
+  }
+
+const TTenantSecurityAccessPoliciesRouteWithChildren =
+  TTenantSecurityAccessPoliciesRoute._addFileChildren(
+    TTenantSecurityAccessPoliciesRouteChildren,
+  )
+
+interface TTenantSecurityApiKeysRouteChildren {
+  TTenantSecurityApiKeysKeyIdRoute: typeof TTenantSecurityApiKeysKeyIdRoute
+}
+
+const TTenantSecurityApiKeysRouteChildren: TTenantSecurityApiKeysRouteChildren =
+  {
+    TTenantSecurityApiKeysKeyIdRoute: TTenantSecurityApiKeysKeyIdRoute,
+  }
+
+const TTenantSecurityApiKeysRouteWithChildren =
+  TTenantSecurityApiKeysRoute._addFileChildren(
+    TTenantSecurityApiKeysRouteChildren,
+  )
+
+interface TTenantSecurityRbacPoliciesRouteChildren {
+  TTenantSecurityRbacPoliciesPolicyIdRoute: typeof TTenantSecurityRbacPoliciesPolicyIdRoute
+}
+
+const TTenantSecurityRbacPoliciesRouteChildren: TTenantSecurityRbacPoliciesRouteChildren =
+  {
+    TTenantSecurityRbacPoliciesPolicyIdRoute:
+      TTenantSecurityRbacPoliciesPolicyIdRoute,
+  }
+
+const TTenantSecurityRbacPoliciesRouteWithChildren =
+  TTenantSecurityRbacPoliciesRoute._addFileChildren(
+    TTenantSecurityRbacPoliciesRouteChildren,
+  )
+
+interface TTenantSecurityRolesRouteChildren {
+  TTenantSecurityRolesRoleIdRoute: typeof TTenantSecurityRolesRoleIdRoute
+}
+
+const TTenantSecurityRolesRouteChildren: TTenantSecurityRolesRouteChildren = {
+  TTenantSecurityRolesRoleIdRoute: TTenantSecurityRolesRoleIdRoute,
+}
+
+const TTenantSecurityRolesRouteWithChildren =
+  TTenantSecurityRolesRoute._addFileChildren(TTenantSecurityRolesRouteChildren)
+
+interface TTenantSecurityUsersRouteChildren {
+  TTenantSecurityUsersUserIdRoute: typeof TTenantSecurityUsersUserIdRoute
+}
+
+const TTenantSecurityUsersRouteChildren: TTenantSecurityUsersRouteChildren = {
+  TTenantSecurityUsersUserIdRoute: TTenantSecurityUsersUserIdRoute,
+}
+
+const TTenantSecurityUsersRouteWithChildren =
+  TTenantSecurityUsersRoute._addFileChildren(TTenantSecurityUsersRouteChildren)
+
 interface TTenantSecurityRouteChildren {
-  TTenantSecurityAccessPoliciesRoute: typeof TTenantSecurityAccessPoliciesRoute
-  TTenantSecurityApiKeysRoute: typeof TTenantSecurityApiKeysRoute
+  TTenantSecurityAccessPoliciesRoute: typeof TTenantSecurityAccessPoliciesRouteWithChildren
+  TTenantSecurityApiKeysRoute: typeof TTenantSecurityApiKeysRouteWithChildren
   TTenantSecurityAuditRoute: typeof TTenantSecurityAuditRoute
-  TTenantSecurityRbacPoliciesRoute: typeof TTenantSecurityRbacPoliciesRoute
-  TTenantSecurityRolesRoute: typeof TTenantSecurityRolesRoute
+  TTenantSecurityEffectivePermissionsRoute: typeof TTenantSecurityEffectivePermissionsRoute
+  TTenantSecurityPermissionsCatalogRoute: typeof TTenantSecurityPermissionsCatalogRoute
+  TTenantSecurityRbacPoliciesRoute: typeof TTenantSecurityRbacPoliciesRouteWithChildren
+  TTenantSecurityRolesRoute: typeof TTenantSecurityRolesRouteWithChildren
   TTenantSecuritySessionsRoute: typeof TTenantSecuritySessionsRoute
-  TTenantSecurityUsersRoute: typeof TTenantSecurityUsersRoute
+  TTenantSecurityUsersRoute: typeof TTenantSecurityUsersRouteWithChildren
   TTenantSecurityAuditAdminRoute: typeof TTenantSecurityAuditAdminRoute
 }
 
 const TTenantSecurityRouteChildren: TTenantSecurityRouteChildren = {
-  TTenantSecurityAccessPoliciesRoute: TTenantSecurityAccessPoliciesRoute,
-  TTenantSecurityApiKeysRoute: TTenantSecurityApiKeysRoute,
+  TTenantSecurityAccessPoliciesRoute:
+    TTenantSecurityAccessPoliciesRouteWithChildren,
+  TTenantSecurityApiKeysRoute: TTenantSecurityApiKeysRouteWithChildren,
   TTenantSecurityAuditRoute: TTenantSecurityAuditRoute,
-  TTenantSecurityRbacPoliciesRoute: TTenantSecurityRbacPoliciesRoute,
-  TTenantSecurityRolesRoute: TTenantSecurityRolesRoute,
+  TTenantSecurityEffectivePermissionsRoute:
+    TTenantSecurityEffectivePermissionsRoute,
+  TTenantSecurityPermissionsCatalogRoute:
+    TTenantSecurityPermissionsCatalogRoute,
+  TTenantSecurityRbacPoliciesRoute:
+    TTenantSecurityRbacPoliciesRouteWithChildren,
+  TTenantSecurityRolesRoute: TTenantSecurityRolesRouteWithChildren,
   TTenantSecuritySessionsRoute: TTenantSecuritySessionsRoute,
-  TTenantSecurityUsersRoute: TTenantSecurityUsersRoute,
+  TTenantSecurityUsersRoute: TTenantSecurityUsersRouteWithChildren,
   TTenantSecurityAuditAdminRoute: TTenantSecurityAuditAdminRoute,
 }
 

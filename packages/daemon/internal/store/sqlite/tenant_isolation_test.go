@@ -65,7 +65,7 @@ func TestTenantIsolation_RoutesServicesPolicies(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("CreatePolicy A: %v", err)
 	}
-	if _, err := tx.CreateAPIKey(ctxA, "key-a", "hash-a", []string{"*"}, nil, ""); err != nil {
+	if _, err := tx.CreateAPIKey(ctxA, "key-a", "hash-a", "", []string{"*"}, nil, ""); err != nil {
 		t.Fatalf("CreateAPIKey A: %v", err)
 	}
 	if err := tx.AppendAuditEntry(ctxA, &riokuv1.AuditEntry{

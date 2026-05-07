@@ -24,6 +24,28 @@ Conventions:
 import { z as zod } from 'zod';
 
 /**
+ * @summary List RBAC policies
+ */
+export const listRbacPoliciesResponse = zod.object({
+  nextPageToken: zod.string().optional(),
+  rbacPolicies: zod
+    .array(
+      zod.object({
+        createdAt: zod.string().datetime().optional(),
+        description: zod.string().optional(),
+        enabled: zod.boolean().optional(),
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+        roleId: zod.string().optional(),
+        subjectId: zod.string().optional(),
+        subjectType: zod.enum(['user', 'group', 'service-account']).optional(),
+        tenantId: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
  * @summary Create an RBAC policy
  */
 export const createRbacPolicyBody = zod.object({

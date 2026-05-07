@@ -551,6 +551,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		tenantID       string
 		name           string
 		keyHash        string
+		prefix         string
 		scopesJSON     string
 		expiresAt      sql.NullTime
 		createdAt      time.Time
@@ -562,7 +563,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		applicationID  sql.NullString
 		mcpTeamID      sql.NullString
 	)
-	if err := s.Scan(&id, &tenantID, &name, &keyHash, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount, &subscriptionID, &applicationID, &mcpTeamID); err != nil {
+	if err := s.Scan(&id, &tenantID, &name, &keyHash, &prefix, &scopesJSON, &expiresAt, &createdAt, &revokedAt, &ownerID, &lastUsedAt, &usageCount, &subscriptionID, &applicationID, &mcpTeamID); err != nil {
 		return nil, fmt.Errorf("postgres: scan api_key: %w", err)
 	}
 
@@ -576,6 +577,7 @@ func scanAPIKey(s scanner) (*store.APIKey, error) {
 		TenantID:   tenantID,
 		Name:       name,
 		KeyHash:    keyHash,
+		Prefix:     prefix,
 		Scopes:     scopes,
 		CreatedAt:  createdAt,
 		UsageCount: usageCount,

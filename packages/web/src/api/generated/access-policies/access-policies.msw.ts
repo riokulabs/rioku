@@ -87,7 +87,7 @@ export const getCreateAccessPolicyResponseMock = (
   ...overrideResponse,
 });
 
-export const getTestAccessPolicyCELResponseMock = (
+export const getTestAccessPolicyCelResponseMock = (
   overrideResponse: Partial<TestCELResult> = {},
 ): TestCELResult => ({
   durationMs: faker.helpers.arrayElement([
@@ -229,7 +229,7 @@ export const getCreateAccessPolicyMockHandler = (
   });
 };
 
-export const getTestAccessPolicyCELMockHandler = (
+export const getTestAccessPolicyCelMockHandler = (
   overrideResponse?:
     | TestCELResult
     | ((
@@ -245,7 +245,7 @@ export const getTestAccessPolicyCELMockHandler = (
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
-          : getTestAccessPolicyCELResponseMock(),
+          : getTestAccessPolicyCelResponseMock(),
       ),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     );
@@ -337,7 +337,7 @@ export const getReplaceAccessPolicyMockHandler = (
 export const getAccessPoliciesMock = () => [
   getListAccessPoliciesMockHandler(),
   getCreateAccessPolicyMockHandler(),
-  getTestAccessPolicyCELMockHandler(),
+  getTestAccessPolicyCelMockHandler(),
   getDeleteAccessPolicyMockHandler(),
   getGetAccessPolicyMockHandler(),
   getPatchAccessPolicyMockHandler(),

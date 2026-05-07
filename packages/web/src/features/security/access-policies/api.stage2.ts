@@ -18,7 +18,7 @@ import {
   createAccessPolicy as orvalCreateAccessPolicy,
   patchAccessPolicy,
   deleteAccessPolicy as orvalDeleteAccessPolicy,
-  testAccessPolicyCEL,
+  testAccessPolicyCel,
   getListAccessPoliciesQueryKey,
   getGetAccessPolicyQueryKey,
 } from '@/api/generated/access-policies/access-policies';
@@ -137,7 +137,7 @@ export function useTestCEL(tenantId: string) {
         expr: args.expr,
         ...(args.sample !== undefined ? { sample: args.sample } : {}),
       };
-      const res = (await testAccessPolicyCEL(tenantId, body)) as unknown as TestCELResult;
+      const res = (await testAccessPolicyCel(tenantId, body)) as unknown as TestCELResult;
       return res;
     },
   });

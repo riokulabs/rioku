@@ -104,7 +104,7 @@ paths:
         sample request event. Used by the policy editor's "Test condition"
         button (decisions-needed.md item 004). Errors surface as `error` in the
         response with the matched flag false.
-      operationId: testAccessPolicyCEL
+      operationId: testAccessPolicyCel
       requestBody:
         required: true
         content:

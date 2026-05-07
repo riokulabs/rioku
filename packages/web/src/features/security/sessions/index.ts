@@ -1,9 +1,9 @@
 /**
  * Sessions feature — barrel exports.
+ *
+ * RD5: sessions are inline-only — no drawer, no full-page detail.
  */
 export { SessionList } from './components/list';
-export { SessionDetail } from './components/detail';
-export { RevokeAllConfirm } from './components/revoke-confirm';
 export {
   useSessionList,
   useSessionMutations,
