@@ -1,0 +1,150 @@
+# Stage-2 plan 17b (#240): SSO providers — per-tenant CRUD for OIDC/SAML
+# provider configs.
+#
+# Mirrors RegisterSsoRoutes in
+# packages/daemon/internal/gateway/sso_routes.go. Admin surface only —
+# the runtime data-plane plugin (#170) consumes the same rows.
+
+paths:
+  /api/v1/t/{tenant}/sso/providers:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [sso]
+      summary: List SSO providers
+      operationId: listSsoProviders
+      responses:
+        "200":
+          description: List of configured SSO providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/SsoProvider" }
+                  total: { type: integer }
+    post:
+      tags: [sso]
+      summary: Create SSO provider
+      operationId: createSsoProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSsoProviderBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SsoProvider" }
+        "409":
+          description: name already in use within this tenant
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/sso/providers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [sso]
+      operationId: getSsoProvider
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SsoProvider" }
+        "404": { description: not found }
+    patch:
+      tags: [sso]
+      summary: Update SSO provider
+      operationId: patchSsoProvider
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateSsoProviderBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SsoProvider" }
+        "404": { description: not found }
+        "409": { description: name already in use within this tenant }
+    delete:
+      tags: [sso]
+      operationId: deleteSsoProvider
+      responses:
+        "204": { description: deleted }
+        "404": { description: not found }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    SsoProvider:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [oidc, saml]
+          description: Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.
+        oidcIssuer: { type: string, nullable: true }
+        oidcClientId: { type: string, nullable: true }
+        oidcClientSecretRef:
+          type: string
+          nullable: true
+          description: Indirection reference into the secret store (#169). The raw secret never traverses this API.
+        oidcScopes:
+          type: array
+          items: { type: string }
+        claimsMapping:
+          type: object
+          additionalProperties: { type: string }
+          description: Map of daemon-side claim name -> provider-side claim name.
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateSsoProviderBody:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string }
+        kind:
+          type: string
+          enum: [oidc, saml]
+        oidcIssuer: { type: string }
+        oidcClientId: { type: string }
+        oidcClientSecretRef: { type: string }
+        oidcScopes:
+          type: array
+          items: { type: string }
+        claimsMapping:
+          type: object
+          additionalProperties: { type: string }
+        enabled: { type: boolean }
+    UpdateSsoProviderBody:
+      type: object
+      properties:
+        name: { type: string }
+        kind:
+          type: string
+          enum: [oidc, saml]
+        oidcIssuer: { type: string }
+        oidcClientId: { type: string }
+        oidcClientSecretRef: { type: string }
+        oidcScopes:
+          type: array
+          items: { type: string }
+        claimsMapping:
+          type: object
+          additionalProperties: { type: string }
+        enabled: { type: boolean }

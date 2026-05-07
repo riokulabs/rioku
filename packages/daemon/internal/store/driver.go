@@ -823,6 +823,22 @@ type Tx interface {
 	GetOpaqueHandleByValueHash(ctx context.Context, tenantID, valueHash string) (*OpaqueHandle, error)
 	// UpsertOpaqueHandle inserts or replaces an opaque handle row.
 	UpsertOpaqueHandle(ctx context.Context, h OpaqueHandle) error
+
+	// --- SSO providers (stage-2 plan 17b, #240) ---
+
+	// CreateSsoProvider inserts a tenant-scoped provider config. Returns
+	// ErrSsoProviderTaken when (tenant_id, name) collides.
+	CreateSsoProvider(ctx context.Context, p *SsoProvider) (*SsoProvider, error)
+	// GetSsoProvider returns a provider by id within a tenant, or
+	// ErrSsoProviderNotFound.
+	GetSsoProvider(ctx context.Context, tenantID, id string) (*SsoProvider, error)
+	// ListSsoProvidersByTenant returns all providers wired to a tenant
+	// ordered by name.
+	ListSsoProvidersByTenant(ctx context.Context, tenantID string) ([]*SsoProvider, error)
+	// UpdateSsoProvider applies a partial update; nil fields preserved.
+	UpdateSsoProvider(ctx context.Context, tenantID, id string, params UpdateSsoProviderParams) (*SsoProvider, error)
+	// DeleteSsoProvider removes a provider; ErrSsoProviderNotFound on miss.
+	DeleteSsoProvider(ctx context.Context, tenantID, id string) error
 }
 
 // ---------------------------------------------------------------------------
@@ -834,11 +850,11 @@ type Tx interface {
 // tenant (slug "default") is seeded by migration 13 and is the parent
 // of all data created before stage-2.
 type Tenant struct {
-	ID                 string
-	Slug               string
-	Name               string
-	Plan               string  // community | pro | enterprise
-	URLMode            string  // path | subdomain
+	ID      string
+	Slug    string
+	Name    string
+	Plan    string // community | pro | enterprise
+	URLMode string // path | subdomain
 	// ParentDomain is the base domain used for subdomain routing cookie scoping.
 	// When URLMode=subdomain, session cookies are issued with Domain=.<ParentDomain>
 	// and SameSite=Lax. E.g. "localhost" for dev, "mycompany.com" for prod.
@@ -854,9 +870,9 @@ type Tenant struct {
 // UpdateTenantParams is the partial-update payload for UpdateTenant.
 // nil pointers leave the field unchanged.
 type UpdateTenantParams struct {
-	Name               *string
-	Plan               *string
-	URLMode            *string
+	Name    *string
+	Plan    *string
+	URLMode *string
 	// ParentDomain, when non-nil, sets the parent domain for subdomain cookie scoping.
 	ParentDomain       *string
 	Accent             *string
@@ -1321,6 +1337,38 @@ type NotificationItemQuery struct {
 	Offset   int
 }
 
+// SsoProvider is the per-tenant config for an SSO provider wired to a
+// tenant. The runtime data-plane plugin (#170) consumes this config.
+// Only `kind="oidc"` is supported today; "saml" is reserved.
+type SsoProvider struct {
+	ID                  string
+	TenantID            string
+	Name                string
+	Kind                string // oidc (saml reserved)
+	OIDCIssuer          *string
+	OIDCClientID        *string
+	OIDCClientSecretRef *string // resolves through #169 secret indirection
+	OIDCScopes          string  // JSON array of strings
+	ClaimsMapping       string  // JSON object: daemon_claim -> provider_claim
+	Enabled             bool
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+// UpdateSsoProviderParams carries a partial-update payload. nil fields
+// are preserved. For optional string fields (issuer / client id / secret
+// ref) an empty string clears the column; non-empty replaces.
+type UpdateSsoProviderParams struct {
+	Name                *string
+	Kind                *string
+	OIDCIssuer          *string
+	OIDCClientID        *string
+	OIDCClientSecretRef *string
+	OIDCScopes          *string
+	ClaimsMapping       *string
+	Enabled             *bool
+}
+
 // NotificationChannel is an outbound delivery destination
 // (email, slack, webhook, ...).
 type NotificationChannel struct {
@@ -1706,12 +1754,18 @@ var (
 	ErrMCPServerNameTaken      = fmt.Errorf("store: mcp server name already in use")
 )
 
+// SSO provider sentinel errors (stage-2 plan 17b, #240).
+var (
+	ErrSsoProviderNotFound = fmt.Errorf("store: sso provider not found")
+	ErrSsoProviderTaken    = fmt.Errorf("store: sso provider name already in use in this tenant")
+)
+
 // APIKey represents a stored API key.
 type APIKey struct {
-	ID         string
-	TenantID   string
-	Name       string
-	KeyHash    string
+	ID       string
+	TenantID string
+	Name     string
+	KeyHash  string
 	// Prefix is a non-secret display fragment of the raw key (e.g. the
 	// first 12 chars: `rku_tok_AbCd`). Empty for legacy keys created
 	// before migration #51 and for system / refresh / bootstrap keys.

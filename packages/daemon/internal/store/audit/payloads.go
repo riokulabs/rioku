@@ -150,6 +150,37 @@ func (AuditSensitiveRevealed) AuditSchema() string {
 	return "audit.sensitive_revealed.v1"
 }
 
+// SsoProviderChanged records create / update / delete of a tenant-scoped
+// SSO provider config (#240). The runtime data-plane plugin (#170)
+// consumes the same row's config; the audit row provides the bypass-free
+// trail of who wired which IdP to which tenant and when.
+//
+// Schema: auth.sso_provider_changed.v1
+type SsoProviderChanged struct {
+	// Operation is one of: create | update | delete.
+	Operation string `json:"operation"`
+
+	// ProviderID identifies the row that was created / mutated /
+	// removed.
+	ProviderID string `json:"provider_id"`
+
+	// ProviderName is the user-visible name. Captured separately so a
+	// reviewer can read the audit row without joining back to the
+	// (possibly already-deleted) sso_providers row.
+	ProviderName string `json:"provider_name"`
+
+	// Kind is "oidc" or "saml" — whichever was active on the operation.
+	Kind string `json:"kind"`
+
+	// TenantID is the owning tenant. Same value as the audit row's
+	// tenant_id, repeated for self-contained audit replay.
+	TenantID string `json:"tenant_id"`
+}
+
+func (SsoProviderChanged) AuditSchema() string {
+	return "auth.sso_provider_changed.v1"
+}
+
 // AITraceSensitiveRevealed records a privileged operator unmasking
 // the prompt / completion of an AI trace via POST
 // /api/v1/t/{tenant}/ai/traces/{id}/reveal. Mirrors AuditSensitiveRevealed
@@ -157,14 +188,8 @@ func (AuditSensitiveRevealed) AuditSchema() string {
 //
 // Schema: ai.trace_sensitive_revealed.v1
 type AITraceSensitiveRevealed struct {
-	// TraceID is the id of the AI trace whose sensitive fields were
-	// exposed.
-	TraceID string `json:"trace_id"`
-
-	// Reason is the compliance justification provided by the
-	// operator at reveal time. Surfaced verbatim to subsequent
-	// reviewers.
-	Reason string `json:"reason"`
+	RevealedTraceID string `json:"revealed_trace_id"`
+	Reason          string `json:"reason"`
 }
 
 func (AITraceSensitiveRevealed) AuditSchema() string {
@@ -197,6 +222,10 @@ func init() {
 	mustRegister(DefaultRegistry, Schema{
 		Discriminator: "audit.sensitive_revealed.v1",
 		New:           func() Payload { return &AuditSensitiveRevealed{} },
+	})
+	mustRegister(DefaultRegistry, Schema{
+		Discriminator: "auth.sso_provider_changed.v1",
+		New:           func() Payload { return &SsoProviderChanged{} },
 	})
 	mustRegister(DefaultRegistry, Schema{
 		Discriminator: "ai.trace_sensitive_revealed.v1",
