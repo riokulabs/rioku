@@ -48,10 +48,16 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import { archive, markAllRead, markRead, subscribeInboxStream, useNotificationList } from '../api';
+import {
+  archive,
+  markAllRead,
+  markRead,
+  resolveTenant,
+  subscribeInboxStream,
+  useNotificationList,
+} from '../api';
 import type { ID, InboxFilter, NotificationItem } from '../types';
 
 dayjs.extend(relativeTime);
@@ -122,18 +128,8 @@ export function InboxDropdown({ userId, onClose }: InboxDropdownProps) {
   const [selectedBuckets, setSelectedBuckets] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Tenant slug is resolved from the current tenant in the store so the
-  // "Open inbox" link routes to the right tenant scope. Falls back to the
-  // first tenant the user belongs to.
-  const tenants = useMockStore((s) => s.tenants);
-  const currentTenantId = useMockStore((s) => s.currentTenantId);
-  const tenantSlug = useMemo(() => {
-    if (currentTenantId && tenants[currentTenantId]) {
-      return tenants[currentTenantId].slug;
-    }
-    const first = Object.values(tenants)[0];
-    return first?.slug ?? '';
-  }, [tenants, currentTenantId]);
+  // Tenant slug is resolved from the URL path (/t/<slug>/...).
+  const tenantSlug = resolveTenant();
 
   const canManageOwn = usePermission('notification:manage-own');
 
@@ -161,15 +157,15 @@ export function InboxDropdown({ userId, onClose }: InboxDropdownProps) {
   const rows = useNotificationList(userId, filter);
 
   // Subscribe to new emits. Zustand drives the re-render already; this hook
-  // exists so future work (toast-linked "what's new" flash on the dropdown,
-  // etc.) can hook without re-plumbing. The listener is intentionally a
-  // no-op side effect.
+  // Subscribe to live SSE stream — cache invalidation triggers a refetch.
   useEffect(() => {
-    const unsub = subscribeInboxStream(userId, () => {
-      // no-op — Zustand selector picks up the store write.
+    const unsub = subscribeInboxStream(tenantSlug, () => {
+      // subscribeInboxStream delegates to subscribeSSE; useInboxStream hook
+      // manages cache invalidation. This subscription keeps the dropdown
+      // reactive when it is open and a new notification arrives.
     });
     return unsub;
-  }, [userId]);
+  }, [tenantSlug]);
 
   // Group rows by category for display — keeps plugin categories separate
   // even when the "plugins" bucket expands them all into the same filter.

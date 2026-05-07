@@ -1,108 +1,207 @@
 /**
- * Notifications inbox API — list, mark-read, archive, stream, emit.
+ * Notifications inbox API — list, mark-read, archive, stream.
  *
- * Backed by the Zustand mock store and the module-level inbox-stream bus.
- * Exports are shaped like Plan 5a (audit) so the in-browser UX can swap in a
- * real daemon-backed implementation with minimal churn.
+ * Stage-2: backed by daemon REST endpoints + SSE stream.
  *
  * Permission model (Plan 7 §11):
  *   notification:read         list + detail
  *   notification:manage-own   mark-read/archive for own user_id
  *
- * `emitNotification` is the hot path for plugin + first-party emitters. It
- * writes to the store, dispatches the inbox-stream bus, and fires a Mantine
- * toast so the new notification is immediately visible. Plugins go through
- * `host.notify` (which enforces `plugin:<slug>` category and delegates here).
+ * Daemon delivers only the authed user's notifications so the `userId`
+ * parameter is used client-side for filtering (legacy compat) and for
+ * the `markAllRead` response count.
+ *
+ * SSE stream subscribes to the per-tenant topic via `subscribeSSE`.
+ * Each event is a lightweight `NotificationStreamDelta`; receipt invalidates
+ * the React Query inbox cache so the list refetches silently.
+ *
+ * `emitNotification` is the client-side hot-path for plugin + first-party
+ * emitters (immediate toast + host event). It does NOT persist to daemon.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notifications as mantineNotifications } from '@mantine/notifications';
 
-import { useMockStore } from '@/api/mock-store';
-import { INBOX_STREAM_TOPIC, inboxStreamBus, publishInbox } from '@/api/inbox-stream-bus';
-import { simulateLatency } from '@/api/mock-latency';
+import { customFetch } from '@/api/mutator';
+import { subscribeSSE } from '@/api/sse-client';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ID, NotificationItem } from '@/api/resources';
+import type { ID, NotificationItem } from '@/api/resources';
 
 import { BUILT_IN_CATEGORIES, PLUGIN_CATEGORY_REGEX, emitNotificationInputSchema } from './schemas';
 import type { EmitNotificationInput, InboxFilter, InboxStreamListener } from './types';
 
 const nextNotifId = makeIdFactory('notif-emit');
-const nextAuditId = makeIdFactory('audit-notif');
 
-// ─── Filter matcher ──────────────────────────────────────────────────────────
-
-function matchesFilter(item: NotificationItem, userId: ID, filter: InboxFilter): boolean {
-  if (item.user_id !== userId) return false;
-
-  if (!filter.includeArchived && item.archived_at !== null) return false;
-  if (filter.unreadOnly && item.read_at !== null) return false;
-
-  if (filter.categories.length > 0 && !filter.categories.includes(item.category)) {
-    return false;
-  }
-  if (filter.severities.length > 0 && !filter.severities.includes(item.severity)) {
-    return false;
-  }
-
-  const search = filter.search.trim().toLowerCase();
-  if (search) {
-    const hay = `${item.title} ${item.body}`.toLowerCase();
-    if (!hay.includes(search)) return false;
-  }
-
-  return true;
-}
-
-function sortDesc(a: NotificationItem, b: NotificationItem): number {
-  return a.at < b.at ? 1 : a.at > b.at ? -1 : 0;
-}
-
-// ─── Selectors ────────────────────────────────────────────────────────────────
+// ─── Tenant resolution ────────────────────────────────────────────────────────
 
 /**
- * All notifications for `userId` matching `filter`, sorted desc by `at`.
- *
- * The Zustand selector only grabs the raw notifications record; filtering +
- * sorting happen outside the selector so the hook identity is stable when
- * unrelated store slices update.
+ * Resolve the current tenant slug from the URL path `/t/<slug>/...`.
+ * Components that already know the tenant should pass it explicitly.
+ */
+export function resolveTenant(): string {
+  if (typeof window !== 'undefined') {
+    const m = /^\/t\/([^/]+)/.exec(window.location.pathname);
+    if (m?.[1]) return m[1];
+  }
+  return '';
+}
+
+// ─── Response shapes from daemon ─────────────────────────────────────────────
+
+interface DaemonNotificationItem {
+  id: string;
+  tenantId?: string | null;
+  userId: string;
+  category: string;
+  severity: 'info' | 'warn' | 'error' | 'success';
+  title: string;
+  body: string;
+  actionLink?: string | null;
+  readAt?: string | null;
+  archivedAt?: string | null;
+  occurredAt: string;
+}
+
+interface ListResponse {
+  items: DaemonNotificationItem[];
+  total: number;
+}
+
+interface UnreadCountResponse {
+  unreadCount: number;
+}
+
+// ─── DTO mapper ───────────────────────────────────────────────────────────────
+
+function mapItem(d: DaemonNotificationItem): NotificationItem {
+  return {
+    id: d.id,
+    tenant_id: d.tenantId ?? null,
+    user_id: d.userId,
+    category: d.category,
+    severity: d.severity,
+    title: d.title,
+    body: d.body,
+    ...(d.actionLink
+      ? { action: { label: 'View', href: d.actionLink }, action_url: d.actionLink }
+      : {}),
+    read_at: d.readAt ?? null,
+    archived_at: d.archivedAt ?? null,
+    at: d.occurredAt,
+    read: d.readAt != null,
+    created_at: d.occurredAt,
+  };
+}
+
+// ─── Query keys ───────────────────────────────────────────────────────────────
+
+export const notificationKeys = {
+  all: (tenant: string) => ['notifications', tenant] as const,
+  list: (tenant: string, filter: InboxFilter) =>
+    ['notifications', tenant, 'list', filter] as const,
+  unread: (tenant: string) => ['notifications', tenant, 'unread'] as const,
+  detail: (tenant: string, id: string) => ['notifications', tenant, id] as const,
+};
+
+// ─── Filter → query params ────────────────────────────────────────────────────
+
+function buildParams(filter: InboxFilter): Record<string, string> {
+  const p: Record<string, string> = {};
+  // Single-value filters pushed to server; multi-value done client-side.
+  if (filter.categories.length === 1) p.category = filter.categories[0] ?? '';
+  if (filter.severities.length === 1) p.severity = filter.severities[0] ?? '';
+  if (filter.unreadOnly) p.read = 'false';
+  if (!filter.includeArchived) p.archived = 'false';
+  return p;
+}
+
+async function fetchNotificationList(
+  tenant: string,
+  filter: InboxFilter,
+): Promise<NotificationItem[]> {
+  const params = buildParams(filter);
+  const qs =
+    Object.keys(params).length > 0 ? '?' + new URLSearchParams(params).toString() : '';
+  const data = await customFetch<ListResponse>({
+    url: `/t/${tenant}/notifications${qs}`,
+    method: 'GET',
+  });
+  let items = data.items.map(mapItem);
+
+  // Client-side multi-value filtering (daemon only supports single values).
+  if (filter.categories.length > 1) {
+    items = items.filter((n) => filter.categories.includes(n.category));
+  }
+  if (filter.severities.length > 1) {
+    items = items.filter((n) => filter.severities.includes(n.severity));
+  }
+  if (filter.search.trim()) {
+    const q = filter.search.trim().toLowerCase();
+    items = items.filter((n) => `${n.title} ${n.body}`.toLowerCase().includes(q));
+  }
+  // Sort descending by `at`.
+  items.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  return items;
+}
+
+// ─── Selectors (TanStack Query) ───────────────────────────────────────────────
+
+/**
+ * All notifications for the current user matching `filter`, sorted desc by `at`.
+ * Daemon scopes to the authed user; `userId` is used for client-side filtering
+ * (defense-in-depth + legacy compat).
  */
 export function useNotificationList(userId: ID, filter: InboxFilter): NotificationItem[] {
-  const notifications = useMockStore((s) => s.notifications);
-  return useMemo(() => {
-    const out: NotificationItem[] = [];
-    for (const item of Object.values(notifications)) {
-      if (matchesFilter(item, userId, filter)) out.push(item);
-    }
-    out.sort(sortDesc);
-    return out;
-  }, [notifications, userId, filter]);
+  const tenant = resolveTenant();
+  const { data } = useQuery({
+    queryKey: notificationKeys.list(tenant, filter),
+    queryFn: () => fetchNotificationList(tenant, filter),
+    staleTime: 30_000,
+    enabled: !!tenant,
+  });
+  return useMemo(
+    () => (data ?? []).filter((n) => !userId || n.user_id === userId),
+    [data, userId],
+  );
 }
 
 /**
- * Unread + not-archived count for the given user. Drives the top-bar bell
- * badge. `0` is rendered as a hidden badge in the UI.
+ * Unread + not-archived count for the top-bar bell badge.
+ * `userId` retained for API compat; daemon uses session claims.
  */
-export function useUnreadCount(userId: ID): number {
-  const notifications = useMockStore((s) => s.notifications);
-  return useMemo(() => {
-    let n = 0;
-    for (const item of Object.values(notifications)) {
-      if (item.user_id !== userId) continue;
-      if (item.read_at !== null) continue;
-      if (item.archived_at !== null) continue;
-      n += 1;
-    }
-    return n;
-  }, [notifications, userId]);
+export function useUnreadCount(_userId: ID): number {
+  const tenant = resolveTenant();
+  const { data } = useQuery({
+    queryKey: notificationKeys.unread(tenant),
+    queryFn: () =>
+      customFetch<UnreadCountResponse>({
+        url: `/t/${tenant}/notifications/unread-count`,
+        method: 'GET',
+      }),
+    staleTime: 15_000,
+    enabled: !!tenant,
+  });
+  return data?.unreadCount ?? 0;
 }
 
 /** Detail selector — returns the notification with id `notifId`, or undefined. */
 export function useNotificationDetail(notifId: ID): NotificationItem | undefined {
-  return useMockStore((s) => s.notifications[notifId]);
+  const tenant = resolveTenant();
+  const { data } = useQuery({
+    queryKey: notificationKeys.detail(tenant, notifId),
+    queryFn: () =>
+      customFetch<DaemonNotificationItem>({
+        url: `/t/${tenant}/notifications/${notifId}`,
+        method: 'GET',
+      }),
+    staleTime: 60_000,
+    enabled: !!tenant && !!notifId,
+  });
+  return data ? mapItem(data) : undefined;
 }
 
-// ─── Infinite-list variant (mirrors audit API shape) ─────────────────────────
+// ─── Infinite-list variant ────────────────────────────────────────────────────
 
 export interface NotificationListInfiniteResult {
   data: NotificationItem[];
@@ -112,9 +211,9 @@ export interface NotificationListInfiniteResult {
 }
 
 /**
- * Paginated variant of {@link useNotificationList}. Mirrors the TanStack
- * Query `useInfiniteQuery` surface so the UI can swap in a real network-
- * backed version in Stage 2 with no changes.
+ * Paginated variant of {@link useNotificationList}. Daemon returns up to 200
+ * items; we slice client-side to preserve the TanStack Query surface expected
+ * by the UI.
  */
 export function useNotificationListInfinite(
   userId: ID,
@@ -123,212 +222,171 @@ export function useNotificationListInfinite(
 ): NotificationListInfiniteResult {
   const full = useNotificationList(userId, filter);
   const [pages, setPages] = useState(1);
-
   const currentSlice = useMemo(() => full.slice(0, pages * pageSize), [full, pages, pageSize]);
-
   const hasNextPage = currentSlice.length < full.length;
-
   const fetchNextPage = useCallback(() => {
     setPages((p) => p + 1);
   }, []);
-
-  return {
-    data: currentSlice,
-    fetchNextPage,
-    hasNextPage,
-    isFetching: false,
-  };
+  return { data: currentSlice, fetchNextPage, hasNextPage, isFetching: false };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 /**
- * Mark a single notification read. Sets `read_at` to now; no-ops if the
- * notification is already read or does not exist. Emits an audit entry
- * (tier: read) so the audit log reflects inbox activity, and fires a host
- * event for plugin consumers.
+ * Mark a single notification read.
+ * Returns the updated item or undefined on missing / error.
  */
 export async function markRead(id: ID): Promise<NotificationItem | undefined> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.notifications[id];
-  if (!current) return undefined;
-  if (current.read_at !== null) return current;
-
-  const now = new Date().toISOString();
-  const next: NotificationItem = {
-    ...current,
-    read_at: now,
-    read: true,
-  };
-
-  useMockStore.setState((s) => ({
-    notifications: {
-      ...s.notifications,
-      [id]: next,
-    },
-  }));
-
-  const entry: AuditEntry = {
-    id: nextAuditId(),
-    tenant_id: current.tenant_id ?? 'global',
-    actor_id: state.currentUserId ?? current.user_id,
-    action: 'notification.read',
-    resource_type: 'notification',
-    resource_id: id,
-    outcome: 'success',
-    at: now,
-    tier: 'read',
-  };
-  state.appendAudit(entry);
-
-  emitHostEvent('notification:read', { notification_id: id });
-
-  return next;
-}
-
-/**
- * Mark every unread + not-archived notification for `userId` as read in a
- * single atomic setState call. Plan 7 explicitly requires multi-entity
- * atomicity here — Plans 2 + 6 taught us that per-item setState in a loop
- * tears the UI.
- */
-export async function markAllRead(userId: ID): Promise<number> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const now = new Date().toISOString();
-
-  let count = 0;
-  const nextMap: Record<ID, NotificationItem> = { ...state.notifications };
-  for (const [id, item] of Object.entries(state.notifications)) {
-    if (item.user_id !== userId) continue;
-    if (item.read_at !== null) continue;
-    if (item.archived_at !== null) continue;
-    nextMap[id] = { ...item, read_at: now, read: true };
-    count += 1;
+  const tenant = resolveTenant();
+  if (!tenant) return undefined;
+  try {
+    const data = await customFetch<DaemonNotificationItem>({
+      url: `/t/${tenant}/notifications/${id}/read`,
+      method: 'POST',
+    });
+    emitHostEvent('notification:read', { notification_id: id });
+    return mapItem(data);
+  } catch {
+    return undefined;
   }
-
-  if (count === 0) return 0;
-
-  useMockStore.setState(() => ({ notifications: nextMap }));
-
-  const entry: AuditEntry = {
-    id: nextAuditId(),
-    tenant_id: state.currentTenantId ?? 'global',
-    actor_id: state.currentUserId ?? userId,
-    action: 'notification.mark_all_read',
-    resource_type: 'notification',
-    resource_id: userId,
-    outcome: 'success',
-    at: now,
-    tier: 'write',
-    payload: { count },
-  };
-  state.appendAudit(entry);
-
-  emitHostEvent('notification:mark-all-read', { user_id: userId, count });
-
-  return count;
 }
 
 /**
- * Archive a notification. Sets `archived_at` to now; no-ops if already
- * archived or missing.
+ * Mark every unread + not-archived notification read.
+ * Returns the count of items marked.
+ * `userId` retained for API compat; daemon uses session claims.
+ */
+export async function markAllRead(_userId: ID): Promise<number> {
+  const tenant = resolveTenant();
+  if (!tenant) return 0;
+  const data = await customFetch<{ count: number }>({
+    url: `/t/${tenant}/notifications/read-all`,
+    method: 'POST',
+  });
+  emitHostEvent('notification:mark-all-read', { tenant });
+  return data.count;
+}
+
+/**
+ * Archive a notification.
+ * Returns the updated item or undefined on missing / error.
  */
 export async function archive(id: ID): Promise<NotificationItem | undefined> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.notifications[id];
-  if (!current) return undefined;
-  if (current.archived_at !== null) return current;
-
-  const now = new Date().toISOString();
-  const next: NotificationItem = { ...current, archived_at: now };
-
-  useMockStore.setState((s) => ({
-    notifications: {
-      ...s.notifications,
-      [id]: next,
-    },
-  }));
-
-  const entry: AuditEntry = {
-    id: nextAuditId(),
-    tenant_id: current.tenant_id ?? 'global',
-    actor_id: state.currentUserId ?? current.user_id,
-    action: 'notification.archive',
-    resource_type: 'notification',
-    resource_id: id,
-    outcome: 'success',
-    at: now,
-    tier: 'write',
-  };
-  state.appendAudit(entry);
-
-  emitHostEvent('notification:archived', { notification_id: id });
-
-  return next;
+  const tenant = resolveTenant();
+  if (!tenant) return undefined;
+  try {
+    const data = await customFetch<DaemonNotificationItem>({
+      url: `/t/${tenant}/notifications/${id}/archive`,
+      method: 'POST',
+    });
+    emitHostEvent('notification:archived', { notification_id: id });
+    return mapItem(data);
+  } catch {
+    return undefined;
+  }
 }
-
-/** Unarchive a notification — clears `archived_at`. */
-export async function unarchive(id: ID): Promise<NotificationItem | undefined> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.notifications[id];
-  if (!current) return undefined;
-  if (current.archived_at === null) return current;
-
-  const now = new Date().toISOString();
-  const next: NotificationItem = { ...current, archived_at: null };
-
-  useMockStore.setState((s) => ({
-    notifications: {
-      ...s.notifications,
-      [id]: next,
-    },
-  }));
-
-  const entry: AuditEntry = {
-    id: nextAuditId(),
-    tenant_id: current.tenant_id ?? 'global',
-    actor_id: state.currentUserId ?? current.user_id,
-    action: 'notification.unarchive',
-    resource_type: 'notification',
-    resource_id: id,
-    outcome: 'success',
-    at: now,
-    tier: 'write',
-  };
-  state.appendAudit(entry);
-
-  emitHostEvent('notification:unarchived', { notification_id: id });
-
-  return next;
-}
-
-// ─── Streaming tail ──────────────────────────────────────────────────────────
 
 /**
- * Subscribe to newly-emitted notifications for `userId`. Fires `onNotification`
- * for each `publishInbox` call whose `user_id` matches. Returns an unsubscribe
- * function.
- *
- * Stage 2 replaces this with a real SSE subscription; the signature stays
- * identical.
+ * Unarchive a notification.
+ * Returns the updated item or undefined on missing / error.
  */
-export function subscribeInboxStream(userId: ID, onNotification: InboxStreamListener): () => void {
-  const handler = (e: Event): void => {
-    const detail = (e as CustomEvent<NotificationItem>).detail;
-    if (detail.user_id !== userId) return;
-    onNotification(detail);
-  };
-  inboxStreamBus.addEventListener(INBOX_STREAM_TOPIC, handler);
-  return () => {
-    inboxStreamBus.removeEventListener(INBOX_STREAM_TOPIC, handler);
-  };
+export async function unarchive(id: ID): Promise<NotificationItem | undefined> {
+  const tenant = resolveTenant();
+  if (!tenant) return undefined;
+  try {
+    const data = await customFetch<DaemonNotificationItem>({
+      url: `/t/${tenant}/notifications/${id}/unarchive`,
+      method: 'POST',
+    });
+    emitHostEvent('notification:unarchived', { notification_id: id });
+    return mapItem(data);
+  } catch {
+    return undefined;
+  }
 }
 
-// ─── Emit ─────────────────────────────────────────────────────────────────────
+// ─── SSE stream ───────────────────────────────────────────────────────────────
+
+/** Lightweight SSE delta sent by the daemon stream endpoint. */
+export interface NotificationStreamDelta {
+  id: string;
+  category: string;
+  severity: string;
+  title: string;
+  createdAt: string;
+}
+
+/**
+ * Subscribe to the live notification stream for a tenant via `subscribeSSE`.
+ *
+ * Each SSE event is a lightweight `NotificationStreamDelta`. Callers should
+ * use this to drive cache invalidation (see `useInboxStream`).
+ *
+ * Returns an unsubscribe function.
+ *
+ * Stage-1 callers used `subscribeInboxStream(userId, listener)` with the
+ * mock EventTarget bus. Stage-2 signature changes to `(tenant, onDelta)`.
+ * The old `userId` param is retired — daemon scopes to the authed user.
+ */
+export function subscribeInboxStream(
+  tenantOrUserId: string,
+  onDelta: ((delta: NotificationStreamDelta) => void) | InboxStreamListener,
+): () => void {
+  // Heuristic: if the value looks like a userId (matches the mock-store prefix
+  // 'user-' or is not a tenant slug) we resolve the tenant from the URL
+  // instead. This keeps stage-1 call sites working without modification.
+  const tenant = tenantOrUserId.startsWith('user-')
+    ? resolveTenant()
+    : tenantOrUserId;
+  if (!tenant) {
+    return () => {
+      /* no-op: no tenant in URL, nothing to unsubscribe */
+    };
+  }
+  const topic = `t/${tenant}/notifications/stream`;
+  return subscribeSSE(topic, (detail) => {
+    // The legacy InboxStreamListener expected a NotificationItem; SSE now
+    // sends a NotificationStreamDelta. Call onDelta with the delta directly —
+    // callers that used the old signature will receive a partial object.
+    // The inbox-dropdown and top-bar components use the hook instead.
+    (onDelta as (d: NotificationStreamDelta) => void)(detail as NotificationStreamDelta);
+  });
+}
+
+/**
+ * React hook that subscribes to the inbox SSE stream and invalidates the
+ * TanStack Query inbox cache when new notifications arrive.
+ *
+ * Place at the top-level of the inbox page or the app shell so the bell badge
+ * and inbox list stay live without polling.
+ */
+export function useInboxStream(
+  tenant: string,
+  onDelta?: (delta: NotificationStreamDelta) => void,
+): void {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!tenant) return;
+    const unsub = subscribeInboxStream(tenant, (delta: NotificationStreamDelta) => {
+      void qc.invalidateQueries({ queryKey: notificationKeys.all(tenant) });
+      onDelta?.(delta);
+    });
+    return unsub;
+  }, [tenant, qc, onDelta]);
+}
+
+// ─── emitNotification (client-side toast + host event) ────────────────────────
+
+/**
+ * Validate category; throws on mismatch.
+ */
+function validateCategory(category: string): void {
+  if (BUILT_IN_CATEGORIES.includes(category as (typeof BUILT_IN_CATEGORIES)[number])) return;
+  if (PLUGIN_CATEGORY_REGEX.test(category)) return;
+  throw new Error(
+    `Invalid notification category "${category}": must be one of ${BUILT_IN_CATEGORIES.join(' | ')} or match plugin:<slug>.`,
+  );
+}
 
 function severityToToastColor(severity: NotificationItem['severity']): string {
   switch (severity) {
@@ -338,48 +396,21 @@ function severityToToastColor(severity: NotificationItem['severity']): string {
       return 'orange';
     case 'success':
       return 'green';
-    case 'info':
     default:
       return 'blue';
   }
 }
 
 /**
- * Validate that `category` is either a built-in bucket or a well-formed
- * `plugin:<slug>` identifier. Throws on mismatch.
+ * Emit a client-side notification (immediate toast + host event).
  *
- * Note: Stage 1 does NOT enforce that `category: 'system'` only comes from
- * system-level callers — in the daemon this check belongs at the auth layer.
- * Plugin code MUST go through `host.notify`, which rejects any non-`plugin:*`
- * category before it reaches here.
- */
-function validateCategory(category: string): void {
-  if (BUILT_IN_CATEGORIES.includes(category as (typeof BUILT_IN_CATEGORIES)[number])) {
-    return;
-  }
-  if (PLUGIN_CATEGORY_REGEX.test(category)) {
-    return;
-  }
-  throw new Error(
-    `Invalid notification category "${category}": must be one of ${BUILT_IN_CATEGORIES.join(' | ')} or match plugin:<slug>.`,
-  );
-}
-
-/**
- * Emit a notification synchronously.
+ * This does NOT persist to the daemon — use it for immediate in-browser
+ * feedback from plugins and first-party features. The daemon-side dispatcher
+ * handles persistent notification routing.
  *
- *   1. Validates the input shape + category
- *   2. Writes a new NotificationItem to the mock store
- *   3. Publishes on the inbox-stream bus so open dropdowns update live
- *   4. Fires a Mantine toast with severity-appropriate color
- *   5. Emits a `notification:emitted` host event for plugin consumers
- *
- * This is called by `host.notify` (plugin surface) and by first-party
- * features that want to push into the inbox (e.g., security alerts).
+ * Kept for plugin compatibility: `host.notify` → `emitNotification`.
  */
 export function emitNotification(input: EmitNotificationInput): NotificationItem {
-  // Schema validation catches shape errors; `validateCategory` gives a better
-  // error message for the category-specific rule.
   const parsed = emitNotificationInputSchema.parse(input);
   validateCategory(parsed.category);
 
@@ -392,26 +423,14 @@ export function emitNotification(input: EmitNotificationInput): NotificationItem
     severity: parsed.severity,
     title: parsed.title,
     body: parsed.body,
-    ...(parsed.action ? { action: parsed.action } : {}),
+    ...(parsed.action ? { action: parsed.action, action_url: parsed.action.href } : {}),
     read_at: null,
     archived_at: null,
     at: now,
     read: false,
     created_at: now,
-    ...(parsed.action ? { action_url: parsed.action.href } : {}),
   };
 
-  useMockStore.setState((s) => ({
-    notifications: {
-      ...s.notifications,
-      [item.id]: item,
-    },
-  }));
-
-  publishInbox(item);
-
-  // Mantine toast — stays visible long enough to click through. Error toasts
-  // get the longest autoClose; info/success stay shorter.
   mantineNotifications.show({
     color: severityToToastColor(item.severity),
     title: item.title,

@@ -8,6 +8,9 @@ export {
   updateRoutingRule,
   deleteRoutingRule,
   reorderRoutingRules,
+  useInvalidateRoutingRules,
+  routingKeys,
+  previewMatch,
 } from './api';
 
 export {

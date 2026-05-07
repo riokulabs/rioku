@@ -1,0 +1,652 @@
+# Sandbox inbox notifications (rich-mode demo data).
+#
+# 100 sample notifications spanning categories, severities, and read/archived
+# states. Targeted at the sandbox's seeded users so the inbox dropdown,
+# detail panel, filter chips, mark-read/archive actions, and SSE refetch
+# all have content to render.
+#
+# Schema: see SeedNotification in packages/daemon/internal/cli/seed.go.
+# The seeder POSTs these to /api/v1/t/{tenant}/notifications/seed (admin
+# endpoint added in plan-06).
+
+notifications:
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1000 expires on 2026-05-01. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-20T08:00:00Z'
+    read: true
+    archived: true
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Service deployed'
+    body: 'Service svc-1 version 1.1.1 deployed successfully.'
+    occurred_at: '2026-04-20T11:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.2 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-20T14:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: warn
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.3.0 to 1.3.1.'
+    occurred_at: '2026-04-20T17:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: warn
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 74% utilization for storage.'
+    occurred_at: '2026-04-20T20:00:00Z'
+  - user: testadmin
+    category: system
+    severity: error
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-5' matched 6 events."
+    occurred_at: '2026-04-20T23:00:00Z'
+  - user: testoperator
+    category: security
+    severity: success
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 406; retrying."
+    occurred_at: '2026-04-21T02:00:00Z'
+    read: true
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 80 rows older than 37 days.'
+    occurred_at: '2026-04-21T05:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Cluster member joined'
+    body: 'Node node-3 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-21T08:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-21T11:00:00Z'
+    read: true
+  - user: testadmin
+    category: system
+    severity: warn
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-21T14:00:00Z'
+  - user: testoperator
+    category: security
+    severity: warn
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-21T17:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: error
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1012 expires on 2026-05-13. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-21T20:00:00Z'
+    read: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: success
+    title: 'Service deployed'
+    body: 'Service svc-3 version 1.4.3 deployed successfully.'
+    occurred_at: '2026-04-21T23:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.14 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-22T02:00:00Z'
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.0.0 to 1.0.1.'
+    occurred_at: '2026-04-22T05:00:00Z'
+    read: true
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 86% utilization for storage.'
+    occurred_at: '2026-04-22T08:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: warn
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-3' matched 18 events."
+    occurred_at: '2026-04-22T11:00:00Z'
+    archived: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: warn
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 418; retrying."
+    occurred_at: '2026-04-22T14:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: error
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 200 rows older than 49 days.'
+    occurred_at: '2026-04-22T17:00:00Z'
+  - user: testadmin
+    category: system
+    severity: success
+    title: 'Cluster member joined'
+    body: 'Node node-0 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-22T20:00:00Z'
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-22T23:00:00Z'
+    read: true
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-23T02:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-23T05:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: warn
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1024 expires on 2026-05-25. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-23T08:00:00Z'
+    read: true
+  - user: testadmin
+    category: system
+    severity: warn
+    title: 'Service deployed'
+    body: 'Service svc-5 version 1.7.0 deployed successfully.'
+    occurred_at: '2026-04-23T11:00:00Z'
+  - user: testoperator
+    category: security
+    severity: error
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.26 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-23T14:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: success
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.2.0 to 1.2.1.'
+    occurred_at: '2026-04-23T17:00:00Z'
+    read: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 98% utilization for storage.'
+    occurred_at: '2026-04-23T20:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-1' matched 30 events."
+    occurred_at: '2026-04-23T23:00:00Z'
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 430; retrying."
+    occurred_at: '2026-04-24T02:00:00Z'
+    read: true
+  - user: testoperator
+    category: security
+    severity: warn
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 320 rows older than 61 days.'
+    occurred_at: '2026-04-24T05:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: warn
+    title: 'Cluster member joined'
+    body: 'Node node-2 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-24T08:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: error
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-24T11:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: success
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-24T14:00:00Z'
+    archived: true
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-24T17:00:00Z'
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1036 expires on 2026-05-09. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-24T20:00:00Z'
+    read: true
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Service deployed'
+    body: 'Service svc-7 version 1.1.2 deployed successfully.'
+    occurred_at: '2026-04-24T23:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: warn
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.38 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-25T02:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: warn
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.4.0 to 1.4.1.'
+    occurred_at: '2026-04-25T05:00:00Z'
+    read: true
+  - user: testadmin
+    category: system
+    severity: error
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 80% utilization for storage.'
+    occurred_at: '2026-04-25T08:00:00Z'
+  - user: testoperator
+    category: security
+    severity: success
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-6' matched 42 events."
+    occurred_at: '2026-04-25T11:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 442; retrying."
+    occurred_at: '2026-04-25T14:00:00Z'
+    read: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 440 rows older than 73 days.'
+    occurred_at: '2026-04-25T17:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Cluster member joined'
+    body: 'Node node-4 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-25T20:00:00Z'
+  - user: testadmin
+    category: system
+    severity: warn
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-25T23:00:00Z'
+    read: true
+  - user: testoperator
+    category: security
+    severity: warn
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-26T02:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: error
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-26T05:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: success
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1048 expires on 2026-05-21. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-26T08:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Service deployed'
+    body: 'Service svc-9 version 1.4.4 deployed successfully.'
+    occurred_at: '2026-04-26T11:00:00Z'
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.50 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-26T14:00:00Z'
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.1.0 to 1.1.1.'
+    occurred_at: '2026-04-26T17:00:00Z'
+    read: true
+    archived: true
+  - user: testviewer
+    category: audit
+    severity: warn
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 92% utilization for storage.'
+    occurred_at: '2026-04-26T20:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: warn
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-4' matched 54 events."
+    occurred_at: '2026-04-26T23:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: error
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 454; retrying."
+    occurred_at: '2026-04-27T02:00:00Z'
+    read: true
+  - user: testadmin
+    category: system
+    severity: success
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 560 rows older than 85 days.'
+    occurred_at: '2026-04-27T05:00:00Z'
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Cluster member joined'
+    body: 'Node node-1 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-27T08:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-27T11:00:00Z'
+    read: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-27T14:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: warn
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-27T17:00:00Z'
+  - user: testadmin
+    category: system
+    severity: warn
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1060 expires on 2026-05-05. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-27T20:00:00Z'
+    read: true
+  - user: testoperator
+    category: security
+    severity: error
+    title: 'Service deployed'
+    body: 'Service svc-1 version 1.7.1 deployed successfully.'
+    occurred_at: '2026-04-27T23:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: success
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.62 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-28T02:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.3.0 to 1.3.1.'
+    occurred_at: '2026-04-28T05:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 74% utilization for storage.'
+    occurred_at: '2026-04-28T08:00:00Z'
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-2' matched 66 events."
+    occurred_at: '2026-04-28T11:00:00Z'
+  - user: testoperator
+    category: security
+    severity: warn
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 466; retrying."
+    occurred_at: '2026-04-28T14:00:00Z'
+    read: true
+  - user: testviewer
+    category: audit
+    severity: warn
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 680 rows older than 37 days.'
+    occurred_at: '2026-04-28T17:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: error
+    title: 'Cluster member joined'
+    body: 'Node node-3 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-28T20:00:00Z'
+    archived: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: success
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-28T23:00:00Z'
+    read: true
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-29T02:00:00Z'
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-29T05:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1072 expires on 2026-05-17. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-29T08:00:00Z'
+    read: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: warn
+    title: 'Service deployed'
+    body: 'Service svc-3 version 1.1.3 deployed successfully.'
+    occurred_at: '2026-04-29T11:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: warn
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.74 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-04-29T14:00:00Z'
+  - user: testadmin
+    category: system
+    severity: error
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.0.0 to 1.0.1.'
+    occurred_at: '2026-04-29T17:00:00Z'
+    read: true
+  - user: testoperator
+    category: security
+    severity: success
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 86% utilization for storage.'
+    occurred_at: '2026-04-29T20:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-0' matched 78 events."
+    occurred_at: '2026-04-29T23:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 478; retrying."
+    occurred_at: '2026-04-30T02:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 800 rows older than 49 days.'
+    occurred_at: '2026-04-30T05:00:00Z'
+  - user: testadmin
+    category: system
+    severity: warn
+    title: 'Cluster member joined'
+    body: 'Node node-0 joined the cluster at 12:00:00.'
+    occurred_at: '2026-04-30T08:00:00Z'
+  - user: testoperator
+    category: security
+    severity: warn
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-04-30T11:00:00Z'
+    read: true
+  - user: testviewer
+    category: audit
+    severity: error
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-04-30T14:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: success
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-04-30T17:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1084 expires on 2026-05-01. Rotate before then to avoid downtime.'
+    occurred_at: '2026-04-30T20:00:00Z'
+    read: true
+  - user: testadmin
+    category: system
+    severity: info
+    title: 'Service deployed'
+    body: 'Service svc-5 version 1.4.0 deployed successfully.'
+    occurred_at: '2026-04-30T23:00:00Z'
+    archived: true
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.86 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-05-01T02:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: warn
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.2.0 to 1.2.1.'
+    occurred_at: '2026-05-01T05:00:00Z'
+    read: true
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: warn
+    title: 'Quota threshold reached'
+    body: 'Tenant quota at 98% utilization for storage.'
+    occurred_at: '2026-05-01T08:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: error
+    title: 'Routing rule activated'
+    body: "Notification routing rule 'rule-5' matched 90 events."
+    occurred_at: '2026-05-01T11:00:00Z'
+  - user: testadmin
+    category: system
+    severity: success
+    title: 'Channel send failed'
+    body: "Notification channel 'ch-2' returned HTTP 490; retrying."
+    occurred_at: '2026-05-01T14:00:00Z'
+    read: true
+  - user: testoperator
+    category: security
+    severity: info
+    title: 'Audit retention applied'
+    body: 'Audit retention policy purged 920 rows older than 61 days.'
+    occurred_at: '2026-05-01T17:00:00Z'
+  - user: testviewer
+    category: audit
+    severity: info
+    title: 'Cluster member joined'
+    body: 'Node node-2 joined the cluster at 12:00:00.'
+    occurred_at: '2026-05-01T20:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Cert renewed'
+    body: 'TLS certificate *.example-1.com renewed automatically.'
+    occurred_at: '2026-05-01T23:00:00Z'
+    read: true
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: warn
+    title: 'RBAC role updated'
+    body: "Role 'role-4' grants modified by actor-1."
+    occurred_at: '2026-05-02T02:00:00Z'
+  - user: testadmin
+    category: system
+    severity: warn
+    title: 'Rate limit triggered'
+    body: 'Tenant default hit rate-limit on route /api/v2.'
+    occurred_at: '2026-05-02T05:00:00Z'
+  - user: testoperator
+    category: security
+    severity: error
+    title: 'API Key expiring soon'
+    body: 'API key kid=k_1096 expires on 2026-05-13. Rotate before then to avoid downtime.'
+    occurred_at: '2026-05-02T08:00:00Z'
+    read: true
+  - user: testviewer
+    category: audit
+    severity: success
+    title: 'Service deployed'
+    body: 'Service svc-7 version 1.7.2 deployed successfully.'
+    occurred_at: '2026-05-02T11:00:00Z'
+  - user: testmulti
+    category: plugin:com.example.slack
+    severity: info
+    title: 'Login from new device'
+    body: 'Sign-in from 10.0.0.98 (us-west-2). If this was not you, revoke the session.'
+    occurred_at: '2026-05-02T14:00:00Z'
+  - user: test2fa
+    category: plugin:com.acme.pagerduty
+    severity: info
+    title: 'Plugin updated'
+    body: 'Plugin acme-0 upgraded from 1.4.0 to 1.4.1.'
+    occurred_at: '2026-05-02T17:00:00Z'
+    read: true

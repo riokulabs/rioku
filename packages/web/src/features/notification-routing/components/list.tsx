@@ -6,7 +6,7 @@
  * ActionIcon up/down arrows (no dnd dep) — click dispatches a full-array
  * `reorderRoutingRules(tenantId, newOrder)` call.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { ActionIcon, Badge, Group, Menu, Switch, Text } from '@mantine/core';
 import {
@@ -47,41 +47,47 @@ export function RoutingRuleList({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
 
-  async function handleToggle(r: NotificationRoutingRule, next: boolean) {
-    setTogglingId(r.id);
-    try {
-      await updateRoutingRule(r.id, { enabled: next });
-      notify.success(
-        next ? 'Rule enabled' : 'Rule disabled',
-        `${r.name} is now ${next ? 'active' : 'inactive'}.`,
-      );
-    } catch {
-      notify.error('Failed to toggle rule', 'Please try again.');
-    } finally {
-      setTogglingId(null);
-    }
-  }
+  const handleToggle = useCallback(
+    async (r: NotificationRoutingRule, next: boolean) => {
+      setTogglingId(r.id);
+      try {
+        await updateRoutingRule(r.id, { enabled: next });
+        notify.success(
+          next ? 'Rule enabled' : 'Rule disabled',
+          `${r.name} is now ${next ? 'active' : 'inactive'}.`,
+        );
+      } catch {
+        notify.error('Failed to toggle rule', 'Please try again.');
+      } finally {
+        setTogglingId(null);
+      }
+    },
+    [],
+  );
 
-  async function handleMove(index: number, direction: 'up' | 'down') {
-    const delta = direction === 'up' ? -1 : 1;
-    const target = index + delta;
-    if (target < 0 || target >= rules.length) return;
-    const ids = rules.map((r) => r.id);
-    const a = ids[index];
-    const b = ids[target];
-    if (a === undefined || b === undefined) return;
-    const next = [...ids];
-    next[index] = b;
-    next[target] = a;
-    setReordering(true);
-    try {
-      await reorderRoutingRules(tenantId, next);
-    } catch {
-      notify.error('Failed to reorder rules', 'Please try again.');
-    } finally {
-      setReordering(false);
-    }
-  }
+  const handleMove = useCallback(
+    async (index: number, direction: 'up' | 'down') => {
+      const delta = direction === 'up' ? -1 : 1;
+      const target = index + delta;
+      if (target < 0 || target >= rules.length) return;
+      const ids = rules.map((r) => r.id);
+      const a = ids[index];
+      const b = ids[target];
+      if (a === undefined || b === undefined) return;
+      const next = [...ids];
+      next[index] = b;
+      next[target] = a;
+      setReordering(true);
+      try {
+        await reorderRoutingRules(tenantId, next);
+      } catch {
+        notify.error('Failed to reorder rules', 'Please try again.');
+      } finally {
+        setReordering(false);
+      }
+    },
+    [rules, tenantId],
+  );
 
   const columns = useMemo<ColumnDef<NotificationRoutingRule>[]>(
     () => [
@@ -260,7 +266,17 @@ export function RoutingRuleList({
         },
       },
     ],
-    [channels, togglingId, reordering, rules.length, canWrite, onEdit, onDelete],
+    [
+      channels,
+      togglingId,
+      reordering,
+      rules.length,
+      canWrite,
+      onEdit,
+      onDelete,
+      handleMove,
+      handleToggle,
+    ],
   );
 
   return (

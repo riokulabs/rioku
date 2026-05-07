@@ -51,6 +51,7 @@ type SeedFile struct {
 	MCPServers           []SeedMCPServer           `yaml:"mcp_servers"`
 	NotificationChannels []SeedNotifChannel        `yaml:"notification_channels"`
 	NotificationRouting  []SeedNotifRoutingRule    `yaml:"notification_routing"`
+	Notifications        []SeedNotification        `yaml:"notifications"`
 	Plugins              []SeedPlugin              `yaml:"plugins"`
 	PluginSigners        []SeedPluginSigner        `yaml:"plugin_signers"`
 	CertAuthorities      []SeedCertAuthority       `yaml:"cert_authorities"`
@@ -282,6 +283,22 @@ type SeedNotifChannel struct {
 	Name   string         `yaml:"name"`
 	Kind   string         `yaml:"kind"`
 	Config map[string]any `yaml:"config,omitempty"`
+}
+
+// SeedNotification is a per-user inbox entry for sandbox demo data.
+// Tenant defaults to "default"; UserUsername resolves to a user_id at
+// seed time (the seeder needs the user to already exist).
+type SeedNotification struct {
+	Tenant       string `yaml:"tenant,omitempty"`
+	UserUsername string `yaml:"user"`
+	Category     string `yaml:"category"`
+	Severity     string `yaml:"severity"`
+	Title        string `yaml:"title"`
+	Body         string `yaml:"body"`
+	ActionLink   string `yaml:"action_link,omitempty"`
+	OccurredAt   string `yaml:"occurred_at,omitempty"` // RFC3339; defaults to now
+	Read         bool   `yaml:"read,omitempty"`
+	Archived     bool   `yaml:"archived,omitempty"`
 }
 
 // SeedNotifRoutingRule maps event filters to channels.
@@ -1030,6 +1047,39 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 		}
 	}
 
+	// 12b. Sandbox inbox notifications (admin-only seed endpoint).
+	if len(seed.Notifications) > 0 {
+		// Group by tenant so we can issue one bulk POST per tenant.
+		byTenant := map[string][]map[string]any{}
+		for _, n := range seed.Notifications {
+			t := n.Tenant
+			if t == "" {
+				t = "default"
+			}
+			item := map[string]any{
+				"username": n.UserUsername,
+				"category": n.Category,
+				"severity": n.Severity,
+				"title":    n.Title,
+				"body":     n.Body,
+				"read":     n.Read,
+				"archived": n.Archived,
+			}
+			if n.ActionLink != "" {
+				item["actionLink"] = n.ActionLink
+			}
+			if n.OccurredAt != "" {
+				item["occurredAt"] = n.OccurredAt
+			}
+			byTenant[t] = append(byTenant[t], item)
+		}
+		for tenant, items := range byTenant {
+			body, _ := json.Marshal(map[string]any{"items": items})
+			status, _ := apiCall(client, sessionCookie, "POST", tenantBase(tenant)+"/notifications/seed", body)
+			logSeed(logger, "notifications", fmt.Sprintf("%s (%d items)", tenant, len(items)), status)
+		}
+	}
+
 	// 13. Notification routing rules
 	for _, rule := range seed.NotificationRouting {
 		chIDs := make([]string, 0, len(rule.Channels))
@@ -1290,6 +1340,7 @@ func mergeSeed(dst, src *SeedFile) {
 	dst.MCPServers = append(dst.MCPServers, src.MCPServers...)
 	dst.NotificationChannels = append(dst.NotificationChannels, src.NotificationChannels...)
 	dst.NotificationRouting = append(dst.NotificationRouting, src.NotificationRouting...)
+	dst.Notifications = append(dst.Notifications, src.Notifications...)
 	dst.Plugins = append(dst.Plugins, src.Plugins...)
 	dst.PluginSigners = append(dst.PluginSigners, src.PluginSigners...)
 	dst.CertAuthorities = append(dst.CertAuthorities, src.CertAuthorities...)

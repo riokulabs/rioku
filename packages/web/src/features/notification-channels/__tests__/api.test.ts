@@ -1,12 +1,16 @@
  
 /**
- * Tests for the notification-channels API — CRUD + test.
+ * Tests for the notification-channels API — daemon-backed (stage-2).
+ *
+ * Uses MSW to intercept fetch calls to /api/v1/t/:tenant/notification-channels.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createElement, type ReactNode } from 'react';
 
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { server } from '@/test/msw-server';
 
 import {
   createChannel,
@@ -18,156 +22,258 @@ import {
 } from '../api';
 import type { ChannelFilter } from '../types';
 
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
+const TENANT = 'acme';
+const TENANT_ID = 'tenant-001';
 
-function firstTenantId(): string {
-  return Object.keys(useMockStore.getState().tenants)[0]!;
+function setTenantUrl() {
+  window.history.replaceState(null, '', `/t/${TENANT}/settings/notification-channels`);
+}
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+}
+
+function wrapper(qc: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: qc }, children);
+  };
 }
 
 function emptyFilter(): ChannelFilter {
   return { kinds: [], enabled: undefined, search: '' };
 }
 
+const CHANNEL_EMAIL = {
+  id: 'channel-email-1',
+  tenantId: TENANT_ID,
+  name: 'Ops email',
+  kind: 'email' as const,
+  config: { to: 'ops@example.com', from: 'no-reply@example.com' },
+  enabled: true,
+  createdAt: '2026-01-01T10:00:00.000Z',
+  updatedAt: '2026-01-01T10:00:00.000Z',
+};
+
+const CHANNEL_SLACK = {
+  id: 'channel-slack-1',
+  tenantId: TENANT_ID,
+  name: 'Z-Slack ops',
+  kind: 'slack' as const,
+  config: { webhook_url: 'https://hooks.slack.com/services/T/B/C' },
+  enabled: false,
+  createdAt: '2026-01-02T10:00:00.000Z',
+  updatedAt: '2026-01-02T10:00:00.000Z',
+};
+
+beforeEach(() => {
+  setTenantUrl();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('useChannelList', () => {
-  it('returns channels scoped to the tenant sorted by name', () => {
-    const tenantId = firstTenantId();
-    const { result } = renderHook(() => useChannelList(tenantId, emptyFilter()));
-    for (const c of result.current) expect(c.tenant_id).toBe(tenantId);
-    for (let i = 1; i < result.current.length; i++) {
-      expect(result.current[i - 1]!.name <= result.current[i]!.name).toBe(true);
-    }
-  });
+  it('lists channels sorted by name and filters by kind / enabled / search', async () => {
+    server.use(
+      http.get(`/api/v1/t/${TENANT}/notification-channels`, () =>
+        HttpResponse.json({ items: [CHANNEL_SLACK, CHANNEL_EMAIL], total: 2 }),
+      ),
+    );
 
-  it('kind filter narrows result set', () => {
-    const tenantId = firstTenantId();
-    const filter: ChannelFilter = { ...emptyFilter(), kinds: ['slack'] };
-    const { result } = renderHook(() => useChannelList(tenantId, filter));
-    for (const c of result.current) expect(c.kind).toBe('slack');
-  });
+    const qc = makeQueryClient();
+    const { result, rerender } = renderHook(
+      ({ filter }: { filter: ChannelFilter }) => useChannelList(TENANT_ID, filter),
+      { wrapper: wrapper(qc), initialProps: { filter: emptyFilter() } },
+    );
 
-  it('enabled filter narrows result set', () => {
-    const tenantId = firstTenantId();
-    const filter: ChannelFilter = { ...emptyFilter(), enabled: true };
-    const { result } = renderHook(() => useChannelList(tenantId, filter));
-    for (const c of result.current) expect(c.enabled).toBe(true);
-  });
-});
-
-describe('createChannel', () => {
-  it('creates a new channel with parsed config', async () => {
-    const tenantId = firstTenantId();
-    const channel = await createChannel({
-      tenant_id: tenantId,
-      name: 'test-slack',
-      kind: 'slack',
-      config: { webhook_url: 'https://hooks.slack.com/services/T/B/C' },
+    await waitFor(() => {
+      expect(result.current.length).toBe(2);
     });
-    expect(channel.id).toBeDefined();
-    expect(channel.name).toBe('test-slack');
-    expect(channel.config).toEqual({ webhook_url: 'https://hooks.slack.com/services/T/B/C' });
+    // sorted asc by name
+    expect(result.current[0]?.name).toBe('Ops email');
+    expect(result.current[1]?.name).toBe('Z-Slack ops');
+
+    rerender({ filter: { ...emptyFilter(), kinds: ['email'] } });
+    expect(result.current.every((c) => c.kind === 'email')).toBe(true);
+
+    rerender({ filter: { ...emptyFilter(), enabled: true } });
+    expect(result.current.every((c) => c.enabled)).toBe(true);
+
+    rerender({ filter: { ...emptyFilter(), search: 'slack' } });
+    expect(result.current.every((c) => c.name.toLowerCase().includes('slack'))).toBe(true);
   });
 
-  it('rejects invalid per-kind config', async () => {
-    const tenantId = firstTenantId();
-    await expect(
-      createChannel({
-        tenant_id: tenantId,
-        name: 'bad-slack',
-        kind: 'slack',
-        config: { webhook_url: 'not-a-url' },
-      }),
-    ).rejects.toBeDefined();
-  });
-});
-
-describe('updateChannel', () => {
-  it('updates name + enabled + config and re-validates per-kind', async () => {
-    const tenantId = firstTenantId();
-    const channel = await createChannel({
-      tenant_id: tenantId,
-      name: 'old-email',
-      kind: 'email',
-      config: { to: 'a@example.com', from: 'b@example.com' },
+  it('respects tenant_id defense-in-depth filter', async () => {
+    const otherTenant = { ...CHANNEL_EMAIL, tenantId: 'tenant-other' };
+    server.use(
+      http.get(`/api/v1/t/${TENANT}/notification-channels`, () =>
+        HttpResponse.json({ items: [otherTenant, CHANNEL_EMAIL], total: 2 }),
+      ),
+    );
+    const qc = makeQueryClient();
+    const { result } = renderHook(() => useChannelList(TENANT_ID, emptyFilter()), {
+      wrapper: wrapper(qc),
     });
-    const updated = await updateChannel(channel.id, {
-      name: 'new-email',
-      enabled: false,
+    await waitFor(() => {
+      expect(result.current.length).toBe(1);
     });
-    expect(updated?.name).toBe('new-email');
-    expect(updated?.enabled).toBe(false);
-  });
-
-  it('returns undefined for missing channel', async () => {
-    const res = await updateChannel('channel-nope', { name: 'x' });
-    expect(res).toBeUndefined();
-  });
-});
-
-describe('deleteChannel', () => {
-  it('removes the channel and returns true', async () => {
-    const tenantId = firstTenantId();
-    const channel = await createChannel({
-      tenant_id: tenantId,
-      name: 'tmp',
-      kind: 'webhook',
-      config: { url: 'https://example.com/hook' },
-    });
-    const ok = await deleteChannel(channel.id);
-    expect(ok).toBe(true);
-    expect(useMockStore.getState().notificationChannels[channel.id]).toBeUndefined();
-  });
-});
-
-describe('testChannel', () => {
-  it('returns ok with latency + tested_at on success', async () => {
-    const tenantId = firstTenantId();
-    // Use a name whose hash is unlikely to bucket 0 by picking deliberately.
-    const channel = await createChannel({
-      tenant_id: tenantId,
-      name: 'good-webhook',
-      kind: 'webhook',
-      config: { url: 'https://example.com/hook' },
-    });
-    const res = await testChannel(channel.id);
-    expect(typeof res.latency_ms).toBe('number');
-    expect(res.latency_ms).toBeGreaterThanOrEqual(700); // ~800ms sleep, allow jitter
-    expect(typeof res.tested_at).toBe('string');
-  });
-
-  it('writes a delivery-log entry after a test call', async () => {
-    const tenantId = firstTenantId();
-    const channel = await createChannel({
-      tenant_id: tenantId,
-      name: 'test-log',
-      kind: 'webhook',
-      config: { url: 'https://example.com/hook' },
-    });
-    const before = Object.values(useMockStore.getState().notificationDeliveryLog).length;
-    await testChannel(channel.id);
-    const after = Object.values(useMockStore.getState().notificationDeliveryLog).length;
-    expect(after).toBe(before + 1);
-  });
-
-  it('returns ok=false with error for missing channel', async () => {
-    const res = await testChannel('channel-nope');
-    expect(res.ok).toBe(false);
-    expect(res.error).toBe('Channel not found');
+    expect(result.current[0]?.tenant_id).toBe(TENANT_ID);
   });
 });
 
 describe('useChannelDetail', () => {
-  it('returns the channel for a known id', async () => {
-    const tenantId = firstTenantId();
-    const channel = await createChannel({
-      tenant_id: tenantId,
-      name: 'detail-check',
-      kind: 'pagerduty',
-      config: { routing_key: 'R1234567890ABCDEF1234567890ABCDEF' },
+  it('fetches a channel by id', async () => {
+    server.use(
+      http.get(
+        `/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`,
+        () => HttpResponse.json(CHANNEL_EMAIL),
+      ),
+    );
+    const qc = makeQueryClient();
+    const { result } = renderHook(() => useChannelDetail(CHANNEL_EMAIL.id), {
+      wrapper: wrapper(qc),
     });
-    const { result } = renderHook(() => useChannelDetail(channel.id));
-    expect(result.current?.id).toBe(channel.id);
+    await waitFor(() => {
+      expect(result.current?.id).toBe(CHANNEL_EMAIL.id);
+    });
+    expect(result.current?.name).toBe(CHANNEL_EMAIL.name);
+  });
+});
+
+describe('createChannel', () => {
+  it('POSTs to the daemon and returns the mapped channel', async () => {
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notification-channels`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        expect(body.name).toBe('new-slack');
+        expect(body.kind).toBe('slack');
+        return HttpResponse.json(
+          {
+            ...CHANNEL_SLACK,
+            id: 'channel-new-1',
+            name: 'new-slack',
+            enabled: true,
+          },
+          { status: 201 },
+        );
+      }),
+    );
+    const created = await createChannel({
+      tenant_id: TENANT_ID,
+      name: 'new-slack',
+      kind: 'slack',
+      config: { webhook_url: 'https://hooks.slack.com/services/T/B/C' },
+    });
+    expect(created.id).toBe('channel-new-1');
+    expect(created.kind).toBe('slack');
+  });
+
+  it('rejects invalid per-kind config before calling the daemon', async () => {
+    let called = false;
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notification-channels`, () => {
+        called = true;
+        return HttpResponse.json({}, { status: 200 });
+      }),
+    );
+    await expect(
+      createChannel({
+        tenant_id: TENANT_ID,
+        name: 'bad',
+        kind: 'slack',
+        config: { webhook_url: 'not-a-url' },
+      }),
+    ).rejects.toBeDefined();
+    expect(called).toBe(false);
+  });
+});
+
+describe('updateChannel', () => {
+  it('PUTs and returns the updated channel', async () => {
+    server.use(
+      http.put(`/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`, () =>
+        HttpResponse.json({ ...CHANNEL_EMAIL, enabled: false, name: 'renamed' }),
+      ),
+    );
+    const updated = await updateChannel(CHANNEL_EMAIL.id, {
+      name: 'renamed',
+      enabled: false,
+    });
+    expect(updated?.name).toBe('renamed');
+    expect(updated?.enabled).toBe(false);
+  });
+
+  it('returns undefined on 404', async () => {
+    server.use(
+      http.put(`/api/v1/t/${TENANT}/notification-channels/nope`, () =>
+        HttpResponse.json({ title: 'Not found' }, { status: 404 }),
+      ),
+    );
+    const out = await updateChannel('nope', { name: 'x' });
+    expect(out).toBeUndefined();
+  });
+});
+
+describe('deleteChannel', () => {
+  it('returns true on success', async () => {
+    server.use(
+      http.delete(`/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`, () =>
+        new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    const ok = await deleteChannel(CHANNEL_EMAIL.id);
+    expect(ok).toBe(true);
+  });
+
+  it('returns false on error', async () => {
+    server.use(
+      http.delete(`/api/v1/t/${TENANT}/notification-channels/nope`, () =>
+        HttpResponse.json({ title: 'gone' }, { status: 404 }),
+      ),
+    );
+    const ok = await deleteChannel('nope');
+    expect(ok).toBe(false);
+  });
+});
+
+describe('testChannel', () => {
+  it('reports success when the daemon stub returns ok=true', async () => {
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}/test`, () =>
+        HttpResponse.json({ channelId: CHANNEL_EMAIL.id, ok: true }),
+      ),
+    );
+    const res = await testChannel(CHANNEL_EMAIL.id);
+    expect(res.ok).toBe(true);
+    expect(res.error).toBeUndefined();
+    expect(typeof res.latency_ms).toBe('number');
+  });
+
+  it('reports failure with an error message', async () => {
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}/test`, () =>
+        HttpResponse.json({ channelId: CHANNEL_EMAIL.id, ok: false, error: 'smtp denied' }),
+      ),
+    );
+    const res = await testChannel(CHANNEL_EMAIL.id);
+    expect(res.ok).toBe(false);
+    expect(res.error).toBe('smtp denied');
+  });
+
+  it('handles network/server errors', async () => {
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notification-channels/nope/test`, () =>
+        HttpResponse.json({ title: 'not found' }, { status: 404 }),
+      ),
+    );
+    const res = await testChannel('nope');
+    expect(res.ok).toBe(false);
+    expect(res.error).toBeDefined();
   });
 });

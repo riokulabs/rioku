@@ -6,11 +6,7 @@ export * from './_internal';
 // Plan 03 (api-mgmt) feature slices retired — store lives in _internal.ts
 // Plan 04 (ai) feature slices retired — store lives in _internal.ts
 // Plan 05 (audit) feature slices retired — store lives in _internal.ts
-// Plan 06 (notifications)
-export * from './notifications';
-export * from './notification-channels';
-export * from './notification-routing';
-export * from './notification-log';
+// Plan 06 (notifications) feature slices retired — store lives in _internal.ts
 // Plan 07 (settings) feature slice retired — store lives in _internal.ts
 // Plan 08 (dashboards) feature slices retired — store lives in _internal.ts
 // Plan 09 (plugins) feature slices retired — store lives in _internal.ts
