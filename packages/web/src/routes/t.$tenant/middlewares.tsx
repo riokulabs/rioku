@@ -15,7 +15,7 @@ import {
   MiddlewareList,
   MiddlewareFilterBar,
   MiddlewareForm,
-  MiddlewareDetail,
+  MiddlewareDrawer,
   deleteMiddleware,
   MiddlewareInUseError,
 } from '@/features/middlewares';
@@ -148,13 +148,7 @@ function MiddlewaresPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selected && (
-          <MiddlewareDetail
-            middlewareId={selected.id}
-            onEdit={() => {
-              setDrawerMode('edit');
-            }}
-            onClose={closeDrawer}
-          />
+          <MiddlewareDrawer middlewareId={selected.id} tenantSlug={tenantSlug} />
         )}
         {drawerMode === 'create' && (
           <MiddlewareForm

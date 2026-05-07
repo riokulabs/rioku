@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <WidgetConfigPanel> tests — render happy path, title commit, and the
  * locked-advanced placeholder branch.

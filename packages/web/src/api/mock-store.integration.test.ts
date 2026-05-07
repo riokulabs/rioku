@@ -745,7 +745,7 @@ describe('deleteTenant cascade removes all tenant-scoped records', () => {
     await exportTenantJson(tenantId);
 
     expect(capturedBlob).not.toBeNull();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+     
     const blob: Blob = capturedBlob!;
     expect(blob.type).toBe('application/json');
     expect(capturedFilename).toMatch(/^acme-export-/);

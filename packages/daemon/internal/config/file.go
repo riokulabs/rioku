@@ -38,9 +38,49 @@ type Config struct {
 	AI              AIConfig        `yaml:"ai"`
 	Auth            AuthConfig      `yaml:"auth"`
 	SecurityHeaders SecurityHeaders `yaml:"security_headers"`
+	Daemon          DaemonConfig    `yaml:"daemon"`
 	DataDir         string          `yaml:"data_dir"`
 	LogLevel        string          `yaml:"log_level"` // kept for backwards compat
 	Logging         LoggingConfig   `yaml:"logging"`
+}
+
+// DaemonConfig collects daemon-level feature flags. These are
+// orthogonal to the major subsystems and ship as boolean toggles.
+//
+// SideloadEnabled gates the plugin sideload endpoint. When false (the
+// default) the daemon returns 404 from `POST /api/v1/t/{tenant}/plugins/sideload`
+// and the admin panel hides the sideload route via the
+// `/api/v1/capabilities` discovery endpoint. Set to true via the YAML
+// `daemon.sideload_enabled: true` key OR the `RIOKU_SIDELOAD_ENABLED=1`
+// env var.
+type DaemonConfig struct {
+	SideloadEnabled bool `yaml:"sideload_enabled"`
+}
+
+// SideloadEnabled reports whether plugin sideload is enabled. It
+// returns true when either the YAML flag is set OR
+// `RIOKU_SIDELOAD_ENABLED` env var is set to a truthy value
+// ("1"/"true"/"yes", case-insensitive). Other values — including the
+// empty string — return false.
+//
+// A nil receiver is safe and returns false.
+func (c *Config) SideloadEnabled() bool {
+	if c == nil {
+		return envSideloadEnabled()
+	}
+	if c.Daemon.SideloadEnabled {
+		return true
+	}
+	return envSideloadEnabled()
+}
+
+func envSideloadEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("RIOKU_SIDELOAD_ENABLED")))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }
 
 // LoggingConfig controls daemon log output.
@@ -338,6 +378,17 @@ type LockoutPolicy struct {
 	ResetAfter      time.Duration `yaml:"reset_after"`
 }
 
+// SMTPConfig holds outbound SMTP connection parameters. When Host is empty,
+// the daemon uses the nop mailer (all email silently discarded).
+type SMTPConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	From     string `yaml:"from"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	StartTLS bool   `yaml:"starttls"`
+}
+
 // AuthConfig holds all auth-related daemon configuration.
 type AuthConfig struct {
 	PasswordPolicy PasswordPolicy  `yaml:"password_policy"`
@@ -345,6 +396,12 @@ type AuthConfig struct {
 	DevMode        bool            `yaml:"dev_mode"`
 	RateLimit      RateLimitConfig `yaml:"rate_limit"`
 	CORS           CORSConfig      `yaml:"cors"`
+	SMTP           SMTPConfig      `yaml:"smtp"`
+	// PublicURL is the externally reachable base URL of the admin panel,
+	// used when constructing password-reset and invite-accept links in
+	// outbound emails. Example: "https://admin.example.com"
+	// Defaults to "http://localhost:7778" when empty.
+	PublicURL string `yaml:"public_url"`
 }
 
 // RateLimitConfig defines per-endpoint or global request rate limiting.

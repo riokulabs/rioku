@@ -1,10 +1,15 @@
 /**
- * Component smoke tests for SignerList + SignerDetail (Plan 6, Task 6b.6).
+ * Component smoke tests for SignerList + SignerDetail (Stage 2 — real API).
+ *
+ * Components now use TanStack Query backed by the real daemon endpoints.
+ * MSW intercepts the fetch calls in tests. QueryClientProvider wraps all
+ * rendered components.
  *
  * Focus:
- *   - List respects scope (global vs tenant)
- *   - Filter by status narrows the rendered rows
- *   - Detail drawer renders header, fingerprint, and permission-gated actions
+ *   - List renders signers returned by the API
+ *   - List filters by status on the client side
+ *   - Detail drawer renders header + fingerprint for a given signer
+ *   - Verify/Revoke buttons are disabled based on current status
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -17,33 +22,92 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw-server';
 import { SignerList } from '../components/list';
 import { SignerDetail } from '../components/detail';
 import type { SignerFilter } from '../types';
 
-function wrap(ui: React.ReactNode) {
+const SHA256_FP = 'a'.repeat(64);
+const SHA256_FP_B = 'b'.repeat(64);
+
+// ─── Test data ────────────────────────────────────────────────────────────────
+
+const GLOBAL_SIGNERS = [
+  {
+    id: 'signer-global-1',
+    tenantScope: null,
+    name: 'Rioku Labs',
+    fingerprint: SHA256_FP,
+    status: 'verified',
+    notes: 'Official Rioku key',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'signer-global-2',
+    tenantScope: null,
+    name: 'Revoked Publisher',
+    fingerprint: SHA256_FP_B,
+    status: 'revoked',
+    notes: 'Deprecated key',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+] as const;
+
+const TENANT_SIGNERS = [
+  {
+    id: 'signer-tenant-1',
+    tenantScope: 'tenant-abc',
+    name: 'Acme Internal',
+    fingerprint: SHA256_FP,
+    status: 'pending',
+    notes: 'Awaiting review',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+] as const;
+
+// ─── Test helpers ─────────────────────────────────────────────────────────────
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
+function wrap(ui: React.ReactNode, qc = makeQueryClient()) {
   return render(
-    <MantineProvider>
-      <Notifications />
-      {ui}
-    </MantineProvider>,
+    <QueryClientProvider client={qc}>
+      <MantineProvider>
+        <Notifications />
+        {ui}
+      </MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
 const EMPTY_FILTER: SignerFilter = { search: '', statuses: [] };
 
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
+  server.resetHandlers();
 });
 
+// ─── SignerList tests ─────────────────────────────────────────────────────────
+
 describe('<SignerList>', () => {
-  it('renders global-scope signers only when tenantScope is null', () => {
+  it('renders global-scope signers returned by /admin/plugin-signers', async () => {
+    server.use(
+      http.get('/api/v1/admin/plugin-signers', () =>
+        HttpResponse.json({ items: GLOBAL_SIGNERS, total: GLOBAL_SIGNERS.length }),
+      ),
+    );
+
     wrap(
       <SignerList
         tenantScope={null}
@@ -55,15 +119,19 @@ describe('<SignerList>', () => {
       />,
     );
 
-    const globals = Object.values(useMockStore.getState().pluginSigners).filter(
-      (s) => s.tenant_scope === null,
-    );
-    for (const g of globals) {
-      expect(screen.getByText(g.name)).toBeTruthy();
-    }
+    await waitFor(() => {
+      expect(screen.getByText('Rioku Labs')).toBeTruthy();
+      expect(screen.getByText('Revoked Publisher')).toBeTruthy();
+    });
   });
 
-  it('filters rows by status', () => {
+  it('filters rows by status (client-side filtering)', async () => {
+    server.use(
+      http.get('/api/v1/admin/plugin-signers', () =>
+        HttpResponse.json({ items: GLOBAL_SIGNERS, total: GLOBAL_SIGNERS.length }),
+      ),
+    );
+
     wrap(
       <SignerList
         tenantScope={null}
@@ -75,49 +143,97 @@ describe('<SignerList>', () => {
       />,
     );
 
-    const revoked = Object.values(useMockStore.getState().pluginSigners).filter(
-      (s) => s.tenant_scope === null && s.status === 'revoked',
-    );
-    const verifiedGlobals = Object.values(useMockStore.getState().pluginSigners).filter(
-      (s) => s.tenant_scope === null && s.status === 'verified',
+    await waitFor(() => {
+      expect(screen.getByText('Revoked Publisher')).toBeTruthy();
+    });
+    // Verified signer should not appear when filtered to revoked only
+    expect(screen.queryByText('Rioku Labs')).toBeNull();
+  });
+
+  it('renders tenant-scoped signers from /t/{tenant}/plugin-signers', async () => {
+    server.use(
+      http.get('/api/v1/t/tenant-abc/plugin-signers', () =>
+        HttpResponse.json({ items: TENANT_SIGNERS, total: TENANT_SIGNERS.length }),
+      ),
     );
 
-    for (const r of revoked) {
-      expect(screen.getByText(r.name)).toBeTruthy();
-    }
-    for (const v of verifiedGlobals) {
-      expect(screen.queryByText(v.name)).toBeNull();
-    }
+    wrap(
+      <SignerList
+        tenantScope="tenant-abc"
+        filter={EMPTY_FILTER}
+        onSelect={vi.fn()}
+        onVerify={vi.fn()}
+        onRevoke={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Acme Internal')).toBeTruthy();
+    });
   });
 });
 
+// ─── SignerDetail tests ───────────────────────────────────────────────────────
+
 describe('<SignerDetail>', () => {
-  it('renders header + fingerprint + scope chip for a seeded signer', () => {
-    const signer = Object.values(useMockStore.getState().pluginSigners)[0];
-    if (!signer) throw new Error('seed missing signers');
+  it('renders header + fingerprint for a verified signer', async () => {
+    const signer = GLOBAL_SIGNERS[0];
+    server.use(
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () =>
+        HttpResponse.json(signer),
+      ),
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}/plugins`, () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
+    );
 
     wrap(<SignerDetail signerId={signer.id} onClose={vi.fn()} />);
 
-    expect(screen.getByText(signer.name)).toBeTruthy();
-    // Fingerprint rendered in full, monospace.
+    await waitFor(() => {
+      expect(screen.getByText(signer.name)).toBeTruthy();
+    });
     expect(screen.getByText(signer.fingerprint)).toBeTruthy();
   });
 
-  it('disables Verify when already verified and Revoke when already revoked', () => {
-    const verified = Object.values(useMockStore.getState().pluginSigners).find(
-      (s) => s.status === 'verified',
+  it('disables Verify when already verified', async () => {
+    const signer = GLOBAL_SIGNERS[0]; // verified
+    server.use(
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () =>
+        HttpResponse.json(signer),
+      ),
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}/plugins`, () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
     );
-    const revoked = Object.values(useMockStore.getState().pluginSigners).find(
-      (s) => s.status === 'revoked',
-    );
-    if (!verified || !revoked) throw new Error('need both verified + revoked in seed');
 
-    const { unmount } = wrap(<SignerDetail signerId={verified.id} onClose={vi.fn()} />);
+    wrap(<SignerDetail signerId={signer.id} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(signer.name)).toBeTruthy();
+    });
+
     const verifyBtn = screen.getByRole('button', { name: /Verify/i });
     expect((verifyBtn as HTMLButtonElement).disabled).toBe(true);
-    unmount();
+  });
 
-    wrap(<SignerDetail signerId={revoked.id} onClose={vi.fn()} />);
+  it('disables Revoke when already revoked', async () => {
+    const signer = GLOBAL_SIGNERS[1]; // revoked
+    server.use(
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () =>
+        HttpResponse.json(signer),
+      ),
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}/plugins`, () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
+    );
+
+    wrap(<SignerDetail signerId={signer.id} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(signer.name)).toBeTruthy();
+    });
+
     const revokeBtn = screen.getByRole('button', { name: /Revoke/i });
     expect((revokeBtn as HTMLButtonElement).disabled).toBe(true);
   });

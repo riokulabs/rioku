@@ -15,7 +15,7 @@ import (
 // unauthenticated request must be rejected before the handler runs.
 func TestObservabilityRoutes_RequiresAuth(t *testing.T) {
 	mux := http.NewServeMux()
-	RegisterObservabilityRoutes(mux, observability.NewJWKSRegistry())
+	RegisterObservabilityRoutes(mux, observability.NewJWKSRegistry(), nil)
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 

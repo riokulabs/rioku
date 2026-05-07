@@ -6,11 +6,22 @@ export {
   useAgentDetail,
   useAgentTools,
   useAgentTraces,
+  useCreateAgent,
+  useUpdateAgent,
+  useDeleteAgent,
+  useRotateAgentCredential,
   createAgent,
   updateAgent,
   deleteAgent,
   rotateScopedCredential,
-  invokeAgentMock,
+  invokeAgent,
+} from './api';
+
+export type {
+  RotateAgentCredentialResult,
+  InvokeAgentHandlers,
+  InvokeChunk,
+  InvokeDoneSummary,
 } from './api';
 
 export {
@@ -34,3 +45,5 @@ export { AgentDetail } from './components/detail';
 export { AgentForm } from './components/form';
 export { InvokePanel } from './components/invoke-panel';
 export { ToolSelector } from './components/tool-selector';
+export { AgentDrawer } from './components/drawer';
+export { AgentFullPage } from './components/full-page';

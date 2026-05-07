@@ -1,0 +1,474 @@
+# Stage-2 admin API completion — Plan 09: plugins, plugin-signers,
+# marketplace, sideload, manifest validator.
+#
+# All routes are tenant-scoped under /api/v1/t/{tenant}/... except the
+# cross-tenant marketplace alias at /api/v1/plugins/marketplace which
+# proxies the curated catalog. Super-admin global plugins live under
+# /api/v1/admin/plugin-signers (already covered) and could later add
+# /api/v1/admin/plugins for the global scope.
+
+paths:
+  # ─── Installed plugins ────────────────────────────────────────────────────
+  /api/v1/t/{tenant}/plugins:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [plugins]
+      summary: List installed plugins
+      operationId: listPlugins
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PluginList"
+    post:
+      tags: [plugins]
+      summary: Install a plugin (placeholder install row)
+      description: |
+        Stage-2 stub. Inserts a plugin record with `buildState=building`.
+        Real install orchestration ships with the build pipeline.
+        Use `install-from-marketplace` for curated installs and
+        `sideload` for direct artifact uploads.
+      operationId: installPlugin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name, version]
+              properties:
+                slug: { type: string }
+                name: { type: string }
+                version: { type: string }
+      responses:
+        "202":
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plugin"
+        "409":
+          description: slug taken
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plugins/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [plugins]
+      summary: Get a plugin
+      operationId: getPlugin
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plugin"
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    delete:
+      tags: [plugins]
+      summary: Uninstall a plugin
+      operationId: uninstallPlugin
+      responses:
+        "204": { description: no content }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plugins/{id}/enable:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [plugins]
+      summary: Enable a plugin
+      operationId: enablePlugin
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plugin" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plugins/{id}/disable:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [plugins]
+      summary: Disable a plugin
+      operationId: disablePlugin
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plugin" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plugins/{id}/build-log:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [plugins]
+      summary: Read the captured build log for a plugin
+      description: |
+        Returns the most recent build output for the plugin. Stage-2
+        snapshot endpoint; live streaming uses an SSE upgrade tracked
+        with the build pipeline (#142).
+      operationId: getPluginBuildLog
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pluginId, buildState, log]
+                properties:
+                  pluginId: { type: string }
+                  buildState: { type: string, enum: [stable, building, failed, ready, pending-build] }
+                  log: { type: string }
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE stream of build progress events. Each event has
+                  `event: progress` and `data:` containing a JSON
+                  `{ stage, progress, message }` envelope.
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Marketplace ──────────────────────────────────────────────────────────
+  /api/v1/plugins/marketplace:
+    get:
+      tags: [plugins]
+      summary: Curated marketplace catalog (cross-tenant alias)
+      description: |
+        Mirrors `/api/v1/t/{tenant}/plugin-marketplace` but is reachable
+        without a tenant scope, for marketplace browse views that are
+        rendered before tenant resolution.
+      operationId: listMarketplaceCatalog
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketplaceList"
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plugin-marketplace:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [plugins]
+      summary: Curated marketplace catalog (tenant-scoped)
+      operationId: listTenantMarketplaceCatalog
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarketplaceList" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plugin-marketplace/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [plugins]
+      summary: Curated marketplace entry
+      operationId: getMarketplaceCatalogEntry
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarketplaceEntry" }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /api/v1/t/{tenant}/plugins/install-from-marketplace:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [plugins]
+      summary: Install a curated marketplace plugin
+      description: |
+        Queues a build + install for a plugin referenced by its
+        marketplace catalog id. Returns an install id the caller can
+        poll via `/build-log`.
+      operationId: installFromMarketplace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [marketplaceId]
+              properties:
+                marketplaceId: { type: string }
+                # Optional manifest overrides — passed verbatim to the
+                # build pipeline. Stage-2 stub accepts but ignores.
+                config: { type: object, additionalProperties: true }
+      responses:
+        "202":
+          description: accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [installId, status]
+                properties:
+                  installId: { type: string }
+                  status: { type: string, enum: [queued, building] }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Sideload ─────────────────────────────────────────────────────────────
+  /api/v1/t/{tenant}/plugins/sideload:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [plugins]
+      summary: Sideload a built plugin artifact
+      description: |
+        Uploads a pre-built plugin binary together with its manifest.
+        The daemon validates the manifest, optionally verifies the
+        artifact signature against tenant plugin-signers, and stores
+        the artifact under the tenant's plugin staging directory.
+
+        Native-arch artifacts are written with `build_state=ready`.
+        Cross-arch / pending-build flows return `pending-build` and
+        delegate to the build-service (issue #142).
+
+        Cosign verification is enforced when the request includes a
+        non-empty `Signer-Fingerprint` header that resolves to a
+        `verified` signer in the tenant scope.
+      operationId: sideloadPlugin
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archive, manifest]
+              properties:
+                archive:
+                  type: string
+                  format: binary
+                  description: |
+                    The built plugin entrypoint (`.so`, `.wasm`, or
+                    archive containing one).
+                manifest:
+                  type: string
+                  format: binary
+                  description: |
+                    A JSON `manifest.json` matching the
+                    `pluginManifest` schema enforced by the
+                    `/manifest/validate` endpoint.
+                signature:
+                  type: string
+                  format: binary
+                  description: |
+                    Optional cosign or PGP signature blob covering the
+                    archive. Required when `Signer-Fingerprint` is set.
+      parameters:
+        - in: header
+          name: Signer-Fingerprint
+          required: false
+          schema: { type: string }
+          description: |
+            When present, the signature is verified against the
+            referenced tenant plugin-signer (status must be
+            `verified`).
+      responses:
+        "201":
+          description: |
+            Created. The plugin row is written with `buildState=ready`
+            for native-arch installs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pluginId, status, buildLogUrl]
+                properties:
+                  pluginId: { type: string }
+                  status: { type: string, enum: [ready, pending-build] }
+                  buildLogUrl: { type: string, format: uri-reference }
+        "400":
+          description: malformed multipart body or invalid manifest
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "401":
+          description: unauthorized
+        "403":
+          description: signature verification failed
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Manifest validator ──────────────────────────────────────────────────
+  /api/v1/t/{tenant}/plugins/manifest/validate:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [plugins]
+      summary: Validate a plugin manifest
+      description: |
+        Returns `{valid, errors[]}` for a candidate manifest. Errors
+        carry a JSON pointer in `path` and a human-readable
+        `message`.
+      operationId: validatePluginManifest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [valid, errors]
+                properties:
+                  valid: { type: boolean }
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      required: [path, message]
+                      properties:
+                        path: { type: string }
+                        message: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    Plugin:
+      type: object
+      required:
+        [
+          id,
+          slug,
+          name,
+          version,
+          enabled,
+          buildState,
+          cosignVerified,
+          config,
+          metadata,
+          installedAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string }
+        tenantScope:
+          type: string
+          nullable: true
+        slug: { type: string }
+        name: { type: string }
+        version: { type: string }
+        enabled: { type: boolean }
+        buildState:
+          type: string
+          enum: [stable, building, failed, ready, pending-build]
+        cosignVerified: { type: boolean }
+        signerId:
+          type: string
+          nullable: true
+        config:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        installedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    PluginList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Plugin" }
+        total: { type: integer }
+
+    MarketplaceEntry:
+      type: object
+      required: [id, name, version, manifest_url]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        version: { type: string }
+        signer_fingerprint: { type: string }
+        manifest_url: { type: string, format: uri-reference }
+        author: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        verified: { type: boolean }
+
+    MarketplaceList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MarketplaceEntry" }
+        total: { type: integer }

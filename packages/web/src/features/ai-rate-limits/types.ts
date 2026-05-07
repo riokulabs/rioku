@@ -49,6 +49,28 @@ export interface SimulateMatchResult {
   matched_exemplar?: string;
 }
 
+/**
+ * Input for the stage-2 probe-style simulator.
+ * All fields optional — daemon applies sane defaults when omitted.
+ */
+export interface SimulateProbeInput {
+  request_count?: number;
+  time_window_seconds?: number;
+  principal?: string;
+}
+
+/**
+ * Daemon response shape for `/ai/rate-limits/{id}/simulate`.
+ */
+export interface SimulateProbeResult {
+  rate_limit_id: string;
+  principal?: string;
+  would_throttle: boolean;
+  retry_after_ms: number;
+  current_consumption: number;
+  limit: number;
+}
+
 export type MetricWindow = '1h' | '24h' | '7d';
 
 export interface RateLimitMetricsPoint {

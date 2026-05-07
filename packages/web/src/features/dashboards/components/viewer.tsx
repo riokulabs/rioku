@@ -248,6 +248,7 @@ function DashboardViewerInner({
                     variant="default"
                     size="lg"
                     aria-label="Edit dashboard"
+                    data-testid="dashboard-edit-btn"
                     onClick={() => {
                       onEdit(dashboard.id);
                     }}
@@ -259,6 +260,7 @@ function DashboardViewerInner({
                 <Button
                   variant="default"
                   leftSection={<IconPencil size={14} />}
+                  data-testid="dashboard-edit-btn"
                   onClick={() => {
                     onEdit(dashboard.id);
                   }}

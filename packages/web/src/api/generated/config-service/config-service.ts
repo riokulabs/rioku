@@ -54,6 +54,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type configServiceGetAuditLogResponse = {
   data: ConfigServiceGetAuditLog200 | RpcStatus;
   status: number;
@@ -95,15 +97,16 @@ export const getConfigServiceGetAuditLogInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof configServiceGetAuditLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getConfigServiceGetAuditLogQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof configServiceGetAuditLog>>> = ({
     signal,
-  }) => configServiceGetAuditLog(params, signal);
+  }) => configServiceGetAuditLog(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof configServiceGetAuditLog>>,
@@ -134,6 +137,7 @@ export function useConfigServiceGetAuditLogInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetAuditLogInfinite<
@@ -153,6 +157,7 @@ export function useConfigServiceGetAuditLogInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetAuditLogInfinite<
@@ -164,6 +169,7 @@ export function useConfigServiceGetAuditLogInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof configServiceGetAuditLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -176,6 +182,7 @@ export function useConfigServiceGetAuditLogInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof configServiceGetAuditLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getConfigServiceGetAuditLogInfiniteQueryOptions(params, options);
@@ -198,15 +205,16 @@ export const getConfigServiceGetAuditLogQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof configServiceGetAuditLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getConfigServiceGetAuditLogQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof configServiceGetAuditLog>>> = ({
     signal,
-  }) => configServiceGetAuditLog(params, signal);
+  }) => configServiceGetAuditLog(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof configServiceGetAuditLog>>,
@@ -237,6 +245,7 @@ export function useConfigServiceGetAuditLog<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetAuditLog<
@@ -256,6 +265,7 @@ export function useConfigServiceGetAuditLog<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetAuditLog<
@@ -267,6 +277,7 @@ export function useConfigServiceGetAuditLog<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof configServiceGetAuditLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -279,6 +290,7 @@ export function useConfigServiceGetAuditLog<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof configServiceGetAuditLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getConfigServiceGetAuditLogQueryOptions(params, options);
@@ -333,14 +345,15 @@ export const getConfigServiceGetConfigInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof configServiceGetConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getConfigServiceGetConfigQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof configServiceGetConfig>>> = ({ signal }) =>
-    configServiceGetConfig(params, signal);
+    configServiceGetConfig(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof configServiceGetConfig>>,
@@ -371,6 +384,7 @@ export function useConfigServiceGetConfigInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetConfigInfinite<
@@ -390,6 +404,7 @@ export function useConfigServiceGetConfigInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetConfigInfinite<
@@ -401,6 +416,7 @@ export function useConfigServiceGetConfigInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof configServiceGetConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -413,6 +429,7 @@ export function useConfigServiceGetConfigInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof configServiceGetConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getConfigServiceGetConfigInfiniteQueryOptions(params, options);
@@ -435,14 +452,15 @@ export const getConfigServiceGetConfigQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof configServiceGetConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getConfigServiceGetConfigQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof configServiceGetConfig>>> = ({ signal }) =>
-    configServiceGetConfig(params, signal);
+    configServiceGetConfig(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof configServiceGetConfig>>,
@@ -473,6 +491,7 @@ export function useConfigServiceGetConfig<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetConfig<
@@ -492,6 +511,7 @@ export function useConfigServiceGetConfig<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useConfigServiceGetConfig<
@@ -503,6 +523,7 @@ export function useConfigServiceGetConfig<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof configServiceGetConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -515,6 +536,7 @@ export function useConfigServiceGetConfig<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof configServiceGetConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getConfigServiceGetConfigQueryOptions(params, options);
@@ -560,6 +582,7 @@ export const getConfigServiceApplyChangeMutationOptions = <
     { data: V1ConfigChange },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof configServiceApplyChange>>,
   TError,
@@ -567,11 +590,11 @@ export const getConfigServiceApplyChangeMutationOptions = <
   TContext
 > => {
   const mutationKey = ['configServiceApplyChange'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof configServiceApplyChange>>,
@@ -579,7 +602,7 @@ export const getConfigServiceApplyChangeMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return configServiceApplyChange(data);
+    return configServiceApplyChange(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -598,6 +621,7 @@ export const useConfigServiceApplyChange = <TError = RpcStatus, TContext = unkno
     { data: V1ConfigChange },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof configServiceApplyChange>>,
   TError,
@@ -640,6 +664,7 @@ export const getConfigServiceExportConfigMutationOptions = <
     { data: V1ExportRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof configServiceExportConfig>>,
   TError,
@@ -647,11 +672,11 @@ export const getConfigServiceExportConfigMutationOptions = <
   TContext
 > => {
   const mutationKey = ['configServiceExportConfig'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof configServiceExportConfig>>,
@@ -659,7 +684,7 @@ export const getConfigServiceExportConfigMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return configServiceExportConfig(data);
+    return configServiceExportConfig(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -678,6 +703,7 @@ export const useConfigServiceExportConfig = <TError = RpcStatus, TContext = unkn
     { data: V1ExportRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof configServiceExportConfig>>,
   TError,
@@ -720,6 +746,7 @@ export const getConfigServiceImportConfigMutationOptions = <
     { data: V1ConfigChunk },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof configServiceImportConfig>>,
   TError,
@@ -727,11 +754,11 @@ export const getConfigServiceImportConfigMutationOptions = <
   TContext
 > => {
   const mutationKey = ['configServiceImportConfig'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof configServiceImportConfig>>,
@@ -739,7 +766,7 @@ export const getConfigServiceImportConfigMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return configServiceImportConfig(data);
+    return configServiceImportConfig(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -758,6 +785,7 @@ export const useConfigServiceImportConfig = <TError = RpcStatus, TContext = unkn
     { data: V1ConfigChunk },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof configServiceImportConfig>>,
   TError,
