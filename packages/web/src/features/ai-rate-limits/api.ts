@@ -312,7 +312,7 @@ export function useRateLimitMetricsRaw(
   const { data } = useQuery({
     queryKey: getGetAIRateLimitMetricsQueryKey(tenantId, ruleId, { since: window }),
     queryFn: ({ signal }) =>
-      orvalGetAIRateLimitMetrics(tenantId, ruleId, { since: window, signal }),
+      orvalGetAIRateLimitMetrics(tenantId, ruleId, { since: window }, { signal }),
     enabled: Boolean(tenantId) && Boolean(ruleId),
   });
   if (!data) return [];

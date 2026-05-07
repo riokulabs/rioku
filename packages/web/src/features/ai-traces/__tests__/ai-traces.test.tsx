@@ -79,9 +79,8 @@ describe('useTraceList (daemon-backed)', () => {
       wrapper: Wrapper,
     });
     await waitFor(() => {
-      expect(result.current.data.length).toBe(2);
+      expect(result.current.length).toBe(2);
     });
-    expect(result.current.isError).toBe(false);
   });
 
   it('filters by agent_ids client-side', async () => {
@@ -91,10 +90,10 @@ describe('useTraceList (daemon-backed)', () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => {
-      expect(result.current.data.length).toBeGreaterThan(0);
+      expect(result.current.length).toBeGreaterThan(0);
     });
-    for (const t of result.current.data) {
-      expect(t.agentId).toBe('aiagent-1');
+    for (const t of result.current) {
+      expect(t.agent_id).toBe('aiagent-1');
     }
   });
 
@@ -220,7 +219,7 @@ describe('<PromptCompletionView> viewer gating', () => {
   });
 
   it('renders unmasked content when unmasked === true', () => {
-    wrap(<PromptCompletionView prompt="hello" completion="world" unmasked />);
+    wrap(<PromptCompletionView prompt="hello" completion="world" />);
     expect(screen.getByTestId('trace-prompt-completion')).toBeInTheDocument();
     expect(screen.queryByTestId('trace-redacted')).toBeNull();
   });

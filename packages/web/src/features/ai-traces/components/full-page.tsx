@@ -14,7 +14,8 @@ import { IconHistory, IconTimeline, IconCoin, IconClipboardList } from '@tabler/
 import dayjs from 'dayjs';
 import { TraceDetail } from './detail';
 import { ToolCallList } from './tool-call-list';
-import { useTraceDetail } from '../api';
+import type { AiTraceToolCall } from '@/api/resources';
+import { useTraceDetail } from '../daemon-hooks';
 import { formatTokens } from '@/features/ai-shared';
 
 interface TraceFullPageProps {
@@ -23,7 +24,8 @@ interface TraceFullPageProps {
 }
 
 export function TraceFullPage({ tenantSlug, traceId }: TraceFullPageProps) {
-  const { data: trace, isLoading } = useTraceDetail(tenantSlug, traceId);
+  const { data, isLoading } = useTraceDetail(tenantSlug, traceId);
+  const trace = data?.data;
 
   return (
     <Stack gap="md" p="md" data-testid="trace-full-page">
@@ -51,14 +53,16 @@ export function TraceFullPage({ tenantSlug, traceId }: TraceFullPageProps) {
         </Tabs.List>
 
         <Tabs.Panel value="overview" pt="md">
-          <TraceDetail traceId={traceId} tenantSlug={tenantSlug} />
+          <TraceDetail traceId={traceId} tenantSlug={tenantSlug} onClose={() => {}} />
         </Tabs.Panel>
 
         <Tabs.Panel value="spans" pt="md">
           {isLoading ? (
             <Text size="sm">Loading…</Text>
           ) : (
-            <ToolCallList calls={(trace?.toolCalls ?? [])} />
+            <ToolCallList
+              calls={(trace?.toolCalls ?? []) as unknown as readonly AiTraceToolCall[]}
+            />
           )}
         </Tabs.Panel>
 
