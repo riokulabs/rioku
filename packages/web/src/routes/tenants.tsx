@@ -1,10 +1,12 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Container, Title, Card, Group, Text, Button, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import type { Tenant } from '@/api/resources/common';
 import { useActiveTenantSlug } from '@/hooks/use-tenant';
-import { useMockStore } from '@/api/mock-store';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
+import { fetchCurrentUser, currentUserQueryKey } from '@/features/auth/use-current-user';
+import { queryClient } from '@/api/query-client';
 
 /**
  * Build the URL to navigate to when selecting a tenant.
@@ -30,18 +32,28 @@ function TenantPicker() {
   const navigate = useNavigate();
   const currentSlug = useActiveTenantSlug();
 
-  const tenants = useMockStore((s) => s.tenants);
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const memberships = useMockStore((s) => s.memberships);
-
-  // Build tenant list scoped to the authenticated user's active memberships.
-  const userTenantIds = Object.values(memberships)
-    .filter((m) => m.user_id === currentUserId && m.state === 'active')
-    .map((m) => m.tenant_id);
-
-  const tenantList = Object.values(tenants)
-    .filter((t) => userTenantIds.includes(t.id))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Stage-2: tenant inventory comes from the daemon. The admin endpoint
+  // applies RBAC, so non-admin users see only the tenants they belong to.
+  const { data } = useListAdminTenants();
+  const tenantList = useMemo<Tenant[]>(() => {
+    const items = data?.data.items ?? [];
+    return items
+      .map(
+        (t): Tenant => ({
+          id: t.id ?? '',
+          slug: t.slug ?? '',
+          name: t.name ?? t.slug ?? '',
+          accent: t.accent ?? '',
+          plan: ((t.plan ?? 'community') as Tenant['plan']),
+          url_mode: (t.urlMode === 'subdomain' ? 'subdomain' : 'path') as Tenant['url_mode'],
+          // parent_domain is not yet exposed on AdminTenant; default empty.
+          parent_domain: '',
+          created_at: t.createdAt ?? '',
+          updated_at: t.updatedAt ?? '',
+        }),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [data]);
 
   // Auto-advance: if the user belongs to exactly one tenant, skip the picker.
   useEffect(() => {
@@ -70,7 +82,7 @@ function TenantPicker() {
           <Text size="sm">
             <strong>{tenant.name}</strong> runs on its own subdomain. You may need to sign in
             again if you don&apos;t have an active session on{' '}
-            <strong>{tenant.parent_domain ?? tenant.slug}</strong>. Continue?
+            <strong>{tenant.parent_domain || tenant.slug}</strong>. Continue?
           </Text>
         ),
         labels: { confirm: 'Continue', cancel: 'Cancel' },
@@ -141,9 +153,16 @@ function TenantPicker() {
 }
 
 export const Route = createFileRoute('/tenants')({
-  beforeLoad: () => {
-    const { currentUserId } = useMockStore.getState();
-    if (currentUserId === null) {
+  beforeLoad: async () => {
+    const me =
+      queryClient.getQueryData<Awaited<ReturnType<typeof fetchCurrentUser>>>(
+        currentUserQueryKey,
+      ) ??
+      (await queryClient.fetchQuery({
+        queryKey: currentUserQueryKey,
+        queryFn: ({ signal }) => fetchCurrentUser(signal),
+      }));
+    if (!me) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({ to: '/login', search: { return: '/tenants' } });
     }

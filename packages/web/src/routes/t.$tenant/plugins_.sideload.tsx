@@ -14,16 +14,12 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Alert, Anchor, Breadcrumbs, Stack, Title } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { useMockStore } from '@/api/mock-store';
 import { PluginSideloadForm } from '@/features/plugins/sideload';
 import { useDaemonCapabilities } from '@/features/plugins/use-daemon-capabilities';
 
 function PluginSideloadPage() {
   const { tenant } = Route.useParams();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenant),
-  );
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantSlug = tenant ?? '';
   const caps = useDaemonCapabilities();
 
   return (

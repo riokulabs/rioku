@@ -16,7 +16,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { DrawerTitleExpand } from '@/components/drawer-title-expand';
@@ -28,6 +27,7 @@ import {
   forceReloadService,
   deleteService,
   ServiceInUseError,
+  useServiceList,
 } from '@/features/services';
 import type { ServiceFilter } from '@/features/services';
 import type { Service } from '@/api/resources';
@@ -70,25 +70,26 @@ function ServicesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant ?? '';
+  const tenantSlug = tenant ?? '';
 
-  const allServices = useMockStore((s) => s.services);
+  // Stage-2: derive option lists from the daemon-backed service list.
+  const allServices = useServiceList(tenantId, {
+    search: '',
+    env: [],
+    health: [],
+    tags: [],
+  });
   const envOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const svc of Object.values(allServices)) {
-      if (svc.tenant_id === tenantId) set.add(svc.env);
-    }
+    for (const svc of allServices) set.add(svc.env);
     return Array.from(set).sort();
-  }, [allServices, tenantId]);
+  }, [allServices]);
   const tagOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const svc of Object.values(allServices)) {
-      if (svc.tenant_id === tenantId) for (const t of svc.tags) set.add(t);
-    }
+    for (const svc of allServices) for (const t of svc.tags) set.add(t);
     return Array.from(set).sort();
-  }, [allServices, tenantId]);
+  }, [allServices]);
 
   const filter: ServiceFilter = {
     search: search.search,

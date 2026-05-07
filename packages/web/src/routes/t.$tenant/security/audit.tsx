@@ -34,7 +34,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAccessPoint, IconChevronDown, IconDownload } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
@@ -110,9 +109,8 @@ function AuditPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant ?? '';
+  const tenantSlug = tenant ?? '';
 
   // Build the filter from URL-synced search params. Filter identity changes
   // only when an underlying value changes; deriving it via useMemo keeps the

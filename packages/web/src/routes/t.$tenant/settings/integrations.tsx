@@ -14,13 +14,12 @@
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { IntegrationsRealSection } from '@/features/settings/sections-real/integrations-real';
 
 function IntegrationsSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const tenantSlug = tenant ?? "";
   const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (

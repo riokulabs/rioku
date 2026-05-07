@@ -12,7 +12,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
@@ -55,8 +54,8 @@ function AiAgentsPage() {
   // Tenant slug is the URL segment; the mock-store id is needed to filter
   // provider/role/tool option lists in the form (those features are still on
   // mock-store as of stage-2 plan-04 ai-agents slice).
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
+  // Stage-2: tenantId is the URL slug; daemon resolves it.
+  const tenantId = tenant ?? '';
 
   const filter: AgentFilter = {
     search: search.search,

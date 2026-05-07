@@ -7,7 +7,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Group, Button } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { UserFullPage } from '@/features/security/users';
 
@@ -15,9 +14,8 @@ function UserFullPageRoute() {
   const { tenant, userId } = Route.useParams();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant ?? '';
+  const tenantSlug = tenant ?? '';
 
   return (
     <Stack gap="md" p="md">

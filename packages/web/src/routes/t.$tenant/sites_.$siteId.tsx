@@ -10,15 +10,13 @@
  * Mantine UI; site data is loaded via the real Orval-generated GET endpoint.
  */
 import { createFileRoute } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { SiteFullPage } from '@/features/sites';
 
 function SiteDetailPage() {
   const { tenant, siteId } = Route.useParams();
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? tenant;
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant ?? '';
+  const tenantSlug = tenant ?? '';
 
   return <SiteFullPage tenantId={tenantId} tenantSlug={tenantSlug} siteId={siteId} />;
 }

@@ -7,7 +7,6 @@
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Stack, Group, Button } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { ApiKeyFullPage } from '@/features/security/api-keys';
 
@@ -16,9 +15,8 @@ function ApiKeyFullPageRoute() {
     from: '/t/$tenant/security/api-keys/$keyId',
   });
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant ?? '';
+  const tenantSlug = tenant ?? '';
 
   return (
     <Stack gap="md" p="md">
