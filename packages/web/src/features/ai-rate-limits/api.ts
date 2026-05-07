@@ -7,13 +7,10 @@
  * imports from `features/ai-rate-limits` ends up calling the live daemon
  * REST endpoints under `/api/v1/t/{tenant}/ai/rate-limits/...`.
  *
- * Public names from the stage-1 mock-store era are preserved
- * (`useRateLimitList`, `useRateLimitDetail`, `createRateLimit`,
- * `updateRateLimit`, `deleteRateLimit`, `useRateLimitMetrics`,
- * `simulateMatch`) so existing components keep compiling. Where the
- * stage-1 signatures had no tenantId (because the mock store knew it),
- * the new signatures take a tenant id explicitly because the REST
- * surface is tenant-scoped.
+ * Public names (`useRateLimitList`, `useRateLimitDetail`,
+ * `createRateLimit`, `updateRateLimit`, `deleteRateLimit`,
+ * `useRateLimitMetrics`, `simulateMatch`) are preserved. Mutators take
+ * an explicit tenant id since the REST surface is tenant-scoped.
  *
  * Adapter:
  *   The daemon proto shape (`AIRateLimit`, camelCase) is translated to
@@ -268,13 +265,13 @@ export function useSimulateRateLimitProbeMutation(tenantId: string, id: string) 
 }
 
 /**
- * Stage-1 compatibility shim. The mock-store era exposed
- * `simulateMatch(ruleId, candidateText)` returning a Jaccard-like score.
- * The daemon doesn't ship that primitive yet — but the sole UI consumer
- * has been migrated to the new probe-style simulator. This wrapper exists
- * so the public name from the barrel keeps resolving and any third-party
- * caller gets a `matched: false` result with a deterministic 0 score
- * instead of a runtime crash. Prefer `simulateRateLimitProbe`.
+ * Compatibility shim. `simulateMatch(ruleId, candidateText)` returned a
+ * Jaccard-like score in stage-1; the daemon doesn't ship that primitive
+ * yet, and the UI consumer has migrated to the probe-style simulator.
+ * This wrapper exists so the public name from the barrel keeps resolving
+ * and any third-party caller gets a `matched: false` result with a
+ * deterministic 0 score instead of a runtime crash. Prefer
+ * `simulateRateLimitProbe`.
  *
  * @deprecated Use `simulateRateLimitProbe` against the real daemon instead.
  */
