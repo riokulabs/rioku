@@ -230,10 +230,16 @@ export function ClusterPage() {
                 {nodes.map((node) => (
                   <Table.Tr
                     key={node.id}
-                    role="row"
+                    tabIndex={0}
                     style={{ cursor: 'pointer' }}
                     onClick={() => {
                       handleViewNode(node);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleViewNode(node);
+                      }
                     }}
                   >
                     <Table.Td>

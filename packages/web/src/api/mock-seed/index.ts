@@ -19,6 +19,5 @@ export * from './notification-log';
 // Plan 07 (settings) feature slice retired — seed lives in _internal.ts
 // Plan 08 (dashboards) feature slices retired — seed lives in _internal.ts
 // Plan 09 (plugins) feature slices retired — seed lives in _internal.ts
-// Plan 10 (cluster)
-export * from './cluster';
+// Plan 10 (cluster) feature slice retired — seed lives in _internal.ts
 // Plan 11 (super-admin) — stub retired; feature slice lives in _internal.ts
