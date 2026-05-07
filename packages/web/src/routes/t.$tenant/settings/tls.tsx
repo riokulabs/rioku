@@ -15,11 +15,12 @@ import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { TlsSection } from '@/features/settings/sections/tls';
+import { TlsRealSection } from '@/features/settings/sections-real/tls-real';
 
 function TlsSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (
     <Stack gap="md" p="md" data-testid="settings-tls-page">
@@ -38,7 +39,7 @@ function TlsSettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <TlsSection />
+      <TlsRealSection tenant={activeTenant} />
     </Stack>
   );
 }

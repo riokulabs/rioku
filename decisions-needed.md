@@ -73,7 +73,14 @@
 
 ## Item 07-002 — TLS settings (Pebble + manual cert upload) deferred
 
-- **Status:** open
+- **Status:** RESOLVED (frontend); daemon-side manual upload + Pebble seed
+  remain open. The new `<TlsRealSection>` in
+  `packages/web/src/features/settings/sections-real/tls-real.tsx` wires
+  ACME issuer selection, account email, custom directory URL (for Pebble),
+  manual PEM upload form, and a list of uploaded certs with delete. The
+  daemon-side `/settings/tls/manual` POST + Pebble sandbox seed still need
+  to land; surface in this plan now expects those endpoints and shows a
+  user-readable error if the daemon returns 404.
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** scope-question
 - **What:** Plan 07 Task 5 asks for: ACME provider config (lets-encrypt /
@@ -101,7 +108,12 @@
 
 ## Item 07-003 — PKI internal CA + enrollment + revoke deferred
 
-- **Status:** open
+- **Status:** RESOLVED (frontend); daemon revocation list endpoint open.
+  `<PkiRealSection>` in
+  `packages/web/src/features/settings/sections-real/pki-real.tsx` wires the
+  CA-chain PEM textarea, enrollment endpoint config, key-algo dropdown, and
+  a revoked-cert list (graceful empty fallback when the daemon endpoint is
+  absent). Sandbox cert-gen seeding remains Plan 0b ownership.
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** scope-question
 - **What:** Plan 07 Task 6 wants list/add/revoke for CAs and enrollments. The
@@ -121,7 +133,13 @@
 
 ## Item 07-004 — Profile section integration vs sub-page wrapper
 
-- **Status:** open
+- **Status:** RESOLVED. The full deep-section rewrite landed under
+  `packages/web/src/features/settings/sections-real/` (profile, tenant,
+  network, auth-policy, observability, integrations, tls, pki, danger-zone).
+  Each route shell under `src/routes/t.$tenant/settings/*.tsx` now renders
+  the real-API section. Vitest coverage in
+  `src/features/settings/__tests__/sections-real.test.tsx` exercises form
+  load, save, and 422 validation per section.
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** scope-question
 - **What:** Plan 07 Task 1 asks for real-API wiring of `/settings/me`, `/me/name`,
@@ -164,7 +182,10 @@
 
 ## Item 07-006 — Caddy reload-after-network-PUT verification
 
-- **Status:** open
+- **Status:** still open; daemon-side hook plumbing not landed in plan-07
+  scope. Frontend section is wired and labels the save action with the
+  caddy-reload contract; daemon hook surface, integration test, and
+  cluster-broadcast ladder remain Plan 03 ownership.
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** missing-test
 - **What:** Plan 07 Task 4 specifies "after persist, daemon invokes
@@ -184,7 +205,11 @@
 
 ## Item 07-007 — Observability live preview (metrics tail) deferred
 
-- **Status:** open
+- **Status:** RESOLVED (frontend); daemon SSE endpoint open.
+  `<ObservabilityRealSection>` ships an SSE-based log-tail preview against
+  `/api/v1/t/{tenant}/observability/logs/tail`; if the daemon endpoint is
+  unavailable the UI surfaces a clear "daemon endpoint may not be available"
+  notice. Daemon work for the slog ring-buffer SSE stream remains open.
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** scope-question
 - **What:** Plan 07 Task 7 calls for a "live preview" panel that tails the
@@ -199,7 +224,10 @@
 
 ## Item 07-008 — Integrations section beyond webhook test-send deferred
 
-- **Status:** open
+- **Status:** RESOLVED. `<IntegrationsRealSection>` ships full webhook CRUD
+  via `usePutSettingsIntegrations` (round-trip slack/pagerduty unchanged,
+  mutate `webhooks` array) plus a "Test send" button that calls
+  `usePostWebhookTest` and renders the per-webhook result inline.
 - **Filed by:** plan-07, 2026-05-06
 - **Category:** scope-question
 - **What:** Plan 07 Task 8 wants webhook CRUD (list/add/edit/delete) + test

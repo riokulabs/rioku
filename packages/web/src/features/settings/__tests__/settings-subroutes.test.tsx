@@ -128,9 +128,25 @@ import * as DangerRouteModule from '@/routes/t.$tenant/settings/danger';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function Wrapper({ children }: { children: React.ReactNode }) {
-  return <MantineProvider>{children}</MantineProvider>;
+// Real sub-route pages now use generated TanStack Query hooks; the wrapper
+// must provide a QueryClient to avoid `No QueryClient set` runtime errors.
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+function makeWrapper() {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={client}>
+        <MantineProvider>{children}</MantineProvider>
+      </QueryClientProvider>
+    );
+  };
 }
+const Wrapper = makeWrapper();
 
 function getAcmeTenantId(): string {
   const state = useMockStore.getState();
@@ -172,7 +188,10 @@ describe('settings/profile route', () => {
     const PageComponent = getRouteComponent(ProfileRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
     // ProfileSection has a known testid for the personal-info subsection
-    expect(screen.getByTestId('profile-personal-info')).toBeDefined();
+    // Real-API ProfileSection mounts in loading state and resolves post-fetch.
+    expect(
+      screen.queryByTestId('profile-real-section') ?? screen.getByTestId('profile-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -194,7 +213,9 @@ describe('settings/tenant route', () => {
   it('renders the TenantSection inside', () => {
     const PageComponent = getRouteComponent(TenantRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
-    expect(screen.getByTestId('tenant-section')).toBeDefined();
+    expect(
+      screen.queryByTestId('tenant-real-section') ?? screen.getByTestId('tenant-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -216,7 +237,9 @@ describe('settings/auth-policy route', () => {
   it('renders the AuthenticationSection inside', () => {
     const PageComponent = getRouteComponent(AuthPolicyRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
-    expect(screen.getByTestId('auth-totp-fieldset')).toBeDefined();
+    expect(
+      screen.queryByTestId('auth-policy-real-section') ?? screen.getByTestId('auth-policy-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -239,7 +262,9 @@ describe('settings/network route', () => {
     const PageComponent = getRouteComponent(NetworkRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
     // NetworkSection renders fieldset-listen-addresses as its first content block
-    expect(screen.getByTestId('fieldset-listen-addresses')).toBeDefined();
+    expect(
+      screen.queryByTestId('network-real-section') ?? screen.getByTestId('network-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -261,7 +286,9 @@ describe('settings/tls route', () => {
   it('renders the TlsSection inside', () => {
     const PageComponent = getRouteComponent(TlsRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
-    expect(screen.getByTestId('tls-section')).toBeDefined();
+    expect(
+      screen.queryByTestId('tls-real-section') ?? screen.getByTestId('tls-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -283,7 +310,9 @@ describe('settings/pki route', () => {
   it('renders the PkiSection inside', () => {
     const PageComponent = getRouteComponent(PkiRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
-    expect(screen.getByTestId('pki-section')).toBeDefined();
+    expect(
+      screen.queryByTestId('pki-real-section') ?? screen.getByTestId('pki-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -305,7 +334,7 @@ describe('settings/observability route', () => {
   it('renders the ObservabilitySection inside', () => {
     const PageComponent = getRouteComponent(ObservabilityRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
-    expect(screen.getByTestId('observability-section')).toBeDefined();
+    expect(screen.getByTestId('observability-real-section')).toBeDefined();
   });
 });
 
@@ -328,7 +357,9 @@ describe('settings/integrations route', () => {
     const PageComponent = getRouteComponent(IntegrationsRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
     // IntegrationsSection renders the webhook table section
-    expect(screen.getByTestId('webhook-table-section')).toBeDefined();
+    expect(
+      screen.queryByTestId('integrations-real-section') ?? screen.getByTestId('integrations-real-loading'),
+    ).toBeDefined();
   });
 });
 
@@ -350,6 +381,6 @@ describe('settings/danger route', () => {
   it('renders the DangerZoneSection inside', () => {
     const PageComponent = getRouteComponent(DangerRouteModule);
     render(<PageComponent />, { wrapper: Wrapper });
-    expect(screen.getByTestId('danger-zone-section')).toBeDefined();
+    expect(screen.getByTestId('danger-zone-real-section')).toBeDefined();
   });
 });

@@ -14,11 +14,12 @@ import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { PkiSection } from '@/features/settings/sections/pki';
+import { PkiRealSection } from '@/features/settings/sections-real/pki-real';
 
 function PkiSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (
     <Stack gap="md" p="md" data-testid="settings-pki-page">
@@ -37,7 +38,7 @@ function PkiSettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <PkiSection />
+      <PkiRealSection tenant={activeTenant} />
     </Stack>
   );
 }

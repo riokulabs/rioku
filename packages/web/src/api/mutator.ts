@@ -84,10 +84,66 @@ async function parseError(res: Response): Promise<ApiError> {
     : new ApiError(message, { status: res.status });
 }
 
-export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
-  const { url, method, data, signal, params } = args;
+/**
+ * Adapter for Orval-generated clients which call
+ *   customFetch<T>(url: string, init: RequestInit)
+ * while the project's hand-rolled clients use the legacy
+ *   customFetch<T>({ url, method, data, signal, params })
+ * shape. This wrapper accepts both and normalises before the actual fetch.
+ */
+export async function customFetch<T>(
+  argsOrUrl: CustomFetchArgs | string,
+  init?: RequestInit & { params?: Record<string, string | number | boolean | undefined> },
+): Promise<T> {
+  let url: string;
+  let method: string;
+  let data: unknown;
+  let signal: AbortSignal | undefined;
+  let params: Record<string, string | number | boolean | undefined> | undefined;
+  let extraHeaders: Record<string, string> | undefined;
+  if (typeof argsOrUrl === 'string') {
+    url = argsOrUrl;
+    method = init?.method ?? 'GET';
+    if (typeof init?.body === 'string') {
+      try {
+        data = JSON.parse(init.body) as unknown;
+      } catch {
+        data = init.body;
+      }
+    }
+    signal = init?.signal ?? undefined;
+    params = init?.params;
+    if (init?.headers !== undefined) {
+      const h = init.headers;
+      if (h instanceof Headers) {
+        extraHeaders = {};
+        h.forEach((v, k) => {
+          if (extraHeaders) extraHeaders[k] = v;
+        });
+      } else if (Array.isArray(h)) {
+        extraHeaders = Object.fromEntries(h);
+      } else {
+        extraHeaders = h;
+      }
+    }
+  } else {
+    url = argsOrUrl.url;
+    method = argsOrUrl.method;
+    data = argsOrUrl.data;
+    signal = argsOrUrl.signal;
+    params = argsOrUrl.params;
+  }
 
-  let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
+  // Generated clients emit absolute API paths (`/api/v1/...`); hand-rolled
+  // clients emit relative paths (`/<resource>`) and rely on BASE prefixing.
+  let fullUrl: string;
+  if (url.startsWith('http')) {
+    fullUrl = url;
+  } else if (url.startsWith('/api/')) {
+    fullUrl = url;
+  } else {
+    fullUrl = `${BASE}${url}`;
+  }
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -105,6 +161,11 @@ export async function customFetch<T>(args: CustomFetchArgs): Promise<T> {
   if (data !== undefined) {
     headers['content-type'] = 'application/json';
     fetchInit.body = JSON.stringify(data);
+  }
+  if (extraHeaders) {
+    for (const [k, v] of Object.entries(extraHeaders)) {
+      headers[k.toLowerCase()] = v;
+    }
   }
   if (signal !== undefined) fetchInit.signal = signal;
 

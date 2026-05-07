@@ -15,11 +15,12 @@ import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { TenantSection } from '@/features/settings/sections/tenant';
+import { TenantRealSection } from '@/features/settings/sections-real/tenant-real';
 
 function TenantSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (
     <Stack gap="md" p="md" data-testid="settings-tenant-page">
@@ -38,7 +39,7 @@ function TenantSettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <TenantSection />
+      <TenantRealSection tenant={activeTenant} />
     </Stack>
   );
 }

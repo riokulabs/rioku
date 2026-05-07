@@ -20,11 +20,12 @@ import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { ObservabilitySection } from '@/features/settings/sections/observability';
+import { ObservabilityRealSection } from '@/features/settings/sections-real/observability-real';
 
 function ObservabilitySettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (
     <Stack gap="md" p="md" data-testid="settings-observability-page">
@@ -43,7 +44,7 @@ function ObservabilitySettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <ObservabilitySection />
+      <ObservabilityRealSection tenant={activeTenant} />
     </Stack>
   );
 }

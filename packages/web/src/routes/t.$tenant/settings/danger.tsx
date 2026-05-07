@@ -24,11 +24,12 @@ import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { DangerZoneSection } from '@/features/settings/sections/danger-zone';
+import { DangerZoneRealSection } from '@/features/settings/sections-real/danger-zone-real';
 
 function DangerSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (
     <Stack gap="md" p="md" data-testid="settings-danger-page">
@@ -47,7 +48,7 @@ function DangerSettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <DangerZoneSection />
+      <DangerZoneRealSection tenant={activeTenant} tenantSlug={tenantSlug ?? ""} />
     </Stack>
   );
 }

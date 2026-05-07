@@ -14,11 +14,12 @@ import { Anchor, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
-import { AuthenticationSection } from '@/features/settings/sections/authentication';
+import { AuthPolicyRealSection } from '@/features/settings/sections-real/auth-policy-real';
 
 function AuthPolicySettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = useMockStore((s) => s.tenants[s.currentTenantId ?? '']?.slug ?? tenant);
+  const activeTenant: string = tenant ?? tenantSlug ?? "";
 
   return (
     <Stack gap="md" p="md" data-testid="settings-auth-policy-page">
@@ -37,7 +38,7 @@ function AuthPolicySettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <AuthenticationSection />
+      <AuthPolicyRealSection tenant={activeTenant} />
     </Stack>
   );
 }
