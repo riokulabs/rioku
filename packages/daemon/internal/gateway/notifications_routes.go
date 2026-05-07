@@ -6,6 +6,7 @@
 //	GET    /api/v1/t/{tenant}/notifications/unread-count         badge counter
 //	GET    /api/v1/t/{tenant}/notifications/{id}                 detail
 //	POST   /api/v1/t/{tenant}/notifications/{id}/read            mark read
+//	POST   /api/v1/t/{tenant}/notifications/{id}/unread          mark unread (inverse of /read)
 //	POST   /api/v1/t/{tenant}/notifications/read-all             bulk mark read
 //	POST   /api/v1/t/{tenant}/notifications/{id}/archive         archive
 //	POST   /api/v1/t/{tenant}/notifications/{id}/unarchive       unarchive
@@ -87,6 +88,8 @@ func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("notification:read")(http.HandlerFunc(handleGetNotification(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/read",
 		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkNotificationRead(st))))
+	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/unread",
+		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkNotificationUnread(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/read-all",
 		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkAllRead(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/archive",
@@ -497,6 +500,45 @@ func handleMarkNotificationRead(st store.Driver) http.HandlerFunc {
 		if err := tx.MarkNotificationRead(r.Context(), id); err != nil {
 			_ = tx.Rollback()
 			writeInternalError(w, r, "mark read")
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleMarkNotificationUnread is the inverse of handleMarkNotificationRead:
+// clears the read_at timestamp on a notification owned by the calling user.
+// Idempotent — a no-op on already-unread notifications. Same RBAC as /read
+// (notification:manage-own) and the same ownership/tenant guards.
+func handleMarkNotificationUnread(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := tenantOrError(w, r); !ok {
+			return
+		}
+		sc := auth.SessionClaimsFromContext(r.Context())
+		id := r.PathValue("id")
+		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		// Ownership guard.
+		n, err := tx.GetNotificationItem(r.Context(), id)
+		if err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
+				"No notification with id "+id, r.URL.Path, nil)
+			return
+		}
+		if sc != nil && sc.UserID != "" && n.UserID != sc.UserID {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
+				"No notification with id "+id, r.URL.Path, nil)
+			return
+		}
+		if err := tx.MarkNotificationUnread(r.Context(), id); err != nil {
+			_ = tx.Rollback()
+			writeInternalError(w, r, "mark unread")
 			return
 		}
 		if err := tx.Commit(); err != nil {

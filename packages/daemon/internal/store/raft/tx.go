@@ -1529,6 +1529,9 @@ func (t *raftTx) CountUnreadNotifications(_ context.Context, _, _ string) (int, 
 func (t *raftTx) MarkNotificationRead(_ context.Context, _ string) error {
 	return fmt.Errorf("raft: MarkNotificationRead not implemented")
 }
+func (t *raftTx) MarkNotificationUnread(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: MarkNotificationUnread not implemented")
+}
 func (t *raftTx) MarkAllNotificationsRead(_ context.Context, _, _ string) error {
 	return fmt.Errorf("raft: MarkAllNotificationsRead not implemented")
 }
