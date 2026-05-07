@@ -6,7 +6,7 @@
 
 ## Item 001 — wildcard subdomain cert wiring through Caddy compiler
 
-- **Status:** open
+- **Status:** RESOLVED (2026-05-06)
 - **Filed by:** plan-12-subdomain (stage2/plan-12-subdomain), 2026-05-06
 - **Category:** undefined-behavior
 - **What:** Plan 12 T2 adds `--subdomain-cert`/`--subdomain-key` flags and
@@ -32,5 +32,15 @@
 - **Alternatives:** Use Caddy's on-demand TLS with `ask` allow-listing the
   parent domain pattern (already partially wired via `tls_ask_addr`), but
   that still triggers ACME per-subdomain on first hit.
-- **User decision:** [pending]
-- **Resolution date / commit:** [pending]
+- **User decision:** Implement the recommendation directly. The compiler
+  now emits `apps.tls.certificates.load_files` with the configured pair
+  whenever both `SubdomainCertFile` and `SubdomainKeyFile` are set; the
+  daemon plumbs the values from `Config.Caddy` into the compiler at
+  startup via `Compiler.SetSubdomainCert`. Coverage:
+  `TestCompiler_EmitsSubdomainCert`,
+  `TestCompiler_OmitsSubdomainCertWhenUnset`, and
+  `TestCompiler_SubdomainCertCoexistsWithOnDemand` in
+  `packages/daemon/internal/caddy/compiler_test.go`.
+- **Resolution date / commit:** 2026-05-06 — closed by the commit
+  that introduces `SubdomainCertConfig`, `SetSubdomainCert`, and the
+  load_files emission in `buildTLSApp`.

@@ -440,6 +440,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 			AskURL:  "http://" + d.tlsAsk.Addr() + "/tls/ask",
 		})
 	}
+	if d.cfg.Caddy.SubdomainCertFile != "" && d.cfg.Caddy.SubdomainKeyFile != "" {
+		compiler.SetSubdomainCert(caddy.SubdomainCertConfig{
+			CertFile: d.cfg.Caddy.SubdomainCertFile,
+			KeyFile:  d.cfg.Caddy.SubdomainKeyFile,
+		})
+	}
 	if d.keyValidator != nil {
 		compiler.SetWAFAuditEndpoint("http://" + d.keyValidator.Addr() + "/waf-record")
 	}
