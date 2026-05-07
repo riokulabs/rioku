@@ -1035,6 +1035,14 @@ func (t *raftTx) ListPermissions(_ context.Context) ([]*store.Permission, error)
 	return nil, fmt.Errorf("raft: ListPermissions not implemented")
 }
 
+func (t *raftTx) RegisterPluginPermissions(_ context.Context, _ string, _ []*store.Permission) error {
+	return fmt.Errorf("raft: RegisterPluginPermissions not implemented")
+}
+
+func (t *raftTx) UnregisterPluginPermissions(_ context.Context, _ string) (int, error) {
+	return 0, fmt.Errorf("raft: UnregisterPluginPermissions not implemented")
+}
+
 func (t *raftTx) GetUserScopes(_ context.Context, _ string) ([]string, error) {
 	return nil, fmt.Errorf("raft: GetUserScopes not implemented")
 }
