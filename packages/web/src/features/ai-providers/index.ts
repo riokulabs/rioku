@@ -2,16 +2,24 @@
  * AI Providers feature — barrel exports.
  */
 export {
+  providerKeys,
   useProviderList,
   useProviderDetail,
-  useProviderAgents,
+  useCreateProvider,
+  useUpdateProvider,
+  useDeleteProvider,
+  useTestProvider,
+  useAddModel,
+  useUpdateModel,
+  useRemoveModel,
+  // Legacy imperative wrappers (for event handlers)
   createProvider,
   updateProvider,
   deleteProvider,
+  testProvider,
   addModel,
   updateModel,
   removeModel,
-  testProvider,
 } from './api';
 
 export {

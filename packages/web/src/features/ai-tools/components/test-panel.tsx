@@ -1,8 +1,9 @@
 /**
  * <TestPanel> — sample-input JsonInput + Test button for a tool.
  *
- * Calls `testTool` and shows the mock result or the schema-validation error
- * inline.
+ * Calls the daemon `/test` schema-validation stub and shows the result or
+ * the validation error inline. For real invocation see `TestInvocation`
+ * inside `<ToolFullPage>`.
  */
 import { useState } from 'react';
 import { Alert, Badge, Button, Code, Group, JsonInput, Stack, Text } from '@mantine/core';
@@ -11,18 +12,21 @@ import { testTool } from '../api';
 import type { TestToolResult } from '../types';
 
 interface TestPanelProps {
+  tenant: string;
   toolId: string;
 }
 
-export function TestPanel({ toolId }: TestPanelProps) {
+export function TestPanel({ tenant, toolId }: TestPanelProps) {
   const [sample, setSample] = useState<string>('{\n  \n}');
   const [parseError, setParseError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestToolResult | null>(null);
+  const [callError, setCallError] = useState<string | null>(null);
 
   async function handleTest() {
     setParseError(null);
     setResult(null);
+    setCallError(null);
     let parsed: Record<string, unknown>;
     try {
       const v: unknown = JSON.parse(sample);
@@ -37,8 +41,10 @@ export function TestPanel({ toolId }: TestPanelProps) {
     }
     setTesting(true);
     try {
-      const r = await testTool(toolId, parsed);
+      const r = await testTool(tenant, toolId, parsed);
       setResult(r);
+    } catch (err) {
+      setCallError(err instanceof Error ? err.message : 'Tool test failed');
     } finally {
       setTesting(false);
     }
@@ -74,12 +80,18 @@ export function TestPanel({ toolId }: TestPanelProps) {
         </Alert>
       )}
 
+      {callError && (
+        <Alert icon={<IconAlertCircle size={14} />} color="red" variant="light">
+          {callError}
+        </Alert>
+      )}
+
       {result && result.ok && (
         <Stack gap="xs">
           <Badge color="green" variant="light" size="sm">
             Validation passed
           </Badge>
-          <Code block>{JSON.stringify(result.result, null, 2)}</Code>
+          <Code block>{JSON.stringify(result.result ?? result, null, 2)}</Code>
         </Stack>
       )}
 

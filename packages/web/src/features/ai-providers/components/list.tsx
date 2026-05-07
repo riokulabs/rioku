@@ -11,11 +11,11 @@ import { IconDots, IconPencil, IconTrash, IconPlugConnected, IconRobot } from '@
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { ProviderKindBadge } from '@/features/ai-shared';
-import { useProviderList, updateProvider } from '../api';
+import { useProviderList, useUpdateProvider } from '../api';
 import type { AiProvider, ProviderFilter } from '../types';
 
 interface ProviderListProps {
-  tenantId: string;
+  tenant: string;
   filter: ProviderFilter;
   onSelect: (provider: AiProvider) => void;
   onEdit: (provider: AiProvider) => void;
@@ -24,14 +24,15 @@ interface ProviderListProps {
 }
 
 export function ProviderList({
-  tenantId,
+  tenant,
   filter,
   onSelect,
   onEdit,
   onDelete,
   onTest,
 }: ProviderListProps) {
-  const providers = useProviderList(tenantId, filter);
+  const providers = useProviderList(tenant, filter);
+  const updateProviderMut = useUpdateProvider(tenant);
 
   const columns = useMemo<ColumnDef<AiProvider>[]>(
     () => [
@@ -105,7 +106,10 @@ export function ProviderList({
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateProvider(p.id, { enabled: e.currentTarget.checked });
+                void updateProviderMut.mutateAsync({
+                  id: p.id,
+                  input: { enabled: e.currentTarget.checked },
+                });
               }}
             />
           );

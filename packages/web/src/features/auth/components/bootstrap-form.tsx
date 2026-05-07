@@ -1,10 +1,10 @@
 /**
  * <BootstrapForm> — first-run setup: creates the root tenant + root user.
  *
- * Only rendered when the mock store has no users. If users exist, the parent
- * route redirects to /login.
+ * Hits `POST /api/v1/auth/bootstrap`. The daemon does not auto-create a
+ * session on bootstrap — after success the user is sent to `/login`.
  *
- * Task 1e.90
+ * Plan 01 — stage 2 wiring.
  */
 import { useState } from 'react';
 import {
@@ -21,13 +21,12 @@ import {
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { bootstrap } from '../api';
+import { bootstrapStatusQueryKey } from '../use-bootstrap-status';
 import { bootstrapSchema, type BootstrapFormValues } from '../schemas';
-import { TotpEnrollmentBlock } from './totp-enrollment-block';
-import { useMockStore } from '@/api/mock-store';
 
-/** Simple password strength gauge: 0–100 */
 function passwordStrength(password: string): number {
   if (!password) return 0;
   let score = 0;
@@ -54,14 +53,12 @@ function strengthLabel(score: number): string {
   return 'Strong';
 }
 
-type Step = 'setup' | 'totp';
-
 export function BootstrapForm() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>('setup');
+  const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newUserId, setNewUserId] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const form = useForm<BootstrapFormValues>({
     validate: schemaResolver(bootstrapSchema, { sync: true }),
@@ -78,7 +75,7 @@ export function BootstrapForm() {
   const passwordValue = form.values.password;
   const strength = passwordStrength(passwordValue);
 
-  async function handleSetupSubmit(values: BootstrapFormValues) {
+  async function handleSubmit(values: BootstrapFormValues) {
     setSubmitting(true);
     setError(null);
 
@@ -96,8 +93,9 @@ export function BootstrapForm() {
         return;
       }
 
-      setNewUserId(result.user_id ?? null);
-      setStep('totp');
+      await queryClient.invalidateQueries({ queryKey: bootstrapStatusQueryKey });
+      setSuccess(true);
+      await navigate({ to: '/login' });
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -105,31 +103,18 @@ export function BootstrapForm() {
     }
   }
 
-  async function handleTotpComplete() {
-    const state = useMockStore.getState();
-    const tenantId = state.currentTenantId;
-    const tenant = tenantId ? state.tenants[tenantId] : null;
-
-    if (tenant) {
-      await navigate({ to: '/t/$tenant/dashboard', params: { tenant: tenant.slug } });
-    } else {
-      await navigate({ to: '/login' });
-    }
-  }
-
-  if (step === 'totp' && newUserId) {
+  if (success) {
     return (
-      <Stack gap="lg">
-        <Alert color="green" variant="light" data-testid="bootstrap-setup-complete">
-          Account created! Now set up your authenticator app to secure your account.
+      <Stack gap="md">
+        <Alert color="green" variant="light" data-testid="bootstrap-success">
+          Organization created. Redirecting to sign-in…
         </Alert>
-        <TotpEnrollmentBlock userId={newUserId} onComplete={() => void handleTotpComplete()} />
       </Stack>
     );
   }
 
   return (
-    <form onSubmit={form.onSubmit((v) => void handleSetupSubmit(v))}>
+    <form onSubmit={form.onSubmit((v) => void handleSubmit(v))}>
       <Stack gap="md">
         {error && (
           <Alert
@@ -142,7 +127,6 @@ export function BootstrapForm() {
           </Alert>
         )}
 
-        {/* Organization section */}
         <Title order={4}>Organization</Title>
 
         <TextInput
@@ -192,7 +176,6 @@ export function BootstrapForm() {
           {...form.getInputProps('password')}
         />
 
-        {/* Password strength gauge */}
         {passwordValue.length > 0 && (
           <Stack gap={4}>
             <Progress

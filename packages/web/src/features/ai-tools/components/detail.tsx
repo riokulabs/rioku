@@ -1,16 +1,9 @@
 /**
- * <ToolDetail> — drawer content for an AI tool.
- *
- * Sections:
- *   - Identity (name, kind badge, dangerous flag, enabled switch)
- *   - JSON schema (read-only Code block)
- *   - MCP server link OR HTTP endpoint details (kind-dependent)
- *   - Agents using this tool
- *   - Test panel (sample input + result)
- *   - Actions (Edit, Delete — typed-name confirm)
- *   - Audit tail
+ * <ToolDetail> — definition view for an AI tool. Used inside the full-page
+ * "Definition" tab. Contains identity, target, schema, agent bindings and
+ * write actions (edit / delete with typed-name confirm).
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Badge,
@@ -21,7 +14,6 @@ import {
   Modal,
   Stack,
   Switch,
-  Table,
   Text,
   TextInput,
   Title,
@@ -29,38 +21,22 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { Link } from '@tanstack/react-router';
 import { IconAlertCircle, IconExternalLink, IconTool } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { DangerousToolBadge, ToolKindBadge } from '@/features/ai-shared';
-import { deleteTool, updateTool, useToolAgents, useToolDetail } from '../api';
+import { deleteTool, useToolAgents, useToolDetail, useUpdateTool } from '../api';
 import { ToolInUseError } from '../types';
-import { TestPanel } from './test-panel';
-
-dayjs.extend(relativeTime);
 
 interface ToolDetailProps {
+  tenant: string;
   toolId: string;
-  tenantSlug: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailProps) {
-  const tool = useToolDetail(toolId);
-  const agentsUsing = useToolAgents(toolId);
-  const auditEntries = useMockStore((s) => s.audit);
-  const mcpServers = useMockStore((s) => s.mcpServers);
-
-  const auditTail = useMemo(() => {
-    if (!tool) return [];
-    return auditEntries
-      .filter((e) => e.resource_type === 'ai-tool' && e.resource_id === tool.id)
-      .slice()
-      .sort((a, b) => b.at.localeCompare(a.at))
-      .slice(0, 10);
-  }, [auditEntries, tool]);
+export function ToolDetail({ tenant, toolId, onEdit, onClose }: ToolDetailProps) {
+  const tool = useToolDetail(tenant, toolId);
+  const agentsUsing = useToolAgents(tenant, toolId);
+  const updateMutation = useUpdateTool(tenant);
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
@@ -74,13 +50,16 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
     );
   }
 
-  async function handleToggle(enabled: boolean) {
+  function handleToggle(enabled: boolean) {
     if (!tool) return;
-    try {
-      await updateTool(tool.id, { enabled });
-    } catch {
-      notify.error('Failed to update tool', 'Please try again.');
-    }
+    updateMutation.mutate(
+      { id: tool.id, input: { enabled } },
+      {
+        onError: () => {
+          notify.error('Failed to update tool', 'Please try again.');
+        },
+      },
+    );
   }
 
   async function handleDelete() {
@@ -88,7 +67,7 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
     if (deleteInput !== tool.name) return;
     setDeleting(true);
     try {
-      await deleteTool(tool.id);
+      await deleteTool(tenant, tool.id);
       notify.success('Tool deleted', `${tool.name} was removed.`);
       closeDelete();
       onClose();
@@ -106,8 +85,6 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
       setDeleteInput('');
     }
   }
-
-  const mcpServer = tool.mcp_server_id ? mcpServers[tool.mcp_server_id] : undefined;
 
   return (
     <Stack gap="md">
@@ -127,7 +104,7 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
                 checked={tool.enabled}
                 aria-label={`Toggle ${tool.name}`}
                 onChange={(e) => {
-                  void handleToggle(e.currentTarget.checked);
+                  handleToggle(e.currentTarget.checked);
                 }}
               />
             </Group>
@@ -147,7 +124,7 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
         </Text>
         {tool.kind === 'mcp' && (
           <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
-            MCP server: {mcpServer ? `${mcpServer.name} (${mcpServer.url})` : tool.mcp_server_id}
+            MCP server: {tool.mcp_server_id ?? '—'}
           </Text>
         )}
         {tool.kind === 'http' && tool.http_endpoint && (
@@ -191,7 +168,7 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
             // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast
             component={Link as any}
             to="/t/$tenant/ai/tool-routing"
-            params={{ tenant: tenantSlug }}
+            params={{ tenant }}
             search={{ tool: tool.id }}
             size="xs"
             variant="subtle"
@@ -207,8 +184,8 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
         ) : (
           <Group gap={6}>
             {agentsUsing.map((a) => (
-              <Badge key={a.id} size="xs" variant="light" color="blue">
-                {a.name} · {a.model}
+              <Badge key={a.id} size="xs" variant="light" color="blue" ff="monospace">
+                {a.id}
               </Badge>
             ))}
           </Group>
@@ -226,52 +203,6 @@ export function ToolDetail({ toolId, tenantSlug, onEdit, onClose }: ToolDetailPr
           Delete…
         </Button>
       </Group>
-
-      <Divider />
-
-      {/* Test panel */}
-      <TestPanel toolId={tool.id} />
-
-      <Divider />
-
-      {/* Audit tail */}
-      <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Recent activity
-        </Text>
-        {auditTail.length === 0 ? (
-          <Text size="xs" c="var(--mantine-color-gray-7)">
-            No audit entries for this tool yet.
-          </Text>
-        ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Action</Table.Th>
-                <Table.Th>Actor</Table.Th>
-                <Table.Th>When</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {auditTail.map((e) => (
-                <Table.Tr key={e.id}>
-                  <Table.Td>
-                    <Text size="xs" ff="monospace">
-                      {e.action}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">{e.actor_id}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Stack>
 
       {/* Delete modal */}
       <Modal

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <DashboardBuilderShell> tests — render + save flow + dirty cancel.
  */

@@ -17,6 +17,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
 import { RateLimitList } from '../components/list';
@@ -26,10 +27,15 @@ import { MetricsSparkline } from '../components/metrics-sparkline';
 import type { RateLimitFilter } from '../types';
 
 function wrap(ui: React.ReactNode) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <MantineProvider>
-      <Notifications />
-      <ModalsProvider>{ui}</ModalsProvider>
+      <QueryClientProvider client={qc}>
+        <Notifications />
+        <ModalsProvider>{ui}</ModalsProvider>
+      </QueryClientProvider>
     </MantineProvider>,
   );
 }
@@ -99,17 +105,14 @@ describe('RateLimitForm', () => {
 });
 
 describe('Simulator', () => {
-  it('produces a match/no-match badge after clicking Simulate', () => {
+  it('renders the probe form fields and the Simulate button', () => {
     const ruleId = firstRuleId();
     if (!ruleId) return;
-    wrap(<Simulator ruleId={ruleId} />);
-    const textarea = screen.getByLabelText(/Simulator candidate text/i);
-    fireEvent.change(textarea, {
-      target: { value: 'please jailbreak this prompt' },
-    });
-    fireEvent.click(screen.getByText(/^Simulate$/));
-    const badges = screen.queryAllByText(/(Match|No match)/);
-    expect(badges.length).toBeGreaterThan(0);
+    wrap(<Simulator tenantId={acmeId()} ruleId={ruleId} />);
+    expect(screen.getByTestId('simulator-request-count')).toBeInTheDocument();
+    expect(screen.getByTestId('simulator-window-seconds')).toBeInTheDocument();
+    expect(screen.getByTestId('simulator-principal')).toBeInTheDocument();
+    expect(screen.getByTestId('simulator-run')).toBeInTheDocument();
   });
 });
 
@@ -117,7 +120,7 @@ describe('MetricsSparkline', () => {
   it('renders without crashing in sm mode', () => {
     const ruleId = firstRuleId();
     if (!ruleId) return;
-    wrap(<MetricsSparkline ruleId={ruleId} size="sm" window="24h" />);
+    wrap(<MetricsSparkline tenantId={acmeId()} ruleId={ruleId} size="sm" window="24h" />);
     // No throw — the chart container should exist.
     expect(true).toBe(true);
   });

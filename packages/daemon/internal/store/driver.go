@@ -239,8 +239,26 @@ type Tx interface {
 	GetUser(ctx context.Context, id string) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	ListUsers(ctx context.Context) ([]*User, error)
+	// CountUsers returns the total number of users in the store.
+	// Used by the bootstrap-status endpoint to determine if any admin
+	// account exists.
+	CountUsers(ctx context.Context) (int, error)
+	// GetUserByEmail looks up a user by email address (case-insensitive).
+	// Returns sql.ErrNoRows when not found.
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, u *User) (*User, error)
 	DeleteUser(ctx context.Context, id string) error
+
+	// --- Password Reset Tokens ---
+
+	// CreatePasswordResetToken stores a hashed token for the given user
+	// that expires at expiresAt. The raw token is never stored.
+	CreatePasswordResetToken(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error
+	// GetPasswordResetToken returns the token row for a given hash.
+	// Returns sql.ErrNoRows when not found.
+	GetPasswordResetToken(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	// ConsumePasswordResetToken marks the token as consumed (sets consumed_at).
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) error
 
 	// IncrementFailedAttempts increments failed_attempts and optionally sets
 	// locked_until + status='locked' if threshold is reached.
@@ -500,6 +518,12 @@ type Tx interface {
 	// machine (pending -> active -> deactivated -> removed). Invalid
 	// transitions return ErrMembershipInvalidState.
 	UpdateMembershipState(ctx context.Context, id, state string) (*Membership, error)
+	// GetMembershipByInviteToken looks up a pending membership by its hashed
+	// invite token. Returns ErrMembershipNotFound when not found.
+	GetMembershipByInviteToken(ctx context.Context, tokenHash string) (*Membership, error)
+	// AcceptInvite activates a pending membership: sets user_id, clears
+	// invite_token_hash, sets state=active, and sets joined_at=now.
+	AcceptInvite(ctx context.Context, membershipID, userID string) error
 	// DeleteMembership hard-deletes a membership. Prefer
 	// UpdateMembershipState("removed") for audit retention; this is for
 	// administrative cleanup.
@@ -828,6 +852,16 @@ type UpdateTenantParams struct {
 	Accent             *string
 	LogoURL            *string
 	DefaultDashboardID *string
+}
+
+// PasswordResetToken represents a single-use token for password reset.
+// The raw token is never stored; only its SHA-256 hex hash is persisted.
+type PasswordResetToken struct {
+	TokenHash  string
+	UserID     string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
 }
 
 // Membership ties a User to a Tenant with a state machine

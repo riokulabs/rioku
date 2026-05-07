@@ -679,23 +679,21 @@ func handleAdminAuditLog(st store.Driver) http.HandlerFunc {
 	}
 }
 
-// ─── Chunk 18: auth flow recovery + bootstrap + invite-accept ───────────────
+// ─── Chunk 18: auth flow recovery + invite-accept ───────────────────────────
+// Note: POST /auth/bootstrap and GET /auth/bootstrap-status are real
+// implementations registered via RegisterBootstrapRoutes (plan 01).
+// Password-reset and invite-accept are real implementations registered via
+// RegisterPasswordResetRoutes and RegisterInviteRoutes (plan 01).
+// The stubs below are kept for TOTP enroll/confirm which remain in-progress.
 
 func registerAuthRecoveryFlow(mux *http.ServeMux, _ store.Driver) {
-	// All of these accept a request body and return 202 with a note.
-	// Real implementations (email delivery, token rotation) ride
-	// alongside the notification dispatcher + bootstrap subsystems.
+	// Stubs for endpoints not yet fully implemented.
 	for _, p := range []struct {
 		method, path string
 	}{
 		{"POST", "/api/v1/auth/totp/enroll"},
 		{"POST", "/api/v1/auth/totp/confirm"},
 		{"POST", "/api/v1/auth/backup-code/verify"},
-		{"POST", "/api/v1/auth/password-reset/request"},
-		{"GET", "/api/v1/auth/password-reset/validate"},
-		{"POST", "/api/v1/auth/password-reset/apply"},
-		{"POST", "/api/v1/auth/invite/accept"},
-		{"POST", "/api/v1/auth/bootstrap"},
 	} {
 		method, path := p.method, p.path
 		mux.HandleFunc(method+" "+path, func(w http.ResponseWriter, r *http.Request) {

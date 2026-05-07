@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <VariablesPanel> tests — non-Grafana empty state, add/save/delete flows,
  * validation errors on empty / duplicate / enum-without-options.

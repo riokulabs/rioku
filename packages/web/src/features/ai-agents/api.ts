@@ -1,410 +1,545 @@
 /**
- * AI Agents API — backed by the Zustand mock store.
+ * AI Agents API — wired to the real daemon.
  *
- * Mirrors features/services/api.ts:
- *   - selectors pull raw Records, derive outside the selector body
- *   - mutations call simulateLatency + appendAudit + emitHostEvent
+ * Public function names preserved from stage-1 (`useAgentList`,
+ * `useAgentDetail`, `createAgent`, `updateAgent`, `deleteAgent`,
+ * `rotateScopedCredential`, `useAgentTools`, `useAgentTraces`).
  *
- * `invokeAgentMock` synthesises a realistic `AiTrace`, writes it to the store,
- * and publishes it onto `traceStreamBus` so the live-tail consumer sees the
- * new trace in real time.
+ * The daemon's `AIAgent` schema is camelCase with a flat `guardrails` JSON
+ * blob. Stage-1 components consumed `AiAgent` (snake_case + flattened
+ * tool_ids/role_ids/temperature/max_tokens_per_request/stop_sequences). To
+ * keep the existing UI working without a wholesale rewrite, this module
+ * adapts the daemon shape into the legacy shape on read, and packs
+ * legacy-shaped inputs back into `guardrails` on write.
+ *
+ * Endpoint base: `/api/v1/t/{tenant}/ai/agents`.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import { publishTrace } from '@/api/trace-stream-bus';
-import type { AiAgent, AiTool, AiTrace, AiTraceToolCall, AuditEntry } from '@/api/resources';
-import type { AgentFilter, CreateAgentInput, InvokeAgentInput, UpdateAgentInput } from './types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { customFetch } from '@/api/mutator';
+import type { AiAgent, AiTool, AiTrace } from '@/api/resources';
+import type {
+  AgentFilter,
+  CreateAgentInput,
+  InvokeAgentInput,
+  UpdateAgentInput,
+} from './types';
 
-const nextAgentId = makeIdFactory('aiagent-new');
-const nextTraceId = makeIdFactory('aitrace-invoke');
-const nextAuditId = makeIdFactory('audit-aiagent');
+// ─── Types — daemon-side shapes ───────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
+interface DaemonGuardrails {
+  toolIds?: string[];
+  roleIds?: string[];
+  maxTokensPerRequest?: number;
+  temperature?: number;
+  stopSequences?: string[];
+  scopedCredentialPrefix?: string;
+  scopedCredentialCreatedAt?: string;
 }
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
+interface DaemonAgent {
+  id: string;
+  tenantId: string;
+  providerId?: string | null;
+  name: string;
+  description?: string;
+  model: string;
+  systemPrompt: string;
+  guardrails?: DaemonGuardrails;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceId?: string,
-  tier: AuditEntry['tier'] = 'write',
-): AuditEntry {
-  return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action,
-    resource_type: 'ai-agent',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier,
+interface DaemonAgentListResponse {
+  items?: DaemonAgent[];
+  total?: number;
+}
+
+interface DaemonToolBindingItem {
+  id?: string;
+  toolId?: string;
+  agentId?: string;
+  enabled?: boolean;
+}
+
+interface DaemonAgentBindingsResponse {
+  items?: DaemonToolBindingItem[];
+  total?: number;
+}
+
+interface DaemonTrace extends Partial<AiTrace> {
+  id: string;
+  tenantId?: string;
+  agentId?: string;
+  providerId?: string;
+}
+
+interface DaemonAgentTracesResponse {
+  items?: DaemonTrace[];
+  total?: number;
+}
+
+interface DaemonRotateResponse {
+  agentId?: string;
+  ok?: boolean;
+  newCredential?: string;
+  prefix?: string;
+  note?: string;
+}
+
+// ─── Adapters ─────────────────────────────────────────────────────────────────
+
+function adaptAgent(d: DaemonAgent): AiAgent {
+  const g = d.guardrails ?? {};
+  const out: AiAgent = {
+    id: d.id,
+    tenant_id: d.tenantId,
+    name: d.name,
+    provider_id: d.providerId ?? '',
+    model: d.model,
+    system_prompt: d.systemPrompt,
+    tool_ids: Array.isArray(g.toolIds) ? [...g.toolIds] : [],
+    enabled: d.enabled,
+    role_ids: Array.isArray(g.roleIds) ? [...g.roleIds] : [],
+    max_tokens_per_request: typeof g.maxTokensPerRequest === 'number' ? g.maxTokensPerRequest : 4096,
+    temperature: typeof g.temperature === 'number' ? g.temperature : 0.7,
+    stop_sequences: Array.isArray(g.stopSequences) ? [...g.stopSequences] : [],
+    created_at: d.createdAt,
+    updated_at: d.updatedAt,
   };
-}
-
-function credentialPrefix(raw: string): string {
-  return raw.slice(0, Math.min(12, raw.length));
-}
-
-/** djb2 hash over a string — deterministic, never negative. */
-function hashCode(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  if (d.description !== undefined && d.description !== '') {
+    out.description = d.description;
   }
-  return h >>> 0;
-}
-
-// ─── Selectors ────────────────────────────────────────────────────────────────
-
-export function useAgentList(tenantId: string, filter: AgentFilter): AiAgent[] {
-  const agents = useMockStore((s) => s.aiAgents);
-  const search = filter.search.toLowerCase().trim();
-  const results: AiAgent[] = [];
-  for (const agent of Object.values(agents)) {
-    if (agent.tenant_id !== tenantId) continue;
-    if (filter.provider_ids.length > 0 && !filter.provider_ids.includes(agent.provider_id))
-      continue;
-    if (filter.enabled !== undefined && agent.enabled !== filter.enabled) continue;
-    if (filter.role_ids.length > 0) {
-      if (!filter.role_ids.some((rid) => agent.role_ids.includes(rid))) continue;
-    }
-    if (search) {
-      const nameMatch = agent.name.toLowerCase().includes(search);
-      const descMatch = agent.description?.toLowerCase().includes(search) ?? false;
-      const modelMatch = agent.model.toLowerCase().includes(search);
-      if (!nameMatch && !descMatch && !modelMatch) continue;
-    }
-    results.push(agent);
-  }
-  return results;
-}
-
-export function useAgentDetail(id: string): AiAgent | undefined {
-  return useMockStore((s) => s.aiAgents[id]);
-}
-
-/**
- * Tools accessible to the agent — bindings take precedence over `tool_ids`.
- * If any binding exists for the agent, only bound (enabled) tools are returned.
- * If no bindings exist, the agent.tool_ids list is used directly.
- */
-export function useAgentTools(id: string): AiTool[] {
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
-  const bindings = useMockStore((s) => s.aiToolBindings);
-
-  const agent = agents[id];
-  if (!agent) return [];
-
-  const bindingsForAgent = Object.values(bindings).filter((b) => b.agent_id === id);
-  if (bindingsForAgent.length > 0) {
-    const out: AiTool[] = [];
-    for (const b of bindingsForAgent) {
-      if (!b.enabled) continue;
-      const t = tools[b.tool_id];
-      if (t) out.push(t);
-    }
-    return out;
-  }
-  const out: AiTool[] = [];
-  for (const tid of agent.tool_ids) {
-    const t = tools[tid];
-    if (t) out.push(t);
+  if (
+    typeof g.scopedCredentialPrefix === 'string' &&
+    typeof g.scopedCredentialCreatedAt === 'string'
+  ) {
+    out.scoped_credential_ref = {
+      prefix: g.scopedCredentialPrefix,
+      created_at: g.scopedCredentialCreatedAt,
+    };
   }
   return out;
 }
 
-/** Recent traces for an agent — sorted desc by `at`, limited. */
-export function useAgentTraces(id: string, limit = 20): AiTrace[] {
-  const traces = useMockStore((s) => s.aiTraces);
-  const out: AiTrace[] = [];
-  for (const t of Object.values(traces)) {
-    if (t.agent_id === id) out.push(t);
+function packGuardrails(input: Partial<CreateAgentInput & UpdateAgentInput>): DaemonGuardrails {
+  const g: DaemonGuardrails = {};
+  if (input.tool_ids !== undefined) g.toolIds = [...input.tool_ids];
+  if (input.role_ids !== undefined) g.roleIds = [...input.role_ids];
+  if (input.max_tokens_per_request !== undefined) {
+    g.maxTokensPerRequest = input.max_tokens_per_request;
   }
-  out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  return out.slice(0, limit);
+  if (input.temperature !== undefined) g.temperature = input.temperature;
+  if (input.stop_sequences !== undefined) g.stopSequences = [...input.stop_sequences];
+  if ('scoped_credential' in input && typeof input.scoped_credential === 'string') {
+    const s = input.scoped_credential;
+    g.scopedCredentialPrefix = s.slice(0, Math.min(12, s.length));
+    g.scopedCredentialCreatedAt = new Date().toISOString();
+  }
+  return g;
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+// ─── Query key factory ────────────────────────────────────────────────────────
 
-export async function createAgent(tenantId: string, input: CreateAgentInput): Promise<AiAgent> {
-  await simulateLatency('mutation');
+export const agentKeys = {
+  all: (tenant: string) => ['ai-agents', tenant] as const,
+  list: (tenant: string) => ['ai-agents', tenant, 'list'] as const,
+  detail: (tenant: string, id: string) => ['ai-agents', tenant, 'detail', id] as const,
+  tools: (tenant: string, id: string) => ['ai-agents', tenant, 'tools', id] as const,
+  traces: (tenant: string, id: string) => ['ai-agents', tenant, 'traces', id] as const,
+};
 
-  const id = nextAgentId();
-  const agent: AiAgent = {
-    id,
-    tenant_id: tenantId,
+function agentBase(tenant: string): string {
+  return `/t/${tenant}/ai/agents`;
+}
+
+// ─── Hooks: queries ───────────────────────────────────────────────────────────
+
+/** Fetch + filter agents for a tenant (filter applied client-side after fetch). */
+export function useAgentList(tenant: string, filter: AgentFilter): AiAgent[] {
+  const { data } = useQuery({
+    queryKey: agentKeys.list(tenant),
+    queryFn: () =>
+      customFetch<DaemonAgentListResponse>({
+        url: agentBase(tenant),
+        method: 'GET',
+      }),
+    enabled: tenant.length > 0,
+  });
+  const items = (data?.items ?? []).map(adaptAgent);
+  const search = filter.search.toLowerCase().trim();
+  return items.filter((a) => {
+    if (filter.provider_ids.length > 0 && !filter.provider_ids.includes(a.provider_id)) {
+      return false;
+    }
+    if (filter.enabled !== undefined && a.enabled !== filter.enabled) return false;
+    if (filter.role_ids.length > 0) {
+      if (!filter.role_ids.some((rid) => a.role_ids.includes(rid))) return false;
+    }
+    if (search.length > 0) {
+      const nameMatch = a.name.toLowerCase().includes(search);
+      const descMatch = a.description?.toLowerCase().includes(search) ?? false;
+      const modelMatch = a.model.toLowerCase().includes(search);
+      if (!nameMatch && !descMatch && !modelMatch) return false;
+    }
+    return true;
+  });
+}
+
+/** Fetch a single agent. */
+export function useAgentDetail(tenant: string, id: string): AiAgent | undefined {
+  const { data } = useQuery({
+    queryKey: agentKeys.detail(tenant, id),
+    queryFn: () =>
+      customFetch<DaemonAgent>({
+        url: `${agentBase(tenant)}/${id}`,
+        method: 'GET',
+      }),
+    enabled: tenant.length > 0 && id.length > 0,
+  });
+  return data ? adaptAgent(data) : undefined;
+}
+
+/** Tools bound to the agent. Returned as legacy AiTool[] (subset — id/name/kind). */
+export function useAgentTools(tenant: string, id: string): AiTool[] {
+  const { data } = useQuery({
+    queryKey: agentKeys.tools(tenant, id),
+    queryFn: () =>
+      customFetch<DaemonAgentBindingsResponse>({
+        url: `${agentBase(tenant)}/${id}/tools`,
+        method: 'GET',
+      }),
+    enabled: tenant.length > 0 && id.length > 0,
+  });
+  const items = data?.items ?? [];
+  return items
+    .filter((b) => b.enabled !== false && typeof b.toolId === 'string')
+    .map(
+      (b): AiTool => ({
+        id: b.toolId ?? '',
+        tenant_id: '',
+        name: b.toolId ?? '',
+        description: '',
+        schema: {},
+        kind: 'http',
+        dangerous: false,
+        enabled: b.enabled !== false,
+        created_at: '',
+      }),
+    );
+}
+
+/** Recent traces for an agent. */
+export function useAgentTraces(tenant: string, id: string, limit = 20): AiTrace[] {
+  const { data } = useQuery({
+    queryKey: agentKeys.traces(tenant, id),
+    queryFn: () =>
+      customFetch<DaemonAgentTracesResponse>({
+        url: `${agentBase(tenant)}/${id}/traces`,
+        method: 'GET',
+        params: { limit },
+      }),
+    enabled: tenant.length > 0 && id.length > 0,
+  });
+  // Daemon may return traces in a partial shape — coerce to AiTrace.
+  const items = data?.items ?? [];
+  return items
+    .map(
+      (t): AiTrace => ({
+        id: t.id,
+        tenant_id: t.tenantId ?? t.tenant_id ?? '',
+        agent_id: t.agentId ?? t.agent_id ?? id,
+        provider_id: t.providerId ?? t.provider_id ?? '',
+        model: t.model ?? '',
+        input_tokens: t.input_tokens ?? 0,
+        output_tokens: t.output_tokens ?? 0,
+        latency_ms: t.latency_ms ?? 0,
+        status: t.status ?? 'success',
+        at: t.at ?? '',
+        prompt_text: t.prompt_text ?? '',
+        completion_text: t.completion_text ?? '',
+        tool_calls: t.tool_calls ?? [],
+        cost_usd: t.cost_usd ?? 0,
+        request_id: t.request_id ?? t.id,
+        ...(t.session_id !== undefined ? { session_id: t.session_id } : {}),
+        ...(t.error_message !== undefined ? { error_message: t.error_message } : {}),
+      }),
+    )
+    .slice(0, limit);
+}
+
+// ─── Mutations: hooks + imperative ────────────────────────────────────────────
+
+export function useCreateAgent(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateAgentInput) => createAgent(tenant, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: agentKeys.all(tenant) });
+    },
+  });
+}
+
+export function useUpdateAgent(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateAgentInput }) =>
+      updateAgent(tenant, id, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: agentKeys.all(tenant) });
+    },
+  });
+}
+
+export function useDeleteAgent(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteAgent(tenant, id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: agentKeys.all(tenant) });
+    },
+  });
+}
+
+export function useRotateAgentCredential(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      customFetch<DaemonRotateResponse>({
+        url: `${agentBase(tenant)}/${id}/rotate-credential`,
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: agentKeys.all(tenant) });
+    },
+  });
+}
+
+// ─── Imperative variants (event-handler friendly) ─────────────────────────────
+
+export async function createAgent(tenant: string, input: CreateAgentInput): Promise<AiAgent> {
+  const body: Record<string, unknown> = {
     name: input.name,
-    provider_id: input.provider_id,
     model: input.model,
-    system_prompt: input.system_prompt,
-    tool_ids: [...input.tool_ids],
+    systemPrompt: input.system_prompt,
     enabled: input.enabled ?? true,
-    ...(input.description !== undefined ? { description: input.description } : {}),
-    ...(input.scoped_credential !== undefined
-      ? {
-          scoped_credential_ref: {
-            prefix: credentialPrefix(input.scoped_credential),
-            created_at: now(),
-          },
-        }
-      : {}),
-    role_ids: [...input.role_ids],
-    max_tokens_per_request: input.max_tokens_per_request,
-    temperature: input.temperature,
-    stop_sequences: [...input.stop_sequences],
-    created_at: now(),
-    updated_at: now(),
+    guardrails: packGuardrails(input),
   };
-
-  const state = useMockStore.getState();
-  state.addEntity('aiAgents', agent);
-  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-agent.create', id));
-  emitHostEvent('ai-agent.created', { agent_id: id, tenant_id: tenantId });
-  return agent;
+  if (input.provider_id !== '') body.providerId = input.provider_id;
+  if (input.description !== undefined) body.description = input.description;
+  const result = await customFetch<DaemonAgent>({
+    url: agentBase(tenant),
+    method: 'POST',
+    data: body,
+  });
+  return adaptAgent(result);
 }
 
-export async function updateAgent(id: string, input: UpdateAgentInput): Promise<AiAgent> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const current = state.aiAgents[id];
-  if (!current) throw new Error(`Agent ${id} not found`);
-
-  const patch: Partial<AiAgent> = { updated_at: now() };
-  if (input.name !== undefined) patch.name = input.name;
-  if (input.provider_id !== undefined) patch.provider_id = input.provider_id;
-  if (input.model !== undefined) patch.model = input.model;
-  if (input.system_prompt !== undefined) patch.system_prompt = input.system_prompt;
-  if (input.tool_ids !== undefined) patch.tool_ids = [...input.tool_ids];
-  if (input.enabled !== undefined) patch.enabled = input.enabled;
-  if (input.description !== undefined) patch.description = input.description;
-  if (input.role_ids !== undefined) patch.role_ids = [...input.role_ids];
-  if (input.max_tokens_per_request !== undefined)
-    patch.max_tokens_per_request = input.max_tokens_per_request;
-  if (input.temperature !== undefined) patch.temperature = input.temperature;
-  if (input.stop_sequences !== undefined) patch.stop_sequences = [...input.stop_sequences];
-
-  const before = { ...current };
-  state.updateEntity('aiAgents', id, patch);
-  const updated = useMockStore.getState().aiAgents[id];
-  if (!updated) throw new Error(`Agent ${id} vanished mid-update`);
-
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-agent.update', id),
-    diff: { before, after: updated },
-  });
-  emitHostEvent('ai-agent.updated', {
-    agent_id: id,
-    tenant_id: current.tenant_id,
-  });
-  return updated;
-}
-
-export async function deleteAgent(id: string): Promise<void> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const agent = state.aiAgents[id];
-  if (!agent) throw new Error(`Agent ${id} not found`);
-
-  // Clean up any bindings that reference this agent — atomic multi-entity.
-  const bindingsToRemove = Object.values(state.aiToolBindings)
-    .filter((b) => b.agent_id === id)
-    .map((b) => b.id);
-
-  useMockStore.setState((s) => {
-    const nextAgents = { ...s.aiAgents };
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete nextAgents[id];
-    const nextBindings = { ...s.aiToolBindings };
-    for (const bid of bindingsToRemove) {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete nextBindings[bid];
-    }
-    return { aiAgents: nextAgents, aiToolBindings: nextBindings };
-  });
-
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), agent.tenant_id, 'ai-agent.delete', id, 'destructive'),
-  );
-  emitHostEvent('ai-agent.deleted', {
-    agent_id: id,
-    tenant_id: agent.tenant_id,
-    cascaded_binding_count: bindingsToRemove.length,
-  });
-}
-
-export async function rotateScopedCredential(
-  agentId: string,
-  newCredential: string,
+export async function updateAgent(
+  tenant: string,
+  id: string,
+  input: UpdateAgentInput,
 ): Promise<AiAgent> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.aiAgents[agentId];
-  if (!current) throw new Error(`Agent ${agentId} not found`);
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.name = input.name;
+  if (input.model !== undefined) body.model = input.model;
+  if (input.system_prompt !== undefined) body.systemPrompt = input.system_prompt;
+  if (input.enabled !== undefined) body.enabled = input.enabled;
+  if (input.description !== undefined) body.description = input.description;
+  if (input.provider_id !== undefined) body.providerId = input.provider_id;
+  // Only attach guardrails if any of its source fields are set.
+  if (
+    input.tool_ids !== undefined ||
+    input.role_ids !== undefined ||
+    input.max_tokens_per_request !== undefined ||
+    input.temperature !== undefined ||
+    input.stop_sequences !== undefined
+  ) {
+    body.guardrails = packGuardrails(input);
+  }
+  const result = await customFetch<DaemonAgent>({
+    url: `${agentBase(tenant)}/${id}`,
+    method: 'PATCH',
+    data: body,
+  });
+  return adaptAgent(result);
+}
 
-  const ref = {
-    prefix: credentialPrefix(newCredential),
-    created_at: now(),
+export async function deleteAgent(tenant: string, id: string): Promise<void> {
+  await customFetch<unknown>({
+    url: `${agentBase(tenant)}/${id}`,
+    method: 'DELETE',
+  });
+}
+
+export interface RotateAgentCredentialResult {
+  agentId: string;
+  newCredential: string;
+  prefix: string;
+}
+
+/**
+ * Rotate the agent's scoped credential. The daemon returns the new credential
+ * once — callers must show it to the operator and warn that it cannot be
+ * recovered. Stage-2 implementation is a stub.
+ */
+export async function rotateScopedCredential(
+  tenant: string,
+  id: string,
+): Promise<RotateAgentCredentialResult> {
+  const res = await customFetch<DaemonRotateResponse>({
+    url: `${agentBase(tenant)}/${id}/rotate-credential`,
+    method: 'POST',
+  });
+  return {
+    agentId: res.agentId ?? id,
+    newCredential: res.newCredential ?? '',
+    prefix: res.prefix ?? '',
   };
-  state.updateEntity('aiAgents', agentId, {
-    scoped_credential_ref: ref,
-    updated_at: now(),
-  });
-
-  const updated = useMockStore.getState().aiAgents[agentId];
-  if (!updated) throw new Error(`Agent ${agentId} vanished`);
-
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-agent.rotate-credential', agentId),
-  );
-  emitHostEvent('ai-agent.credential-rotated', {
-    agent_id: agentId,
-    prefix: ref.prefix,
-  });
-  return updated;
 }
 
-// ─── Invoke (mock) ───────────────────────────────────────────────────────────
+// ─── Invoke (SSE streaming) ───────────────────────────────────────────────────
 
-/**
- * Rotating pool of realistic-looking completion templates. One of these is
- * picked (deterministically, by prompt hash) for every invoke call so repeated
- * test runs produce stable snapshots.
- */
-const COMPLETION_TEMPLATES: string[] = [
-  'Based on the provided context, the answer is: the endpoint at /v1/services returns paginated Service objects keyed by tenant.',
-  "Here's a step-by-step breakdown:\n1. Start by ensuring the gateway is reachable.\n2. Authenticate with a valid API key.\n3. Retry the request with `--trace` to capture the upstream response.",
-  'The code snippet you referenced performs request normalisation; it strips trailing slashes and lowercases the host header before matching.',
-  "I'd recommend the following approach: split the route into two — one that proxies the read path and another that handles the write path with stricter validation.",
-  "That's a great question. The key insight is that Caddy's admin API exposes config diffs, so you can check the delta before applying it.",
-  'Looking at the trace you shared, the latency budget is consumed mostly by the upstream DNS lookup; caching it via CoreDNS would help.',
-  'If you need to debug this further, attach the gateway logs and filter by the request_id — each hop logs under the same id.',
-  'Consider setting a stricter timeout at the service level and letting the middleware fall back to the default when the upstream is slow.',
-  'The spec calls for an idempotency key on POST — your request is missing one. Add `Idempotency-Key` to the headers list.',
-  "In this scenario, you'd want to configure a circuit-breaker middleware with a 5-request rolling window and a 30-second cool-off.",
-  'You can reproduce the issue locally by running the sandbox with the failure-injection flag enabled. See the sandbox Makefile target.',
-  'For long-running requests, stream the response with SSE rather than holding the connection open — the client can resume on disconnect.',
-  "The pattern here is known as 'fanout': one inbound request dispatches to several upstreams and aggregates responses.",
-  'Remember that the tenant_id is encoded in the JWT; if it is missing the gateway should reject the request with 401.',
-  'A good sanity check is to run the policy through the CEL parser without evaluating it — syntax errors are easier to spot that way.',
-  'The metric you mentioned is derived from the traces table; each trace contributes tokens_used to a rolling aggregate per agent.',
-  'This behaviour is intentional — the semantic rate-limiter deliberately down-samples identical-similarity requests to protect upstreams.',
-  'You can hot-reload middlewares without restarting the daemon; config changes propagate through the watcher within ~1 second.',
-  'Double-check that the MCP server URL includes the `/tools` suffix — otherwise the server returns 404 before the auth header is read.',
-  'The recommended configuration is to bind the agent to a scoped credential, then rotate it at least once per quarter.',
-];
-
-/** Latency distribution for invoke: mostly fast, occasional long tail. */
-function pickLatency(h: number): number {
-  const bucket = h % 10;
-  if (bucket === 0) return 2_500 + (h % 500); // slow tail
-  if (bucket < 3) return 800 + (h % 400);
-  return 200 + (h % 300);
+export interface InvokeChunk {
+  index: number;
+  text: string;
 }
 
-/** Cost per 1K tokens — deterministic per model-hash. */
-function costFor(model: string, input: number, output: number): number {
-  const seed = hashCode(model);
-  const per1k = 0.001 + (seed % 40) / 10_000; // $0.001 – $0.005
-  return Number((((input + output) / 1000) * per1k).toFixed(4));
+export interface InvokeDoneSummary {
+  latencyMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  status: 'success' | 'error' | 'timeout';
 }
 
-function pickTemplate(h: number): string {
-  const idx = h % COMPLETION_TEMPLATES.length;
-  return COMPLETION_TEMPLATES[idx] ?? COMPLETION_TEMPLATES[0] ?? '';
+export interface InvokeAgentHandlers {
+  onChunk: (chunk: InvokeChunk) => void;
+  onDone: (summary: InvokeDoneSummary) => void;
+  onError: (err: Error) => void;
 }
 
 /**
- * Synthesise a realistic trace for `agentId` + `prompt`, write it to the store,
- * emit audit + host event, and publish on the trace-stream bus.
+ * POST a prompt and consume the SSE stream. Resolves once the stream is
+ * complete (or aborted). The returned `abort` function cancels mid-stream.
+ *
+ * The request body is `{prompt, variables?}` matching the daemon contract.
  */
-export async function invokeAgentMock(agentId: string, input: InvokeAgentInput): Promise<AiTrace> {
-  const state = useMockStore.getState();
-  const agent = state.aiAgents[agentId];
-  if (!agent) throw new Error(`Agent ${agentId} not found`);
+export function invokeAgent(
+  tenant: string,
+  id: string,
+  input: InvokeAgentInput,
+  handlers: InvokeAgentHandlers,
+): { promise: Promise<void>; abort: () => void } {
+  const controller = new AbortController();
+  const base: string =
+    (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
+  const url = `${base}${agentBase(tenant)}/${id}/invoke`;
 
-  // Deterministic values are keyed on prompt+agent so repeated same-input calls
-  // produce the same shape — useful for tests.
-  const h = hashCode(`${agentId}|${input.prompt}|${String(Date.now() >>> 10)}`);
-  const latency = pickLatency(h);
-
-  await new Promise<void>((resolve) => setTimeout(resolve, Math.min(latency, 100)));
-
-  const inputTokens = 60 + (h % 480);
-  const outputTokens = 40 + (h % 240);
-  const status: AiTrace['status'] = h % 25 === 0 ? 'error' : h % 37 === 0 ? 'timeout' : 'success';
-
-  // Build tool-call list — ~30% of invocations include 1-2 tool calls when
-  // the agent has any tools bound.
-  const availableTools = agent.tool_ids;
-  const toolCalls: AiTraceToolCall[] = [];
-  if (availableTools.length > 0 && h % 10 < 3) {
-    const count = 1 + ((h >> 8) % 2);
-    for (let i = 0; i < count; i++) {
-      const tid = availableTools[(h + i) % availableTools.length];
-      if (tid === undefined) continue;
-      const tool = state.aiTools[tid];
-      if (!tool) continue;
-      toolCalls.push({
-        tool_id: tid,
-        tool_name: tool.name,
-        arguments: { query: input.prompt.slice(0, 40), hint: `mock-${String(i)}` },
-        result: { ok: true, summary: `mock result for ${tool.name}` },
-        latency_ms: 40 + ((h >> (4 * (i + 1))) & 0xff),
-        status: 'success',
+  const promise = (async () => {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'text/event-stream',
+        },
+        body: JSON.stringify({
+          prompt: input.prompt,
+          ...(input.session_id !== undefined ? { sessionId: input.session_id } : {}),
+        }),
+        signal: controller.signal,
       });
+    } catch (cause) {
+      if (controller.signal.aborted) return;
+      handlers.onError(
+        cause instanceof Error ? cause : new Error('invoke network error'),
+      );
+      return;
+    }
+    if (!res.ok) {
+      handlers.onError(new Error(`invoke failed: ${String(res.status)}`));
+      return;
+    }
+    const body = res.body;
+    if (body === null) {
+      handlers.onError(new Error('invoke returned empty body'));
+      return;
+    }
+
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let sep = buffer.indexOf('\n\n');
+        while (sep !== -1) {
+          const frame = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          parseFrame(frame, handlers);
+          sep = buffer.indexOf('\n\n');
+        }
+      }
+      if (buffer.length > 0) parseFrame(buffer, handlers);
+    } catch (cause) {
+      if (controller.signal.aborted) return;
+      handlers.onError(cause instanceof Error ? cause : new Error('invoke stream error'));
+    }
+  })();
+
+  return {
+    promise,
+    abort: () => {
+      controller.abort();
+    },
+  };
+}
+
+function parseFrame(frame: string, handlers: InvokeAgentHandlers): void {
+  let event = 'message';
+  let data = '';
+  for (const line of frame.split('\n')) {
+    if (line.startsWith(':')) continue;
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      data += (data === '' ? '' : '\n') + line.slice(5).trimStart();
     }
   }
-
-  const requestId = `req_${h.toString(16).padStart(8, '0')}`;
-  const traceId = nextTraceId();
-  const trace: AiTrace = {
-    id: traceId,
-    tenant_id: agent.tenant_id,
-    agent_id: agentId,
-    provider_id: agent.provider_id,
-    model: agent.model,
-    ...(input.session_id !== undefined ? { session_id: input.session_id } : {}),
-    input_tokens: inputTokens,
-    output_tokens: outputTokens,
-    latency_ms: latency,
-    status,
-    at: now(),
-    prompt_text: input.prompt,
-    completion_text: status === 'error' ? '' : pickTemplate(h),
-    tool_calls: toolCalls,
-    cost_usd: costFor(agent.model, inputTokens, outputTokens),
-    ...(status === 'error'
-      ? { error_message: 'mock: upstream returned 503' }
-      : status === 'timeout'
-        ? { error_message: 'mock: request exceeded 30s deadline' }
-        : {}),
-    request_id: requestId,
-  };
-
-  state.addEntity('aiTraces', trace);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), agent.tenant_id, 'ai-agent.invoke', agentId),
-  );
-  emitHostEvent('ai-agent.invoked', {
-    agent_id: agentId,
-    tenant_id: agent.tenant_id,
-    trace_id: traceId,
-    request_id: requestId,
-    status,
-  });
-  publishTrace(trace);
-  return trace;
+  if (data === '') return;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    parsed = { text: data };
+  }
+  if (event === 'chunk') {
+    const obj = parsed as Partial<InvokeChunk>;
+    handlers.onChunk({
+      index: typeof obj.index === 'number' ? obj.index : 0,
+      text: typeof obj.text === 'string' ? obj.text : data,
+    });
+    return;
+  }
+  if (event === 'done') {
+    const obj = parsed as Partial<InvokeDoneSummary>;
+    handlers.onDone({
+      latencyMs: obj.latencyMs ?? 0,
+      inputTokens: obj.inputTokens ?? 0,
+      outputTokens: obj.outputTokens ?? 0,
+      costUsd: obj.costUsd ?? 0,
+      status: obj.status ?? 'success',
+    });
+    return;
+  }
+  if (event === 'error') {
+    const obj = parsed as { message?: string };
+    handlers.onError(new Error(obj.message ?? 'invoke error'));
+  }
 }

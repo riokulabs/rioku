@@ -63,7 +63,7 @@ export function ServiceDetail({
   onDeleteRoute,
   onClose,
 }: ServiceDetailProps) {
-  const service = useServiceDetail(serviceId);
+  const service = useServiceDetail(tenantId, serviceId);
   const routes = useServiceRoutes(serviceId);
   const auditEntries = useMockStore((s) => s.audit);
   const middlewares = useMockStore((s) => s.middlewares);
@@ -125,7 +125,7 @@ export function ServiceDetail({
     if (!service) return;
     setReloading(true);
     try {
-      await forceReloadService(service.id);
+      await forceReloadService(tenantId, service.id);
       notify.success('Service reloaded', `${service.name} reloaded.`);
     } catch {
       notify.error('Failed to reload service', 'Please try again.');
@@ -139,7 +139,7 @@ export function ServiceDetail({
     if (deleteInput !== service.name) return;
     setDeleting(true);
     try {
-      await deleteService(service.id);
+      await deleteService(tenantId, service.id);
       notify.success('Service deleted', `${service.name} was removed.`);
       closeDelete();
       onClose();

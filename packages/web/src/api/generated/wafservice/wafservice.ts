@@ -43,6 +43,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type wAFServiceListWAFDenialsResponse = {
   data: V1ListWAFDenialsResponse | RpcStatus;
   status: number;
@@ -86,15 +88,16 @@ export const getWAFServiceListWAFDenialsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getWAFServiceListWAFDenialsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>> = ({
     signal,
-  }) => wAFServiceListWAFDenials(params, signal);
+  }) => wAFServiceListWAFDenials(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof wAFServiceListWAFDenials>>,
@@ -125,6 +128,7 @@ export function useWAFServiceListWAFDenialsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useWAFServiceListWAFDenialsInfinite<
@@ -144,6 +148,7 @@ export function useWAFServiceListWAFDenialsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useWAFServiceListWAFDenialsInfinite<
@@ -155,6 +160,7 @@ export function useWAFServiceListWAFDenialsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -167,6 +173,7 @@ export function useWAFServiceListWAFDenialsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getWAFServiceListWAFDenialsInfiniteQueryOptions(params, options);
@@ -189,15 +196,16 @@ export const getWAFServiceListWAFDenialsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getWAFServiceListWAFDenialsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>> = ({
     signal,
-  }) => wAFServiceListWAFDenials(params, signal);
+  }) => wAFServiceListWAFDenials(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof wAFServiceListWAFDenials>>,
@@ -228,6 +236,7 @@ export function useWAFServiceListWAFDenials<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useWAFServiceListWAFDenials<
@@ -247,6 +256,7 @@ export function useWAFServiceListWAFDenials<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useWAFServiceListWAFDenials<
@@ -258,6 +268,7 @@ export function useWAFServiceListWAFDenials<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -270,6 +281,7 @@ export function useWAFServiceListWAFDenials<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof wAFServiceListWAFDenials>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getWAFServiceListWAFDenialsQueryOptions(params, options);

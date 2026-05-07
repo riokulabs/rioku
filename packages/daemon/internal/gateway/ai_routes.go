@@ -88,6 +88,8 @@ func RegisterAIRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("ai-trace:read")(http.HandlerFunc(handleListAgentTraces(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/agents/{id}/rotate-credential",
 		RequirePermission("ai-agent:write")(http.HandlerFunc(handleRotateAgentCredential(st))))
+	mux.Handle("POST /api/v1/t/{tenant}/ai/agents/{id}/invoke",
+		RequirePermission("ai-agent:read")(http.HandlerFunc(handleInvokeAIAgent(st))))
 
 	// Tool bindings
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tool-bindings",
@@ -120,4 +122,7 @@ func RegisterAIRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("ai-trace:read")(http.HandlerFunc(handleListAITraces(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces/{id}",
 		RequirePermission("ai-trace:read")(http.HandlerFunc(handleGetAITrace(st))))
+	// Reveal: returns prompt/completion after appending an audit row.
+	mux.Handle("POST /api/v1/t/{tenant}/ai/traces/{id}/reveal",
+		RequirePermission("ai-trace:read-sensitive")(http.HandlerFunc(handleRevealAITrace(st))))
 }

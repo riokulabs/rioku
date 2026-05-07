@@ -2,16 +2,16 @@
  * <ToolForm> — create/edit an AI tool.
  *
  * Fields: name, description, kind SegmentedControl; conditional fields for
- * mcp_server_id (Select) vs http_endpoint (url / method / auth_header);
- * JSON schema via JsonSchemaEditor; dangerous flag; enabled flag.
+ * mcp_server_id (TextInput referencing the MCP server id) vs http_endpoint
+ * (url / method / auth_header); JSON schema via JsonSchemaEditor; dangerous
+ * flag; enabled flag.
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Button,
   Group,
   SegmentedControl,
-  Select,
   Stack,
   Switch,
   Text,
@@ -21,7 +21,6 @@ import {
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
 import { createTool, updateTool } from '../api';
 import { createToolSchema, updateToolSchema } from '../schemas';
 import type { AiTool } from '../types';
@@ -48,7 +47,7 @@ const DEFAULT_SCHEMA: Record<string, unknown> = {
 
 interface ToolFormProps {
   mode: 'create' | 'edit';
-  tenantId: string;
+  tenant: string;
   initialValues?: AiTool;
   onSuccess: (tool: AiTool) => void;
   onCancel: () => void;
@@ -69,19 +68,10 @@ function initialFromTool(t?: AiTool): ToolFormValues {
   };
 }
 
-export function ToolForm({ mode, tenantId, initialValues, onSuccess, onCancel }: ToolFormProps) {
+export function ToolForm({ mode, tenant, initialValues, onSuccess, onCancel }: ToolFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [schemaValid, setSchemaValid] = useState(true);
-
-  const mcpServers = useMockStore((s) => s.mcpServers);
-  const mcpOptions = useMemo(
-    () =>
-      Object.values(mcpServers)
-        .filter((m) => m.tenant_id === tenantId)
-        .map((m) => ({ value: m.id, label: `${m.name} (${m.url})` })),
-    [mcpServers, tenantId],
-  );
 
   const form = useForm<ToolFormValues>({
     initialValues: initialFromTool(initialValues),
@@ -122,14 +112,14 @@ export function ToolForm({ mode, tenantId, initialValues, onSuccess, onCancel }:
             : {};
 
       if (mode === 'create') {
-        const tool = await createTool(tenantId, {
+        const tool = await createTool(tenant, {
           ...base,
           ...kindExtras,
         });
         notify.success('Tool created', `${tool.name} is ready.`);
         onSuccess(tool);
       } else if (initialValues) {
-        const tool = await updateTool(initialValues.id, {
+        const tool = await updateTool(tenant, initialValues.id, {
           ...base,
           ...kindExtras,
         });
@@ -190,16 +180,11 @@ export function ToolForm({ mode, tenantId, initialValues, onSuccess, onCancel }:
         </Stack>
 
         {form.values.kind === 'mcp' && (
-          <Select
-            label="MCP server"
-            data={mcpOptions}
+          <TextInput
+            label="MCP server id"
+            placeholder="mcps-…"
             required
-            searchable
-            allowDeselect={false}
-            value={form.values.mcp_server_id}
-            onChange={(v) => {
-              form.setFieldValue('mcp_server_id', v ?? '');
-            }}
+            {...form.getInputProps('mcp_server_id')}
           />
         )}
 

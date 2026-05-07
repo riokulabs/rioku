@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <AdvancedEditor> tests — fallback render, flip-to-wizard visibility,
  * save/preview flows, and locked-one-way gating.

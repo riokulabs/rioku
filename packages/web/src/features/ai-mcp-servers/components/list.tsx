@@ -21,13 +21,14 @@ import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { McpHealthChip } from '@/features/ai-shared';
 import type { McpServer } from '@/api/resources';
-import { useMcpServerList, updateMcpServer } from '../api';
+import { useMcpServerList, useUpdateMcpServer } from '../api';
 import type { McpServerFilter } from '../types';
 
 dayjs.extend(relativeTime);
 
 interface McpServerListProps {
-  tenantId: string;
+  /** Tenant slug — used in the daemon URL path. */
+  tenant: string;
   filter: McpServerFilter;
   onSelect: (srv: McpServer) => void;
   onEdit: (srv: McpServer) => void;
@@ -42,14 +43,15 @@ const AUTH_COLORS: Record<McpServer['auth_kind'], string> = {
 };
 
 export function McpServerList({
-  tenantId,
+  tenant,
   filter,
   onSelect,
   onEdit,
   onTest,
   onDelete,
 }: McpServerListProps) {
-  const servers = useMcpServerList(tenantId, filter);
+  const servers = useMcpServerList(tenant, filter);
+  const updateMutation = useUpdateMcpServer(tenant);
 
   const columns = useMemo<ColumnDef<McpServer>[]>(
     () => [
@@ -123,7 +125,7 @@ export function McpServerList({
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateMcpServer(s.id, { enabled: e.currentTarget.checked });
+                updateMutation.mutate({ id: s.id, input: { enabled: e.currentTarget.checked } });
               }}
             />
           );
@@ -198,7 +200,7 @@ export function McpServerList({
         },
       },
     ],
-    [onEdit, onTest, onDelete],
+    [onEdit, onTest, onDelete, updateMutation],
   );
 
   return (

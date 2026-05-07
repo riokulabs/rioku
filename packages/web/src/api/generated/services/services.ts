@@ -42,6 +42,8 @@ import type {
 import type { ListServices200, V1Service } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List services
  */
@@ -78,14 +80,15 @@ export const getListServicesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listServices>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListServicesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listServices>>> = ({ signal }) =>
-    listServices(tenant, signal);
+    listServices(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listServices>>,
@@ -114,6 +117,7 @@ export function useListServicesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListServicesInfinite<
@@ -133,6 +137,7 @@ export function useListServicesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListServicesInfinite<
@@ -144,6 +149,7 @@ export function useListServicesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listServices>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -159,6 +165,7 @@ export function useListServicesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listServices>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListServicesInfiniteQueryOptions(tenant, options);
@@ -179,14 +186,15 @@ export const getListServicesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listServices>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListServicesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listServices>>> = ({ signal }) =>
-    listServices(tenant, signal);
+    listServices(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listServices>>,
@@ -210,6 +218,7 @@ export function useListServices<TData = Awaited<ReturnType<typeof listServices>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListServices<TData = Awaited<ReturnType<typeof listServices>>, TError = unknown>(
@@ -224,12 +233,14 @@ export function useListServices<TData = Awaited<ReturnType<typeof listServices>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListServices<TData = Awaited<ReturnType<typeof listServices>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listServices>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -240,6 +251,7 @@ export function useListServices<TData = Awaited<ReturnType<typeof listServices>>
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listServices>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListServicesQueryOptions(tenant, options);
@@ -286,6 +298,7 @@ export const getCreateServiceMutationOptions = <TError = unknown, TContext = unk
     { tenant: string; data: V1Service },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createService>>,
   TError,
@@ -293,11 +306,11 @@ export const getCreateServiceMutationOptions = <TError = unknown, TContext = unk
   TContext
 > => {
   const mutationKey = ['createService'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createService>>,
@@ -305,7 +318,7 @@ export const getCreateServiceMutationOptions = <TError = unknown, TContext = unk
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createService(tenant, data);
+    return createService(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -325,6 +338,7 @@ export const useCreateService = <TError = unknown, TContext = unknown>(options?:
     { tenant: string; data: V1Service },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createService>>,
   TError,
@@ -366,6 +380,7 @@ export const getDeleteServiceMutationOptions = <TError = unknown, TContext = unk
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteService>>,
   TError,
@@ -373,11 +388,11 @@ export const getDeleteServiceMutationOptions = <TError = unknown, TContext = unk
   TContext
 > => {
   const mutationKey = ['deleteService'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteService>>,
@@ -385,7 +400,7 @@ export const getDeleteServiceMutationOptions = <TError = unknown, TContext = unk
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteService(tenant, id);
+    return deleteService(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -405,6 +420,7 @@ export const useDeleteService = <TError = unknown, TContext = unknown>(options?:
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteService>>,
   TError,
@@ -451,14 +467,15 @@ export const getGetServiceInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetServiceQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getService>>> = ({ signal }) =>
-    getService(tenant, id, signal);
+    getService(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -489,6 +506,7 @@ export function useGetServiceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetServiceInfinite<
@@ -509,6 +527,7 @@ export function useGetServiceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetServiceInfinite<
@@ -519,6 +538,7 @@ export function useGetServiceInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -533,6 +553,7 @@ export function useGetServiceInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetServiceInfiniteQueryOptions(tenant, id, options);
@@ -554,14 +575,15 @@ export const getGetServiceQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetServiceQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getService>>> = ({ signal }) =>
-    getService(tenant, id, signal);
+    getService(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getService>>,
@@ -586,6 +608,7 @@ export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TE
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TError = unknown>(
@@ -601,6 +624,7 @@ export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TE
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TError = unknown>(
@@ -608,6 +632,7 @@ export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TE
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -619,6 +644,7 @@ export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TE
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetServiceQueryOptions(tenant, id, options);
@@ -666,6 +692,7 @@ export const getPatchServiceMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string; data: V1Service },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchService>>,
   TError,
@@ -673,11 +700,11 @@ export const getPatchServiceMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['patchService'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchService>>,
@@ -685,7 +712,7 @@ export const getPatchServiceMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchService(tenant, id, data);
+    return patchService(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -705,6 +732,7 @@ export const usePatchService = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string; data: V1Service },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchService>>,
   TError,
@@ -749,6 +777,7 @@ export const getReplaceServiceMutationOptions = <TError = unknown, TContext = un
     { tenant: string; id: string; data: V1Service },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceService>>,
   TError,
@@ -756,11 +785,11 @@ export const getReplaceServiceMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['replaceService'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceService>>,
@@ -768,7 +797,7 @@ export const getReplaceServiceMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return replaceService(tenant, id, data);
+    return replaceService(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -788,6 +817,7 @@ export const useReplaceService = <TError = unknown, TContext = unknown>(options?
     { tenant: string; id: string; data: V1Service },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceService>>,
   TError,
@@ -832,6 +862,7 @@ export const getForceReloadServiceMutationOptions = <
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof forceReloadService>>,
   TError,
@@ -839,11 +870,11 @@ export const getForceReloadServiceMutationOptions = <
   TContext
 > => {
   const mutationKey = ['forceReloadService'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof forceReloadService>>,
@@ -851,7 +882,7 @@ export const getForceReloadServiceMutationOptions = <
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return forceReloadService(tenant, id);
+    return forceReloadService(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -873,6 +904,7 @@ export const useForceReloadService = <TError = unknown, TContext = unknown>(opti
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof forceReloadService>>,
   TError,
@@ -921,14 +953,15 @@ export const getListRoutesByServiceInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoutesByService>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRoutesByServiceQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoutesByService>>> = ({ signal }) =>
-    listRoutesByService(tenant, id, signal);
+    listRoutesByService(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -963,6 +996,7 @@ export function useListRoutesByServiceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutesByServiceInfinite<
@@ -983,6 +1017,7 @@ export function useListRoutesByServiceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutesByServiceInfinite<
@@ -995,6 +1030,7 @@ export function useListRoutesByServiceInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoutesByService>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1011,6 +1047,7 @@ export function useListRoutesByServiceInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listRoutesByService>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRoutesByServiceInfiniteQueryOptions(tenant, id, options);
@@ -1034,14 +1071,15 @@ export const getListRoutesByServiceQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listRoutesByService>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListRoutesByServiceQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoutesByService>>> = ({ signal }) =>
-    listRoutesByService(tenant, id, signal);
+    listRoutesByService(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listRoutesByService>>,
@@ -1073,6 +1111,7 @@ export function useListRoutesByService<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutesByService<
@@ -1093,6 +1132,7 @@ export function useListRoutesByService<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListRoutesByService<
@@ -1105,6 +1145,7 @@ export function useListRoutesByService<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listRoutesByService>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1121,6 +1162,7 @@ export function useListRoutesByService<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listRoutesByService>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRoutesByServiceQueryOptions(tenant, id, options);

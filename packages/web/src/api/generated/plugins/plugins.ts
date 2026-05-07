@@ -56,6 +56,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * Mirrors `/api/v1/t/{tenant}/plugin-marketplace` but is reachable
 without a tenant scope, for marketplace browse views that are
@@ -93,13 +95,14 @@ export const getListMarketplaceCatalogInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMarketplaceCatalog>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListMarketplaceCatalogQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarketplaceCatalog>>> = ({ signal }) =>
-    listMarketplaceCatalog(signal);
+    listMarketplaceCatalog({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listMarketplaceCatalog>>,
@@ -128,6 +131,7 @@ export function useListMarketplaceCatalogInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMarketplaceCatalogInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listMarketplaceCatalog>>>,
@@ -144,6 +148,7 @@ export function useListMarketplaceCatalogInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMarketplaceCatalogInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof listMarketplaceCatalog>>>,
@@ -152,6 +157,7 @@ export function useListMarketplaceCatalogInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMarketplaceCatalog>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Curated marketplace catalog (cross-tenant alias)
@@ -164,6 +170,7 @@ export function useListMarketplaceCatalogInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMarketplaceCatalog>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListMarketplaceCatalogInfiniteQueryOptions(options);
 
@@ -183,13 +190,14 @@ export const getListMarketplaceCatalogQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof listMarketplaceCatalog>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListMarketplaceCatalogQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarketplaceCatalog>>> = ({ signal }) =>
-    listMarketplaceCatalog(signal);
+    listMarketplaceCatalog({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listMarketplaceCatalog>>,
@@ -218,6 +226,7 @@ export function useListMarketplaceCatalog<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMarketplaceCatalog<
   TData = Awaited<ReturnType<typeof listMarketplaceCatalog>>,
@@ -234,6 +243,7 @@ export function useListMarketplaceCatalog<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListMarketplaceCatalog<
   TData = Awaited<ReturnType<typeof listMarketplaceCatalog>>,
@@ -242,6 +252,7 @@ export function useListMarketplaceCatalog<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof listMarketplaceCatalog>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Curated marketplace catalog (cross-tenant alias)
@@ -254,6 +265,7 @@ export function useListMarketplaceCatalog<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof listMarketplaceCatalog>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListMarketplaceCatalogQueryOptions(options);
 
@@ -309,15 +321,16 @@ export const getListTenantMarketplaceCatalogInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListTenantMarketplaceCatalogQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>> = ({
     signal,
-  }) => listTenantMarketplaceCatalog(tenant, signal);
+  }) => listTenantMarketplaceCatalog(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>,
@@ -352,6 +365,7 @@ export function useListTenantMarketplaceCatalogInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListTenantMarketplaceCatalogInfinite<
@@ -375,6 +389,7 @@ export function useListTenantMarketplaceCatalogInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListTenantMarketplaceCatalogInfinite<
@@ -390,6 +405,7 @@ export function useListTenantMarketplaceCatalogInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -409,6 +425,7 @@ export function useListTenantMarketplaceCatalogInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListTenantMarketplaceCatalogInfiniteQueryOptions(tenant, options);
@@ -431,15 +448,16 @@ export const getListTenantMarketplaceCatalogQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListTenantMarketplaceCatalogQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>> = ({
     signal,
-  }) => listTenantMarketplaceCatalog(tenant, signal);
+  }) => listTenantMarketplaceCatalog(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>,
@@ -470,6 +488,7 @@ export function useListTenantMarketplaceCatalog<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListTenantMarketplaceCatalog<
@@ -489,6 +508,7 @@ export function useListTenantMarketplaceCatalog<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListTenantMarketplaceCatalog<
@@ -500,6 +520,7 @@ export function useListTenantMarketplaceCatalog<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -515,6 +536,7 @@ export function useListTenantMarketplaceCatalog<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listTenantMarketplaceCatalog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListTenantMarketplaceCatalogQueryOptions(tenant, options);
@@ -569,15 +591,16 @@ export const getGetMarketplaceCatalogEntryInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetMarketplaceCatalogEntryQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>> = ({
     signal,
-  }) => getMarketplaceCatalogEntry(tenant, id, signal);
+  }) => getMarketplaceCatalogEntry(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -614,6 +637,7 @@ export function useGetMarketplaceCatalogEntryInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMarketplaceCatalogEntryInfinite<
@@ -634,6 +658,7 @@ export function useGetMarketplaceCatalogEntryInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMarketplaceCatalogEntryInfinite<
@@ -646,6 +671,7 @@ export function useGetMarketplaceCatalogEntryInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -662,6 +688,7 @@ export function useGetMarketplaceCatalogEntryInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetMarketplaceCatalogEntryInfiniteQueryOptions(tenant, id, options);
@@ -685,15 +712,16 @@ export const getGetMarketplaceCatalogEntryQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetMarketplaceCatalogEntryQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>> = ({
     signal,
-  }) => getMarketplaceCatalogEntry(tenant, id, signal);
+  }) => getMarketplaceCatalogEntry(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>,
@@ -725,6 +753,7 @@ export function useGetMarketplaceCatalogEntry<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMarketplaceCatalogEntry<
@@ -745,6 +774,7 @@ export function useGetMarketplaceCatalogEntry<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetMarketplaceCatalogEntry<
@@ -757,6 +787,7 @@ export function useGetMarketplaceCatalogEntry<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -773,6 +804,7 @@ export function useGetMarketplaceCatalogEntry<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getMarketplaceCatalogEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetMarketplaceCatalogEntryQueryOptions(tenant, id, options);
@@ -822,14 +854,15 @@ export const getListPluginsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListPluginsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlugins>>> = ({ signal }) =>
-    listPlugins(tenant, signal);
+    listPlugins(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listPlugins>>,
@@ -858,6 +891,7 @@ export function useListPluginsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPluginsInfinite<
@@ -877,6 +911,7 @@ export function useListPluginsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPluginsInfinite<
@@ -888,6 +923,7 @@ export function useListPluginsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -903,6 +939,7 @@ export function useListPluginsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListPluginsInfiniteQueryOptions(tenant, options);
@@ -923,14 +960,15 @@ export const getListPluginsQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlugins>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListPluginsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlugins>>> = ({ signal }) =>
-    listPlugins(tenant, signal);
+    listPlugins(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listPlugins>>,
@@ -954,6 +992,7 @@ export function useListPlugins<TData = Awaited<ReturnType<typeof listPlugins>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPlugins<TData = Awaited<ReturnType<typeof listPlugins>>, TError = unknown>(
@@ -968,12 +1007,14 @@ export function useListPlugins<TData = Awaited<ReturnType<typeof listPlugins>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListPlugins<TData = Awaited<ReturnType<typeof listPlugins>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlugins>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -984,6 +1025,7 @@ export function useListPlugins<TData = Awaited<ReturnType<typeof listPlugins>>, 
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlugins>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListPluginsQueryOptions(tenant, options);
@@ -1035,6 +1077,7 @@ export const getInstallPluginMutationOptions = <TError = Problem, TContext = unk
     { tenant: string; data: InstallPluginBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof installPlugin>>,
   TError,
@@ -1042,11 +1085,11 @@ export const getInstallPluginMutationOptions = <TError = Problem, TContext = unk
   TContext
 > => {
   const mutationKey = ['installPlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof installPlugin>>,
@@ -1054,7 +1097,7 @@ export const getInstallPluginMutationOptions = <TError = Problem, TContext = unk
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return installPlugin(tenant, data);
+    return installPlugin(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1074,6 +1117,7 @@ export const useInstallPlugin = <TError = Problem, TContext = unknown>(options?:
     { tenant: string; data: InstallPluginBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof installPlugin>>,
   TError,
@@ -1124,6 +1168,7 @@ export const getInstallFromMarketplaceMutationOptions = <
     { tenant: string; data: InstallFromMarketplaceBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof installFromMarketplace>>,
   TError,
@@ -1131,11 +1176,11 @@ export const getInstallFromMarketplaceMutationOptions = <
   TContext
 > => {
   const mutationKey = ['installFromMarketplace'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof installFromMarketplace>>,
@@ -1143,7 +1188,7 @@ export const getInstallFromMarketplaceMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return installFromMarketplace(tenant, data);
+    return installFromMarketplace(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1165,6 +1210,7 @@ export const useInstallFromMarketplace = <TError = unknown, TContext = unknown>(
     { tenant: string; data: InstallFromMarketplaceBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof installFromMarketplace>>,
   TError,
@@ -1215,6 +1261,7 @@ export const getValidatePluginManifestMutationOptions = <
     { tenant: string; data: ValidatePluginManifestBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof validatePluginManifest>>,
   TError,
@@ -1222,11 +1269,11 @@ export const getValidatePluginManifestMutationOptions = <
   TContext
 > => {
   const mutationKey = ['validatePluginManifest'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof validatePluginManifest>>,
@@ -1234,7 +1281,7 @@ export const getValidatePluginManifestMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return validatePluginManifest(tenant, data);
+    return validatePluginManifest(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1256,6 +1303,7 @@ export const useValidatePluginManifest = <TError = unknown, TContext = unknown>(
     { tenant: string; data: ValidatePluginManifestBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof validatePluginManifest>>,
   TError,
@@ -1321,6 +1369,7 @@ export const getSideloadPluginMutationOptions = <
     { tenant: string; data: SideloadPluginBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof sideloadPlugin>>,
   TError,
@@ -1328,11 +1377,11 @@ export const getSideloadPluginMutationOptions = <
   TContext
 > => {
   const mutationKey = ['sideloadPlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof sideloadPlugin>>,
@@ -1340,7 +1389,7 @@ export const getSideloadPluginMutationOptions = <
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return sideloadPlugin(tenant, data);
+    return sideloadPlugin(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1360,6 +1409,7 @@ export const useSideloadPlugin = <TError = Problem | void, TContext = unknown>(o
     { tenant: string; data: SideloadPluginBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof sideloadPlugin>>,
   TError,
@@ -1401,6 +1451,7 @@ export const getUninstallPluginMutationOptions = <TError = Problem, TContext = u
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof uninstallPlugin>>,
   TError,
@@ -1408,11 +1459,11 @@ export const getUninstallPluginMutationOptions = <TError = Problem, TContext = u
   TContext
 > => {
   const mutationKey = ['uninstallPlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof uninstallPlugin>>,
@@ -1420,7 +1471,7 @@ export const getUninstallPluginMutationOptions = <TError = Problem, TContext = u
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return uninstallPlugin(tenant, id);
+    return uninstallPlugin(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1442,6 +1493,7 @@ export const useUninstallPlugin = <TError = Problem, TContext = unknown>(options
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof uninstallPlugin>>,
   TError,
@@ -1488,14 +1540,15 @@ export const getGetPluginInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getPlugin>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetPluginQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlugin>>> = ({ signal }) =>
-    getPlugin(tenant, id, signal);
+    getPlugin(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1526,6 +1579,7 @@ export function useGetPluginInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPluginInfinite<
@@ -1544,6 +1598,7 @@ export function useGetPluginInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPluginInfinite<
@@ -1554,6 +1609,7 @@ export function useGetPluginInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getPlugin>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1568,6 +1624,7 @@ export function useGetPluginInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getPlugin>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetPluginInfiniteQueryOptions(tenant, id, options);
@@ -1589,14 +1646,15 @@ export const getGetPluginQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPlugin>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetPluginQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlugin>>> = ({ signal }) =>
-    getPlugin(tenant, id, signal);
+    getPlugin(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getPlugin>>,
@@ -1621,6 +1679,7 @@ export function useGetPlugin<TData = Awaited<ReturnType<typeof getPlugin>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPlugin<TData = Awaited<ReturnType<typeof getPlugin>>, TError = Problem>(
@@ -1636,6 +1695,7 @@ export function useGetPlugin<TData = Awaited<ReturnType<typeof getPlugin>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPlugin<TData = Awaited<ReturnType<typeof getPlugin>>, TError = Problem>(
@@ -1643,6 +1703,7 @@ export function useGetPlugin<TData = Awaited<ReturnType<typeof getPlugin>>, TErr
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPlugin>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1654,6 +1715,7 @@ export function useGetPlugin<TData = Awaited<ReturnType<typeof getPlugin>>, TErr
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPlugin>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetPluginQueryOptions(tenant, id, options);
@@ -1709,14 +1771,15 @@ export const getGetPluginBuildLogInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getPluginBuildLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetPluginBuildLogQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getPluginBuildLog>>> = ({ signal }) =>
-    getPluginBuildLog(tenant, id, signal);
+    getPluginBuildLog(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1751,6 +1814,7 @@ export function useGetPluginBuildLogInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPluginBuildLogInfinite<
@@ -1771,6 +1835,7 @@ export function useGetPluginBuildLogInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPluginBuildLogInfinite<
@@ -1783,6 +1848,7 @@ export function useGetPluginBuildLogInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getPluginBuildLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1799,6 +1865,7 @@ export function useGetPluginBuildLogInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getPluginBuildLog>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetPluginBuildLogInfiniteQueryOptions(tenant, id, options);
@@ -1820,14 +1887,15 @@ export const getGetPluginBuildLogQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPluginBuildLog>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetPluginBuildLogQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getPluginBuildLog>>> = ({ signal }) =>
-    getPluginBuildLog(tenant, id, signal);
+    getPluginBuildLog(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getPluginBuildLog>>,
@@ -1857,6 +1925,7 @@ export function useGetPluginBuildLog<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPluginBuildLog<
@@ -1875,6 +1944,7 @@ export function useGetPluginBuildLog<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetPluginBuildLog<
@@ -1885,6 +1955,7 @@ export function useGetPluginBuildLog<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPluginBuildLog>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1899,6 +1970,7 @@ export function useGetPluginBuildLog<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPluginBuildLog>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetPluginBuildLogQueryOptions(tenant, id, options);
@@ -1943,6 +2015,7 @@ export const getDisablePluginMutationOptions = <TError = unknown, TContext = unk
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof disablePlugin>>,
   TError,
@@ -1950,11 +2023,11 @@ export const getDisablePluginMutationOptions = <TError = unknown, TContext = unk
   TContext
 > => {
   const mutationKey = ['disablePlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof disablePlugin>>,
@@ -1962,7 +2035,7 @@ export const getDisablePluginMutationOptions = <TError = unknown, TContext = unk
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return disablePlugin(tenant, id);
+    return disablePlugin(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1982,6 +2055,7 @@ export const useDisablePlugin = <TError = unknown, TContext = unknown>(options?:
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof disablePlugin>>,
   TError,
@@ -2023,6 +2097,7 @@ export const getEnablePluginMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof enablePlugin>>,
   TError,
@@ -2030,11 +2105,11 @@ export const getEnablePluginMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['enablePlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof enablePlugin>>,
@@ -2042,7 +2117,7 @@ export const getEnablePluginMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return enablePlugin(tenant, id);
+    return enablePlugin(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2062,6 +2137,7 @@ export const useEnablePlugin = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof enablePlugin>>,
   TError,
