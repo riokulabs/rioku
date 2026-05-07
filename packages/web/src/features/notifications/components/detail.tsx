@@ -39,7 +39,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { IdBadge } from '@/components/id-badge';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
 import { archive, markRead, unarchive } from '../api';
 import type { NotificationItem } from '../types';
 
@@ -79,9 +78,10 @@ export function NotificationDetail({ item, onClose: _onClose }: NotificationDeta
   const absolute = dayjs(item.at).format('YYYY-MM-DD HH:mm:ss');
   const relative = dayjs(item.at).fromNow();
 
-  // Look up tenant slug for nicer display; falls back to the raw id.
-  const tenants = useMockStore((s) => s.tenants);
-  const tenantSlug = item.tenant_id ? tenants[item.tenant_id]?.slug : null;
+  // The daemon doesn't yet expose a tenant-id → slug lookup hook. Show the
+  // raw id for now; super-admin views that need slug resolution can pass it
+  // in via a future prop.
+  const tenantSlug = item.tenant_id ?? null;
 
   async function handleToggleRead() {
     if (!canManageOwn) return;
@@ -90,16 +90,9 @@ export function NotificationDetail({ item, onClose: _onClose }: NotificationDeta
         await markRead(item.id);
         notify.success('Marked as read');
       } else {
-        // No first-class "mark unread" mutation — the store already exposes
-        // the field; we flip it directly for stage 1. Stage 2 wires this to
-        // a real endpoint.
-        useMockStore.setState((s) => ({
-          notifications: {
-            ...s.notifications,
-            [item.id]: { ...item, read_at: null, read: false },
-          },
-        }));
-        notify.success('Marked as unread');
+        // The daemon does not yet expose a "mark unread" endpoint; surface
+        // a soft warning so the UX path is honest about it.
+        notify.info('Mark unread', 'This action is not yet available.');
       }
     } catch {
       notify.error('Failed', 'Please try again.');
