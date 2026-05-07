@@ -400,6 +400,24 @@ make sandbox-seedgen            # Build and run seedgen (outputs to sandbox/.dat
 
 Seedgen produces high-volume realistic test data (users, products, API keys, routes, policies) for performance and integration testing.
 
+## Subdomain mode TLS
+
+For local subdomain testing on `*.localhost`, the sandbox generates a
+self-signed CA + wildcard leaf via `make sandbox-certs`. The daemon is
+launched with `--subdomain-cert sandbox/certs/wildcard.pem
+--subdomain-key sandbox/certs/wildcard.key`, which the Caddy compiler
+emits as `apps.tls.certificates.load_files` so Caddy serves the leaf
+for any `*.localhost` SNI without ACME.
+
+Install the CA in your OS trust store so browsers and `curl` accept the
+leaf:
+
+- macOS: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain sandbox/certs/ca.pem`
+- Linux (Debian/Ubuntu): `sudo cp sandbox/certs/ca.pem /usr/local/share/ca-certificates/rioku-sandbox.crt && sudo update-ca-certificates`
+- Windows: `certutil -addstore -f "ROOT" sandbox/certs/ca.pem`
+
+Then `https://t1.localhost:7778` resolves with a valid cert.
+
 ## Troubleshooting
 
 **Port conflict**: Edit `sandbox/.env` to remap conflicting ports, then `make sandbox-reset`.

@@ -40,7 +40,7 @@ func AuthMiddleware(a *auth.Auth, sm *auth.SessionManager) func(http.Handler) ht
 				if cookie, err := r.Cookie(auth.SessionCookieName); err == nil {
 					claims, err := sm.ValidateSession(r.Context(), cookie.Value, r)
 					if err != nil {
-						sm.ClearCookie(w)
+						sm.ClearCookie(w, auth.CookieOptions{})
 						writeAuthError(w, r, "Session invalid or expired")
 						return
 					}

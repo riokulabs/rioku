@@ -150,10 +150,11 @@ type SeedAPIKey struct {
 
 // SeedTenant creates an extra tenant beyond the seeded "default".
 type SeedTenant struct {
-	Slug    string `yaml:"slug"`
-	Name    string `yaml:"name"`
-	Plan    string `yaml:"plan,omitempty"`
-	URLMode string `yaml:"url_mode,omitempty"`
+	Slug         string `yaml:"slug"`
+	Name         string `yaml:"name"`
+	Plan         string `yaml:"plan,omitempty"`
+	URLMode      string `yaml:"url_mode,omitempty"`
+	ParentDomain string `yaml:"parent_domain,omitempty"`
 }
 
 // SeedMembership ties a username to a tenant with a role set.
@@ -789,7 +790,7 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 	// 1. Tenants (must come first — everything else may reference them)
 	for _, tn := range seed.Tenants {
 		payload, _ := json.Marshal(map[string]any{
-			"slug": tn.Slug, "name": tn.Name, "plan": tn.Plan, "urlMode": tn.URLMode,
+			"slug": tn.Slug, "name": tn.Name, "plan": tn.Plan, "urlMode": tn.URLMode, "parentDomain": tn.ParentDomain,
 		})
 		status, _ := apiCall(client, sessionCookie, "POST", base+"/api/v1/admin/tenants", payload)
 		logSeed(logger, "tenant", tn.Slug, status)

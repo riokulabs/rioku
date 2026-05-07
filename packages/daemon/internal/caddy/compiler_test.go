@@ -2781,6 +2781,115 @@ func TestCompile_OnDemandTLS_EnabledWithoutAskURLSkips(t *testing.T) {
 	}
 }
 
+// ─── Subdomain wildcard cert (Plan 12 / T2) ─────────────────────────────────
+
+func TestCompiler_EmitsSubdomainCert(t *testing.T) {
+	// When SetSubdomainCert is called with both files set, the compiled
+	// config must include apps.tls.certificates.load_files so Caddy
+	// serves the wildcard leaf for *.<parent_domain> handshakes
+	// without ACME (Plan 12 T2).
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c.SetSubdomainCert(SubdomainCertConfig{
+		CertFile: "/etc/rioku/certs/wildcard.pem",
+		KeyFile:  "/etc/rioku/certs/wildcard.key",
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	certs := dig(t, cfg, "apps", "tls", "certificates")
+	loadFiles, ok := certs["load_files"].([]any)
+	if !ok {
+		t.Fatalf("load_files missing or wrong type: %T", certs["load_files"])
+	}
+	if len(loadFiles) != 1 {
+		t.Fatalf("expected 1 load_files entry, got %d", len(loadFiles))
+	}
+	entry := loadFiles[0].(map[string]any)
+	if entry["certificate"].(string) != "/etc/rioku/certs/wildcard.pem" {
+		t.Errorf("certificate = %v", entry["certificate"])
+	}
+	if entry["key"].(string) != "/etc/rioku/certs/wildcard.key" {
+		t.Errorf("key = %v", entry["key"])
+	}
+
+	// Subdomain cert alone must NOT pull in on-demand TLS automation.
+	tls := cfg["apps"].(map[string]any)["tls"].(map[string]any)
+	if _, has := tls["automation"]; has {
+		t.Error("automation must not be emitted when only subdomain cert is set")
+	}
+}
+
+func TestCompiler_OmitsSubdomainCertWhenUnset(t *testing.T) {
+	// When SetSubdomainCert is not called (or partially set), the
+	// compiled config must NOT include apps.tls.certificates.
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, has := cfg["apps"].(map[string]any)["tls"]; has {
+		t.Error("apps.tls must be omitted when subdomain cert is unset and on-demand is off")
+	}
+
+	// Partial config (cert only, key empty) must also not emit.
+	c2 := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c2.SetSubdomainCert(SubdomainCertConfig{CertFile: "/etc/rioku/cert.pem"})
+	data2, err := c2.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile partial: %v", err)
+	}
+	var cfg2 map[string]any
+	if err := json.Unmarshal(data2, &cfg2); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, has := cfg2["apps"].(map[string]any)["tls"]; has {
+		t.Error("apps.tls must be omitted when only CertFile is set without KeyFile")
+	}
+}
+
+func TestCompiler_SubdomainCertCoexistsWithOnDemand(t *testing.T) {
+	// Subdomain cert and on-demand TLS are independent features. When
+	// both are configured, the compiled tls block contains BOTH the
+	// load_files entry and the automation/on_demand block.
+	c := NewCompiler([]string{":443"}, AdminConfig{}, "", nil, SecurityHeadersConfig{})
+	c.SetOnDemandTLS(OnDemandTLSConfig{
+		Enabled: true,
+		AskURL:  "http://127.0.0.1:7790/tls/ask",
+	})
+	c.SetSubdomainCert(SubdomainCertConfig{
+		CertFile: "/tmp/wildcard.pem",
+		KeyFile:  "/tmp/wildcard.key",
+	})
+
+	data, err := c.Compile(&riokuv1.ConfigSnapshot{})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	tls := cfg["apps"].(map[string]any)["tls"].(map[string]any)
+	if _, has := tls["automation"]; !has {
+		t.Error("automation must be present when on-demand is enabled")
+	}
+	if _, has := tls["certificates"]; !has {
+		t.Error("certificates.load_files must be present when subdomain cert is set")
+	}
+}
+
 // ─── Phase 7a / #161: service-level Caddy primitives ────────────────────────
 
 // compileServiceSnap is a test helper that compiles a snapshot with a single

@@ -258,6 +258,18 @@ type CaddyConfig struct {
 	// URL pointing at the daemon's local /tls/ask endpoint so we gate
 	// which domains Caddy is willing to issue for. See #66.
 	OnDemandTLS bool `yaml:"on_demand_tls"`
+
+	// SubdomainCertFile is an optional fallback wildcard TLS certificate
+	// (e.g. for `*.<parent_domain>`) used by tenants in subdomain URL
+	// mode (Plan 12). When set together with SubdomainKeyFile, the
+	// compiler installs the cert as a static load entry so any
+	// per-tenant subdomain not matching a more-specific cert can still
+	// terminate TLS without provisioning ACME per tenant. Empty disables
+	// the fallback. The cert SAN should cover `*.<parent_domain>`.
+	SubdomainCertFile string `yaml:"subdomain_cert_file"`
+
+	// SubdomainKeyFile is the private key paired with SubdomainCertFile.
+	SubdomainKeyFile string `yaml:"subdomain_key_file"`
 }
 
 // --------------------------------------------------------------------------

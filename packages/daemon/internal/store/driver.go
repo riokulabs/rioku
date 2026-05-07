@@ -836,6 +836,11 @@ type Tenant struct {
 	Name               string
 	Plan               string  // community | pro | enterprise
 	URLMode            string  // path | subdomain
+	// ParentDomain is the base domain used for subdomain routing cookie scoping.
+	// When URLMode=subdomain, session cookies are issued with Domain=.<ParentDomain>
+	// and SameSite=Lax. E.g. "localhost" for dev, "mycompany.com" for prod.
+	// Empty string means fall back to host-scoped cookies.
+	ParentDomain       string
 	Accent             *string // hex color, nullable
 	LogoURL            *string
 	DefaultDashboardID *string
@@ -849,6 +854,8 @@ type UpdateTenantParams struct {
 	Name               *string
 	Plan               *string
 	URLMode            *string
+	// ParentDomain, when non-nil, sets the parent domain for subdomain cookie scoping.
+	ParentDomain       *string
 	Accent             *string
 	LogoURL            *string
 	DefaultDashboardID *string

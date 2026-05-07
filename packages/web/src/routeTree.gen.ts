@@ -49,6 +49,7 @@ import { Route as TTenantDashboardsIndexRouteImport } from './routes/t.$tenant/d
 import { Route as TTenantClusterIndexRouteImport } from './routes/t.$tenant/cluster.index'
 import { Route as TTenantAiIndexRouteImport } from './routes/t.$tenant/ai/index'
 import { Route as TTenantSitesSiteIdRouteImport } from './routes/t.$tenant/sites_.$siteId'
+import { Route as TTenantSettingsUrlModeRouteImport } from './routes/t.$tenant/settings/url-mode'
 import { Route as TTenantSettingsTlsRouteImport } from './routes/t.$tenant/settings/tls'
 import { Route as TTenantSettingsTenantRouteImport } from './routes/t.$tenant/settings/tenant'
 import { Route as TTenantSettingsProfileRouteImport } from './routes/t.$tenant/settings/profile'
@@ -296,6 +297,11 @@ const TTenantSitesSiteIdRoute = TTenantSitesSiteIdRouteImport.update({
   id: '/sites_/$siteId',
   path: '/sites/$siteId',
   getParentRoute: () => TTenantRoute,
+} as any)
+const TTenantSettingsUrlModeRoute = TTenantSettingsUrlModeRouteImport.update({
+  id: '/url-mode',
+  path: '/url-mode',
+  getParentRoute: () => TTenantSettingsRoute,
 } as any)
 const TTenantSettingsTlsRoute = TTenantSettingsTlsRouteImport.update({
   id: '/tls',
@@ -626,6 +632,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings/profile': typeof TTenantSettingsProfileRoute
   '/t/$tenant/settings/tenant': typeof TTenantSettingsTenantRoute
   '/t/$tenant/settings/tls': typeof TTenantSettingsTlsRoute
+  '/t/$tenant/settings/url-mode': typeof TTenantSettingsUrlModeRoute
   '/t/$tenant/sites/$siteId': typeof TTenantSitesSiteIdRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/cluster/': typeof TTenantClusterIndexRoute
@@ -710,6 +717,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/settings/profile': typeof TTenantSettingsProfileRoute
   '/t/$tenant/settings/tenant': typeof TTenantSettingsTenantRoute
   '/t/$tenant/settings/tls': typeof TTenantSettingsTlsRoute
+  '/t/$tenant/settings/url-mode': typeof TTenantSettingsUrlModeRoute
   '/t/$tenant/sites/$siteId': typeof TTenantSitesSiteIdRoute
   '/t/$tenant/ai': typeof TTenantAiIndexRoute
   '/t/$tenant/cluster': typeof TTenantClusterIndexRoute
@@ -800,6 +808,7 @@ export interface FileRoutesById {
   '/t/$tenant/settings/profile': typeof TTenantSettingsProfileRoute
   '/t/$tenant/settings/tenant': typeof TTenantSettingsTenantRoute
   '/t/$tenant/settings/tls': typeof TTenantSettingsTlsRoute
+  '/t/$tenant/settings/url-mode': typeof TTenantSettingsUrlModeRoute
   '/t/$tenant/sites_/$siteId': typeof TTenantSitesSiteIdRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/cluster/': typeof TTenantClusterIndexRoute
@@ -890,6 +899,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/profile'
     | '/t/$tenant/settings/tenant'
     | '/t/$tenant/settings/tls'
+    | '/t/$tenant/settings/url-mode'
     | '/t/$tenant/sites/$siteId'
     | '/t/$tenant/ai/'
     | '/t/$tenant/cluster/'
@@ -974,6 +984,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/profile'
     | '/t/$tenant/settings/tenant'
     | '/t/$tenant/settings/tls'
+    | '/t/$tenant/settings/url-mode'
     | '/t/$tenant/sites/$siteId'
     | '/t/$tenant/ai'
     | '/t/$tenant/cluster'
@@ -1063,6 +1074,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/profile'
     | '/t/$tenant/settings/tenant'
     | '/t/$tenant/settings/tls'
+    | '/t/$tenant/settings/url-mode'
     | '/t/$tenant/sites_/$siteId'
     | '/t/$tenant/ai/'
     | '/t/$tenant/cluster/'
@@ -1371,6 +1383,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$tenant/sites/$siteId'
       preLoaderRoute: typeof TTenantSitesSiteIdRouteImport
       parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/settings/url-mode': {
+      id: '/t/$tenant/settings/url-mode'
+      path: '/url-mode'
+      fullPath: '/t/$tenant/settings/url-mode'
+      preLoaderRoute: typeof TTenantSettingsUrlModeRouteImport
+      parentRoute: typeof TTenantSettingsRoute
     }
     '/t/$tenant/settings/tls': {
       id: '/t/$tenant/settings/tls'
@@ -1906,6 +1925,7 @@ interface TTenantSettingsRouteChildren {
   TTenantSettingsProfileRoute: typeof TTenantSettingsProfileRoute
   TTenantSettingsTenantRoute: typeof TTenantSettingsTenantRoute
   TTenantSettingsTlsRoute: typeof TTenantSettingsTlsRoute
+  TTenantSettingsUrlModeRoute: typeof TTenantSettingsUrlModeRoute
   TTenantSettingsIndexRoute: typeof TTenantSettingsIndexRoute
 }
 
@@ -1927,6 +1947,7 @@ const TTenantSettingsRouteChildren: TTenantSettingsRouteChildren = {
   TTenantSettingsProfileRoute: TTenantSettingsProfileRoute,
   TTenantSettingsTenantRoute: TTenantSettingsTenantRoute,
   TTenantSettingsTlsRoute: TTenantSettingsTlsRoute,
+  TTenantSettingsUrlModeRoute: TTenantSettingsUrlModeRoute,
   TTenantSettingsIndexRoute: TTenantSettingsIndexRoute,
 }
 
