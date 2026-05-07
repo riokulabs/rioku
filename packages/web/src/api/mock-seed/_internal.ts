@@ -535,6 +535,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'ai-tool:read' },
     { permission: 'ai-tool:write' },
     { permission: 'ai-tool:delete' },
+    { permission: 'ai-tool:invoke' },
     { permission: 'ai-trace:read' },
     { permission: 'ai-trace:read-sensitive' },
     { permission: 'ai-rate-limit:read' },
@@ -624,6 +625,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'ai-agent:invoke' },
     { permission: 'ai-tool:read' },
     { permission: 'ai-tool:write' },
+    { permission: 'ai-tool:invoke' },
     { permission: 'ai-trace:read' },
     { permission: 'ai-rate-limit:read' },
     { permission: 'ai-rate-limit:write' },
@@ -3306,7 +3308,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n1Id = nextClusterNodeId();
   clusterNodes[n1Id] = {
     id: n1Id,
-    name: 'rioku-east-1',
+    name: 'node-primary-1',
     role: 'primary',
     status: 'healthy',
     address: '10.0.1.10:7777',
@@ -3324,7 +3326,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n2Id = nextClusterNodeId();
   clusterNodes[n2Id] = {
     id: n2Id,
-    name: 'rioku-west-1',
+    name: 'node-replica-1',
     role: 'replica',
     status: 'healthy',
     address: '10.0.2.11:7777',
@@ -3342,11 +3344,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n3Id = nextClusterNodeId();
   clusterNodes[n3Id] = {
     id: n3Id,
-    name: 'rioku-eu-1',
+    name: 'node-replica-2',
     role: 'replica',
     status: 'degraded',
     address: '10.1.0.50:7777',
-    version: '0.1.0',
+    version: '0.0.9',
     joined_at: daysAgo(60),
     last_heartbeat_at: hoursAgo(2),
     metrics: {
@@ -3360,7 +3362,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n4Id = nextClusterNodeId();
   clusterNodes[n4Id] = {
     id: n4Id,
-    name: 'rioku-witness-1',
+    name: 'node-witness-1',
     role: 'witness',
     status: 'healthy',
     address: '10.0.3.99:7777',

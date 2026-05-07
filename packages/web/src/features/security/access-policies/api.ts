@@ -20,12 +20,13 @@ import {
   testAccessPolicyCel as testAccessPolicyCelFn,
 } from '@/api/generated/access-policies/access-policies';
 import type {
-  ListAccessPolicies200AccessPoliciesItem,
+  AccessPolicy as AccessPolicyWire,
   CreateAccessPolicyBody,
-  PatchAccessPolicyBody,
-  TestAccessPolicyCelBody,
-  TestAccessPolicyCel200,
+  UpdateAccessPolicyBody as PatchAccessPolicyBody,
+  TestCELBody as TestAccessPolicyCelBody,
+  TestCELResult as TestAccessPolicyCel200,
 } from '@/api/generated/schemas';
+type ListAccessPolicies200AccessPoliciesItem = AccessPolicyWire;
 import { emitHostEvent } from '@/host/events';
 import type { AccessPolicy } from './types';
 import type { AccessPolicyPayload } from './types';

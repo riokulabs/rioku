@@ -35,7 +35,7 @@ import { UserDetail } from '@/features/security/users';
 import { AgentDetail } from '@/features/ai-agents';
 import { ProviderDetail } from '@/features/ai-providers';
 import { ToolDetail } from '@/features/ai-tools';
-import { McpServerDetail } from '@/features/ai-mcp-servers';
+import { McpServerDrawer } from '@/features/ai-mcp-servers';
 import { TraceDetail } from '@/features/ai-traces';
 import { RateLimitDetail } from '@/features/ai-rate-limits';
 
@@ -76,7 +76,7 @@ function NotFound({ what }: { what: string }) {
 
 function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const service = useServiceDetail(entityId);
+  const service = useServiceDetail(tenantId, entityId);
   const [editing, setEditing] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -132,7 +132,7 @@ function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
 
 function RouteDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const route = useRouteDetail(entityId);
+  const route = useRouteDetail(tenantId, entityId);
   const [editing, setEditing] = useState(false);
   if (!route) return <NotFound what="Route" />;
   return (
@@ -214,6 +214,7 @@ function ProviderDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
     <ProviderDetail
+      tenant={tenantSlug}
       providerId={entityId}
       onEdit={() => {
         void navigate({
@@ -237,7 +238,7 @@ function ToolDetailPage({ entityId, tenantSlug }: RendererProps) {
   return (
     <ToolDetail
       toolId={entityId}
-      tenantSlug={tenantSlug}
+      tenant={tenantSlug}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/ai/tools',
@@ -258,9 +259,9 @@ function ToolDetailPage({ entityId, tenantSlug }: RendererProps) {
 function McpServerDetailPage({ entityId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
-    <McpServerDetail
+    <McpServerDrawer
       serverId={entityId}
-      tenantSlug={tenantSlug}
+      tenant={tenantSlug}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/ai/mcp-servers',
@@ -294,11 +295,12 @@ function TraceDetailPage({ entityId, tenantSlug }: RendererProps) {
   );
 }
 
-function RateLimitDetailPage({ entityId, tenantSlug }: RendererProps) {
+function RateLimitDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
   return (
     <RateLimitDetail
       ruleId={entityId}
+      tenantId={tenantId}
       onEdit={() => {
         void navigate({
           to: '/t/$tenant/ai/rate-limits',

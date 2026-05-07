@@ -91,9 +91,6 @@ async function bootstrapStore(): Promise<void> {
   if (Object.keys(state.users).length === 0 && !onBootstrapRoute) {
     seedStore(useMockStore);
   }
-  // Start dev-only mock audit SSE emitter (30s interval, no-op in prod).
-  const { startMockAuditEmitter } = await import('./api/mock-audit-emitter');
-  startMockAuditEmitter();
 }
 
 const start = async () => {

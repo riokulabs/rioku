@@ -168,6 +168,7 @@ function AiRateLimitsPage() {
       >
         {drawerMode === 'detail' && selectedRule && (
           <RateLimitDetail
+            tenantId={tenantId}
             ruleId={selectedRule.id}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}

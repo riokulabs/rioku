@@ -128,6 +128,28 @@ func (PasswordResetByAdmin) AuditSchema() string {
 	return "auth.password_reset_by_admin.v1"
 }
 
+// AuditSensitiveRevealed records a privileged operator unmasking the
+// sensitive fields (ip / user_agent / payload) of a prior audit row
+// via POST /api/v1/t/{tenant}/audit/{id}/reveal. Capturing the
+// reason is the compliance contract for the bypass: every reveal
+// produces a new auditable row referencing the original.
+//
+// Schema: audit.sensitive_revealed.v1
+type AuditSensitiveRevealed struct {
+	// RevealedEntryID is the id of the audit entry whose sensitive
+	// fields were exposed.
+	RevealedEntryID string `json:"revealed_entry_id"`
+
+	// Reason is the compliance justification provided by the
+	// operator at reveal time. Surfaced verbatim to subsequent
+	// reviewers.
+	Reason string `json:"reason"`
+}
+
+func (AuditSensitiveRevealed) AuditSchema() string {
+	return "audit.sensitive_revealed.v1"
+}
+
 // DefaultRegistry is the package-level registry pre-populated with
 // the canonical first-party schemas. Sub-systems that don't need
 // custom schemas can use this directly; tests + plugins can build
@@ -150,6 +172,10 @@ func init() {
 	mustRegister(DefaultRegistry, Schema{
 		Discriminator: "auth.password_reset_by_admin.v1",
 		New:           func() Payload { return &PasswordResetByAdmin{} },
+	})
+	mustRegister(DefaultRegistry, Schema{
+		Discriminator: "audit.sensitive_revealed.v1",
+		New:           func() Payload { return &AuditSensitiveRevealed{} },
 	})
 }
 

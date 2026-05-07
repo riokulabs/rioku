@@ -23,7 +23,7 @@ Conventions:
  */
 import type { CreateAccessPolicyBodyEffect } from './createAccessPolicyBodyEffect';
 
-export type CreateAccessPolicyBody = {
+export interface CreateAccessPolicyBody {
   description?: string;
   effect?: CreateAccessPolicyBodyEffect;
   enabled?: boolean;
@@ -32,4 +32,4 @@ export type CreateAccessPolicyBody = {
   name: string;
   /** Lower priority numbers evaluate first. */
   priority?: number;
-};
+}

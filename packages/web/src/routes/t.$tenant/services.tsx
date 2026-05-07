@@ -140,7 +140,7 @@ function ServicesPage() {
 
   async function handleForceReload(svc: Service) {
     try {
-      await forceReloadService(svc.id);
+      await forceReloadService(tenantId, svc.id);
       notify.success('Service reloaded', `${svc.name} reloaded.`);
     } catch {
       notify.error('Failed to reload service', 'Please try again.');
@@ -149,7 +149,7 @@ function ServicesPage() {
 
   async function handleDeleteFromList(svc: Service) {
     try {
-      await deleteService(svc.id);
+      await deleteService(tenantId, svc.id);
       notify.success('Service deleted', `${svc.name} was removed.`);
     } catch (err) {
       if (err instanceof ServiceInUseError) {

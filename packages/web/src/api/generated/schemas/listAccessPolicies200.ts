@@ -21,9 +21,9 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
-import type { ListAccessPolicies200AccessPoliciesItem } from './listAccessPolicies200AccessPoliciesItem';
+import type { AccessPolicy } from './accessPolicy';
 
 export type ListAccessPolicies200 = {
-  accessPolicies?: ListAccessPolicies200AccessPoliciesItem[];
+  accessPolicies?: AccessPolicy[];
   nextPageToken?: string;
 };

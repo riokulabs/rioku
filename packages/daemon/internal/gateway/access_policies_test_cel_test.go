@@ -1,265 +1,236 @@
-// Tests for the access-policies test-cel endpoint.
-//
-// The endpoint is real: it compiles and evaluates the supplied CEL expression
-// against the provided sample using cel-go. The tests exercise the matched /
-// not-matched paths, syntax errors, runtime errors, non-bool results, and the
-// 400 envelope path.
 package gateway
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/cookiejar"
 	"net/http/httptest"
-	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
-	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/store"
-	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
 
-// setupTestCelServer wires up the access-policies test-cel endpoint behind
-// the same auth middleware used by the CRUD tests. Returns an authenticated
-// client signed in as `root`.
-func setupTestCelServer(t *testing.T) (*httptest.Server, *http.Client) {
-	t.Helper()
-	ctx := t.Context()
-
-	drv, err := store.New("sqlite")
-	if err != nil {
-		t.Fatal(err)
+func TestEvaluateCEL(t *testing.T) {
+	cases := []struct {
+		name    string
+		expr    string
+		sample  map[string]any
+		matched bool
+		errSub  string
+	}{
+		{
+			name:    "matched true via sample.field",
+			expr:    `sample.service == "users"`,
+			sample:  map[string]any{"service": "users"},
+			matched: true,
+		},
+		{
+			name:    "matched false",
+			expr:    `sample.service == "users"`,
+			sample:  map[string]any{"service": "billing"},
+			matched: false,
+		},
+		{
+			name:    "top-level key hoisting",
+			expr:    `service == "users"`,
+			sample:  map[string]any{"service": "users"},
+			matched: true,
+		},
+		{
+			name:    "envelope alias",
+			expr:    `envelope.service == "users"`,
+			sample:  map[string]any{"service": "users"},
+			matched: true,
+		},
+		{
+			name:    "syntax error",
+			expr:    `sample.service ==`,
+			sample:  map[string]any{"service": "users"},
+			matched: false,
+			errSub:  "Syntax error",
+		},
+		{
+			name:    "non-bool result",
+			expr:    `1 + 2`,
+			sample:  map[string]any{},
+			matched: false,
+			errSub:  "must return bool",
+		},
+		{
+			name:    "nested field access",
+			expr:    `sample.user.role == "admin"`,
+			sample:  map[string]any{"user": map[string]any{"role": "admin"}},
+			matched: true,
+		},
+		{
+			name:    "logical or with hoisted keys",
+			expr:    `service == "users" || service == "billing"`,
+			sample:  map[string]any{"service": "billing"},
+			matched: true,
+		},
 	}
-	if err := drv.Open(ctx, store.DriverConfig{Path: filepath.Join(t.TempDir(), "tc.db")}); err != nil {
-		t.Fatal(err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			matched, err, durationMs := evaluateCEL(context.Background(), tc.expr, tc.sample)
+			if matched != tc.matched {
+				t.Errorf("matched=%v, want %v (err=%v)", matched, tc.matched, err)
+			}
+			if tc.errSub == "" && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tc.errSub != "" {
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tc.errSub)
+				} else if !strings.Contains(err.Error(), tc.errSub) {
+					t.Errorf("error=%q, want substring %q", err.Error(), tc.errSub)
+				}
+			}
+			if durationMs < 0 {
+				t.Errorf("durationMs=%d, want >= 0", durationMs)
+			}
+		})
 	}
-	t.Cleanup(func() { _ = drv.Close() })
-	if err := drv.Migrate(ctx, store.MigrateUp); err != nil {
-		t.Fatal(err)
-	}
-
-	rootPassword := "TestPassword123!"
-	hash := cachedHashPassword(t, rootPassword)
-	tx, _ := drv.Begin(ctx, store.TxOptions{})
-	rootUser, err := tx.CreateUser(ctx, &store.User{
-		Username: "root", PasswordHash: hash, Status: "active",
-		ForcePasswordChange: false, PasswordChangedAt: time.Now().UTC(),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	roles, _ := tx.ListRoles(ctx)
-	var superID string
-	for _, r := range roles {
-		if r.Name == "superadmin" {
-			superID = r.ID
-		}
-	}
-	if err := tx.AssignRole(ctx, rootUser.ID, superID, ""); err != nil {
-		t.Fatal(err)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatal(err)
-	}
-
-	signingKey := []byte("test-signing-key-32-bytes-long!!")
-	a := auth.NewAuth(signingKey, drv)
-	sm := auth.NewSessionManager(drv, true)
-
-	cfg := config.Default()
-	cfg.Auth.RateLimit.RequestsPerMinute = 1000
-
-	encKey, _ := auth.DeriveEncryptionKey(signingKey, []byte("rioku-totp-encryption-salt-v1"))
-	enc, _ := auth.NewEncryptor(encKey)
-
-	mux := http.NewServeMux()
-	RegisterAuthRoutes(mux, a, sm, drv, cfg, enc)
-	RegisterAccessPolicyTestCelRoutes(mux)
-
-	var handler http.Handler = mux
-	handler = SecurityHeadersMiddleware(handler)
-	handler = CORSMiddleware(cfg.Auth.CORS)(handler)
-	rl := NewRateLimiter(cfg.Auth.RateLimit)
-	t.Cleanup(rl.Stop)
-	handler = rl.Middleware()(handler)
-	handler = AuthMiddleware(a, sm)(handler)
-	handler = RequestIDMiddleware(handler)
-
-	server := httptest.NewServer(handler)
-	t.Cleanup(server.Close)
-
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar}
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/login",
-		map[string]string{"username": "root", "password": rootPassword})
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("login: %d", resp.StatusCode)
-	}
-	return server, client
 }
 
-// decodeTestCelResponse reads a JSON response body into testCelResponse.
-func decodeTestCelResponse(t *testing.T, resp *http.Response) testCelResponse {
+// rawAuthedTenantRequest mirrors authedTenantRequest but accepts a raw body
+// so callers can send malformed JSON to exercise 400 paths.
+func rawAuthedTenantRequest(t *testing.T, st store.Driver, method, target, slug string, raw []byte) *http.Request {
 	t.Helper()
-	var out testCelResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	req := httptest.NewRequest(method, target, bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	claims := &auth.SessionClaims{
+		SessionID: "test-session",
+		UserID:    "test-user",
+		Username:  "tester",
+		Roles:     []string{"superadmin"},
+		Scopes:    []string{"*"},
+	}
+	ctx := auth.WithSessionClaims(req.Context(), claims)
+	if slug != "" {
+		tx, _ := st.Begin(context.Background(), store.TxOptions{ReadOnly: true})
+		tn, err := tx.GetTenantBySlug(context.Background(), slug)
+		_ = tx.Rollback()
+		if err != nil {
+			t.Fatalf("resolve tenant %s: %v", slug, err)
+		}
+		ctx = WithTenant(ctx, tn)
+	}
+	return req.WithContext(ctx)
+}
+
+func TestHandleTestAccessPolicyCEL_Endpoint(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
+
+	body := map[string]any{
+		"expr":   `sample.user.role == "admin"`,
+		"sample": map[string]any{"user": map[string]any{"role": "admin"}},
+	}
+	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var got testCELResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	return out
-}
-
-func TestTestCEL_MatchedTrue(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": `request.method == "GET"`,
-			"sample":     map[string]any{"request": map[string]any{"method": "GET"}},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d", resp.StatusCode)
+	if !got.Matched {
+		t.Errorf("matched=false, want true (err=%q)", got.Error)
 	}
-	body := decodeTestCelResponse(t, resp)
-	if !body.Matched {
-		t.Errorf("expected matched=true, got %+v", body)
-	}
-	if body.Error != "" {
-		t.Errorf("expected no error, got %q", body.Error)
-	}
-	if body.DurationMs < 0 {
-		t.Errorf("durationMs negative: %v", body.DurationMs)
+	if got.DurationMs < 0 {
+		t.Errorf("durationMs=%v, want >= 0", got.DurationMs)
 	}
 }
 
-func TestTestCEL_MatchedFalse(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": `request.method == "POST"`,
-			"sample":     map[string]any{"request": map[string]any{"method": "GET"}},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	body := decodeTestCelResponse(t, resp)
-	if body.Matched {
-		t.Errorf("expected matched=false, got %+v", body)
+func TestHandleTestAccessPolicyCEL_HoistedKey(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
+
+	body := map[string]any{
+		"expr":   `service == "users"`,
+		"sample": map[string]any{"service": "users"},
 	}
-	if body.Error != "" {
-		t.Errorf("expected no error, got %q", body.Error)
+	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var got testCELResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !got.Matched || got.Error != "" {
+		t.Errorf("hoisted-key eval: matched=%v error=%q, want matched=true error=\"\"", got.Matched, got.Error)
 	}
 }
 
-func TestTestCEL_TenantScopedPath(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	// Tenant-scoped path should accept the same body and return the same shape.
-	resp := doJSON(t, client, http.MethodPost,
-		server.URL+"/api/v1/t/default/access-policies/test-cel",
-		map[string]any{
-			"expression": `1 + 1 == 2`,
-			"sample":     map[string]any{},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d", resp.StatusCode)
-	}
-	body := decodeTestCelResponse(t, resp)
-	if !body.Matched {
-		t.Errorf("expected matched=true, got %+v", body)
+func TestHandleTestAccessPolicyCEL_BadRequest(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
+
+	req := rawAuthedTenantRequest(t, drv, http.MethodPost,
+		"/api/v1/t/default/access-policies/test-cel", "default",
+		[]byte("not json at all"))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 
-func TestTestCEL_SyntaxError(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": `request.method ==`, // truncated
-			"sample":     map[string]any{},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 for syntax error, got %d", resp.StatusCode)
+func TestHandleTestAccessPolicyCEL_SyntaxError(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
+
+	body := map[string]any{"expr": `sample.service ==`}
+	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 (syntax errors are non-transport), got %d body=%s", rec.Code, rec.Body.String())
 	}
-	body := decodeTestCelResponse(t, resp)
-	if body.Matched {
-		t.Errorf("matched should be false on syntax error, got %+v", body)
+	var got testCELResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-	if body.Error == "" {
-		t.Errorf("expected error string for syntax error, got empty")
+	if got.Matched {
+		t.Errorf("matched=true, want false")
+	}
+	if got.Error == "" {
+		t.Errorf("error empty, want explanation")
 	}
 }
 
-func TestTestCEL_NonBoolResult(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": `1 + 1`, // int — not a bool
-			"sample":     map[string]any{},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	body := decodeTestCelResponse(t, resp)
-	if body.Matched {
-		t.Errorf("non-bool result must not match, got %+v", body)
-	}
-	if body.Error == "" {
-		t.Errorf("expected error explaining non-bool result")
-	}
-}
+func TestHandleTestAccessPolicyCEL_NonBool(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterAccessPolicyRoutes(mux, drv)
 
-func TestTestCEL_BadEnvelope_NotJSON(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	req, _ := http.NewRequest(http.MethodPost,
-		server.URL+"/api/v1/auth/access-policies/test-cel",
-		http.NoBody)
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
+	body := map[string]any{"expr": `1 + 2`}
+	req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/access-policies/test-cel", "default", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	defer func() { _ = resp.Body.Close() }()
-	// Empty body fails JSON decode → 400.
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400 for empty body, got %d", resp.StatusCode)
+	var got testCELResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-}
-
-func TestTestCEL_BadEnvelope_EmptyExpression(t *testing.T) {
-	server, client := setupTestCelServer(t)
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": "",
-			"sample":     map[string]any{},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400 for empty expression, got %d", resp.StatusCode)
+	if got.Matched {
+		t.Errorf("matched=true, want false (non-bool result)")
 	}
-}
-
-func TestTestCEL_TopLevelHoisting(t *testing.T) {
-	// Caller wrote `foo == "bar"` instead of `sample.foo == "bar"`. Both forms
-	// must work because the daemon hoists top-level keys into the activation.
-	server, client := setupTestCelServer(t)
-	resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": `foo == "bar"`,
-			"sample":     map[string]any{"foo": "bar"},
-		})
-	defer func() { _ = resp.Body.Close() }()
-	body := decodeTestCelResponse(t, resp)
-	if !body.Matched || body.Error != "" {
-		t.Errorf("expected matched without error, got %+v", body)
-	}
-
-	// And via `sample.foo` — same input, different write.
-	resp2 := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies/test-cel",
-		map[string]any{
-			"expression": `sample.foo == "bar"`,
-			"sample":     map[string]any{"foo": "bar"},
-		})
-	defer func() { _ = resp2.Body.Close() }()
-	body2 := decodeTestCelResponse(t, resp2)
-	if !body2.Matched || body2.Error != "" {
-		t.Errorf("expected matched via sample.foo, got %+v", body2)
+	if !strings.Contains(got.Error, "must return bool") {
+		t.Errorf("error=%q, want substring %q", got.Error, "must return bool")
 	}
 }

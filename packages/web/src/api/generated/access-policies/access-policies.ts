@@ -40,12 +40,12 @@ import type {
   UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  AccessPolicy,
   CreateAccessPolicyBody,
   ListAccessPolicies200,
-  PatchAccessPolicyBody,
-  ReplaceAccessPolicyBody,
-  TestAccessPolicyCel200,
-  TestAccessPolicyCelBody,
+  TestCELBody,
+  TestCELResult,
+  UpdateAccessPolicyBody,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
@@ -282,7 +282,7 @@ export function useListAccessPolicies<
 }
 
 export type createAccessPolicyResponse = {
-  data: void;
+  data: AccessPolicy;
   status: number;
   headers: Headers;
 };
@@ -365,10 +365,15 @@ export const useCreateAccessPolicy = <TError = unknown, TContext = unknown>(opti
   return useMutation(mutationOptions);
 };
 /**
- * @summary Dry-run a CEL expression against a sample event.
+ * Compiles the given CEL expression and evaluates it against the supplied
+sample request event. Used by the policy editor's "Test condition"
+button (decisions-needed.md item 004). Errors surface as `error` in the
+response with the matched flag false.
+
+ * @summary Evaluate a CEL expression against a sample event
  */
 export type testAccessPolicyCelResponse = {
-  data: TestAccessPolicyCel200 | void;
+  data: TestCELResult | void;
   status: number;
   headers: Headers;
 };
@@ -379,14 +384,14 @@ export const getTestAccessPolicyCelUrl = (tenant: string) => {
 
 export const testAccessPolicyCel = async (
   tenant: string,
-  testAccessPolicyCelBody: TestAccessPolicyCelBody,
+  testCELBody: TestCELBody,
   options?: RequestInit,
 ): Promise<testAccessPolicyCelResponse> => {
   return customFetch<testAccessPolicyCelResponse>(getTestAccessPolicyCelUrl(tenant), {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(testAccessPolicyCelBody),
+    body: JSON.stringify(testCELBody),
   });
 };
 
@@ -394,14 +399,14 @@ export const getTestAccessPolicyCelMutationOptions = <TError = void, TContext = 
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof testAccessPolicyCel>>,
     TError,
-    { tenant: string; data: TestAccessPolicyCelBody },
+    { tenant: string; data: TestCELBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof testAccessPolicyCel>>,
   TError,
-  { tenant: string; data: TestAccessPolicyCelBody },
+  { tenant: string; data: TestCELBody },
   TContext
 > => {
   const mutationKey = ['testAccessPolicyCel'];
@@ -413,7 +418,7 @@ export const getTestAccessPolicyCelMutationOptions = <TError = void, TContext = 
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof testAccessPolicyCel>>,
-    { tenant: string; data: TestAccessPolicyCelBody }
+    { tenant: string; data: TestCELBody }
   > = (props) => {
     const { tenant, data } = props ?? {};
 
@@ -426,24 +431,24 @@ export const getTestAccessPolicyCelMutationOptions = <TError = void, TContext = 
 export type TestAccessPolicyCelMutationResult = NonNullable<
   Awaited<ReturnType<typeof testAccessPolicyCel>>
 >;
-export type TestAccessPolicyCelMutationBody = TestAccessPolicyCelBody;
+export type TestAccessPolicyCelMutationBody = TestCELBody;
 export type TestAccessPolicyCelMutationError = void;
 
 /**
- * @summary Dry-run a CEL expression against a sample event.
+ * @summary Evaluate a CEL expression against a sample event
  */
 export const useTestAccessPolicyCel = <TError = void, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof testAccessPolicyCel>>,
     TError,
-    { tenant: string; data: TestAccessPolicyCelBody },
+    { tenant: string; data: TestCELBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof testAccessPolicyCel>>,
   TError,
-  { tenant: string; data: TestAccessPolicyCelBody },
+  { tenant: string; data: TestCELBody },
   TContext
 > => {
   const mutationOptions = getTestAccessPolicyCelMutationOptions(options);
@@ -532,7 +537,7 @@ export const useDeleteAccessPolicy = <TError = unknown, TContext = unknown>(opti
   return useMutation(mutationOptions);
 };
 export type getAccessPolicyResponse = {
-  data: void | void;
+  data: AccessPolicy | void;
   status: number;
   headers: Headers;
 };
@@ -772,7 +777,7 @@ export function useGetAccessPolicy<
 }
 
 export type patchAccessPolicyResponse = {
-  data: void;
+  data: AccessPolicy;
   status: number;
   headers: Headers;
 };
@@ -784,14 +789,14 @@ export const getPatchAccessPolicyUrl = (tenant: string, id: string) => {
 export const patchAccessPolicy = async (
   tenant: string,
   id: string,
-  patchAccessPolicyBody: PatchAccessPolicyBody,
+  updateAccessPolicyBody: UpdateAccessPolicyBody,
   options?: RequestInit,
 ): Promise<patchAccessPolicyResponse> => {
   return customFetch<patchAccessPolicyResponse>(getPatchAccessPolicyUrl(tenant, id), {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(patchAccessPolicyBody),
+    headers: { 'Content-Type': 'application/merge-patch+json', ...options?.headers },
+    body: JSON.stringify(updateAccessPolicyBody),
   });
 };
 
@@ -802,14 +807,14 @@ export const getPatchAccessPolicyMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof patchAccessPolicy>>,
     TError,
-    { tenant: string; id: string; data: PatchAccessPolicyBody },
+    { tenant: string; id: string; data: UpdateAccessPolicyBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchAccessPolicy>>,
   TError,
-  { tenant: string; id: string; data: PatchAccessPolicyBody },
+  { tenant: string; id: string; data: UpdateAccessPolicyBody },
   TContext
 > => {
   const mutationKey = ['patchAccessPolicy'];
@@ -821,7 +826,7 @@ export const getPatchAccessPolicyMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchAccessPolicy>>,
-    { tenant: string; id: string; data: PatchAccessPolicyBody }
+    { tenant: string; id: string; data: UpdateAccessPolicyBody }
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
@@ -834,21 +839,21 @@ export const getPatchAccessPolicyMutationOptions = <
 export type PatchAccessPolicyMutationResult = NonNullable<
   Awaited<ReturnType<typeof patchAccessPolicy>>
 >;
-export type PatchAccessPolicyMutationBody = PatchAccessPolicyBody;
+export type PatchAccessPolicyMutationBody = UpdateAccessPolicyBody;
 export type PatchAccessPolicyMutationError = unknown;
 
 export const usePatchAccessPolicy = <TError = unknown, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof patchAccessPolicy>>,
     TError,
-    { tenant: string; id: string; data: PatchAccessPolicyBody },
+    { tenant: string; id: string; data: UpdateAccessPolicyBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchAccessPolicy>>,
   TError,
-  { tenant: string; id: string; data: PatchAccessPolicyBody },
+  { tenant: string; id: string; data: UpdateAccessPolicyBody },
   TContext
 > => {
   const mutationOptions = getPatchAccessPolicyMutationOptions(options);
@@ -856,7 +861,7 @@ export const usePatchAccessPolicy = <TError = unknown, TContext = unknown>(optio
   return useMutation(mutationOptions);
 };
 export type replaceAccessPolicyResponse = {
-  data: void;
+  data: AccessPolicy;
   status: number;
   headers: Headers;
 };
@@ -868,14 +873,14 @@ export const getReplaceAccessPolicyUrl = (tenant: string, id: string) => {
 export const replaceAccessPolicy = async (
   tenant: string,
   id: string,
-  replaceAccessPolicyBody: ReplaceAccessPolicyBody,
+  updateAccessPolicyBody: UpdateAccessPolicyBody,
   options?: RequestInit,
 ): Promise<replaceAccessPolicyResponse> => {
   return customFetch<replaceAccessPolicyResponse>(getReplaceAccessPolicyUrl(tenant, id), {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(replaceAccessPolicyBody),
+    body: JSON.stringify(updateAccessPolicyBody),
   });
 };
 
@@ -886,14 +891,14 @@ export const getReplaceAccessPolicyMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof replaceAccessPolicy>>,
     TError,
-    { tenant: string; id: string; data: ReplaceAccessPolicyBody },
+    { tenant: string; id: string; data: UpdateAccessPolicyBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof replaceAccessPolicy>>,
   TError,
-  { tenant: string; id: string; data: ReplaceAccessPolicyBody },
+  { tenant: string; id: string; data: UpdateAccessPolicyBody },
   TContext
 > => {
   const mutationKey = ['replaceAccessPolicy'];
@@ -905,7 +910,7 @@ export const getReplaceAccessPolicyMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof replaceAccessPolicy>>,
-    { tenant: string; id: string; data: ReplaceAccessPolicyBody }
+    { tenant: string; id: string; data: UpdateAccessPolicyBody }
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
@@ -918,21 +923,21 @@ export const getReplaceAccessPolicyMutationOptions = <
 export type ReplaceAccessPolicyMutationResult = NonNullable<
   Awaited<ReturnType<typeof replaceAccessPolicy>>
 >;
-export type ReplaceAccessPolicyMutationBody = ReplaceAccessPolicyBody;
+export type ReplaceAccessPolicyMutationBody = UpdateAccessPolicyBody;
 export type ReplaceAccessPolicyMutationError = unknown;
 
 export const useReplaceAccessPolicy = <TError = unknown, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof replaceAccessPolicy>>,
     TError,
-    { tenant: string; id: string; data: ReplaceAccessPolicyBody },
+    { tenant: string; id: string; data: UpdateAccessPolicyBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof replaceAccessPolicy>>,
   TError,
-  { tenant: string; id: string; data: ReplaceAccessPolicyBody },
+  { tenant: string; id: string; data: UpdateAccessPolicyBody },
   TContext
 > => {
   const mutationOptions = getReplaceAccessPolicyMutationOptions(options);

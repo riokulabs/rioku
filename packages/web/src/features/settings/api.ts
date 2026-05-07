@@ -264,6 +264,31 @@ export async function updateTenantUrlMode(tenantId: ID, mode: 'path' | 'subdomai
   emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['url_mode'] });
 }
 
+/**
+ * Update the tenant's URL mode and optional parent domain together.
+ * Used by the dedicated URL-mode settings page (Plan 12 §8.4).
+ * When mode='subdomain', parent_domain should be provided (e.g. 'localhost').
+ * When mode='path', parent_domain is cleared.
+ */
+export async function updateTenantUrlModeWithDomain(
+  tenantId: ID,
+  mode: 'path' | 'subdomain',
+  parentDomain: string | undefined,
+): Promise<void> {
+  await simulateLatency('mutation');
+  const state = useMockStore.getState();
+  const patch: Partial<{ url_mode: 'path' | 'subdomain'; parent_domain: string; updated_at: string }> = {
+    url_mode: mode,
+    updated_at: now(),
+  };
+  if (mode === 'subdomain' && parentDomain) {
+    patch.parent_domain = parentDomain;
+  }
+  state.updateEntity('tenants', tenantId, patch);
+  state.appendAudit(makeTenantAudit('tenant.update_url_mode', tenantId));
+  emitHostEvent('tenant:updated', { tenant_id: tenantId, fields: ['url_mode', 'parent_domain'] });
+}
+
 /** Update the tenant's default theme. Pass `undefined` to revert to system default. */
 export async function updateTenantDefaultTheme(
   tenantId: ID,

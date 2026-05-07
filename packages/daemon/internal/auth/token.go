@@ -15,6 +15,8 @@ const (
 	tokenPrefix      = "rku_tok_"
 	refreshPrefix    = "rku_ref_"
 	signingKeyPrefix = "rku_key_"
+	resetPrefix      = "rku_rst_"
+	invitePrefix     = "rku_inv_"
 	tokenRandBytes   = 32
 )
 
@@ -34,6 +36,18 @@ func GenerateRefreshToken() (string, error) {
 // Format: rku_key_<32 random bytes base64url encoded>
 func GenerateSigningKey() (string, error) {
 	return generateToken(signingKeyPrefix)
+}
+
+// GeneratePasswordResetToken generates a cryptographically random password
+// reset token. Format: rku_rst_<32 random bytes base64url encoded>
+func GeneratePasswordResetToken() (string, error) {
+	return generateToken(resetPrefix)
+}
+
+// GenerateInviteToken generates a cryptographically random invite token.
+// Format: rku_inv_<32 random bytes base64url encoded>
+func GenerateInviteToken() (string, error) {
+	return generateToken(invitePrefix)
 }
 
 func generateToken(prefix string) (string, error) {

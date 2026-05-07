@@ -5,8 +5,7 @@
  * router guards fork on `data === null` without catching exceptions. All other
  * errors propagate so the React Query error boundary can surface them.
  *
- * Plan 01 — stage 2 wiring (ported into plan-02 to unblock identity-feature
- * wiring; the canonical home is plan-01's auth surface).
+ * Plan 01 — stage 2 wiring.
  */
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { customFetch } from '@/api/mutator';

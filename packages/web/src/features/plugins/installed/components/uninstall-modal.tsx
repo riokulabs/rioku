@@ -15,6 +15,12 @@ interface UninstallPluginModalProps {
   opened: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /**
+   * Tenant slug for the daemon DELETE call. Required when invoking
+   * against the real daemon; legacy stage-1 callers may omit it (the
+   * mutation becomes a no-op).
+   */
+  tenantId?: string;
 }
 
 export function UninstallPluginModal({
@@ -22,6 +28,7 @@ export function UninstallPluginModal({
   opened,
   onClose,
   onSuccess,
+  tenantId = '',
 }: UninstallPluginModalProps) {
   const [slugInput, setSlugInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +43,7 @@ export function UninstallPluginModal({
     if (slugInput !== plugin.slug) return;
     setLoading(true);
     try {
-      await uninstallPlugin(plugin.id);
+      await uninstallPlugin(plugin.id, tenantId);
       notify.success('Plugin uninstalled', `${plugin.display_name} was removed.`);
       setSlugInput('');
       onSuccess();

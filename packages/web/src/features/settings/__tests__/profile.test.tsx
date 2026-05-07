@@ -43,6 +43,12 @@ vi.mock('@/hooks/use-permission', () => ({
   usePermission: (key: string) => (key === 'user:update-own' ? grantUpdate : true),
 }));
 
+// ─── Feature flags mock ───────────────────────────────────────────────────────
+// Passkeys flag is off in tests — the section should be hidden until stage-2 wires it.
+vi.mock('@/host/feature-flags', () => ({
+  isFeatureEnabled: (flag: string) => flag !== 'passkeys',
+}));
+
 // ─── Dropzone stub ───────────────────────────────────────────────────────────
 // @mantine/dropzone uses ResizeObserver + File API internals that aren't
 // available in jsdom. Stub all the named exports used by profile-personal-info.

@@ -21,40 +21,38 @@ export function setAuthFailureHandler(fn: (currentUrl: string) => void): void {
   _authFailureHandler = fn;
 }
 
-// ─── Impersonation header forwarding ─────────────────────────────────────────
-//
-// When a super-admin impersonation session is active, every outgoing
-// daemon request must carry the session id so the daemon-side audit
-// emit code can stamp `acted_as_admin: true` on tenant-side audit
-// entries (and skip the same flag on the super-admin log).
-//
-// The accessor is a tiny module-level pointer set by the impersonation
-// state owner (wired from `main.tsx` once the mock-store module has
-// loaded). The mutator does not import the store directly — that
-// would create a fetch/-store/auth circular import. The only path
-// between them is this setter.
+let _activeImpersonationIdAccessor: (() => string | null) | null = null;
 
-let _activeImpersonationId: (() => string | null) | null = null;
-
-export function setActiveImpersonationIdAccessor(
-  fn: (() => string | null) | null,
-): void {
-  _activeImpersonationId = fn;
-}
-
-export function getActiveImpersonationId(): string | null {
-  return _activeImpersonationId?.() ?? null;
-}
-
-/** Path patterns that must NOT receive the impersonation header.
- *  Impersonation-management endpoints are super-admin-self calls and
- *  the session id either does not exist yet (start) or is in the
- *  path (end / touch / list).
+/**
+ * Register an accessor that returns the active super-admin impersonation
+ * session id (or null when none is active). When set, the mutator stamps
+ * `X-Impersonation-Id` on every daemon-bound request except impersonation-
+ * management endpoints (which would otherwise echo the caller's own id).
+ *
+ * Pass `null` to clear (test cleanup / sign-out).
  */
-function shouldStampImpersonationHeader(url: string): boolean {
-  const path = url.split('?')[0] ?? url;
-  return !path.includes('/admin/impersonation');
+export function setActiveImpersonationIdAccessor(
+  accessor: (() => string | null) | null,
+): void {
+  _activeImpersonationIdAccessor = accessor;
 }
+
+function isImpersonationManagementUrl(url: string): boolean {
+  return /\/admin\/impersonation(?:[/?#]|$)/.test(url);
+}
+
+function applyImpersonationHeader(headers: Record<string, string>, url: string): void {
+  if (_activeImpersonationIdAccessor === null) return;
+  if (isImpersonationManagementUrl(url)) return;
+  // Skip if any casing of the header is already present (explicit override wins).
+  for (const k of Object.keys(headers)) {
+    if (k.toLowerCase() === 'x-impersonation-id') return;
+  }
+  const id = _activeImpersonationIdAccessor();
+  if (id === null) return;
+  headers['x-impersonation-id'] = id;
+}
+
 
 const BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
 
@@ -120,37 +118,36 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 /**
- * customFetch supports two invocation shapes:
- *
- *   1. The hand-written `{url, method, data, params, signal}` form used by
- *      existing in-tree consumers and the mutator unit test.
- *   2. The Orval-fetch-client form `customFetch(url, RequestInit)` — emitted
- *      by every generated `<entity>.ts`. The body shape returned for this
- *      form is `{ data, status, headers }` (Orval's standard wrapper).
+ * Orval `httpClient: 'fetch'` calls the mutator as
+ *   customFetch<{data, status, headers}>(url, RequestInit)
+ * and the generated hooks read `.data` from the result. To keep both the
+ * legacy `{url, method, data}` callsites and the orval generated callsites
+ * working through a single mutator, this function accepts either form.
  */
-export function customFetch<T>(args: CustomFetchArgs): Promise<T>;
-export function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
+export interface OrvalFetchResponse<T> {
+  data: T;
+  status: number;
+  headers: Headers;
+}
+
+export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
+export async function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
 export async function customFetch<T>(
   argsOrUrl: CustomFetchArgs | string,
-  maybeInit?: RequestInit,
+  init?: RequestInit,
 ): Promise<T> {
-  // Branch on call shape. If a string is passed, we're in the Orval form.
-  const orvalShape = typeof argsOrUrl === 'string';
-  const url = orvalShape ? argsOrUrl : argsOrUrl.url;
-  const method = orvalShape
-    ? (maybeInit?.method ?? 'GET')
-    : argsOrUrl.method;
-  const data = orvalShape ? undefined : argsOrUrl.data;
-  const signal = orvalShape ? maybeInit?.signal : argsOrUrl.signal;
-  const params = orvalShape ? undefined : argsOrUrl.params;
-  const orvalBody = orvalShape ? maybeInit?.body : undefined;
-  const orvalHeaders = orvalShape ? maybeInit?.headers : undefined;
+  // Path A — generated orval client: (url, RequestInit) → {data, status, headers}
+  if (typeof argsOrUrl === 'string') {
+    return runOrvalFetch<T>(argsOrUrl, init);
+  }
+  // Path B — legacy callers (apiClient shim, use-openapi-spec, use-opaque-filter)
+  return runLegacyFetch<T>(argsOrUrl);
+}
+
+async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
+  const { url, method, data, signal, params } = args;
 
   let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
-  // Strip duplicate API prefix when generated paths already include it.
-  if (BASE === '/api/v1' && fullUrl.startsWith('/api/v1/api/v1/')) {
-    fullUrl = fullUrl.slice('/api/v1'.length);
-  }
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -160,28 +157,6 @@ export async function customFetch<T>(
   }
 
   const headers: Record<string, string> = {};
-  if (orvalHeaders) {
-    if (orvalHeaders instanceof Headers) {
-      orvalHeaders.forEach((value, key) => {
-        headers[key] = value;
-      });
-    } else if (Array.isArray(orvalHeaders)) {
-      for (const [k, v] of orvalHeaders) headers[k] = v;
-    } else {
-      Object.assign(headers, orvalHeaders);
-    }
-  }
-  // Stamp the active impersonation session id on every outgoing
-  // daemon request except impersonation-management calls themselves.
-  // The daemon will use this header to set `acted_as_admin: true`
-  // on tenant-side audit entries.
-  const impId = getActiveImpersonationId();
-  if (impId !== null && shouldStampImpersonationHeader(fullUrl)) {
-    if (!('x-impersonation-id' in headers) && !('X-Impersonation-Id' in headers)) {
-      headers['x-impersonation-id'] = impId;
-    }
-  }
-
   const fetchInit: RequestInit = {
     method,
     headers,
@@ -190,17 +165,10 @@ export async function customFetch<T>(
   if (data !== undefined) {
     headers['content-type'] = 'application/json';
     fetchInit.body = JSON.stringify(data);
-  } else if (orvalBody !== undefined) {
-    fetchInit.body = orvalBody;
-    if (
-      typeof orvalBody === 'string' &&
-      !('content-type' in headers) &&
-      !('Content-Type' in headers)
-    ) {
-      headers['content-type'] = 'application/json';
-    }
   }
   if (signal !== undefined) fetchInit.signal = signal;
+
+  applyImpersonationHeader(headers, fullUrl);
 
   let res: Response;
   try {
@@ -217,30 +185,83 @@ export async function customFetch<T>(
     throw err;
   }
 
-  // 204 No Content — Orval wrapper expects an object, hand-written shape
-  // expects undefined.
-  if (res.status === 204) {
-    return (
-      orvalShape
-        ? ({ data: undefined, status: 204, headers: res.headers } as unknown as T)
-        : (undefined as T)
-    );
-  }
+  if (res.status === 204) return undefined as T;
 
   const ct = res.headers.get('content-type');
-  let parsed: unknown;
   if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
     try {
-      parsed = await res.json();
+      return (await res.json()) as T;
     } catch (cause) {
       throw new ApiError('Failed to parse response JSON', { cause });
     }
-  } else {
-    parsed = await res.text();
+  }
+  return (await res.text()) as T;
+}
+
+async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url.replace(/^\/api\/v1/, '')}`;
+
+  // Use a plain Record so tests can introspect via toMatchObject and to
+  // honour explicit caller-supplied casing (e.g. `X-Impersonation-Id`).
+  const headersRecord: Record<string, string> = {};
+  if (init?.headers !== undefined) {
+    if (init.headers instanceof Headers) {
+      init.headers.forEach((v, k) => {
+        headersRecord[k] = v;
+      });
+    } else if (Array.isArray(init.headers)) {
+      for (const [k, v] of init.headers) headersRecord[k] = v;
+    } else {
+      Object.assign(headersRecord, init.headers);
+    }
+  }
+  if (init?.body !== undefined) {
+    let hasCT = false;
+    for (const k of Object.keys(headersRecord)) {
+      if (k.toLowerCase() === 'content-type') {
+        hasCT = true;
+        break;
+      }
+    }
+    if (!hasCT) headersRecord['content-type'] = 'application/json';
+  }
+  applyImpersonationHeader(headersRecord, fullUrl);
+  const fetchInit: RequestInit = {
+    ...init,
+    headers: headersRecord,
+    credentials: init?.credentials ?? 'include',
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(fullUrl, fetchInit);
+  } catch (cause) {
+    throw new NetworkError({ cause });
   }
 
-  if (orvalShape) {
-    return { data: parsed, status: res.status, headers: res.headers } as unknown as T;
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (err instanceof AuthFailureError) {
+      _authFailureHandler?.(window.location.pathname + window.location.search);
+    }
+    throw err;
   }
-  return parsed as T;
+
+  let data: unknown;
+  if (res.status === 204) {
+    data = undefined;
+  } else {
+    const ct = res.headers.get('content-type');
+    if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
+      try {
+        data = await res.json();
+      } catch (cause) {
+        throw new ApiError('Failed to parse response JSON', { cause });
+      }
+    } else {
+      data = await res.text();
+    }
+  }
+
+  return { data, status: res.status, headers: res.headers } as T;
 }

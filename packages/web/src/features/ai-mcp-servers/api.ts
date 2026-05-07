@@ -1,20 +1,42 @@
 /**
- * MCP Servers API — backed by the Zustand mock store.
+ * AI MCP Servers API — wired to the real daemon via Orval-generated hooks
+ * and the shared `customFetch` mutator.
  *
- * Mirrors features/services/api.ts:
- *   - selectors pull raw Records, derive outside the selector body
- *   - mutations call simulateLatency + appendAudit + emitHostEvent
+ * Endpoints:
+ *   GET    /api/v1/t/{tenant}/ai/mcp-servers
+ *   POST   /api/v1/t/{tenant}/ai/mcp-servers
+ *   GET    /api/v1/t/{tenant}/ai/mcp-servers/{id}
+ *   PUT    /api/v1/t/{tenant}/ai/mcp-servers/{id}
+ *   DELETE /api/v1/t/{tenant}/ai/mcp-servers/{id}
+ *   POST   /api/v1/t/{tenant}/ai/mcp-servers/{id}/test
+ *   GET    /api/v1/t/{tenant}/ai/mcp-servers/{id}/tools
  *
- * `testMcpServer` is a deterministic pseudo-health-check: ~15% of calls fail,
- * driven by a hash of (server id, coarse time bucket). On success the server's
- * `health` is set to `'healthy'` and `last_seen_at` updated; on failure
- * `health` flips to `'unreachable'`.
+ * Public names preserved from the prior mock-store implementation:
+ *   useMcpServerList, useMcpServerDetail, useMcpServerTools,
+ *   createMcpServer, updateMcpServer, deleteMcpServer, testMcpServer.
+ *
+ * The legacy `*McpServer` mutators take a tenant slug as their first arg
+ * (rather than the previous mock-only `(id, ...)` shape) — call sites have
+ * been updated. New mutation hooks (useCreateMcpServer / useUpdateMcpServer /
+ * useDeleteMcpServer / useTestMcpServer) wrap the Orval-generated mutations
+ * with query-cache invalidation.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import type { AiTool, AuditEntry, McpServer } from '@/api/resources';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  createMCPServer as orvalCreate,
+  deleteMCPServer as orvalDelete,
+  getMCPServer as orvalGet,
+  listMCPServerTools as orvalListTools,
+  listMCPServers as orvalList,
+  testMCPServer as orvalTest,
+  updateMCPServer as orvalUpdate,
+} from '@/api/generated/ai-mcp-servers/ai-mcp-servers';
+import type {
+  ListMCPServerTools200ItemsItem,
+  MCPServer as DaemonMCPServer,
+  TestMCPServer200,
+} from '@/api/generated/schemas';
+import type { McpServer } from '@/api/resources';
 import type {
   CreateMcpServerInput,
   McpServerFilter,
@@ -22,265 +44,242 @@ import type {
   UpdateMcpServerInput,
 } from './types';
 
-const nextMcpServerId = makeIdFactory('mcpsrv-new');
-const nextAuditId = makeIdFactory('audit-mcpsrv');
+// ─── Query key factory ────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+export const mcpServerKeys = {
+  all: (tenant: string) => ['ai-mcp-servers', tenant] as const,
+  list: (tenant: string) => ['ai-mcp-servers', tenant, 'list'] as const,
+  detail: (tenant: string, id: string) => ['ai-mcp-servers', tenant, 'detail', id] as const,
+  tools: (tenant: string, id: string) => ['ai-mcp-servers', tenant, 'tools', id] as const,
+};
 
-function now(): string {
-  return new Date().toISOString();
+// ─── Adapters ─────────────────────────────────────────────────────────────────
+
+const VALID_AUTH_KINDS: McpServer['auth_kind'][] = ['none', 'bearer', 'api-key'];
+const VALID_HEALTHS: McpServer['health'][] = ['healthy', 'degraded', 'unreachable', 'disabled'];
+
+function asAuthKind(s: string | undefined): McpServer['auth_kind'] {
+  if (s && (VALID_AUTH_KINDS as string[]).includes(s)) return s as McpServer['auth_kind'];
+  return 'none';
 }
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
+function asHealth(s: string | undefined): McpServer['health'] {
+  if (s && (VALID_HEALTHS as string[]).includes(s)) return s as McpServer['health'];
+  return 'degraded';
 }
 
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceId?: string,
-  tier: AuditEntry['tier'] = 'write',
-): AuditEntry {
+/** Adapt the daemon's MCPServer (camelCase) into the local McpServer (snake_case). */
+export function adaptDaemonMcpServer(d: DaemonMCPServer): McpServer {
   return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action,
-    resource_type: 'mcp-server',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier,
+    id: d.id,
+    tenant_id: d.tenantId,
+    name: d.name,
+    url: d.url,
+    auth_kind: asAuthKind(d.authKind),
+    enabled: d.enabled,
+    authorized_agent_ids: d.authorizedAgentIds ? [...d.authorizedAgentIds] : [],
+    health: asHealth(d.health),
+    exposed_tool_count: 0,
+    created_at: d.createdAt,
+    ...(d.lastCheckedAt ? { last_seen_at: d.lastCheckedAt } : {}),
   };
 }
 
-function credentialPrefix(raw: string): string {
-  return raw.slice(0, Math.min(12, raw.length));
-}
-
-/** djb2 string hash — deterministic, never negative. */
-function hashCode(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+// customFetch returns either the JSON body or a `{ data, status, headers }`
+// envelope depending on whether the call site went through orval. The
+// generated functions return an envelope; normalize here.
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+function unwrapData<T>(res: unknown): T {
+  if (res !== null && typeof res === 'object' && 'data' in (res as Record<string, unknown>)) {
+    return (res as { data: T }).data;
   }
-  return h >>> 0;
+  return res as T;
 }
 
-// ─── Selectors ────────────────────────────────────────────────────────────────
+// ─── Selector hooks ───────────────────────────────────────────────────────────
 
-export function useMcpServerList(tenantId: string, filter: McpServerFilter): McpServer[] {
-  const servers = useMockStore((s) => s.mcpServers);
+interface ListResult {
+  items: McpServer[];
+  isLoading: boolean;
+  error: unknown;
+}
+
+/**
+ * Filtered list of MCP servers for the given tenant.
+ *
+ * Returns a `McpServer[]` directly so existing call sites keep working
+ * (the previous mock-store hook had the same return type). For the reactive
+ * query state, use {@link useMcpServerListQuery}.
+ */
+export function useMcpServerList(tenant: string, filter: McpServerFilter): McpServer[] {
+  const { items } = useMcpServerListQuery(tenant);
+  return applyFilter(items, filter);
+}
+
+/** Reactive list query — exposes `isLoading`/`error` for richer UIs. */
+export function useMcpServerListQuery(tenant: string): ListResult {
+  const { data, isLoading, error } = useQuery({
+    queryKey: mcpServerKeys.list(tenant),
+    queryFn: async () => {
+      const raw = await orvalList(tenant);
+      const env = unwrapData<{ items?: DaemonMCPServer[] }>(raw);
+      return (env.items ?? []).map(adaptDaemonMcpServer);
+    },
+    enabled: tenant !== '',
+  });
+  return { items: data ?? [], isLoading, error };
+}
+
+function applyFilter(items: McpServer[], filter: McpServerFilter): McpServer[] {
   const search = filter.search.toLowerCase().trim();
-  const results: McpServer[] = [];
-  for (const srv of Object.values(servers)) {
-    if (srv.tenant_id !== tenantId) continue;
-    if (filter.healths.length > 0 && !filter.healths.includes(srv.health)) continue;
-    if (filter.auth_kinds.length > 0 && !filter.auth_kinds.includes(srv.auth_kind)) continue;
-    if (filter.enabled !== undefined && srv.enabled !== filter.enabled) continue;
+  const out: McpServer[] = [];
+  for (const s of items) {
+    if (filter.healths.length > 0 && !filter.healths.includes(s.health)) continue;
+    if (filter.auth_kinds.length > 0 && !filter.auth_kinds.includes(s.auth_kind)) continue;
+    if (filter.enabled !== undefined && s.enabled !== filter.enabled) continue;
     if (search) {
-      const nameMatch = srv.name.toLowerCase().includes(search);
-      const descMatch = srv.description?.toLowerCase().includes(search) ?? false;
-      const urlMatch = srv.url.toLowerCase().includes(search);
+      const nameMatch = s.name.toLowerCase().includes(search);
+      const descMatch = s.description?.toLowerCase().includes(search) ?? false;
+      const urlMatch = s.url.toLowerCase().includes(search);
       if (!nameMatch && !descMatch && !urlMatch) continue;
     }
-    results.push(srv);
-  }
-  return results;
-}
-
-export function useMcpServerDetail(id: string): McpServer | undefined {
-  return useMockStore((s) => s.mcpServers[id]);
-}
-
-/** Tools exposed by the given MCP server. */
-export function useMcpServerTools(id: string): AiTool[] {
-  const tools = useMockStore((s) => s.aiTools);
-  const out: AiTool[] = [];
-  for (const t of Object.values(tools)) {
-    if (t.mcp_server_id === id) out.push(t);
+    out.push(s);
   }
   return out;
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+/** Single MCP server detail by id. */
+export function useMcpServerDetail(tenant: string, id: string): McpServer | undefined {
+  const { data } = useQuery({
+    queryKey: mcpServerKeys.detail(tenant, id),
+    queryFn: async () => {
+      const raw = await orvalGet(tenant, id);
+      const d = unwrapData<DaemonMCPServer>(raw);
+      return adaptDaemonMcpServer(d);
+    },
+    enabled: tenant !== '' && id !== '',
+  });
+  return data;
+}
+
+/** Tools exposed by an MCP server (live, fetched). */
+export function useMcpServerTools(
+  tenant: string,
+  id: string,
+): {
+  items: ListMCPServerTools200ItemsItem[];
+  isLoading: boolean;
+  error: unknown;
+} {
+  const { data, isLoading, error } = useQuery({
+    queryKey: mcpServerKeys.tools(tenant, id),
+    queryFn: async () => {
+      const raw = await orvalListTools(tenant, id);
+      const env = unwrapData<{ items?: ListMCPServerTools200ItemsItem[] }>(raw);
+      return env.items ?? [];
+    },
+    enabled: tenant !== '' && id !== '',
+  });
+  return { items: data ?? [], isLoading, error };
+}
+
+// ─── Mutation hooks ───────────────────────────────────────────────────────────
+
+export function useCreateMcpServer(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateMcpServerInput) => createMcpServer(tenant, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: mcpServerKeys.all(tenant) });
+    },
+  });
+}
+
+export function useUpdateMcpServer(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateMcpServerInput }) =>
+      updateMcpServer(tenant, id, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: mcpServerKeys.all(tenant) });
+    },
+  });
+}
+
+export function useDeleteMcpServer(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteMcpServer(tenant, id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: mcpServerKeys.all(tenant) });
+    },
+  });
+}
+
+export function useTestMcpServer(tenant: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => testMcpServer(tenant, id),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: mcpServerKeys.detail(tenant, id) });
+    },
+  });
+}
+
+// ─── Imperative mutators (preserved public surface) ──────────────────────────
 
 export async function createMcpServer(
-  tenantId: string,
+  tenant: string,
   input: CreateMcpServerInput,
 ): Promise<McpServer> {
-  await simulateLatency('mutation');
-  const id = nextMcpServerId();
-  const server: McpServer = {
-    id,
-    tenant_id: tenantId,
+  const body = {
     name: input.name,
     url: input.url,
-    auth_kind: input.auth_kind,
-    enabled: input.enabled ?? true,
-    ...(input.description !== undefined ? { description: input.description } : {}),
-    ...(input.auth_credential !== undefined
-      ? {
-          auth_credential_ref: {
-            prefix: credentialPrefix(input.auth_credential),
-            created_at: now(),
-          },
-        }
-      : {}),
-    authorized_agent_ids: [...(input.authorized_agent_ids ?? [])],
-    health: input.enabled === false ? 'disabled' : 'healthy',
-    exposed_tool_count: 0,
-    created_at: now(),
+    authKind: input.auth_kind,
+    ...(input.auth_credential !== undefined ? { authCredential: input.auth_credential } : {}),
   };
-
-  const state = useMockStore.getState();
-  state.addEntity('mcpServers', server);
-  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'mcp-server.create', id));
-  emitHostEvent('mcp-server.created', {
-    mcp_server_id: id,
-    tenant_id: tenantId,
-    auth_kind: input.auth_kind,
-  });
-  return server;
+  const raw = await orvalCreate(tenant, body);
+  return adaptDaemonMcpServer(unwrapData<DaemonMCPServer>(raw));
 }
 
-export async function updateMcpServer(id: string, input: UpdateMcpServerInput): Promise<McpServer> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.mcpServers[id];
-  if (!current) throw new Error(`MCP server ${id} not found`);
-
-  const patch: Partial<McpServer> = {};
-  if (input.name !== undefined) patch.name = input.name;
-  if (input.url !== undefined) patch.url = input.url;
-  if (input.auth_kind !== undefined) patch.auth_kind = input.auth_kind;
-  if (input.description !== undefined) patch.description = input.description;
-  if (input.auth_credential !== undefined) {
-    patch.auth_credential_ref = {
-      prefix: credentialPrefix(input.auth_credential),
-      created_at: now(),
-    };
-  }
+export async function updateMcpServer(
+  tenant: string,
+  id: string,
+  input: UpdateMcpServerInput,
+): Promise<McpServer> {
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.name = input.name;
+  if (input.url !== undefined) body.url = input.url;
+  if (input.auth_kind !== undefined) body.authKind = input.auth_kind;
+  if (input.auth_credential !== undefined) body.authCredential = input.auth_credential;
   if (input.authorized_agent_ids !== undefined)
-    patch.authorized_agent_ids = [...input.authorized_agent_ids];
-  if (input.enabled !== undefined) {
-    patch.enabled = input.enabled;
-    // Disabling a server parks its health; enabling requires a test to prove health.
-    if (!input.enabled) patch.health = 'disabled';
-    else if (current.health === 'disabled') patch.health = 'degraded';
-  }
-
-  const before = { ...current };
-  state.updateEntity('mcpServers', id, patch);
-  const updated = useMockStore.getState().mcpServers[id];
-  if (!updated) throw new Error(`MCP server ${id} vanished mid-update`);
-
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'mcp-server.update', id),
-    diff: { before, after: updated },
-  });
-  emitHostEvent('mcp-server.updated', {
-    mcp_server_id: id,
-    tenant_id: current.tenant_id,
-  });
-  return updated;
+    body.authorizedAgentIds = [...input.authorized_agent_ids];
+  if (input.enabled !== undefined) body.enabled = input.enabled;
+  const raw = await orvalUpdate(tenant, id, body);
+  return adaptDaemonMcpServer(unwrapData<DaemonMCPServer>(raw));
 }
 
-/**
- * Delete an MCP server. Guards against orphaning tools: if any tool in the
- * store references this server via `mcp_server_id`, the delete is refused and
- * the error names the referencing tools so the caller can surface a clear
- * prompt ("unbind these tools first").
- */
-export async function deleteMcpServer(id: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const server = state.mcpServers[id];
-  if (!server) throw new Error(`MCP server ${id} not found`);
-
-  const referencingTools = Object.values(state.aiTools).filter((t) => t.mcp_server_id === id);
-  if (referencingTools.length > 0) {
-    const names = referencingTools
-      .map((t) => t.name)
-      .slice(0, 5)
-      .join(', ');
-    const more =
-      referencingTools.length > 5 ? ` and ${String(referencingTools.length - 5)} more` : '';
-    throw new Error(
-      `Cannot delete MCP server ${id}: ${String(referencingTools.length)} tool(s) reference it (${names}${more}).`,
-    );
-  }
-
-  state.deleteEntity('mcpServers', id);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), server.tenant_id, 'mcp-server.delete', id, 'destructive'),
-  );
-  emitHostEvent('mcp-server.deleted', {
-    mcp_server_id: id,
-    tenant_id: server.tenant_id,
-  });
+export async function deleteMcpServer(tenant: string, id: string): Promise<void> {
+  await orvalDelete(tenant, id);
 }
 
-// ─── Test connection ─────────────────────────────────────────────────────────
-
-/**
- * Mock connectivity probe. Latency is derived from a hash of the server id
- * (stable across retries within a time bucket). ~15% of calls are forced
- * failures via `(hash + Date.now() % 20) < 3` — the `Date.now()` component
- * ensures retries can eventually succeed without requiring time-travel in tests.
- *
- * On success: `health = 'healthy'`, `last_seen_at = now`, `exposed_tool_count`
- * is recomputed from the tools store.
- * On failure: `health = 'unreachable'`.
- */
-export async function testMcpServer(id: string): Promise<TestMcpServerResult> {
-  await simulateLatency('query');
-  const state = useMockStore.getState();
-  const server = state.mcpServers[id];
-  if (!server) throw new Error(`MCP server ${id} not found`);
-
-  const seed = hashCode(id);
-  const latency = 40 + (seed % 220); // 40–260 ms
-  const roll = (seed + (Date.now() % 20)) % 20;
-  const ok = roll >= 3; // ~15% failure rate
-
-  const toolCount = Object.values(state.aiTools).filter((t) => t.mcp_server_id === id).length;
-  const testedAt = now();
-
-  if (ok) {
-    state.updateEntity('mcpServers', id, {
-      health: 'healthy',
-      last_seen_at: testedAt,
-      exposed_tool_count: toolCount,
-    });
-  } else {
-    state.updateEntity('mcpServers', id, {
-      health: 'unreachable',
-    });
-  }
-
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      server.tenant_id,
-      ok ? 'mcp-server.test.success' : 'mcp-server.test.failure',
-      id,
-      'read',
-    ),
-  );
-  emitHostEvent('mcp-server.tested', {
-    mcp_server_id: id,
-    tenant_id: server.tenant_id,
-    ok,
-    latency_ms: latency,
-  });
-
-  return {
-    ok,
-    latency_ms: latency,
-    tool_count: toolCount,
-    tested_at: testedAt,
-    ...(ok ? {} : { error_message: 'mock: upstream MCP returned 503' }),
+export async function testMcpServer(tenant: string, id: string): Promise<TestMcpServerResult> {
+  const raw = await orvalTest(tenant, id);
+  const body = unwrapData<TestMCPServer200>(raw);
+  const result: TestMcpServerResult = {
+    ok: body.ok,
+    latency_ms: body.latencyMs,
   };
+  if (body.error !== undefined) result.error = body.error;
+  if (body.serverVersion !== undefined) result.server_version = body.serverVersion;
+  return result;
+}
+
+export async function listMcpServerTools(
+  tenant: string,
+  id: string,
+): Promise<ListMCPServerTools200ItemsItem[]> {
+  const raw = await orvalListTools(tenant, id);
+  const body = unwrapData<{ items?: ListMCPServerTools200ItemsItem[] }>(raw);
+  return body.items ?? [];
 }

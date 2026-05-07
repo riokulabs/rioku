@@ -1,39 +1,18 @@
 // Aggregator. Re-exports the canonical seed function + per-feature slices.
 // Each parallel plan owns one slice file in this directory and one line below.
 export * from './_internal';
-// Plan 01 (auth-bootstrap)
-export * from './sessions';
-export * from './users';
+// Plan 01 (auth-bootstrap) feature slices retired — seed lives in _internal.ts
 // Plan 02 (identity) feature slices retired — seed lives in _internal.ts
-// Plan 03 (api-mgmt)
-export * from './services';
-export * from './routes';
-export * from './middlewares';
-export * from './sites';
-// Plan 04 (ai)
-export * from './ai-providers';
-export * from './ai-agents';
-export * from './ai-tools';
-export * from './ai-tool-bindings';
-export * from './ai-rate-limits';
-export * from './ai-traces';
-export * from './ai-mcp-servers';
-// Plan 05 (audit)
-export * from './audit';
+// Plan 03 (api-mgmt) feature slices retired — seed lives in _internal.ts
+// Plan 04 (ai) feature slices retired — seed lives in _internal.ts
+// Plan 05 (audit) feature slices retired — seed lives in _internal.ts
 // Plan 06 (notifications)
 export * from './notifications';
 export * from './notification-channels';
 export * from './notification-routing';
 export * from './notification-log';
-// Plan 07 (settings)
-export * from './settings';
-// Plan 08 (dashboards)
-export * from './dashboards';
-export * from './widgets';
-// Plan 09 (plugins)
-export * from './plugins';
-export * from './plugin-signers';
-// Plan 10 (cluster)
-export * from './cluster';
-// Plan 11 (super-admin)
-export * from './super-admin';
+// Plan 07 (settings) feature slice retired — seed lives in _internal.ts
+// Plan 08 (dashboards) feature slices retired — seed lives in _internal.ts
+// Plan 09 (plugins) feature slices retired — seed lives in _internal.ts
+// Plan 10 (cluster) feature slice retired — seed lives in _internal.ts
+// Plan 11 (super-admin) — stub retired; feature slice lives in _internal.ts

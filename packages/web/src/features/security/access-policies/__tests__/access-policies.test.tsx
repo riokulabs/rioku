@@ -208,13 +208,13 @@ describe('testAccessPolicyCelMutation', () => {
     );
 
     const result = await testAccessPolicyCelMutation(TENANT, {
-      expression: 'request.method == "GET"',
+      expr: 'request.method == "GET"',
       sample: { request: { method: 'GET' } },
     });
 
     expect(recorded).toHaveLength(1);
     expect(recorded[0]?.body).toMatchObject({
-      expression: 'request.method == "GET"',
+      expr: 'request.method == "GET"',
       sample: { request: { method: 'GET' } },
     });
     expect(result.matched).toBe(true);
@@ -234,7 +234,7 @@ describe('testAccessPolicyCelMutation', () => {
     );
 
     const result = await testAccessPolicyCelMutation(TENANT, {
-      expression: 'request.method ==',
+      expr: 'request.method ==',
       sample: { request: { method: 'GET' } },
     });
 

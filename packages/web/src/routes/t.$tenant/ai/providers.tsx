@@ -11,15 +11,12 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
-import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   ProviderList,
   ProviderFilterBar,
   ProviderForm,
   ProviderDetail,
-  testProvider,
 } from '@/features/ai-providers';
 import type { ProviderFilter } from '@/features/ai-providers';
 import type { AiProvider } from '@/api/resources';
@@ -58,10 +55,6 @@ function AiProvidersPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
-
   const filter: ProviderFilter = {
     search: search.search,
     kinds: search.kinds,
@@ -75,7 +68,7 @@ function AiProvidersPage() {
   function setFilter(next: ProviderFilter) {
     void navigate({
       to: '/t/$tenant/ai/providers',
-      params: { tenant: tenantSlug },
+      params: { tenant },
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         search: next.search,
@@ -112,19 +105,6 @@ function AiProvidersPage() {
     setDrawerMode('edit');
   }
 
-  async function handleTest(p: AiProvider) {
-    try {
-      const result = await testProvider(p.id);
-      if (result.ok) {
-        notify.success('Connection OK', `${p.name} responded in ${String(result.latency_ms)}ms.`);
-      } else {
-        notify.error('Connection failed', result.error_message ?? 'Upstream error');
-      }
-    } catch {
-      notify.error('Failed to test provider', 'Please try again.');
-    }
-  }
-
   function handleDeleteFromList(_p: AiProvider) {
     // Delete via drawer's typed-name confirm; here we just open detail.
     setSelectedProvider(_p);
@@ -151,12 +131,12 @@ function AiProvidersPage() {
       <ProviderFilterBar filter={filter} onChange={setFilter} />
 
       <ProviderList
-        tenantId={tenantId}
+        tenant={tenant}
         filter={filter}
         onSelect={handleRowClick}
         onEdit={handleEditFromList}
         onDelete={handleDeleteFromList}
-        onTest={(p) => void handleTest(p)}
+        onTest={handleRowClick}
       />
 
       {/* duration=0 prevents JSDOM animation hangs in tests */}
@@ -171,6 +151,7 @@ function AiProvidersPage() {
       >
         {drawerMode === 'detail' && selectedProvider && (
           <ProviderDetail
+            tenant={tenant}
             providerId={selectedProvider.id}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}
@@ -179,7 +160,7 @@ function AiProvidersPage() {
         {drawerMode === 'create' && (
           <ProviderForm
             mode="create"
-            tenantId={tenantId}
+            tenant={tenant}
             onSuccess={(p) => {
               setSelectedProvider(p);
               setDrawerMode('detail');
@@ -190,7 +171,7 @@ function AiProvidersPage() {
         {drawerMode === 'edit' && selectedProvider && (
           <ProviderForm
             mode="edit"
-            tenantId={tenantId}
+            tenant={tenant}
             initialValues={selectedProvider}
             onSuccess={(p) => {
               setSelectedProvider(p);

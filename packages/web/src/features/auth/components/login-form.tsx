@@ -1,23 +1,31 @@
 /**
- * <LoginForm> — email + password login.
- * Task 1e.84
+ * <LoginForm> — username/email + password sign-in.
+ *
+ * On TOTP requirement, navigates to /totp; on success, hands off to either the
+ * caller-supplied returnUrl, the saved sessionStorage return URL (set by the
+ * 401 interceptor in `auth-failure.ts`), or `/` (root → router guards send the
+ * user to the tenant picker).
+ *
+ * Plan 01 — stage 2 wiring.
  */
 import { useState } from 'react';
 import { Stack, TextInput, PasswordInput, Button, Alert, Anchor, Text } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { login } from '../api';
 import { loginSchema, type LoginFormValues } from '../schemas';
 import { consumeReturnUrl } from '@/api/auth-failure';
+import { currentUserQueryKey } from '../use-current-user';
 
 interface LoginFormProps {
-  /** Return URL passed as ?return= search param — used after successful login. */
   returnUrl?: string | undefined;
 }
 
 export function LoginForm({ returnUrl }: LoginFormProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,29 +49,16 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
       if (result.requires_totp) {
         await navigate({
           to: '/totp',
-          search: {
-            userId: result.pending_user_id,
-            return: returnUrl,
-          },
+          search: { userId: result.pending_user_id, return: returnUrl },
         });
         return;
       }
 
-      // Login success — consume saved return URL or navigate to default.
+      // Refetch /auth/me so router guards re-evaluate against the new session.
+      await queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
+
       const saved = consumeReturnUrl();
-
-      // Guard: if user has no tenant membership, show error but still send to picker.
-      if (!result.tenant_id) {
-        setError('No tenant memberships found. Contact your administrator.');
-        await navigate({ to: '/tenants' });
-        return;
-      }
-
-      // Navigate: honour saved return URL or explicit ?return= param first.
-      // Fall back to /tenants (picker) so multi-tenant users can choose their context.
-      // The picker auto-advances to dashboard when the user has exactly one tenant.
-      // TODO(stage-2): subdomain routing may change this default destination.
-      const dest = saved ?? returnUrl ?? '/tenants';
+      const dest = saved ?? returnUrl ?? '/';
       await navigate({ to: dest });
     } finally {
       setSubmitting(false);
@@ -104,7 +99,7 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
           {...form.getInputProps('password')}
         />
 
-        <Button type="submit" loading={submitting} fullWidth>
+        <Button type="submit" loading={submitting} fullWidth data-testid="login-submit">
           Sign in
         </Button>
 

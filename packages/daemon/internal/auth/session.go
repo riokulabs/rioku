@@ -423,13 +423,42 @@ func (sm *SessionManager) RevokeOtherSessions(ctx context.Context, userID, excep
 // Cookie helpers
 // ---------------------------------------------------------------------------
 
-// SetCookie writes the session cookie to the response.
-func (sm *SessionManager) SetCookie(w http.ResponseWriter, sessionID string) {
+// CookieOptions carries per-tenant cookie scoping options derived from the
+// tenant's url_mode and parent_domain fields.
+type CookieOptions struct {
+	// Domain, when non-empty, is set as the cookie Domain attribute. Used
+	// when url_mode=subdomain to scope the cookie to the parent domain so
+	// all tenant subdomains share the session (e.g. ".localhost").
+	Domain string
+	// Subdomain indicates the cookie is being issued in subdomain mode,
+	// which forces SameSite=Lax regardless of devMode (spec §4.3).
+	Subdomain bool
+}
+
+// CookieOptionsForTenant derives CookieOptions from a store.Tenant's
+// url_mode and parent_domain fields. Returns zero-value for path mode.
+func CookieOptionsForTenant(urlMode, parentDomain string) CookieOptions {
+	if urlMode != "subdomain" || parentDomain == "" {
+		return CookieOptions{}
+	}
+	// Normalise to leading-dot form required by RFC 6265 for domain cookies.
+	domain := parentDomain
+	if len(domain) > 0 && domain[0] != '.' {
+		domain = "." + domain
+	}
+	return CookieOptions{Domain: domain, Subdomain: true}
+}
+
+// SetCookie writes the session cookie to the response. opts may be the zero
+// value for path-mode tenants (host-scoped, SameSite=Strict).
+func (sm *SessionManager) SetCookie(w http.ResponseWriter, sessionID string, opts CookieOptions) {
 	sameSite := http.SameSiteStrictMode
-	if sm.devMode {
+	if sm.devMode || opts.Subdomain {
+		// §4.3: subdomain mode requires SameSite=Lax so cross-subdomain
+		// navigation carries the session cookie.
 		sameSite = http.SameSiteLaxMode
 	}
-	http.SetCookie(w, &http.Cookie{
+	c := &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    sessionID,
 		HttpOnly: true,
@@ -437,16 +466,21 @@ func (sm *SessionManager) SetCookie(w http.ResponseWriter, sessionID string) {
 		SameSite: sameSite,
 		Path:     "/",
 		MaxAge:   86400,
-	})
+	}
+	if opts.Domain != "" {
+		c.Domain = opts.Domain
+	}
+	http.SetCookie(w, c)
 }
 
-// ClearCookie removes the session cookie from the client.
-func (sm *SessionManager) ClearCookie(w http.ResponseWriter) {
+// ClearCookie removes the session cookie from the client. opts must match the
+// options used in SetCookie so the browser removes the correct cookie.
+func (sm *SessionManager) ClearCookie(w http.ResponseWriter, opts CookieOptions) {
 	sameSite := http.SameSiteStrictMode
-	if sm.devMode {
+	if sm.devMode || opts.Subdomain {
 		sameSite = http.SameSiteLaxMode
 	}
-	http.SetCookie(w, &http.Cookie{
+	c := &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    "",
 		HttpOnly: true,
@@ -454,7 +488,11 @@ func (sm *SessionManager) ClearCookie(w http.ResponseWriter) {
 		SameSite: sameSite,
 		Path:     "/",
 		MaxAge:   -1,
-	})
+	}
+	if opts.Domain != "" {
+		c.Domain = opts.Domain
+	}
+	http.SetCookie(w, c)
 }
 
 // ---------------------------------------------------------------------------

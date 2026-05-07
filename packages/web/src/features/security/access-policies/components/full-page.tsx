@@ -39,7 +39,7 @@ import dayjs from 'dayjs';
 
 import { ConditionEditor } from '@/components/condition-editor';
 import { useAccessPolicy, testAccessPolicyCelMutation } from '../api';
-import type { TestAccessPolicyCel200 } from '@/api/generated/schemas';
+import type { TestCELResult as TestAccessPolicyCel200 } from '@/api/generated/schemas';
 
 interface AccessPolicyFullPageProps {
   /** URL slug for the current tenant. */
@@ -108,7 +108,7 @@ export function AccessPolicyFullPage({ tenantSlug, policyId }: AccessPolicyFullP
     setTesting(true);
     try {
       const result = await testAccessPolicyCelMutation(tenantSlug, {
-        expression: currentExpr,
+        expr: currentExpr,
         sample: parsedSample.value,
       });
       setTestResult(result);
@@ -277,7 +277,7 @@ export function AccessPolicyFullPage({ tenantSlug, policyId }: AccessPolicyFullP
                     </Text>
                   )}
                   <Text size="xs" c="dimmed">
-                    Duration: {testResult.durationMs.toFixed(2)} ms
+                    Duration: {(testResult.durationMs ?? 0).toFixed(2)} ms
                   </Text>
                 </Stack>
               </Alert>

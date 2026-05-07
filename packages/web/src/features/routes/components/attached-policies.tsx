@@ -33,7 +33,7 @@ export function AttachedPolicies({ routeId, tenant }: AttachedPoliciesProps) {
   async function handleAttach(policyId: string) {
     setBusyId(policyId);
     try {
-      await attachPolicy(routeId, policyId);
+      await attachPolicy(tenant, routeId, policyId);
       notify.success('Policy attached', 'The policy now applies to this route.');
     } catch {
       notify.error('Failed to attach policy', 'Please try again.');
@@ -45,7 +45,7 @@ export function AttachedPolicies({ routeId, tenant }: AttachedPoliciesProps) {
   async function handleDetach(policyId: string) {
     setBusyId(policyId);
     try {
-      await detachPolicy(routeId, policyId);
+      await detachPolicy(tenant, routeId, policyId);
       notify.success('Policy detached', 'The policy no longer applies.');
     } catch {
       notify.error('Failed to detach policy', 'Please try again.');

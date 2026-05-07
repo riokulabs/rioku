@@ -41,8 +41,8 @@ describe('<DashboardViewer>', () => {
     const dashboard = useMockStore.getState().dashboards[id]!;
     wrap(<DashboardViewer dashboardId={id} />);
     expect(screen.getByText(dashboard.name)).toBeInTheDocument();
-    // mode badge
-    expect(screen.getByText(new RegExp(dashboard.mode, 'i'))).toBeInTheDocument();
+    // visibility badge always renders (testid-stable across breakpoints)
+    expect(screen.getByTestId('dashboard-visibility-badge')).toBeInTheDocument();
   });
 
   it('renders an empty state when the dashboard has no widgets', () => {
@@ -64,14 +64,23 @@ describe('<DashboardViewer>', () => {
 
   it('invokes onEdit when the Edit button is clicked', async () => {
     const id = firstAcmeDashboardId();
-    // Ensure derrick has dashboard:write — which he does by default (admin role).
+    // Tenant-scoped seeded dashboards have owner_user_id=null; tenant-scope
+    // without an explicit user grant collapses to read-only even for super
+    // admins. Make derrick the owner so canWrite resolves to true.
+    const currentUserId = useMockStore.getState().currentUserId!;
+    useMockStore.setState((s) => ({
+      dashboards: {
+        ...s.dashboards,
+        [id]: { ...s.dashboards[id]!, owner_user_id: currentUserId },
+      },
+    }));
     const onEdit = vi.fn();
     const user = (await import('@testing-library/user-event')).default.setup();
     wrap(<DashboardViewer dashboardId={id} onEdit={onEdit} />);
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-edit-btn')).toBeInTheDocument();
     });
-    await user.click(screen.getByRole('button', { name: /edit/i }));
+    await user.click(screen.getByTestId('dashboard-edit-btn'));
     expect(onEdit).toHaveBeenCalledWith(id);
   });
 });

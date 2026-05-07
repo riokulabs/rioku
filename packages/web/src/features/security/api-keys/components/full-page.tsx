@@ -50,7 +50,7 @@ export function ApiKeyFullPage({ tenantId, tenantSlug, keyId }: ApiKeyFullPagePr
     query: { enabled: !!tenantId && !!keyId },
   });
 
-  const auditQuery = useExportAuditJSONL(tenantId, {
+  const auditQuery = useExportAuditJSONL(tenantId, undefined, {
     query: { enabled: !!tenantId },
   });
 

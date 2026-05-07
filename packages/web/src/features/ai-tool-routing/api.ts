@@ -1,17 +1,44 @@
 /**
- * AI Tool Routing (bindings) API — backed by the Zustand mock store.
+ * AI Tool Routing (bindings) API — wired to the real daemon (stage-2).
  *
- * Bindings attach a single tool to a single agent with an optional CEL
- * condition. `previewCondition` parses the CEL via the lazy loader in
- * `@/lib/cel-parser` — it does NOT evaluate, consistent with the safety
- * posture of the access-policies feature.
+ * Public names preserved from the previous mock-store layer:
+ *   - useBindingList
+ *   - useBindingDetail
+ *   - createBinding
+ *   - updateBinding
+ *   - deleteBinding
+ *   - bulkAttachToolsToAgent
+ *   - previewCondition
+ *
+ * Endpoints are accessed through the Orval-generated client at
+ * `@/api/generated/ai-tool-bindings/ai-tool-bindings`. Hooks compose
+ * `useListAIToolBindings` / `useGetAIToolBinding` for queries and the
+ * imperative `createAIToolBinding` / `updateAIToolBinding` /
+ * `deleteAIToolBinding` / `bulkAttachAIToolBindings` /
+ * `previewAIToolBindingCondition` functions for mutations and the
+ * CEL preview surface.
+ *
+ * The daemon's wire format uses camelCase (`agentId`, `toolId`,
+ * `createdAt`, ...). The admin-panel uses snake_case
+ * (`agent_id`, `tool_id`, `created_at`) per the existing
+ * `AiToolBinding` resource type. Adapter helpers in this file
+ * translate between the two.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import { parseCel } from '@/lib/cel-parser';
-import type { AiToolBinding, AuditEntry } from '@/api/resources';
+import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  listAIToolBindings,
+  getAIToolBinding,
+  createAIToolBinding,
+  updateAIToolBinding,
+  deleteAIToolBinding,
+  bulkAttachAIToolBindings,
+  previewAIToolBindingCondition,
+} from '@/api/generated/ai-tool-bindings/ai-tool-bindings';
+import type {
+  AIToolBinding as WireBinding,
+} from '@/api/generated/schemas';
+import type { AiToolBinding } from '@/api/resources';
 import type {
   BindingFilter,
   CreateBindingInput,
@@ -19,243 +46,181 @@ import type {
   UpdateBindingInput,
 } from './types';
 
-const nextBindingId = makeIdFactory('aibinding-new');
-const nextAuditId = makeIdFactory('audit-aibinding');
+// ─── Query key factory ────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+export const bindingKeys = {
+  all: (tenant: string) => ['ai-tool-bindings', tenant] as const,
+  list: (tenant: string) => ['ai-tool-bindings', tenant, 'list'] as const,
+  detail: (tenant: string, id: string) => ['ai-tool-bindings', tenant, 'detail', id] as const,
+};
 
-function now(): string {
-  return new Date().toISOString();
-}
+// ─── Wire ↔ admin-resource adapters ───────────────────────────────────────────
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
-}
-
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceId?: string,
-  tier: AuditEntry['tier'] = 'write',
-): AuditEntry {
+function fromWire(b: WireBinding): AiToolBinding {
   return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action,
-    resource_type: 'ai-tool-binding',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier,
+    id: b.id,
+    tenant_id: b.tenantId,
+    agent_id: b.agentId,
+    tool_id: b.toolId,
+    condition: b.condition ?? '',
+    enabled: b.enabled,
+    created_at: b.createdAt,
   };
 }
 
-function hashCode(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  }
-  return h >>> 0;
-}
+// ─── Selectors (query hooks) ─────────────────────────────────────────────────
 
-// ─── Selectors ────────────────────────────────────────────────────────────────
-
+/**
+ * Fetch all bindings for a tenant and filter client-side. The daemon's list
+ * endpoint does not currently expose agent/tool/enabled/has_condition
+ * predicates so we do them here.
+ */
 export function useBindingList(tenantId: string, filter: BindingFilter): AiToolBinding[] {
-  const bindings = useMockStore((s) => s.aiToolBindings);
-  const results: AiToolBinding[] = [];
-  for (const b of Object.values(bindings)) {
-    if (b.tenant_id !== tenantId) continue;
-    if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(b.agent_id)) continue;
-    if (filter.tool_ids.length > 0 && !filter.tool_ids.includes(b.tool_id)) continue;
-    if (filter.enabled !== undefined && b.enabled !== filter.enabled) continue;
-    if (filter.has_condition !== undefined) {
-      const has = b.condition.trim().length > 0;
-      if (has !== filter.has_condition) continue;
-    }
-    results.push(b);
-  }
-  return results;
+  const { data } = useQuery({
+    queryKey: bindingKeys.list(tenantId),
+    queryFn: async () => {
+      const res = await listAIToolBindings(tenantId);
+      const items = res.data.items ?? [];
+      return items.map(fromWire);
+    },
+    enabled: tenantId.length > 0,
+  });
+
+  return useMemo(() => {
+    const all = data ?? [];
+    return all.filter((b) => {
+      if (filter.agent_ids.length > 0 && !filter.agent_ids.includes(b.agent_id)) return false;
+      if (filter.tool_ids.length > 0 && !filter.tool_ids.includes(b.tool_id)) return false;
+      if (filter.enabled !== undefined && b.enabled !== filter.enabled) return false;
+      if (filter.has_condition !== undefined) {
+        const has = b.condition.trim().length > 0;
+        if (has !== filter.has_condition) return false;
+      }
+      return true;
+    });
+  }, [data, filter.agent_ids, filter.tool_ids, filter.enabled, filter.has_condition]);
 }
 
-export function useBindingDetail(id: string): AiToolBinding | undefined {
-  return useMockStore((s) => s.aiToolBindings[id]);
+/** Fetch a single binding by id. */
+export function useBindingDetail(tenantId: string, id: string): AiToolBinding | undefined {
+  const { data } = useBindingDetailQuery(tenantId, id);
+  return data;
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+/**
+ * Same fetch as `useBindingDetail` but exposes loading + error state. The
+ * full-page route wants to distinguish "still loading" from "404".
+ */
+export function useBindingDetailQuery(tenantId: string, id: string): {
+  data: AiToolBinding | undefined;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: bindingKeys.detail(tenantId, id),
+    queryFn: async () => {
+      const res = await getAIToolBinding(tenantId, id);
+      return fromWire(res.data);
+    },
+    enabled: tenantId.length > 0 && id.length > 0,
+  });
+  return { data, isLoading, isError };
+}
+
+// ─── Mutations (imperative — used inside async event handlers) ───────────────
 
 export async function createBinding(
   tenantId: string,
   input: CreateBindingInput,
 ): Promise<AiToolBinding> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-
-  // Enforce uniqueness: (agent_id, tool_id) may have at most one binding.
-  const existing = Object.values(state.aiToolBindings).find(
-    (b) => b.tenant_id === tenantId && b.agent_id === input.agent_id && b.tool_id === input.tool_id,
-  );
-  if (existing) {
-    throw new Error(`Binding already exists for agent ${input.agent_id} + tool ${input.tool_id}`);
-  }
-
-  const id = nextBindingId();
-  const binding: AiToolBinding = {
-    id,
-    tenant_id: tenantId,
-    agent_id: input.agent_id,
-    tool_id: input.tool_id,
+  const res = await createAIToolBinding(tenantId, {
+    agentId: input.agent_id,
+    toolId: input.tool_id,
     condition: input.condition,
-    enabled: input.enabled ?? true,
-    created_at: now(),
-  };
-  state.addEntity('aiToolBindings', binding);
-  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-tool-binding.create', id));
-  emitHostEvent('ai-tool-binding.created', {
-    binding_id: id,
-    tenant_id: tenantId,
-    agent_id: input.agent_id,
-    tool_id: input.tool_id,
   });
-  return binding;
+  return fromWire(res.data);
 }
 
-export async function updateBinding(id: string, input: UpdateBindingInput): Promise<AiToolBinding> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.aiToolBindings[id];
-  if (!current) throw new Error(`Binding ${id} not found`);
-
-  const patch: Partial<AiToolBinding> = {};
-  if (input.agent_id !== undefined) patch.agent_id = input.agent_id;
-  if (input.tool_id !== undefined) patch.tool_id = input.tool_id;
-  if (input.condition !== undefined) patch.condition = input.condition;
-  if (input.enabled !== undefined) patch.enabled = input.enabled;
-
-  const before = { ...current };
-  state.updateEntity('aiToolBindings', id, patch);
-  const updated = useMockStore.getState().aiToolBindings[id];
-  if (!updated) throw new Error(`Binding ${id} vanished mid-update`);
-
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-tool-binding.update', id),
-    diff: { before, after: updated },
-  });
-  emitHostEvent('ai-tool-binding.updated', {
-    binding_id: id,
-    tenant_id: current.tenant_id,
-  });
-  return updated;
+export async function updateBinding(
+  tenantId: string,
+  id: string,
+  input: UpdateBindingInput,
+): Promise<AiToolBinding> {
+  const body: { condition?: string; enabled?: boolean } = {};
+  if (input.condition !== undefined) body.condition = input.condition;
+  if (input.enabled !== undefined) body.enabled = input.enabled;
+  const res = await updateAIToolBinding(tenantId, id, body);
+  return fromWire(res.data);
 }
 
-export async function deleteBinding(id: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const binding = state.aiToolBindings[id];
-  if (!binding) throw new Error(`Binding ${id} not found`);
-
-  state.deleteEntity('aiToolBindings', id);
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      binding.tenant_id,
-      'ai-tool-binding.delete',
-      id,
-      'destructive',
-    ),
-  );
-  emitHostEvent('ai-tool-binding.deleted', {
-    binding_id: id,
-    tenant_id: binding.tenant_id,
-  });
+export async function deleteBinding(tenantId: string, id: string): Promise<void> {
+  await deleteAIToolBinding(tenantId, id);
 }
 
 /**
- * Create bindings for each toolId, idempotently. A binding that already
- * exists for (agentId, toolId) is skipped (no duplicate error surfaces).
- *
- * Multi-entity insert runs under a single `setState` so observers see the
- * change atomically.
+ * Bulk-attach helper. Daemon accepts `(tenant, { agentId, toolIds })` and
+ * returns `{ items, total }`. Public name preserved; tenant is now required
+ * (it was implicit before via the mock store).
  */
 export async function bulkAttachToolsToAgent(
   tenantId: string,
   agentId: string,
   toolIds: string[],
 ): Promise<AiToolBinding[]> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const existingByKey = new Map<string, AiToolBinding>();
-  for (const b of Object.values(state.aiToolBindings)) {
-    if (b.agent_id === agentId) {
-      existingByKey.set(b.tool_id, b);
-    }
-  }
-
-  const newBindings: AiToolBinding[] = [];
-  for (const toolId of toolIds) {
-    if (existingByKey.has(toolId)) continue;
-    newBindings.push({
-      id: nextBindingId(),
-      tenant_id: tenantId,
-      agent_id: agentId,
-      tool_id: toolId,
-      condition: '',
-      enabled: true,
-      created_at: now(),
-    });
-  }
-
-  if (newBindings.length > 0) {
-    useMockStore.setState((s) => {
-      const next = { ...s.aiToolBindings };
-      for (const b of newBindings) next[b.id] = b;
-      return { aiToolBindings: next };
-    });
-    state.appendAudit(
-      makeAuditEntry(getCurrentActorId(), tenantId, 'ai-tool-binding.bulk-attach', agentId),
-    );
-    emitHostEvent('ai-tool-binding.bulk-attached', {
-      tenant_id: tenantId,
-      agent_id: agentId,
-      attached_count: newBindings.length,
-    });
-  }
-
-  // Return the full list of bindings the agent now has for the requested tools.
-  const full: AiToolBinding[] = [];
-  for (const toolId of toolIds) {
-    const existing = existingByKey.get(toolId);
-    if (existing) full.push(existing);
-    else {
-      const created = newBindings.find((b) => b.tool_id === toolId);
-      if (created) full.push(created);
-    }
-  }
-  return full;
+  const res = await bulkAttachAIToolBindings(tenantId, {
+    agentId,
+    toolIds,
+  });
+  return (res.data.items ?? []).map(fromWire);
 }
 
 // ─── CEL preview ─────────────────────────────────────────────────────────────
 
 /**
- * Parse (only) the binding's CEL condition. If the parse succeeds we produce
- * a deterministic boolean `sample_result` based on a cheap hash — the real
- * evaluation happens on the daemon side, this surface just tells the user
- * whether the condition is syntactically valid and what it would evaluate to
- * for the supplied sample shape in a reproducible way.
+ * Preview a CEL condition against a sample envelope. Calls the daemon's
+ * `/api/v1/t/{tenant}/ai/tool-bindings/preview-condition` endpoint, which
+ * uses the same cel-go evaluator that runs at request time. Empty string
+ * is treated as "always allow" without a network call.
+ *
+ * The legacy mock-store result shape exposed `{ parses, sample_result?, error? }`.
+ * The daemon shape is `{ matched?, condition?, note? }`. We keep the legacy
+ * shape so existing callers (the form, the drawer, the full page) don't have
+ * to change. Daemon-side parse / evaluation errors surface as a thrown
+ * `ApiError` from `customFetch`, which we catch here and translate.
  */
 export async function previewCondition(
+  tenantId: string,
   condition: string,
-  _sampleContext: Record<string, unknown>,
+  sampleEnvelope: Record<string, unknown>,
 ): Promise<PreviewConditionResult> {
   if (!condition.trim()) {
     return { parses: true, sample_result: true };
   }
-  const result = await parseCel(condition);
-  if (!result.ok) {
-    return { parses: false, error: result.error };
+  try {
+    const res = await previewAIToolBindingCondition(tenantId, {
+      condition,
+      envelope: sampleEnvelope,
+    });
+    return {
+      parses: true,
+      sample_result: res.data.matched ?? false,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Preview failed';
+    return { parses: false, error: msg };
   }
-  // Deterministic sample_result — stable for a given condition string.
-  const sample = hashCode(condition) % 2 === 0;
-  return { parses: true, sample_result: sample };
+}
+
+// ─── Cache invalidation helper for mutating components ───────────────────────
+
+/**
+ * Invalidate every binding-related query for a tenant. Components call this
+ * after a successful mutation so the next render reflects the new server
+ * state without forcing them to manage individual query keys.
+ */
+export function useInvalidateBindings(tenantId: string): () => void {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: bindingKeys.all(tenantId) });
+  };
 }

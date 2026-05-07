@@ -23,7 +23,7 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { ListAccessPolicies200, TestAccessPolicyCel200 } from '.././schemas';
+import type { AccessPolicy, ListAccessPolicies200, TestCELResult } from '.././schemas';
 
 export const getListAccessPoliciesResponseMock = (
   overrideResponse: Partial<ListAccessPolicies200> = {},
@@ -59,12 +59,127 @@ export const getListAccessPoliciesResponseMock = (
   ...overrideResponse,
 });
 
+export const getCreateAccessPolicyResponseMock = (
+  overrideResponse: Partial<AccessPolicy> = {},
+): AccessPolicy => ({
+  createdAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  effect: faker.helpers.arrayElement([
+    faker.helpers.arrayElement(['allow', 'deny'] as const),
+    undefined,
+  ]),
+  enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  expression: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  priority: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  updatedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
 export const getTestAccessPolicyCelResponseMock = (
-  overrideResponse: Partial<TestAccessPolicyCel200> = {},
-): TestAccessPolicyCel200 => ({
-  durationMs: faker.number.int({ min: undefined, max: undefined }),
+  overrideResponse: Partial<TestCELResult> = {},
+): TestCELResult => ({
+  durationMs: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
   error: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  matched: faker.datatype.boolean(),
+  matched: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  ...overrideResponse,
+});
+
+export const getGetAccessPolicyResponseMock = (
+  overrideResponse: Partial<AccessPolicy> = {},
+): AccessPolicy => ({
+  createdAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  effect: faker.helpers.arrayElement([
+    faker.helpers.arrayElement(['allow', 'deny'] as const),
+    undefined,
+  ]),
+  enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  expression: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  priority: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  updatedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getPatchAccessPolicyResponseMock = (
+  overrideResponse: Partial<AccessPolicy> = {},
+): AccessPolicy => ({
+  createdAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  effect: faker.helpers.arrayElement([
+    faker.helpers.arrayElement(['allow', 'deny'] as const),
+    undefined,
+  ]),
+  enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  expression: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  priority: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  updatedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getReplaceAccessPolicyResponseMock = (
+  overrideResponse: Partial<AccessPolicy> = {},
+): AccessPolicy => ({
+  createdAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  description: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  effect: faker.helpers.arrayElement([
+    faker.helpers.arrayElement(['allow', 'deny'] as const),
+    undefined,
+  ]),
+  enabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  expression: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  name: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  priority: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  updatedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
   ...overrideResponse,
 });
 
@@ -93,24 +208,33 @@ export const getListAccessPoliciesMockHandler = (
 
 export const getCreateAccessPolicyMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void),
+    | AccessPolicy
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<AccessPolicy> | AccessPolicy),
 ) => {
   return http.post('*/api/v1/t/:tenant/access-policies', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 201 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateAccessPolicyResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
 export const getTestAccessPolicyCelMockHandler = (
   overrideResponse?:
-    | TestAccessPolicyCel200
+    | TestCELResult
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<TestAccessPolicyCel200> | TestAccessPolicyCel200),
+      ) => Promise<TestCELResult> | TestCELResult),
 ) => {
   return http.post('*/api/v1/t/:tenant/access-policies/test-cel', async (info) => {
     await delay(1000);
@@ -144,43 +268,70 @@ export const getDeleteAccessPolicyMockHandler = (
 
 export const getGetAccessPolicyMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | AccessPolicy
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<AccessPolicy> | AccessPolicy),
 ) => {
   return http.get('*/api/v1/t/:tenant/access-policies/:id', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetAccessPolicyResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
 export const getPatchAccessPolicyMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<void> | void),
+    | AccessPolicy
+    | ((
+        info: Parameters<Parameters<typeof http.patch>[1]>[0],
+      ) => Promise<AccessPolicy> | AccessPolicy),
 ) => {
   return http.patch('*/api/v1/t/:tenant/access-policies/:id', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPatchAccessPolicyResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
 export const getReplaceAccessPolicyMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<void> | void),
+    | AccessPolicy
+    | ((
+        info: Parameters<Parameters<typeof http.put>[1]>[0],
+      ) => Promise<AccessPolicy> | AccessPolicy),
 ) => {
   return http.put('*/api/v1/t/:tenant/access-policies/:id', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getReplaceAccessPolicyResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 export const getAccessPoliciesMock = () => [

@@ -1,14 +1,15 @@
  
 /**
- * Tests for the audit API layer — list selectors, streaming bus,
- * async-search, export (CSV + JSONL), retention CRUD, and
- * permission-aware redaction.
+ * Tests for the audit API layer — list selectors, async-search,
+ * export (CSV + JSONL), retention CRUD, and permission-aware redaction.
+ *
+ * Stage 2: `subscribeAuditStream` removed (SSE wired via `subscribeSSE`
+ * in streaming-tail.tsx, tested in streaming-tail.test.tsx).
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import { publishAudit } from '@/api/audit-stream-bus';
 import {
   decodeActorHandle,
   decodeResourceHandle,
@@ -18,7 +19,7 @@ import {
   exportAuditJsonl,
   searchActors,
   searchResourceIds,
-  subscribeAuditStream,
+  streamAuditExport,
   updateRetentionConfig,
   useAuditDetail,
   useAuditList,
@@ -227,81 +228,8 @@ describe('useAuditListInfinite', () => {
   });
 });
 
-describe('subscribeAuditStream', () => {
-  it('fires when publishAudit is called for the tenant', () => {
-    const tenantId = tenantIdBySlug('acme');
-    const received: AuditEntry[] = [];
-    const unsub = subscribeAuditStream(tenantId, (e) => received.push(e));
-    try {
-      const entry: AuditEntry = {
-        id: 'audit-stream-1',
-        tenant_id: tenantId,
-        actor_id: 'u-1',
-        action: 'user.login',
-        resource_type: 'user',
-        outcome: 'success',
-        at: new Date().toISOString(),
-        tier: 'read',
-      };
-      publishAudit(entry);
-      expect(received).toHaveLength(1);
-      expect(received[0]!.id).toBe('audit-stream-1');
-    } finally {
-      unsub();
-    }
-  });
-
-  it('ignores entries for other tenants', () => {
-    const tenantId = tenantIdBySlug('acme');
-    const received: AuditEntry[] = [];
-    const unsub = subscribeAuditStream(tenantId, (e) => received.push(e));
-    try {
-      publishAudit({
-        id: 'audit-other',
-        tenant_id: tenantIdBySlug('beta'),
-        actor_id: 'u-1',
-        action: 'user.login',
-        resource_type: 'user',
-        outcome: 'success',
-        at: new Date().toISOString(),
-        tier: 'read',
-      });
-      expect(received).toHaveLength(0);
-    } finally {
-      unsub();
-    }
-  });
-
-  it('returns an unsubscribe that stops future notifications', () => {
-    const tenantId = tenantIdBySlug('acme');
-    let n = 0;
-    const unsub = subscribeAuditStream(tenantId, () => {
-      n += 1;
-    });
-    publishAudit({
-      id: 'a1',
-      tenant_id: tenantId,
-      actor_id: 'u',
-      action: 'user.login',
-      resource_type: 'user',
-      outcome: 'success',
-      at: new Date().toISOString(),
-      tier: 'read',
-    });
-    unsub();
-    publishAudit({
-      id: 'a2',
-      tenant_id: tenantId,
-      actor_id: 'u',
-      action: 'user.login',
-      resource_type: 'user',
-      outcome: 'success',
-      at: new Date().toISOString(),
-      tier: 'read',
-    });
-    expect(n).toBe(1);
-  });
-});
+// NOTE: `subscribeAuditStream` (mock EventTarget bus) was removed in Stage 2.
+// The SSE live-tail is tested via streaming-tail.test.tsx which mocks EventSource.
 
 describe('exportAuditCsv', () => {
   it('emits a Blob with the canonical header', async () => {
@@ -465,5 +393,57 @@ describe('useRetentionConfig + updateRetentionConfig', () => {
     const last = useMockStore.getState().audit[useMockStore.getState().audit.length - 1]!;
     expect(last.action).toBe('audit.retention.update');
     expect(last.resource_type).toBe('audit-retention');
+  });
+});
+
+describe('streamAuditExport', () => {
+  type CreateUrl = (b: Blob) => string;
+  let originalFetch: typeof globalThis.fetch | undefined;
+  let originalCreate: CreateUrl | undefined;
+  let originalRevoke: ((s: string) => void) | undefined;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    originalCreate = URL.createObjectURL.bind(URL);
+    originalRevoke = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+  });
+  afterEach(() => {
+    if (originalFetch) globalThis.fetch = originalFetch;
+    if (originalCreate) URL.createObjectURL = originalCreate;
+    if (originalRevoke) URL.revokeObjectURL = originalRevoke;
+  });
+
+  it('streams chunks via response.body.getReader and assembles a blob', async () => {
+    const enc = new TextEncoder();
+    const chunks = [enc.encode('a,b,c\n'), enc.encode('1,2,3\n')];
+    let i = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (i < chunks.length) {
+          controller.enqueue(chunks[i++]!);
+        } else {
+          controller.close();
+        }
+      },
+    });
+    const fakeFetch = vi.fn().mockResolvedValue(new Response(stream, { status: 200 }));
+    globalThis.fetch = fakeFetch as unknown as typeof globalThis.fetch;
+
+    // jsdom anchors don't actually navigate; click() is a no-op for downloads.
+    const bytes = await streamAuditExport('acme', 'csv', 'audit.csv', { since: '2026-01-01T00:00:00Z' });
+    expect(bytes).toBe(12);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+    const calledUrl = fakeFetch.mock.calls[0]![0] as string;
+    expect(calledUrl).toContain('/t/acme/audit/export/csv');
+    expect(calledUrl).toContain('since=2026-01-01');
+  });
+
+  it('throws on non-2xx so callers can fall back to in-memory exporters', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response('nope', { status: 500 }),
+    ) as unknown as typeof globalThis.fetch;
+    await expect(streamAuditExport('acme', 'jsonl', 'audit.jsonl')).rejects.toThrow(/audit export failed/);
   });
 });

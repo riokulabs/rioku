@@ -3,17 +3,18 @@
  *
  * Sections:
  *   - Header (agent chip, tool chip, enabled switch, close)
- *   - CEL condition (read-only display + in-place editor with Preview)
+ *   - CEL condition (read-only display + in-place editor with daemon Preview)
  *   - Actions (Edit, Delete — typed-confirm)
- *   - Audit tail
+ *   - Audit tail (daemon-backed, scoped to ai-tool-binding entity)
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Badge,
   Button,
   Divider,
   Group,
+  Loader,
   Modal,
   Stack,
   Switch,
@@ -27,33 +28,66 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconEye, IconRouter } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useQuery } from '@tanstack/react-query';
+import { configServiceGetAuditLog } from '@/api/generated/config-service/config-service';
 import { notify } from '@/hooks/use-notify';
-import { deleteBinding, previewCondition, updateBinding, useBindingDetail } from '../api';
+import {
+  deleteBinding,
+  previewCondition,
+  updateBinding,
+  useBindingDetailQuery,
+  useInvalidateBindings,
+} from '../api';
+import { useAgentRefs, useToolRefs } from '../refs';
 import type { PreviewConditionResult } from '../types';
 
 dayjs.extend(relativeTime);
 
 interface BindingDetailProps {
+  tenantId: string;
   bindingId: string;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps) {
-  const binding = useBindingDetail(bindingId);
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
-  const auditEntries = useMockStore((s) => s.audit);
+interface AuditRow {
+  id: string;
+  action: string;
+  actor: string;
+  at: string;
+}
 
-  const auditTail = useMemo(() => {
-    if (!binding) return [];
-    return auditEntries
-      .filter((e) => e.resource_type === 'ai-tool-binding' && e.resource_id === binding.id)
-      .slice()
-      .sort((a, b) => b.at.localeCompare(a.at))
-      .slice(0, 10);
-  }, [auditEntries, binding]);
+function useBindingAudit(tenantId: string, bindingId: string) {
+  return useQuery({
+    queryKey: ['ai-tool-routing', 'audit', tenantId, bindingId],
+    queryFn: async (): Promise<AuditRow[]> => {
+      const res = await configServiceGetAuditLog({
+        entityType: 'ai-tool-binding',
+        entityId: bindingId,
+        'page.pageSize': 10,
+      });
+      const body = res.data as unknown as {
+        entries?: { id?: string; action?: string; actor?: string; createdAt?: string }[];
+        items?: { id?: string; action?: string; actor?: string; createdAt?: string }[];
+      };
+      const list = body.entries ?? body.items ?? [];
+      return list.map((e) => ({
+        id: e.id ?? '',
+        action: e.action ?? '',
+        actor: e.actor ?? '',
+        at: e.createdAt ?? '',
+      }));
+    },
+    enabled: tenantId.length > 0 && bindingId.length > 0,
+  });
+}
+
+export function BindingDetail({ tenantId, bindingId, onEdit, onClose }: BindingDetailProps) {
+  const { data: binding, isLoading: bindingLoading } = useBindingDetailQuery(tenantId, bindingId);
+  const { byId: agents } = useAgentRefs(tenantId);
+  const { byId: tools } = useToolRefs(tenantId);
+  const invalidate = useInvalidateBindings(tenantId);
+  const auditQuery = useBindingAudit(tenantId, bindingId);
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
@@ -63,6 +97,9 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
   const [previewing, setPreviewing] = useState(false);
   const [savingCondition, setSavingCondition] = useState(false);
 
+  if (bindingLoading) {
+    return <Loader size="sm" />;
+  }
   if (!binding) {
     return (
       <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
@@ -76,9 +113,9 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
   const deleteLabel = `${agent?.name ?? binding.agent_id} · ${tool?.name ?? binding.tool_id}`;
 
   async function handleToggle(enabled: boolean) {
-    if (!binding) return;
     try {
-      await updateBinding(binding.id, { enabled });
+      await updateBinding(tenantId, bindingId, { enabled });
+      invalidate();
     } catch {
       notify.error('Failed to update binding', 'Please try again.');
     }
@@ -88,7 +125,7 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
     setPreviewing(true);
     setPreview(null);
     try {
-      const result = await previewCondition(raw, {});
+      const result = await previewCondition(tenantId, raw, {});
       setPreview(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Preview failed';
@@ -99,9 +136,9 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
   }
 
   async function handleSaveCondition() {
-    if (!binding || conditionDraft === null) return;
+    if (conditionDraft === null) return;
     if (conditionDraft.trim() !== '') {
-      const p = await previewCondition(conditionDraft, {});
+      const p = await previewCondition(tenantId, conditionDraft, {});
       if (!p.parses) {
         notify.error('Invalid CEL', p.error ?? 'Parse failed');
         return;
@@ -109,7 +146,8 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
     }
     setSavingCondition(true);
     try {
-      await updateBinding(binding.id, { condition: conditionDraft });
+      await updateBinding(tenantId, bindingId, { condition: conditionDraft });
+      invalidate();
       notify.success('Condition saved', 'Binding updated.');
       setConditionDraft(null);
       setPreview(null);
@@ -121,11 +159,11 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
   }
 
   async function handleDelete() {
-    if (!binding) return;
     if (deleteInput !== deleteLabel) return;
     setDeleting(true);
     try {
-      await deleteBinding(binding.id);
+      await deleteBinding(tenantId, bindingId);
+      invalidate();
       notify.success('Binding deleted', 'Tool unlinked from agent.');
       closeDelete();
       onClose();
@@ -139,6 +177,7 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
 
   const editing = conditionDraft !== null;
   const draft = conditionDraft ?? binding.condition;
+  const auditRows = auditQuery.data ?? [];
 
   return (
     <Stack gap="md">
@@ -282,7 +321,9 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
         <Text size="sm" fw={600}>
           Recent activity
         </Text>
-        {auditTail.length === 0 ? (
+        {auditQuery.isLoading ? (
+          <Loader size="xs" />
+        ) : auditRows.length === 0 ? (
           <Text size="xs" c="var(--mantine-color-gray-7)">
             No audit entries for this binding yet.
           </Text>
@@ -296,7 +337,7 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {auditTail.map((e) => (
+              {auditRows.map((e) => (
                 <Table.Tr key={e.id}>
                   <Table.Td>
                     <Text size="xs" ff="monospace">
@@ -304,10 +345,10 @@ export function BindingDetail({ bindingId, onEdit, onClose }: BindingDetailProps
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">{e.actor_id}</Text>
+                    <Text size="xs">{e.actor}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">{dayjs(e.at).format('MMM D, HH:mm:ss')}</Text>
+                    <Text size="xs">{e.at ? dayjs(e.at).format('MMM D, HH:mm:ss') : '—'}</Text>
                   </Table.Td>
                 </Table.Tr>
               ))}

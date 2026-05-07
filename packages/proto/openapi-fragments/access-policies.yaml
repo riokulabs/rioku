@@ -1,4 +1,6 @@
-# Stage-2 plan-02 identity: access policies (CEL-evaluated authz rules).
+# Stage-2 plan-02 identity + plan-03 api-mgmt: access policies (CEL-evaluated
+# authz rules) plus the plan-03 test-cel endpoint for the policy editor's
+# "Test condition" button (decisions-needed.md item 004).
 #
 # Mirrors RegisterAccessPolicyRoutes in
 # packages/daemon/internal/gateway/access_policies_routes.go.
@@ -15,7 +17,7 @@ paths:
       operationId: listAccessPolicies
       responses:
         "200":
-          description: ok
+          description: List of access policies
           content:
             application/json:
               schema:
@@ -23,19 +25,7 @@ paths:
                 properties:
                   accessPolicies:
                     type: array
-                    items:
-                      type: object
-                      properties:
-                        id: { type: string }
-                        tenantId: { type: string }
-                        name: { type: string }
-                        description: { type: string }
-                        expression: { type: string }
-                        effect: { type: string, enum: [allow, deny] }
-                        priority: { type: integer }
-                        enabled: { type: boolean }
-                        createdAt: { type: string, format: date-time }
-                        updatedAt: { type: string, format: date-time }
+                    items: { $ref: "#/components/schemas/AccessPolicy" }
                   nextPageToken: { type: string }
     post:
       tags: [access-policies]
@@ -44,25 +34,13 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [name, expression]
-              properties:
-                name: { type: string }
-                description: { type: string }
-                expression:
-                  type: string
-                  description: "CEL expression evaluated against the request context."
-                effect:
-                  type: string
-                  enum: [allow, deny]
-                  default: allow
-                priority:
-                  type: integer
-                  description: "Lower priority numbers evaluate first."
-                enabled: { type: boolean, default: true }
+            schema: { $ref: "#/components/schemas/CreateAccessPolicyBody" }
       responses:
-        "201": { description: created }
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessPolicy" }
     options:
       responses: { "204": { description: no content } }
 
@@ -73,7 +51,13 @@ paths:
     get:
       tags: [access-policies]
       operationId: getAccessPolicy
-      responses: { "200": { description: ok }, "404": { description: not found } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessPolicy" }
+        "404": { description: not found }
     put:
       tags: [access-policies]
       operationId: replaceAccessPolicy
@@ -81,34 +65,27 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [name, expression]
-              properties:
-                name: { type: string }
-                description: { type: string }
-                expression: { type: string }
-                effect: { type: string, enum: [allow, deny] }
-                priority: { type: integer }
-                enabled: { type: boolean }
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/UpdateAccessPolicyBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessPolicy" }
     patch:
       tags: [access-policies]
       operationId: patchAccessPolicy
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name: { type: string }
-                description: { type: string }
-                expression: { type: string }
-                effect: { type: string, enum: [allow, deny] }
-                priority: { type: integer }
-                enabled: { type: boolean }
-      responses: { "200": { description: ok } }
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateAccessPolicyBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessPolicy" }
     delete:
       tags: [access-policies]
       operationId: deleteAccessPolicy
@@ -116,38 +93,88 @@ paths:
     options:
       responses: { "204": { description: no content } }
 
-
   /api/v1/t/{tenant}/access-policies/test-cel:
     parameters:
       - $ref: "#/components/parameters/Tenant"
     post:
       tags: [access-policies]
+      summary: Evaluate a CEL expression against a sample event
+      description: |
+        Compiles the given CEL expression and evaluates it against the supplied
+        sample request event. Used by the policy editor's "Test condition"
+        button (decisions-needed.md item 004). Errors surface as `error` in the
+        response with the matched flag false.
       operationId: testAccessPolicyCel
-      summary: "Dry-run a CEL expression against a sample event."
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [expression]
-              properties:
-                expression: { type: string }
-                sample:
-                  type: object
-                  additionalProperties: true
+            schema: { $ref: "#/components/schemas/TestCELBody" }
       responses:
         "200":
           description: evaluation result
           content:
             application/json:
-              schema:
-                type: object
-                required: [matched, durationMs]
-                properties:
-                  matched: { type: boolean }
-                  error: { type: string }
-                  durationMs: { type: number }
-        "400": { description: bad request envelope }
+              schema: { $ref: "#/components/schemas/TestCELResult" }
+        "400": { description: invalid request body }
     options:
       responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AccessPolicy:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        expression: { type: string }
+        effect: { type: string, enum: [allow, deny] }
+        priority: { type: integer }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateAccessPolicyBody:
+      type: object
+      required: [name, expression]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        expression:
+          type: string
+          description: "CEL expression evaluated against the request context."
+        effect:
+          type: string
+          enum: [allow, deny]
+          default: allow
+        priority:
+          type: integer
+          description: "Lower priority numbers evaluate first."
+        enabled: { type: boolean, default: true }
+    UpdateAccessPolicyBody:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        expression: { type: string }
+        effect: { type: string, enum: [allow, deny] }
+        priority: { type: integer }
+        enabled: { type: boolean }
+    TestCELBody:
+      type: object
+      required: [expr]
+      properties:
+        expr:
+          type: string
+          description: "CEL expression to evaluate."
+        sample:
+          type: object
+          additionalProperties: true
+          description: "Sample event variables (request, user, env, etc.)."
+    TestCELResult:
+      type: object
+      properties:
+        matched: { type: boolean }
+        error: { type: string }
+        durationMs: { type: number }

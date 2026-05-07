@@ -53,20 +53,51 @@ export const createAccessPolicyBody = zod.object({
 });
 
 /**
- * @summary Dry-run a CEL expression against a sample event.
+ * Compiles the given CEL expression and evaluates it against the supplied
+sample request event. Used by the policy editor's "Test condition"
+button (decisions-needed.md item 004). Errors surface as `error` in the
+response with the matched flag false.
+
+ * @summary Evaluate a CEL expression against a sample event
  */
 export const testAccessPolicyCelBody = zod.object({
-  expression: zod.string(),
+  expr: zod.string(),
   sample: zod.record(zod.string(), zod.any()).optional(),
 });
 
 export const testAccessPolicyCelResponse = zod.object({
-  durationMs: zod.number(),
+  durationMs: zod.number().optional(),
   error: zod.string().optional(),
-  matched: zod.boolean(),
+  matched: zod.boolean().optional(),
 });
 
-export const patchAccessPolicyBody = zod.object({
+export const getAccessPolicyResponse = zod.object({
+  createdAt: zod.string().datetime().optional(),
+  description: zod.string().optional(),
+  effect: zod.enum(['allow', 'deny']).optional(),
+  enabled: zod.boolean().optional(),
+  expression: zod.string().optional(),
+  id: zod.string().optional(),
+  name: zod.string().optional(),
+  priority: zod.number().optional(),
+  tenantId: zod.string().optional(),
+  updatedAt: zod.string().datetime().optional(),
+});
+
+export const patchAccessPolicyResponse = zod.object({
+  createdAt: zod.string().datetime().optional(),
+  description: zod.string().optional(),
+  effect: zod.enum(['allow', 'deny']).optional(),
+  enabled: zod.boolean().optional(),
+  expression: zod.string().optional(),
+  id: zod.string().optional(),
+  name: zod.string().optional(),
+  priority: zod.number().optional(),
+  tenantId: zod.string().optional(),
+  updatedAt: zod.string().datetime().optional(),
+});
+
+export const replaceAccessPolicyBody = zod.object({
   description: zod.string().optional(),
   effect: zod.enum(['allow', 'deny']).optional(),
   enabled: zod.boolean().optional(),
@@ -75,11 +106,15 @@ export const patchAccessPolicyBody = zod.object({
   priority: zod.number().optional(),
 });
 
-export const replaceAccessPolicyBody = zod.object({
+export const replaceAccessPolicyResponse = zod.object({
+  createdAt: zod.string().datetime().optional(),
   description: zod.string().optional(),
   effect: zod.enum(['allow', 'deny']).optional(),
   enabled: zod.boolean().optional(),
-  expression: zod.string(),
-  name: zod.string(),
+  expression: zod.string().optional(),
+  id: zod.string().optional(),
+  name: zod.string().optional(),
   priority: zod.number().optional(),
+  tenantId: zod.string().optional(),
+  updatedAt: zod.string().datetime().optional(),
 });
