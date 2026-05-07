@@ -28,9 +28,23 @@ import { IconAlertCircle, IconArrowRight, IconExternalLink, IconWorld } from '@t
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { Link } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
+import { useServiceListReal } from '@/features/services/api.stage2';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { toggleSite, useSiteDetail } from '../api';
+
+const SITE_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['site'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import { DeleteSiteModal } from './delete-site-modal';
 
 dayjs.extend(relativeTime);
@@ -66,15 +80,25 @@ function tlsBadge(mode: 'auto' | 'manual' | 'off') {
 
 export function SiteDetail({ siteId, tenantSlug, onEdit, onClose }: SiteDetailProps) {
   const site = useSiteDetail(siteId);
-  const services = useMockStore((s) => s.services);
-  const auditEntries = useMockStore((s) => s.audit);
+  const { services: serviceList } = useServiceListReal(tenantSlug, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const services = useMemo(() => {
+    const m: Record<string, (typeof serviceList)[number]> = {};
+    for (const s of serviceList) m[s.id] = s;
+    return m;
+  }, [serviceList]);
+  const auditEntries = useAuditList(tenantSlug, SITE_AUDIT_FILTER);
 
   const linkedService = site?.upstream_service_id ? services[site.upstream_service_id] : undefined;
 
   const auditTail = useMemo(() => {
     if (!site) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'site' && e.resource_id === site.id)
+      .filter((e) => e.resource_id === site.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);

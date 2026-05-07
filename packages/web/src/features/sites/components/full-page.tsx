@@ -36,13 +36,26 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import {
   listRoutes,
   getListRoutesQueryKey,
 } from '@/api/generated/routes/routes';
 import type { V1Route } from '@/api/generated/schemas';
 import { useSiteDetailReal } from '../api.stage2';
+
+const SITE_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['site'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 
 dayjs.extend(relativeTime);
 
@@ -98,10 +111,10 @@ export function SiteFullPage({ tenantId, tenantSlug, siteId }: SiteFullPageProps
     return items.filter((r) => r.serviceId === linkedServiceId);
   }, [routesQuery.data, linkedServiceId]);
 
-  const auditEntries = useMockStore((s) => s.audit);
+  const auditEntries = useAuditList(tenantId, SITE_AUDIT_FILTER);
   const auditTail = useMemo(() => {
     return auditEntries
-      .filter((e) => e.resource_type === 'site' && e.resource_id === siteId)
+      .filter((e) => e.resource_id === siteId)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 20);

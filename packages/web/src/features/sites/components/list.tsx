@@ -12,7 +12,7 @@ import { IconDots, IconPencil, IconTrash, IconWorld } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
+import { useServiceListReal } from '@/features/services/api.stage2';
 import type { Site } from '@/api/resources';
 import { notify } from '@/hooks/use-notify';
 import { useSiteList, toggleSite } from '../api';
@@ -71,10 +71,17 @@ export function SiteList({
   onDelete,
 }: SiteListProps) {
   const sites = useSiteList(tenantId, filter);
-  const services = useMockStore((s) => s.services);
-
-  // Derive id → service map outside the selector for stable references.
-  const servicesById = useMemo(() => services, [services]);
+  const { services: serviceList } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const servicesById = useMemo(() => {
+    const m: Record<string, (typeof serviceList)[number]> = {};
+    for (const s of serviceList) m[s.id] = s;
+    return m;
+  }, [serviceList]);
 
   async function handleToggle(site: Site, next: boolean) {
     try {
