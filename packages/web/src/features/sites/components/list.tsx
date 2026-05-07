@@ -78,7 +78,7 @@ export function SiteList({
 
   async function handleToggle(site: Site, next: boolean) {
     try {
-      await toggleSite(site.id, next);
+      await toggleSite(site.tenant_id, site.id, next);
       notify.success(
         next ? 'Site enabled' : 'Site disabled',
         `${site.domain} is now ${next ? 'serving traffic' : 'disabled'}.`,

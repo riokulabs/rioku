@@ -95,7 +95,7 @@ export function SiteDetail({ siteId, tenantSlug, onEdit, onClose }: SiteDetailPr
     if (!site) return;
     setToggling(true);
     try {
-      await toggleSite(site.id, next);
+      await toggleSite(site.tenant_id, site.id, next);
       notify.success(
         next ? 'Site enabled' : 'Site disabled',
         `${site.domain} is now ${next ? 'serving traffic' : 'disabled'}.`,

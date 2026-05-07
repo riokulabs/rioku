@@ -1,260 +1,115 @@
 /**
- * Sites API — backed by the Zustand mock store.
+ * Sites API — Stage 2 thin facade over the Orval-generated client and the
+ * stage-2 hook layer in `api.stage2.ts`.
  *
- * Wizard-level `createSite` creates a linked Service automatically when
- * `upstream_mode === 'new_upstream'`; reuses an existing one when
- * `upstream_mode === 'existing_service'`.
+ * Stage-1 published the imperative `createSite / updateSite / deleteSite /
+ * toggleSite` helpers and the `useSiteList / useSiteDetail` hooks, all
+ * mock-store backed. The real-API wave landed parallel `*Real` hooks and
+ * `use*Mutation` hooks in `api.stage2.ts`. This module collapses the two:
+ * the legacy entry points keep their signatures (so call sites don't churn),
+ * but their implementations now go through the daemon endpoints.
+ *
+ * Imperative mutators (`updateSite`, `deleteSite`, `toggleSite`) gain a
+ * leading `tenantId` argument because the real endpoints are tenant-scoped.
+ * Their three callers in `components/` are updated in the same change.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, Service, Site } from '@/api/resources';
+
+import { useMemo } from 'react';
+import {
+  createSite as orvalCreateSite,
+  patchSite as orvalPatchSite,
+  deleteSite as orvalDeleteSite,
+  toggleSite as orvalToggleSite,
+} from '@/api/generated/sites/sites';
+import type { CreateSiteBody, Site as ProtoSite, UpdateSiteBody } from '@/api/generated/schemas';
+import type { Service, Site } from '@/api/resources';
+import { fromProtoSite, toProtoSiteCreate, toProtoSitePatch } from './adapter';
+import { useSiteListReal, useSiteDetailReal } from './api.stage2';
 import type { SiteFilter, SiteUpdateInput, SiteWizardInput } from './types';
-
-const nextSiteId = makeIdFactory('site-new');
-const nextServiceId = makeIdFactory('service-site-new');
-const nextAuditId = makeIdFactory('audit-site');
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
-}
-
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
-}
-
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceId?: string,
-): AuditEntry {
-  return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
-    action,
-    resource_type: 'site',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier: 'write',
-  };
-}
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
+/** Stage-1 hook signature, now backed by the real daemon endpoint. */
 export function useSiteList(tenantId: string, filter: SiteFilter): Site[] {
-  const sites = useMockStore((s) => s.sites);
-  const search = filter.search.toLowerCase().trim();
-  const tlsSet = new Set(filter.tls_mode);
-  const enabledSet = new Set(filter.enabled);
-  const linkedSet = new Set(filter.linked_service_ids);
-
-  const results: Site[] = [];
-  for (const site of Object.values(sites)) {
-    if (site.tenant_id !== tenantId) continue;
-    if (tlsSet.size > 0 && !tlsSet.has(site.tls_mode)) continue;
-    if (enabledSet.size > 0) {
-      const key: 'enabled' | 'disabled' = site.enabled ? 'enabled' : 'disabled';
-      if (!enabledSet.has(key)) continue;
-    }
-    if (linkedSet.size > 0) {
-      if (site.upstream_service_id === undefined || !linkedSet.has(site.upstream_service_id)) {
-        continue;
-      }
-    }
-    if (search) {
-      const nameMatch = site.name.toLowerCase().includes(search);
-      const domainMatch = site.domain.toLowerCase().includes(search);
-      if (!nameMatch && !domainMatch) continue;
-    }
-    results.push(site);
-  }
-  return results;
+  const { sites } = useSiteListReal(tenantId, filter);
+  return useMemo(() => sites, [sites]);
 }
 
+/**
+ * Stage-1 hook signature. The real endpoint requires a tenant; consumers
+ * that don't have one in scope (legacy fixtures) will see `undefined`.
+ *
+ * The runtime-resolved tenant slug is read from the URL via
+ * {@link useActiveTenantSlug} so existing single-arg call sites keep
+ * working in path-prefix tenancy mode.
+ */
 export function useSiteDetail(siteId: string): Site | undefined {
-  return useMockStore((s) => s.sites[siteId]);
+  const tenantId = readTenantFromLocation();
+  return useSiteDetailReal(tenantId ?? '', siteId);
+}
+
+function readTenantFromLocation(): string | null {
+  if (typeof window === 'undefined') return null;
+  const match = /^\/t\/([^/]+)/.exec(window.location.pathname);
+  return match?.[1] ?? null;
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 /**
- * Wizard-level create. When `upstream_mode === 'new_upstream'`, creates and
- * links a new Service atomically with the Site. When `existing_service`,
- * reuses the referenced Service.
+ * Wizard-level create. Honours the wizard's `new_upstream` mode by leaving
+ * the upstream-service creation to the caller (the wizard component already
+ * orchestrates this via `useCreateServiceMutation` before calling here in
+ * stage-2). The `upstream_service_id` arrives via `input.upstream_service_id`
+ * in `existing_service` mode.
  *
- * Returns the created `Site` plus (when applicable) the created `Service`.
+ * Returns `{ site }` always; `service` is no longer auto-created here. The
+ * wizard component handles the two-step create flow when needed.
  */
 export async function createSite(
   tenantId: string,
   input: SiteWizardInput,
 ): Promise<{ site: Site; service?: Service }> {
-  await simulateLatency('mutation');
-
-  let createdService: Service | undefined;
-  let upstreamServiceId: string | undefined;
-
-  if (input.upstream_mode === 'existing_service') {
-    upstreamServiceId = input.upstream_service_id;
-  } else {
-    // upstream_mode === 'new_upstream' — protocol + host are required by the
-    // wizard schema, but we guard here to satisfy the type narrower and to
-    // surface a clean error if callers bypass the schema.
-    const protocol = input.upstream_protocol;
-    const host = input.upstream_host;
-    if (protocol === undefined || host === undefined) {
-      throw new Error('createSite: new_upstream mode requires upstream_protocol and upstream_host');
-    }
-    const serviceId = nextServiceId();
-    const upstream =
-      input.upstream_port !== undefined
-        ? `${protocol}://${host}:${String(input.upstream_port)}`
-        : `${protocol}://${host}`;
-    createdService = {
-      id: serviceId,
-      tenant_id: tenantId,
-      name: `${input.name}-upstream`,
-      upstream,
-      upstream_protocol: protocol,
-      env: 'production',
-      health: 'healthy',
-      tags: ['auto-created'],
-      description: `Auto-created upstream for site ${input.domain}`,
-      created_at: now(),
-    };
-    upstreamServiceId = serviceId;
-  }
-
-  const siteId = nextSiteId();
-  const site: Site = {
-    id: siteId,
-    tenant_id: tenantId,
-    name: input.name,
-    domain: input.domain,
-    tls_mode: input.tls_mode,
-    enabled: true,
-    ...(upstreamServiceId !== undefined ? { upstream_service_id: upstreamServiceId } : {}),
-    ...(input.tls_mode === 'manual' &&
-    input.tls_manual_cert_pem !== undefined &&
-    input.tls_manual_key_pem !== undefined
-      ? {
-          tls_manual_cert: {
-            cert_pem_preview: input.tls_manual_cert_pem.slice(0, 64),
-            key_pem_preview: input.tls_manual_key_pem.slice(0, 32),
-          },
-        }
-      : {}),
-    basic_auth_enabled: input.basic_auth_enabled ?? false,
-    rate_limit_preset: input.rate_limit_preset ?? 'none',
-    redirect_rules: input.redirect_rules ?? [],
-    created_at: now(),
-    updated_at: now(),
+  const upstreamId =
+    input.upstream_mode === 'existing_service' ? input.upstream_service_id : undefined;
+  const body = toProtoSiteCreate(input, upstreamId);
+  const res = (await orvalCreateSite(tenantId, body as CreateSiteBody)) as unknown as {
+    data: ProtoSite;
   };
-
-  // Atomic: write both entities in a single store update to avoid races.
-  useMockStore.setState((state) => {
-    const nextServices = createdService
-      ? { ...state.services, [createdService.id]: createdService }
-      : state.services;
-    return {
-      services: nextServices,
-      sites: { ...state.sites, [siteId]: site },
-    };
-  });
-
-  const state = useMockStore.getState();
-  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'site.create', siteId));
-  if (createdService) {
-    state.appendAudit({
-      ...makeAuditEntry(getCurrentActorId(), tenantId, 'service.create', createdService.id),
-      resource_type: 'service',
-      payload: { reason: 'auto-created for site', site_id: siteId },
-    });
-    emitHostEvent('service.created', {
-      service_id: createdService.id,
-      tenant_id: tenantId,
-    });
-  }
-  emitHostEvent('site.created', { site_id: siteId, tenant_id: tenantId });
-
-  return createdService ? { site, service: createdService } : { site };
+  return { site: fromProtoSite(res.data, tenantId) };
 }
 
-export async function updateSite(id: string, input: SiteUpdateInput): Promise<Site> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const current = state.sites[id];
-  if (!current) throw new Error(`Site ${id} not found`);
-
-  const patch: Partial<Site> = { updated_at: now() };
-  if (input.name !== undefined) patch.name = input.name;
-  if (input.domain !== undefined) patch.domain = input.domain;
-  if (input.tls_mode !== undefined) patch.tls_mode = input.tls_mode;
-  if (input.upstream_service_id !== undefined) {
-    patch.upstream_service_id = input.upstream_service_id;
-  }
-  if (input.basic_auth_enabled !== undefined) patch.basic_auth_enabled = input.basic_auth_enabled;
-  if (input.rate_limit_preset !== undefined) patch.rate_limit_preset = input.rate_limit_preset;
-  if (input.redirect_rules !== undefined) patch.redirect_rules = input.redirect_rules;
-
-  const before = { ...current };
-  state.updateEntity('sites', id, patch);
-  const updated = useMockStore.getState().sites[id];
-  if (!updated) throw new Error(`Site ${id} vanished mid-update`);
-
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'site.update', id),
-    diff: { before, after: updated },
-  });
-  emitHostEvent('site.updated', { site_id: id, tenant_id: current.tenant_id });
-  return updated;
+export async function updateSite(
+  tenantId: string,
+  id: string,
+  input: SiteUpdateInput,
+): Promise<Site> {
+  const body = toProtoSitePatch(input);
+  const res = (await orvalPatchSite(tenantId, id, body as UpdateSiteBody)) as unknown as {
+    data: ProtoSite;
+  };
+  return fromProtoSite(res.data, tenantId);
 }
 
-export async function deleteSite(id: string, typedDomainConfirm: string): Promise<void> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const site = state.sites[id];
-  if (!site) throw new Error(`Site ${id} not found`);
-  if (typedDomainConfirm !== site.domain) {
+export async function deleteSite(
+  tenantId: string,
+  id: string,
+  typedDomainConfirm: string,
+  expectedDomain: string,
+): Promise<void> {
+  // UX guardrail: domain confirmation. Daemon does not enforce this.
+  if (typedDomainConfirm !== expectedDomain) {
     throw new Error(
-      `Typed domain confirm "${typedDomainConfirm}" does not match site domain "${site.domain}"`,
+      `Typed domain confirm "${typedDomainConfirm}" does not match site domain "${expectedDomain}"`,
     );
   }
-
-  state.deleteEntity('sites', id);
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), site.tenant_id, 'site.delete', id),
-    tier: 'destructive',
-  });
-  emitHostEvent('site.deleted', { site_id: id, tenant_id: site.tenant_id });
+  await orvalDeleteSite(tenantId, id);
 }
 
-export async function toggleSite(id: string, enabled: boolean): Promise<void> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const site = state.sites[id];
-  if (!site) throw new Error(`Site ${id} not found`);
-
-  state.updateEntity('sites', id, { enabled, updated_at: now() });
-  state.appendAudit(
-    makeAuditEntry(
-      getCurrentActorId(),
-      site.tenant_id,
-      enabled ? 'site.enable' : 'site.disable',
-      id,
-    ),
-  );
-  emitHostEvent('site.updated', {
-    site_id: id,
-    tenant_id: site.tenant_id,
-    change: enabled ? 'enabled' : 'disabled',
-  });
+export async function toggleSite(
+  tenantId: string,
+  id: string,
+  enabled: boolean,
+): Promise<void> {
+  await orvalToggleSite(tenantId, id, { enabled });
 }

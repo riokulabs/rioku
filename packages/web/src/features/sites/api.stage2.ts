@@ -165,11 +165,3 @@ export function useToggleSiteMutation(tenantId: string) {
   });
 }
 
-// ─── Compatibility re-exports ─────────────────────────────────────────────────
-export {
-  useSiteList,
-  useSiteDetail,
-  createSite,
-  updateSite,
-  deleteSite,
-} from './api';
