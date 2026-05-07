@@ -53,8 +53,8 @@ export function useServiceListReal(tenantId: string, filter: ServiceFilter): {
     enabled: Boolean(tenantId),
   });
 
-  // customFetch returns the JSON body directly at runtime (not the typed wrapper)
-  const responseBody = data as unknown as ListServices200 | undefined;
+  // customFetch returns the Orval wrapper {data, status, headers}; unwrap.
+  const responseBody = (data as unknown as { data: ListServices200 } | undefined)?.data;
   const allServices: Service[] =
     responseBody?.items?.map((proto) => fromProtoService(proto, tenantId)) ?? [];
 
@@ -90,8 +90,8 @@ export function useServiceDetailReal(
     enabled: Boolean(tenantId) && Boolean(serviceId),
   });
   if (!data) return undefined;
-  // customFetch returns JSON body directly at runtime
-  const proto = data as unknown as V1Service;
+  // customFetch returns the Orval wrapper {data, status, headers}; unwrap.
+  const proto = (data as unknown as { data: V1Service }).data;
   return fromProtoService(proto, tenantId);
 }
 
@@ -107,8 +107,7 @@ export function useCreateServiceMutation(tenantId: string) {
     mutationFn: async (input: ServiceInput): Promise<Service> => {
       const body = toProtoServiceBody(input);
       const res = await orvalCreateService(tenantId, body);
-      // customFetch returns JSON body directly at runtime
-      const proto = res as unknown as V1Service;
+      const proto = (res as unknown as { data: V1Service }).data;
       return fromProtoService(proto, tenantId);
     },
     onSuccess: () => {
@@ -126,7 +125,7 @@ export function useUpdateServiceMutation(tenantId: string) {
     mutationFn: async ({ id, input }: { id: string; input: ServiceUpdateInput }): Promise<Service> => {
       const body = toProtoServicePatch(input);
       const res = await patchService(tenantId, id, body);
-      const proto = res as unknown as V1Service;
+      const proto = (res as unknown as { data: V1Service }).data;
       return fromProtoService(proto, tenantId);
     },
     onSuccess: (_data, { id }) => {
@@ -230,7 +229,7 @@ export function useForceReloadServiceMutation(tenantId: string) {
 export async function createServiceReal(tenantId: string, input: ServiceInput): Promise<Service> {
   const body = toProtoServiceBody(input);
   const res = await orvalCreateService(tenantId, body);
-  const proto = res as unknown as V1Service;
+  const proto = (res as unknown as { data: V1Service }).data;
   return fromProtoService(proto, tenantId);
 }
 

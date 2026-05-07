@@ -51,7 +51,7 @@ export function useAccessPolicyListReal(tenantId: string): {
     queryFn: ({ signal }) => listAccessPolicies(tenantId, { signal }),
     enabled: Boolean(tenantId),
   });
-  const body = data as unknown as ListAccessPolicies200 | undefined;
+  const body = (data as unknown as { data: ListAccessPolicies200 } | undefined)?.data;
   const policies: AccessPolicy[] =
     body?.accessPolicies?.map((p) => fromProtoAccessPolicy(p, tenantId)) ?? [];
   return { policies, isLoading, isError, error };
@@ -67,7 +67,7 @@ export function useAccessPolicyReal(
     enabled: Boolean(tenantId) && Boolean(id),
   });
   if (!data) return undefined;
-  const proto = data as unknown as ProtoAccessPolicy;
+  const proto = (data as unknown as { data: ProtoAccessPolicy }).data;
   return fromProtoAccessPolicy(proto, tenantId);
 }
 
@@ -81,8 +81,8 @@ export function useCreateAccessPolicyMutation(tenantId: string) {
       const res = (await orvalCreateAccessPolicy(
         tenantId,
         body as CreateAccessPolicyBody,
-      )) as unknown as ProtoAccessPolicy;
-      return fromProtoAccessPolicy(res, tenantId);
+      )) as unknown as { data: ProtoAccessPolicy };
+      return fromProtoAccessPolicy(res.data, tenantId);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: getListAccessPoliciesQueryKey(tenantId) });
@@ -137,8 +137,8 @@ export function useTestCEL(tenantId: string) {
         expr: args.expr,
         ...(args.sample !== undefined ? { sample: args.sample } : {}),
       };
-      const res = (await testAccessPolicyCel(tenantId, body)) as unknown as TestCELResult;
-      return res;
+      const res = (await testAccessPolicyCel(tenantId, body)) as unknown as { data: TestCELResult };
+      return res.data;
     },
   });
 }

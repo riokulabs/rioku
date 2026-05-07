@@ -67,7 +67,7 @@ export function useRouteListReal(
     enabled: Boolean(tenantId),
   });
 
-  const responseBody = data as unknown as ListRoutesBody | undefined;
+  const responseBody = (data as unknown as { data: ListRoutesBody } | undefined)?.data;
   const allRoutes: Route[] =
     responseBody?.items?.map((proto) => fromProtoRoute(proto, tenantId)) ?? [];
 
@@ -99,7 +99,7 @@ export function useRouteDetailReal(
     enabled: Boolean(tenantId) && Boolean(routeId),
   });
   if (!data) return undefined;
-  const proto = data as unknown as V1Route;
+  const proto = (data as unknown as { data: V1Route }).data;
   return fromProtoRoute(proto, tenantId);
 }
 
@@ -112,7 +112,7 @@ export function useCreateRouteMutation(tenantId: string) {
     mutationFn: async (input: RouteInput): Promise<Route> => {
       const body = toProtoRouteBody(input);
       const res = await orvalCreateRoute(tenantId, body);
-      const proto = res as unknown as V1Route;
+      const proto = (res as unknown as { data: V1Route }).data;
       return fromProtoRoute(proto, tenantId);
     },
     onSuccess: () => {
@@ -128,7 +128,7 @@ export function useUpdateRouteMutation(tenantId: string) {
     mutationFn: async ({ id, input }: { id: string; input: RouteUpdateInput }): Promise<Route> => {
       const body = toProtoRoutePatch(input);
       const res = await patchRoute(tenantId, id, body);
-      const proto = res as unknown as V1Route;
+      const proto = (res as unknown as { data: V1Route }).data;
       return fromProtoRoute(proto, tenantId);
     },
     onSuccess: (_data, { id }) => {
@@ -247,7 +247,7 @@ export function useListRoutePoliciesReal(tenantId: string, routeId: string) {
 export async function createRouteReal(tenantId: string, input: RouteInput): Promise<Route> {
   const body = toProtoRouteBody(input);
   const res = await orvalCreateRoute(tenantId, body);
-  const proto = res as unknown as V1Route;
+  const proto = (res as unknown as { data: V1Route }).data;
   return fromProtoRoute(proto, tenantId);
 }
 

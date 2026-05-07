@@ -48,7 +48,7 @@ export function useMiddlewareListReal(
     enabled: Boolean(tenantId),
   });
 
-  const body = data as unknown as ListMiddlewares200 | undefined;
+  const body = (data as unknown as { data: ListMiddlewares200 } | undefined)?.data;
   const all: Middleware[] =
     body?.items?.map((p) => fromProtoMiddleware(p, tenantId)) ?? [];
 
@@ -83,7 +83,7 @@ export function useMiddlewareDetailReal(
     enabled: Boolean(tenantId) && Boolean(id),
   });
   if (!data) return undefined;
-  const proto = data as unknown as ProtoMiddleware;
+  const proto = (data as unknown as { data: ProtoMiddleware }).data;
   return fromProtoMiddleware(proto, tenantId);
 }
 
@@ -97,8 +97,8 @@ export function useCreateMiddlewareMutation(tenantId: string) {
       const res = (await orvalCreateMiddleware(
         tenantId,
         body as unknown as Parameters<typeof orvalCreateMiddleware>[1],
-      )) as unknown as ProtoMiddleware;
-      return fromProtoMiddleware(res, tenantId);
+      )) as unknown as { data: ProtoMiddleware };
+      return fromProtoMiddleware(res.data, tenantId);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: getListMiddlewaresQueryKey(tenantId) });
@@ -118,8 +118,8 @@ export function useUpdateMiddlewareMutation(tenantId: string) {
         tenantId,
         args.id,
         body as unknown as Parameters<typeof patchMiddleware>[2],
-      )) as unknown as ProtoMiddleware;
-      return fromProtoMiddleware(res, tenantId);
+      )) as unknown as { data: ProtoMiddleware };
+      return fromProtoMiddleware(res.data, tenantId);
     },
     onSuccess: (_, vars) => {
       void qc.invalidateQueries({ queryKey: getListMiddlewaresQueryKey(tenantId) });

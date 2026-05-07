@@ -47,7 +47,7 @@ export function useSiteListReal(
     enabled: Boolean(tenantId),
   });
 
-  const body = data as unknown as ListSites200 | undefined;
+  const body = (data as unknown as { data: ListSites200 } | undefined)?.data;
   const all: Site[] = body?.items?.map((p) => fromProtoSite(p, tenantId)) ?? [];
 
   const search = filter.search.toLowerCase().trim();
@@ -84,7 +84,7 @@ export function useSiteDetailReal(tenantId: string, siteId: string): Site | unde
     enabled: Boolean(tenantId) && Boolean(siteId),
   });
   if (!data) return undefined;
-  const proto = data as unknown as ProtoSite;
+  const proto = (data as unknown as { data: ProtoSite }).data;
   return fromProtoSite(proto, tenantId);
 }
 
@@ -106,8 +106,8 @@ export function useCreateSiteMutation(tenantId: string) {
       const res = (await orvalCreateSite(
         tenantId,
         body as CreateSiteBody,
-      )) as unknown as ProtoSite;
-      return fromProtoSite(res, tenantId);
+      )) as unknown as { data: ProtoSite };
+      return fromProtoSite(res.data, tenantId);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: getListSitesQueryKey(tenantId) });
@@ -124,8 +124,8 @@ export function useUpdateSiteMutation(tenantId: string) {
         tenantId,
         args.id,
         body as UpdateSiteBody,
-      )) as unknown as ProtoSite;
-      return fromProtoSite(res, tenantId);
+      )) as unknown as { data: ProtoSite };
+      return fromProtoSite(res.data, tenantId);
     },
     onSuccess: (_, vars) => {
       void qc.invalidateQueries({ queryKey: getListSitesQueryKey(tenantId) });
