@@ -5,8 +5,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Group, TextInput, MultiSelect, SegmentedControl } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useProviderList } from '@/features/ai-providers/api';
+import type { ProviderFilter } from '@/features/ai-providers/types';
+import { useRoleList } from '@/features/security/roles/api';
 import type { AgentFilter } from '../types';
+
+const EMPTY_PROVIDER_FILTER: ProviderFilter = { search: '', kinds: [] };
 
 interface AgentFilterBarProps {
   tenantId: string;
@@ -18,19 +22,17 @@ export function AgentFilterBar({ tenantId, filter, onChange }: AgentFilterBarPro
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
-  const providers = useMockStore((s) => s.aiProviders);
-  const providerOptions = useMemo(() => {
-    return Object.values(providers)
-      .filter((p) => p.tenant_id === tenantId)
-      .map((p) => ({ value: p.id, label: p.name }));
-  }, [providers, tenantId]);
+  const providers = useProviderList(tenantId, EMPTY_PROVIDER_FILTER);
+  const providerOptions = useMemo(
+    () => providers.map((p) => ({ value: p.id, label: p.name })),
+    [providers],
+  );
 
-  const roles = useMockStore((s) => s.roles);
-  const roleOptions = useMemo(() => {
-    return Object.values(roles)
-      .filter((r) => r.tenant_id === tenantId)
-      .map((r) => ({ value: r.id, label: r.name }));
-  }, [roles, tenantId]);
+  const roles = useRoleList(tenantId);
+  const roleOptions = useMemo(
+    () => roles.map((r) => ({ value: r.id, label: r.name })),
+    [roles],
+  );
 
   useEffect(() => {
     if (filter.search !== debouncedSearch) {

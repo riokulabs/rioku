@@ -5,8 +5,7 @@
  *   - Profile  : header, system prompt, guardrails, rotate-credential, edit/delete
  *   - Tools    : list of bound tools (daemon `/tools` endpoint)
  *   - Traces   : recent invocation traces (daemon `/traces` endpoint)
- *   - Audit    : audit-log entries scoped to this agent (mock-store backed; real
- *                audit feed lives behind another plan)
+ *   - Audit    : audit-log entries scoped to this agent (real audit feed)
  *
  * The Profile tab embeds the InvokePanel for streaming SSE invokes.
  */
@@ -40,8 +39,21 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
+
+const AGENT_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['ai-agent'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import { formatCost, formatTokens } from '@/features/ai-shared';
 import {
   deleteAgent,
@@ -67,7 +79,7 @@ export function AgentFullPage({ tenant, agentId, onDeleted, onEdit }: AgentFullP
   const agent = useAgentDetail(tenant, agentId);
   const tools = useAgentTools(tenant, agentId);
   const traces = useAgentTraces(tenant, agentId, 50);
-  const auditEntries = useMockStore((s) => s.audit);
+  const auditEntries = useAuditList(tenant, AGENT_AUDIT_FILTER);
 
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   const [rotateOpened, { open: openRotate, close: closeRotate }] = useDisclosure(false);
