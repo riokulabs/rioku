@@ -222,6 +222,9 @@ func NewGateway(
 
 	// Tenant + membership management (stage-2).
 	RegisterTenantRoutes(topMux, st)
+	// Tenant identity resolver — lean {id, slug, name, parentDomain?}
+	// for any caller already authenticated within the tenant.
+	RegisterTenantIdentityRoutes(topMux, st)
 
 	// Sites + Middlewares (stage-2 leaf).
 	RegisterSiteRoutes(topMux, st)
