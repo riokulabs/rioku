@@ -24,6 +24,106 @@ Conventions:
 import { z as zod } from 'zod';
 
 /**
+ * Returns audit entries newest-first matching the supplied filters.
+Total unpaginated match count is returned in the `X-Total-Count`
+header so callers can render "page 1 of N" without a separate
+count call.
+
+ * @summary List audit entries
+ */
+export const listAuditEntriesResponseItem = zod.object({
+  _links: zod
+    .record(
+      zod.string(),
+      zod.object({
+        href: zod.string(),
+        templated: zod.boolean().optional(),
+      }),
+    )
+    .optional(),
+  actor: zod.string().optional(),
+  configVersion: zod.number().optional(),
+  diff: zod.string().optional(),
+  entityId: zod.string().optional(),
+  entityType: zod.string().optional(),
+  id: zod.string().optional(),
+  occurredAt: zod.string().datetime().optional(),
+  operation: zod.string().optional(),
+});
+export const listAuditEntriesResponse = zod.array(listAuditEntriesResponseItem);
+
+/**
+ * @summary Distinct audit actor typeahead
+ */
+export const listAuditActorsResponse = zod.object({
+  items: zod.array(zod.string()).optional(),
+  total: zod.number().optional(),
+});
+
+/**
+ * @summary Distinct audit entity-id typeahead
+ */
+export const listAuditResourceIDsResponse = zod.object({
+  entityType: zod.string().optional(),
+  items: zod.array(zod.string()).optional(),
+  total: zod.number().optional(),
+});
+
+/**
+ * Returns defaults if no row exists for the tenant.
+ * @summary Get audit-retention config
+ */
+export const getAuditRetentionConfigResponse = zod.object({
+  autoExport: zod.string().optional(),
+  autoExportDestination: zod.string().nullish(),
+  autoExportFormat: zod.string().optional(),
+  retentionDaysDestructive: zod.number().optional(),
+  retentionDaysRead: zod.number().optional(),
+  retentionDaysWrite: zod.number().optional(),
+  tenantId: zod.string().optional(),
+  updatedAt: zod.string().datetime().optional(),
+});
+
+/**
+ * @summary Replace audit-retention config
+ */
+export const upsertAuditRetentionConfigBodyRetentionDaysDestructiveMax = 3650;
+export const upsertAuditRetentionConfigBodyRetentionDaysReadMax = 3650;
+export const upsertAuditRetentionConfigBodyRetentionDaysWriteMax = 3650;
+
+export const upsertAuditRetentionConfigBody = zod.object({
+  autoExport: zod.enum(['off', 'on']).optional(),
+  autoExportDestination: zod.string().nullish(),
+  autoExportFormat: zod.enum(['csv', 'jsonl']).optional(),
+  retentionDaysDestructive: zod
+    .number()
+    .min(1)
+    .max(upsertAuditRetentionConfigBodyRetentionDaysDestructiveMax)
+    .optional(),
+  retentionDaysRead: zod
+    .number()
+    .min(1)
+    .max(upsertAuditRetentionConfigBodyRetentionDaysReadMax)
+    .optional(),
+  retentionDaysWrite: zod
+    .number()
+    .min(1)
+    .max(upsertAuditRetentionConfigBodyRetentionDaysWriteMax)
+    .optional(),
+});
+
+export const upsertAuditRetentionConfigResponse = zod.object({
+  autoExport: zod.string().optional(),
+  autoExportDestination: zod.string().nullish(),
+  autoExportFormat: zod.string().optional(),
+  retentionDaysDestructive: zod.number().optional(),
+  retentionDaysRead: zod.number().optional(),
+  retentionDaysWrite: zod.number().optional(),
+  tenantId: zod.string().optional(),
+  updatedAt: zod.string().datetime().optional(),
+});
+
+/**
  * @summary Get a single audit entry by id
  */
 export const getAuditEntryResponse = zod.object({
@@ -44,4 +144,63 @@ export const getAuditEntryResponse = zod.object({
   id: zod.string().optional(),
   occurredAt: zod.string().datetime().optional(),
   operation: zod.string().optional(),
+});
+
+/**
+ * Records a follow-up audit row capturing the reveal action and the
+caller-supplied reason, then returns the original entry with
+sensitive fields (ip / user_agent / payload) included. Requires
+the `audit:read-sensitive` permission.
+
+ * @summary Reveal sensitive fields on an audit entry
+ */
+export const revealAuditEntryBodyReasonMin = 4;
+
+export const revealAuditEntryBody = zod.object({
+  reason: zod.string().min(revealAuditEntryBodyReasonMin),
+});
+
+export const revealAuditEntryResponse = zod.object({
+  entry: zod
+    .object({
+      _links: zod
+        .record(
+          zod.string(),
+          zod.object({
+            href: zod.string(),
+            templated: zod.boolean().optional(),
+          }),
+        )
+        .optional(),
+      actor: zod.string().optional(),
+      configVersion: zod.number().optional(),
+      diff: zod.string().optional(),
+      entityId: zod.string().optional(),
+      entityType: zod.string().optional(),
+      id: zod.string().optional(),
+      occurredAt: zod.string().datetime().optional(),
+      operation: zod.string().optional(),
+    })
+    .optional(),
+  revealEntry: zod
+    .object({
+      _links: zod
+        .record(
+          zod.string(),
+          zod.object({
+            href: zod.string(),
+            templated: zod.boolean().optional(),
+          }),
+        )
+        .optional(),
+      actor: zod.string().optional(),
+      configVersion: zod.number().optional(),
+      diff: zod.string().optional(),
+      entityId: zod.string().optional(),
+      entityType: zod.string().optional(),
+      id: zod.string().optional(),
+      occurredAt: zod.string().datetime().optional(),
+      operation: zod.string().optional(),
+    })
+    .optional(),
 });

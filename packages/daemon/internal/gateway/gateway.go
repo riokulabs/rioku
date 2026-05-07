@@ -128,6 +128,37 @@ func NewGateway(
 	// Auth routes (unauthenticated).
 	RegisterAuthRoutes(topMux, a, sm, st, cfg, enc)
 
+	// Bootstrap routes — GET /bootstrap-status + POST /bootstrap (unauthenticated).
+	RegisterBootstrapRoutes(topMux, st, sm, cfg)
+
+	// Password reset routes — request/validate/apply (unauthenticated).
+	// BaseURL for reset links defaults to the configured public URL; callers
+	// that know the real public URL should override via NewGateway options in
+	// a future refactor. For now a sensible localhost default is used.
+	resetBaseURL := cfg.Auth.PublicURL
+	if resetBaseURL == "" {
+		resetBaseURL = "http://localhost:7778"
+	}
+	// Construct outbound mailer from config: SMTP when host is configured,
+	// nop otherwise (silently discards messages).
+	var outboundMailer auth.Mailer
+	if cfg.Auth.SMTP.Host != "" {
+		outboundMailer = auth.NewSMTPMailer(auth.MailerConfig{
+			Host:     cfg.Auth.SMTP.Host,
+			Port:     cfg.Auth.SMTP.Port,
+			From:     cfg.Auth.SMTP.From,
+			Username: cfg.Auth.SMTP.Username,
+			Password: cfg.Auth.SMTP.Password,
+			StartTLS: cfg.Auth.SMTP.StartTLS,
+		})
+	} else {
+		outboundMailer = auth.NewNopMailer()
+	}
+	RegisterPasswordResetRoutes(topMux, st, outboundMailer, cfg, resetBaseURL)
+
+	// Invite routes — POST /t/{tenant}/users/invite + POST /auth/invite/accept (unauthenticated accept).
+	RegisterInviteRoutes(topMux, st, sm, outboundMailer, cfg)
+
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
 
@@ -199,6 +230,7 @@ func NewGateway(
 	// tenant via `store.TenantIDFromContext`'s fallback.
 	RegisterServicesRoutes(topMux, st)
 	RegisterRoutesRoutes(topMux, st)
+	RegisterRouteMiddlewareOrderRoutes(topMux, st)
 
 	// RBAC policies (chunk 7b): subject ↔ role mappings per tenant.
 	RegisterRbacPolicyRoutes(topMux, st)

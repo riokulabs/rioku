@@ -1,63 +1,140 @@
-// Package gateway: Caddy reload hook (#191 / Plan 03 follow-up).
+// Package gateway: Caddy reload hook.
 //
-// Several settings mutations (network listen-address changes, manual TLS
-// cert upload/delete, ACME provider changes) require the gateway to nudge
-// the live Caddy admin API into reloading its config from the daemon's
-// store. The actual reload mechanic lives in `internal/caddy` and is
-// wired up by the daemon `cmd/rioku` layer; this file only carries a
-// process-global registry so individual REST handlers can fire-and-forget
-// "please reload" notifications without taking a hard import dependency
-// on the caddy supervisor.
+// Every config-mutating handler (services / routes / middlewares / sites /
+// access-policies) calls `triggerCaddyReload(ctx, "<resource>")` after the
+// transaction commits. The hook is a package-level injectable function so:
 //
-// Design:
-//   - SetCaddyReloadHook is called once at daemon startup.
-//   - Handlers call triggerCaddyReload(ctx, reason); the call is non-
-//     blocking from the handler's perspective (errors are logged but
-//     never propagate back to the HTTP response — the store mutation
-//     already succeeded by the time this fires).
-//   - When the hook is unset (tests, CLI sub-commands without a Caddy
-//     supervisor) triggerCaddyReload is a no-op.
+//   - Tests can swap in a counting / recording hook to assert the contract.
+//   - Production wires `NewCaddyAdminReloader` which compiles the current
+//     config snapshot and POSTs it to the Caddy admin API at
+//     `<admin_addr>/load`.
+//
+// Failure to reload is intentionally not propagated to the HTTP response —
+// the persisted state is authoritative. The reloader logs and metrics-tags
+// the failure; an out-of-band sync agent will retry.
 package gateway
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"sync"
+	"time"
 )
 
-// CaddyReloadFunc is invoked from settings handlers after a mutation that
-// requires a Caddy admin-API reload. The reason argument is included in the
-// daemon log line so operators can correlate reloads with audit events.
-type CaddyReloadFunc func(ctx context.Context, reason string) error
+// CaddyReloadFunc is the signature of the reload hook. The `reason` is a
+// short tag used for logging / metrics (e.g. "service.create").
+type CaddyReloadFunc func(ctx context.Context, reason string)
 
 var (
 	caddyReloadMu   sync.RWMutex
-	caddyReloadHook CaddyReloadFunc
+	caddyReloadHook CaddyReloadFunc = func(context.Context, string) {} // no-op default
 )
 
-// SetCaddyReloadHook registers the process-wide reload notifier. Pass nil to
-// clear the hook (test cleanup).
-func SetCaddyReloadHook(fn CaddyReloadFunc) {
+// SetCaddyReloadHook installs the reload hook. Tests use this to inject a
+// counter; production wiring installs the real Caddy admin-API client via
+// NewCaddyAdminReloader.
+//
+// Returns the previous hook so callers can restore it (defer cleanup).
+func SetCaddyReloadHook(hook CaddyReloadFunc) CaddyReloadFunc {
 	caddyReloadMu.Lock()
 	defer caddyReloadMu.Unlock()
-	caddyReloadHook = fn
+	prev := caddyReloadHook
+	if hook == nil {
+		caddyReloadHook = func(context.Context, string) {}
+	} else {
+		caddyReloadHook = hook
+	}
+	return prev
 }
 
-// triggerCaddyReload invokes the registered reload hook (if any). Errors are
-// logged at warn level but never propagate — the store mutation that
-// triggered the reload has already succeeded by the time we get here, and a
-// failed reload is an operational issue not a request-level failure.
+// triggerCaddyReload invokes the current hook. Safe for concurrent use.
+//
+// Use this from any config-mutating handler after the transaction commits.
+// Failure to reload is intentionally not propagated to the HTTP response.
 func triggerCaddyReload(ctx context.Context, reason string) {
 	caddyReloadMu.RLock()
-	fn := caddyReloadHook
+	hook := caddyReloadHook
 	caddyReloadMu.RUnlock()
-	if fn == nil {
-		return
+	hook(ctx, reason)
+}
+
+// CaddyConfigCompiler is the minimal surface the reloader needs from the
+// config engine: produce a fresh, full Caddy admin-API JSON document.
+//
+// This matches `*config.Engine.CompileCaddyConfig`. We accept the function
+// type rather than the engine itself to keep this package free of an
+// internal/config import (avoiding cycles) and to make the hook trivial to
+// test with a stub.
+type CaddyConfigCompiler func(ctx context.Context) ([]byte, error)
+
+// CaddyReloaderConfig configures a real Caddy admin-API reload hook.
+type CaddyReloaderConfig struct {
+	// AdminURL is the base URL of the Caddy admin API, e.g.
+	// "http://localhost:2019". No trailing slash.
+	AdminURL string
+	// Compile produces the latest compiled Caddy config JSON.
+	Compile CaddyConfigCompiler
+	// Client is the HTTP client used to POST. If nil a default is used.
+	Client *http.Client
+	// Logger is used for non-fatal failure logs. If nil, slog.Default().
+	Logger *slog.Logger
+}
+
+// NewCaddyAdminReloader returns a CaddyReloadFunc that compiles the current
+// config snapshot and POSTs it to `<AdminURL>/load`. Non-2xx responses are
+// logged but never propagate.
+//
+// The returned hook is safe for concurrent use.
+func NewCaddyAdminReloader(cfg CaddyReloaderConfig) CaddyReloadFunc {
+	client := cfg.Client
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
 	}
-	if err := fn(ctx, reason); err != nil {
-		slog.Warn("caddy reload trigger failed",
-			"component", "gateway",
-			"reason", reason,
-			"error", err)
+	logger := cfg.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	adminURL := cfg.AdminURL
+	compile := cfg.Compile
+
+	return func(ctx context.Context, reason string) {
+		if compile == nil || adminURL == "" {
+			return
+		}
+		data, err := compile(ctx)
+		if err != nil {
+			logger.Warn("caddy reload: compile failed",
+				"component", "gateway", "reason", reason, "error", err)
+			return
+		}
+		url := adminURL + "/load"
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+		if err != nil {
+			logger.Warn("caddy reload: build request failed",
+				"component", "gateway", "reason", reason, "error", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			logger.Warn("caddy reload: POST failed",
+				"component", "gateway", "reason", reason, "error", err)
+			return
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<14))
+			logger.Warn("caddy reload: non-2xx response",
+				"component", "gateway",
+				"reason", reason,
+				"status", resp.StatusCode,
+				"body", string(body),
+				"error", fmt.Errorf("status %d", resp.StatusCode))
+			return
+		}
 	}
 }

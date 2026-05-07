@@ -1,8 +1,65 @@
-# Stage-2 admin API completion chunk 6: audit detail / stream /
-# export / typeahead. Layered onto the existing /audit list and
-# /audit/entity sub-paths from PR #153.
+# Stage-2 admin API: full audit surface — list / detail / stream /
+# export / typeahead / reveal / retention. Layered onto the existing
+# /audit + /audit/entity sub-paths originally defined in PR #153.
 
 paths:
+  /api/v1/t/{tenant}/audit:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: query
+        name: actor
+        schema: { type: string }
+        description: "Filter by actor id (exact match)."
+      - in: query
+        name: entity_type
+        schema: { type: string }
+        description: "Filter by entity type (e.g. service, route, policy)."
+      - in: query
+        name: entity_id
+        schema: { type: string }
+        description: "Filter by entity id."
+      - in: query
+        name: range
+        schema: { type: string }
+        description: "Convenience range — Go-ish duration with `h` or `d` suffix (e.g. 24h, 7d)."
+      - in: query
+        name: since
+        schema: { type: string, format: date-time }
+        description: "RFC3339 timestamp; takes precedence over `range`."
+      - in: query
+        name: until
+        schema: { type: string, format: date-time }
+        description: "RFC3339 upper bound."
+      - in: query
+        name: limit
+        schema: { type: integer, default: 100, minimum: 0, maximum: 1000 }
+      - in: query
+        name: offset
+        schema: { type: integer, default: 0, minimum: 0 }
+    get:
+      tags: [audit]
+      summary: List audit entries
+      operationId: listAuditEntries
+      description: |
+        Returns audit entries newest-first matching the supplied filters.
+        Total unpaginated match count is returned in the `X-Total-Count`
+        header so callers can render "page 1 of N" without a separate
+        count call.
+      responses:
+        "200":
+          description: ok
+          headers:
+            X-Total-Count:
+              description: "Total number of entries matching the filter (ignores limit/offset)."
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditEntry" }
+    options:
+      responses: { "204": { description: no content } }
+
   /api/v1/t/{tenant}/audit/{id}:
     parameters:
       - $ref: "#/components/parameters/Tenant"
@@ -16,18 +73,51 @@ paths:
           description: ok
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/AuditEntry" }
+        "404":
+          description: not found
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/{id}/reveal:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [audit]
+      summary: Reveal sensitive fields on an audit entry
+      operationId: revealAuditEntry
+      description: |
+        Records a follow-up audit row capturing the reveal action and the
+        caller-supplied reason, then returns the original entry with
+        sensitive fields (ip / user_agent / payload) included. Requires
+        the `audit:read-sensitive` permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 4
+                  description: "Compliance justification, persisted with the new audit row."
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
               schema:
                 type: object
                 properties:
-                  id: { type: string }
-                  actor: { type: string }
-                  entityType: { type: string }
-                  entityId: { type: string }
-                  operation: { type: string }
-                  diff: { type: string }
-                  configVersion: { type: integer, format: int64 }
-                  occurredAt: { type: string, format: date-time }
-                  _links: { $ref: "#/components/schemas/LinkSet" }
+                  entry: { $ref: "#/components/schemas/AuditEntry" }
+                  revealEntry: { $ref: "#/components/schemas/AuditEntry" }
+        "400":
+          description: invalid reason
+        "403":
+          description: forbidden
         "404":
           description: not found
     options:
@@ -58,11 +148,29 @@ paths:
   /api/v1/t/{tenant}/audit/export/csv:
     parameters:
       - $ref: "#/components/parameters/Tenant"
+      - in: query
+        name: actor
+        schema: { type: string }
+      - in: query
+        name: entity_type
+        schema: { type: string }
+      - in: query
+        name: entity_id
+        schema: { type: string }
+      - in: query
+        name: range
+        schema: { type: string }
+      - in: query
+        name: since
+        schema: { type: string, format: date-time }
+      - in: query
+        name: until
+        schema: { type: string, format: date-time }
     get:
       tags: [audit]
       summary: CSV export
       operationId: exportAuditCSV
-      description: "Honours the same filter set as GET /audit (actor, entity_type, entity_id, range, since, until)."
+      description: "Streams Content-Disposition: attachment CSV. Honours the same filter set as GET /audit."
       responses:
         "200":
           description: csv stream
@@ -74,10 +182,29 @@ paths:
   /api/v1/t/{tenant}/audit/export/jsonl:
     parameters:
       - $ref: "#/components/parameters/Tenant"
+      - in: query
+        name: actor
+        schema: { type: string }
+      - in: query
+        name: entity_type
+        schema: { type: string }
+      - in: query
+        name: entity_id
+        schema: { type: string }
+      - in: query
+        name: range
+        schema: { type: string }
+      - in: query
+        name: since
+        schema: { type: string, format: date-time }
+      - in: query
+        name: until
+        schema: { type: string, format: date-time }
     get:
       tags: [audit]
       summary: JSON-Lines export
       operationId: exportAuditJSONL
+      description: "Streams Content-Disposition: attachment NDJSON."
       responses:
         "200":
           description: ndjson stream
@@ -100,7 +227,18 @@ paths:
       tags: [audit]
       summary: Distinct audit actor typeahead
       operationId: listAuditActors
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { type: string }
+                  total: { type: integer }
     options:
       responses: { "204": { description: no content } }
 
@@ -122,6 +260,86 @@ paths:
       tags: [audit]
       summary: Distinct audit entity-id typeahead
       operationId: listAuditResourceIDs
-      responses: { "200": { description: ok } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { type: string }
+                  total: { type: integer }
+                  entityType: { type: string }
     options:
       responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/audit/retention:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [audit]
+      summary: Get audit-retention config
+      operationId: getAuditRetentionConfig
+      description: "Returns defaults if no row exists for the tenant."
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditRetentionConfig" }
+    put:
+      tags: [audit]
+      summary: Replace audit-retention config
+      operationId: upsertAuditRetentionConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                retentionDaysRead: { type: integer, format: int32, minimum: 1, maximum: 3650 }
+                retentionDaysWrite: { type: integer, format: int32, minimum: 1, maximum: 3650 }
+                retentionDaysDestructive: { type: integer, format: int32, minimum: 1, maximum: 3650 }
+                autoExport: { type: string, enum: [off, on] }
+                autoExportFormat: { type: string, enum: [csv, jsonl] }
+                autoExportDestination: { type: string, nullable: true }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditRetentionConfig" }
+        "400":
+          description: invalid
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AuditEntry:
+      type: object
+      properties:
+        id: { type: string }
+        actor: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        operation: { type: string }
+        diff: { type: string }
+        configVersion: { type: integer, format: int64 }
+        occurredAt: { type: string, format: date-time }
+        _links: { $ref: "#/components/schemas/LinkSet" }
+    AuditRetentionConfig:
+      type: object
+      properties:
+        tenantId: { type: string }
+        retentionDaysRead: { type: integer, format: int32 }
+        retentionDaysWrite: { type: integer, format: int32 }
+        retentionDaysDestructive: { type: integer, format: int32 }
+        autoExport: { type: string }
+        autoExportFormat: { type: string }
+        autoExportDestination: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }

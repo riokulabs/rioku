@@ -1,33 +1,34 @@
 /**
- * useForcePasswordChangeGuard — watches the current user's force_password_change flag.
+ * useForcePasswordChangeGuard — watches the current user's
+ * `forcePasswordChange` flag from `/auth/me`. If set, navigates the user to a
+ * forced password-change flow so they cannot reach any tenant-scoped route
+ * with stale credentials.
  *
- * If the flag is true and the user is not already on the reset-password route,
- * navigates them to /_unauth/reset-password/<token>.
+ * Stage 2 (this plan) routes the user to `/forgot-password` so they can
+ * trigger the standard reset-token email flow.
  *
- * Task 1e.91
+ * Plan 01 — stage 2 wiring.
  */
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
-import { generateForcePasswordToken } from '../api';
+import { useCurrentUser } from '../use-current-user';
 
 export function useForcePasswordChangeGuard(): void {
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: me } = useCurrentUser();
 
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const users = useMockStore((s) => s.users);
-
-  const currentUser = currentUserId ? users[currentUserId] : null;
-  const forcePasswordChange = currentUser?.force_password_change ?? false;
+  const forcePasswordChange = me?.forcePasswordChange ?? false;
 
   useEffect(() => {
-    if (!currentUserId || !forcePasswordChange) return;
+    if (!me || !forcePasswordChange) return;
 
-    // Don't redirect if already on the reset-password route to avoid loops.
-    if (location.pathname.startsWith('/reset-password/')) return;
+    const onAllowedPath =
+      location.pathname.startsWith('/reset-password') ||
+      location.pathname.startsWith('/forgot-password') ||
+      location.pathname.startsWith('/login');
+    if (onAllowedPath) return;
 
-    const token = generateForcePasswordToken(currentUserId);
-    void navigate({ to: '/reset-password/$token', params: { token } });
-  }, [currentUserId, forcePasswordChange, location.pathname, navigate]);
+    void navigate({ to: '/forgot-password', replace: true });
+  }, [me, forcePasswordChange, location.pathname, navigate]);
 }

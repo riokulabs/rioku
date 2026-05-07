@@ -29,3 +29,17 @@ export { MiddlewareFilterBar } from './components/filter-bar';
 export { MiddlewareForm } from './components/form';
 export { MiddlewareDetail } from './components/detail';
 export { KindConfigPanel } from './components/kind-config-panel';
+export { MiddlewareDrawer } from './components/drawer';
+export type { MiddlewareDrawerProps } from './components/drawer';
+export { MiddlewareFullPage } from './components/full-page';
+export type { MiddlewareFullPageProps } from './components/full-page';
+// Stage-2 hooks (Orval-backed). Components currently call mock-store helpers
+// from `./api`; Stage-2 callers can import these directly when wiring real
+// daemon endpoints (gated by `VITE_USE_MOCKS=false` via `src/api/mode.ts`).
+export {
+  useMiddlewareListReal,
+  useMiddlewareDetailReal,
+  useCreateMiddlewareMutation,
+  useUpdateMiddlewareMutation,
+  useDeleteMiddlewareMutation,
+} from './api.stage2';

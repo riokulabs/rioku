@@ -2,17 +2,15 @@
  * AI MCP Servers page — /t/$tenant/ai/mcp-servers
  *
  * List + filter bar + drawer (detail / create / edit). URL-synced search +
- * health + auth + enabled filter.
- *
- * Permission guard: mcp-server:read. Sensitive actions (create/update/delete)
- * gated inside components by usePermission('mcp-server:write').
+ * health + auth + enabled filter. The drawer hosts the quick-info view; the
+ * dedicated route at /t/$tenant/ai/mcp-servers/$serverId hosts the full
+ * Tabs experience (Configuration / Test connectivity / Tools / Audit).
  */
 import { useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
@@ -20,7 +18,7 @@ import {
   McpServerList,
   McpServerFilterBar,
   McpServerForm,
-  McpServerDetail,
+  McpServerDrawer,
   testMcpServer,
 } from '@/features/ai-mcp-servers';
 import type { McpServerFilter } from '@/features/ai-mcp-servers';
@@ -67,10 +65,6 @@ function AiMcpServersPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('mcp-server:write');
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
-
   const filter: McpServerFilter = {
     search: search.search,
     healths: search.healths,
@@ -85,7 +79,7 @@ function AiMcpServersPage() {
   function setFilter(next: McpServerFilter) {
     void navigate({
       to: '/t/$tenant/ai/mcp-servers',
-      params: { tenant: tenantSlug },
+      params: { tenant },
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         search: next.search,
@@ -125,14 +119,16 @@ function AiMcpServersPage() {
 
   async function handleTest(s: McpServer) {
     try {
-      const result = await testMcpServer(s.id);
+      const result = await testMcpServer(tenant, s.id);
       if (result.ok) {
         notify.success(
           'Connection OK',
-          `${s.name} returned ${String(result.tool_count)} tools in ${String(result.latency_ms)}ms.`,
+          `${s.name} responded in ${String(result.latency_ms)} ms${
+            result.server_version ? ` (server: ${result.server_version})` : ''
+          }.`,
         );
       } else {
-        notify.error('Connection failed', result.error_message ?? 'Upstream error');
+        notify.error('Connection failed', result.error ?? 'Upstream error');
       }
     } catch {
       notify.error('Failed to test server', 'Please try again.');
@@ -166,7 +162,7 @@ function AiMcpServersPage() {
       <McpServerFilterBar filter={filter} onChange={setFilter} />
 
       <McpServerList
-        tenantId={tenantId}
+        tenant={tenant}
         filter={filter}
         onSelect={handleRowClick}
         onEdit={handleEditFromList}
@@ -185,9 +181,9 @@ function AiMcpServersPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selectedServer && (
-          <McpServerDetail
+          <McpServerDrawer
             serverId={selectedServer.id}
-            tenantSlug={tenantSlug}
+            tenant={tenant}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}
           />
@@ -195,7 +191,7 @@ function AiMcpServersPage() {
         {drawerMode === 'create' && (
           <McpServerForm
             mode="create"
-            tenantId={tenantId}
+            tenant={tenant}
             onSuccess={(s) => {
               setSelectedServer(s);
               setDrawerMode('detail');
@@ -206,7 +202,7 @@ function AiMcpServersPage() {
         {drawerMode === 'edit' && selectedServer && (
           <McpServerForm
             mode="edit"
-            tenantId={tenantId}
+            tenant={tenant}
             initialValues={selectedServer}
             onSuccess={(s) => {
               setSelectedServer(s);

@@ -17,7 +17,7 @@ import {
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import { createProvider, updateProvider } from '../api';
+import { useCreateProvider, useUpdateProvider } from '../api';
 import { createProviderSchema, updateProviderSchema } from '../schemas';
 import type { AiProvider } from '../types';
 
@@ -32,7 +32,7 @@ interface ProviderFormValues {
 
 interface ProviderFormProps {
   mode: 'create' | 'edit';
-  tenantId: string;
+  tenant: string;
   initialValues?: AiProvider;
   onSuccess: (provider: AiProvider) => void;
   onCancel: () => void;
@@ -51,13 +51,14 @@ function initialFromProvider(p?: AiProvider): ProviderFormValues {
 
 export function ProviderForm({
   mode,
-  tenantId,
+  tenant,
   initialValues,
   onSuccess,
   onCancel,
 }: ProviderFormProps) {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const createProviderMut = useCreateProvider(tenant);
+  const updateProviderMut = useUpdateProvider(tenant);
 
   const schema = mode === 'create' ? createProviderSchema : updateProviderSchema;
 
@@ -67,12 +68,11 @@ export function ProviderForm({
   });
 
   async function handleSubmit(values: ProviderFormValues) {
-    setLoading(true);
     setError(null);
     try {
       const description = values.description.trim();
       if (mode === 'create') {
-        const provider = await createProvider(tenantId, {
+        const provider = await createProviderMut.mutateAsync({
           name: values.name.trim(),
           kind: values.kind,
           base_url: values.base_url.trim(),
@@ -83,13 +83,16 @@ export function ProviderForm({
         notify.success('Provider created', `${provider.name} is ready.`);
         onSuccess(provider);
       } else if (initialValues) {
-        const provider = await updateProvider(initialValues.id, {
-          name: values.name.trim(),
-          kind: values.kind,
-          base_url: values.base_url.trim(),
-          description,
-          enabled: values.enabled,
-          ...(values.credential !== '' ? { credential: values.credential } : {}),
+        const provider = await updateProviderMut.mutateAsync({
+          id: initialValues.id,
+          input: {
+            name: values.name.trim(),
+            kind: values.kind,
+            base_url: values.base_url.trim(),
+            description,
+            enabled: values.enabled,
+            ...(values.credential !== '' ? { credential: values.credential } : {}),
+          },
         });
         notify.success('Provider updated', `${provider.name} saved.`);
         onSuccess(provider);
@@ -97,8 +100,6 @@ export function ProviderForm({
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save provider';
       setError(msg);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -177,7 +178,7 @@ export function ProviderForm({
           <Button variant="default" onClick={onCancel} type="button">
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button type="submit" loading={createProviderMut.isPending || updateProviderMut.isPending}>
             {mode === 'create' ? 'Create provider' : 'Save changes'}
           </Button>
         </Group>

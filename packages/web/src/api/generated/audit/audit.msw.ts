@@ -23,17 +23,141 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { GetAuditEntry200 } from '.././schemas';
+import type {
+  AuditEntry,
+  AuditRetentionConfig,
+  ListAuditActors200,
+  ListAuditResourceIDs200,
+  RevealAuditEntry200,
+} from '.././schemas';
+
+export const getListAuditEntriesResponseMock = (): AuditEntry[] =>
+  Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+    _links: faker.helpers.arrayElement([
+      {
+        [faker.string.alphanumeric(5)]: {
+          href: faker.string.alpha(20),
+          templated: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+        },
+      },
+      undefined,
+    ]),
+    actor: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    configVersion: faker.helpers.arrayElement([
+      faker.number.int({ min: undefined, max: undefined }),
+      undefined,
+    ]),
+    diff: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    entityId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    entityType: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    occurredAt: faker.helpers.arrayElement([
+      `${faker.date.past().toISOString().split('.')[0]}Z`,
+      undefined,
+    ]),
+    operation: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  }));
+
+export const getListAuditActorsResponseMock = (
+  overrideResponse: Partial<ListAuditActors200> = {},
+): ListAuditActors200 => ({
+  items: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+      faker.string.alpha(20),
+    ),
+    undefined,
+  ]),
+  total: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
 
 export const getExportAuditCSVResponseMock = (): string => faker.word.sample();
 
 export const getExportAuditJSONLResponseMock = (): string => faker.word.sample();
 
+export const getListAuditResourceIDsResponseMock = (
+  overrideResponse: Partial<ListAuditResourceIDs200> = {},
+): ListAuditResourceIDs200 => ({
+  entityType: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  items: faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+      faker.string.alpha(20),
+    ),
+    undefined,
+  ]),
+  total: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getGetAuditRetentionConfigResponseMock = (
+  overrideResponse: Partial<AuditRetentionConfig> = {},
+): AuditRetentionConfig => ({
+  autoExport: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  autoExportDestination: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([faker.string.alpha(20), null]),
+    undefined,
+  ]),
+  autoExportFormat: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  retentionDaysDestructive: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  retentionDaysRead: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  retentionDaysWrite: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  updatedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getUpsertAuditRetentionConfigResponseMock = (
+  overrideResponse: Partial<AuditRetentionConfig> = {},
+): AuditRetentionConfig => ({
+  autoExport: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  autoExportDestination: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([faker.string.alpha(20), null]),
+    undefined,
+  ]),
+  autoExportFormat: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  retentionDaysDestructive: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  retentionDaysRead: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  retentionDaysWrite: faker.helpers.arrayElement([
+    faker.number.int({ min: undefined, max: undefined }),
+    undefined,
+  ]),
+  tenantId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  updatedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
 export const getStreamAuditEntriesResponseMock = (): string => faker.word.sample();
 
 export const getGetAuditEntryResponseMock = (
-  overrideResponse: Partial<GetAuditEntry200> = {},
-): GetAuditEntry200 => ({
+  overrideResponse: Partial<AuditEntry> = {},
+): AuditEntry => ({
   _links: faker.helpers.arrayElement([
     {
       [faker.string.alphanumeric(5)]: {
@@ -60,17 +184,111 @@ export const getGetAuditEntryResponseMock = (
   ...overrideResponse,
 });
 
+export const getRevealAuditEntryResponseMock = (
+  overrideResponse: Partial<RevealAuditEntry200> = {},
+): RevealAuditEntry200 => ({
+  entry: faker.helpers.arrayElement([
+    {
+      _links: faker.helpers.arrayElement([
+        {
+          [faker.string.alphanumeric(5)]: {
+            href: faker.string.alpha(20),
+            templated: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          },
+        },
+        undefined,
+      ]),
+      actor: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      configVersion: faker.helpers.arrayElement([
+        faker.number.int({ min: undefined, max: undefined }),
+        undefined,
+      ]),
+      diff: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      entityId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      entityType: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      occurredAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      operation: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    },
+    undefined,
+  ]),
+  revealEntry: faker.helpers.arrayElement([
+    {
+      _links: faker.helpers.arrayElement([
+        {
+          [faker.string.alphanumeric(5)]: {
+            href: faker.string.alpha(20),
+            templated: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          },
+        },
+        undefined,
+      ]),
+      actor: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      configVersion: faker.helpers.arrayElement([
+        faker.number.int({ min: undefined, max: undefined }),
+        undefined,
+      ]),
+      diff: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      entityId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      entityType: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      id: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+      occurredAt: faker.helpers.arrayElement([
+        `${faker.date.past().toISOString().split('.')[0]}Z`,
+        undefined,
+      ]),
+      operation: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    },
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getListAuditEntriesMockHandler = (
+  overrideResponse?:
+    | AuditEntry[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<AuditEntry[]> | AuditEntry[]),
+) => {
+  return http.get('*/api/v1/t/:tenant/audit', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListAuditEntriesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
 export const getListAuditActorsMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListAuditActors200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListAuditActors200> | ListAuditActors200),
 ) => {
   return http.get('*/api/v1/t/:tenant/audit/actors', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListAuditActorsResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
@@ -118,15 +336,70 @@ export const getExportAuditJSONLMockHandler = (
 
 export const getListAuditResourceIDsMockHandler = (
   overrideResponse?:
-    | void
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+    | ListAuditResourceIDs200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListAuditResourceIDs200> | ListAuditResourceIDs200),
 ) => {
   return http.get('*/api/v1/t/:tenant/audit/resource-ids', async (info) => {
     await delay(1000);
-    if (typeof overrideResponse === 'function') {
-      await overrideResponse(info);
-    }
-    return new HttpResponse(null, { status: 200 });
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListAuditResourceIDsResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getGetAuditRetentionConfigMockHandler = (
+  overrideResponse?:
+    | AuditRetentionConfig
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<AuditRetentionConfig> | AuditRetentionConfig),
+) => {
+  return http.get('*/api/v1/t/:tenant/audit/retention', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetAuditRetentionConfigResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getUpsertAuditRetentionConfigMockHandler = (
+  overrideResponse?:
+    | AuditRetentionConfig
+    | ((
+        info: Parameters<Parameters<typeof http.put>[1]>[0],
+      ) => Promise<AuditRetentionConfig> | AuditRetentionConfig),
+) => {
+  return http.put('*/api/v1/t/:tenant/audit/retention', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getUpsertAuditRetentionConfigResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
 };
 
@@ -153,10 +426,8 @@ export const getStreamAuditEntriesMockHandler = (
 
 export const getGetAuditEntryMockHandler = (
   overrideResponse?:
-    | GetAuditEntry200
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<GetAuditEntry200> | GetAuditEntry200),
+    | AuditEntry
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<AuditEntry> | AuditEntry),
 ) => {
   return http.get('*/api/v1/t/:tenant/audit/:id', async (info) => {
     await delay(1000);
@@ -173,11 +444,38 @@ export const getGetAuditEntryMockHandler = (
     );
   });
 };
+
+export const getRevealAuditEntryMockHandler = (
+  overrideResponse?:
+    | RevealAuditEntry200
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<RevealAuditEntry200> | RevealAuditEntry200),
+) => {
+  return http.post('*/api/v1/t/:tenant/audit/:id/reveal', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getRevealAuditEntryResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
 export const getAuditMock = () => [
+  getListAuditEntriesMockHandler(),
   getListAuditActorsMockHandler(),
   getExportAuditCSVMockHandler(),
   getExportAuditJSONLMockHandler(),
   getListAuditResourceIDsMockHandler(),
+  getGetAuditRetentionConfigMockHandler(),
+  getUpsertAuditRetentionConfigMockHandler(),
   getStreamAuditEntriesMockHandler(),
   getGetAuditEntryMockHandler(),
+  getRevealAuditEntryMockHandler(),
 ];
