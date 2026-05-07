@@ -256,6 +256,7 @@ function AdminPluginSignersPage() {
       >
         {drawerMode === 'detail' && selected && (
           <SignerDetail
+            tenantId=""
             signerId={selected.id}
             onClose={closeDrawer}
             onEdit={() => {

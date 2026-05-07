@@ -177,6 +177,7 @@ function PluginSignersPage() {
       >
         {drawerMode === 'detail' && selected && (
           <SignerDetail
+            tenantId={tenantId}
             signerId={selected.id}
             onClose={closeDrawer}
             onEdit={() => {
