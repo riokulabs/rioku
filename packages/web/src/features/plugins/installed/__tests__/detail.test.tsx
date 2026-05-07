@@ -3,7 +3,7 @@
  *
  * The detail view now fetches the plugin record via the real daemon
  * endpoint; tests intercept with MSW. The signer chip + build-log
- * accordion behaviour is unchanged from the Stage-1 mock-store path.
+ * accordion behaviour is unchanged.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
