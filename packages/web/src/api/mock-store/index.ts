@@ -10,8 +10,7 @@ export * from './impersonation';
 export * from './access-policies';
 // Plan 03 (api-mgmt) feature slices retired — store lives in _internal.ts
 // Plan 04 (ai) feature slices retired — store lives in _internal.ts
-// Plan 05 (audit)
-export * from './audit';
+// Plan 05 (audit) feature slices retired — store lives in _internal.ts
 // Plan 06 (notifications)
 export * from './notifications';
 export * from './notification-channels';

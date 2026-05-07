@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -29,7 +30,17 @@ import { seedStore } from '@/api/mock-seed';
 import { RetentionConfigForm } from '../components/retention-config-form';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <MantineProvider>{children}</MantineProvider>;
+  const qc = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+      mutations: { retry: false },
+    },
+  });
+  return (
+    <MantineProvider>
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    </MantineProvider>
+  );
 }
 
 function acmeId(): string {

@@ -15,7 +15,7 @@
  *   - Policies evaluated: one row per policy with decision chip + reason.
  *   - Actions:       Copy request_id, Copy as cURL (stub), Export entry JSON.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -24,8 +24,10 @@ import {
   CopyButton,
   Divider,
   Group,
+  Modal,
   Stack,
   Text,
+  Textarea,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -34,9 +36,12 @@ import {
   IconCheck,
   IconCopy,
   IconDownload,
+  IconEye,
   IconShieldCheck,
   IconTerminal2,
 } from '@tabler/icons-react';
+import { emitHostEvent } from '@/host/events';
+import { useRevealAuditEntry } from '@/api/generated/audit/audit';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { CodeBlock } from '@/components/code-block';
@@ -109,13 +114,63 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
   const users = useMockStore((s) => s.users);
   const canReadSensitive = usePermission('audit:read-sensitive');
 
+  // Reveal flow: even when the caller holds `audit:read-sensitive`,
+  // sensitive fields stay hidden behind a Reveal button. Clicking opens
+  // a confirmation modal asking for a reason; on confirm we emit a
+  // `audit:sensitive-revealed` host event (recorded as a follow-up
+  // audit row by the daemon at stage-2-real time) and unmask locally.
+  const [revealed, setRevealed] = useState(false);
+  const [revealModalOpen, setRevealModalOpen] = useState(false);
+  const [revealReason, setRevealReason] = useState('');
+  const [revealReasonError, setRevealReasonError] = useState<string | null>(null);
+  // Real-API reveal mutation — falls through to the local host-event
+  // emission below when the daemon is unreachable (mock-store mode).
+  const revealMutation = useRevealAuditEntry();
+
+  const hasSensitiveFields =
+    entry.ip !== undefined || entry.user_agent !== undefined || entry.payload !== undefined;
+  const showSensitive = canReadSensitive && revealed;
+
   const actorName = users[entry.actor_id]?.name ?? entry.actor_id;
   const actorEmail = users[entry.actor_id]?.email;
   const absoluteTs = dayjs(entry.at).format('YYYY-MM-DD HH:mm:ss');
   const relativeTs = dayjs(entry.at).fromNow();
 
-  const ipDisplay = !entry.ip ? null : canReadSensitive ? entry.ip : REDACTED;
-  const uaDisplay = !entry.user_agent ? null : canReadSensitive ? entry.user_agent : REDACTED;
+  const ipDisplay = !entry.ip ? null : showSensitive ? entry.ip : REDACTED;
+  const uaDisplay = !entry.user_agent ? null : showSensitive ? entry.user_agent : REDACTED;
+
+  function openReveal() {
+    setRevealReason('');
+    setRevealReasonError(null);
+    setRevealModalOpen(true);
+  }
+
+  function confirmReveal() {
+    const reason = revealReason.trim();
+    if (reason.length < 4) {
+      setRevealReasonError('Please provide a reason (minimum 4 characters).');
+      return;
+    }
+    // Fire the real daemon reveal endpoint. The mutation persists the
+    // follow-up audit row server-side; on failure we still emit the
+    // host event so the mock-store path records the bypass locally.
+    revealMutation.mutate(
+      { tenant: entry.tenant_id ?? '', id: entry.id, data: { reason } },
+      {
+        onSettled: () => {
+          emitHostEvent('audit:sensitive-revealed', {
+            tenant_id: entry.tenant_id,
+            entry_id: entry.id,
+            reason,
+            at: new Date().toISOString(),
+          });
+        },
+      },
+    );
+    setRevealed(true);
+    setRevealModalOpen(false);
+    notify.success('Sensitive fields revealed', 'A new audit entry has been recorded.');
+  }
 
   // Diff handling — prefer CelDiff on policy writes when both sides carry a
   // `condition` string; otherwise JSON diff; otherwise hide the section.
@@ -149,7 +204,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
 
   const payloadJson = useMemo(() => {
     if (entry.payload === undefined) return null;
-    if (!canReadSensitive) {
+    if (!showSensitive) {
       return JSON.stringify({ payload: REDACTED }, null, 2);
     }
     try {
@@ -157,7 +212,7 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
     } catch {
       return null;
     }
-  }, [entry.payload, canReadSensitive]);
+  }, [entry.payload, showSensitive]);
 
   function handleExportJson() {
     try {
@@ -346,7 +401,68 @@ export function AuditDetail({ entry, onClose: _onClose }: AuditDetailProps) {
         >
           Export entry JSON
         </Button>
+        {canReadSensitive && hasSensitiveFields && !revealed && (
+          <Button
+            size="xs"
+            variant="light"
+            color="violet"
+            leftSection={<IconEye size={12} />}
+            onClick={openReveal}
+            data-testid="audit-reveal-sensitive"
+          >
+            Reveal sensitive
+          </Button>
+        )}
       </Group>
+
+      <Modal
+        opened={revealModalOpen}
+        onClose={() => {
+          setRevealModalOpen(false);
+        }}
+        title="Reveal sensitive fields"
+        transitionProps={{ duration: 0 }}
+        data-testid="audit-reveal-modal"
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            Revealing sensitive fields (IP address, user-agent, request payload) records a new audit
+            entry on this tenant. Provide a justification for compliance review.
+          </Text>
+          <Textarea
+            label="Reason"
+            placeholder="e.g. Investigating security incident #1234"
+            minRows={3}
+            required
+            value={revealReason}
+            onChange={(e) => {
+              setRevealReason(e.currentTarget.value);
+              setRevealReasonError(null);
+            }}
+            error={revealReasonError}
+            data-testid="audit-reveal-reason"
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                setRevealModalOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="violet"
+              size="sm"
+              onClick={confirmReveal}
+              data-testid="audit-reveal-confirm"
+            >
+              Reveal & record
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }
