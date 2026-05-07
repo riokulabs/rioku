@@ -269,7 +269,9 @@ async function fetchAuditPage(
   }
   const url = `/t/${tenant}/audit${qs.size ? `?${qs.toString()}` : ''}`;
   const init: RequestInit = signal ? { method: 'GET', signal } : { method: 'GET' };
-  const body = await customFetch<unknown>(url, init);
+  const wrapped = await customFetch<{ data: unknown }>(url, init);
+  // customFetch (orval form) returns {data, status, headers}; unwrap.
+  const body = wrapped.data;
   const items = Array.isArray(body)
     ? body.map((row) => adaptDaemonEntry(row as DaemonAuditEntry, tenant))
     : [];
