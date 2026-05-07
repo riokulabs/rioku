@@ -1,0 +1,108 @@
+# Stage-2 admin API: AI traces (read-only list/get + SSE stream + CSV export).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_traces_routes.go +
+# ai_extra_routes.go (stream + csv).
+
+paths:
+  /api/v1/t/{tenant}/ai/traces:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-traces]
+      summary: List AI traces
+      operationId: listAITraces
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of AI traces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AITrace" }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/traces/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-traces]
+      operationId: getAITrace
+      responses:
+        "200":
+          description: AI trace (sensitive fields gated by ai-trace:read-sensitive)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AITrace" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/traces/stream:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-traces]
+      summary: Live SSE stream of new AI traces
+      operationId: streamAITraces
+      responses:
+        "200":
+          description: SSE stream (text/event-stream); each event JSON-encoded `AITrace`
+          content:
+            text/event-stream:
+              schema: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/traces/export/csv:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-traces]
+      summary: Export traces as CSV
+      operationId: exportAITracesCSV
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AITrace:
+      type: object
+      required: [id, tenantId, model, status, inputTokens, outputTokens, durationMs, occurredAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        agentId: { type: string, nullable: true }
+        providerId: { type: string, nullable: true }
+        model: { type: string }
+        status: { type: string }
+        inputTokens: { type: integer, format: int32 }
+        outputTokens: { type: integer, format: int32 }
+        durationMs: { type: integer, format: int32 }
+        prompt: { type: string, nullable: true, description: "Gated by ai-trace:read-sensitive" }
+        completion: { type: string, nullable: true, description: "Gated by ai-trace:read-sensitive" }
+        toolCalls:
+          type: array
+          items: { type: object, additionalProperties: true }
+        error: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }

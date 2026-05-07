@@ -1,0 +1,194 @@
+# Stage-2 admin API: AI MCP servers (CRUD + test + tools list).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_mcp_routes.go
+
+paths:
+  /api/v1/t/{tenant}/ai/mcp-servers:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-mcp-servers]
+      summary: List MCP servers
+      operationId: listMCPServers
+      responses:
+        "200":
+          description: List of MCP servers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/MCPServer" }
+                  total: { type: integer }
+    post:
+      tags: [ai-mcp-servers]
+      summary: Create an MCP server
+      operationId: createMCPServer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPServerCreateRequest" }
+      responses:
+        "201":
+          description: MCP server created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MCPServer" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/mcp-servers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-mcp-servers]
+      operationId: getMCPServer
+      responses:
+        "200":
+          description: MCP server
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MCPServer" }
+    put:
+      tags: [ai-mcp-servers]
+      operationId: updateMCPServer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPServerUpdateRequest" }
+      responses:
+        "200":
+          description: MCP server updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MCPServer" }
+    patch:
+      tags: [ai-mcp-servers]
+      operationId: patchMCPServer
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/MCPServerUpdateRequest" }
+      responses:
+        "200":
+          description: MCP server patched
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MCPServer" }
+    delete:
+      tags: [ai-mcp-servers]
+      operationId: deleteMCPServer
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/mcp-servers/{id}/test:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [ai-mcp-servers]
+      summary: Test connectivity to an MCP server
+      description: |
+        Issues a short HTTP probe (5s timeout) against the MCP server's
+        configured URL and reports the outcome. Reachable but non-2xx
+        upstreams are still treated as `ok: true` for the purpose of
+        connectivity (many MCP endpoints respond 401/404 to a bare GET).
+      operationId: testMCPServer
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcpServerId, ok, latencyMs]
+                properties:
+                  mcpServerId: { type: string }
+                  ok: { type: boolean }
+                  latencyMs: { type: integer, minimum: 0 }
+                  error: { type: string }
+                  serverVersion: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/mcp-servers/{id}/tools:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-mcp-servers]
+      summary: List tools provided by an MCP server
+      operationId: listMCPServerTools
+      responses:
+        "200":
+          description: Tools collection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+                        argSchema:
+                          type: string
+                          description: JSON-schema string for the tool input arguments.
+                        dangerous: { type: boolean }
+                        enabled: { type: boolean }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    MCPServer:
+      type: object
+      required: [id, tenantId, name, url, authKind, health, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        url: { type: string }
+        authKind: { type: string }
+        health: { type: string }
+        enabled: { type: boolean }
+        authorizedAgentIds:
+          type: array
+          items: { type: string }
+        lastCheckedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    MCPServerCreateRequest:
+      type: object
+      required: [name, url]
+      properties:
+        name: { type: string }
+        url: { type: string }
+        authKind: { type: string }
+        authCredential: { type: string, nullable: true }
+
+    MCPServerUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        url: { type: string }
+        authKind: { type: string }
+        authCredential: { type: string, nullable: true }
+        enabled: { type: boolean }
+        authorizedAgentIds:
+          type: array
+          items: { type: string }

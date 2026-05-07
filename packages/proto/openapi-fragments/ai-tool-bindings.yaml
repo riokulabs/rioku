@@ -1,0 +1,168 @@
+# Stage-2 admin API: AI tool bindings (agent ↔ tool, with CEL condition).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_tool_bindings_routes.go
+
+paths:
+  /api/v1/t/{tenant}/ai/tool-bindings:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-tool-bindings]
+      summary: List tool bindings
+      operationId: listAIToolBindings
+      responses:
+        "200":
+          description: List of tool bindings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AIToolBinding" }
+                  total: { type: integer }
+    post:
+      tags: [ai-tool-bindings]
+      summary: Create a tool binding
+      operationId: createAIToolBinding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIToolBindingCreateRequest" }
+      responses:
+        "201":
+          description: Binding created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIToolBinding" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/tool-bindings/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-tool-bindings]
+      operationId: getAIToolBinding
+      responses:
+        "200":
+          description: Binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIToolBinding" }
+    put:
+      tags: [ai-tool-bindings]
+      operationId: updateAIToolBinding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIToolBindingUpdateRequest" }
+      responses:
+        "200":
+          description: Binding updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIToolBinding" }
+    delete:
+      tags: [ai-tool-bindings]
+      operationId: deleteAIToolBinding
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/tool-bindings/bulk-attach:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [ai-tool-bindings]
+      summary: Bulk-attach tools to a single agent
+      operationId: bulkAttachAIToolBindings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentId, toolIds]
+              properties:
+                agentId: { type: string }
+                toolIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: Bindings created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AIToolBinding" }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/tool-bindings/preview-condition:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [ai-tool-bindings]
+      summary: Preview a CEL condition against a sample envelope (stage-2 stub)
+      operationId: previewAIToolBindingCondition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                condition: { type: string }
+                envelope: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Preview result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  condition: { type: string }
+                  matched: { type: boolean }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AIToolBinding:
+      type: object
+      required: [id, tenantId, agentId, toolId, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        agentId: { type: string }
+        toolId: { type: string }
+        condition: { type: string }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AIToolBindingCreateRequest:
+      type: object
+      required: [agentId, toolId]
+      properties:
+        agentId: { type: string }
+        toolId: { type: string }
+        condition: { type: string }
+
+    AIToolBindingUpdateRequest:
+      type: object
+      properties:
+        condition: { type: string }
+        enabled: { type: boolean }

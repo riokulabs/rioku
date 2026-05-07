@@ -2807,6 +2807,622 @@
         },
         "type": "object"
       },
+      "AIAgent": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "guardrails": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "systemPrompt": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "model",
+          "systemPrompt",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AIAgentCreateRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "guardrails": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "systemPrompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "AIAgentUpdateRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "guardrails": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "systemPrompt": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AIRateLimit": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "agentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "exemplars": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "similarityThreshold": {
+            "format": "double",
+            "type": "number"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "threshold": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "toolId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "windowSeconds": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "scope",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AIRateLimitCreateRequest": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "agentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "exemplars": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "similarityThreshold": {
+            "format": "double",
+            "type": "number"
+          },
+          "threshold": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "toolId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "windowSeconds": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "scope"
+        ],
+        "type": "object"
+      },
+      "AIRateLimitMetricsPoint": {
+        "properties": {
+          "throttle_events": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timestamp",
+          "throttle_events"
+        ],
+        "type": "object"
+      },
+      "AIRateLimitMetricsResponse": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/AIRateLimitMetricsPoint"
+            },
+            "type": "array"
+          },
+          "rate_limit_id": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rate_limit_id",
+          "since",
+          "points"
+        ],
+        "type": "object"
+      },
+      "AIRateLimitSimulateRequest": {
+        "properties": {
+          "principal": {
+            "description": "Subject id for the probe (informational; echoed back).",
+            "type": "string"
+          },
+          "request_count": {
+            "description": "Probe volume; defaults to 1.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "time_window_seconds": {
+            "description": "Probe window in seconds; defaults to the rule's window.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "AIRateLimitSimulateResponse": {
+        "properties": {
+          "current_consumption": {
+            "description": "Probe volume normalised to the rule's window.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "The rule's configured threshold.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "principal": {
+            "type": "string"
+          },
+          "rate_limit_id": {
+            "type": "string"
+          },
+          "retry_after_ms": {
+            "description": "Hint for how long to wait before retrying. 0 when not throttled.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "would_throttle": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rate_limit_id",
+          "would_throttle",
+          "retry_after_ms",
+          "current_consumption",
+          "limit"
+        ],
+        "type": "object"
+      },
+      "AIRateLimitUpdateRequest": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "agentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "exemplars": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "similarityThreshold": {
+            "format": "double",
+            "type": "number"
+          },
+          "threshold": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "toolId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "windowSeconds": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "AITool": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dangerous": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "httpEndpoint": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "kind",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AIToolBinding": {
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "toolId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "agentId",
+          "toolId",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AIToolBindingCreateRequest": {
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "toolId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentId",
+          "toolId"
+        ],
+        "type": "object"
+      },
+      "AIToolBindingUpdateRequest": {
+        "properties": {
+          "condition": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "AIToolCreateRequest": {
+        "properties": {
+          "dangerous": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "httpEndpoint": {
+            "nullable": true,
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "AIToolUpdateRequest": {
+        "properties": {
+          "dangerous": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "httpEndpoint": {
+            "nullable": true,
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "mcpServerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AITrace": {
+        "properties": {
+          "agentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "completion": {
+            "description": "Gated by ai-trace:read-sensitive",
+            "nullable": true,
+            "type": "string"
+          },
+          "durationMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "model": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outputTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "prompt": {
+            "description": "Gated by ai-trace:read-sensitive",
+            "nullable": true,
+            "type": "string"
+          },
+          "providerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "toolCalls": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "model",
+          "status",
+          "inputTokens",
+          "outputTokens",
+          "durationMs",
+          "occurredAt"
+        ],
+        "type": "object"
+      },
       "AccessPolicy": {
         "properties": {
           "createdAt": {
@@ -3000,6 +3616,111 @@
       "LinkSet": {
         "additionalProperties": {
           "$ref": "#/components/schemas/Link"
+        },
+        "type": "object"
+      },
+      "MCPServer": {
+        "properties": {
+          "authKind": {
+            "type": "string"
+          },
+          "authorizedAgentIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "health": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "url",
+          "authKind",
+          "health",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MCPServerCreateRequest": {
+        "properties": {
+          "authCredential": {
+            "nullable": true,
+            "type": "string"
+          },
+          "authKind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "MCPServerUpdateRequest": {
+        "properties": {
+          "authCredential": {
+            "nullable": true,
+            "type": "string"
+          },
+          "authKind": {
+            "type": "string"
+          },
+          "authorizedAgentIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
         },
         "type": "object"
       },
@@ -6271,6 +6992,1592 @@
           "access-policies"
         ]
       }
+    },
+    "/api/v1/t/{tenant}/ai/agents": {
+      "get": {
+        "operationId": "listAIAgents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AIAgent"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of AI agents"
+          }
+        },
+        "summary": "List AI agents",
+        "tags": [
+          "ai-agents"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAIAgent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIAgentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAgent"
+                }
+              }
+            },
+            "description": "Agent created"
+          }
+        },
+        "summary": "Create an AI agent",
+        "tags": [
+          "ai-agents"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/agents/{id}": {
+      "delete": {
+        "operationId": "deleteAIAgent",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "ai-agents"
+        ]
+      },
+      "get": {
+        "operationId": "getAIAgent",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAgent"
+                }
+              }
+            },
+            "description": "AI agent"
+          }
+        },
+        "tags": [
+          "ai-agents"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchAIAgent",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIAgentUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAgent"
+                }
+              }
+            },
+            "description": "AI agent patched"
+          }
+        },
+        "tags": [
+          "ai-agents"
+        ]
+      },
+      "put": {
+        "operationId": "updateAIAgent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIAgentUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAgent"
+                }
+              }
+            },
+            "description": "AI agent updated"
+          }
+        },
+        "tags": [
+          "ai-agents"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/agents/{id}/rotate-credential": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "rotateAIAgentCredential",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agentId": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Rotation result"
+          }
+        },
+        "summary": "Rotate scoped credential for the agent",
+        "tags": [
+          "ai-agents"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/agents/{id}/tools": {
+      "get": {
+        "operationId": "listAIAgentTools",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AIToolBinding"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bindings collection"
+          }
+        },
+        "summary": "List tool bindings for an agent",
+        "tags": [
+          "ai-agents"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/agents/{id}/traces": {
+      "get": {
+        "operationId": "listAIAgentTraces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AITrace"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Traces collection"
+          }
+        },
+        "summary": "List traces for an agent",
+        "tags": [
+          "ai-agents",
+          "ai-traces"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/mcp-servers": {
+      "get": {
+        "operationId": "listMCPServers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/MCPServer"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of MCP servers"
+          }
+        },
+        "summary": "List MCP servers",
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createMCPServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MCPServerCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPServer"
+                }
+              }
+            },
+            "description": "MCP server created"
+          }
+        },
+        "summary": "Create an MCP server",
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/mcp-servers/{id}": {
+      "delete": {
+        "operationId": "deleteMCPServer",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      },
+      "get": {
+        "operationId": "getMCPServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPServer"
+                }
+              }
+            },
+            "description": "MCP server"
+          }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchMCPServer",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MCPServerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPServer"
+                }
+              }
+            },
+            "description": "MCP server patched"
+          }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      },
+      "put": {
+        "operationId": "updateMCPServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MCPServerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPServer"
+                }
+              }
+            },
+            "description": "MCP server updated"
+          }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/mcp-servers/{id}/test": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "description": "Issues a short HTTP probe (5s timeout) against the MCP server's\nconfigured URL and reports the outcome. Reachable but non-2xx\nupstreams are still treated as `ok: true` for the purpose of\nconnectivity (many MCP endpoints respond 401/404 to a bare GET).\n",
+        "operationId": "testMCPServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "latencyMs": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "mcpServerId": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "serverVersion": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "mcpServerId",
+                    "ok",
+                    "latencyMs"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Test result"
+          }
+        },
+        "summary": "Test connectivity to an MCP server",
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/mcp-servers/{id}/tools": {
+      "get": {
+        "operationId": "listMCPServerTools",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "properties": {
+                          "argSchema": {
+                            "description": "JSON-schema string for the tool input arguments.",
+                            "type": "string"
+                          },
+                          "dangerous": {
+                            "type": "boolean"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Tools collection"
+          }
+        },
+        "summary": "List tools provided by an MCP server",
+        "tags": [
+          "ai-mcp-servers"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/rate-limits": {
+      "get": {
+        "operationId": "listAIRateLimits",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AIRateLimit"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of rate limits"
+          }
+        },
+        "summary": "List AI rate limits",
+        "tags": [
+          "ai-rate-limits"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAIRateLimit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIRateLimitCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIRateLimit"
+                }
+              }
+            },
+            "description": "Rate limit created"
+          }
+        },
+        "summary": "Create an AI rate limit",
+        "tags": [
+          "ai-rate-limits"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/rate-limits/{id}": {
+      "delete": {
+        "operationId": "deleteAIRateLimit",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
+      },
+      "get": {
+        "operationId": "getAIRateLimit",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIRateLimit"
+                }
+              }
+            },
+            "description": "Rate limit"
+          }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "put": {
+        "operationId": "updateAIRateLimit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIRateLimitUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIRateLimit"
+                }
+              }
+            },
+            "description": "Rate limit updated"
+          }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/rate-limits/{id}/metrics": {
+      "get": {
+        "operationId": "getAIRateLimitMetrics",
+        "parameters": [
+          {
+            "description": "Lookback window. One of `1h`, `24h`, `7d`. Defaults to `24h`.\n",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "default": "24h",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIRateLimitMetricsResponse"
+                }
+              }
+            },
+            "description": "Rate-limit metrics"
+          }
+        },
+        "summary": "Throttle event time-series for a rate-limit",
+        "tags": [
+          "ai-rate-limits"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/rate-limits/{id}/simulate": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "simulateAIRateLimit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIRateLimitSimulateRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIRateLimitSimulateResponse"
+                }
+              }
+            },
+            "description": "Simulation result"
+          }
+        },
+        "summary": "Simulate the rate-limit against a probe request volume",
+        "tags": [
+          "ai-rate-limits"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tool-bindings": {
+      "get": {
+        "operationId": "listAIToolBindings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AIToolBinding"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of tool bindings"
+          }
+        },
+        "summary": "List tool bindings",
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAIToolBinding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIToolBindingCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIToolBinding"
+                }
+              }
+            },
+            "description": "Binding created"
+          }
+        },
+        "summary": "Create a tool binding",
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tool-bindings/bulk-attach": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "bulkAttachAIToolBindings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "agentId": {
+                    "type": "string"
+                  },
+                  "toolIds": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "agentId",
+                  "toolIds"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AIToolBinding"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bindings created"
+          }
+        },
+        "summary": "Bulk-attach tools to a single agent",
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tool-bindings/preview-condition": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "previewAIToolBindingCondition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "condition": {
+                    "type": "string"
+                  },
+                  "envelope": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "condition": {
+                      "type": "string"
+                    },
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Preview result"
+          }
+        },
+        "summary": "Preview a CEL condition against a sample envelope (stage-2 stub)",
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tool-bindings/{id}": {
+      "delete": {
+        "operationId": "deleteAIToolBinding",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      },
+      "get": {
+        "operationId": "getAIToolBinding",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIToolBinding"
+                }
+              }
+            },
+            "description": "Binding"
+          }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "put": {
+        "operationId": "updateAIToolBinding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIToolBindingUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIToolBinding"
+                }
+              }
+            },
+            "description": "Binding updated"
+          }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tools": {
+      "get": {
+        "operationId": "listAITools",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AITool"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of AI tools"
+          }
+        },
+        "summary": "List AI tools",
+        "tags": [
+          "ai-tools"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createAITool",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIToolCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AITool"
+                }
+              }
+            },
+            "description": "Tool created"
+          }
+        },
+        "summary": "Create an AI tool",
+        "tags": [
+          "ai-tools"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tools/{id}": {
+      "delete": {
+        "operationId": "deleteAITool",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "tags": [
+          "ai-tools"
+        ]
+      },
+      "get": {
+        "operationId": "getAITool",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AITool"
+                }
+              }
+            },
+            "description": "AI tool"
+          }
+        },
+        "tags": [
+          "ai-tools"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchAITool",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIToolUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AITool"
+                }
+              }
+            },
+            "description": "Tool patched"
+          }
+        },
+        "tags": [
+          "ai-tools"
+        ]
+      },
+      "put": {
+        "operationId": "updateAITool",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIToolUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AITool"
+                }
+              }
+            },
+            "description": "Tool updated"
+          }
+        },
+        "tags": [
+          "ai-tools"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/tools/{id}/agents": {
+      "get": {
+        "operationId": "listAIToolAgents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "properties": {
+                          "agentId": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Agents bound to this tool"
+          }
+        },
+        "summary": "List agents bound to this tool",
+        "tags": [
+          "ai-tools"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/tools/{id}/test": {
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "post": {
+        "operationId": "testAITool",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "note": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "toolId": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Test result"
+          }
+        },
+        "summary": "Test invoke a tool (stage-2 stub)",
+        "tags": [
+          "ai-tools"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/ai/traces": {
+      "get": {
+        "operationId": "listAITraces",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AITrace"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of AI traces"
+          }
+        },
+        "summary": "List AI traces",
+        "tags": [
+          "ai-traces"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/traces/export/csv": {
+      "get": {
+        "operationId": "exportAITracesCSV",
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "CSV file download"
+          }
+        },
+        "summary": "Export traces as CSV",
+        "tags": [
+          "ai-traces"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/traces/stream": {
+      "get": {
+        "operationId": "streamAITraces",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE stream (text/event-stream); each event JSON-encoded `AITrace`"
+          }
+        },
+        "summary": "Live SSE stream of new AI traces",
+        "tags": [
+          "ai-traces"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ]
+    },
+    "/api/v1/t/{tenant}/ai/traces/{id}": {
+      "get": {
+        "operationId": "getAITrace",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AITrace"
+                }
+              }
+            },
+            "description": "AI trace (sensitive fields gated by ai-trace:read-sensitive)"
+          }
+        },
+        "tags": [
+          "ai-traces"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ]
     },
     "/api/v1/t/{tenant}/api-keys": {
       "get": {

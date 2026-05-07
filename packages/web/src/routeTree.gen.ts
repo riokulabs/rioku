@@ -73,6 +73,12 @@ import { Route as TTenantAiProvidersRouteImport } from './routes/t.$tenant/ai/pr
 import { Route as TTenantAiMcpServersRouteImport } from './routes/t.$tenant/ai/mcp-servers'
 import { Route as TTenantAiAgentsRouteImport } from './routes/t.$tenant/ai/agents'
 import { Route as TTenantDashboardsDashboardIdEditRouteImport } from './routes/t.$tenant/dashboards_.$dashboardId_.edit'
+import { Route as TTenantAiTracesTraceIdRouteImport } from './routes/t.$tenant/ai/traces.$traceId'
+import { Route as TTenantAiToolsToolIdRouteImport } from './routes/t.$tenant/ai/tools_.$toolId'
+import { Route as TTenantAiToolBindingsBindingIdRouteImport } from './routes/t.$tenant/ai/tool-bindings.$bindingId'
+import { Route as TTenantAiRateLimitsLimitIdRouteImport } from './routes/t.$tenant/ai/rate-limits.$limitId'
+import { Route as TTenantAiMcpServersServerIdRouteImport } from './routes/t.$tenant/ai/mcp-servers.$serverId'
+import { Route as TTenantAiAgentsAgentIdRouteImport } from './routes/t.$tenant/ai/agents.$agentId'
 import { Route as TTenantDetailKindIdRouteImport } from './routes/t.$tenant/_detail.$kind.$id'
 
 const TenantsRoute = TenantsRouteImport.update({
@@ -406,6 +412,39 @@ const TTenantDashboardsDashboardIdEditRoute =
     path: '/dashboards/$dashboardId/edit',
     getParentRoute: () => TTenantRoute,
   } as any)
+const TTenantAiTracesTraceIdRoute = TTenantAiTracesTraceIdRouteImport.update({
+  id: '/$traceId',
+  path: '/$traceId',
+  getParentRoute: () => TTenantAiTracesRoute,
+} as any)
+const TTenantAiToolsToolIdRoute = TTenantAiToolsToolIdRouteImport.update({
+  id: '/tools_/$toolId',
+  path: '/tools/$toolId',
+  getParentRoute: () => TTenantAiRoute,
+} as any)
+const TTenantAiToolBindingsBindingIdRoute =
+  TTenantAiToolBindingsBindingIdRouteImport.update({
+    id: '/tool-bindings/$bindingId',
+    path: '/tool-bindings/$bindingId',
+    getParentRoute: () => TTenantAiRoute,
+  } as any)
+const TTenantAiRateLimitsLimitIdRoute =
+  TTenantAiRateLimitsLimitIdRouteImport.update({
+    id: '/$limitId',
+    path: '/$limitId',
+    getParentRoute: () => TTenantAiRateLimitsRoute,
+  } as any)
+const TTenantAiMcpServersServerIdRoute =
+  TTenantAiMcpServersServerIdRouteImport.update({
+    id: '/$serverId',
+    path: '/$serverId',
+    getParentRoute: () => TTenantAiMcpServersRoute,
+  } as any)
+const TTenantAiAgentsAgentIdRoute = TTenantAiAgentsAgentIdRouteImport.update({
+  id: '/$agentId',
+  path: '/$agentId',
+  getParentRoute: () => TTenantAiAgentsRoute,
+} as any)
 const TTenantDetailKindIdRoute = TTenantDetailKindIdRouteImport.update({
   id: '/_detail/$kind/$id',
   path: '/$kind/$id',
@@ -447,13 +486,13 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRouteWithChildren
   '/t/$tenant/sites': typeof TTenantSitesRoute
-  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
-  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRoute
+  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRouteWithChildren
+  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRouteWithChildren
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
-  '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRoute
+  '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRouteWithChildren
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
-  '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
+  '/t/$tenant/ai/traces': typeof TTenantAiTracesRouteWithChildren
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/middlewares/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
@@ -476,6 +515,12 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/dashboards/': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
+  '/t/$tenant/ai/agents/$agentId': typeof TTenantAiAgentsAgentIdRoute
+  '/t/$tenant/ai/mcp-servers/$serverId': typeof TTenantAiMcpServersServerIdRoute
+  '/t/$tenant/ai/rate-limits/$limitId': typeof TTenantAiRateLimitsLimitIdRoute
+  '/t/$tenant/ai/tool-bindings/$bindingId': typeof TTenantAiToolBindingsBindingIdRoute
+  '/t/$tenant/ai/tools/$toolId': typeof TTenantAiToolsToolIdRoute
+  '/t/$tenant/ai/traces/$traceId': typeof TTenantAiTracesTraceIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -510,13 +555,13 @@ export interface FileRoutesByTo {
   '/t/$tenant/security': typeof TTenantSecurityRouteWithChildren
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/sites': typeof TTenantSitesRoute
-  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
-  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRoute
+  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRouteWithChildren
+  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRouteWithChildren
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
-  '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRoute
+  '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRouteWithChildren
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
-  '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
+  '/t/$tenant/ai/traces': typeof TTenantAiTracesRouteWithChildren
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/middlewares/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
@@ -539,6 +584,12 @@ export interface FileRoutesByTo {
   '/t/$tenant/dashboards': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings': typeof TTenantSettingsIndexRoute
   '/t/$tenant/$kind/$id': typeof TTenantDetailKindIdRoute
+  '/t/$tenant/ai/agents/$agentId': typeof TTenantAiAgentsAgentIdRoute
+  '/t/$tenant/ai/mcp-servers/$serverId': typeof TTenantAiMcpServersServerIdRoute
+  '/t/$tenant/ai/rate-limits/$limitId': typeof TTenantAiRateLimitsLimitIdRoute
+  '/t/$tenant/ai/tool-bindings/$bindingId': typeof TTenantAiToolBindingsBindingIdRoute
+  '/t/$tenant/ai/tools/$toolId': typeof TTenantAiToolsToolIdRoute
+  '/t/$tenant/ai/traces/$traceId': typeof TTenantAiTracesTraceIdRoute
   '/t/$tenant/dashboards/$dashboardId/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRoutesById {
@@ -578,13 +629,13 @@ export interface FileRoutesById {
   '/t/$tenant/services': typeof TTenantServicesRoute
   '/t/$tenant/settings': typeof TTenantSettingsRouteWithChildren
   '/t/$tenant/sites': typeof TTenantSitesRoute
-  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRoute
-  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRoute
+  '/t/$tenant/ai/agents': typeof TTenantAiAgentsRouteWithChildren
+  '/t/$tenant/ai/mcp-servers': typeof TTenantAiMcpServersRouteWithChildren
   '/t/$tenant/ai/providers': typeof TTenantAiProvidersRoute
-  '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRoute
+  '/t/$tenant/ai/rate-limits': typeof TTenantAiRateLimitsRouteWithChildren
   '/t/$tenant/ai/tool-routing': typeof TTenantAiToolRoutingRoute
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
-  '/t/$tenant/ai/traces': typeof TTenantAiTracesRoute
+  '/t/$tenant/ai/traces': typeof TTenantAiTracesRouteWithChildren
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
   '/t/$tenant/middlewares_/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
@@ -607,6 +658,12 @@ export interface FileRoutesById {
   '/t/$tenant/dashboards/': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
   '/t/$tenant/_detail/$kind/$id': typeof TTenantDetailKindIdRoute
+  '/t/$tenant/ai/agents/$agentId': typeof TTenantAiAgentsAgentIdRoute
+  '/t/$tenant/ai/mcp-servers/$serverId': typeof TTenantAiMcpServersServerIdRoute
+  '/t/$tenant/ai/rate-limits/$limitId': typeof TTenantAiRateLimitsLimitIdRoute
+  '/t/$tenant/ai/tool-bindings/$bindingId': typeof TTenantAiToolBindingsBindingIdRoute
+  '/t/$tenant/ai/tools_/$toolId': typeof TTenantAiToolsToolIdRoute
+  '/t/$tenant/ai/traces/$traceId': typeof TTenantAiTracesTraceIdRoute
   '/t/$tenant/dashboards_/$dashboardId_/edit': typeof TTenantDashboardsDashboardIdEditRoute
 }
 export interface FileRouteTypes {
@@ -675,6 +732,12 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboards/'
     | '/t/$tenant/settings/'
     | '/t/$tenant/$kind/$id'
+    | '/t/$tenant/ai/agents/$agentId'
+    | '/t/$tenant/ai/mcp-servers/$serverId'
+    | '/t/$tenant/ai/rate-limits/$limitId'
+    | '/t/$tenant/ai/tool-bindings/$bindingId'
+    | '/t/$tenant/ai/tools/$toolId'
+    | '/t/$tenant/ai/traces/$traceId'
     | '/t/$tenant/dashboards/$dashboardId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -738,6 +801,12 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboards'
     | '/t/$tenant/settings'
     | '/t/$tenant/$kind/$id'
+    | '/t/$tenant/ai/agents/$agentId'
+    | '/t/$tenant/ai/mcp-servers/$serverId'
+    | '/t/$tenant/ai/rate-limits/$limitId'
+    | '/t/$tenant/ai/tool-bindings/$bindingId'
+    | '/t/$tenant/ai/tools/$toolId'
+    | '/t/$tenant/ai/traces/$traceId'
     | '/t/$tenant/dashboards/$dashboardId/edit'
   id:
     | '__root__'
@@ -805,6 +874,12 @@ export interface FileRouteTypes {
     | '/t/$tenant/dashboards/'
     | '/t/$tenant/settings/'
     | '/t/$tenant/_detail/$kind/$id'
+    | '/t/$tenant/ai/agents/$agentId'
+    | '/t/$tenant/ai/mcp-servers/$serverId'
+    | '/t/$tenant/ai/rate-limits/$limitId'
+    | '/t/$tenant/ai/tool-bindings/$bindingId'
+    | '/t/$tenant/ai/tools_/$toolId'
+    | '/t/$tenant/ai/traces/$traceId'
     | '/t/$tenant/dashboards_/$dashboardId_/edit'
   fileRoutesById: FileRoutesById
 }
@@ -1268,6 +1343,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantDashboardsDashboardIdEditRouteImport
       parentRoute: typeof TTenantRoute
     }
+    '/t/$tenant/ai/traces/$traceId': {
+      id: '/t/$tenant/ai/traces/$traceId'
+      path: '/$traceId'
+      fullPath: '/t/$tenant/ai/traces/$traceId'
+      preLoaderRoute: typeof TTenantAiTracesTraceIdRouteImport
+      parentRoute: typeof TTenantAiTracesRoute
+    }
+    '/t/$tenant/ai/tools_/$toolId': {
+      id: '/t/$tenant/ai/tools_/$toolId'
+      path: '/tools/$toolId'
+      fullPath: '/t/$tenant/ai/tools/$toolId'
+      preLoaderRoute: typeof TTenantAiToolsToolIdRouteImport
+      parentRoute: typeof TTenantAiRoute
+    }
+    '/t/$tenant/ai/tool-bindings/$bindingId': {
+      id: '/t/$tenant/ai/tool-bindings/$bindingId'
+      path: '/tool-bindings/$bindingId'
+      fullPath: '/t/$tenant/ai/tool-bindings/$bindingId'
+      preLoaderRoute: typeof TTenantAiToolBindingsBindingIdRouteImport
+      parentRoute: typeof TTenantAiRoute
+    }
+    '/t/$tenant/ai/rate-limits/$limitId': {
+      id: '/t/$tenant/ai/rate-limits/$limitId'
+      path: '/$limitId'
+      fullPath: '/t/$tenant/ai/rate-limits/$limitId'
+      preLoaderRoute: typeof TTenantAiRateLimitsLimitIdRouteImport
+      parentRoute: typeof TTenantAiRateLimitsRoute
+    }
+    '/t/$tenant/ai/mcp-servers/$serverId': {
+      id: '/t/$tenant/ai/mcp-servers/$serverId'
+      path: '/$serverId'
+      fullPath: '/t/$tenant/ai/mcp-servers/$serverId'
+      preLoaderRoute: typeof TTenantAiMcpServersServerIdRouteImport
+      parentRoute: typeof TTenantAiMcpServersRoute
+    }
+    '/t/$tenant/ai/agents/$agentId': {
+      id: '/t/$tenant/ai/agents/$agentId'
+      path: '/$agentId'
+      fullPath: '/t/$tenant/ai/agents/$agentId'
+      preLoaderRoute: typeof TTenantAiAgentsAgentIdRouteImport
+      parentRoute: typeof TTenantAiAgentsRoute
+    }
     '/t/$tenant/_detail/$kind/$id': {
       id: '/t/$tenant/_detail/$kind/$id'
       path: '/$kind/$id'
@@ -1323,26 +1440,76 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface TTenantAiAgentsRouteChildren {
+  TTenantAiAgentsAgentIdRoute: typeof TTenantAiAgentsAgentIdRoute
+}
+
+const TTenantAiAgentsRouteChildren: TTenantAiAgentsRouteChildren = {
+  TTenantAiAgentsAgentIdRoute: TTenantAiAgentsAgentIdRoute,
+}
+
+const TTenantAiAgentsRouteWithChildren = TTenantAiAgentsRoute._addFileChildren(
+  TTenantAiAgentsRouteChildren,
+)
+
+interface TTenantAiMcpServersRouteChildren {
+  TTenantAiMcpServersServerIdRoute: typeof TTenantAiMcpServersServerIdRoute
+}
+
+const TTenantAiMcpServersRouteChildren: TTenantAiMcpServersRouteChildren = {
+  TTenantAiMcpServersServerIdRoute: TTenantAiMcpServersServerIdRoute,
+}
+
+const TTenantAiMcpServersRouteWithChildren =
+  TTenantAiMcpServersRoute._addFileChildren(TTenantAiMcpServersRouteChildren)
+
+interface TTenantAiRateLimitsRouteChildren {
+  TTenantAiRateLimitsLimitIdRoute: typeof TTenantAiRateLimitsLimitIdRoute
+}
+
+const TTenantAiRateLimitsRouteChildren: TTenantAiRateLimitsRouteChildren = {
+  TTenantAiRateLimitsLimitIdRoute: TTenantAiRateLimitsLimitIdRoute,
+}
+
+const TTenantAiRateLimitsRouteWithChildren =
+  TTenantAiRateLimitsRoute._addFileChildren(TTenantAiRateLimitsRouteChildren)
+
+interface TTenantAiTracesRouteChildren {
+  TTenantAiTracesTraceIdRoute: typeof TTenantAiTracesTraceIdRoute
+}
+
+const TTenantAiTracesRouteChildren: TTenantAiTracesRouteChildren = {
+  TTenantAiTracesTraceIdRoute: TTenantAiTracesTraceIdRoute,
+}
+
+const TTenantAiTracesRouteWithChildren = TTenantAiTracesRoute._addFileChildren(
+  TTenantAiTracesRouteChildren,
+)
+
 interface TTenantAiRouteChildren {
-  TTenantAiAgentsRoute: typeof TTenantAiAgentsRoute
-  TTenantAiMcpServersRoute: typeof TTenantAiMcpServersRoute
+  TTenantAiAgentsRoute: typeof TTenantAiAgentsRouteWithChildren
+  TTenantAiMcpServersRoute: typeof TTenantAiMcpServersRouteWithChildren
   TTenantAiProvidersRoute: typeof TTenantAiProvidersRoute
-  TTenantAiRateLimitsRoute: typeof TTenantAiRateLimitsRoute
+  TTenantAiRateLimitsRoute: typeof TTenantAiRateLimitsRouteWithChildren
   TTenantAiToolRoutingRoute: typeof TTenantAiToolRoutingRoute
   TTenantAiToolsRoute: typeof TTenantAiToolsRoute
-  TTenantAiTracesRoute: typeof TTenantAiTracesRoute
+  TTenantAiTracesRoute: typeof TTenantAiTracesRouteWithChildren
   TTenantAiIndexRoute: typeof TTenantAiIndexRoute
+  TTenantAiToolBindingsBindingIdRoute: typeof TTenantAiToolBindingsBindingIdRoute
+  TTenantAiToolsToolIdRoute: typeof TTenantAiToolsToolIdRoute
 }
 
 const TTenantAiRouteChildren: TTenantAiRouteChildren = {
-  TTenantAiAgentsRoute: TTenantAiAgentsRoute,
-  TTenantAiMcpServersRoute: TTenantAiMcpServersRoute,
+  TTenantAiAgentsRoute: TTenantAiAgentsRouteWithChildren,
+  TTenantAiMcpServersRoute: TTenantAiMcpServersRouteWithChildren,
   TTenantAiProvidersRoute: TTenantAiProvidersRoute,
-  TTenantAiRateLimitsRoute: TTenantAiRateLimitsRoute,
+  TTenantAiRateLimitsRoute: TTenantAiRateLimitsRouteWithChildren,
   TTenantAiToolRoutingRoute: TTenantAiToolRoutingRoute,
   TTenantAiToolsRoute: TTenantAiToolsRoute,
-  TTenantAiTracesRoute: TTenantAiTracesRoute,
+  TTenantAiTracesRoute: TTenantAiTracesRouteWithChildren,
   TTenantAiIndexRoute: TTenantAiIndexRoute,
+  TTenantAiToolBindingsBindingIdRoute: TTenantAiToolBindingsBindingIdRoute,
+  TTenantAiToolsToolIdRoute: TTenantAiToolsToolIdRoute,
 }
 
 const TTenantAiRouteWithChildren = TTenantAiRoute._addFileChildren(

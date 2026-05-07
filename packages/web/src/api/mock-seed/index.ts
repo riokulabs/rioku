@@ -9,14 +9,7 @@ export * from './rbac-policies';
 export * from './impersonation';
 export * from './access-policies';
 // Plan 03 (api-mgmt) feature slices retired — seed lives in _internal.ts
-// Plan 04 (ai)
-export * from './ai-providers';
-export * from './ai-agents';
-export * from './ai-tools';
-export * from './ai-tool-bindings';
-export * from './ai-rate-limits';
-export * from './ai-traces';
-export * from './ai-mcp-servers';
+// Plan 04 (ai) feature slices retired — seed lives in _internal.ts
 // Plan 05 (audit)
 export * from './audit';
 // Plan 06 (notifications)
