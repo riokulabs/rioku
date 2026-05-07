@@ -20,6 +20,7 @@ import {
   Tooltip,
   Alert,
   Loader,
+  Switch,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconRefresh, IconAlertCircle } from '@tabler/icons-react';
@@ -58,14 +59,16 @@ export function EnrollmentTokensPage() {
 
   const [enrollOpened, { open: openEnroll, close: closeEnroll }] = useDisclosure(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [showConsumed, setShowConsumed] = useState(false);
 
-  const sorted = useMemo(
-    () =>
-      [...tokens].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      ),
-    [tokens],
-  );
+  const sorted = useMemo(() => {
+    const filtered = showConsumed
+      ? [...tokens]
+      : tokens.filter((t) => tokenState(t) === 'active');
+    return filtered.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [tokens, showConsumed]);
 
   async function handleRevoke(id: string) {
     setRevokingId(id);
@@ -96,6 +99,19 @@ export function EnrollmentTokensPage() {
         revoked.
       </Text>
 
+      <Group justify="flex-end">
+        <Switch
+          checked={showConsumed}
+          onChange={(e) => {
+            setShowConsumed(e.currentTarget.checked);
+          }}
+          label="Show consumed and expired"
+          size="sm"
+          aria-label="Show consumed and expired tokens"
+          data-testid="show-consumed-toggle"
+        />
+      </Group>
+
       {sorted.length === 0 ? (
         <Alert icon={<IconAlertCircle size={16} />} color="blue" title="No tokens">
           No enrollment tokens have been generated yet.
@@ -117,7 +133,7 @@ export function EnrollmentTokensPage() {
               {sorted.map((tok) => {
                 const state = tokenState(tok);
                 return (
-                  <Table.Tr key={tok.id}>
+                  <Table.Tr key={tok.id} role="row" data-token-id={tok.id} data-state={state}>
                     <Table.Td>
                       <Text size="sm" ff="monospace">
                         {tok.token.slice(0, 24)}…

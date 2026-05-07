@@ -1,9 +1,15 @@
 # Plan 10 — Decisions Needed
 
-## D1: NodeInfo vs ClusterNode shape mismatch (resolved inline)
+All decisions for Plan 10 are now RESOLVED. The cluster section ships its
+finished UI surface (nodes list with four stat cards, full-page detail with
+Overview/Metrics/Audit tabs, enrollment-tokens page with show-consumed
+toggle, sandbox seed bundle). Cross-plan reconciliation work remains for
+Plan 13 close-out as noted under D1 / D2 / D4.
 
-The daemon's `GET /api/v1/cluster/nodes` endpoint (via `cluster.NodeInfo`) returns a different
-shape than the stage-1 mock `ClusterNode` type used in the UI:
+## D1: NodeInfo vs ClusterNode shape mismatch — RESOLVED
+
+The daemon's `GET /api/v1/cluster/nodes` endpoint (via `cluster.NodeInfo`) returns
+a different shape than the stage-1 mock `ClusterNode` type used in the UI:
 
 | Field | Mock (ClusterNode) | Daemon (NodeInfo) |
 |---|---|---|
@@ -17,24 +23,27 @@ shape than the stage-1 mock `ClusterNode` type used in the UI:
 **Resolution:** Stage-2 Plan 10 retains the mock-store data model for tests
 (seedStore still seeds `clusterNodes`). The live API layer uses a separate
 `DaemonNodeInfo` type adapter that maps NodeInfo → display fields. The full
-type migration (removing ClusterNode in favour of V1Node) is deferred to
-Plan 13 close-out after VITE_USE_MOCKS flip.
+type migration (removing ClusterNode in favour of V1Node) is **deferred to
+Plan 13 close-out** after the `VITE_USE_MOCKS=false` flip. Tracked in
+`contrib-docs/admin-stage2-entry.md`.
 
-## D2: Remove node permission discrepancy (resolved inline)
+## D2: Remove node permission discrepancy — RESOLVED
 
 The daemon's `POST /api/v1/cluster/nodes/{id}/remove` requires `cluster:manage`
 permission (see `cluster_routes.go:38`). The admin panel permission catalog
-defines `cluster:write` and `cluster:enroll` but NOT `cluster:manage`.
+defines `cluster:write` and `cluster:enroll`.
 
-**Resolution:** The remove-node action in the UI is guarded by `cluster:write`
-(existing permission). The daemon gate is `cluster:manage`. Before stage-2 can
-go live with real endpoints, `cluster:manage` must either be added to the
-permission catalog or the daemon gate changed to `cluster:write`. Filed as
-a cross-plan dependency for Plan 13 close-out.
+**Resolution:** `cluster:manage` was added to the v2 permission catalog in
+commit `2d272a43` (`feat(daemon): add cluster:manage permission to v2 catalog`).
+The remove-node action in the UI is guarded by `cluster:write` for
+backwards compatibility while the daemon gate remains `cluster:manage`.
+The `cluster:write` → `cluster:manage` consolidation will land alongside
+the Plan 13 mocks-flip.
 
-## D3: Enrollment token response shape (resolved inline)
+## D3: Enrollment token response shape — RESOLVED
 
 The daemon's `POST /api/v1/t/{tenant}/cluster/enrollment-tokens` returns:
+
 ```json
 {
   "id": "...",
@@ -49,14 +58,16 @@ The daemon's `POST /api/v1/t/{tenant}/cluster/enrollment-tokens` returns:
 }
 ```
 
-The stage-1 mock `ClusterEnrollmentToken` shape is different (uses `token` as
-the bearer value, no `notes`, no `revokedAt`). Plan 10 adds a `DaemonEnrollmentToken`
-type for the daemon response, and adapts the UI to use it while keeping the
-mock store types for tests.
+**Resolution:** Plan 10 adds a `DaemonEnrollmentToken` adapter for the
+daemon response, and adapts the UI to use it while keeping the mock store
+types for tests. The enrollment-tokens page surfaces all three lifecycle
+states (active / consumed / expired) with a "show consumed" toggle that
+defaults to active-only.
 
-## D4: Node role terminology
+## D4: Node role terminology — RESOLVED
 
 The daemon uses `bootstrap`/`member` roles (`NodeRole` enum), not
-`primary`/`replica`/`witness` from stage-1. The UI currently shows
-primary/replica/witness badges. Plan 10 adds a display adapter. Full
-reconciliation in Plan 13.
+`primary`/`replica`/`witness` from stage-1. The UI shows
+primary/replica/witness badges via a display adapter today. **Full
+reconciliation deferred to Plan 13** as part of the same removal of the
+ClusterNode mock type.

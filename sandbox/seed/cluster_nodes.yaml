@@ -1,0 +1,24 @@
+# Cluster topology declaration — Plan 10 (#83 / cluster nodes + enrollment).
+#
+# Cluster nodes are not creatable through the REST API: a daemon joins the
+# cluster by presenting an enrollment token at startup. This file documents
+# the expected sandbox topology so smoke tests / sandbox tooling can compare
+# the running cluster against the declared shape, and so the admin panel
+# Cluster page has a meaningful 4-node fixture during stage-2 development.
+#
+# The seed loader (packages/daemon/internal/cli/seed.go) parses the
+# `cluster_nodes:` block, logs each entry, and counts them — it does not
+# attempt a POST.
+cluster_nodes:
+  - name: node-primary-1
+    role: primary
+    note: "Bootstrap leader. Holds the raft primary lease at sandbox boot."
+  - name: node-replica-1
+    role: replica
+    note: "First replica. Joins via enrollment token, follows the primary."
+  - name: node-replica-2
+    role: replica
+    note: "Second replica. Provides quorum redundancy under failure."
+  - name: node-witness-1
+    role: witness
+    note: "Witness — votes for quorum but never serves traffic."

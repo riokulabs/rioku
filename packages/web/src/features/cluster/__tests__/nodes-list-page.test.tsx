@@ -9,12 +9,13 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const mockNavigate = vi.fn();
+let injectedNodeId = '__INJECTED_NODE_ID__';
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, ...props }: { children: React.ReactNode } & Record<string, unknown>) =>
     React.createElement('a', props, children),
   useNavigate: () => mockNavigate,
-  useParams: () => ({ tenant: 'acme', nodeId: '__INJECTED_NODE_ID__' }),
+  useParams: () => ({ tenant: 'acme', nodeId: injectedNodeId }),
   useRouter: () => ({ navigate: mockNavigate }),
 }));
 
@@ -39,6 +40,7 @@ function wrap(ui: React.ReactNode) {
 
 beforeEach(() => {
   mockNavigate.mockReset();
+  injectedNodeId = '__INJECTED_NODE_ID__';
   useMockStore.getState().reset();
   seedStore(useMockStore);
   // Mock root user so all permission gates open.
@@ -50,12 +52,24 @@ beforeEach(() => {
 });
 
 describe('<NodesListPage>', () => {
-  it('renders the heading and stat cards', () => {
+  it('renders the heading and four stat cards', () => {
     wrap(<NodesListPage />);
     expect(screen.getByRole('heading', { name: /^cluster nodes$/i })).toBeInTheDocument();
-    expect(screen.getByText(/total nodes/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^healthy$/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^unhealthy$/i)).toBeInTheDocument();
+    // Four stat cards — total / healthy / versions / p95.
+    expect(screen.getByTestId('stat-total-nodes')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-healthy')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-version-distribution')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-p95-latency')).toBeInTheDocument();
+    // Sanity — version distribution renders at least one version entry.
+    const versions = screen.getByTestId('stat-version-distribution');
+    expect(versions.textContent).toMatch(/0\.\d+\.\d+/);
+  });
+
+  it('exposes role="row" on each data row for accessibility', () => {
+    wrap(<NodesListPage />);
+    const rows = screen.getAllByRole('row');
+    // header + 4 seeded data rows
+    expect(rows.length).toBe(5);
   });
 
   it('renders one row per seeded cluster node', () => {
@@ -137,8 +151,99 @@ describe('<EnrollmentTokensPage>', () => {
 describe('<NodeDetailPage>', () => {
   it('renders an alert when the node id is unknown', () => {
     wrap(<NodeDetailPage />);
-    // Our mock useParams returns __INJECTED_NODE_ID__ which never exists.
     expect(screen.getByText(/node not found/i)).toBeInTheDocument();
     expect(screen.getByText(/no longer exists/i)).toBeInTheDocument();
+  });
+
+  it('renders three tabs (Overview, Metrics, Audit) for an existing node', () => {
+    const node = Object.values(useMockStore.getState().clusterNodes).find(
+      (n) => n.role === 'primary',
+    );
+    if (!node) throw new Error('expected a primary seeded node');
+    injectedNodeId = node.id;
+
+    wrap(<NodeDetailPage />);
+
+    // Tab list — three tabs.
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(3);
+    expect(screen.getByRole('tab', { name: /overview/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /metrics/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /audit/i })).toBeInTheDocument();
+
+    // Default Overview content visible.
+    expect(screen.getByText(/Node ID/i)).toBeInTheDocument();
+    expect(screen.getByText(node.id)).toBeInTheDocument();
+  });
+
+  it('switches to the Metrics tab and renders the PromQL cards', () => {
+    const node = Object.values(useMockStore.getState().clusterNodes).find(
+      (n) => n.role === 'primary',
+    );
+    if (!node) throw new Error('expected a primary seeded node');
+    injectedNodeId = node.id;
+
+    wrap(<NodeDetailPage />);
+    fireEvent.click(screen.getByRole('tab', { name: /metrics/i }));
+
+    expect(screen.getByTestId('node-metric-card-cpu')).toBeInTheDocument();
+    expect(screen.getByTestId('node-metric-card-memory')).toBeInTheDocument();
+    expect(screen.getByTestId('node-metric-card-rps')).toBeInTheDocument();
+    expect(screen.getByTestId('node-metric-card-errors')).toBeInTheDocument();
+    expect(screen.getByTestId('node-metric-card-p95')).toBeInTheDocument();
+    // PromQL is scoped by instance id.
+    const promql = screen.getByTestId('node-metric-promql-cpu');
+    expect(promql.textContent).toContain(node.id);
+  });
+
+  it('switches to the Audit tab and lists matching cluster audit entries', async () => {
+    const removable = Object.values(useMockStore.getState().clusterNodes).find(
+      (n) => n.role !== 'primary',
+    );
+    if (!removable) throw new Error('expected a non-primary seeded node');
+
+    // Generate an audit entry that targets this node.
+    const { removeNode } = await import('../api');
+    await removeNode(removable.id);
+
+    // Re-seed the node back so the page can render the detail.
+    useMockStore.setState((s) => ({
+      clusterNodes: { ...s.clusterNodes, [removable.id]: removable },
+    }));
+
+    injectedNodeId = removable.id;
+    wrap(<NodeDetailPage />);
+    fireEvent.click(screen.getByRole('tab', { name: /audit/i }));
+
+    const list = await screen.findByTestId('cluster-node-audit-list');
+    expect(list).toBeInTheDocument();
+    expect(within(list).getByText(/cluster\.node\.remove/i)).toBeInTheDocument();
+  });
+});
+
+describe('<EnrollmentTokensPage> consumed-toggle', () => {
+  it('hides consumed and expired tokens by default and shows them when toggled', () => {
+    wrap(<EnrollmentTokensPage />);
+
+    // Default: only active tokens visible — toggle is off.
+    const toggle = screen.getByTestId('show-consumed-toggle');
+    expect(toggle.checked).toBe(false);
+
+    // Default render — at least one row, none are consumed/expired.
+    const initialRows = screen.getAllByRole('row');
+    const stateBadges = initialRows
+      .slice(1)
+      .map((r) => r.getAttribute('data-state'))
+      .filter((s): s is string => s !== null);
+    expect(stateBadges.every((s) => s === 'active')).toBe(true);
+
+    // Toggle on — consumed and expired now visible.
+    fireEvent.click(toggle);
+    const allRows = screen.getAllByRole('row');
+    const allStates = allRows
+      .slice(1)
+      .map((r) => r.getAttribute('data-state'))
+      .filter((s): s is string => s !== null);
+    expect(allStates).toContain('consumed');
   });
 });

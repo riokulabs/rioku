@@ -94,7 +94,23 @@ export function NodesListPage() {
     const total = nodes.length;
     const healthy = nodes.filter((n) => n.status === 'healthy').length;
     const unhealthy = nodes.filter((n) => isUnhealthy(n.status)).length;
-    return { total, healthy, unhealthy };
+
+    // Version distribution — count nodes per daemon version, return the
+    // top 3 most common entries as `${version}: ${count}`.
+    const versionCounts = new Map<string, number>();
+    for (const n of nodes) {
+      versionCounts.set(n.version, (versionCounts.get(n.version) ?? 0) + 1);
+    }
+    const versionDistribution = Array.from(versionCounts.entries())
+      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+      .slice(0, 3);
+
+    // Cluster-wide p95 latency: max of per-node p95 (worst-case proxy
+    // until the PromQL `histogram_quantile` over all nodes lands).
+    const p95 =
+      nodes.length === 0 ? 0 : Math.max(...nodes.map((n) => n.metrics.latency_p95_ms));
+
+    return { total, healthy, unhealthy, versionDistribution, p95 };
   }, [nodes]);
 
   function handlePreview(node: ClusterNode) {
@@ -133,8 +149,8 @@ export function NodesListPage() {
         )}
       </Group>
 
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-        <Card withBorder padding="md" radius="md">
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" data-testid="cluster-stat-cards">
+        <Card withBorder padding="md" radius="md" data-testid="stat-total-nodes">
           <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
             Total nodes
           </Text>
@@ -142,25 +158,60 @@ export function NodesListPage() {
             {stats.total}
           </Text>
         </Card>
-        <Card withBorder padding="md" radius="md">
+        <Card withBorder padding="md" radius="md" data-testid="stat-healthy">
           <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
             Healthy
           </Text>
           <Text size="xl" fw={700} mt={4} c="teal.4">
             {stats.healthy}
           </Text>
+          <Text size="xs" c="var(--mantine-color-gray-7)">
+            {stats.unhealthy === 0
+              ? 'all nodes reporting'
+              : `${String(stats.unhealthy)} degraded or unreachable`}
+          </Text>
         </Card>
-        <Card withBorder padding="md" radius="md">
+        <Card withBorder padding="md" radius="md" data-testid="stat-version-distribution">
           <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
-            Unhealthy
+            Versions
+          </Text>
+          {stats.versionDistribution.length === 0 ? (
+            <Text size="sm" mt={4} c="var(--mantine-color-gray-7)">
+              —
+            </Text>
+          ) : (
+            <Stack gap={2} mt={4}>
+              {stats.versionDistribution.map(([version, count]) => (
+                <Group key={version} justify="space-between" gap="xs">
+                  <Text size="sm" ff="monospace" fw={600}>
+                    {version}
+                  </Text>
+                  <Text size="xs" c="var(--mantine-color-gray-7)">
+                    {count} {count === 1 ? 'node' : 'nodes'}
+                  </Text>
+                </Group>
+              ))}
+            </Stack>
+          )}
+        </Card>
+        <Card withBorder padding="md" radius="md" data-testid="stat-p95-latency">
+          <Text size="xs" c="var(--mantine-color-gray-7)" tt="uppercase" fw={600}>
+            p95 latency
           </Text>
           <Text
             size="xl"
             fw={700}
             mt={4}
-            c={stats.unhealthy === 0 ? 'var(--mantine-color-gray-7)' : 'red.4'}
+            c={stats.p95 > 100 ? 'red.4' : stats.p95 > 50 ? 'yellow.4' : 'teal.4'}
           >
-            {stats.unhealthy}
+            {stats.p95}
+            <Text component="span" size="sm" fw={400} c="var(--mantine-color-gray-7)">
+              {' '}
+              ms
+            </Text>
+          </Text>
+          <Text size="xs" c="var(--mantine-color-gray-7)">
+            worst node, cluster-wide
           </Text>
         </Card>
       </SimpleGrid>
@@ -187,7 +238,7 @@ export function NodesListPage() {
             </Table.Thead>
             <Table.Tbody>
               {nodes.map((node) => (
-                <Table.Tr key={node.id}>
+                <Table.Tr key={node.id} role="row" data-node-id={node.id}>
                   <Table.Td>
                     <Text size="sm" fw={500} ff="monospace">
                       {node.name}
