@@ -116,7 +116,7 @@ function NotificationDeliveryPage() {
 
       <DeliveryLogFilterBar tenantId={tenantId} filter={filter} onChange={setFilter} />
 
-      <DeliveryLogList rows={rows} onSelect={handleSelect} />
+      <DeliveryLogList tenantId={tenantId} rows={rows} onSelect={handleSelect} />
 
       {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer

@@ -7,9 +7,16 @@ import { Group, MultiSelect, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useChannelList } from '@/features/notification-channels/api';
+import type { ChannelFilter } from '@/features/notification-channels/types';
 import type { NotificationDeliveryLogEntry } from '@/api/resources';
 import type { DeliveryLogFilter } from '../types';
+
+const EMPTY_CHANNEL_FILTER: ChannelFilter = {
+  kinds: [],
+  enabled: undefined,
+  search: '',
+};
 
 const STATUS_OPTIONS: { value: NotificationDeliveryLogEntry['status']; label: string }[] = [
   { value: 'delivered', label: 'Delivered' },
@@ -38,16 +45,16 @@ interface DeliveryLogFilterBarProps {
 }
 
 export function DeliveryLogFilterBar({ tenantId, filter, onChange }: DeliveryLogFilterBarProps) {
-  const channels = useMockStore((s) => s.notificationChannels);
+  const channels = useChannelList(tenantId, EMPTY_CHANNEL_FILTER);
 
-  const channelOptions = useMemo(() => {
-    return Object.values(channels)
-      .filter((c) => c.tenant_id === tenantId)
-      .map((c) => ({
+  const channelOptions = useMemo(
+    () =>
+      channels.map((c) => ({
         value: c.id,
         label: `${c.name} — ${c.kind}`,
-      }));
-  }, [channels, tenantId]);
+      })),
+    [channels],
+  );
 
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
