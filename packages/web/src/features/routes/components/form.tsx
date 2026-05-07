@@ -24,7 +24,7 @@ import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useForm, schemaResolver } from '@mantine/form';
 import { usePermission } from '@/hooks/use-permission';
 import { z } from 'zod';
-import { useMockStore } from '@/api/mock-store';
+import { useServiceListReal } from '@/features/services/api.stage2';
 import { notify } from '@/hooks/use-notify';
 import { createRoute, updateRoute } from '../api';
 import { isValidRegex } from '../schemas';
@@ -103,10 +103,13 @@ export function RouteForm({
     initialValues ? headersAddToPairs(initialValues.headers_add) : [],
   );
 
-  const services = useMockStore((s) => s.services);
-  const serviceOptions = Object.values(services)
-    .filter((s) => s.tenant_id === tenantId)
-    .map((s) => ({ value: s.id, label: s.name }));
+  const { services } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const serviceOptions = services.map((s) => ({ value: s.id, label: s.name }));
 
   const form = useForm<RouteFormValues>({
     initialValues: {

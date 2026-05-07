@@ -9,10 +9,9 @@
  * the `rioku.admin/middleware-ids` label and triggers a Caddy reload; the
  * route query is invalidated so the next render picks up the new order.
  *
- * Middleware display metadata (`name`, `kind`) is read from the
- * mock-store-backed `useMiddlewareList` selector for now; flipping the
- * middlewares feature to real endpoints is owned by Plan 04. The UI
- * gracefully degrades to "id only" if the metadata is missing.
+ * Middleware display metadata (`name`, `kind`) is read from the real-API
+ * `useMiddlewareList` selector. The UI gracefully degrades to "id only"
+ * if the metadata is missing.
  */
 import { useMemo, useState } from 'react';
 import {
