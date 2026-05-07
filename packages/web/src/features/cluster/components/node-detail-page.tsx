@@ -42,7 +42,6 @@ import { usePermission } from '@/hooks/use-permission';
 import { useDisclosure } from '@mantine/hooks';
 import { StatusBadge } from '@/components/status-badge';
 import { useAuditList } from '@/features/audit/api';
-import { useMockStore } from '@/api/mock-store';
 import { useClusterNode, removeNode } from '../api';
 import { deriveRegion } from '../types';
 import { NodeMetricsPanel } from './node-metrics-panel';
@@ -101,8 +100,7 @@ export function NodeDetailPage() {
   const canWrite = usePermission('cluster:write');
   const [removeOpened, { open: openRemove, close: closeRemove }] = useDisclosure(false);
 
-  const tenantId = useMockStore((s) => s.currentTenantId);
-  const allClusterAudit = useAuditList(tenantId ?? '', EMPTY_FILTER);
+  const allClusterAudit = useAuditList(tenant, EMPTY_FILTER);
   const nodeAudit = useMemo(
     () => allClusterAudit.filter((entry) => entry.resource_id === nodeId),
     [allClusterAudit, nodeId],
