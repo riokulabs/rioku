@@ -63,7 +63,7 @@ function AiToolRoutingPage() {
   const canWrite = usePermission('ai-tool:write');
 
   // Stage-2 daemon-backed feature: tenantId is the URL slug; daemon resolves it.
-  const tenantSlug = tenant ?? '';
+  const tenantSlug = tenant;
   const tenantId = tenantSlug;
 
   /** Effective filter — merges multi-select csv with deep-link single ids. */

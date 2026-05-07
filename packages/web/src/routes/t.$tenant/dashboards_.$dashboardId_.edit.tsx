@@ -16,7 +16,7 @@ function DashboardBuilderPage() {
   const navigate = useNavigate();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const tenantSlug = tenant ?? '';
+  const tenantSlug = tenant;
   const dashboard = useDashboardDetail(dashboardId);
 
   function goBack(outcome: 'saved' | 'cancelled') {

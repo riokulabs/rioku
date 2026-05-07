@@ -19,7 +19,7 @@ import { NetworkRealSection } from '@/features/settings/sections-real/network-re
 function NetworkSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = tenant ?? "";
-  const activeTenant: string = tenant ?? tenantSlug ?? "";
+  const activeTenant: string = tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="settings-network-page">

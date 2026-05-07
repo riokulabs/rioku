@@ -105,7 +105,7 @@ describe('Super-admin route guard — admin:cross-tenant-read', () => {
     const guard = requirePermissions({ required: ['admin:cross-tenant-read'] });
     let thrown: unknown;
     try {
-      guard();
+      void guard();
     } catch (err) {
       thrown = err;
     }
@@ -125,7 +125,7 @@ describe('Super-admin route guard — admin:cross-tenant-read', () => {
     const guard = requirePermissions({ required: ['admin:cross-tenant-read'] });
     let thrown: unknown;
     try {
-      guard();
+      void guard();
     } catch (err) {
       thrown = err;
     }

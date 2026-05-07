@@ -18,7 +18,7 @@ import { AuthPolicyRealSection } from '@/features/settings/sections-real/auth-po
 function AuthPolicySettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = tenant ?? "";
-  const activeTenant: string = tenant ?? tenantSlug ?? "";
+  const activeTenant: string = tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="settings-auth-policy-page">

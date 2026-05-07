@@ -45,7 +45,7 @@ function TenantPicker() {
           name: t.name ?? t.slug ?? '',
           accent: t.accent ?? '',
           plan: ((t.plan ?? 'community') as Tenant['plan']),
-          url_mode: (t.urlMode === 'subdomain' ? 'subdomain' : 'path') as Tenant['url_mode'],
+          url_mode: (t.urlMode === 'subdomain' ? 'subdomain' : 'path'),
           // parent_domain is not yet exposed on AdminTenant; default empty.
           parent_domain: '',
           created_at: t.createdAt ?? '',
@@ -82,7 +82,7 @@ function TenantPicker() {
           <Text size="sm">
             <strong>{tenant.name}</strong> runs on its own subdomain. You may need to sign in
             again if you don&apos;t have an active session on{' '}
-            <strong>{tenant.parent_domain || tenant.slug}</strong>. Continue?
+            <strong>{tenant.parent_domain ?? tenant.slug}</strong>. Continue?
           </Text>
         ),
         labels: { confirm: 'Continue', cancel: 'Cancel' },

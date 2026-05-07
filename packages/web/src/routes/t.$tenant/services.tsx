@@ -70,8 +70,8 @@ function ServicesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   // Stage-2: derive option lists from the daemon-backed service list.
   const allServices = useServiceList(tenantId, {

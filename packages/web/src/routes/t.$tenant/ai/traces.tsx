@@ -73,8 +73,8 @@ function AiTracesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   // Cross-link: `agent` query param folds into agent_ids (dedup).
   const agentIds = useMemo(() => {

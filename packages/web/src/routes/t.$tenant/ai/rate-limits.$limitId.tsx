@@ -14,8 +14,8 @@ import { RateLimitFullPage } from '@/features/ai-rate-limits/components/full-pag
 function RateLimitDetailPage() {
   const { tenant, limitId } = Route.useParams();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md">

@@ -58,8 +58,8 @@ function NotificationDeliveryPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: DeliveryLogFilter = {
     statuses: search.statuses,

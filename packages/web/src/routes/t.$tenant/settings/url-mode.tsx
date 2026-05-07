@@ -57,7 +57,7 @@ interface UrlModeFormValues {
 function UrlModeSettingsPage() {
   const { tenant: tenantSlug } = Route.useParams();
   const tenantRecord = useCurrentTenant();
-  const tenantId = tenantRecord?.id ?? tenantSlug ?? '';
+  const tenantId = tenantRecord?.id ?? tenantSlug;
   const canWrite = usePermission('tenant:write');
 
   const [loading, setLoading] = useState(false);

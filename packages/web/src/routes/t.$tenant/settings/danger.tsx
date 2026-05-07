@@ -28,7 +28,7 @@ import { DangerZoneRealSection } from '@/features/settings/sections-real/danger-
 function DangerSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = tenant ?? "";
-  const activeTenant: string = tenant ?? tenantSlug ?? "";
+  const activeTenant: string = tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="settings-danger-page">
@@ -47,7 +47,7 @@ function DangerSettingsPage() {
           </Group>
         </Anchor>
       </Group>
-      <DangerZoneRealSection tenant={activeTenant} tenantSlug={tenantSlug ?? ""} />
+      <DangerZoneRealSection tenant={activeTenant} tenantSlug={tenantSlug} />
     </Stack>
   );
 }

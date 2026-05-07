@@ -15,8 +15,8 @@ function ApiKeyFullPageRoute() {
     from: '/t/$tenant/security/api-keys/$keyId',
   });
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md">

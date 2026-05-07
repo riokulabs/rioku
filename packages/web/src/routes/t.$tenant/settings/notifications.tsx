@@ -21,8 +21,8 @@ import { useDeliveryLogList } from '@/features/notification-log';
 
 function NotificationsSettingsIndexPage() {
   const { tenant } = Route.useParams();
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const channels = useChannelList(tenantId, { search: '', kinds: [], enabled: undefined });
   const rules = useRoutingRuleList(tenantId, { search: '', enabled: undefined });

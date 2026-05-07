@@ -19,8 +19,8 @@ function RouteDetailPage() {
   const { tenant, routeId } = Route.useParams();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md">

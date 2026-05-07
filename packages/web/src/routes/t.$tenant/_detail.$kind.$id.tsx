@@ -584,8 +584,8 @@ const DETAIL_REGISTRY: Record<string, DetailEntry> = {
 function DetailPage() {
   const { tenant, kind, id } = Route.useParams();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const entry = DETAIL_REGISTRY[kind];
   const DetailComponent = entry?.renderer;

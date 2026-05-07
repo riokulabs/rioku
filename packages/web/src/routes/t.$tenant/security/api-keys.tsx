@@ -27,7 +27,7 @@ function ApiKeysPage() {
   const { tenant } = Route.useParams();
 
   // Stage-2: tenantId is the URL slug; daemon resolves it.
-  const tenantId = tenant ?? '';
+  const tenantId = tenant;
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('create');

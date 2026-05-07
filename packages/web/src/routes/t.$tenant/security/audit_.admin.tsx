@@ -54,8 +54,8 @@ type VerifyStatus =
 
 function TenantAdminAuditPage() {
   const { tenant } = Route.useParams();
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   // Stage-2: hydrate user lookup from the daemon-backed user list.
   const usersResult = useUserList(tenantId, { search: '', status: 'all' });

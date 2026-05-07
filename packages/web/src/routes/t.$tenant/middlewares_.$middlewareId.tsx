@@ -17,8 +17,8 @@ import { MiddlewareFullPage } from '@/features/middlewares/components/full-page'
 function MiddlewareDetailPage() {
   const { tenant, middlewareId } = Route.useParams();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md">

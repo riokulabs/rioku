@@ -48,8 +48,8 @@ function MiddlewaresPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: MiddlewareFilter = {
     search: search.search,

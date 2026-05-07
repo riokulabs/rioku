@@ -22,7 +22,7 @@ interface UserOption {
 
 function EffectivePermissionsPage() {
   const { tenant } = Route.useParams();
-  const tenantId = tenant ?? '';
+  const tenantId = tenant;
 
   // Stage-2: pull active memberships from the daemon-backed user list.
   const usersResult = useUserList(tenantId, { search: '', status: 'active' });

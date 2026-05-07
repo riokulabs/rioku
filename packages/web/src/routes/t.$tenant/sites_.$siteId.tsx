@@ -15,8 +15,8 @@ import { SiteFullPage } from '@/features/sites';
 
 function SiteDetailPage() {
   const { tenant, siteId } = Route.useParams();
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return <SiteFullPage tenantId={tenantId} tenantSlug={tenantSlug} siteId={siteId} />;
 }

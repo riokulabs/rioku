@@ -109,8 +109,8 @@ function AuditPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   // Build the filter from URL-synced search params. Filter identity changes
   // only when an underlying value changes; deriving it via useMemo keeps the

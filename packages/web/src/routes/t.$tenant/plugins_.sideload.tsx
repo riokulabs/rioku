@@ -19,7 +19,7 @@ import { useDaemonCapabilities } from '@/features/plugins/use-daemon-capabilitie
 
 function PluginSideloadPage() {
   const { tenant } = Route.useParams();
-  const tenantSlug = tenant ?? '';
+  const tenantSlug = tenant;
   const caps = useDaemonCapabilities();
 
   return (

@@ -30,8 +30,8 @@ function DashboardViewerPage() {
   const { openDelete } = useDashboardsLayoutContext();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const tenantSlug = tenant ?? '';
-  const tenantId = tenant ?? '';
+  const tenantSlug = tenant;
+  const tenantId = tenant;
 
   const dashboard = useDashboardDetail(dashboardId);
 

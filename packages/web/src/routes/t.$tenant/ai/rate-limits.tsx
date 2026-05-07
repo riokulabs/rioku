@@ -65,8 +65,8 @@ function AiRateLimitsPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('ai-rate-limit:write');
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: RateLimitFilter = {
     search: search.search,

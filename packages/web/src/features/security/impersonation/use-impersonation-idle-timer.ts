@@ -94,7 +94,7 @@ export function useImpersonationIdleTimer(
       });
       return;
     }
-    extendSession();
+    await extendSession();
   }, [session, touchMutation, queryClient, extendSession]);
 
   return {

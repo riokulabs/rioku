@@ -145,7 +145,7 @@ function StockDashboard({ tenantId }: { tenantId: string }) {
 
 function DashboardPage() {
   const { tenant } = Route.useParams();
-  const tenantId = tenant ?? '';
+  const tenantId = tenant;
   const currentUser = useCurrentUser().data ?? null;
   const currentUserId = currentUser?.id ?? null;
   const dashboards = useDashboardList(tenantId, {

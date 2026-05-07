@@ -77,8 +77,8 @@ function PluginsPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const canReadSigners = usePermission('plugin-signer:read');
 

@@ -35,8 +35,8 @@ function NotificationRoutingPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const canWrite = usePermission('notification-routing:write');
 

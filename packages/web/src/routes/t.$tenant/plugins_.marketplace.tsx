@@ -20,8 +20,8 @@ import type { MarketplaceListing } from '@/features/plugins/marketplace';
 
 function MarketplaceBrowsePage() {
   const { tenant } = Route.useParams();
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
   const installMutation = useInstallFromMarketplaceMutation(tenantId);
 
   const handleInstall = useCallback(

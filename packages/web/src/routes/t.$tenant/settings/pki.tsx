@@ -18,7 +18,7 @@ import { PkiRealSection } from '@/features/settings/sections-real/pki-real';
 function PkiSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = tenant ?? "";
-  const activeTenant: string = tenant ?? tenantSlug ?? "";
+  const activeTenant: string = tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="settings-pki-page">

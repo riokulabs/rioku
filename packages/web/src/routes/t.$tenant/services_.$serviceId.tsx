@@ -18,8 +18,8 @@ import { ServiceFullPage } from '@/features/services/components/full-page';
 function ServiceDetailPage() {
   const { tenant, serviceId } = Route.useParams();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md">

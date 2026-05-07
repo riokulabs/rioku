@@ -19,7 +19,7 @@ import { TenantRealSection } from '@/features/settings/sections-real/tenant-real
 function TenantSettingsPage() {
   const { tenant } = useParams({ strict: false });
   const tenantSlug = tenant ?? "";
-  const activeTenant: string = tenant ?? tenantSlug ?? "";
+  const activeTenant: string = tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="settings-tenant-page">

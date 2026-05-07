@@ -89,7 +89,7 @@ function NotificationsPage() {
   const navigate = useNavigate();
 
   const currentUserId = useCurrentUser().data?.id ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantSlug = tenant;
 
   const canManageOwn = usePermission('notification:manage-own');
 

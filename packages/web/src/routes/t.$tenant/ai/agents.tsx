@@ -55,7 +55,7 @@ function AiAgentsPage() {
   // provider/role/tool option lists in the form (those features are still on
   // mock-store as of stage-2 plan-04 ai-agents slice).
   // Stage-2: tenantId is the URL slug; daemon resolves it.
-  const tenantId = tenant ?? '';
+  const tenantId = tenant;
 
   const filter: AgentFilter = {
     search: search.search,

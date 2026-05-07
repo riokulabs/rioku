@@ -45,8 +45,8 @@ function RoutesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: RouteFilter = useMemo(
     () => ({

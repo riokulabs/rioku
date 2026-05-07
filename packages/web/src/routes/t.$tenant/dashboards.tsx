@@ -23,7 +23,7 @@ function DashboardsLayoutPage() {
   const { tenant } = Route.useParams();
   const navigate = useNavigate();
 
-  const tenantSlug = tenant ?? '';
+  const tenantSlug = tenant;
 
   const [deleteTarget, setDeleteTarget] = useState<Dashboard | null>(null);
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);

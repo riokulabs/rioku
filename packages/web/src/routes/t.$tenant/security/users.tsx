@@ -19,8 +19,8 @@ type DrawerMode = 'detail' | 'invite';
 function UsersPage() {
   const { tenant } = Route.useParams();
 
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
   const navigate = useNavigate();
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);

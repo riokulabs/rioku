@@ -18,8 +18,8 @@ import { RetentionConfigForm } from '@/features/audit/components/retention-confi
 
 function AuditRetentionSettingsPage() {
   const { tenant } = Route.useParams();
-  const tenantId = tenant ?? '';
-  const tenantSlug = tenant ?? '';
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   return (
     <Stack gap="md" p="md" data-testid="audit-retention-page">
