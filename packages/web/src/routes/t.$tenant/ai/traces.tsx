@@ -208,7 +208,7 @@ function AiTracesPage() {
         onChange={setFilter}
       />
 
-      <TraceList rows={visibleRows} onSelect={handleRowClick} />
+      <TraceList tenantId={tenantId} rows={visibleRows} onSelect={handleRowClick} />
 
       {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
