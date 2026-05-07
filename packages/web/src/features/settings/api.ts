@@ -23,7 +23,6 @@ import { simulateLatency } from '@/api/mock-latency';
 import { makeIdFactory } from '@/lib/id-generator';
 import { emitHostEvent } from '@/host/events';
 import { seedStore } from '@/api/mock-seed';
-import { logAdminAuditEntry } from '@/api/resources/audit';
 import type {
   AuditEntry,
   CertAuthority,
@@ -1303,16 +1302,5 @@ export async function deleteTenant(tenantId: ID): Promise<void> {
     };
   });
 
-  // Write the deletion audit entry to the super-admin cross-tenant log AFTER
-  // the cascade so it cannot be wiped by the tenant audit filter above.
-  const state = useMockStore.getState();
-  await logAdminAuditEntry({
-    tenant_id: tenantId,
-    actor_id: state.currentUserId ?? 'unknown',
-    action: 'tenant.delete',
-    resource_type: 'tenant',
-    resource_id: tenantId,
-    outcome: 'success',
-    tier: 'destructive',
-  });
+  // Stage-2: admin-audit emission for tenant.delete now happens server-side.
 }
