@@ -182,10 +182,9 @@ export async function bulkAttachToolsToAgent(
  * uses the same cel-go evaluator that runs at request time. Empty string
  * is treated as "always allow" without a network call.
  *
- * The legacy mock-store result shape exposed `{ parses, sample_result?, error? }`.
- * The daemon shape is `{ matched?, condition?, note? }`. We keep the legacy
- * shape so existing callers (the form, the drawer, the full page) don't have
- * to change. Daemon-side parse / evaluation errors surface as a thrown
+ * The result shape `{ parses, sample_result?, error? }` is preserved across
+ * existing callers (the form, the drawer, the full page). The daemon shape
+ * is `{ matched?, condition?, note? }` and is mapped here. Daemon-side parse / evaluation errors surface as a thrown
  * `ApiError` from `customFetch`, which we catch here and translate.
  */
 export async function previewCondition(

@@ -11,7 +11,7 @@
  *   POST   /api/v1/t/{tenant}/ai/mcp-servers/{id}/test
  *   GET    /api/v1/t/{tenant}/ai/mcp-servers/{id}/tools
  *
- * Public names preserved from the prior mock-store implementation:
+ * Public names:
  *   useMcpServerList, useMcpServerDetail, useMcpServerTools,
  *   createMcpServer, updateMcpServer, deleteMcpServer, testMcpServer.
  *
@@ -107,9 +107,8 @@ interface ListResult {
 /**
  * Filtered list of MCP servers for the given tenant.
  *
- * Returns a `McpServer[]` directly so existing call sites keep working
- * (the previous mock-store hook had the same return type). For the reactive
- * query state, use {@link useMcpServerListQuery}.
+ * Returns a `McpServer[]` directly so existing call sites keep working.
+ * For the reactive query state, use {@link useMcpServerListQuery}.
  */
 export function useMcpServerList(tenant: string, filter: McpServerFilter): McpServer[] {
   const { items } = useMcpServerListQuery(tenant);
