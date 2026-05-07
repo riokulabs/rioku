@@ -53,6 +53,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type pluginServiceListPluginsResponse = {
   data: V1PluginList | RpcStatus;
   status: number;
@@ -96,15 +98,16 @@ export const getPluginServiceListPluginsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof pluginServiceListPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getPluginServiceListPluginsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof pluginServiceListPlugins>>> = ({
     signal,
-  }) => pluginServiceListPlugins(params, signal);
+  }) => pluginServiceListPlugins(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof pluginServiceListPlugins>>,
@@ -135,6 +138,7 @@ export function usePluginServiceListPluginsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceListPluginsInfinite<
@@ -154,6 +158,7 @@ export function usePluginServiceListPluginsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceListPluginsInfinite<
@@ -165,6 +170,7 @@ export function usePluginServiceListPluginsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof pluginServiceListPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -177,6 +183,7 @@ export function usePluginServiceListPluginsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof pluginServiceListPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getPluginServiceListPluginsInfiniteQueryOptions(params, options);
@@ -199,15 +206,16 @@ export const getPluginServiceListPluginsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof pluginServiceListPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getPluginServiceListPluginsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof pluginServiceListPlugins>>> = ({
     signal,
-  }) => pluginServiceListPlugins(params, signal);
+  }) => pluginServiceListPlugins(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof pluginServiceListPlugins>>,
@@ -238,6 +246,7 @@ export function usePluginServiceListPlugins<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceListPlugins<
@@ -257,6 +266,7 @@ export function usePluginServiceListPlugins<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceListPlugins<
@@ -268,6 +278,7 @@ export function usePluginServiceListPlugins<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof pluginServiceListPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -280,6 +291,7 @@ export function usePluginServiceListPlugins<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof pluginServiceListPlugins>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getPluginServiceListPluginsQueryOptions(params, options);
@@ -325,6 +337,7 @@ export const getPluginServiceInstallPluginMutationOptions = <
     { data: V1InstallRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof pluginServiceInstallPlugin>>,
   TError,
@@ -332,11 +345,11 @@ export const getPluginServiceInstallPluginMutationOptions = <
   TContext
 > => {
   const mutationKey = ['pluginServiceInstallPlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof pluginServiceInstallPlugin>>,
@@ -344,7 +357,7 @@ export const getPluginServiceInstallPluginMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return pluginServiceInstallPlugin(data);
+    return pluginServiceInstallPlugin(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -363,6 +376,7 @@ export const usePluginServiceInstallPlugin = <TError = RpcStatus, TContext = unk
     { data: V1InstallRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof pluginServiceInstallPlugin>>,
   TError,
@@ -420,6 +434,7 @@ export const getPluginServiceRemovePluginMutationOptions = <
     { pluginId: string; params?: PluginServiceRemovePluginParams },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof pluginServiceRemovePlugin>>,
   TError,
@@ -427,11 +442,11 @@ export const getPluginServiceRemovePluginMutationOptions = <
   TContext
 > => {
   const mutationKey = ['pluginServiceRemovePlugin'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof pluginServiceRemovePlugin>>,
@@ -439,7 +454,7 @@ export const getPluginServiceRemovePluginMutationOptions = <
   > = (props) => {
     const { pluginId, params } = props ?? {};
 
-    return pluginServiceRemovePlugin(pluginId, params);
+    return pluginServiceRemovePlugin(pluginId, params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -458,6 +473,7 @@ export const usePluginServiceRemovePlugin = <TError = RpcStatus, TContext = unkn
     { pluginId: string; params?: PluginServiceRemovePluginParams },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof pluginServiceRemovePlugin>>,
   TError,
@@ -508,15 +524,16 @@ export const getPluginServiceGetPluginConfigInfiniteQueryOptions = <
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getPluginServiceGetPluginConfigQueryKey(pluginId);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>> = ({
     signal,
-  }) => pluginServiceGetPluginConfig(pluginId, signal);
+  }) => pluginServiceGetPluginConfig(pluginId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!pluginId, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>,
@@ -551,6 +568,7 @@ export function usePluginServiceGetPluginConfigInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceGetPluginConfigInfinite<
@@ -574,6 +592,7 @@ export function usePluginServiceGetPluginConfigInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceGetPluginConfigInfinite<
@@ -589,6 +608,7 @@ export function usePluginServiceGetPluginConfigInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -605,6 +625,7 @@ export function usePluginServiceGetPluginConfigInfinite<
         TData
       >
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getPluginServiceGetPluginConfigInfiniteQueryOptions(pluginId, options);
@@ -627,15 +648,16 @@ export const getPluginServiceGetPluginConfigQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getPluginServiceGetPluginConfigQueryKey(pluginId);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>> = ({
     signal,
-  }) => pluginServiceGetPluginConfig(pluginId, signal);
+  }) => pluginServiceGetPluginConfig(pluginId, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!pluginId, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>,
@@ -666,6 +688,7 @@ export function usePluginServiceGetPluginConfig<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceGetPluginConfig<
@@ -685,6 +708,7 @@ export function usePluginServiceGetPluginConfig<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function usePluginServiceGetPluginConfig<
@@ -696,6 +720,7 @@ export function usePluginServiceGetPluginConfig<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -708,6 +733,7 @@ export function usePluginServiceGetPluginConfig<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof pluginServiceGetPluginConfig>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getPluginServiceGetPluginConfigQueryOptions(pluginId, options);
@@ -757,6 +783,7 @@ export const getPluginServiceSetPluginConfigMutationOptions = <
     { pluginId: string; data: PluginServiceSetPluginConfigBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof pluginServiceSetPluginConfig>>,
   TError,
@@ -764,11 +791,11 @@ export const getPluginServiceSetPluginConfigMutationOptions = <
   TContext
 > => {
   const mutationKey = ['pluginServiceSetPluginConfig'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof pluginServiceSetPluginConfig>>,
@@ -776,7 +803,7 @@ export const getPluginServiceSetPluginConfigMutationOptions = <
   > = (props) => {
     const { pluginId, data } = props ?? {};
 
-    return pluginServiceSetPluginConfig(pluginId, data);
+    return pluginServiceSetPluginConfig(pluginId, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -795,6 +822,7 @@ export const usePluginServiceSetPluginConfig = <TError = RpcStatus, TContext = u
     { pluginId: string; data: PluginServiceSetPluginConfigBody },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof pluginServiceSetPluginConfig>>,
   TError,

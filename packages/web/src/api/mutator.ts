@@ -85,57 +85,36 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 /**
- * customFetch accepts two call shapes:
- *   1. Project-internal: `customFetch({url, method, data, signal, params})`
- *      — used by hand-written feature code (`features/<x>/api.ts`).
- *   2. Orval-generated: `customFetch(url, RequestInit)` — used by the
- *      generated clients in `src/api/generated/` (Plan 08 onward).
- *
- * The two are identical at the wire level. The function normalises
- * shape (2) into shape (1) before continuing. Generated `RequestInit`
- * carries `method`, optional `headers`, optional `body`, and optional
- * `signal`; we extract those into `CustomFetchArgs` semantics.
+ * Orval `httpClient: 'fetch'` calls the mutator as
+ *   customFetch<{data, status, headers}>(url, RequestInit)
+ * and the generated hooks read `.data` from the result. To keep both the
+ * legacy `{url, method, data}` callsites and the orval generated callsites
+ * working through a single mutator, this function accepts either form.
  */
+export interface OrvalFetchResponse<T> {
+  data: T;
+  status: number;
+  headers: Headers;
+}
+
+export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
+export async function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
 export async function customFetch<T>(
   argsOrUrl: CustomFetchArgs | string,
   init?: RequestInit,
 ): Promise<T> {
-  let args: CustomFetchArgs;
+  // Path A — generated orval client: (url, RequestInit) → {data, status, headers}
   if (typeof argsOrUrl === 'string') {
-    let parsedData: unknown;
-    if (init?.body !== undefined && init.body !== null) {
-      if (typeof init.body === 'string') {
-        try {
-          parsedData = JSON.parse(init.body);
-        } catch {
-          parsedData = init.body;
-        }
-      } else {
-        parsedData = init.body;
-      }
-    }
-    args = {
-      url: argsOrUrl,
-      method: init?.method ?? 'GET',
-      ...(parsedData !== undefined ? { data: parsedData } : {}),
-      ...(init?.signal ? { signal: init.signal } : {}),
-    };
-  } else {
-    args = argsOrUrl;
+    return runOrvalFetch<T>(argsOrUrl, init);
   }
+  // Path B — legacy callers (apiClient shim, use-openapi-spec, use-opaque-filter)
+  return runLegacyFetch<T>(argsOrUrl);
+}
+
+async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
   const { url, method, data, signal, params } = args;
 
-  // Project-internal callers pass relative paths (e.g. `/services`) and rely
-  // on `BASE` to prepend `/api/v1`. Orval-generated callers pass absolute
-  // paths (e.g. `/api/v1/t/{tenant}/dashboards`) — these must NOT be
-  // double-prefixed. Detect either an absolute URL or one already rooted
-  // at `/api/` and skip the prefix in those cases.
-  let fullUrl: string;
-  if (url.startsWith('http') || url.startsWith('/api/')) {
-    fullUrl = url;
-  } else {
-    fullUrl = `${BASE}${url}`;
-  }
+  let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
   if (params !== undefined && Object.keys(params).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -182,4 +161,51 @@ export async function customFetch<T>(
     }
   }
   return (await res.text()) as T;
+}
+
+async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url.replace(/^\/api\/v1/, '')}`;
+
+  const baseHeaders = new Headers(init?.headers);
+  if (init?.body !== undefined && !baseHeaders.has('content-type')) {
+    baseHeaders.set('content-type', 'application/json');
+  }
+  const fetchInit: RequestInit = {
+    ...init,
+    headers: baseHeaders,
+    credentials: init?.credentials ?? 'include',
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(fullUrl, fetchInit);
+  } catch (cause) {
+    throw new NetworkError({ cause });
+  }
+
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (err instanceof AuthFailureError) {
+      _authFailureHandler?.(window.location.pathname + window.location.search);
+    }
+    throw err;
+  }
+
+  let data: unknown;
+  if (res.status === 204) {
+    data = undefined;
+  } else {
+    const ct = res.headers.get('content-type');
+    if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
+      try {
+        data = await res.json();
+      } catch (cause) {
+        throw new ApiError('Failed to parse response JSON', { cause });
+      }
+    } else {
+      data = await res.text();
+    }
+  }
+
+  return { data, status: res.status, headers: res.headers } as T;
 }

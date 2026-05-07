@@ -42,6 +42,8 @@ import type {
 import type { PromQLQueryRequest, PromQLQueryResponse, QueryPromQLGetParams } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary Run a PromQL query (instant or range)
  */
@@ -90,14 +92,15 @@ export const getQueryPromQLGetInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof queryPromQLGet>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getQueryPromQLGetQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof queryPromQLGet>>> = ({ signal }) =>
-    queryPromQLGet(tenant, params, signal);
+    queryPromQLGet(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof queryPromQLGet>>,
@@ -129,6 +132,7 @@ export function useQueryPromQLGetInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useQueryPromQLGetInfinite<
@@ -149,6 +153,7 @@ export function useQueryPromQLGetInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useQueryPromQLGetInfinite<
@@ -161,6 +166,7 @@ export function useQueryPromQLGetInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof queryPromQLGet>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -177,6 +183,7 @@ export function useQueryPromQLGetInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof queryPromQLGet>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getQueryPromQLGetInfiniteQueryOptions(tenant, params, options);
@@ -198,14 +205,15 @@ export const getQueryPromQLGetQueryOptions = <
   params: QueryPromQLGetParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof queryPromQLGet>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getQueryPromQLGetQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof queryPromQLGet>>> = ({ signal }) =>
-    queryPromQLGet(tenant, params, signal);
+    queryPromQLGet(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof queryPromQLGet>>,
@@ -233,6 +241,7 @@ export function useQueryPromQLGet<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useQueryPromQLGet<
@@ -251,6 +260,7 @@ export function useQueryPromQLGet<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useQueryPromQLGet<
@@ -261,6 +271,7 @@ export function useQueryPromQLGet<
   params: QueryPromQLGetParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof queryPromQLGet>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -275,6 +286,7 @@ export function useQueryPromQLGet<
   params: QueryPromQLGetParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof queryPromQLGet>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getQueryPromQLGetQueryOptions(tenant, params, options);
@@ -321,6 +333,7 @@ export const getQueryPromQLMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; data: PromQLQueryRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof queryPromQL>>,
   TError,
@@ -328,11 +341,11 @@ export const getQueryPromQLMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['queryPromQL'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof queryPromQL>>,
@@ -340,7 +353,7 @@ export const getQueryPromQLMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return queryPromQL(tenant, data);
+    return queryPromQL(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -360,6 +373,7 @@ export const useQueryPromQL = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; data: PromQLQueryRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof queryPromQL>>,
   TError,

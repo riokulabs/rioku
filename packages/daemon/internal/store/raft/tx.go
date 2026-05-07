@@ -910,8 +910,28 @@ func (t *raftTx) GetUserByUsername(_ context.Context, _ string) (*store.User, er
 	return nil, fmt.Errorf("raft: GetUserByUsername not implemented")
 }
 
+func (t *raftTx) GetUserByEmail(_ context.Context, _ string) (*store.User, error) {
+	return nil, fmt.Errorf("raft: GetUserByEmail not implemented")
+}
+
 func (t *raftTx) ListUsers(_ context.Context) ([]*store.User, error) {
 	return nil, fmt.Errorf("raft: ListUsers not implemented")
+}
+
+func (t *raftTx) CountUsers(_ context.Context) (int, error) {
+	return 0, fmt.Errorf("raft: CountUsers not implemented")
+}
+
+func (t *raftTx) CreatePasswordResetToken(_ context.Context, _, _ string, _ time.Time) error {
+	return fmt.Errorf("raft: CreatePasswordResetToken not implemented")
+}
+
+func (t *raftTx) GetPasswordResetToken(_ context.Context, _ string) (*store.PasswordResetToken, error) {
+	return nil, fmt.Errorf("raft: GetPasswordResetToken not implemented")
+}
+
+func (t *raftTx) ConsumePasswordResetToken(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: ConsumePasswordResetToken not implemented")
 }
 
 func (t *raftTx) UpdateUser(_ context.Context, _ *store.User) (*store.User, error) {
@@ -1227,6 +1247,14 @@ func (t *raftTx) GetMembership(_ context.Context, _ string) (*store.Membership, 
 
 func (t *raftTx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*store.Membership, error) {
 	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) GetMembershipByInviteToken(_ context.Context, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) AcceptInvite(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: AcceptInvite not implemented")
 }
 
 func (t *raftTx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {

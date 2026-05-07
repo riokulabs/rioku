@@ -1,0 +1,821 @@
+# Stage-2 admin API completion — Plan 07: settings family.
+#
+# Adds OpenAPI coverage for tenant-scoped settings endpoints already live
+# in the daemon but missing from the spec. Closes decisions-needed item
+# 07-001 (settings family absent from OpenAPI / Orval clients).
+#
+# Endpoints reflect the daemon contracts in:
+#   packages/daemon/internal/gateway/settings_routes.go
+#   packages/daemon/internal/gateway/settings_configs_routes.go
+#   packages/daemon/internal/gateway/tenant_routes.go
+#   packages/daemon/internal/gateway/observability_routes.go
+#   packages/daemon/internal/gateway/pki_routes.go
+#   packages/daemon/internal/gateway/stage2_finals_routes.go
+#   packages/daemon/internal/gateway/stage2_extras_routes.go
+
+paths:
+  # ─── Profile (current user, tenant-scoped) ──────────────────────────────
+  /api/v1/t/{tenant}/settings/me:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get the current user's profile
+      operationId: getSettingsProfile
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsProfile"
+    patch:
+      tags: [settings]
+      summary: Patch the current user's profile (RFC 7396 merge-patch)
+      operationId: patchSettingsProfile
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                avatarUrl: { type: string }
+                preferences:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsProfile"
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/me/password:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [settings]
+      summary: Change the current user's password
+      operationId: postSettingsPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/me/backup-codes/reset:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [settings]
+      summary: Regenerate the current user's TOTP backup codes
+      operationId: postSettingsBackupCodesReset
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  codes:
+                    type: array
+                    items: { type: string }
+                  generatedAt: { type: string, format: date-time }
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Tenant general (tenant-scoped on `tenant`) ─────────────────────────
+  /api/v1/t/{tenant}/settings/tenant:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant general settings
+      operationId: getSettingsTenant
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsTenant"
+    patch:
+      tags: [settings]
+      summary: Patch tenant general settings
+      operationId: patchSettingsTenant
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                parentDomain: { type: string }
+                logoUrl: { type: string }
+                defaultTheme:
+                  type: string
+                  enum: [light, dark, auto]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsTenant"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Auth policy ────────────────────────────────────────────────────────
+  /api/v1/t/{tenant}/settings/auth-policy:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant auth policy
+      operationId: getSettingsAuthPolicy
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsAuthPolicy"
+    put:
+      tags: [settings]
+      summary: Replace tenant auth policy
+      operationId: putSettingsAuthPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsAuthPolicy"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsAuthPolicy"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Network ────────────────────────────────────────────────────────────
+  /api/v1/t/{tenant}/settings/network:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant network settings
+      operationId: getSettingsNetwork
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsNetwork"
+    put:
+      tags: [settings]
+      summary: Replace tenant network settings
+      description: |
+        After persist the daemon invokes `caddy.Reload()` to apply the new
+        listen addresses / Caddy overrides. A 200 response indicates both
+        the config-store write and the Caddy reload completed.
+      operationId: putSettingsNetwork
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsNetwork"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsNetwork"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Observability triplet ──────────────────────────────────────────────
+  /api/v1/t/{tenant}/settings/observability/metrics:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get observability metrics config
+      operationId: getSettingsObservabilityMetrics
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsMetrics"
+    put:
+      tags: [settings]
+      summary: Replace observability metrics config
+      operationId: putSettingsObservabilityMetrics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsMetrics"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsMetrics"
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/observability/logs:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get observability logs config
+      operationId: getSettingsObservabilityLogs
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsLogs"
+    put:
+      tags: [settings]
+      summary: Replace observability logs config
+      operationId: putSettingsObservabilityLogs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsLogs"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsLogs"
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/observability/traces:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get observability traces config
+      operationId: getSettingsObservabilityTraces
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsTraces"
+    put:
+      tags: [settings]
+      summary: Replace observability traces config
+      operationId: putSettingsObservabilityTraces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsTraces"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsTraces"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── TLS ────────────────────────────────────────────────────────────────
+  /api/v1/t/{tenant}/settings/tls:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant TLS settings (ACME issuer + uploaded cert refs)
+      operationId: getSettingsTLS
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsTLS"
+    put:
+      tags: [settings]
+      summary: Replace tenant TLS settings
+      operationId: putSettingsTLS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsTLS"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsTLS"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── PKI (CA chain + enrollment endpoint) ───────────────────────────────
+  /api/v1/t/{tenant}/settings/pki:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant PKI settings (CA chain + enrollment endpoint)
+      operationId: getSettingsPKI
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsPKI"
+    put:
+      tags: [settings]
+      summary: Replace tenant PKI settings
+      operationId: putSettingsPKI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsPKI"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsPKI"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Integrations / webhook test send ───────────────────────────────────
+  /api/v1/t/{tenant}/settings/integrations:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant integrations config
+      operationId: getSettingsIntegrations
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsIntegrations"
+    put:
+      tags: [settings]
+      summary: Replace tenant integrations config
+      operationId: putSettingsIntegrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsIntegrations"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsIntegrations"
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/webhooks/{id}/test:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [settings]
+      summary: Dispatch a synthetic test event to the named webhook
+      operationId: postWebhookTest
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookTestResult"
+    options:
+      responses: { "204": { description: no content } }
+
+  # ─── Danger zone ────────────────────────────────────────────────────────
+  /api/v1/t/{tenant}/settings/danger/hard-reset:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [settings]
+      summary: Hard-reset tenant non-config data (super-admin)
+      description: |
+        Clears all non-config data for the tenant: traces, audit entries,
+        runtime metrics, ephemeral sessions. Config (services, routes,
+        policies) is preserved. Requires the operator to type the tenant
+        slug three times in the request body as `confirmation`.
+      operationId: postDangerHardReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmation]
+              properties:
+                confirmation:
+                  type: string
+                  description: "tenant slug repeated three times, joined by newlines"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  resetAt: { type: string, format: date-time }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/danger/export:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Export the entire tenant as a JSON dump
+      operationId: getDangerExport
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                description: "Full tenant export blob (services, routes, policies, members, etc.)"
+                additionalProperties: true
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/danger/tenant:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    delete:
+      tags: [settings]
+      summary: Soft-delete the tenant (super-admin; restorable for 30d)
+      operationId: deleteDangerTenant
+      responses:
+        "204":
+          description: no content
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/manual:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [settings]
+      summary: Upload a manual TLS certificate (PEM cert + key)
+      operationId: uploadManualCert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManualCertUpload" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ManualCertResponse" }
+        "400": { description: invalid PEM or mismatched key }
+        "403": { description: requires tls:write }
+        "409": { description: domain already in use }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/manual/{certId}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: certId
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [settings]
+      summary: Delete a manually-uploaded TLS certificate
+      operationId: deleteManualCert
+      responses:
+        "204": { description: no content }
+        "403": { description: requires tls:write }
+        "404": { description: cert not found }
+
+  /api/v1/t/{tenant}/settings/pki/revocations:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: List revoked certificates for the tenant
+      operationId: listPKIRevocations
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevocationList" }
+    post:
+      tags: [settings]
+      summary: Record a revocation (by serial)
+      operationId: createPKIRevocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevocationCreate" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevocationItem" }
+        "400": { description: missing serial or reason }
+
+  /api/v1/t/{tenant}/observability/logs/tail:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: SSE stream of recent + live daemon log lines
+      operationId: tailObservabilityLogs
+      responses:
+        "200":
+          description: text/event-stream of LogRecord events
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "403": { description: requires observability:read }
+
+components:
+  schemas:
+    SettingsProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email:
+          type: string
+          format: email
+          description: "Read-only — managed by the auth provider."
+        avatarUrl: { type: string }
+        mfaEnabled: { type: boolean }
+        preferences:
+          type: object
+          additionalProperties: true
+        updatedAt: { type: string, format: date-time }
+
+    SettingsTenant:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug:
+          type: string
+          description: "Read-only after creation."
+        description: { type: string }
+        parentDomain: { type: string }
+        logoUrl: { type: string }
+        defaultTheme:
+          type: string
+          enum: [light, dark, auto]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    SettingsAuthPolicy:
+      type: object
+      properties:
+        totpPolicy:
+          type: string
+          enum: [all, admins, optional]
+        passwordMinLength: { type: integer, minimum: 6, maximum: 256 }
+        idleSessionTimeoutSeconds: { type: integer, format: int64 }
+        absoluteSessionTimeoutSeconds: { type: integer, format: int64 }
+
+    SettingsNetwork:
+      type: object
+      properties:
+        listenAddresses:
+          type: array
+          items: { type: string }
+        http3Enabled: { type: boolean }
+        readTimeoutSeconds: { type: integer }
+        writeTimeoutSeconds: { type: integer }
+        idleTimeoutSeconds: { type: integer }
+        caddyOverrides:
+          type: object
+          additionalProperties: true
+
+    SettingsMetrics:
+      type: object
+      properties:
+        scrapeEndpoint: { type: string }
+        scrapeAuth:
+          type: string
+          enum: [none, basic, bearer]
+        retentionDays: { type: integer }
+
+    SettingsLogs:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+        format:
+          type: string
+          enum: [json, text]
+        rotationDays: { type: integer }
+
+    SettingsTraces:
+      type: object
+      properties:
+        retentionDays: { type: integer }
+        sampleRate: { type: number, format: double, minimum: 0, maximum: 1 }
+        otlpEndpoint: { type: string }
+
+    SettingsTLS:
+      type: object
+      properties:
+        acmeIssuer:
+          type: string
+          enum: [lets-encrypt-prod, lets-encrypt-staging, zerossl, custom]
+        acmeEmail: { type: string, format: email }
+        acmeDirectoryUrl:
+          type: string
+          description: "Required when acmeIssuer is `custom`."
+        allowedCiphers:
+          type: array
+          items: { type: string }
+        manualCertRefs:
+          type: array
+          description: "References to uploaded PEM cert/key bundles in the cert store."
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              subject: { type: string }
+              issuer: { type: string }
+              notBefore: { type: string, format: date-time }
+              notAfter: { type: string, format: date-time }
+              autoRenew: { type: boolean }
+
+    SettingsPKI:
+      type: object
+      properties:
+        caChainPem:
+          type: string
+          description: "PEM-encoded CA chain. Read-only on GET; replaced on PUT."
+        enrollmentEndpoint:
+          type: string
+          description: "URL clients hit to request short-lived certs."
+        enrollmentTokenTtlSeconds: { type: integer, format: int64 }
+        keyAlgorithm:
+          type: string
+          enum: [ed25519, ecdsa-p256, rsa-2048, rsa-4096]
+        nodeValiditySeconds: { type: integer, format: int64 }
+
+    SettingsIntegrations:
+      type: object
+      properties:
+        webhooks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              url: { type: string }
+              events:
+                type: array
+                items: { type: string }
+              enabled: { type: boolean }
+        slack:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            webhookUrl: { type: string }
+            channel: { type: string }
+        pagerduty:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            integrationKey: { type: string }
+
+    WebhookTestResult:
+      type: object
+      properties:
+        deliveredAt: { type: string, format: date-time }
+        success: { type: boolean }
+        httpStatus: { type: integer }
+        latencyMs: { type: integer, format: int64 }
+        durationMs: { type: integer, format: int64 }
+        error: { type: string }
+
+    ManualCertUpload:
+      type: object
+      required: [cert_pem, key_pem]
+      properties:
+        cert_pem: { type: string }
+        key_pem: { type: string }
+        auto_renew: { type: boolean }
+
+    ManualCertResponse:
+      type: object
+      properties:
+        cert_id: { type: string }
+        ref:
+          type: object
+          properties:
+            id: { type: string }
+            subject: { type: string }
+            expiresAt: { type: string, format: date-time }
+            sans:
+              type: array
+              items: { type: string }
+            autoRenew: { type: boolean }
+        sha256_fingerprint: { type: string }
+        expires_at: { type: string, format: date-time }
+        subject: { type: string }
+        sans:
+          type: array
+          items: { type: string }
+
+    RevocationItem:
+      type: object
+      properties:
+        cert_id: { type: string }
+        serial: { type: string }
+        subject: { type: string }
+        revoked_at: { type: string, format: date-time }
+        reason: { type: string }
+
+    RevocationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RevocationItem" }
+
+    RevocationCreate:
+      type: object
+      required: [serial, reason]
+      properties:
+        serial: { type: string }
+        reason: { type: string }
+        subject: { type: string }

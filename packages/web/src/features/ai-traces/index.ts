@@ -13,6 +13,7 @@ export { TraceList } from './components/list';
 export { TraceFilterBar } from './components/filter-bar';
 export type { RangePreset } from './components/filter-bar';
 export { TraceDetail } from './components/detail';
+export { TraceFullPage } from './components/full-page';
 export { PromptCompletionView } from './components/prompt-completion-view';
 export { ToolCallList } from './components/tool-call-list';
 export { LiveTailBadge, useTraceStream } from './components/streaming-tail';

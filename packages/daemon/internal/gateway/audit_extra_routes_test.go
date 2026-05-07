@@ -220,6 +220,207 @@ func TestAuditExtra_ExportCSVAndJSONL(t *testing.T) {
 	}
 }
 
+// TestAuditExtra_Reveal verifies the reveal endpoint records a new
+// follow-up audit row carrying the supplied reason and returns the
+// original entry in the response.
+func TestAuditExtra_Reveal(t *testing.T) {
+	server, drv, client := setupAuditExtraTestServer(t)
+
+	id := "audit-reveal-1"
+	tx, _ := drv.Begin(context.Background(), store.TxOptions{})
+	_ = tx.AppendAuditEntry(context.Background(), &riokuv1.AuditEntry{
+		Id:         id,
+		Actor:      "alice",
+		EntityType: "service",
+		EntityId:   "svc-1",
+		Operation:  "create",
+		OccurredAt: timestamppb.New(time.Now().UTC()),
+	})
+	_ = tx.Commit()
+
+	// reason too short -> 400
+	resp := doJSONRaw(t, client, http.MethodPost,
+		server.URL+"/api/v1/t/default/audit/"+id+"/reveal",
+		map[string]any{"reason": "hi"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("short reason: expected 400, got %d", resp.StatusCode)
+	}
+	_ = resp.Body.Close()
+
+	// happy path
+	resp = doJSONRaw(t, client, http.MethodPost,
+		server.URL+"/api/v1/t/default/audit/"+id+"/reveal",
+		map[string]any{"reason": "Investigating incident #1234"})
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("reveal: %d body=%s", resp.StatusCode, body)
+	}
+	var got map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	_ = resp.Body.Close()
+	entry, _ := got["entry"].(map[string]any)
+	if entry["id"] != id {
+		t.Errorf("entry.id = %v, want %s", entry["id"], id)
+	}
+	revealEntry, _ := got["revealEntry"].(map[string]any)
+	if revealEntry["operation"] != "reveal" {
+		t.Errorf("revealEntry.operation = %v, want reveal", revealEntry["operation"])
+	}
+	if revealEntry["entityId"] != id {
+		t.Errorf("revealEntry.entityId = %v, want %s", revealEntry["entityId"], id)
+	}
+
+	// the new follow-up row should be persisted with the typed
+	// audit.sensitive_revealed.v1 schema
+	tx2, _ := drv.Begin(context.Background(), store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx2.Rollback() }()
+	rows, err := tx2.QueryAuditLog(context.Background(), store.AuditQuery{
+		EntityType: "audit-entry",
+		EntityID:   id,
+	})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatalf("no follow-up reveal row persisted")
+	}
+	if got := rows[0].GetPayloadSchema(); got != "audit.sensitive_revealed.v1" {
+		t.Errorf("payloadSchema = %q, want audit.sensitive_revealed.v1", got)
+	}
+	if !strings.Contains(rows[0].GetPayload(), "Investigating incident") {
+		t.Errorf("payload missing reason: %s", rows[0].GetPayload())
+	}
+}
+
+// TestAuditExtra_Reveal_Forbidden verifies a session that lacks the
+// `audit:read-sensitive` permission is denied on the reveal endpoint
+// with a 403 + RFC-7807 problem-detail body. The viewer role (seeded
+// by migration 000003) carries `audit:read` but NOT `audit:read-sensitive`,
+// so it is the natural negative-case identity.
+func TestAuditExtra_Reveal_Forbidden(t *testing.T) {
+	server, drv, _ := setupAuditExtraTestServer(t)
+
+	ctx := context.Background()
+
+	// Seed the audit row first so the handler doesn't bail with 404 — the
+	// permission check runs before the lookup but we still want the row
+	// present so the test fails for the right reason if the gate is ever
+	// regressed open.
+	id := "audit-forbidden-1"
+	tx, err := drv.Begin(ctx, store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.AppendAuditEntry(ctx, &riokuv1.AuditEntry{
+		Id:         id,
+		Actor:      "alice",
+		EntityType: "service",
+		EntityId:   "svc-forbidden",
+		Operation:  "create",
+		OccurredAt: timestamppb.New(time.Now().UTC()),
+	}); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+
+	// Create a viewer-roled user and assign the seeded `role_viewer` role
+	// (audit:read but no audit:read-sensitive).
+	viewerPassword := "ViewerPassword123!"
+	viewerHash := cachedHashPassword(t, viewerPassword)
+	viewerUser, err := tx.CreateUser(ctx, &store.User{
+		Username:            "viewer-bob",
+		PasswordHash:        viewerHash,
+		Status:              "active",
+		ForcePasswordChange: false,
+		PasswordChangedAt:   time.Now().UTC(),
+	})
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	roles, err := tx.ListRoles(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	var viewerRoleID string
+	for _, role := range roles {
+		if role.Name == "viewer" {
+			viewerRoleID = role.ID
+			break
+		}
+	}
+	if viewerRoleID == "" {
+		_ = tx.Rollback()
+		t.Fatal("viewer role not found after migration")
+	}
+	if err := tx.AssignRole(ctx, viewerUser.ID, viewerRoleID, ""); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Login as the viewer with a fresh cookie jar so we don't inherit
+	// the root session from `setupAuditExtraTestServer`.
+	jar, _ := cookiejar.New(nil)
+	viewerClient := &http.Client{Jar: jar}
+	loginResp := doJSON(t, viewerClient, http.MethodPost, server.URL+"/api/v1/auth/login", map[string]string{
+		"username": "viewer-bob",
+		"password": viewerPassword,
+	})
+	_ = loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("viewer login failed: %d", loginResp.StatusCode)
+	}
+
+	// Reveal must return 403 with a problem-detail body identifying the
+	// missing permission.
+	resp := doJSONRaw(t, viewerClient, http.MethodPost,
+		server.URL+"/api/v1/t/default/audit/"+id+"/reveal",
+		map[string]any{"reason": "Probing the gate, not authorised"})
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusForbidden {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 403, got %d body=%s", resp.StatusCode, body)
+	}
+
+	if got := resp.Header.Get("Content-Type"); !strings.Contains(got, "problem+json") {
+		t.Errorf("Content-Type = %q, want problem+json", got)
+	}
+
+	var problem map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+		t.Fatalf("decode problem: %v", err)
+	}
+	if got, _ := problem["status"].(float64); got != http.StatusForbidden {
+		t.Errorf("problem.status = %v, want 403", problem["status"])
+	}
+	if got, _ := problem["detail"].(string); !strings.Contains(got, "audit:read-sensitive") {
+		t.Errorf("problem.detail missing required permission: %v", problem["detail"])
+	}
+
+	// And no follow-up reveal row was persisted — the gate must run
+	// before the side-effect.
+	rtx, err := drv.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rtx.Rollback() }()
+	rows, err := rtx.QueryAuditLog(ctx, store.AuditQuery{
+		EntityType: "audit-entry",
+		EntityID:   id,
+	})
+	if err != nil {
+		t.Fatalf("query audit rows: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("expected no follow-up reveal rows, got %d", len(rows))
+	}
+}
+
 func TestAuditExtra_OPTIONSCoverage(t *testing.T) {
 	_, drv, _ := setupAuditExtraTestServer(t)
 
@@ -231,6 +432,7 @@ func TestAuditExtra_OPTIONSCoverage(t *testing.T) {
 		methods string
 	}{
 		{"/api/v1/t/default/audit/abc", "GET, OPTIONS"},
+		{"/api/v1/t/default/audit/abc/reveal", "OPTIONS, POST"},
 		{"/api/v1/t/default/audit/stream", "GET, OPTIONS"},
 		{"/api/v1/t/default/audit/export/csv", "GET, OPTIONS"},
 		{"/api/v1/t/default/audit/export/jsonl", "GET, OPTIONS"},

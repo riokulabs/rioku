@@ -54,6 +54,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List dashboards
  */
@@ -90,14 +92,15 @@ export const getListDashboardsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboards>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListDashboardsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listDashboards>>> = ({ signal }) =>
-    listDashboards(tenant, signal);
+    listDashboards(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listDashboards>>,
@@ -128,6 +131,7 @@ export function useListDashboardsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardsInfinite<
@@ -147,6 +151,7 @@ export function useListDashboardsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardsInfinite<
@@ -158,6 +163,7 @@ export function useListDashboardsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboards>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -173,6 +179,7 @@ export function useListDashboardsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboards>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListDashboardsInfiniteQueryOptions(tenant, options);
@@ -193,14 +200,15 @@ export const getListDashboardsQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listDashboards>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListDashboardsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listDashboards>>> = ({ signal }) =>
-    listDashboards(tenant, signal);
+    listDashboards(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listDashboards>>,
@@ -227,6 +235,7 @@ export function useListDashboards<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboards<
@@ -244,6 +253,7 @@ export function useListDashboards<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboards<
@@ -253,6 +263,7 @@ export function useListDashboards<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listDashboards>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -266,6 +277,7 @@ export function useListDashboards<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listDashboards>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListDashboardsQueryOptions(tenant, options);
@@ -312,6 +324,7 @@ export const getCreateDashboardMutationOptions = <TError = unknown, TContext = u
     { tenant: string; data: CreateDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createDashboard>>,
   TError,
@@ -319,11 +332,11 @@ export const getCreateDashboardMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['createDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createDashboard>>,
@@ -331,7 +344,7 @@ export const getCreateDashboardMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createDashboard(tenant, data);
+    return createDashboard(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -353,6 +366,7 @@ export const useCreateDashboard = <TError = unknown, TContext = unknown>(options
     { tenant: string; data: CreateDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createDashboard>>,
   TError,
@@ -396,6 +410,7 @@ export const getImportDashboardMutationOptions = <TError = unknown, TContext = u
     { tenant: string; data: DashboardExport },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof importDashboard>>,
   TError,
@@ -403,11 +418,11 @@ export const getImportDashboardMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['importDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof importDashboard>>,
@@ -415,7 +430,7 @@ export const getImportDashboardMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return importDashboard(tenant, data);
+    return importDashboard(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -437,6 +452,7 @@ export const useImportDashboard = <TError = unknown, TContext = unknown>(options
     { tenant: string; data: DashboardExport },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof importDashboard>>,
   TError,
@@ -481,6 +497,7 @@ export const getRestoreDashboardVersionMutationOptions = <
     { tenant: string; vid: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof restoreDashboardVersion>>,
   TError,
@@ -488,11 +505,11 @@ export const getRestoreDashboardVersionMutationOptions = <
   TContext
 > => {
   const mutationKey = ['restoreDashboardVersion'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof restoreDashboardVersion>>,
@@ -500,7 +517,7 @@ export const getRestoreDashboardVersionMutationOptions = <
   > = (props) => {
     const { tenant, vid } = props ?? {};
 
-    return restoreDashboardVersion(tenant, vid);
+    return restoreDashboardVersion(tenant, vid, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -522,6 +539,7 @@ export const useRestoreDashboardVersion = <TError = unknown, TContext = unknown>
     { tenant: string; vid: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof restoreDashboardVersion>>,
   TError,
@@ -563,6 +581,7 @@ export const getDeleteDashboardMutationOptions = <TError = unknown, TContext = u
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteDashboard>>,
   TError,
@@ -570,11 +589,11 @@ export const getDeleteDashboardMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['deleteDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteDashboard>>,
@@ -582,7 +601,7 @@ export const getDeleteDashboardMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteDashboard(tenant, id);
+    return deleteDashboard(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -604,6 +623,7 @@ export const useDeleteDashboard = <TError = unknown, TContext = unknown>(options
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteDashboard>>,
   TError,
@@ -652,14 +672,15 @@ export const getGetDashboardInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetDashboardQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboard>>> = ({ signal }) =>
-    getDashboard(tenant, id, signal);
+    getDashboard(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -692,6 +713,7 @@ export function useGetDashboardInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDashboardInfinite<
@@ -712,6 +734,7 @@ export function useGetDashboardInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDashboardInfinite<
@@ -724,6 +747,7 @@ export function useGetDashboardInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -740,6 +764,7 @@ export function useGetDashboardInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetDashboardInfiniteQueryOptions(tenant, id, options);
@@ -761,14 +786,15 @@ export const getGetDashboardQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetDashboardQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboard>>> = ({ signal }) =>
-    getDashboard(tenant, id, signal);
+    getDashboard(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getDashboard>>,
@@ -793,6 +819,7 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>, TError = unknown>(
@@ -808,6 +835,7 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>, TError = unknown>(
@@ -815,6 +843,7 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -826,6 +855,7 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetDashboardQueryOptions(tenant, id, options);
@@ -873,6 +903,7 @@ export const getPatchDashboardMutationOptions = <TError = unknown, TContext = un
     { tenant: string; id: string; data: UpdateDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchDashboard>>,
   TError,
@@ -880,11 +911,11 @@ export const getPatchDashboardMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['patchDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchDashboard>>,
@@ -892,7 +923,7 @@ export const getPatchDashboardMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchDashboard(tenant, id, data);
+    return patchDashboard(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -912,6 +943,7 @@ export const usePatchDashboard = <TError = unknown, TContext = unknown>(options?
     { tenant: string; id: string; data: UpdateDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchDashboard>>,
   TError,
@@ -956,6 +988,7 @@ export const getUpdateDashboardMutationOptions = <TError = unknown, TContext = u
     { tenant: string; id: string; data: UpdateDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateDashboard>>,
   TError,
@@ -963,11 +996,11 @@ export const getUpdateDashboardMutationOptions = <TError = unknown, TContext = u
   TContext
 > => {
   const mutationKey = ['updateDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateDashboard>>,
@@ -975,7 +1008,7 @@ export const getUpdateDashboardMutationOptions = <TError = unknown, TContext = u
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return updateDashboard(tenant, id, data);
+    return updateDashboard(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -997,6 +1030,7 @@ export const useUpdateDashboard = <TError = unknown, TContext = unknown>(options
     { tenant: string; id: string; data: UpdateDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateDashboard>>,
   TError,
@@ -1045,14 +1079,15 @@ export const getExportDashboardInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportDashboard>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportDashboardQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportDashboard>>> = ({ signal }) =>
-    exportDashboard(tenant, id, signal);
+    exportDashboard(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1087,6 +1122,7 @@ export function useExportDashboardInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportDashboardInfinite<
@@ -1107,6 +1143,7 @@ export function useExportDashboardInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportDashboardInfinite<
@@ -1119,6 +1156,7 @@ export function useExportDashboardInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportDashboard>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1135,6 +1173,7 @@ export function useExportDashboardInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportDashboard>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportDashboardInfiniteQueryOptions(tenant, id, options);
@@ -1156,14 +1195,15 @@ export const getExportDashboardQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportDashboardQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportDashboard>>> = ({ signal }) =>
-    exportDashboard(tenant, id, signal);
+    exportDashboard(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof exportDashboard>>,
@@ -1191,6 +1231,7 @@ export function useExportDashboard<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportDashboard<
@@ -1209,6 +1250,7 @@ export function useExportDashboard<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportDashboard<
@@ -1219,6 +1261,7 @@ export function useExportDashboard<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1233,6 +1276,7 @@ export function useExportDashboard<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportDashboardQueryOptions(tenant, id, options);
@@ -1280,6 +1324,7 @@ export const getSetDefaultDashboardMutationOptions = <
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof setDefaultDashboard>>,
   TError,
@@ -1287,11 +1332,11 @@ export const getSetDefaultDashboardMutationOptions = <
   TContext
 > => {
   const mutationKey = ['setDefaultDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof setDefaultDashboard>>,
@@ -1299,7 +1344,7 @@ export const getSetDefaultDashboardMutationOptions = <
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return setDefaultDashboard(tenant, id);
+    return setDefaultDashboard(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1321,6 +1366,7 @@ export const useSetDefaultDashboard = <TError = unknown, TContext = unknown>(opt
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof setDefaultDashboard>>,
   TError,
@@ -1362,6 +1408,7 @@ export const getSetDashboardHomeMutationOptions = <TError = unknown, TContext = 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof setDashboardHome>>,
   TError,
@@ -1369,11 +1416,11 @@ export const getSetDashboardHomeMutationOptions = <TError = unknown, TContext = 
   TContext
 > => {
   const mutationKey = ['setDashboardHome'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof setDashboardHome>>,
@@ -1381,7 +1428,7 @@ export const getSetDashboardHomeMutationOptions = <TError = unknown, TContext = 
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return setDashboardHome(tenant, id);
+    return setDashboardHome(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1403,6 +1450,7 @@ export const useSetDashboardHome = <TError = unknown, TContext = unknown>(option
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof setDashboardHome>>,
   TError,
@@ -1447,6 +1495,7 @@ export const getShareDashboardMutationOptions = <TError = unknown, TContext = un
     { tenant: string; id: string; data: ShareDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof shareDashboard>>,
   TError,
@@ -1454,11 +1503,11 @@ export const getShareDashboardMutationOptions = <TError = unknown, TContext = un
   TContext
 > => {
   const mutationKey = ['shareDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof shareDashboard>>,
@@ -1466,7 +1515,7 @@ export const getShareDashboardMutationOptions = <TError = unknown, TContext = un
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return shareDashboard(tenant, id, data);
+    return shareDashboard(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1486,6 +1535,7 @@ export const useShareDashboard = <TError = unknown, TContext = unknown>(options?
     { tenant: string; id: string; data: ShareDashboardRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof shareDashboard>>,
   TError,
@@ -1534,14 +1584,15 @@ export const getListDashboardSharesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboardShares>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListDashboardSharesQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listDashboardShares>>> = ({ signal }) =>
-    listDashboardShares(tenant, id, signal);
+    listDashboardShares(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1576,6 +1627,7 @@ export function useListDashboardSharesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardSharesInfinite<
@@ -1596,6 +1648,7 @@ export function useListDashboardSharesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardSharesInfinite<
@@ -1608,6 +1661,7 @@ export function useListDashboardSharesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboardShares>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1624,6 +1678,7 @@ export function useListDashboardSharesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboardShares>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListDashboardSharesInfiniteQueryOptions(tenant, id, options);
@@ -1647,14 +1702,15 @@ export const getListDashboardSharesQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listDashboardShares>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListDashboardSharesQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listDashboardShares>>> = ({ signal }) =>
-    listDashboardShares(tenant, id, signal);
+    listDashboardShares(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listDashboardShares>>,
@@ -1686,6 +1742,7 @@ export function useListDashboardShares<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardShares<
@@ -1706,6 +1763,7 @@ export function useListDashboardShares<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardShares<
@@ -1718,6 +1776,7 @@ export function useListDashboardShares<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listDashboardShares>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1734,6 +1793,7 @@ export function useListDashboardShares<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listDashboardShares>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListDashboardSharesQueryOptions(tenant, id, options);
@@ -1785,6 +1845,7 @@ export const getDeleteDashboardShareMutationOptions = <
     { tenant: string; id: string; shareId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteDashboardShare>>,
   TError,
@@ -1792,11 +1853,11 @@ export const getDeleteDashboardShareMutationOptions = <
   TContext
 > => {
   const mutationKey = ['deleteDashboardShare'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteDashboardShare>>,
@@ -1804,7 +1865,7 @@ export const getDeleteDashboardShareMutationOptions = <
   > = (props) => {
     const { tenant, id, shareId } = props ?? {};
 
-    return deleteDashboardShare(tenant, id, shareId);
+    return deleteDashboardShare(tenant, id, shareId, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1826,6 +1887,7 @@ export const useDeleteDashboardShare = <TError = unknown, TContext = unknown>(op
     { tenant: string; id: string; shareId: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteDashboardShare>>,
   TError,
@@ -1873,6 +1935,7 @@ export const getSnapshotDashboardMutationOptions = <
     { tenant: string; id: string; data: SnapshotRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof snapshotDashboard>>,
   TError,
@@ -1880,11 +1943,11 @@ export const getSnapshotDashboardMutationOptions = <
   TContext
 > => {
   const mutationKey = ['snapshotDashboard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof snapshotDashboard>>,
@@ -1892,7 +1955,7 @@ export const getSnapshotDashboardMutationOptions = <
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return snapshotDashboard(tenant, id, data);
+    return snapshotDashboard(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1914,6 +1977,7 @@ export const useSnapshotDashboard = <TError = unknown, TContext = unknown>(optio
     { tenant: string; id: string; data: SnapshotRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof snapshotDashboard>>,
   TError,
@@ -1962,14 +2026,15 @@ export const getListDashboardVersionsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboardVersions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListDashboardVersionsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listDashboardVersions>>> = ({ signal }) =>
-    listDashboardVersions(tenant, id, signal);
+    listDashboardVersions(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -2004,6 +2069,7 @@ export function useListDashboardVersionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardVersionsInfinite<
@@ -2024,6 +2090,7 @@ export function useListDashboardVersionsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardVersionsInfinite<
@@ -2036,6 +2103,7 @@ export function useListDashboardVersionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboardVersions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2052,6 +2120,7 @@ export function useListDashboardVersionsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listDashboardVersions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListDashboardVersionsInfiniteQueryOptions(tenant, id, options);
@@ -2075,14 +2144,15 @@ export const getListDashboardVersionsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listDashboardVersions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListDashboardVersionsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listDashboardVersions>>> = ({ signal }) =>
-    listDashboardVersions(tenant, id, signal);
+    listDashboardVersions(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listDashboardVersions>>,
@@ -2114,6 +2184,7 @@ export function useListDashboardVersions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardVersions<
@@ -2134,6 +2205,7 @@ export function useListDashboardVersions<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListDashboardVersions<
@@ -2146,6 +2218,7 @@ export function useListDashboardVersions<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listDashboardVersions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -2162,6 +2235,7 @@ export function useListDashboardVersions<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listDashboardVersions>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListDashboardVersionsQueryOptions(tenant, id, options);

@@ -51,7 +51,7 @@ const METHOD_COLORS: Record<string, string> = {
 };
 
 export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailProps) {
-  const route = useRouteDetail(routeId);
+  const route = useRouteDetail(tenantId, routeId);
   const services = useMockStore((s) => s.services);
   const auditEntries = useMockStore((s) => s.audit);
 
@@ -83,7 +83,7 @@ export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailP
     if (deleteInput !== route.name) return;
     setDeleting(true);
     try {
-      await deleteRoute(route.id);
+      await deleteRoute(tenantId, route.id);
       notify.success('Route deleted', `${route.name} was removed.`);
       closeDelete();
       onClose();
@@ -154,7 +154,7 @@ export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailP
 
       <Divider />
 
-      <AttachedPolicies routeId={route.id} />
+      <AttachedPolicies routeId={route.id} tenantId={tenantId} />
 
       <Divider />
 

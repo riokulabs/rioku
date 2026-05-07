@@ -48,6 +48,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary Bulk update widget layouts after drag-drop reorder
  */
@@ -85,6 +87,7 @@ export const getUpdateDashboardLayoutMutationOptions = <
     { tenant: string; id: string; data: UpdateLayoutRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateDashboardLayout>>,
   TError,
@@ -92,11 +95,11 @@ export const getUpdateDashboardLayoutMutationOptions = <
   TContext
 > => {
   const mutationKey = ['updateDashboardLayout'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateDashboardLayout>>,
@@ -104,7 +107,7 @@ export const getUpdateDashboardLayoutMutationOptions = <
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return updateDashboardLayout(tenant, id, data);
+    return updateDashboardLayout(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -126,6 +129,7 @@ export const useUpdateDashboardLayout = <TError = unknown, TContext = unknown>(o
     { tenant: string; id: string; data: UpdateLayoutRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateDashboardLayout>>,
   TError,
@@ -174,14 +178,15 @@ export const getListWidgetsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listWidgets>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListWidgetsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listWidgets>>> = ({ signal }) =>
-    listWidgets(tenant, id, signal);
+    listWidgets(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -214,6 +219,7 @@ export function useListWidgetsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListWidgetsInfinite<
@@ -234,6 +240,7 @@ export function useListWidgetsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListWidgetsInfinite<
@@ -246,6 +253,7 @@ export function useListWidgetsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listWidgets>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -262,6 +270,7 @@ export function useListWidgetsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listWidgets>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListWidgetsInfiniteQueryOptions(tenant, id, options);
@@ -283,14 +292,15 @@ export const getListWidgetsQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWidgets>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListWidgetsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listWidgets>>> = ({ signal }) =>
-    listWidgets(tenant, id, signal);
+    listWidgets(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listWidgets>>,
@@ -315,6 +325,7 @@ export function useListWidgets<TData = Awaited<ReturnType<typeof listWidgets>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListWidgets<TData = Awaited<ReturnType<typeof listWidgets>>, TError = unknown>(
@@ -330,6 +341,7 @@ export function useListWidgets<TData = Awaited<ReturnType<typeof listWidgets>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListWidgets<TData = Awaited<ReturnType<typeof listWidgets>>, TError = unknown>(
@@ -337,6 +349,7 @@ export function useListWidgets<TData = Awaited<ReturnType<typeof listWidgets>>, 
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWidgets>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -348,6 +361,7 @@ export function useListWidgets<TData = Awaited<ReturnType<typeof listWidgets>>, 
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWidgets>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListWidgetsQueryOptions(tenant, id, options);
@@ -395,6 +409,7 @@ export const getCreateWidgetMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string; data: CreateWidgetRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createWidget>>,
   TError,
@@ -402,11 +417,11 @@ export const getCreateWidgetMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['createWidget'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createWidget>>,
@@ -414,7 +429,7 @@ export const getCreateWidgetMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return createWidget(tenant, id, data);
+    return createWidget(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -434,6 +449,7 @@ export const useCreateWidget = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string; data: CreateWidgetRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createWidget>>,
   TError,
@@ -476,6 +492,7 @@ export const getDeleteWidgetMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string; wid: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteWidget>>,
   TError,
@@ -483,11 +500,11 @@ export const getDeleteWidgetMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['deleteWidget'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteWidget>>,
@@ -495,7 +512,7 @@ export const getDeleteWidgetMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id, wid } = props ?? {};
 
-    return deleteWidget(tenant, id, wid);
+    return deleteWidget(tenant, id, wid, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -515,6 +532,7 @@ export const useDeleteWidget = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string; wid: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteWidget>>,
   TError,
@@ -559,6 +577,7 @@ export const getPatchWidgetMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string; data: UpdateWidgetRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchWidget>>,
   TError,
@@ -566,11 +585,11 @@ export const getPatchWidgetMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['patchWidget'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchWidget>>,
@@ -578,7 +597,7 @@ export const getPatchWidgetMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchWidget(tenant, id, data);
+    return patchWidget(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -598,6 +617,7 @@ export const usePatchWidget = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string; data: UpdateWidgetRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchWidget>>,
   TError,
@@ -642,6 +662,7 @@ export const getUpdateWidgetMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string; data: UpdateWidgetRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateWidget>>,
   TError,
@@ -649,11 +670,11 @@ export const getUpdateWidgetMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['updateWidget'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateWidget>>,
@@ -661,7 +682,7 @@ export const getUpdateWidgetMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return updateWidget(tenant, id, data);
+    return updateWidget(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -681,6 +702,7 @@ export const useUpdateWidget = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string; data: UpdateWidgetRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateWidget>>,
   TError,
@@ -725,6 +747,7 @@ export const getFlipWidgetAdvancedMutationOptions = <
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof flipWidgetAdvanced>>,
   TError,
@@ -732,11 +755,11 @@ export const getFlipWidgetAdvancedMutationOptions = <
   TContext
 > => {
   const mutationKey = ['flipWidgetAdvanced'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof flipWidgetAdvanced>>,
@@ -744,7 +767,7 @@ export const getFlipWidgetAdvancedMutationOptions = <
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return flipWidgetAdvanced(tenant, id);
+    return flipWidgetAdvanced(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -766,6 +789,7 @@ export const useFlipWidgetAdvanced = <TError = unknown, TContext = unknown>(opti
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof flipWidgetAdvanced>>,
   TError,
@@ -807,6 +831,7 @@ export const getFlipWidgetWizardMutationOptions = <TError = unknown, TContext = 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof flipWidgetWizard>>,
   TError,
@@ -814,11 +839,11 @@ export const getFlipWidgetWizardMutationOptions = <TError = unknown, TContext = 
   TContext
 > => {
   const mutationKey = ['flipWidgetWizard'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof flipWidgetWizard>>,
@@ -826,7 +851,7 @@ export const getFlipWidgetWizardMutationOptions = <TError = unknown, TContext = 
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return flipWidgetWizard(tenant, id);
+    return flipWidgetWizard(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -848,6 +873,7 @@ export const useFlipWidgetWizard = <TError = unknown, TContext = unknown>(option
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof flipWidgetWizard>>,
   TError,

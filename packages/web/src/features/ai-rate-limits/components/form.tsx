@@ -124,7 +124,7 @@ export function RateLimitForm({
         notify.success('Rate limit created', `${rule.name} is active.`);
         onSuccess(rule);
       } else if (initialValues) {
-        const rule = await updateRateLimit(initialValues.id, base);
+        const rule = await updateRateLimit(tenantId, initialValues.id, base);
         notify.success('Rate limit updated', `${rule.name} saved.`);
         onSuccess(rule);
       }

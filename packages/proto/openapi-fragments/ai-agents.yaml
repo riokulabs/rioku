@@ -1,0 +1,198 @@
+# Stage-2 admin API: AI agents (CRUD + nested + rotate-credential).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_agents_routes.go
+# Routes registered in ai_routes.go + ai_extra_routes.go.
+
+paths:
+  /api/v1/t/{tenant}/ai/agents:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-agents]
+      summary: List AI agents
+      operationId: listAIAgents
+      responses:
+        "200":
+          description: List of AI agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AIAgent" }
+                  total: { type: integer }
+    post:
+      tags: [ai-agents]
+      summary: Create an AI agent
+      operationId: createAIAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIAgentCreateRequest" }
+      responses:
+        "201":
+          description: Agent created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIAgent" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/agents/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-agents]
+      operationId: getAIAgent
+      responses:
+        "200":
+          description: AI agent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIAgent" }
+    put:
+      tags: [ai-agents]
+      operationId: updateAIAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIAgentUpdateRequest" }
+      responses:
+        "200":
+          description: AI agent updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIAgent" }
+    patch:
+      tags: [ai-agents]
+      operationId: patchAIAgent
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/AIAgentUpdateRequest" }
+      responses:
+        "200":
+          description: AI agent patched
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIAgent" }
+    delete:
+      tags: [ai-agents]
+      operationId: deleteAIAgent
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/agents/{id}/tools:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-agents]
+      summary: List tool bindings for an agent
+      operationId: listAIAgentTools
+      responses:
+        "200":
+          description: Bindings collection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AIToolBinding" }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/agents/{id}/traces:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-agents, ai-traces]
+      summary: List traces for an agent
+      operationId: listAIAgentTraces
+      responses:
+        "200":
+          description: Traces collection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AITrace" }
+                  total: { type: integer }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/agents/{id}/rotate-credential:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [ai-agents]
+      summary: Rotate scoped credential for the agent
+      operationId: rotateAIAgentCredential
+      responses:
+        "200":
+          description: Rotation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agentId: { type: string }
+                  ok: { type: boolean }
+                  note: { type: string }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AIAgent:
+      type: object
+      required: [id, tenantId, name, model, systemPrompt, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        providerId: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        model: { type: string }
+        systemPrompt: { type: string }
+        guardrails: { type: object, additionalProperties: true }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AIAgentCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        providerId: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        model: { type: string }
+        systemPrompt: { type: string }
+        guardrails: { type: object, additionalProperties: true }
+
+    AIAgentUpdateRequest:
+      type: object
+      properties:
+        providerId: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        model: { type: string }
+        systemPrompt: { type: string }
+        guardrails: { type: object, additionalProperties: true }
+        enabled: { type: boolean }
