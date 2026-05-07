@@ -15,6 +15,7 @@ import { useRateLimitMetrics } from '../api';
 import type { MetricWindow } from '../types';
 
 interface MetricsSparklineProps {
+  tenantId: string;
   ruleId: string;
   size: 'sm' | 'lg';
   window?: MetricWindow;
@@ -24,8 +25,13 @@ const SM_WIDTH = 100;
 const SM_HEIGHT = 28;
 const LG_HEIGHT = 120;
 
-export function MetricsSparkline({ ruleId, size, window = '24h' }: MetricsSparklineProps) {
-  const points = useRateLimitMetrics(ruleId, window);
+export function MetricsSparkline({
+  tenantId,
+  ruleId,
+  size,
+  window = '24h',
+}: MetricsSparklineProps) {
+  const points = useRateLimitMetrics(tenantId, ruleId, window);
 
   const isEmpty = points.length === 0;
   const data = points.map((p) => ({

@@ -193,16 +193,20 @@ func (t *tx) CreateMembership(ctx context.Context, in *store.Membership) (*store
 	if in == nil {
 		return nil, fmt.Errorf("sqlite: nil membership")
 	}
-	if in.TenantID == "" || in.UserID == "" {
-		return nil, fmt.Errorf("sqlite: membership requires tenant_id and user_id")
+	if in.TenantID == "" {
+		return nil, fmt.Errorf("sqlite: membership requires tenant_id")
+	}
+	// UserID is required for active memberships but may be empty for pending invites.
+	state := in.State
+	if state == "" {
+		state = "active"
+	}
+	if in.UserID == "" && state != "pending" {
+		return nil, fmt.Errorf("sqlite: membership requires user_id for state %q", state)
 	}
 	id := in.ID
 	if id == "" {
 		id = "m_" + strings.ReplaceAll(uuid.New().String(), "-", "")
-	}
-	state := in.State
-	if state == "" {
-		state = "active"
 	}
 	now := nowUTC()
 	joinedAt := in.JoinedAt
@@ -210,10 +214,15 @@ func (t *tx) CreateMembership(ctx context.Context, in *store.Membership) (*store
 		nowT := time.Now().UTC()
 		joinedAt = &nowT
 	}
+	// Use nil for user_id when empty (pending invite has no user yet).
+	var userIDVal interface{}
+	if in.UserID != "" {
+		userIDVal = in.UserID
+	}
 	_, err := t.sqlTx.ExecContext(ctx,
 		`INSERT INTO memberships (id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, in.TenantID, in.UserID, state,
+		id, in.TenantID, userIDVal, state,
 		in.InvitedBy, formatNullableTime(in.InvitedAt), formatNullableTime(joinedAt),
 		in.InviteTokenHash, now, now,
 	)
@@ -231,6 +240,35 @@ func (t *tx) GetMembership(ctx context.Context, id string) (*store.Membership, e
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
 		 FROM memberships WHERE id = ?`, id)
+	m, err := scanMembership(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrMembershipNotFound
+	}
+	return m, err
+}
+
+func (t *tx) AcceptInvite(ctx context.Context, membershipID, userID string) error {
+	now := nowUTC()
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE memberships
+		 SET user_id=?, state='active', invite_token_hash=NULL, joined_at=?, updated_at=?
+		 WHERE id=? AND state='pending'`,
+		userID, now, now, membershipID,
+	)
+	if err != nil {
+		return fmt.Errorf("sqlite: accept invite: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrMembershipNotFound
+	}
+	return nil
+}
+
+func (t *tx) GetMembershipByInviteToken(ctx context.Context, tokenHash string) (*store.Membership, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
+		 FROM memberships WHERE invite_token_hash = ?`, tokenHash)
 	m, err := scanMembership(row)
 	if err == sql.ErrNoRows {
 		return nil, store.ErrMembershipNotFound
@@ -345,10 +383,11 @@ func validMembershipTransition(from, to string) bool {
 
 func scanMembership(s scanner) (*store.Membership, error) {
 	var (
-		id, tenantID, userID, state string
-		invitedBy, inviteTokenHash  *string
-		invitedAt, joinedAt         *string
-		createdAt, updatedAt        string
+		id, tenantID, state        string
+		userID                     sql.NullString
+		invitedBy, inviteTokenHash *string
+		invitedAt, joinedAt        *string
+		createdAt, updatedAt       string
 	)
 	if err := s.Scan(&id, &tenantID, &userID, &state, &invitedBy, &invitedAt, &joinedAt, &inviteTokenHash, &createdAt, &updatedAt); err != nil {
 		return nil, err
@@ -356,7 +395,7 @@ func scanMembership(s scanner) (*store.Membership, error) {
 	m := &store.Membership{
 		ID:              id,
 		TenantID:        tenantID,
-		UserID:          userID,
+		UserID:          userID.String, // empty string when NULL (pending invite)
 		State:           state,
 		InvitedBy:       invitedBy,
 		InviteTokenHash: inviteTokenHash,

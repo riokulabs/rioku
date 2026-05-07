@@ -225,7 +225,7 @@ function PluginsPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="marketplace" pt="md">
-          <MarketplaceGrid onInstall={handleMarketplaceInstall} />
+          <MarketplaceGrid onInstall={handleMarketplaceInstall} tenantSlug={tenantId} />
         </Tabs.Panel>
 
         <Tabs.Panel value="install-by-reference" pt="md">
@@ -261,6 +261,7 @@ function PluginsPage() {
       <UninstallPluginModal
         plugin={uninstallTarget}
         opened={uninstallOpened}
+        tenantId={tenantId}
         onClose={() => {
           closeUninstall();
           setUninstallTarget(null);
@@ -279,6 +280,7 @@ function PluginsPage() {
       <InstallProgressModal
         candidate={progressCandidate}
         opened={progressOpened}
+        tenantSlug={tenantId}
         onComplete={handleProgressComplete}
         onClose={handleProgressClose}
       />

@@ -40,7 +40,8 @@ export interface UpdateMcpServerInput {
 export interface TestMcpServerResult {
   ok: boolean;
   latency_ms: number;
-  tool_count: number;
-  tested_at: string;
-  error_message?: string;
+  /** Set when `ok === false`; daemon reports the underlying probe error. */
+  error?: string;
+  /** Captured from the upstream `Server` response header when present. */
+  server_version?: string;
 }

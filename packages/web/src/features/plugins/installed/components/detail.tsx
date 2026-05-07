@@ -195,7 +195,7 @@ export function InstalledPluginDetail({
   onClose: _onClose,
   initialBuildLogOpen = false,
 }: InstalledPluginDetailProps) {
-  const plugin = useInstalledPlugin(pluginId);
+  const plugin = useInstalledPlugin(pluginId, tenantSlug);
   const auditTail = usePluginAuditTail(pluginId, 10);
   const { all: allPerms } = usePermissionsCatalog();
 
@@ -216,10 +216,10 @@ export function InstalledPluginDetail({
     setActionLoading(true);
     try {
       if (plugin.enabled) {
-        await disablePlugin(plugin.id);
+        await disablePlugin(plugin.id, tenantSlug);
         notify.info('Plugin disabled', `${plugin.display_name} is now inactive.`);
       } else {
-        await enablePlugin(plugin.id);
+        await enablePlugin(plugin.id, tenantSlug);
         notify.success('Plugin enabled', `${plugin.display_name} is now active.`);
       }
     } catch {

@@ -228,6 +228,35 @@ func (t *tx) GetMembership(ctx context.Context, id string) (*store.Membership, e
 	return m, err
 }
 
+func (t *tx) AcceptInvite(ctx context.Context, membershipID, userID string) error {
+	now := nowUTC()
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE memberships
+		 SET user_id=?, state='active', invite_token_hash=NULL, joined_at=?, updated_at=?
+		 WHERE id=? AND state='pending'`,
+		userID, now, now, membershipID,
+	)
+	if err != nil {
+		return fmt.Errorf("mysql: accept invite: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return store.ErrMembershipNotFound
+	}
+	return nil
+}
+
+func (t *tx) GetMembershipByInviteToken(ctx context.Context, tokenHash string) (*store.Membership, error) {
+	row := t.sqlTx.QueryRowContext(ctx,
+		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at
+		 FROM memberships WHERE invite_token_hash = ?`, tokenHash)
+	m, err := scanMembership(row)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrMembershipNotFound
+	}
+	return m, err
+}
+
 func (t *tx) GetMembershipByTenantUser(ctx context.Context, tenantID, userID string) (*store.Membership, error) {
 	row := t.sqlTx.QueryRowContext(ctx,
 		`SELECT id, tenant_id, user_id, state, invited_by, invited_at, joined_at, invite_token_hash, created_at, updated_at

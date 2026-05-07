@@ -31,4 +31,4 @@ export * from './cluster';
 export * from './dashboards';
 export * from './widgets';
 export * from './settings';
-export * from './super-admin';
+// Plan 11 (super-admin) resource stub retired — types live in ./audit and ./common

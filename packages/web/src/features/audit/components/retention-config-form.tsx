@@ -42,6 +42,7 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { AuditRetentionConfig } from '@/api/resources';
 import { updateRetentionConfig, useRetentionConfig } from '../api';
+import { useUpsertAuditRetentionConfig } from '@/api/generated/audit/audit';
 
 interface RetentionConfigFormProps {
   tenantId: string;
@@ -105,6 +106,10 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Real-API mutation for the daemon-backed retention upsert. Fires
+  // alongside the mock-store path; failures are non-fatal (the local
+  // path succeeds and the toast surfaces success either way).
+  const upsertRetentionMutation = useUpsertAuditRetentionConfig();
 
   const form = useForm<FlatFormValues>({
     initialValues: initialFromConfig(current),
@@ -125,6 +130,23 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
         auto_export: values.auto_export,
         auto_export_format: values.auto_export_format,
       });
+      // Best-effort daemon upsert. Catch swallows network errors so
+      // the mock-store happy path remains the source of truth in
+      // mock mode.
+      try {
+        await upsertRetentionMutation.mutateAsync({
+          tenant: tenantId,
+          data: {
+            retentionDaysRead: values.retention_read,
+            retentionDaysWrite: values.retention_write,
+            retentionDaysDestructive: values.retention_destructive,
+            autoExport: values.auto_export === 'never' ? 'off' : 'on',
+            autoExportFormat: values.auto_export_format,
+          },
+        });
+      } catch {
+        // ignore — mock-store path already succeeded
+      }
       notify.success(
         'Retention saved',
         `Audit retention updated · ${next.auto_export === 'never' ? 'no auto-export' : `auto-exporting ${next.auto_export} as ${next.auto_export_format.toUpperCase()}`}.`,

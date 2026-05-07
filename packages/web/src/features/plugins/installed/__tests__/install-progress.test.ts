@@ -1,220 +1,208 @@
 /**
- * Unit tests for the streaming install-progress API (Plan 6).
+ * Unit tests for `installPluginWithProgress` + `getBuildLog` — Stage-2.
  *
- * Covers:
- *   - Success path writes a Plugin + emits complete event
- *   - Failure path (deterministic per ref) emits failed event + audit 'plugin:install-failed'
- *   - Cancellation stops emission + appends audit 'plugin:install-cancelled'
- *   - getBuildLog reads plugin.last_build_log
+ * The Stage-2 implementation:
+ *   - POSTs the install request to /plugins/install
+ *   - Subscribes to an SSE stream at /plugins/install/{id}/stream
+ *   - Relays `progress` / `complete` / `failed` events on a returned EventTarget
+ *
+ * EventSource is not available in jsdom; we polyfill a minimal stub for
+ * the duration of these tests.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
-import type { ApprovalCandidate } from '../../install-approval/types';
-import {
-  installPluginWithProgress,
-  getBuildLog,
-  type InstallProgressEvent,
-  type InstallCompleteEvent,
-  type InstallFailedEvent,
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw-server';
+import { installPluginWithProgress, getBuildLog } from '../api';
+import type {
+  InstallProgressEvent,
+  InstallCompleteEvent,
+  InstallFailedEvent,
 } from '../api';
 
+let activeFakeES: StubEventSource | null = null;
+
+class StubEventSource {
+  url: string;
+  listeners: Record<string, ((ev: MessageEvent) => void)[]> = {};
+  closed = false;
+  constructor(url: string) {
+    this.url = url;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    activeFakeES = this;
+  }
+  addEventListener(name: string, fn: (ev: MessageEvent) => void): void {
+    (this.listeners[name] ??= []).push(fn);
+  }
+  close(): void {
+    this.closed = true;
+    if (activeFakeES === this) activeFakeES = null;
+  }
+  /** Simulate the daemon emitting an SSE event of `name` with `payload`. */
+  emit(name: string, payload: unknown): void {
+    const fns = this.listeners[name] ?? [];
+    const ev = { data: JSON.stringify(payload), type: name } as unknown as MessageEvent;
+    for (const f of fns) f(ev);
+  }
+}
+
+const RealEventSource = globalThis.EventSource;
+
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-  vi.useFakeTimers();
+  server.resetHandlers();
+  activeFakeES = null;
+  // @ts-expect-error - test stub
+  globalThis.EventSource = StubEventSource;
 });
 
-function makeCandidate(overrides: Partial<ApprovalCandidate> = {}): ApprovalCandidate {
-  return {
-    slug: 'com.test.streaming',
-    display_name: 'Streaming Test Plugin',
-    version: '1.0.0',
-    parts: ['admin'],
-    declared_permissions: ['com.test.streaming:read'],
-    reference: 'oci://registry.test.example/streaming:1.0.0-success',
-    ...overrides,
-  };
-}
+afterEach(() => {
+  globalThis.EventSource = RealEventSource;
+});
 
-/** Drain a fake-timer interval until the emitter emits a terminal event. */
-async function runToTerminal(
-  emitter: EventTarget,
-): Promise<{ kind: 'complete' | 'failed'; detail: unknown; progressCount: number }> {
-  return new Promise((resolve) => {
-    let progressCount = 0;
-    emitter.addEventListener('progress', () => {
-      progressCount++;
-    });
-    emitter.addEventListener('complete', (e) => {
-      resolve({
-        kind: 'complete',
-        detail: (e as CustomEvent<InstallCompleteEvent>).detail,
-        progressCount,
-      });
-    });
-    emitter.addEventListener('failed', (e) => {
-      resolve({
-        kind: 'failed',
-        detail: (e as CustomEvent<InstallFailedEvent>).detail,
-        progressCount,
-      });
-    });
-    // Advance fake timers enough to exhaust all stages (12 ticks × ~460ms each).
-    void vi.advanceTimersByTimeAsync(10_000);
-  });
-}
-
-describe('installPluginWithProgress', () => {
-  it('streams progress events and writes a Plugin on success', async () => {
-    // Reference chosen so the hash-mod-10 is nonzero → success path.
-    const candidate = makeCandidate({
-      reference: 'oci://registry.test.example/streaming:success-1',
-    });
-    const emitter = installPluginWithProgress(candidate);
-    const result = await runToTerminal(emitter);
-
-    expect(result.kind).toBe('complete');
-    expect(result.progressCount).toBeGreaterThan(0);
-    const detail = result.detail as InstallCompleteEvent;
-    expect(detail.plugin.slug).toBe('com.test.streaming');
-    expect(detail.plugin.build_state).toBe('stable');
-    expect(detail.plugin.cosign_verified).toBe(true);
-
-    // Plugin should be in the store.
-    const inStore = Object.values(useMockStore.getState().plugins).find(
-      (p) => p.slug === 'com.test.streaming',
-    );
-    expect(inStore?.id).toBe(detail.plugin.id);
-
-    // Audit: plugin:install entry appended.
-    const audit = useMockStore.getState().audit;
-    const entry = audit[audit.length - 1];
-    expect(entry?.action).toBe('plugin:install');
-    expect(entry?.outcome).toBe('success');
-  });
-
-  it('emits `progress` with stage + monotonically non-decreasing pct', async () => {
-    const candidate = makeCandidate({
-      reference: 'oci://registry.test.example/streaming:success-2',
-    });
-    const emitter = installPluginWithProgress(candidate);
-    const seen: InstallProgressEvent[] = [];
-    emitter.addEventListener('progress', (e) => {
-      seen.push((e as CustomEvent<InstallProgressEvent>).detail);
-    });
-    await vi.advanceTimersByTimeAsync(10_000);
-
-    expect(seen.length).toBeGreaterThan(3);
-    for (let i = 1; i < seen.length; i++) {
-      const prev = seen[i - 1];
-      const curr = seen[i];
-      if (!prev || !curr) throw new Error('seen[] hole — unexpected');
-      expect(curr.progress).toBeGreaterThanOrEqual(prev.progress);
-    }
-    // Last event of a successful run should be 'complete' with progress=100.
-    const last = seen[seen.length - 1];
-    if (!last) throw new Error('no progress events captured');
-    expect(last.stage).toBe('complete');
-    expect(last.progress).toBe(100);
-  });
-
-  it('deterministic failure path — hash % 10 === 0 emits failed event', async () => {
-    // Brute-force a reference string whose djb2 hash % 10 === 0.
-    // We hit deterministically on the first match so the test stays fast.
-    function djb2(s: string): number {
-      let h = 5381;
-      for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-      return h >>> 0;
-    }
-    let failRef = '';
-    for (let i = 0; i < 2000; i++) {
-      const candidate = `oci://fail/${String(i)}`;
-      if (djb2(candidate) % 10 === 0) {
-        failRef = candidate;
-        break;
+function waitForES(): Promise<StubEventSource> {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    const tick = (): void => {
+      if (activeFakeES) {
+        resolve(activeFakeES);
+        return;
       }
-    }
-    expect(failRef).not.toBe('');
+      if (Date.now() - t0 > 1000) {
+        reject(new Error('timeout waiting for EventSource'));
+        return;
+      }
+      setTimeout(tick, 5);
+    };
+    tick();
+  });
+}
 
-    const emitter = installPluginWithProgress(
-      makeCandidate({ reference: failRef, slug: 'com.test.will-fail' }),
+describe('installPluginWithProgress (real daemon SSE)', () => {
+  const candidate = {
+    slug: 'com.acme.demo',
+    display_name: 'Acme Demo',
+    version: '1.0.0',
+    declared_permissions: [],
+    parts: ['daemon' as const],
+    reference: 'oci://demo',
+  };
+
+  it('streams progress events relayed from the daemon SSE stream', async () => {
+    server.use(
+      http.post('/api/v1/t/tenant-1/plugins/install', () =>
+        HttpResponse.json({ installId: 'install-1', status: 'queued' }, { status: 202 }),
+      ),
     );
-    const result = await runToTerminal(emitter);
 
-    expect(result.kind).toBe('failed');
-    const detail = result.detail as InstallFailedEvent;
-    expect(['fetching', 'verifying', 'building', 'swapping']).toContain(detail.stage);
-    expect(detail.log).toContain('[error]');
+    const emitter = installPluginWithProgress(candidate, 'tenant-1');
+    const events: InstallProgressEvent[] = [];
+    emitter.addEventListener('progress', (e) => {
+      events.push((e as CustomEvent<InstallProgressEvent>).detail);
+    });
 
-    // No plugin should have landed in the store.
-    const inStore = Object.values(useMockStore.getState().plugins).find(
-      (p) => p.slug === 'com.test.will-fail',
-    );
-    expect(inStore).toBeUndefined();
+    const es = await waitForES();
+    es.emit('progress', { stage: 'fetching', progress: 10, message: 'fetch...' });
+    es.emit('progress', { stage: 'building', progress: 60, message: 'build...' });
 
-    // Failure audit appended.
-    const audit = useMockStore.getState().audit;
-    const entry = audit[audit.length - 1];
-    expect(entry?.action).toBe('plugin:install-failed');
-    expect(entry?.outcome).toBe('error');
+    expect(events.length).toBe(2);
+    expect(events[0]?.stage).toBe('fetching');
+    expect(events[1]?.progress).toBe(60);
+
+    emitter.cancel();
   });
 
-  it('cancel() clears the interval and writes an install-cancelled audit', () => {
-    const emitter = installPluginWithProgress(
-      makeCandidate({ reference: 'oci://registry.test.example/streaming:cancel' }),
+  it('emits a `complete` event with the daemon-reported plugin', async () => {
+    server.use(
+      http.post('/api/v1/t/tenant-1/plugins/install', () =>
+        HttpResponse.json({ installId: 'install-2', status: 'queued' }, { status: 202 }),
+      ),
     );
-    const onComplete = vi.fn();
-    const onFailed = vi.fn();
-    emitter.addEventListener('complete', onComplete);
-    emitter.addEventListener('failed', onFailed);
 
-    // Advance one tick, then cancel.
-    void vi.advanceTimersByTimeAsync(500);
-    emitter.cancel();
-    void vi.advanceTimersByTimeAsync(10_000);
+    const emitter = installPluginWithProgress(candidate, 'tenant-1');
+    const completes: InstallCompleteEvent[] = [];
+    emitter.addEventListener('complete', (e) => {
+      completes.push((e as CustomEvent<InstallCompleteEvent>).detail);
+    });
 
-    expect(onComplete).not.toHaveBeenCalled();
-    expect(onFailed).not.toHaveBeenCalled();
+    const es = await waitForES();
+    es.emit('complete', { plugin: { id: 'p-new', slug: candidate.slug } });
 
-    const audit = useMockStore.getState().audit;
-    const cancelEntry = audit.find((e) => e.action === 'plugin:install-cancelled');
-    expect(cancelEntry).toBeDefined();
-    expect(cancelEntry?.outcome).toBe('denied');
+    expect(completes.length).toBe(1);
+    const p = completes[0]?.plugin as { id?: string } | undefined;
+    expect(p?.id).toBe('p-new');
   });
 
-  it('cancel() is idempotent — second call is a no-op', () => {
-    const emitter = installPluginWithProgress(
-      makeCandidate({ reference: 'oci://registry.test.example/streaming:cancel2' }),
+  it('emits a `failed` event with stage + log on a failed run', async () => {
+    server.use(
+      http.post('/api/v1/t/tenant-1/plugins/install', () =>
+        HttpResponse.json({ installId: 'install-3', status: 'queued' }, { status: 202 }),
+      ),
     );
+
+    const emitter = installPluginWithProgress(candidate, 'tenant-1');
+    const fails: InstallFailedEvent[] = [];
+    emitter.addEventListener('failed', (e) => {
+      fails.push((e as CustomEvent<InstallFailedEvent>).detail);
+    });
+
+    const es = await waitForES();
+    es.emit('failed', {
+      stage: 'building',
+      message: 'compile error',
+      log: '[error] foo',
+    });
+
+    expect(fails.length).toBe(1);
+    expect(fails[0]?.stage).toBe('building');
+    expect(fails[0]?.log).toContain('[error]');
+  });
+
+  it('cancel() closes the EventSource', async () => {
+    server.use(
+      http.post('/api/v1/t/tenant-1/plugins/install', () =>
+        HttpResponse.json({ installId: 'install-4', status: 'queued' }, { status: 202 }),
+      ),
+    );
+    const emitter = installPluginWithProgress(candidate, 'tenant-1');
+    const es = await waitForES();
+    expect(es.closed).toBe(false);
     emitter.cancel();
-    const before = useMockStore.getState().audit.length;
+    expect(es.closed).toBe(true);
+  });
+
+  it('is a no-op when tenantSlug omitted (no events emitted)', () => {
+    const emitter = installPluginWithProgress(candidate, '');
+    const events: unknown[] = [];
+    emitter.addEventListener('progress', () => events.push('p'));
+    emitter.addEventListener('complete', () => events.push('c'));
+    emitter.addEventListener('failed', () => events.push('f'));
     emitter.cancel();
-    const after = useMockStore.getState().audit.length;
-    expect(after).toBe(before);
+    expect(events).toEqual([]);
   });
 });
 
-describe('getBuildLog', () => {
-  it('returns last_build_log for the seeded broken plugin', () => {
-    const broken = Object.values(useMockStore.getState().plugins).find(
-      (p) => p.slug === 'com.example.broken-plugin',
+describe('getBuildLog (real daemon)', () => {
+  it('fetches the build-log endpoint and returns its body', async () => {
+    server.use(
+      http.get('/api/v1/t/tenant-1/plugins/p-1/build-log', () =>
+        HttpResponse.text('xcaddy v2.8.4 compiling…'),
+      ),
     );
-    if (!broken) throw new Error('broken-plugin seed missing');
-    const log = getBuildLog(broken.id);
-    expect(log).toBeDefined();
-    expect(log).toContain('module not found');
+    const log = await getBuildLog('p-1', 'tenant-1');
+    expect(log).toContain('xcaddy');
   });
 
-  it('returns undefined for plugins without a build log', () => {
-    const ok = Object.values(useMockStore.getState().plugins).find(
-      (p) => p.slug === 'com.acme.billing',
+  it('returns undefined on 404', async () => {
+    server.use(
+      http.get('/api/v1/t/tenant-1/plugins/missing/build-log', () =>
+          new HttpResponse(null, { status: 404 }),
+      ),
     );
-    if (!ok) throw new Error('acme billing seed missing');
-    expect(getBuildLog(ok.id)).toBeUndefined();
+    const log = await getBuildLog('missing', 'tenant-1');
+    expect(log).toBeUndefined();
   });
 
-  it('returns undefined for unknown plugin ids', () => {
-    expect(getBuildLog('no-such-plugin')).toBeUndefined();
+  it('returns undefined when tenant or plugin id is empty', async () => {
+    expect(await getBuildLog('', 'tenant-1')).toBeUndefined();
+    expect(await getBuildLog('p-1', '')).toBeUndefined();
   });
 });

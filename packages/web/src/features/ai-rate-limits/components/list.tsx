@@ -145,7 +145,14 @@ export function RateLimitList({
         header: 'Last 24h',
         size: 120,
         enableSorting: false,
-        cell: ({ row }) => <MetricsSparkline ruleId={row.original.id} size="sm" window="24h" />,
+        cell: ({ row }) => (
+          <MetricsSparkline
+            tenantId={tenantId}
+            ruleId={row.original.id}
+            size="sm"
+            window="24h"
+          />
+        ),
       },
       {
         id: 'enabled',
@@ -162,7 +169,7 @@ export function RateLimitList({
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateRateLimit(r.id, {
+                void updateRateLimit(tenantId, r.id, {
                   enabled: e.currentTarget.checked,
                 });
               }}
@@ -216,7 +223,7 @@ export function RateLimitList({
         },
       },
     ],
-    [agents, tools, onEdit, onDelete],
+    [tenantId, agents, tools, onEdit, onDelete],
   );
 
   return (

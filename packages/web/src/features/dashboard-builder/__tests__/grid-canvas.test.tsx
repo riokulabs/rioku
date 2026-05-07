@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 /**
  * <GridCanvas> tests — render, selection, remove, and direct layout handler
  * calls. We avoid exercising real dnd-kit pointer events (jsdom has no

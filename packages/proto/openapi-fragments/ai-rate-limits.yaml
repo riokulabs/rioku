@@ -1,0 +1,230 @@
+# Stage-2 admin API: AI semantic rate-limits (CRUD + simulate + metrics).
+#
+# Daemon handlers: packages/daemon/internal/gateway/ai_rate_limits_routes.go
+
+paths:
+  /api/v1/t/{tenant}/ai/rate-limits:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [ai-rate-limits]
+      summary: List AI rate limits
+      operationId: listAIRateLimits
+      responses:
+        "200":
+          description: List of rate limits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AIRateLimit" }
+                  total: { type: integer }
+    post:
+      tags: [ai-rate-limits]
+      summary: Create an AI rate limit
+      operationId: createAIRateLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIRateLimitCreateRequest" }
+      responses:
+        "201":
+          description: Rate limit created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimit" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/rate-limits/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-rate-limits]
+      operationId: getAIRateLimit
+      responses:
+        "200":
+          description: Rate limit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimit" }
+    put:
+      tags: [ai-rate-limits]
+      operationId: updateAIRateLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIRateLimitUpdateRequest" }
+      responses:
+        "200":
+          description: Rate limit updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimit" }
+    delete:
+      tags: [ai-rate-limits]
+      operationId: deleteAIRateLimit
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/rate-limits/{id}/simulate:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [ai-rate-limits]
+      summary: Simulate the rate-limit against a probe request volume
+      operationId: simulateAIRateLimit
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIRateLimitSimulateRequest" }
+      responses:
+        "200":
+          description: Simulation result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimitSimulateResponse" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/ai/rate-limits/{id}/metrics:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [ai-rate-limits]
+      summary: Throttle event time-series for a rate-limit
+      operationId: getAIRateLimitMetrics
+      parameters:
+        - in: query
+          name: since
+          required: false
+          schema: { type: string, default: "24h" }
+          description: |
+            Lookback window. One of `1h`, `24h`, `7d`. Defaults to `24h`.
+      responses:
+        "200":
+          description: Rate-limit metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIRateLimitMetricsResponse" }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    AIRateLimit:
+      type: object
+      required: [id, tenantId, name, scope, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        scope: { type: string }
+        agentId: { type: string, nullable: true }
+        toolId: { type: string, nullable: true }
+        exemplars:
+          type: array
+          items: { type: string }
+        similarityThreshold: { type: number, format: double }
+        windowSeconds: { type: integer, format: int32 }
+        threshold: { type: integer, format: int32 }
+        action: { type: string }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AIRateLimitCreateRequest:
+      type: object
+      required: [name, scope]
+      properties:
+        name: { type: string }
+        scope: { type: string }
+        agentId: { type: string, nullable: true }
+        toolId: { type: string, nullable: true }
+        exemplars:
+          type: array
+          items: { type: string }
+        similarityThreshold: { type: number, format: double }
+        windowSeconds: { type: integer, format: int32 }
+        threshold: { type: integer, format: int32 }
+        action: { type: string }
+
+    AIRateLimitUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        scope: { type: string }
+        agentId: { type: string, nullable: true }
+        toolId: { type: string, nullable: true }
+        exemplars:
+          type: array
+          items: { type: string }
+        similarityThreshold: { type: number, format: double }
+        windowSeconds: { type: integer, format: int32 }
+        threshold: { type: integer, format: int32 }
+        action: { type: string }
+        enabled: { type: boolean }
+
+    AIRateLimitSimulateRequest:
+      type: object
+      properties:
+        request_count:
+          type: integer
+          format: int32
+          description: Probe volume; defaults to 1.
+        time_window_seconds:
+          type: integer
+          format: int32
+          description: Probe window in seconds; defaults to the rule's window.
+        principal:
+          type: string
+          description: Subject id for the probe (informational; echoed back).
+
+    AIRateLimitSimulateResponse:
+      type: object
+      required: [rate_limit_id, would_throttle, retry_after_ms, current_consumption, limit]
+      properties:
+        rate_limit_id: { type: string }
+        principal: { type: string }
+        would_throttle: { type: boolean }
+        retry_after_ms:
+          type: integer
+          format: int32
+          description: Hint for how long to wait before retrying. 0 when not throttled.
+        current_consumption:
+          type: integer
+          format: int32
+          description: Probe volume normalised to the rule's window.
+        limit:
+          type: integer
+          format: int32
+          description: The rule's configured threshold.
+
+    AIRateLimitMetricsPoint:
+      type: object
+      required: [timestamp, throttle_events]
+      properties:
+        timestamp: { type: string, format: date-time }
+        throttle_events:
+          type: integer
+          format: int32
+
+    AIRateLimitMetricsResponse:
+      type: object
+      required: [rate_limit_id, since, points]
+      properties:
+        rate_limit_id: { type: string }
+        since: { type: string }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/AIRateLimitMetricsPoint" }

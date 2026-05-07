@@ -44,6 +44,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 export type healthServiceGetHealthResponse = {
   data: V1HealthStatus | RpcStatus;
   status: number;
@@ -85,14 +87,15 @@ export const getHealthServiceGetHealthInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthServiceGetHealth>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getHealthServiceGetHealthQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof healthServiceGetHealth>>> = ({ signal }) =>
-    healthServiceGetHealth(params, signal);
+    healthServiceGetHealth(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof healthServiceGetHealth>>,
@@ -123,6 +126,7 @@ export function useHealthServiceGetHealthInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetHealthInfinite<
@@ -142,6 +146,7 @@ export function useHealthServiceGetHealthInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetHealthInfinite<
@@ -153,6 +158,7 @@ export function useHealthServiceGetHealthInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthServiceGetHealth>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -165,6 +171,7 @@ export function useHealthServiceGetHealthInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthServiceGetHealth>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getHealthServiceGetHealthInfiniteQueryOptions(params, options);
@@ -187,14 +194,15 @@ export const getHealthServiceGetHealthQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof healthServiceGetHealth>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getHealthServiceGetHealthQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof healthServiceGetHealth>>> = ({ signal }) =>
-    healthServiceGetHealth(params, signal);
+    healthServiceGetHealth(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof healthServiceGetHealth>>,
@@ -225,6 +233,7 @@ export function useHealthServiceGetHealth<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetHealth<
@@ -244,6 +253,7 @@ export function useHealthServiceGetHealth<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetHealth<
@@ -255,6 +265,7 @@ export function useHealthServiceGetHealth<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof healthServiceGetHealth>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -267,6 +278,7 @@ export function useHealthServiceGetHealth<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof healthServiceGetHealth>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getHealthServiceGetHealthQueryOptions(params, options);
@@ -310,14 +322,15 @@ export const getHealthServiceGetCaddyStatusInfiniteQueryOptions = <
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getHealthServiceGetCaddyStatusQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>> = ({
     signal,
-  }) => healthServiceGetCaddyStatus(signal);
+  }) => healthServiceGetCaddyStatus({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>,
@@ -346,6 +359,7 @@ export function useHealthServiceGetCaddyStatusInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetCaddyStatusInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>>,
@@ -362,6 +376,7 @@ export function useHealthServiceGetCaddyStatusInfinite<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetCaddyStatusInfinite<
   TData = InfiniteData<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>>,
@@ -370,6 +385,7 @@ export function useHealthServiceGetCaddyStatusInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useHealthServiceGetCaddyStatusInfinite<
@@ -379,6 +395,7 @@ export function useHealthServiceGetCaddyStatusInfinite<
   query?: Partial<
     UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getHealthServiceGetCaddyStatusInfiniteQueryOptions(options);
 
@@ -398,14 +415,15 @@ export const getHealthServiceGetCaddyStatusQueryOptions = <
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getHealthServiceGetCaddyStatusQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>> = ({
     signal,
-  }) => healthServiceGetCaddyStatus(signal);
+  }) => healthServiceGetCaddyStatus({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>,
@@ -434,6 +452,7 @@ export function useHealthServiceGetCaddyStatus<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetCaddyStatus<
   TData = Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>,
@@ -450,6 +469,7 @@ export function useHealthServiceGetCaddyStatus<
       >,
       'initialData'
     >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useHealthServiceGetCaddyStatus<
   TData = Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>,
@@ -458,6 +478,7 @@ export function useHealthServiceGetCaddyStatus<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
 export function useHealthServiceGetCaddyStatus<
@@ -467,6 +488,7 @@ export function useHealthServiceGetCaddyStatus<
   query?: Partial<
     UseQueryOptions<Awaited<ReturnType<typeof healthServiceGetCaddyStatus>>, TError, TData>
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getHealthServiceGetCaddyStatusQueryOptions(options);
 
