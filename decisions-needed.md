@@ -2,18 +2,18 @@
 
 ## D-01: Admin endpoint Orval codegen gap — RESOLVED
 
-**Status:** Resolved in Plan 11 close-out (Task 6).
+**Status:** Resolved in Plan 11 close-out (Task 7, 2026-05-06).
 
 **Original finding:** All three admin endpoint groups (`/admin/tenants`,
 `/admin/users`, `/admin/audit`) were implemented in the daemon but absent
 from the OpenAPI snapshot Orval consumes. As a result, no React Query
 hooks were generated.
 
-**Resolution:** Authored the `packages/proto/openapi-fragments/admin-super.yaml`
-fragment covering the full admin surface (list/create/get/update/delete
-tenants, list users, list audit) and re-ran `make openapi` followed by
-`pnpm run types:gen`. Generated hooks now live at
-`packages/web/src/api/generated/admin/admin.ts` and include:
+**Task 6 step 1 (codegen):** Authored
+`packages/proto/openapi-fragments/admin-super.yaml` covering the full
+admin surface (list/create/get/update/delete tenants, list users, list
+audit) and re-ran `make openapi` + `pnpm run types:gen`. Generated hooks
+now live at `packages/web/src/api/generated/admin/admin.ts`:
 
 | Hook                   | Method | Path                          |
 | ---------------------- | ------ | ----------------------------- |
@@ -25,12 +25,40 @@ tenants, list users, list audit) and re-ran `make openapi` followed by
 | `useListAdminUsers`    | GET    | `/api/v1/admin/users`         |
 | `useListAdminAudit`    | GET    | `/api/v1/admin/audit`         |
 
-**Scope of Plan 11:** Generated hooks are now available but components
-remain mock-store backed. The mock→real swap is a uniform, cross-feature
-flip (see `contrib-docs/admin-stage2-entry.md`, `src/api/mode.ts`,
-`VITE_USE_MOCKS=false`) and is not Plan 11's responsibility — no other
-stage-2 feature has flipped yet either. Plan 11 closes the OpenAPI
-codegen gap so super-admin is no longer the bottleneck for the flip.
+**Task 7 step 2 (consumption — the closing gap):** All three super-admin
+components have been rewritten to consume those hooks directly:
+
+- `tenant-inventory.tsx` — `useListAdminTenants` for the table,
+  `useCreateAdminTenant` and `useDeleteAdminTenant` for mutations,
+  `useQueryClient.invalidateQueries(getListAdminTenantsQueryKey())` to
+  refresh after writes.
+- `cross-tenant-users.tsx` — `useListAdminUsers`. The detail drawer
+  surfaces the daemon-returned `{id, username, status}` fields; the
+  per-user memberships/audit deep view is a follow-up.
+- `admin-audit-view.tsx` — `useListAdminAudit`. Rows are normalised
+  from either the legacy snake_case mock shape or the daemon's
+  proto-JSON camelCase shape (`occurredAt`, `entityType`, …).
+  Hash-chain verification activates when entries carry both `hash`
+  and `prev_hash`; otherwise the UI surfaces an "unsupported" badge
+  and disables the verify button (the daemon notes that hash-chain
+  emission lands in a follow-up migration).
+
+The mutator at `src/api/mutator.ts` was extended with a second overload
+(orval-style `(url, RequestInit) → {data,status,headers}`) so the
+generated client and the legacy `apiClient` shim can share one fetch
+path. Coverage:
+
+- Vitest super-admin suite (40 tests across 4 files) passes — uses MSW
+  handlers (no mock-store priming).
+- Vitest RBAC redirect suite asserts a tenant-admin without
+  `admin:cross-tenant-read` is bounced to `/access-denied`.
+- Playwright spec `e2e/super-admin/super-admin-flow.spec.ts` walks
+  `/admin/tenants`, `/admin/users`, `/admin/audit` end-to-end with
+  `page.route(...)` interception, including a real two-link SHA-256
+  hash chain that the verify button validates.
+- Daemon test `TestAdminTenants_Forbidden_NonSuperAdmin` asserts a
+  session without `admin:cross-tenant-read` gets `403
+  application/problem+json` from `GET /api/v1/admin/tenants`.
 
 ---
 
@@ -50,16 +78,20 @@ super-admin operations?
 
 **Recommendation:** Emit on create/update/delete only. Read access to
 tenant inventory is logged at the HTTP layer (daemon) and does not need
-a mock-side admin audit entry.
+a mock-side admin audit entry. The Plan 11 close-out follows this
+recommendation: components no longer call `logAdminAuditEntry` from the
+client — the daemon writes the audit row when the corresponding
+mutation succeeds.
 
 ---
 
 ## D-03: `renders 3 seeded tenants` test — pre-existing timeout — RESOLVED
 
-**Status:** No longer applicable.
+**Status:** Resolved (2026-05-06).
 
-**Finding:** The originally-flagged test name does not exist in the
-current test file. The closest test (`shows all 3 named seeded tenant
-slugs in the table`) passes consistently. The full Plan 11 super-admin
-suite (36 tests across 3 files) passes in 5.8s with no flakes observed
-across multiple runs during Task 6 close-out.
+**Resolution:** The original mock-store-primed test was retired during
+the Task 7 rewrite. The new MSW-backed suite uses `await
+screen.findByText(...)` everywhere a list row is asserted, so suite
+pressure cannot race the network-layer resolver. The full super-admin
+vitest suite (40 tests across 4 files) now runs in ~5 s with no flakes
+across repeated invocations.

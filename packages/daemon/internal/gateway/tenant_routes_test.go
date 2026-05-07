@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/riokulabs/rioku/internal/auth"
@@ -387,5 +388,84 @@ func TestMembershipRoutes_DeleteMembership(t *testing.T) {
 	mux.ServeHTTP(rec2, req2)
 	if rec2.Code != http.StatusNoContent {
 		t.Errorf("delete: expected 204, got %d", rec2.Code)
+	}
+}
+
+// authedRequestWithScopes builds an authenticated request with arbitrary
+// SessionClaims scopes — used to assert RBAC denies non-super-admin actors
+// from /api/v1/admin/* endpoints.
+func authedRequestWithScopes(method, target string, scopes []string) *http.Request {
+	req := httptest.NewRequest(method, target, nil)
+	claims := &auth.SessionClaims{
+		SessionID: "test-session",
+		UserID:    "user-tenant-admin",
+		Username:  "tenantadmin",
+		Roles:     []string{"tenant-admin"},
+		Scopes:    scopes,
+	}
+	return req.WithContext(auth.WithSessionClaims(req.Context(), claims))
+}
+
+// TestAdminTenants_Forbidden_NonSuperAdmin asserts that a session without the
+// `admin:cross-tenant-read` permission gets a 403 problem-detail response from
+// GET /api/v1/admin/tenants. This is the daemon-side mirror of the Vitest
+// super-admin RBAC redirect coverage.
+func TestAdminTenants_Forbidden_NonSuperAdmin(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterTenantRoutes(mux, drv)
+
+	// Tenant-admin scopes — broad inside one tenant, but no cross-tenant grant.
+	tenantAdminScopes := []string{
+		"service:write", "route:write", "user:invite", "user:disable", "role:write",
+	}
+
+	req := authedRequestWithScopes(http.MethodGet, "/api/v1/admin/tenants", tenantAdminScopes)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d (body=%s)", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/problem+json" {
+		t.Errorf("expected application/problem+json, got %q", got)
+	}
+	var pd map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&pd); err != nil {
+		t.Fatalf("decode problem-detail body: %v", err)
+	}
+	if pd["status"] != float64(http.StatusForbidden) {
+		t.Errorf("expected problem.status=403, got %v", pd["status"])
+	}
+	detail, _ := pd["detail"].(string)
+	if detail == "" || !strings.Contains(detail, "admin:cross-tenant-read") {
+		t.Errorf("expected detail to mention 'admin:cross-tenant-read', got %q", detail)
+	}
+}
+
+// TestAdminTenants_Forbidden_OtherAdminPaths walks every cross-tenant write
+// route and asserts each rejects a session that only carries the read scope.
+func TestAdminTenants_Forbidden_OtherAdminPaths(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterTenantRoutes(mux, drv)
+
+	// Holds read but lacks write — must be denied on every write path.
+	readOnly := []string{"admin:cross-tenant-read"}
+
+	cases := []struct {
+		method, path string
+	}{
+		{http.MethodPost, "/api/v1/admin/tenants"},
+		{http.MethodPatch, "/api/v1/admin/tenants/some-id"},
+		{http.MethodDelete, "/api/v1/admin/tenants/some-id"},
+	}
+	for _, c := range cases {
+		req := authedRequestWithScopes(c.method, c.path, readOnly)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("%s %s: expected 403, got %d", c.method, c.path, rec.Code)
+		}
 	}
 }

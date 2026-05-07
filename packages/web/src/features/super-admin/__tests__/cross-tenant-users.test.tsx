@@ -1,14 +1,13 @@
 /**
- * Tests for <CrossTenantUsers> — Task 3 (Plan 11)
+ * Tests for <CrossTenantUsers> — Plan 11 close-out.
  *
  * Covers:
- *   - Renders seeded users across all tenants
- *   - Filter controls: tenant, state, disabled status
- *   - Search input
- *   - User detail drawer opens (Profile / Memberships / Audit tabs)
- *   - Admin audit emission when user profile is viewed
+ *   - Data load via useListAdminUsers + MSW
+ *   - Search by username
+ *   - Status filter
+ *   - Detail drawer opens on username click and shows real fields
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -17,115 +16,70 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MantineProvider } from '@mantine/core';
-import { ModalsProvider } from '@mantine/modals';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
 import { CrossTenantUsers } from '../components/cross-tenant-users';
+import {
+  AdminTestWrapper,
+  makeQueryClient,
+  mockListUsers,
+  SAMPLE_USERS,
+} from './admin-msw-helpers';
 
-function wrap(ui: React.ReactNode) {
+function renderUsers() {
+  const client = makeQueryClient();
   return render(
-    <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+    <AdminTestWrapper client={client}>
+      <CrossTenantUsers />
+    </AdminTestWrapper>,
   );
 }
 
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
-
-describe('CrossTenantUsers', () => {
-  it('renders seeded users across all tenants', () => {
-    wrap(<CrossTenantUsers />);
-    // Should show at least some rows
-    const rows = screen.getAllByRole('row');
-    // header + data rows
-    expect(rows.length).toBeGreaterThan(5);
+describe('CrossTenantUsers — list view backed by useListAdminUsers', () => {
+  it('renders all returned usernames', async () => {
+    mockListUsers(SAMPLE_USERS);
+    renderUsers();
+    expect(await screen.findByText('alice')).toBeDefined();
+    expect(await screen.findByText('bob')).toBeDefined();
+    expect(await screen.findByText('charlie')).toBeDefined();
+    expect(await screen.findByText('dora')).toBeDefined();
   });
 
-  it('renders tenant filter dropdown', () => {
-    wrap(<CrossTenantUsers />);
-    // The "All tenants" label appears in the tenant filter select
-    expect(screen.getByText(/all tenants/i)).toBeDefined();
+  it('renders the search input and status filter', async () => {
+    mockListUsers(SAMPLE_USERS);
+    renderUsers();
+    await screen.findByText('alice');
+    expect(screen.getByTestId('user-search')).toBeDefined();
+    expect(screen.getByTestId('status-filter')).toBeDefined();
   });
 
-  it('renders state filter dropdown', () => {
-    wrap(<CrossTenantUsers />);
-    expect(screen.getByText(/all states/i)).toBeDefined();
-  });
-
-  it('renders search input', () => {
-    wrap(<CrossTenantUsers />);
-    expect(screen.getByPlaceholderText(/search by name or email/i)).toBeDefined();
-  });
-
-  it('renders disabled status filter dropdown', () => {
-    wrap(<CrossTenantUsers />);
-    // "All users" appears in both the page title and the filter select — getAllByText handles multiple
-    const allUsersEls = screen.getAllByText(/all users/i);
-    expect(allUsersEls.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders Status column header', () => {
-    wrap(<CrossTenantUsers />);
-    expect(screen.getByText('Status')).toBeDefined();
-  });
-
-  it('renders Membership column header', () => {
-    wrap(<CrossTenantUsers />);
-    expect(screen.getByText('Membership')).toBeDefined();
-  });
-
-  it('opens user detail drawer when user name is clicked', async () => {
-    wrap(<CrossTenantUsers />);
-    const nameCells = screen.getAllByTestId('user-name-cell');
-    expect(nameCells.length).toBeGreaterThan(0);
-    fireEvent.click(nameCells[0]!);
+  it('filters by search query (substring match on username)', async () => {
+    mockListUsers(SAMPLE_USERS);
+    renderUsers();
+    await screen.findByText('alice');
+    fireEvent.change(screen.getByTestId('user-search'), {
+      target: { value: 'bob' },
+    });
     await waitFor(() => {
-      // Profile tab should be visible in the drawer
-      expect(screen.getAllByText(/profile/i).length).toBeGreaterThan(0);
+      expect(screen.getByText('bob')).toBeDefined();
+      expect(screen.queryByText('alice')).toBeNull();
     });
   });
 
-  it('user detail drawer shows Memberships tab', async () => {
-    wrap(<CrossTenantUsers />);
-    const nameCells = screen.getAllByTestId('user-name-cell');
-    fireEvent.click(nameCells[0]!);
+  it('renders the empty state when no users match', async () => {
+    mockListUsers([]);
+    renderUsers();
     await waitFor(() => {
-      expect(screen.getAllByText(/memberships/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/no users found/i)).toBeDefined();
     });
   });
 
-  it('user detail drawer shows Audit tab', async () => {
-    wrap(<CrossTenantUsers />);
-    const nameCells = screen.getAllByTestId('user-name-cell');
-    fireEvent.click(nameCells[0]!);
+  it('opens the user detail drawer when the username cell is clicked', async () => {
+    mockListUsers(SAMPLE_USERS);
+    renderUsers();
+    const cells = await screen.findAllByTestId('user-name-cell');
+    expect(cells.length).toBeGreaterThan(0);
+    fireEvent.click(cells[0]!);
     await waitFor(() => {
-      // "Audit" tab label (with count)
-      const auditTabs = screen.getAllByText(/^audit/i);
-      expect(auditTabs.length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/username/i).length).toBeGreaterThan(0);
     });
-  });
-});
-
-// ─── Admin audit emission ─────────────────────────────────────────────────────
-
-describe('CrossTenantUsers — admin audit emission', () => {
-  it('logAdminAuditEntry appends a user:view entry to adminAudit', async () => {
-    const { logAdminAuditEntry } = await import('@/api/resources/audit');
-    const before = useMockStore.getState().adminAudit.length;
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'user:view',
-      resource_type: 'user',
-      resource_id: 'user-0002',
-      tier: 'read',
-    });
-    const after = useMockStore.getState().adminAudit.length;
-    expect(after).toBe(before + 1);
-    expect(useMockStore.getState().adminAudit.at(-1)?.action).toBe('user:view');
   });
 });

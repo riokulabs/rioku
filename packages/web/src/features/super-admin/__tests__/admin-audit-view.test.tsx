@@ -1,15 +1,18 @@
 /**
- * Tests for <AdminAuditView> — Task 4 (Plan 11)
+ * Tests for <AdminAuditView> — Plan 11 close-out.
  *
  * Covers:
- *   - Empty state renders when no entries
- *   - Renders entries when they exist
- *   - Filter controls: actor, tenant, kind, date range
- *   - Chain integrity: valid chain passes verification
- *   - Chain integrity: corrupted link fails verification
- *   - Detail drawer opens with Overview / Diff / Hash-chain tabs
+ *   - Empty state when daemon returns []
+ *   - List rows when daemon returns proto-shape items
+ *   - Note alert when daemon returns a `note` (current proxy mode)
+ *   - Hash-chain Verify button is enabled and runs verifyAdminAuditChain
+ *     when entries carry hash + prevHash
+ *   - Hash-chain Verify button is disabled with an "unsupported" badge
+ *     when entries lack hash fields (current daemon proxy)
+ *   - verifyAdminAuditChain unit tests (valid chain → ok:true,
+ *     corrupted link → ok:false with brokenAt set, empty → ok:true)
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
@@ -18,145 +21,155 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MantineProvider } from '@mantine/core';
-import { ModalsProvider } from '@mantine/modals';
+import { AdminAuditView } from '../components/admin-audit-view';
 import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
 import { logAdminAuditEntry, verifyAdminAuditChain } from '@/api/resources/audit';
 import type { AdminAuditEntry } from '@/api/resources';
-import { AdminAuditView } from '../components/admin-audit-view';
+import {
+  AdminTestWrapper,
+  makeQueryClient,
+  mockListAudit,
+} from './admin-msw-helpers';
 
-function wrap(ui: React.ReactNode) {
+function renderAudit() {
+  const client = makeQueryClient();
   return render(
-    <MantineProvider>
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+    <AdminTestWrapper client={client}>
+      <AdminAuditView />
+    </AdminTestWrapper>,
   );
 }
 
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
-
-describe('AdminAuditView', () => {
-  it('renders empty state when no admin audit entries exist', () => {
-    wrap(<AdminAuditView />);
-    expect(screen.getByText(/no admin audit entries/i)).toBeDefined();
+describe('AdminAuditView — list view backed by useListAdminAudit', () => {
+  it('renders the empty state when the daemon returns no items', async () => {
+    mockListAudit([]);
+    renderAudit();
+    await waitFor(() => {
+      expect(screen.getByText(/no admin audit entries/i)).toBeDefined();
+    });
   });
 
-  it('renders admin audit entries when they exist', async () => {
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'impersonation:enter',
-      resource_type: 'impersonation_session',
-      resource_id: 'imp-0001',
+  it('renders the daemon `note` field when present (current proxy mode)', async () => {
+    mockListAudit(
+      [
+        {
+          id: 'audit-1',
+          actor: 'user-0001',
+          entityType: 'tenant',
+          entityId: 'tenant-acme',
+          operation: 'tenant:create',
+          occurredAt: '2026-04-01T00:00:00.000Z',
+        },
+      ],
+      'hash-chained super-admin audit is a follow-up; this proxies the per-tenant log',
+    );
+    renderAudit();
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-note')).toBeDefined();
     });
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'impersonation:exit',
-      resource_type: 'impersonation_session',
-      resource_id: 'imp-0001',
-    });
-
-    wrap(<AdminAuditView />);
-    const rows = screen.getAllByRole('row');
-    expect(rows.length).toBeGreaterThanOrEqual(3); // header + 2 data rows
+    expect(screen.getByText(/proxies the per-tenant log/i)).toBeDefined();
   });
 
-  it('shows chain-verified badge after clicking Verify chain', async () => {
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'test:action',
-      resource_type: 'test',
+  it('renders proto-shape items into the table', async () => {
+    mockListAudit([
+      {
+        id: 'a-1',
+        actor: 'user-0001',
+        entityType: 'tenant',
+        entityId: 'tenant-acme',
+        operation: 'tenant:create',
+        occurredAt: '2026-04-01T00:00:00.000Z',
+      },
+      {
+        id: 'a-2',
+        actor: 'user-0002',
+        entityType: 'tenant',
+        entityId: 'tenant-beta',
+        operation: 'tenant:delete',
+        occurredAt: '2026-04-02T00:00:00.000Z',
+      },
+    ]);
+    renderAudit();
+    await waitFor(() => {
+      expect(screen.getByText('tenant:create')).toBeDefined();
+      expect(screen.getByText('tenant:delete')).toBeDefined();
     });
+  });
 
-    wrap(<AdminAuditView />);
+  it('disables Verify chain when no entries carry hash fields and surfaces an unsupported badge', async () => {
+    mockListAudit([
+      {
+        id: 'a-1',
+        actor: 'user-0001',
+        operation: 'tenant:create',
+        occurredAt: '2026-04-01T00:00:00.000Z',
+      },
+    ]);
+    renderAudit();
+    await screen.findByText('tenant:create');
     const verifyBtn = screen.getByRole('button', { name: /verify chain/i });
+    expect((verifyBtn as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('verifies a hash-chained payload when entries carry hash + prevHash', async () => {
+    // Build a real hash-chained payload using logAdminAuditEntry, then ship
+    // it down through MSW so the component sees authentic chain data.
+    useMockStore.getState().reset();
+    await logAdminAuditEntry({
+      tenant_id: null,
+      actor_id: 'user-0001',
+      action: 'tenant:create',
+      resource_type: 'tenant',
+      resource_id: 'tenant-acme',
+    });
+    await logAdminAuditEntry({
+      tenant_id: null,
+      actor_id: 'user-0001',
+      action: 'tenant:update',
+      resource_type: 'tenant',
+      resource_id: 'tenant-acme',
+    });
+    const chained = useMockStore.getState().adminAudit;
+    mockListAudit(chained as unknown as Record<string, unknown>[]);
+
+    renderAudit();
+    await screen.findByText('tenant:create');
+
+    const verifyBtn = screen.getByRole('button', { name: /verify chain/i });
+    expect((verifyBtn as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(verifyBtn);
 
     await waitFor(() => {
-      expect(screen.queryByTestId('chain-verified-badge')).toBeDefined();
+      expect(screen.getByTestId('chain-verified-badge')).toBeDefined();
     });
   });
 
-  it('renders actor filter select', () => {
-    wrap(<AdminAuditView />);
-    expect(screen.getByTestId('actor-filter')).toBeDefined();
-  });
-
-  it('renders tenant filter select', () => {
-    wrap(<AdminAuditView />);
-    expect(screen.getByTestId('tenant-filter')).toBeDefined();
-  });
-
-  it('renders kind filter input', () => {
-    wrap(<AdminAuditView />);
-    expect(screen.getByTestId('kind-filter')).toBeDefined();
-  });
-
-  it('opens detail drawer when Details button is clicked', async () => {
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'tenant:create',
-      resource_type: 'tenant',
-      resource_id: 'tenant-1',
-      tier: 'write',
-    });
-
-    wrap(<AdminAuditView />);
-    const detailBtn = screen.getByRole('button', { name: /view details for/i });
+  it('opens the detail drawer with Overview / Diff / Hash chain tabs', async () => {
+    mockListAudit([
+      {
+        id: 'a-1',
+        actor: 'user-0001',
+        entityType: 'tenant',
+        operation: 'tenant:create',
+        occurredAt: '2026-04-01T00:00:00.000Z',
+      },
+    ]);
+    renderAudit();
+    const detailBtn = await screen.findByRole('button', { name: /view details for/i });
     fireEvent.click(detailBtn);
-
     await waitFor(() => {
-      // Overview tab should be visible
       expect(screen.getByText('Overview')).toBeDefined();
-    });
-  });
-
-  it('detail drawer shows Diff tab', async () => {
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'tenant:create',
-      resource_type: 'tenant',
-    });
-
-    wrap(<AdminAuditView />);
-    const detailBtn = screen.getByRole('button', { name: /view details for/i });
-    fireEvent.click(detailBtn);
-
-    await waitFor(() => {
       expect(screen.getByText('Diff')).toBeDefined();
-    });
-  });
-
-  it('detail drawer shows Hash chain tab', async () => {
-    await logAdminAuditEntry({
-      tenant_id: null,
-      actor_id: 'user-0001',
-      action: 'tenant:create',
-      resource_type: 'tenant',
-    });
-
-    wrap(<AdminAuditView />);
-    const detailBtn = screen.getByRole('button', { name: /view details for/i });
-    fireEvent.click(detailBtn);
-
-    await waitFor(() => {
       expect(screen.getByText('Hash chain')).toBeDefined();
     });
   });
 });
 
-// ─── Chain integrity verification ─────────────────────────────────────────────
+// ─── Chain integrity (function-level) ─────────────────────────────────────────
 
-describe('AdminAuditView — chain integrity', () => {
-  it('verifyAdminAuditChain returns ok:true for a valid chain', async () => {
+describe('verifyAdminAuditChain', () => {
+  it('returns ok:true for a valid chain', async () => {
+    useMockStore.getState().reset();
     await logAdminAuditEntry({
       tenant_id: null,
       actor_id: 'user-0001',
@@ -175,13 +188,13 @@ describe('AdminAuditView — chain integrity', () => {
       action: 'a:3',
       resource_type: 'test',
     });
-
     const entries = useMockStore.getState().adminAudit;
     const result = await verifyAdminAuditChain(entries);
     expect(result.ok).toBe(true);
   });
 
-  it('verifyAdminAuditChain returns ok:false when a link is corrupted', async () => {
+  it('returns ok:false with brokenAt set when a link is corrupted', async () => {
+    useMockStore.getState().reset();
     await logAdminAuditEntry({
       tenant_id: null,
       actor_id: 'user-0001',
@@ -200,19 +213,20 @@ describe('AdminAuditView — chain integrity', () => {
       action: 'b:3',
       resource_type: 'test',
     });
-
-    // Corrupt the second entry's hash to simulate tampering
     const original = useMockStore.getState().adminAudit;
     const corrupted: AdminAuditEntry[] = original.map((e, i) =>
-      i === 1 ? { ...e, hash: 'deadbeef00000000000000000000000000000000000000000000000000000000' } : e,
+      i === 1
+        ? { ...e, hash: 'deadbeef00000000000000000000000000000000000000000000000000000000' }
+        : e,
     );
 
     const result = await verifyAdminAuditChain(corrupted);
     expect(result.ok).toBe(false);
     expect(result.brokenAt).toBeDefined();
+    expect(typeof result.brokenAt).toBe('number');
   });
 
-  it('verifyAdminAuditChain returns ok:true for an empty chain', async () => {
+  it('returns ok:true for an empty chain', async () => {
     const result = await verifyAdminAuditChain([]);
     expect(result.ok).toBe(true);
   });
