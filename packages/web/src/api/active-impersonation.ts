@@ -1,26 +1,25 @@
 /**
  * active-impersonation — module-level holder for the active super-admin
- * impersonation session id, decoupling feature code from the mock-store.
+ * impersonation session id.
  *
  * The mutator (`src/api/mutator.ts`) reads this via the
  * `setActiveImpersonationIdAccessor` accessor wired up in `src/main.tsx`,
  * so every daemon-bound request automatically stamps the
  * `X-Impersonation-Id` header while a session is active.
  *
- * Stage-2 plan-02: the mock-store still owns the canonical id (until
- * plan-11 super-admin lands a real handle source); this helper is a
- * thin wrapper so security-feature callers don't need to import the
- * mock-store directly.
+ * Stage-2 plan-13 close-out: the mock-store has been retired; the active
+ * id now lives in a module-local cell. Feature code reads/writes via the
+ * helpers below.
  */
 
-import { useMockStore } from './mock-store';
+let activeImpersonationId: string | null = null;
 
 /** Mirror the daemon-issued impersonation session id into the active holder. */
 export function setActiveImpersonationId(id: string | null): void {
-  useMockStore.setState({ activeImpersonationId: id });
+  activeImpersonationId = id;
 }
 
 /** Read the active impersonation session id, or null if none. */
 export function getActiveImpersonationId(): string | null {
-  return useMockStore.getState().activeImpersonationId;
+  return activeImpersonationId;
 }
