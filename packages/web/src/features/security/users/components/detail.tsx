@@ -33,7 +33,7 @@ import { EffectivePermissionsPanel } from '@/components/effective-permissions-pa
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 import {
   useUserDetail,
   useUserSessions,
@@ -57,7 +57,8 @@ export function UserDetail({ userId, currentTenantId, tenantSlug, onClose }: Use
   const { detail, isLoading } = useUserDetail(currentTenantId, userId);
   const { sessions } = useUserSessions(currentTenantId, userId);
   const tenantRoles = useTenantRoles(currentTenantId);
-  const currentUserId = useMockStore((s) => s.currentUserId);
+  const { data: currentUser } = useCurrentUser();
+  const currentUserId = currentUser?.id ?? null;
 
   const {
     revokeSession,
