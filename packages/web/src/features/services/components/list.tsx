@@ -23,7 +23,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable, type BulkAction } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useRouteListReal } from '@/features/routes/api.stage2';
 import { HealthChip, ProtocolBadge } from '@/features/api-mgmt-shared';
 import { useServiceList, deleteService, enableService, disableService } from '../api';
 import type { Service, ServiceFilter } from '../types';
@@ -50,12 +50,11 @@ export function ServiceList({
   onForceReload,
 }: ServiceListProps) {
   const services = useServiceList(tenantId, filter);
-  const routes = useMockStore((s) => s.routes);
+  const { routes } = useRouteListReal(tenantId, undefined);
 
-  // Derive per-service route count outside the selector (stable selector rule).
   const routeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const route of Object.values(routes)) {
+    for (const route of routes) {
       counts[route.service_id] = (counts[route.service_id] ?? 0) + 1;
     }
     return counts;
@@ -134,10 +133,9 @@ export function ServiceList({
   }, [tenantId]);
 
   const handleBulkExportJson = useCallback((ids: string[]) => {
-    const state = useMockStore.getState();
-    const selected = ids
-      .map((id) => state.services[id])
-      .filter((s): s is NonNullable<typeof s> => s !== undefined)
+    const idSet = new Set(ids);
+    const selected = services
+      .filter((s) => idSet.has(s.id))
       .map(({ id, name, upstream, upstream_protocol, env, health, tags, description }) => ({
         id,
         name,
@@ -159,7 +157,7 @@ export function ServiceList({
       'Export ready',
       `${String(selected.length)} service${selected.length !== 1 ? 's' : ''} exported.`,
     );
-  }, []);
+  }, [services]);
 
   const bulkActions = useMemo<BulkAction[]>(
     () => [

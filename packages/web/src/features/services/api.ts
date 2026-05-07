@@ -6,13 +6,13 @@
  * underlying real-endpoint wrappers) so every component that imports from
  * `features/services` ends up calling the live daemon.
  *
- * Signatures from the Stage-1 mock-store era have been preserved where
- * possible; imperative mutations now require an explicit `tenantId` because
+ * Legacy hook signatures are preserved; imperative mutations require an
+ * explicit `tenantId` because
  * the daemon REST surface is `/api/v1/t/{tenant}/services/{id}`. Callers
  * that previously invoked `deleteService(id)` must pass the tenant.
  */
-import { useMockStore } from '@/api/mock-store';
 import type { Route, Service } from '@/api/resources';
+import { useRouteListReal } from '@/features/routes/api.stage2';
 import { useServiceListReal, useServiceDetailReal } from './api.stage2';
 import type { ServiceFilter, ServiceInput, ServiceUpdateInput } from './types';
 import { ServiceInUseError } from './types';
@@ -55,17 +55,14 @@ export function useServiceDetail(tenantId: string, serviceId: string): Service |
 }
 
 /**
- * Returns routes attached to a given service.
+ * Returns routes attached to a given service via the real daemon endpoint.
  *
- * Stage-2 note: the routes feature is owned by Plan 02 and remains
- * mock-store-backed in this branch. This selector therefore reads from the
- * mock store, mirroring the contract Stage-1 components already depend on.
- * It will be flipped to a real `listRoutes(tenant)` query when Plan 02
- * lands its real-endpoint wiring.
+ * Signature change: stage-1 took only `serviceId`; stage-2 needs the tenant
+ * because the listing endpoint is `/api/v1/t/{tenant}/routes`. Callers in
+ * `components/{detail,full-page}.tsx` are updated.
  */
-export function useServiceRoutes(serviceId: string): Route[] {
-  const routes = useMockStore((s) => s.routes);
-  return Object.values(routes).filter((r) => r.service_id === serviceId);
+export function useServiceRoutes(tenantId: string, serviceId: string): Route[] {
+  return useRouteListReal(tenantId, serviceId).routes;
 }
 
 // ─── Imperative mutations (real endpoints; tenantId required) ─────────────────
