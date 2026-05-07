@@ -1,6 +1,8 @@
 /**
- * Tests for <SidebarFooter> — tenant switcher reads real memberships.
- * Task 1d.82
+ * Tests for <SidebarFooter> — the tenant switcher reads from the
+ * daemon's admin-tenants list. We mock that hook + `useCurrentUser` +
+ * `useImpersonationSession` directly so the test stays focused on the
+ * footer's switch / navigate behaviour.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -17,13 +19,57 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/hooks/use-tenant', () => ({
   useTenant: () => ({ slug: 'acme', mode: tenantMode }),
   detectTenantMode: () => tenantMode,
+  useActiveTenantSlug: () => 'acme',
+}));
+
+vi.mock('@/hooks/use-session', () => ({
+  useSession: () => ({
+    currentUserId: 'user-derrick',
+    currentTenantId: 'acme',
+    isAuthenticated: true,
+  }),
+}));
+
+vi.mock('@/features/auth/use-current-user', () => ({
+  useCurrentUser: () => ({
+    data: {
+      id: 'user-derrick',
+      username: 'derrick',
+      displayName: 'Derrick',
+      email: 'derrick@rioku.dev',
+      roles: ['superadmin'],
+      permissions: [],
+      status: 'active',
+      forcePasswordChange: false,
+      totpEnabled: true,
+    },
+  }),
+}));
+
+vi.mock('@/features/security/impersonation/use-impersonation-session', () => ({
+  useImpersonationSession: () => null,
+}));
+
+vi.mock('@/features/auth/api', () => ({
+  logout: vi.fn().mockResolvedValue(undefined),
+}));
+
+const TENANTS = [
+  { id: 'tenant-acme', slug: 'acme', name: 'Acme Corp' },
+  { id: 'tenant-beta', slug: 'beta', name: 'Beta Inc' },
+];
+
+vi.mock('@/api/generated/admin/admin', () => ({
+  useListAdminTenants: () => ({
+    data: { data: { items: TENANTS } },
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
 import { SidebarFooter } from '../sidebar-footer';
 
 function wrap(ui: React.ReactNode) {
@@ -37,37 +83,29 @@ function wrap(ui: React.ReactNode) {
 beforeEach(() => {
   tenantMode = 'path-prefix';
   mockNavigate.mockClear();
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
 });
 
 describe('SidebarFooter — tenant switcher', () => {
-  it('reads tenants from mock-store memberships (renders current tenant slug)', () => {
-    // Verify the sidebar footer renders the current tenant from the mock store
-    // (Derrick's current tenant is acme based on mock-seed)
+  it('renders the current tenant slug from the route', () => {
     wrap(<SidebarFooter />);
-    // The tenant slug 'acme' should appear in the rendered pill
     const acmeText = screen.getAllByText('acme');
     expect(acmeText.length).toBeGreaterThan(0);
   });
 
   it('shows current tenant slug in the pill', () => {
     wrap(<SidebarFooter />);
-    // Derrick's current tenant is 'acme'
     expect(screen.getAllByText('acme').length).toBeGreaterThan(0);
   });
 
-  it('path-prefix mode: clicking different tenant navigates directly without confirm', () => {
+  it('path-prefix mode: clicking another tenant navigates directly without confirm', () => {
     tenantMode = 'path-prefix';
     wrap(<SidebarFooter />);
 
-    // Open tenant menu
     const buttons = screen.getAllByRole('button');
     const tenantPill = buttons[0];
     if (!tenantPill) throw new Error('No button found');
     fireEvent.click(tenantPill);
 
-    // If Derrick has beta membership, click beta option
     const betaOption = screen.queryByTestId('tenant-option-beta');
     if (betaOption) {
       fireEvent.click(betaOption);
@@ -81,17 +119,14 @@ describe('SidebarFooter — tenant switcher', () => {
     tenantMode = 'subdomain';
     wrap(<SidebarFooter />);
 
-    // Open tenant menu
     const buttons = screen.getAllByRole('button');
     const tenantPill = buttons[0];
     if (!tenantPill) throw new Error('No button found');
     fireEvent.click(tenantPill);
 
-    // Try to switch — if user has a non-current tenant
     const betaOption = screen.queryByTestId('tenant-option-beta');
     if (betaOption) {
       fireEvent.click(betaOption);
-      // Modal should appear
       expect(screen.queryByText(/switch tenant/i)).not.toBeNull();
     }
   });

@@ -1,23 +1,24 @@
 /**
- * usePermissionTrace — resolve WHY a user has (or does not have) a specific
- * permission on a specific tenant.
+ * usePermissionTrace — best-effort trace of WHY a user has (or does
+ * not have) a specific permission on a specific tenant.
  *
- * Bridge hook — lives in hooks/ so that components/ can consume it without
- * violating the components/ → api/ import boundary.
+ * Stage-2: backed by the daemon's flat per-tenant role API. The
+ * authoritative role-graph walk (parents, denies, CEL) lives on the
+ * daemon; the SPA does not have a dedicated trace endpoint, so this
+ * hook reports the directly-assigned roles plus which (if any) of them
+ * carries the permission in its flat permission list.
  *
- * Resolution logic:
- *   1. Find the user's membership for the given tenant.
- *   2. For each role in the membership, walk the role graph via
- *      resolveRolePermissions() from src/host/role-resolver.ts.
- *   3. Also check whether the permission appears in any role's denies[].
- *   4. Return a structured trace result.
- *
- * spec §7 / Task 1d.67
+ * Outcomes:
+ *   - granted   — at least one assigned role lists the permission.
+ *   - no-source — none of the assigned roles list it; the user lacks it.
+ *   - denied    — not derivable from the daemon's flat role payload;
+ *                 deny entries are resolved server-side and only
+ *                 surface as "no-source" client-side. Surfaced for
+ *                 backwards compatibility but never produced.
  */
 
 import { useMemo } from 'react';
-import { useMockStore } from '../api/mock-store';
-import { resolveRolePermissions } from '../host/role-resolver';
+import { useListUserRoles, useListRoles } from '@/api/generated/roles/roles';
 import type { ResolvedPermission } from '../host/role-resolver';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,19 +27,14 @@ export type PermissionTraceOutcome = 'granted' | 'denied' | 'no-source';
 
 export interface PermissionTrace {
   outcome: PermissionTraceOutcome;
-
   /** Set when outcome === 'granted' */
   resolved?: ResolvedPermission;
-
   /** The role IDs directly assigned to the user for this tenant */
   directRoleIds: string[];
-
   /** Role names for display (id → name) */
   roleNames: Record<string, string>;
-
-  /** The role ID that carries the explicit deny, when outcome === 'denied' */
+  /** The role ID that carries the explicit deny, when outcome === 'denied'. */
   denyRoleId?: string;
-
   /** Error message if userId/tenantId is not found */
   error?: string;
 }
@@ -50,84 +46,67 @@ export function usePermissionTrace(
   tenantId: string,
   permission: string,
 ): PermissionTrace {
-  const memberships = useMockStore((s) => s.memberships);
-  const roles = useMockStore((s) => s.roles);
+  const userRolesQuery = useListUserRoles(tenantId, userId, {
+    query: { enabled: tenantId !== '' && userId !== '' },
+  });
+  const allRolesQuery = useListRoles(tenantId, {
+    query: { enabled: tenantId !== '' },
+  });
 
   return useMemo(() => {
-    // Find membership for this user+tenant
-    const membership = Object.values(memberships).find(
-      (m) => m.user_id === userId && m.tenant_id === tenantId,
-    );
+    const userRoles: { id?: string; name?: string }[] =
+      userRolesQuery.data?.data.roles ?? [];
+    const allRoles: { id?: string; name?: string; permissions?: string[] }[] =
+      allRolesQuery.data?.data.roles ?? [];
 
-    if (!membership) {
+    if (userRoles.length === 0 && !userRolesQuery.isLoading) {
       return {
-        outcome: 'no-source',
+        outcome: 'no-source' as const,
         directRoleIds: [],
         roleNames: {},
-        error: `No membership found for user "${userId}" in tenant "${tenantId}".`,
+        error: `No role assignments found for user "${userId}" in tenant "${tenantId}".`,
       };
     }
 
-    const directRoleIds = membership.role_ids;
+    const directRoleIds = userRoles
+      .map((r) => r.id)
+      .filter((id): id is string => typeof id === 'string');
 
-    // Build roleNames map for display
     const roleNames: Record<string, string> = {};
-    for (const [id, role] of Object.entries(roles)) {
-      roleNames[id] = role.name;
+    for (const r of allRoles) {
+      if (r.id) roleNames[r.id] = r.name ?? r.id;
+    }
+    for (const r of userRoles) {
+      if (r.id && !roleNames[r.id]) roleNames[r.id] = r.name ?? r.id;
     }
 
-    // Check for explicit deny in any role or its ancestors
-    // We walk with resolveRolePermissions which already removes denied perms.
-    // To detect denies, we also need to check them directly.
-    function collectDenies(roleId: string, visited = new Set<string>()): string | undefined {
-      if (visited.has(roleId)) return undefined;
-      visited.add(roleId);
+    // Find the first directly-assigned role whose flat permission list
+    // contains the requested key. This is best-effort — the daemon has
+    // already applied parent inheritance and deny rules before returning.
+    const grantingRole = allRoles.find(
+      (r) => r.id && directRoleIds.includes(r.id) && (r.permissions ?? []).includes(permission),
+    );
 
-      const role = roles[roleId];
-      if (!role) return undefined;
-
-      if (role.denies.includes(permission)) return roleId;
-
-      for (const parentId of role.parent_ids) {
-        const found = collectDenies(parentId, visited);
-        if (found) return found;
-      }
-      return undefined;
-    }
-
-    // Check each directly-assigned role for an explicit deny
-    let denyRoleId: string | undefined;
-    for (const roleId of directRoleIds) {
-      denyRoleId = collectDenies(roleId);
-      if (denyRoleId) break;
-    }
-
-    // Resolve effective permissions (denies are already removed by the resolver)
-    const effectivePerms = resolveRolePermissions(directRoleIds, roles);
-    const resolved = effectivePerms.get(permission);
-
-    if (denyRoleId) {
+    if (grantingRole?.id) {
       return {
-        outcome: 'denied',
-        directRoleIds,
-        roleNames,
-        denyRoleId,
-      };
-    }
-
-    if (resolved) {
-      return {
-        outcome: 'granted',
-        resolved,
+        outcome: 'granted' as const,
+        resolved: { permission, path: [grantingRole.id] },
         directRoleIds,
         roleNames,
       };
     }
 
     return {
-      outcome: 'no-source',
+      outcome: 'no-source' as const,
       directRoleIds,
       roleNames,
     };
-  }, [memberships, roles, userId, tenantId, permission]);
+  }, [
+    userRolesQuery.data,
+    userRolesQuery.isLoading,
+    allRolesQuery.data,
+    userId,
+    tenantId,
+    permission,
+  ]);
 }

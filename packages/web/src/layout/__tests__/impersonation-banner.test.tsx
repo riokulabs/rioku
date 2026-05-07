@@ -1,12 +1,14 @@
 /**
  * Tests for <ImpersonationBanner>.
- * spec §8.2 / Task 1d.76
+ *
+ * Stage-2: the banner exclusively reads from `useImpersonation` (which is
+ * itself daemon-backed). We mock that hook + the admin tenants query so
+ * the banner has a tenant directory to look up the friendly name.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/render';
-import { useMockStore } from '@/api/mock-store';
 import { ImpersonationBanner } from '../impersonation-banner';
 
 // ─── Router mock ──────────────────────────────────────────────────────────────
@@ -24,6 +26,8 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 // ─── useImpersonation mock ────────────────────────────────────────────────────
 
 const mockExit = vi.fn().mockResolvedValue(undefined);
+const mockEntry = vi.fn().mockResolvedValue(undefined);
+const mockExtend = vi.fn().mockResolvedValue(undefined);
 
 const activeSession = {
   id: 'imp-0001',
@@ -42,39 +46,38 @@ vi.mock('@/hooks/use-impersonation', () => ({
   useImpersonation: () => ({
     state: mockSession ? 'active' : 'idle',
     session: mockSession,
-    entry: vi.fn(),
+    entry: mockEntry,
     exit: mockExit,
-    extendSession: vi.fn(),
+    extendSession: mockExtend,
   }),
 }));
 
-// Bridge hook mock — banner reads daemon-reported session through this.
-vi.mock('@/features/security/impersonation/use-impersonation-session', () => ({
-  useImpersonationSession: () => null,
+// Tenant directory — feeds the friendly name lookup.
+vi.mock('@/api/generated/admin/admin', () => ({
+  useListAdminTenants: () => ({
+    data: {
+      data: {
+        items: [{ id: 'tenant-acme', slug: 'acme', name: 'Acme Corp' }],
+      },
+    },
+  }),
 }));
 
-// Real-API mode flag — flipped per-test below.
-const realApiMock = vi.hoisted(() => ({ value: false }));
-vi.mock('@/api/mode', () => ({
-  isRealApi: () => realApiMock.value,
-  useMocks: () => !realApiMock.value,
-}));
-
-// Generated impersonation client — banner uses useEndImpersonation when in real mode.
-const mockEndMutate = vi.fn().mockResolvedValue({ data: undefined, status: 204 });
+// The idle-modal subtree imports the realApi hooks; stub them so the test
+// doesn't try to drive their internals.
 vi.mock('@/features/security/impersonation/realApi', () => ({
-  useEndImpersonation: () => ({
-    mutateAsync: mockEndMutate,
-    isPending: false,
-  }),
-  getListImpersonationSessionsQueryKey: () => ['/api/v1/admin/impersonation'],
-  // Also re-export the touch + start hooks because the idle-modal subtree
-  // (mounted by the banner) imports them from this module.
+  useEndImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useTouchImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useStartImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListImpersonationSessions: () => ({ data: undefined }),
+  getListImpersonationSessionsQueryKey: () => ['/api/v1/admin/impersonation'],
 }));
 
-// Also stub modals since they're opened imperatively
+vi.mock('@/features/security/impersonation/use-impersonation-session', () => ({
+  useImpersonationSession: () => mockSession,
+}));
+
+// Stub modals since they are opened imperatively
 vi.mock('@mantine/modals', () => ({
   modals: {
     openConfirmModal: vi.fn((opts: { onConfirm?: () => void }) => {
@@ -82,22 +85,6 @@ vi.mock('@mantine/modals', () => ({
     }),
   },
 }));
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function seedStoreWithTenant() {
-  useMockStore.getState().reset();
-  useMockStore.getState().addEntity('tenants', {
-    id: 'tenant-acme',
-    slug: 'acme',
-    name: 'Acme Corp',
-    accent: '#22c55e',
-    plan: 'enterprise',
-    url_mode: 'path',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-}
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -107,16 +94,11 @@ describe('ImpersonationBanner', () => {
     mockExit.mockReset();
     mockExit.mockResolvedValue(undefined);
     mockNavigate.mockReset();
-    mockEndMutate.mockReset();
-    mockEndMutate.mockResolvedValue({ data: undefined, status: 204 });
-    realApiMock.value = false;
-    seedStoreWithTenant();
   });
 
   it('returns null when no session is active', () => {
     mockSession = null;
     renderWithProviders(<ImpersonationBanner />);
-    // When session is null the banner should not render the alert
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
@@ -127,7 +109,6 @@ describe('ImpersonationBanner', () => {
     expect(screen.getByText(/acting as super-admin/i)).toBeDefined();
     expect(screen.getByText(/Acme Corp/i)).toBeDefined();
     expect(screen.getByText(/Support ticket investigation/i)).toBeDefined();
-    // Short session ID
     expect(screen.getByText(/imp-0001/)).toBeDefined();
   });
 
@@ -150,7 +131,6 @@ describe('ImpersonationBanner', () => {
   it('shows "End session" button', () => {
     mockSession = activeSession;
     renderWithProviders(<ImpersonationBanner />);
-    // The button has aria-label "End impersonation session"
     expect(screen.getByRole('button', { name: /end session/i })).toBeDefined();
   });
 
@@ -178,36 +158,5 @@ describe('ImpersonationBanner', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith({ to: '/admin' });
     });
-  });
-
-  it('does NOT call the daemon DELETE in mock-API mode', async () => {
-    mockSession = activeSession;
-    realApiMock.value = false;
-    const user = userEvent.setup();
-    renderWithProviders(<ImpersonationBanner />);
-
-    const exitBtn = screen.getByRole('button', { name: /end session/i });
-    await user.click(exitBtn);
-
-    await waitFor(() => {
-      expect(mockExit).toHaveBeenCalled();
-    });
-    expect(mockEndMutate).not.toHaveBeenCalled();
-  });
-
-  it('calls the daemon DELETE endpoint in real-API mode and then exits locally', async () => {
-    mockSession = activeSession;
-    realApiMock.value = true;
-    const user = userEvent.setup();
-    renderWithProviders(<ImpersonationBanner />);
-
-    const exitBtn = screen.getByRole('button', { name: /end session/i });
-    await user.click(exitBtn);
-
-    await waitFor(() => {
-      expect(mockEndMutate).toHaveBeenCalledWith({ id: 'imp-0001' });
-    });
-    expect(mockExit).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith({ to: '/admin' });
   });
 });

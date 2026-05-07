@@ -43,20 +43,31 @@ vi.mock('@mantine/spotlight', () => ({
   spotlight: { open: vi.fn() },
 }));
 
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
-import { emitNotification } from '@/features/notifications/api';
+// Stub the daemon-backed current-user hook so the bell knows who it is
+// without standing up an /auth/me handler.
+vi.mock('@/features/auth/use-current-user', () => ({
+  useCurrentUser: () => ({
+    data: {
+      id: 'user-derrick',
+      username: 'derrick',
+      displayName: 'Derrick',
+      email: 'derrick@rioku.dev',
+      roles: ['superadmin'],
+      permissions: [],
+      status: 'active',
+      forcePasswordChange: false,
+      totpEnabled: true,
+    },
+  }),
+}));
+
 import { TopBar } from '../top-bar';
-import type { ID } from '@/api/resources';
 
 function wrap(ui: React.ReactNode, unreadCount = 0) {
   // Top-bar uses TanStack Query for the unread-count fetch — a provider plus
-  // an MSW handler returning the count keeps tests deterministic without
-  // relying on the now-defunct mock-store path.
+  // an MSW handler returning the count keeps tests deterministic.
   server.use(
-    http.get('*/api/v1/t/*/notifications/unread-count', () =>
-      HttpResponse.json({ unreadCount }),
-    ),
+    http.get('*/api/v1/t/*/notifications/unread-count', () => HttpResponse.json({ unreadCount })),
     http.get('*/api/v1/t/*/notifications', () => HttpResponse.json({ items: [], total: 0 })),
   );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -70,18 +81,10 @@ function wrap(ui: React.ReactNode, unreadCount = 0) {
   );
 }
 
-function currentUserId(): ID {
-  const id = useMockStore.getState().currentUserId;
-  if (!id) throw new Error('expected seeded currentUserId');
-  return id;
-}
-
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
   // resolveTenant() reads window.location.pathname; jsdom defaults to '/' which
-  // disables the unread-count query. Pin it to the seeded acme tenant so the
-  // bell's daemon-backed query actually fires under MSW.
+  // disables the unread-count query. Pin it to acme so the bell's daemon-backed
+  // query actually fires under MSW.
   window.history.replaceState({}, '', '/t/acme/dashboard');
   // Inbox dropdown subscribes to SSE via EventSource; jsdom has no implementation.
   // A no-op stub keeps the dropdown open without errors during the popover test.
@@ -108,30 +111,14 @@ describe('<TopBar> notifications bell', () => {
   });
 
   it('hides the indicator badge when unread count is zero', async () => {
-    const userId = currentUserId();
     wrap(<TopBar />, 0);
     const bell = await screen.findByTestId('topbar-bell');
     await waitFor(() => {
       expect(bell.getAttribute('aria-label')).toBe('Notifications, no unread');
     });
-    expect(userId).toBeTruthy();
   });
 
   it('shows the indicator badge with count when unread > 0', async () => {
-    const userId = currentUserId();
-    expect(userId).toBeTruthy();
-    // Daemon-backed bell counts what the server reports; MSW returns 1.
-    // The legacy emitNotification call exercises the host-event side effect
-    // (no longer reflected in the bell's aria-label, which trusts the
-    // daemon-side counter).
-    emitNotification({
-      tenant_id: useMockStore.getState().currentTenantId,
-      user_id: userId,
-      category: 'system',
-      severity: 'info',
-      title: 'Fresh test notification',
-      body: 'body',
-    });
     wrap(<TopBar />, 1);
     const bell = await screen.findByTestId('topbar-bell');
     await waitFor(() => {

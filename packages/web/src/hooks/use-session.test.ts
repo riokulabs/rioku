@@ -1,33 +1,36 @@
 /**
  * useSession tests.
  *
- * Mocks useMockStore to avoid Zustand persistence side-effects.
+ * Mocks the daemon-backed `useCurrentUser` and the route-derived
+ * `useActiveTenantSlug` so we can exercise auth/tenant combinations
+ * without spinning up MSW.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
-// ─── Mock state helpers ───────────────────────────────────────────────────────
-
-interface SelectorState {
-  currentUserId: string | null;
-  currentTenantId: string | null;
+interface FakeUser {
+  id: string;
 }
 
-let mockState: SelectorState = { currentUserId: null, currentTenantId: null };
+let mockUser: FakeUser | null = null;
+let mockTenantSlug: string | null = null;
 
-vi.mock('../api/mock-store', () => ({
-  useMockStore: (selector: (s: SelectorState) => unknown) => selector(mockState),
+vi.mock('@/features/auth/use-current-user', () => ({
+  useCurrentUser: () => ({ data: mockUser }),
+}));
+
+vi.mock('./use-tenant', () => ({
+  useActiveTenantSlug: () => mockTenantSlug,
 }));
 
 // Import AFTER mocks
 import { useSession } from './use-session';
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
 describe('useSession', () => {
   it('returns nulls and isAuthenticated=false when no user is set', () => {
-    mockState = { currentUserId: null, currentTenantId: null };
+    mockUser = null;
+    mockTenantSlug = null;
     const { result } = renderHook(() => useSession());
     expect(result.current.currentUserId).toBeNull();
     expect(result.current.currentTenantId).toBeNull();
@@ -35,15 +38,17 @@ describe('useSession', () => {
   });
 
   it('returns currentUserId and isAuthenticated=true when a user is set', () => {
-    mockState = { currentUserId: 'user-1', currentTenantId: 'tenant-1' };
+    mockUser = { id: 'user-1' };
+    mockTenantSlug = 'acme';
     const { result } = renderHook(() => useSession());
     expect(result.current.currentUserId).toBe('user-1');
-    expect(result.current.currentTenantId).toBe('tenant-1');
+    expect(result.current.currentTenantId).toBe('acme');
     expect(result.current.isAuthenticated).toBe(true);
   });
 
-  it('returns isAuthenticated=false when userId is null even if tenantId is set', () => {
-    mockState = { currentUserId: null, currentTenantId: 'tenant-1' };
+  it('returns isAuthenticated=false when user is null even if tenant slug is set', () => {
+    mockUser = null;
+    mockTenantSlug = 'acme';
     const { result } = renderHook(() => useSession());
     expect(result.current.isAuthenticated).toBe(false);
   });

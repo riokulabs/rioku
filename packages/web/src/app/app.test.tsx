@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { App } from './app';
-import { useMockStore } from '@/api/mock-store';
 import { server } from '@/test/msw-server';
 import { queryClient } from '@/api/query-client';
 
@@ -10,15 +9,12 @@ const BASE = '/api/v1';
 
 describe('App', () => {
   beforeEach(() => {
-    // The new daemon-backed router-guard reads /auth/bootstrap-status and
+    // The daemon-backed router-guard reads /auth/bootstrap-status and
     // /auth/me on first load. Stub both so the guard waves the user through
-    // to the tenant picker, which still reads tenant data from the mock
-    // store (mock-store flip happens in later plans).
+    // to the tenants picker without any local state shenanigans.
     queryClient.clear();
     server.use(
-      http.get(`${BASE}/auth/bootstrap-status`, () =>
-        HttpResponse.json({ required: false }),
-      ),
+      http.get(`${BASE}/auth/bootstrap-status`, () => HttpResponse.json({ required: false })),
       http.get(`${BASE}/auth/me`, () =>
         HttpResponse.json({
           user: {
@@ -37,11 +33,6 @@ describe('App', () => {
         }),
       ),
     );
-
-    const derrick = Object.values(useMockStore.getState().users).find(
-      (u) => u.email === 'derrick@rioku.dev',
-    );
-    useMockStore.setState({ currentUserId: derrick?.id ?? 'user-0001' });
   });
 
   it('renders the tenants page after root redirect', async () => {

@@ -17,7 +17,8 @@ import {
 } from '@tabler/icons-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { useDisclosure } from '@mantine/hooks';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import { ImportDashboardModal, createDashboard, useDashboardList } from '@/features/dashboards';
@@ -38,11 +39,11 @@ const MODE_COLORS: Record<Dashboard['mode'], string> = {
 export function AnalyticsNavPanel({ tenantSlug, onNavLinkClick }: AnalyticsNavPanelProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const tenantRecord = useMockStore((s) =>
-    Object.values(s.tenants).find((t) => t.slug === tenantSlug),
-  );
+  const tenantsQuery = useListAdminTenants();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const tenantRecord = (tenantsQuery.data?.data?.items ?? []).find((t) => t.slug === tenantSlug);
   const tenantId = tenantRecord?.id ?? '';
-  const currentUserId = useMockStore((s) => s.currentUserId);
+  const currentUserId = useCurrentUser().data?.id ?? null;
   const canWrite = usePermission('dashboard:write');
 
   const [query, setQuery] = useState('');

@@ -72,6 +72,7 @@ vi.mock('../sidebar-footer', () => ({
 
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Sidebar } from '../sidebar';
 
 // Deterministic nav entry list matching the static nav-tree definitions.
@@ -269,7 +270,12 @@ afterEach(() => {
 });
 
 function wrap(ui: React.ReactNode) {
-  return render(<MantineProvider>{ui}</MantineProvider>);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MantineProvider>{ui}</MantineProvider>
+    </QueryClientProvider>,
+  );
 }
 
 function railHrefs(): string[] {
