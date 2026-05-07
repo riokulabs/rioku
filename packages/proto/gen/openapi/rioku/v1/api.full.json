@@ -2848,6 +2848,46 @@
         },
         "type": "object"
       },
+      "AdminTenant": {
+        "properties": {
+          "accent": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "defaultDashboardId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "urlMode": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CreateAccessPolicyBody": {
         "properties": {
           "description": {
@@ -3228,6 +3268,299 @@
   },
   "openapi": "3.0.3",
   "paths": {
+    "/api/v1/admin/audit": {
+      "get": {
+        "description": "Requires `admin:cross-tenant-read`. Returns hash-chained super-admin\naudit entries. Until migration 26 lands the daemon proxies the\nper-tenant audit log filtered to `entity_type = \"tenant\"` operations.\n",
+        "operationId": "listAdminAudit",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Cross-tenant admin audit log (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tenants": {
+      "get": {
+        "description": "Requires `admin:cross-tenant-read`. Returns every tenant in the cluster.",
+        "operationId": "listAdminTenants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminTenant"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List all tenants (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "post": {
+        "description": "Requires `admin:cross-tenant-write`.",
+        "operationId": "createAdminTenant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "plan": {
+                    "enum": [
+                      "community",
+                      "pro",
+                      "enterprise"
+                    ],
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "urlMode": {
+                    "enum": [
+                      "path",
+                      "subdomain"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTenant"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create tenant (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{id}": {
+      "delete": {
+        "operationId": "deleteAdminTenant",
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "summary": "Delete tenant (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "get": {
+        "operationId": "getAdminTenant",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTenant"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get tenant detail (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateAdminTenant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "accent": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "defaultDashboardId": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "logoUrl": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "plan": {
+                    "type": "string"
+                  },
+                  "urlMode": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTenant"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Update tenant (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Requires `admin:cross-tenant-read`.",
+        "operationId": "listAdminUsers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List all users across tenants (super-admin)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        }
+      }
+    },
     "/api/v1/ai/virtual-keys": {
       "get": {
         "operationId": "AIGatewayService_ListVirtualKeys",

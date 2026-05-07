@@ -27,5 +27,6 @@
     }
   },
   "include": ["src", "e2e"],
+  "exclude": ["e2e/auth"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

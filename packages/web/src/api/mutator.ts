@@ -85,42 +85,34 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 /**
- * customFetch supports two calling conventions:
- *
- * 1. Single-object form (hand-written callers):
- *    customFetch({ url, method, data, signal, params })
- *
- * 2. Two-argument form (Orval-generated code):
- *    customFetch(url: string, options: RequestInit & { data?: unknown; params?: Record<...> })
- *
- * Both are normalised internally to the same path.
+ * Orval `httpClient: 'fetch'` calls the mutator as
+ *   customFetch<{data, status, headers}>(url, RequestInit)
+ * and the generated hooks read `.data` from the result. To keep both the
+ * legacy `{url, method, data}` callsites and the orval generated callsites
+ * working through a single mutator, this function accepts either form.
  */
+export interface OrvalFetchResponse<T> {
+  data: T;
+  status: number;
+  headers: Headers;
+}
+
+export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
+export async function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
 export async function customFetch<T>(
   argsOrUrl: CustomFetchArgs | string,
-  orvalOptions?: RequestInit & {
-    data?: unknown;
-    params?: Record<string, string | number | boolean | undefined>;
-  },
+  init?: RequestInit,
 ): Promise<T> {
-  let url: string;
-  let method: string;
-  let data: unknown;
-  let signal: AbortSignal | undefined;
-  let params: Record<string, string | number | boolean | undefined> | undefined;
-
+  // Path A — generated orval client: (url, RequestInit) → {data, status, headers}
   if (typeof argsOrUrl === 'string') {
-    // Orval two-argument form
-    url = argsOrUrl;
-    method = (orvalOptions?.method) ?? 'GET';
-    data = orvalOptions?.body !== undefined
-      ? (typeof orvalOptions.body === 'string' ? JSON.parse(orvalOptions.body) : orvalOptions.body)
-      : orvalOptions?.data;
-    signal = orvalOptions?.signal ?? undefined;
-    params = orvalOptions?.params;
-  } else {
-    // Single-object form
-    ({ url, method, data, signal, params } = argsOrUrl);
+    return runOrvalFetch<T>(argsOrUrl, init);
   }
+  // Path B — legacy callers (apiClient shim, use-openapi-spec, use-opaque-filter)
+  return runLegacyFetch<T>(argsOrUrl);
+}
+
+async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
+  const { url, method, data, signal, params } = args;
 
   let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
   if (params !== undefined && Object.keys(params).length > 0) {
@@ -169,4 +161,51 @@ export async function customFetch<T>(
     }
   }
   return (await res.text()) as T;
+}
+
+async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url.replace(/^\/api\/v1/, '')}`;
+
+  const baseHeaders = new Headers(init?.headers);
+  if (init?.body !== undefined && !baseHeaders.has('content-type')) {
+    baseHeaders.set('content-type', 'application/json');
+  }
+  const fetchInit: RequestInit = {
+    ...init,
+    headers: baseHeaders,
+    credentials: init?.credentials ?? 'include',
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(fullUrl, fetchInit);
+  } catch (cause) {
+    throw new NetworkError({ cause });
+  }
+
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (err instanceof AuthFailureError) {
+      _authFailureHandler?.(window.location.pathname + window.location.search);
+    }
+    throw err;
+  }
+
+  let data: unknown;
+  if (res.status === 204) {
+    data = undefined;
+  } else {
+    const ct = res.headers.get('content-type');
+    if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
+      try {
+        data = await res.json();
+      } catch (cause) {
+        throw new ApiError('Failed to parse response JSON', { cause });
+      }
+    } else {
+      data = await res.text();
+    }
+  }
+
+  return { data, status: res.status, headers: res.headers } as T;
 }
