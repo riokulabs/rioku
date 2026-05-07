@@ -43,6 +43,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary Distinct audit actor typeahead
  */
@@ -87,14 +89,15 @@ export const getListAuditActorsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditActors>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAuditActorsQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditActors>>> = ({ signal }) =>
-    listAuditActors(tenant, params, signal);
+    listAuditActors(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAuditActors>>,
@@ -126,6 +129,7 @@ export function useListAuditActorsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditActorsInfinite<
@@ -146,6 +150,7 @@ export function useListAuditActorsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditActorsInfinite<
@@ -158,6 +163,7 @@ export function useListAuditActorsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditActors>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -174,6 +180,7 @@ export function useListAuditActorsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditActors>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAuditActorsInfiniteQueryOptions(tenant, params, options);
@@ -195,14 +202,15 @@ export const getListAuditActorsQueryOptions = <
   params?: ListAuditActorsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditActors>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAuditActorsQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditActors>>> = ({ signal }) =>
-    listAuditActors(tenant, params, signal);
+    listAuditActors(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAuditActors>>,
@@ -230,6 +238,7 @@ export function useListAuditActors<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditActors<
@@ -248,6 +257,7 @@ export function useListAuditActors<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditActors<
@@ -258,6 +268,7 @@ export function useListAuditActors<
   params?: ListAuditActorsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditActors>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -272,6 +283,7 @@ export function useListAuditActors<
   params?: ListAuditActorsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditActors>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAuditActorsQueryOptions(tenant, params, options);
@@ -322,14 +334,15 @@ export const getExportAuditCSVInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportAuditCSVQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditCSV>>> = ({ signal }) =>
-    exportAuditCSV(tenant, signal);
+    exportAuditCSV(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof exportAuditCSV>>,
@@ -360,6 +373,7 @@ export function useExportAuditCSVInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditCSVInfinite<
@@ -379,6 +393,7 @@ export function useExportAuditCSVInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditCSVInfinite<
@@ -390,6 +405,7 @@ export function useExportAuditCSVInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -405,6 +421,7 @@ export function useExportAuditCSVInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportAuditCSVInfiniteQueryOptions(tenant, options);
@@ -425,14 +442,15 @@ export const getExportAuditCSVQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportAuditCSVQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditCSV>>> = ({ signal }) =>
-    exportAuditCSV(tenant, signal);
+    exportAuditCSV(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof exportAuditCSV>>,
@@ -459,6 +477,7 @@ export function useExportAuditCSV<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditCSV<
@@ -476,6 +495,7 @@ export function useExportAuditCSV<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditCSV<
@@ -485,6 +505,7 @@ export function useExportAuditCSV<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -498,6 +519,7 @@ export function useExportAuditCSV<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditCSV>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportAuditCSVQueryOptions(tenant, options);
@@ -547,14 +569,15 @@ export const getExportAuditJSONLInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportAuditJSONLQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditJSONL>>> = ({ signal }) =>
-    exportAuditJSONL(tenant, signal);
+    exportAuditJSONL(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof exportAuditJSONL>>,
@@ -585,6 +608,7 @@ export function useExportAuditJSONLInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditJSONLInfinite<
@@ -604,6 +628,7 @@ export function useExportAuditJSONLInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditJSONLInfinite<
@@ -615,6 +640,7 @@ export function useExportAuditJSONLInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -630,6 +656,7 @@ export function useExportAuditJSONLInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportAuditJSONLInfiniteQueryOptions(tenant, options);
@@ -650,14 +677,15 @@ export const getExportAuditJSONLQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportAuditJSONLQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditJSONL>>> = ({ signal }) =>
-    exportAuditJSONL(tenant, signal);
+    exportAuditJSONL(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof exportAuditJSONL>>,
@@ -684,6 +712,7 @@ export function useExportAuditJSONL<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditJSONL<
@@ -701,6 +730,7 @@ export function useExportAuditJSONL<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAuditJSONL<
@@ -710,6 +740,7 @@ export function useExportAuditJSONL<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -723,6 +754,7 @@ export function useExportAuditJSONL<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditJSONL>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportAuditJSONLQueryOptions(tenant, options);
@@ -783,14 +815,15 @@ export const getListAuditResourceIDsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditResourceIDs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAuditResourceIDsQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditResourceIDs>>> = ({ signal }) =>
-    listAuditResourceIDs(tenant, params, signal);
+    listAuditResourceIDs(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAuditResourceIDs>>,
@@ -822,6 +855,7 @@ export function useListAuditResourceIDsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditResourceIDsInfinite<
@@ -842,6 +876,7 @@ export function useListAuditResourceIDsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditResourceIDsInfinite<
@@ -854,6 +889,7 @@ export function useListAuditResourceIDsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditResourceIDs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -870,6 +906,7 @@ export function useListAuditResourceIDsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAuditResourceIDs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAuditResourceIDsInfiniteQueryOptions(tenant, params, options);
@@ -893,14 +930,15 @@ export const getListAuditResourceIDsQueryOptions = <
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listAuditResourceIDs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAuditResourceIDsQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditResourceIDs>>> = ({ signal }) =>
-    listAuditResourceIDs(tenant, params, signal);
+    listAuditResourceIDs(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAuditResourceIDs>>,
@@ -932,6 +970,7 @@ export function useListAuditResourceIDs<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditResourceIDs<
@@ -952,6 +991,7 @@ export function useListAuditResourceIDs<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAuditResourceIDs<
@@ -964,6 +1004,7 @@ export function useListAuditResourceIDs<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listAuditResourceIDs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -980,6 +1021,7 @@ export function useListAuditResourceIDs<
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listAuditResourceIDs>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAuditResourceIDsQueryOptions(tenant, params, options);
@@ -1034,14 +1076,15 @@ export const getStreamAuditEntriesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof streamAuditEntries>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getStreamAuditEntriesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof streamAuditEntries>>> = ({ signal }) =>
-    streamAuditEntries(tenant, signal);
+    streamAuditEntries(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof streamAuditEntries>>,
@@ -1072,6 +1115,7 @@ export function useStreamAuditEntriesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAuditEntriesInfinite<
@@ -1091,6 +1135,7 @@ export function useStreamAuditEntriesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAuditEntriesInfinite<
@@ -1102,6 +1147,7 @@ export function useStreamAuditEntriesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof streamAuditEntries>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1117,6 +1163,7 @@ export function useStreamAuditEntriesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof streamAuditEntries>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getStreamAuditEntriesInfiniteQueryOptions(tenant, options);
@@ -1137,14 +1184,15 @@ export const getStreamAuditEntriesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof streamAuditEntries>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getStreamAuditEntriesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof streamAuditEntries>>> = ({ signal }) =>
-    streamAuditEntries(tenant, signal);
+    streamAuditEntries(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof streamAuditEntries>>,
@@ -1173,6 +1221,7 @@ export function useStreamAuditEntries<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAuditEntries<
@@ -1192,6 +1241,7 @@ export function useStreamAuditEntries<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAuditEntries<
@@ -1201,6 +1251,7 @@ export function useStreamAuditEntries<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof streamAuditEntries>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1214,6 +1265,7 @@ export function useStreamAuditEntries<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof streamAuditEntries>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getStreamAuditEntriesQueryOptions(tenant, options);
@@ -1265,14 +1317,15 @@ export const getGetAuditEntryInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAuditEntryQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditEntry>>> = ({ signal }) =>
-    getAuditEntry(tenant, id, signal);
+    getAuditEntry(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1307,6 +1360,7 @@ export function useGetAuditEntryInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAuditEntryInfinite<
@@ -1327,6 +1381,7 @@ export function useGetAuditEntryInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAuditEntryInfinite<
@@ -1339,6 +1394,7 @@ export function useGetAuditEntryInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1355,6 +1411,7 @@ export function useGetAuditEntryInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAuditEntry>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAuditEntryInfiniteQueryOptions(tenant, id, options);
@@ -1376,14 +1433,15 @@ export const getGetAuditEntryQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAuditEntry>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAuditEntryQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditEntry>>> = ({ signal }) =>
-    getAuditEntry(tenant, id, signal);
+    getAuditEntry(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAuditEntry>>,
@@ -1408,6 +1466,7 @@ export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry>>, TError = void>(
@@ -1423,6 +1482,7 @@ export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry>>, TError = void>(
@@ -1430,6 +1490,7 @@ export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAuditEntry>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1441,6 +1502,7 @@ export function useGetAuditEntry<TData = Awaited<ReturnType<typeof getAuditEntry
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAuditEntry>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAuditEntryQueryOptions(tenant, id, options);

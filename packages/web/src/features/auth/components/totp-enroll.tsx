@@ -1,11 +1,17 @@
 /**
- * <TotpEnrollForm> — multi-step TOTP enrollment.
+ * <TotpEnrollForm> — multi-step TOTP enrollment for an authenticated user.
  *
- * Step 1: Display secret + otpauth:// URL (URL-text approach, no QR lib).
- * Step 2: Display 10 backup codes + download.
- * Step 3: Confirmation code entry to prove enrollment works.
+ * Real-daemon flow (different from the stage-1 mock flow):
+ *   Step 1 — secret  : POST /auth/totp/setup → returns {secret, qrUri}
+ *   Step 2 — confirm : POST /auth/totp/verify with 6-digit code → returns
+ *                       backup codes; daemon flips totp_enabled=true
+ *   Step 3 — backup-codes : display the codes returned by step 2 and let the
+ *                            user download them before navigating away.
  *
- * Task 1e.86
+ * The order differs from the stage-1 mock (codes-before-confirm) because the
+ * daemon does not generate backup codes until after a successful verify.
+ *
+ * Plan 01 — stage 2 wiring.
  */
 import { useState, useEffect } from 'react';
 import {
@@ -24,49 +30,46 @@ import {
   Paper,
 } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { enrollTotp, confirmTotpEnrollment } from '../api';
-import { useMockStore } from '@/api/mock-store';
 import { consumeReturnUrl } from '@/api/auth-failure';
+import { currentUserQueryKey } from '../use-current-user';
 
 interface TotpEnrollFormProps {
   userId?: string | undefined;
   returnUrl?: string | undefined;
 }
 
-type Step = 'secret' | 'backup-codes' | 'confirm';
+type Step = 'secret' | 'confirm' | 'backup-codes';
 
-export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollFormProps) {
+export function TotpEnrollForm({ userId, returnUrl }: TotpEnrollFormProps) {
   const navigate = useNavigate();
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const userId = propUserId ?? currentUserId ?? '';
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState<Step>('secret');
-  const [enrollment, setEnrollment] = useState<{
-    secret: string;
-    qr_url: string;
-    backup_codes: string[];
-  } | null>(null);
-  const [loading, setLoading] = useState(userId !== '');
+  const [secret, setSecret] = useState<string | null>(null);
+  const [qrUri, setQrUri] = useState<string | null>(null);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [confirmCode, setConfirmCode] = useState('');
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
     let cancelled = false;
     enrollTotp(userId)
       .then((result) => {
-        if (!cancelled) {
-          setEnrollment(result);
-          setLoading(false);
-        }
+        if (cancelled) return;
+        setSecret(result.secret);
+        setQrUri(result.qr_url);
+        setLoading(false);
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          console.error('enrollTotp error', err);
-          setLoading(false);
-        }
+        if (cancelled) return;
+        setSetupError(err instanceof Error ? err.message : 'Failed to start TOTP setup');
+        setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -80,21 +83,18 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
       setConfirmError('Enter the 6-digit code from your authenticator');
       return;
     }
-
     setConfirming(true);
     setConfirmError(null);
 
     try {
-      const result = await confirmTotpEnrollment(userId, code);
+      const result = await confirmTotpEnrollment(userId ?? '', code);
       if (!result.ok) {
         setConfirmError(result.error ?? 'Invalid code');
         return;
       }
-
-      const saved = consumeReturnUrl();
-      const tenantId = useMockStore.getState().currentTenantId ?? '';
-      const dest = saved ?? returnUrl ?? `/t/${tenantId}/dashboard`;
-      await navigate({ to: dest });
+      setBackupCodes(result.backup_codes ?? []);
+      await queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
+      setStep('backup-codes');
     } finally {
       setConfirming(false);
     }
@@ -108,8 +108,8 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
   }
 
   function downloadBackupCodes() {
-    if (!enrollment) return;
-    const text = enrollment.backup_codes.join('\n');
+    if (backupCodes.length === 0) return;
+    const text = backupCodes.join('\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -119,21 +119,30 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
     URL.revokeObjectURL(url);
   }
 
-  if (!userId) {
+  async function handleFinish() {
+    const saved = consumeReturnUrl();
+    const dest = saved ?? returnUrl ?? '/';
+    await navigate({ to: dest });
+  }
+
+  if (loading) {
+    return <Text>Loading enrollment…</Text>;
+  }
+
+  if (setupError) {
     return (
-      <Alert color="orange" variant="light">
-        User session not found. Please sign in first.
+      <Alert
+        icon={<IconAlertCircle size={16} />}
+        color="red"
+        variant="light"
+        data-testid="totp-setup-error"
+      >
+        {setupError}
       </Alert>
     );
   }
 
-  if (loading || !enrollment) {
-    return <Text>Loading enrollment…</Text>;
-  }
-
-  // ── Step 1: Secret ────────────────────────────────────────────────────────
-
-  if (step === 'secret') {
+  if (step === 'secret' && secret !== null && qrUri !== null) {
     return (
       <Stack gap="md">
         <Text size="sm">
@@ -147,9 +156,9 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
           </Text>
           <Group gap="xs" align="center">
             <Code fz="md" data-testid="totp-secret">
-              {enrollment.secret}
+              {secret}
             </Code>
-            <CopyButton value={enrollment.secret} timeout={2000}>
+            <CopyButton value={secret} timeout={2000}>
               {({ copied, copy }) => (
                 <Tooltip label={copied ? 'Copied!' : 'Copy key'} withArrow>
                   <ActionIcon
@@ -171,113 +180,100 @@ export function TotpEnrollForm({ userId: propUserId, returnUrl }: TotpEnrollForm
             Or paste this URL into your authenticator:
           </Text>
           <Code block fz="xs" data-testid="totp-qr-url" style={{ wordBreak: 'break-all' }}>
-            {enrollment.qr_url}
+            {qrUri}
           </Code>
-          <CopyButton value={enrollment.qr_url} timeout={2000}>
-            {({ copied, copy }) => (
-              <Button
-                variant="subtle"
-                size="xs"
-                leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                onClick={copy}
-              >
-                {copied ? 'Copied!' : 'Copy URL'}
-              </Button>
-            )}
-          </CopyButton>
         </Stack>
-
-        <Button
-          onClick={() => {
-            setStep('backup-codes');
-          }}
-          fullWidth
-        >
-          I&apos;ve added the account — next
-        </Button>
-      </Stack>
-    );
-  }
-
-  // ── Step 2: Backup codes ──────────────────────────────────────────────────
-
-  if (step === 'backup-codes') {
-    return (
-      <Stack gap="md">
-        <Alert color="yellow" variant="light">
-          <Text fw={600} size="sm">
-            Save your backup codes
-          </Text>
-          <Text size="sm" mt={4}>
-            If you lose access to your authenticator, these codes are the only way to recover your
-            account. Each code can only be used once.
-          </Text>
-        </Alert>
-
-        <Paper withBorder p="md" bg="dark.8" data-testid="backup-codes-list">
-          <List spacing="xs" styles={{ itemWrapper: { fontFamily: 'monospace', fontSize: 14 } }}>
-            {enrollment.backup_codes.map((code) => (
-              <List.Item key={code}>{code}</List.Item>
-            ))}
-          </List>
-        </Paper>
-
-        <Button variant="outline" onClick={downloadBackupCodes} data-testid="download-backup">
-          Download backup codes
-        </Button>
 
         <Button
           onClick={() => {
             setStep('confirm');
           }}
           fullWidth
+          data-testid="totp-next-confirm"
         >
-          I&apos;ve saved my codes — next
+          I&apos;ve added the account — confirm
         </Button>
       </Stack>
     );
   }
 
-  // ── Step 3: Confirmation ──────────────────────────────────────────────────
+  if (step === 'confirm') {
+    return (
+      <Stack gap="md" align="center">
+        <Title order={4}>Confirm your authenticator works</Title>
+        <Text size="sm" ta="center">
+          Enter the 6-digit code shown in your authenticator app to complete enrollment. Backup
+          codes will be displayed after this step.
+        </Text>
 
-  return (
-    <Stack gap="md" align="center">
-      <Title order={4}>Confirm your authenticator works</Title>
-      <Text size="sm" ta="center">
-        Enter the 6-digit code currently shown in your authenticator app to complete enrollment.
-      </Text>
+        {confirmError && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="red"
+            variant="light"
+            w="100%"
+            data-testid="confirm-error"
+          >
+            {confirmError}
+          </Alert>
+        )}
 
-      {confirmError && (
-        <Alert
-          icon={<IconAlertCircle size={16} />}
-          color="red"
-          variant="light"
-          w="100%"
-          data-testid="confirm-error"
+        <PinInput
+          length={6}
+          type="number"
+          value={confirmCode}
+          onChange={handleConfirmChange}
+          disabled={confirming}
+          data-autofocus
+          data-testid="confirm-pin-input"
+          oneTimeCode
+          aria-label="Confirmation code"
+        />
+
+        <Button
+          onClick={() => void handleConfirm(confirmCode)}
+          loading={confirming}
+          disabled={confirmCode.length !== 6}
+          fullWidth
+          data-testid="totp-complete-setup"
         >
-          {confirmError}
-        </Alert>
-      )}
+          Complete setup
+        </Button>
+      </Stack>
+    );
+  }
 
-      <PinInput
-        length={6}
-        type="number"
-        value={confirmCode}
-        onChange={handleConfirmChange}
-        disabled={confirming}
-        data-autofocus
-        data-testid="confirm-pin-input"
-        oneTimeCode
-        aria-label="Confirmation code"
-      />
+  // step === 'backup-codes'
+  return (
+    <Stack gap="md">
+      <Alert color="green" variant="light">
+        Two-factor authentication is now enabled.
+      </Alert>
 
-      <Button
-        onClick={() => void handleConfirm(confirmCode)}
-        loading={confirming}
-        disabled={confirmCode.length !== 6}
-        fullWidth
-      >
-        Complete setup
+      <Alert color="yellow" variant="light">
+        <Text fw={600} size="sm">
+          Save your backup codes
+        </Text>
+        <Text size="sm" mt={4}>
+          If you lose access to your authenticator, these codes are the only way to recover your
+          account. Each code can only be used once.
+        </Text>
+      </Alert>
+
+      <Paper withBorder p="md" data-testid="backup-codes-list">
+        <List spacing="xs" styles={{ itemWrapper: { fontFamily: 'monospace', fontSize: 14 } }}>
+          {backupCodes.map((code) => (
+            <List.Item key={code}>{code}</List.Item>
+          ))}
+        </List>
+      </Paper>
+
+      <Button variant="outline" onClick={downloadBackupCodes} data-testid="download-backup">
+        Download backup codes
+      </Button>
+
+      <Button onClick={() => void handleFinish()} fullWidth data-testid="totp-finish">
+        I&apos;ve saved my codes — finish
       </Button>
     </Stack>
   );

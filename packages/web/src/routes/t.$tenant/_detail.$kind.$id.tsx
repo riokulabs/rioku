@@ -77,7 +77,7 @@ function NotFound({ what }: { what: string }) {
 
 function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const service = useServiceDetail(entityId);
+  const service = useServiceDetail(tenantId, entityId);
   const [editing, setEditing] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -133,7 +133,7 @@ function ServiceDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
 
 function RouteDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
   const navigate = useNavigate();
-  const route = useRouteDetail(entityId);
+  const route = useRouteDetail(tenantId, entityId);
   const [editing, setEditing] = useState(false);
   if (!route) return <NotFound what="Route" />;
   return (

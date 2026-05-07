@@ -1,0 +1,123 @@
+# Stage-2 plan-03 api-mgmt: middlewares (per-tenant reusable handler-stack
+# components — rate-limit, auth, transform, cors, cache, logging, custom).
+#
+# Mirrors RegisterMiddlewareRoutes in
+# packages/daemon/internal/gateway/middleware_routes.go.
+
+paths:
+  /api/v1/t/{tenant}/middlewares:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [middlewares]
+      summary: List middlewares
+      operationId: listMiddlewares
+      responses:
+        "200":
+          description: List of middlewares
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Middleware" }
+                  total: { type: integer }
+    post:
+      tags: [middlewares]
+      summary: Create middleware
+      operationId: createMiddleware
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateMiddlewareBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Middleware" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/middlewares/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [middlewares]
+      operationId: getMiddleware
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Middleware" }
+    put:
+      tags: [middlewares]
+      operationId: replaceMiddleware
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMiddlewareBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Middleware" }
+    patch:
+      tags: [middlewares]
+      operationId: patchMiddleware
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateMiddlewareBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Middleware" }
+    delete:
+      tags: [middlewares]
+      operationId: deleteMiddleware
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    Middleware:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        config: { type: object, additionalProperties: true }
+        enabled: { type: boolean }
+        orderHint: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateMiddlewareBody:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        config: { type: object, additionalProperties: true }
+        enabled: { type: boolean }
+        orderHint: { type: integer }
+    UpdateMiddlewareBody:
+      type: object
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        config: { type: object, additionalProperties: true }
+        enabled: { type: boolean }
+        orderHint: { type: integer }

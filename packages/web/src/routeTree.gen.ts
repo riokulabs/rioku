@@ -47,6 +47,7 @@ import { Route as UnauthInviteTokenRouteImport } from './routes/_unauth/invite.$
 import { Route as TTenantSettingsIndexRouteImport } from './routes/t.$tenant/settings/index'
 import { Route as TTenantDashboardsIndexRouteImport } from './routes/t.$tenant/dashboards.index'
 import { Route as TTenantAiIndexRouteImport } from './routes/t.$tenant/ai/index'
+import { Route as TTenantSitesSiteIdRouteImport } from './routes/t.$tenant/sites_.$siteId'
 import { Route as TTenantSettingsNotificationsRouteImport } from './routes/t.$tenant/settings/notifications'
 import { Route as TTenantSettingsNotificationRoutingRouteImport } from './routes/t.$tenant/settings/notification-routing'
 import { Route as TTenantSettingsNotificationDeliveryRouteImport } from './routes/t.$tenant/settings/notification-delivery'
@@ -60,7 +61,9 @@ import { Route as TTenantSecurityRbacPoliciesRouteImport } from './routes/t.$ten
 import { Route as TTenantSecurityAuditRouteImport } from './routes/t.$tenant/security/audit'
 import { Route as TTenantSecurityApiKeysRouteImport } from './routes/t.$tenant/security/api-keys'
 import { Route as TTenantSecurityAccessPoliciesRouteImport } from './routes/t.$tenant/security/access-policies'
+import { Route as TTenantRoutesRouteIdRouteImport } from './routes/t.$tenant/routes_.$routeId'
 import { Route as TTenantPluginsSignersRouteImport } from './routes/t.$tenant/plugins_.signers'
+import { Route as TTenantMiddlewaresMiddlewareIdRouteImport } from './routes/t.$tenant/middlewares_.$middlewareId'
 import { Route as TTenantDashboardsDashboardIdRouteImport } from './routes/t.$tenant/dashboards.$dashboardId'
 import { Route as TTenantAiTracesRouteImport } from './routes/t.$tenant/ai/traces'
 import { Route as TTenantAiToolsRouteImport } from './routes/t.$tenant/ai/tools'
@@ -268,6 +271,11 @@ const TTenantAiIndexRoute = TTenantAiIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TTenantAiRoute,
 } as any)
+const TTenantSitesSiteIdRoute = TTenantSitesSiteIdRouteImport.update({
+  id: '/sites_/$siteId',
+  path: '/sites/$siteId',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantSettingsNotificationsRoute =
   TTenantSettingsNotificationsRouteImport.update({
     id: '/notifications',
@@ -341,11 +349,22 @@ const TTenantSecurityAccessPoliciesRoute =
     path: '/access-policies',
     getParentRoute: () => TTenantSecurityRoute,
   } as any)
+const TTenantRoutesRouteIdRoute = TTenantRoutesRouteIdRouteImport.update({
+  id: '/routes_/$routeId',
+  path: '/routes/$routeId',
+  getParentRoute: () => TTenantRoute,
+} as any)
 const TTenantPluginsSignersRoute = TTenantPluginsSignersRouteImport.update({
   id: '/plugins_/signers',
   path: '/plugins/signers',
   getParentRoute: () => TTenantRoute,
 } as any)
+const TTenantMiddlewaresMiddlewareIdRoute =
+  TTenantMiddlewaresMiddlewareIdRouteImport.update({
+    id: '/middlewares_/$middlewareId',
+    path: '/middlewares/$middlewareId',
+    getParentRoute: () => TTenantRoute,
+  } as any)
 const TTenantDashboardsDashboardIdRoute =
   TTenantDashboardsDashboardIdRouteImport.update({
     id: '/$dashboardId',
@@ -475,7 +494,9 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRouteWithChildren
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/middlewares/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/routes/$routeId': typeof TTenantRoutesRouteIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -489,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
+  '/t/$tenant/sites/$siteId': typeof TTenantSitesSiteIdRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/dashboards/': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
@@ -541,7 +563,9 @@ export interface FileRoutesByTo {
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRouteWithChildren
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/middlewares/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/routes/$routeId': typeof TTenantRoutesRouteIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -555,6 +579,7 @@ export interface FileRoutesByTo {
   '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
+  '/t/$tenant/sites/$siteId': typeof TTenantSitesSiteIdRoute
   '/t/$tenant/ai': typeof TTenantAiIndexRoute
   '/t/$tenant/dashboards': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings': typeof TTenantSettingsIndexRoute
@@ -612,7 +637,9 @@ export interface FileRoutesById {
   '/t/$tenant/ai/tools': typeof TTenantAiToolsRoute
   '/t/$tenant/ai/traces': typeof TTenantAiTracesRouteWithChildren
   '/t/$tenant/dashboards/$dashboardId': typeof TTenantDashboardsDashboardIdRoute
+  '/t/$tenant/middlewares_/$middlewareId': typeof TTenantMiddlewaresMiddlewareIdRoute
   '/t/$tenant/plugins_/signers': typeof TTenantPluginsSignersRoute
+  '/t/$tenant/routes_/$routeId': typeof TTenantRoutesRouteIdRoute
   '/t/$tenant/security/access-policies': typeof TTenantSecurityAccessPoliciesRoute
   '/t/$tenant/security/api-keys': typeof TTenantSecurityApiKeysRoute
   '/t/$tenant/security/audit': typeof TTenantSecurityAuditRoute
@@ -626,6 +653,7 @@ export interface FileRoutesById {
   '/t/$tenant/settings/notification-delivery': typeof TTenantSettingsNotificationDeliveryRoute
   '/t/$tenant/settings/notification-routing': typeof TTenantSettingsNotificationRoutingRoute
   '/t/$tenant/settings/notifications': typeof TTenantSettingsNotificationsRoute
+  '/t/$tenant/sites_/$siteId': typeof TTenantSitesSiteIdRoute
   '/t/$tenant/ai/': typeof TTenantAiIndexRoute
   '/t/$tenant/dashboards/': typeof TTenantDashboardsIndexRoute
   '/t/$tenant/settings/': typeof TTenantSettingsIndexRoute
@@ -683,7 +711,9 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
+    | '/t/$tenant/middlewares/$middlewareId'
     | '/t/$tenant/plugins/signers'
+    | '/t/$tenant/routes/$routeId'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -697,6 +727,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/settings/notifications'
+    | '/t/$tenant/sites/$siteId'
     | '/t/$tenant/ai/'
     | '/t/$tenant/dashboards/'
     | '/t/$tenant/settings/'
@@ -749,7 +780,9 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
+    | '/t/$tenant/middlewares/$middlewareId'
     | '/t/$tenant/plugins/signers'
+    | '/t/$tenant/routes/$routeId'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -763,6 +796,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/settings/notifications'
+    | '/t/$tenant/sites/$siteId'
     | '/t/$tenant/ai'
     | '/t/$tenant/dashboards'
     | '/t/$tenant/settings'
@@ -819,7 +853,9 @@ export interface FileRouteTypes {
     | '/t/$tenant/ai/tools'
     | '/t/$tenant/ai/traces'
     | '/t/$tenant/dashboards/$dashboardId'
+    | '/t/$tenant/middlewares_/$middlewareId'
     | '/t/$tenant/plugins_/signers'
+    | '/t/$tenant/routes_/$routeId'
     | '/t/$tenant/security/access-policies'
     | '/t/$tenant/security/api-keys'
     | '/t/$tenant/security/audit'
@@ -833,6 +869,7 @@ export interface FileRouteTypes {
     | '/t/$tenant/settings/notification-delivery'
     | '/t/$tenant/settings/notification-routing'
     | '/t/$tenant/settings/notifications'
+    | '/t/$tenant/sites_/$siteId'
     | '/t/$tenant/ai/'
     | '/t/$tenant/dashboards/'
     | '/t/$tenant/settings/'
@@ -1124,6 +1161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantAiIndexRouteImport
       parentRoute: typeof TTenantAiRoute
     }
+    '/t/$tenant/sites_/$siteId': {
+      id: '/t/$tenant/sites_/$siteId'
+      path: '/sites/$siteId'
+      fullPath: '/t/$tenant/sites/$siteId'
+      preLoaderRoute: typeof TTenantSitesSiteIdRouteImport
+      parentRoute: typeof TTenantRoute
+    }
     '/t/$tenant/settings/notifications': {
       id: '/t/$tenant/settings/notifications'
       path: '/notifications'
@@ -1215,11 +1259,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSecurityAccessPoliciesRouteImport
       parentRoute: typeof TTenantSecurityRoute
     }
+    '/t/$tenant/routes_/$routeId': {
+      id: '/t/$tenant/routes_/$routeId'
+      path: '/routes/$routeId'
+      fullPath: '/t/$tenant/routes/$routeId'
+      preLoaderRoute: typeof TTenantRoutesRouteIdRouteImport
+      parentRoute: typeof TTenantRoute
+    }
     '/t/$tenant/plugins_/signers': {
       id: '/t/$tenant/plugins_/signers'
       path: '/plugins/signers'
       fullPath: '/t/$tenant/plugins/signers'
       preLoaderRoute: typeof TTenantPluginsSignersRouteImport
+      parentRoute: typeof TTenantRoute
+    }
+    '/t/$tenant/middlewares_/$middlewareId': {
+      id: '/t/$tenant/middlewares_/$middlewareId'
+      path: '/middlewares/$middlewareId'
+      fullPath: '/t/$tenant/middlewares/$middlewareId'
+      preLoaderRoute: typeof TTenantMiddlewaresMiddlewareIdRouteImport
       parentRoute: typeof TTenantRoute
     }
     '/t/$tenant/dashboards/$dashboardId': {
@@ -1535,8 +1593,11 @@ interface TTenantRouteChildren {
   TTenantServicesRoute: typeof TTenantServicesRoute
   TTenantSettingsRoute: typeof TTenantSettingsRouteWithChildren
   TTenantSitesRoute: typeof TTenantSitesRoute
+  TTenantMiddlewaresMiddlewareIdRoute: typeof TTenantMiddlewaresMiddlewareIdRoute
   TTenantPluginsSignersRoute: typeof TTenantPluginsSignersRoute
+  TTenantRoutesRouteIdRoute: typeof TTenantRoutesRouteIdRoute
   TTenantServicesServiceIdRoute: typeof TTenantServicesServiceIdRoute
+  TTenantSitesSiteIdRoute: typeof TTenantSitesSiteIdRoute
   TTenantDetailKindIdRoute: typeof TTenantDetailKindIdRoute
   TTenantDashboardsDashboardIdEditRoute: typeof TTenantDashboardsDashboardIdEditRoute
 }
@@ -1556,8 +1617,11 @@ const TTenantRouteChildren: TTenantRouteChildren = {
   TTenantServicesRoute: TTenantServicesRoute,
   TTenantSettingsRoute: TTenantSettingsRouteWithChildren,
   TTenantSitesRoute: TTenantSitesRoute,
+  TTenantMiddlewaresMiddlewareIdRoute: TTenantMiddlewaresMiddlewareIdRoute,
   TTenantPluginsSignersRoute: TTenantPluginsSignersRoute,
+  TTenantRoutesRouteIdRoute: TTenantRoutesRouteIdRoute,
   TTenantServicesServiceIdRoute: TTenantServicesServiceIdRoute,
+  TTenantSitesSiteIdRoute: TTenantSitesSiteIdRoute,
   TTenantDetailKindIdRoute: TTenantDetailKindIdRoute,
   TTenantDashboardsDashboardIdEditRoute: TTenantDashboardsDashboardIdEditRoute,
 }

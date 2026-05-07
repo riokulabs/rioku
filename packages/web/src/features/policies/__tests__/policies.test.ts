@@ -5,7 +5,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useMockStore } from '@/api/mock-store';
 import { seedStore } from '@/api/mock-seed';
-import { attachPolicy } from '@/features/routes';
 import {
   usePolicyList,
   usePolicyDetail,
@@ -48,13 +47,28 @@ describe('usePoliciesAttachedToRoute', () => {
     expect(result.current).toEqual([]);
   });
 
-  it('resolves policy records attached via route.policies', async () => {
+  it('resolves policy records attached via route.policies', () => {
     const route = Object.values(useMockStore.getState().routes)[0];
     if (!route) throw new Error('no route');
     const policy = Object.values(useMockStore.getState().accessPolicies)[0];
     if (!policy) throw new Error('no policy');
 
-    await attachPolicy(route.id, policy.id);
+    // attachPolicy now requires tenantId because the daemon endpoint is
+    // tenant-scoped. This test covers `usePoliciesAttachedToRoute` which
+    // still reads from the mock store, so we mutate the store directly to
+    // simulate the post-attach state without round-tripping through the
+    // real (Stage-2) HTTP path.
+    useMockStore.setState((s) => ({
+      routes: {
+        ...s.routes,
+        [route.id]: {
+          ...route,
+          policies: route.policies.includes(policy.id)
+            ? route.policies
+            : [...route.policies, policy.id],
+        },
+      },
+    }));
 
     const { result } = renderHook(() => usePoliciesAttachedToRoute(route.id));
     expect(result.current.some((p) => p.id === policy.id)).toBe(true);

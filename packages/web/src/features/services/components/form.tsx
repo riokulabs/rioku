@@ -130,7 +130,7 @@ export function ServiceForm({
         notify.success('Service created', `${svc.name} is ready.`);
         onSuccess(svc);
       } else if (initialValues) {
-        const svc = await updateService(initialValues.id, payload);
+        const svc = await updateService(tenantId, initialValues.id, payload);
         notify.success('Service updated', `${svc.name} saved.`);
         onSuccess(svc);
       }

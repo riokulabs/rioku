@@ -1,20 +1,14 @@
 // Aggregator. Re-exports the canonical store + per-feature slices.
 // Each parallel plan owns one slice file in this directory and one line below.
 export * from './_internal';
-// Plan 01 (auth-bootstrap)
-export * from './sessions';
-export * from './users';
+// Plan 01 (auth-bootstrap) feature slices retired — store lives in _internal.ts
 // Plan 02 (identity)
 export * from './roles';
 export * from './api-keys';
 export * from './rbac-policies';
 export * from './impersonation';
 export * from './access-policies';
-// Plan 03 (api-mgmt)
-export * from './services';
-export * from './routes';
-export * from './middlewares';
-export * from './sites';
+// Plan 03 (api-mgmt) feature slices retired — store lives in _internal.ts
 // Plan 04 (ai) feature slices retired — store lives in _internal.ts
 // Plan 05 (audit)
 export * from './audit';
@@ -33,5 +27,4 @@ export * from './plugins';
 export * from './plugin-signers';
 // Plan 10 (cluster)
 export * from './cluster';
-// Plan 11 (super-admin)
-export * from './super-admin';
+// Plan 11 (super-admin) — stub retired; feature slice lives in _internal.ts

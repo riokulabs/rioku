@@ -85,29 +85,34 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 /**
- * Supports two calling styles:
- *   1. Object form (legacy): customFetch({ url, method, data, signal, params })
- *      → returns the parsed body (T).
- *   2. Fetch form (Orval-generated): customFetch(url, RequestInit)
- *      → returns `{ data, status, headers }` so generated clients can read
- *      response metadata.
+ * Orval `httpClient: 'fetch'` calls the mutator as
+ *   customFetch<{data, status, headers}>(url, RequestInit)
+ * and the generated hooks read `.data` from the result. To keep both the
+ * legacy `{url, method, data}` callsites and the orval generated callsites
+ * working through a single mutator, this function accepts either form.
  */
+export interface OrvalFetchResponse<T> {
+  data: T;
+  status: number;
+  headers: Headers;
+}
+
 export async function customFetch<T>(args: CustomFetchArgs): Promise<T>;
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-export async function customFetch<T>(
-  url: string,
-  init: RequestInit,
-): Promise<{ data: T; status: number; headers: Headers }>;
+export async function customFetch<T>(url: string, init?: RequestInit): Promise<T>;
 export async function customFetch<T>(
   argsOrUrl: CustomFetchArgs | string,
-  maybeInit?: RequestInit,
-): Promise<unknown> {
-  // Form 2: (url, init) — used by Orval-generated clients.
+  init?: RequestInit,
+): Promise<T> {
+  // Path A — generated orval client: (url, RequestInit) → {data, status, headers}
   if (typeof argsOrUrl === 'string') {
-    return _orvalFetch<T>(argsOrUrl, maybeInit ?? {});
+    return runOrvalFetch<T>(argsOrUrl, init);
   }
-  // Form 1: object args — legacy in-feature callers.
-  const { url, method, data, signal, params } = argsOrUrl;
+  // Path B — legacy callers (apiClient shim, use-openapi-spec, use-opaque-filter)
+  return runLegacyFetch<T>(argsOrUrl);
+}
+
+async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
+  const { url, method, data, signal, params } = args;
 
   let fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
   if (params !== undefined && Object.keys(params).length > 0) {
@@ -158,30 +163,26 @@ export async function customFetch<T>(
   return (await res.text()) as T;
 }
 
-/**
- * Orval-style fetch: takes (url, RequestInit) and returns the response with
- * data/status/headers. Used by generated clients in `src/api/generated/`.
- */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-async function _orvalFetch<T>(
-  url: string,
-  init: RequestInit,
-): Promise<{ data: T; status: number; headers: Headers }> {
-  const fullUrl = url.startsWith('http') ? url : `${BASE}${url}`;
-  const headers = new Headers(init.headers ?? {});
-  if (init.body !== undefined && init.body !== null && !headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
+async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url.replace(/^\/api\/v1/, '')}`;
+
+  const baseHeaders = new Headers(init?.headers);
+  if (init?.body !== undefined && !baseHeaders.has('content-type')) {
+    baseHeaders.set('content-type', 'application/json');
   }
+  const fetchInit: RequestInit = {
+    ...init,
+    headers: baseHeaders,
+    credentials: init?.credentials ?? 'include',
+  };
+
   let res: Response;
   try {
-    res = await fetch(fullUrl, {
-      ...init,
-      headers,
-      credentials: init.credentials ?? 'include',
-    });
+    res = await fetch(fullUrl, fetchInit);
   } catch (cause) {
     throw new NetworkError({ cause });
   }
+
   if (!res.ok) {
     const err = await parseError(res);
     if (err instanceof AuthFailureError) {
@@ -189,8 +190,11 @@ async function _orvalFetch<T>(
     }
     throw err;
   }
-  let data: unknown = undefined;
-  if (res.status !== 204) {
+
+  let data: unknown;
+  if (res.status === 204) {
+    data = undefined;
+  } else {
     const ct = res.headers.get('content-type');
     if (ct !== null && (ct.includes('application/json') || isProblemContentType(ct))) {
       try {
@@ -202,5 +206,6 @@ async function _orvalFetch<T>(
       data = await res.text();
     }
   }
-  return { data: data as T, status: res.status, headers: res.headers };
+
+  return { data, status: res.status, headers: res.headers } as T;
 }
