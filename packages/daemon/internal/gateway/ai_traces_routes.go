@@ -13,8 +13,11 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/store"
+	storeaudit "github.com/riokulabs/rioku/internal/store/audit"
 )
 
 // ─── Trace handlers ─────────────────────────────────────────────────────────
@@ -108,9 +111,96 @@ func handleGetAITrace(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "get trace")
 			return
 		}
-		// TODO(#117): gate sensitive fields on ai-trace:read-sensitive permission
-		// once the permission catalog supports finer-grained AI trace perms; for
-		// now, include them.
+		// Redact prompt/completion by default; sensitive fields are
+		// only exposed via POST /ai/traces/{id}/reveal which gates on
+		// `ai-trace:read-sensitive` and audits the access.
+		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, false))
+	}
+}
+
+// handleRevealAITrace returns the AI trace with prompt/completion unmasked
+// after persisting an audit row that captures the operator's reason. The
+// fetch + audit-write happen in a single write transaction so a failure
+// to persist the audit aborts the reveal entirely.
+//
+// Required permission: `ai-trace:read-sensitive` (gated at registration in
+// ai_routes.go). Reason must be ≥16 non-whitespace characters; shorter or
+// missing reasons return 400.
+func handleRevealAITrace(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		id := r.PathValue("id")
+
+		var body struct {
+			Reason string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeBadRequest(w, r, "request body must be JSON with a `reason` field")
+			return
+		}
+		reason := strings.TrimSpace(body.Reason)
+		if len(reason) < 16 {
+			writeBadRequest(w, r, "reason must be at least 16 characters")
+			return
+		}
+
+		actor := "system"
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil && sc.UserID != "" {
+			actor = sc.UserID
+		}
+
+		tx, err := st.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback()
+			}
+		}()
+
+		tr, err := tx.GetAITrace(ctx, tenant.ID, id)
+		if err != nil {
+			if errors.Is(err, store.ErrAITraceNotFound) {
+				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Trace not found",
+					"No trace with id "+id, r.URL.Path, nil)
+				return
+			}
+			writeInternalError(w, r, "get trace")
+			return
+		}
+
+		entry, err := storeaudit.BuildEntry(
+			storeaudit.DefaultRegistry,
+			actor,
+			"ai-trace",
+			tr.ID,
+			"reveal",
+			&storeaudit.AITraceSensitiveRevealed{
+				RevealedTraceID: tr.ID,
+				Reason:          reason,
+			},
+		)
+		if err != nil {
+			writeInternalError(w, r, "build reveal audit entry")
+			return
+		}
+		if err := tx.AppendAuditEntry(ctx, entry); err != nil {
+			writeInternalError(w, r, "persist reveal audit entry")
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit reveal")
+			return
+		}
+		committed = true
+
 		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, true))
 	}
 }

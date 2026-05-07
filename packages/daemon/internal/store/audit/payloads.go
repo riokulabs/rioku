@@ -150,6 +150,21 @@ func (AuditSensitiveRevealed) AuditSchema() string {
 	return "audit.sensitive_revealed.v1"
 }
 
+// AITraceSensitiveRevealed records a privileged operator unmasking the
+// prompt + completion fields of an AI trace via
+// POST /api/v1/t/{tenant}/ai/traces/{id}/reveal. The reason captured here
+// is the compliance contract for the bypass.
+//
+// Schema: ai.trace_sensitive_revealed.v1
+type AITraceSensitiveRevealed struct {
+	RevealedTraceID string `json:"revealed_trace_id"`
+	Reason          string `json:"reason"`
+}
+
+func (AITraceSensitiveRevealed) AuditSchema() string {
+	return "ai.trace_sensitive_revealed.v1"
+}
+
 // DefaultRegistry is the package-level registry pre-populated with
 // the canonical first-party schemas. Sub-systems that don't need
 // custom schemas can use this directly; tests + plugins can build
@@ -176,6 +191,10 @@ func init() {
 	mustRegister(DefaultRegistry, Schema{
 		Discriminator: "audit.sensitive_revealed.v1",
 		New:           func() Payload { return &AuditSensitiveRevealed{} },
+	})
+	mustRegister(DefaultRegistry, Schema{
+		Discriminator: "ai.trace_sensitive_revealed.v1",
+		New:           func() Payload { return &AITraceSensitiveRevealed{} },
 	})
 }
 

@@ -26,12 +26,15 @@ import (
 )
 
 // CaddyReloadFunc is the signature of the reload hook. The `reason` is a
-// short tag used for logging / metrics (e.g. "service.create").
-type CaddyReloadFunc func(ctx context.Context, reason string)
+// short tag used for logging / metrics (e.g. "service.create"). Returning
+// an error lets tests assert reload failure paths and the production hook
+// surface admin-API errors for logging — callers of triggerCaddyReload
+// remain fire-and-forget per the package contract.
+type CaddyReloadFunc func(ctx context.Context, reason string) error
 
 var (
 	caddyReloadMu   sync.RWMutex
-	caddyReloadHook CaddyReloadFunc = func(context.Context, string) {} // no-op default
+	caddyReloadHook CaddyReloadFunc = func(context.Context, string) error { return nil } // no-op default
 )
 
 // SetCaddyReloadHook installs the reload hook. Tests use this to inject a
@@ -44,7 +47,7 @@ func SetCaddyReloadHook(hook CaddyReloadFunc) CaddyReloadFunc {
 	defer caddyReloadMu.Unlock()
 	prev := caddyReloadHook
 	if hook == nil {
-		caddyReloadHook = func(context.Context, string) {}
+		caddyReloadHook = func(context.Context, string) error { return nil }
 	} else {
 		caddyReloadHook = hook
 	}
@@ -54,12 +57,16 @@ func SetCaddyReloadHook(hook CaddyReloadFunc) CaddyReloadFunc {
 // triggerCaddyReload invokes the current hook. Safe for concurrent use.
 //
 // Use this from any config-mutating handler after the transaction commits.
-// Failure to reload is intentionally not propagated to the HTTP response.
+// Failure to reload is intentionally not propagated to the HTTP response —
+// it's logged here and an out-of-band sync agent retries.
 func triggerCaddyReload(ctx context.Context, reason string) {
 	caddyReloadMu.RLock()
 	hook := caddyReloadHook
 	caddyReloadMu.RUnlock()
-	hook(ctx, reason)
+	if err := hook(ctx, reason); err != nil {
+		slog.Default().Warn("caddy reload: hook returned error",
+			"component", "gateway", "reason", reason, "error", err)
+	}
 }
 
 // CaddyConfigCompiler is the minimal surface the reloader needs from the
@@ -101,29 +108,29 @@ func NewCaddyAdminReloader(cfg CaddyReloaderConfig) CaddyReloadFunc {
 	adminURL := cfg.AdminURL
 	compile := cfg.Compile
 
-	return func(ctx context.Context, reason string) {
+	return func(ctx context.Context, reason string) error {
 		if compile == nil || adminURL == "" {
-			return
+			return nil
 		}
 		data, err := compile(ctx)
 		if err != nil {
 			logger.Warn("caddy reload: compile failed",
 				"component", "gateway", "reason", reason, "error", err)
-			return
+			return fmt.Errorf("compile: %w", err)
 		}
 		url := adminURL + "/load"
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 		if err != nil {
 			logger.Warn("caddy reload: build request failed",
 				"component", "gateway", "reason", reason, "error", err)
-			return
+			return fmt.Errorf("build request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := client.Do(req)
 		if err != nil {
 			logger.Warn("caddy reload: POST failed",
 				"component", "gateway", "reason", reason, "error", err)
-			return
+			return fmt.Errorf("POST: %w", err)
 		}
 		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -132,9 +139,9 @@ func NewCaddyAdminReloader(cfg CaddyReloaderConfig) CaddyReloadFunc {
 				"component", "gateway",
 				"reason", reason,
 				"status", resp.StatusCode,
-				"body", string(body),
-				"error", fmt.Errorf("status %d", resp.StatusCode))
-			return
+				"body", string(body))
+			return fmt.Errorf("caddy reload: status %d", resp.StatusCode)
 		}
+		return nil
 	}
 }

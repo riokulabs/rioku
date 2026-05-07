@@ -21,8 +21,9 @@ func TestRouteMiddlewareOrder_PutSetsLabel(t *testing.T) {
 
 	// Capture reload reasons in-test.
 	var reloadReasons []string
-	prev := SetCaddyReloadHook(func(_ context.Context, reason string) {
+	prev := SetCaddyReloadHook(func(_ context.Context, reason string) error {
 		reloadReasons = append(reloadReasons, reason)
+		return nil
 	})
 	t.Cleanup(func() { SetCaddyReloadHook(prev) })
 
