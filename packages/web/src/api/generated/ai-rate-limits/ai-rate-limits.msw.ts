@@ -25,9 +25,9 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
 import type {
   AIRateLimit,
-  GetAIRateLimitMetrics200,
+  AIRateLimitMetricsResponse,
+  AIRateLimitSimulateResponse,
   ListAIRateLimits200,
-  SimulateAIRateLimit200,
 } from '.././schemas';
 
 export const getListAIRateLimitsResponseMock = (
@@ -188,35 +188,28 @@ export const getUpdateAIRateLimitResponseMock = (
 });
 
 export const getGetAIRateLimitMetricsResponseMock = (
-  overrideResponse: Partial<GetAIRateLimitMetrics200> = {},
-): GetAIRateLimitMetrics200 => ({
-  current: faker.helpers.arrayElement([
-    faker.number.int({ min: undefined, max: undefined }),
-    undefined,
-  ]),
-  limit: faker.helpers.arrayElement([
-    faker.number.int({ min: undefined, max: undefined }),
-    undefined,
-  ]),
-  note: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  rateLimitId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  resetSeconds: faker.helpers.arrayElement([
-    faker.number.int({ min: undefined, max: undefined }),
-    undefined,
-  ]),
+  overrideResponse: Partial<AIRateLimitMetricsResponse> = {},
+): AIRateLimitMetricsResponse => ({
+  points: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(
+    () => ({
+      throttle_events: faker.number.int({ min: undefined, max: undefined }),
+      timestamp: `${faker.date.past().toISOString().split('.')[0]}Z`,
+    }),
+  ),
+  rate_limit_id: faker.string.alpha(20),
+  since: faker.string.alpha(20),
   ...overrideResponse,
 });
 
 export const getSimulateAIRateLimitResponseMock = (
-  overrideResponse: Partial<SimulateAIRateLimit200> = {},
-): SimulateAIRateLimit200 => ({
-  hits: faker.helpers.arrayElement([
-    faker.number.int({ min: undefined, max: undefined }),
-    undefined,
-  ]),
-  note: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  rateLimitId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
-  window: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  overrideResponse: Partial<AIRateLimitSimulateResponse> = {},
+): AIRateLimitSimulateResponse => ({
+  current_consumption: faker.number.int({ min: undefined, max: undefined }),
+  limit: faker.number.int({ min: undefined, max: undefined }),
+  principal: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  rate_limit_id: faker.string.alpha(20),
+  retry_after_ms: faker.number.int({ min: undefined, max: undefined }),
+  would_throttle: faker.datatype.boolean(),
   ...overrideResponse,
 });
 
@@ -324,10 +317,10 @@ export const getUpdateAIRateLimitMockHandler = (
 
 export const getGetAIRateLimitMetricsMockHandler = (
   overrideResponse?:
-    | GetAIRateLimitMetrics200
+    | AIRateLimitMetricsResponse
     | ((
         info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<GetAIRateLimitMetrics200> | GetAIRateLimitMetrics200),
+      ) => Promise<AIRateLimitMetricsResponse> | AIRateLimitMetricsResponse),
 ) => {
   return http.get('*/api/v1/t/:tenant/ai/rate-limits/:id/metrics', async (info) => {
     await delay(1000);
@@ -347,10 +340,10 @@ export const getGetAIRateLimitMetricsMockHandler = (
 
 export const getSimulateAIRateLimitMockHandler = (
   overrideResponse?:
-    | SimulateAIRateLimit200
+    | AIRateLimitSimulateResponse
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<SimulateAIRateLimit200> | SimulateAIRateLimit200),
+      ) => Promise<AIRateLimitSimulateResponse> | AIRateLimitSimulateResponse),
 ) => {
   return http.post('*/api/v1/t/:tenant/ai/rate-limits/:id/simulate', async (info) => {
     await delay(1000);

@@ -21,12 +21,10 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
+import type { AIRateLimitMetricsPoint } from './aIRateLimitMetricsPoint';
 
-export interface AIRateLimitSimulateRequest {
-  /** Subject id for the probe (informational; echoed back). */
-  principal?: string;
-  /** Probe volume; defaults to 1. */
-  request_count?: number;
-  /** Probe window in seconds; defaults to the rule's window. */
-  time_window_seconds?: number;
+export interface AIRateLimitMetricsResponse {
+  points: AIRateLimitMetricsPoint[];
+  rate_limit_id: string;
+  since: string;
 }

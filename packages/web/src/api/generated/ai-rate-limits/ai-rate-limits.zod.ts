@@ -113,22 +113,37 @@ export const updateAIRateLimitResponse = zod.object({
 });
 
 /**
- * @summary Live metrics for a rate-limit
+ * @summary Throttle event time-series for a rate-limit
  */
+export const getAIRateLimitMetricsQueryParams = zod.object({
+  since: zod.string().optional(),
+});
+
 export const getAIRateLimitMetricsResponse = zod.object({
-  current: zod.number().optional(),
-  limit: zod.number().optional(),
-  note: zod.string().optional(),
-  rateLimitId: zod.string().optional(),
-  resetSeconds: zod.number().optional(),
+  points: zod.array(
+    zod.object({
+      throttle_events: zod.number(),
+      timestamp: zod.string().datetime(),
+    }),
+  ),
+  rate_limit_id: zod.string(),
+  since: zod.string(),
 });
 
 /**
- * @summary Simulate the rate-limit against historical traces (stage-2 stub)
+ * @summary Simulate the rate-limit against a probe request volume
  */
+export const simulateAIRateLimitBody = zod.object({
+  principal: zod.string().optional(),
+  request_count: zod.number().optional(),
+  time_window_seconds: zod.number().optional(),
+});
+
 export const simulateAIRateLimitResponse = zod.object({
-  hits: zod.number().optional(),
-  note: zod.string().optional(),
-  rateLimitId: zod.string().optional(),
-  window: zod.string().optional(),
+  current_consumption: zod.number(),
+  limit: zod.number(),
+  principal: zod.string().optional(),
+  rate_limit_id: zod.string(),
+  retry_after_ms: zod.number(),
+  would_throttle: zod.boolean(),
 });

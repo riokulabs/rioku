@@ -22,11 +22,14 @@ Conventions:
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AIRateLimitSimulateRequest {
-  /** Subject id for the probe (informational; echoed back). */
+export interface AIRateLimitSimulateResponse {
+  /** Probe volume normalised to the rule's window. */
+  current_consumption: number;
+  /** The rule's configured threshold. */
+  limit: number;
   principal?: string;
-  /** Probe volume; defaults to 1. */
-  request_count?: number;
-  /** Probe window in seconds; defaults to the rule's window. */
-  time_window_seconds?: number;
+  rate_limit_id: string;
+  /** Hint for how long to wait before retrying. 0 when not throttled. */
+  retry_after_ms: number;
+  would_throttle: boolean;
 }

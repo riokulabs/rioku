@@ -49,6 +49,8 @@ import type {
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List AI tools
  */
@@ -85,14 +87,15 @@ export const getListAIToolsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAITools>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAIToolsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAITools>>> = ({ signal }) =>
-    listAITools(tenant, signal);
+    listAITools(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAITools>>,
@@ -121,6 +124,7 @@ export function useListAIToolsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAIToolsInfinite<
@@ -140,6 +144,7 @@ export function useListAIToolsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAIToolsInfinite<
@@ -151,6 +156,7 @@ export function useListAIToolsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAITools>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -166,6 +172,7 @@ export function useListAIToolsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAITools>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAIToolsInfiniteQueryOptions(tenant, options);
@@ -186,14 +193,15 @@ export const getListAIToolsQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAITools>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAIToolsQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAITools>>> = ({ signal }) =>
-    listAITools(tenant, signal);
+    listAITools(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAITools>>,
@@ -217,6 +225,7 @@ export function useListAITools<TData = Awaited<ReturnType<typeof listAITools>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAITools<TData = Awaited<ReturnType<typeof listAITools>>, TError = unknown>(
@@ -231,12 +240,14 @@ export function useListAITools<TData = Awaited<ReturnType<typeof listAITools>>, 
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAITools<TData = Awaited<ReturnType<typeof listAITools>>, TError = unknown>(
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAITools>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -247,6 +258,7 @@ export function useListAITools<TData = Awaited<ReturnType<typeof listAITools>>, 
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAITools>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAIToolsQueryOptions(tenant, options);
@@ -293,6 +305,7 @@ export const getCreateAIToolMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; data: AIToolCreateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createAITool>>,
   TError,
@@ -300,11 +313,11 @@ export const getCreateAIToolMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['createAITool'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createAITool>>,
@@ -312,7 +325,7 @@ export const getCreateAIToolMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, data } = props ?? {};
 
-    return createAITool(tenant, data);
+    return createAITool(tenant, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -332,6 +345,7 @@ export const useCreateAITool = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; data: AIToolCreateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createAITool>>,
   TError,
@@ -370,6 +384,7 @@ export const getDeleteAIToolMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteAITool>>,
   TError,
@@ -377,11 +392,11 @@ export const getDeleteAIToolMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['deleteAITool'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteAITool>>,
@@ -389,7 +404,7 @@ export const getDeleteAIToolMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return deleteAITool(tenant, id);
+    return deleteAITool(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -406,6 +421,7 @@ export const useDeleteAITool = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteAITool>>,
   TError,
@@ -449,14 +465,15 @@ export const getGetAIToolInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAITool>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAIToolQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAITool>>> = ({ signal }) =>
-    getAITool(tenant, id, signal);
+    getAITool(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -487,6 +504,7 @@ export function useGetAIToolInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAIToolInfinite<
@@ -505,6 +523,7 @@ export function useGetAIToolInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAIToolInfinite<
@@ -515,6 +534,7 @@ export function useGetAIToolInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAITool>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -526,6 +546,7 @@ export function useGetAIToolInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAITool>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAIToolInfiniteQueryOptions(tenant, id, options);
@@ -547,14 +568,15 @@ export const getGetAIToolQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAITool>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAIToolQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAITool>>> = ({ signal }) =>
-    getAITool(tenant, id, signal);
+    getAITool(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAITool>>,
@@ -579,6 +601,7 @@ export function useGetAITool<TData = Awaited<ReturnType<typeof getAITool>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAITool<TData = Awaited<ReturnType<typeof getAITool>>, TError = unknown>(
@@ -594,6 +617,7 @@ export function useGetAITool<TData = Awaited<ReturnType<typeof getAITool>>, TErr
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAITool<TData = Awaited<ReturnType<typeof getAITool>>, TError = unknown>(
@@ -601,6 +625,7 @@ export function useGetAITool<TData = Awaited<ReturnType<typeof getAITool>>, TErr
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAITool>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -609,6 +634,7 @@ export function useGetAITool<TData = Awaited<ReturnType<typeof getAITool>>, TErr
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAITool>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAIToolQueryOptions(tenant, id, options);
@@ -653,6 +679,7 @@ export const getPatchAIToolMutationOptions = <TError = unknown, TContext = unkno
     { tenant: string; id: string; data: AIToolUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof patchAITool>>,
   TError,
@@ -660,11 +687,11 @@ export const getPatchAIToolMutationOptions = <TError = unknown, TContext = unkno
   TContext
 > => {
   const mutationKey = ['patchAITool'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof patchAITool>>,
@@ -672,7 +699,7 @@ export const getPatchAIToolMutationOptions = <TError = unknown, TContext = unkno
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return patchAITool(tenant, id, data);
+    return patchAITool(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -689,6 +716,7 @@ export const usePatchAITool = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string; data: AIToolUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof patchAITool>>,
   TError,
@@ -730,6 +758,7 @@ export const getUpdateAIToolMutationOptions = <TError = unknown, TContext = unkn
     { tenant: string; id: string; data: AIToolUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateAITool>>,
   TError,
@@ -737,11 +766,11 @@ export const getUpdateAIToolMutationOptions = <TError = unknown, TContext = unkn
   TContext
 > => {
   const mutationKey = ['updateAITool'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateAITool>>,
@@ -749,7 +778,7 @@ export const getUpdateAIToolMutationOptions = <TError = unknown, TContext = unkn
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return updateAITool(tenant, id, data);
+    return updateAITool(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -766,6 +795,7 @@ export const useUpdateAITool = <TError = unknown, TContext = unknown>(options?: 
     { tenant: string; id: string; data: AIToolUpdateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateAITool>>,
   TError,
@@ -814,14 +844,15 @@ export const getListAIToolAgentsInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAIToolAgents>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAIToolAgentsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAIToolAgents>>> = ({ signal }) =>
-    listAIToolAgents(tenant, id, signal);
+    listAIToolAgents(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -856,6 +887,7 @@ export function useListAIToolAgentsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAIToolAgentsInfinite<
@@ -876,6 +908,7 @@ export function useListAIToolAgentsInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAIToolAgentsInfinite<
@@ -888,6 +921,7 @@ export function useListAIToolAgentsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAIToolAgents>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -904,6 +938,7 @@ export function useListAIToolAgentsInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAIToolAgents>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAIToolAgentsInfiniteQueryOptions(tenant, id, options);
@@ -925,14 +960,15 @@ export const getListAIToolAgentsQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAIToolAgents>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAIToolAgentsQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAIToolAgents>>> = ({ signal }) =>
-    listAIToolAgents(tenant, id, signal);
+    listAIToolAgents(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAIToolAgents>>,
@@ -960,6 +996,7 @@ export function useListAIToolAgents<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAIToolAgents<
@@ -978,6 +1015,7 @@ export function useListAIToolAgents<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAIToolAgents<
@@ -988,6 +1026,7 @@ export function useListAIToolAgents<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAIToolAgents>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -1002,6 +1041,7 @@ export function useListAIToolAgents<
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAIToolAgents>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAIToolAgentsQueryOptions(tenant, id, options);
@@ -1046,6 +1086,7 @@ export const getTestAIToolMutationOptions = <TError = unknown, TContext = unknow
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof testAITool>>,
   TError,
@@ -1053,11 +1094,11 @@ export const getTestAIToolMutationOptions = <TError = unknown, TContext = unknow
   TContext
 > => {
   const mutationKey = ['testAITool'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof testAITool>>,
@@ -1065,7 +1106,7 @@ export const getTestAIToolMutationOptions = <TError = unknown, TContext = unknow
   > = (props) => {
     const { tenant, id } = props ?? {};
 
-    return testAITool(tenant, id);
+    return testAITool(tenant, id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1085,6 +1126,7 @@ export const useTestAITool = <TError = unknown, TContext = unknown>(options?: {
     { tenant: string; id: string },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof testAITool>>,
   TError,

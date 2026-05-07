@@ -22,11 +22,10 @@ Conventions:
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AIRateLimitSimulateRequest {
-  /** Subject id for the probe (informational; echoed back). */
-  principal?: string;
-  /** Probe volume; defaults to 1. */
-  request_count?: number;
-  /** Probe window in seconds; defaults to the rule's window. */
-  time_window_seconds?: number;
-}
+export type GetAIRateLimitMetricsParams = {
+  /**
+ * Lookback window. One of `1h`, `24h`, `7d`. Defaults to `24h`.
+
+ */
+  since?: string;
+};

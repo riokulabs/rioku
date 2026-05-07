@@ -39,6 +39,8 @@ import type {
 import type { AITrace, ListAITraces200, ListAITracesParams } from '.././schemas';
 import { customFetch } from '../../mutator';
 
+type SecondParameter<T extends (...args: any) => any> = Parameters<T>[1];
+
 /**
  * @summary List AI traces
  */
@@ -87,14 +89,15 @@ export const getListAITracesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAITraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAITracesQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAITraces>>> = ({ signal }) =>
-    listAITraces(tenant, params, signal);
+    listAITraces(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof listAITraces>>,
@@ -124,6 +127,7 @@ export function useListAITracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAITracesInfinite<
@@ -144,6 +148,7 @@ export function useListAITracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAITracesInfinite<
@@ -156,6 +161,7 @@ export function useListAITracesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAITraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -172,6 +178,7 @@ export function useListAITracesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof listAITraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAITracesInfiniteQueryOptions(tenant, params, options);
@@ -193,14 +200,15 @@ export const getListAITracesQueryOptions = <
   params?: ListAITracesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAITraces>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getListAITracesQueryKey(tenant, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listAITraces>>> = ({ signal }) =>
-    listAITraces(tenant, params, signal);
+    listAITraces(tenant, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAITraces>>,
@@ -225,6 +233,7 @@ export function useListAITraces<TData = Awaited<ReturnType<typeof listAITraces>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAITraces<TData = Awaited<ReturnType<typeof listAITraces>>, TError = unknown>(
@@ -240,6 +249,7 @@ export function useListAITraces<TData = Awaited<ReturnType<typeof listAITraces>>
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAITraces<TData = Awaited<ReturnType<typeof listAITraces>>, TError = unknown>(
@@ -247,6 +257,7 @@ export function useListAITraces<TData = Awaited<ReturnType<typeof listAITraces>>
   params?: ListAITracesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAITraces>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -258,6 +269,7 @@ export function useListAITraces<TData = Awaited<ReturnType<typeof listAITraces>>
   params?: ListAITracesParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAITraces>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListAITracesQueryOptions(tenant, params, options);
@@ -307,14 +319,15 @@ export const getExportAITracesCSVInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAITracesCSV>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportAITracesCSVQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAITracesCSV>>> = ({ signal }) =>
-    exportAITracesCSV(tenant, signal);
+    exportAITracesCSV(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof exportAITracesCSV>>,
@@ -345,6 +358,7 @@ export function useExportAITracesCSVInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAITracesCSVInfinite<
@@ -364,6 +378,7 @@ export function useExportAITracesCSVInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAITracesCSVInfinite<
@@ -375,6 +390,7 @@ export function useExportAITracesCSVInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAITracesCSV>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -390,6 +406,7 @@ export function useExportAITracesCSVInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportAITracesCSV>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportAITracesCSVInfiniteQueryOptions(tenant, options);
@@ -410,14 +427,15 @@ export const getExportAITracesCSVQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAITracesCSV>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getExportAITracesCSVQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAITracesCSV>>> = ({ signal }) =>
-    exportAITracesCSV(tenant, signal);
+    exportAITracesCSV(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof exportAITracesCSV>>,
@@ -446,6 +464,7 @@ export function useExportAITracesCSV<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAITracesCSV<
@@ -463,6 +482,7 @@ export function useExportAITracesCSV<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useExportAITracesCSV<
@@ -472,6 +492,7 @@ export function useExportAITracesCSV<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAITracesCSV>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -485,6 +506,7 @@ export function useExportAITracesCSV<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAITracesCSV>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getExportAITracesCSVQueryOptions(tenant, options);
@@ -534,14 +556,15 @@ export const getStreamAITracesInfiniteQueryOptions = <
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof streamAITraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getStreamAITracesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof streamAITraces>>> = ({ signal }) =>
-    streamAITraces(tenant, signal);
+    streamAITraces(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseInfiniteQueryOptions<
     Awaited<ReturnType<typeof streamAITraces>>,
@@ -572,6 +595,7 @@ export function useStreamAITracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAITracesInfinite<
@@ -591,6 +615,7 @@ export function useStreamAITracesInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAITracesInfinite<
@@ -602,6 +627,7 @@ export function useStreamAITracesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof streamAITraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -617,6 +643,7 @@ export function useStreamAITracesInfinite<
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof streamAITraces>>, TError, TData>
     >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getStreamAITracesInfiniteQueryOptions(tenant, options);
@@ -637,14 +664,15 @@ export const getStreamAITracesQueryOptions = <
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof streamAITraces>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getStreamAITracesQueryKey(tenant);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof streamAITraces>>> = ({ signal }) =>
-    streamAITraces(tenant, signal);
+    streamAITraces(tenant, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!tenant, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof streamAITraces>>,
@@ -671,6 +699,7 @@ export function useStreamAITraces<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAITraces<
@@ -688,6 +717,7 @@ export function useStreamAITraces<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useStreamAITraces<
@@ -697,6 +727,7 @@ export function useStreamAITraces<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof streamAITraces>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
@@ -710,6 +741,7 @@ export function useStreamAITraces<
   tenant: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof streamAITraces>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getStreamAITracesQueryOptions(tenant, options);
@@ -756,14 +788,15 @@ export const getGetAITraceInfiniteQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAITrace>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAITraceQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAITrace>>> = ({ signal }) =>
-    getAITrace(tenant, id, signal);
+    getAITrace(tenant, id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -794,6 +827,7 @@ export function useGetAITraceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAITraceInfinite<
@@ -814,6 +848,7 @@ export function useGetAITraceInfinite<
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAITraceInfinite<
@@ -824,6 +859,7 @@ export function useGetAITraceInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAITrace>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -835,6 +871,7 @@ export function useGetAITraceInfinite<
   id: string,
   options?: {
     query?: Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAITrace>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAITraceInfiniteQueryOptions(tenant, id, options);
@@ -856,14 +893,15 @@ export const getGetAITraceQueryOptions = <
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAITrace>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ) => {
-  const { query: queryOptions } = options ?? {};
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey = queryOptions?.queryKey ?? getGetAITraceQueryKey(tenant, id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAITrace>>> = ({ signal }) =>
-    getAITrace(tenant, id, signal);
+    getAITrace(tenant, id, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAITrace>>,
@@ -888,6 +926,7 @@ export function useGetAITrace<TData = Awaited<ReturnType<typeof getAITrace>>, TE
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAITrace<TData = Awaited<ReturnType<typeof getAITrace>>, TError = unknown>(
@@ -903,6 +942,7 @@ export function useGetAITrace<TData = Awaited<ReturnType<typeof getAITrace>>, TE
         >,
         'initialData'
       >;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAITrace<TData = Awaited<ReturnType<typeof getAITrace>>, TError = unknown>(
@@ -910,6 +950,7 @@ export function useGetAITrace<TData = Awaited<ReturnType<typeof getAITrace>>, TE
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAITrace>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -918,6 +959,7 @@ export function useGetAITrace<TData = Awaited<ReturnType<typeof getAITrace>>, TE
   id: string,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAITrace>>, TError, TData>>;
+    request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAITraceQueryOptions(tenant, id, options);

@@ -42,11 +42,12 @@ import type {
 import type {
   AIRateLimit,
   AIRateLimitCreateRequest,
+  AIRateLimitMetricsResponse,
   AIRateLimitSimulateRequest,
+  AIRateLimitSimulateResponse,
   AIRateLimitUpdateRequest,
-  GetAIRateLimitMetrics200,
+  GetAIRateLimitMetricsParams,
   ListAIRateLimits200,
-  SimulateAIRateLimit200,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
@@ -782,50 +783,42 @@ export const useUpdateAIRateLimit = <TError = unknown, TContext = unknown>(optio
   return useMutation(mutationOptions);
 };
 /**
- * @summary Live metrics for a rate-limit
+ * @summary Throttle event time-series for a rate-limit
  */
 export type getAIRateLimitMetricsResponse = {
-  data: GetAIRateLimitMetrics200;
+  data: AIRateLimitMetricsResponse;
   status: number;
   headers: Headers;
 };
 
-export interface GetAIRateLimitMetricsParams {
-  since?: string;
-}
-
 export const getGetAIRateLimitMetricsUrl = (
   tenant: string,
   id: string,
-  params?: { since?: string },
+  params?: GetAIRateLimitMetricsParams,
 ) => {
-  const base = `/api/v1/t/${tenant}/ai/rate-limits/${id}/metrics`;
-  const since = params?.since;
-  if (since === undefined || since === null || since === '') {
-    return base;
-  }
-  return `${base}?since=${encodeURIComponent(since)}`;
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  return normalizedParams.size
+    ? `/api/v1/t/${tenant}/ai/rate-limits/${id}/metrics?${normalizedParams.toString()}`
+    : `/api/v1/t/${tenant}/ai/rate-limits/${id}/metrics`;
 };
 
-/**
- * Stage-2: this client accepts a third arg that may be either a
- * GetAIRateLimitMetricsParams object (operator code calling
- * `getAIRateLimitMetrics(tenant, id, { since: '24h' })`) or a RequestInit
- * (the auto-generated query option wrappers that pass `{ signal }`).
- * We pull `since` out of either shape and forward the rest as fetch
- * options so both call styles work.
- */
 export const getAIRateLimitMetrics = async (
   tenant: string,
   id: string,
-  paramsOrOptions?: (GetAIRateLimitMetricsParams & RequestInit) | RequestInit,
+  params?: GetAIRateLimitMetricsParams,
+  options?: RequestInit,
 ): Promise<getAIRateLimitMetricsResponse> => {
-  const merged = (paramsOrOptions ?? {}) as GetAIRateLimitMetricsParams & RequestInit;
-  const { since, ...init } = merged;
   return customFetch<getAIRateLimitMetricsResponse>(
-    getGetAIRateLimitMetricsUrl(tenant, id, since !== undefined ? { since } : undefined),
+    getGetAIRateLimitMetricsUrl(tenant, id, params),
     {
-      ...init,
+      ...options,
       method: 'GET',
     },
   );
@@ -836,10 +829,7 @@ export const getGetAIRateLimitMetricsQueryKey = (
   id: string,
   params?: GetAIRateLimitMetricsParams,
 ) => {
-  return [
-    `/api/v1/t/${tenant}/ai/rate-limits/${id}/metrics`,
-    ...(params ? [params] : []),
-  ] as const;
+  return [`/api/v1/t/${tenant}/ai/rate-limits/${id}/metrics`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetAIRateLimitMetricsInfiniteQueryOptions = <
@@ -848,6 +838,7 @@ export const getGetAIRateLimitMetricsInfiniteQueryOptions = <
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -857,10 +848,10 @@ export const getGetAIRateLimitMetricsInfiniteQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetAIRateLimitMetricsQueryKey(tenant, id);
+  const queryKey = queryOptions?.queryKey ?? getGetAIRateLimitMetricsQueryKey(tenant, id, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAIRateLimitMetrics>>> = ({ signal }) =>
-    getAIRateLimitMetrics(tenant, id, { signal, ...requestOptions });
+    getAIRateLimitMetrics(tenant, id, params, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -883,6 +874,7 @@ export function useGetAIRateLimitMetricsInfinite<
 >(
   tenant: string,
   id: string,
+  params: undefined | GetAIRateLimitMetricsParams,
   options: {
     query: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -904,6 +896,7 @@ export function useGetAIRateLimitMetricsInfinite<
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -925,6 +918,7 @@ export function useGetAIRateLimitMetricsInfinite<
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -933,7 +927,7 @@ export function useGetAIRateLimitMetricsInfinite<
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
- * @summary Live metrics for a rate-limit
+ * @summary Throttle event time-series for a rate-limit
  */
 
 export function useGetAIRateLimitMetricsInfinite<
@@ -942,6 +936,7 @@ export function useGetAIRateLimitMetricsInfinite<
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseInfiniteQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -949,7 +944,7 @@ export function useGetAIRateLimitMetricsInfinite<
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetAIRateLimitMetricsInfiniteQueryOptions(tenant, id, options);
+  const queryOptions = getGetAIRateLimitMetricsInfiniteQueryOptions(tenant, id, params, options);
 
   const query = useInfiniteQuery(queryOptions) as UseInfiniteQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -966,6 +961,7 @@ export const getGetAIRateLimitMetricsQueryOptions = <
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -975,10 +971,10 @@ export const getGetAIRateLimitMetricsQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetAIRateLimitMetricsQueryKey(tenant, id);
+  const queryKey = queryOptions?.queryKey ?? getGetAIRateLimitMetricsQueryKey(tenant, id, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAIRateLimitMetrics>>> = ({ signal }) =>
-    getAIRateLimitMetrics(tenant, id, { signal, ...requestOptions });
+    getAIRateLimitMetrics(tenant, id, params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, enabled: !!(tenant && id), ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAIRateLimitMetrics>>,
@@ -998,6 +994,7 @@ export function useGetAIRateLimitMetrics<
 >(
   tenant: string,
   id: string,
+  params: undefined | GetAIRateLimitMetricsParams,
   options: {
     query: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -1019,6 +1016,7 @@ export function useGetAIRateLimitMetrics<
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -1040,6 +1038,7 @@ export function useGetAIRateLimitMetrics<
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -1048,7 +1047,7 @@ export function useGetAIRateLimitMetrics<
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
- * @summary Live metrics for a rate-limit
+ * @summary Throttle event time-series for a rate-limit
  */
 
 export function useGetAIRateLimitMetrics<
@@ -1057,6 +1056,7 @@ export function useGetAIRateLimitMetrics<
 >(
   tenant: string,
   id: string,
+  params?: GetAIRateLimitMetricsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof getAIRateLimitMetrics>>, TError, TData>
@@ -1064,7 +1064,7 @@ export function useGetAIRateLimitMetrics<
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetAIRateLimitMetricsQueryOptions(tenant, id, options);
+  const queryOptions = getGetAIRateLimitMetricsQueryOptions(tenant, id, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -1076,10 +1076,10 @@ export function useGetAIRateLimitMetrics<
 }
 
 /**
- * @summary Simulate the rate-limit against historical traces (stage-2 stub)
+ * @summary Simulate the rate-limit against a probe request volume
  */
 export type simulateAIRateLimitResponse = {
-  data: SimulateAIRateLimit200;
+  data: AIRateLimitSimulateResponse;
   status: number;
   headers: Headers;
 };
@@ -1098,7 +1098,7 @@ export const simulateAIRateLimit = async (
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(aIRateLimitSimulateRequest ?? {}),
+    body: JSON.stringify(aIRateLimitSimulateRequest),
   });
 };
 
@@ -1109,29 +1109,30 @@ export const getSimulateAIRateLimitMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof simulateAIRateLimit>>,
     TError,
-    { tenant: string; id: string; data?: AIRateLimitSimulateRequest },
+    { tenant: string; id: string; data: AIRateLimitSimulateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof simulateAIRateLimit>>,
   TError,
-  { tenant: string; id: string; data?: AIRateLimitSimulateRequest },
+  { tenant: string; id: string; data: AIRateLimitSimulateRequest },
   TContext
 > => {
   const mutationKey = ['simulateAIRateLimit'];
-  const { mutation: mutationOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof simulateAIRateLimit>>,
-    { tenant: string; id: string; data?: AIRateLimitSimulateRequest }
+    { tenant: string; id: string; data: AIRateLimitSimulateRequest }
   > = (props) => {
     const { tenant, id, data } = props ?? {};
 
-    return simulateAIRateLimit(tenant, id, data);
+    return simulateAIRateLimit(tenant, id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1144,19 +1145,20 @@ export type SimulateAIRateLimitMutationBody = AIRateLimitSimulateRequest;
 export type SimulateAIRateLimitMutationError = unknown;
 
 /**
- * @summary Simulate the rate-limit against a probe request volume.
+ * @summary Simulate the rate-limit against a probe request volume
  */
 export const useSimulateAIRateLimit = <TError = unknown, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof simulateAIRateLimit>>,
     TError,
-    { tenant: string; id: string; data?: AIRateLimitSimulateRequest },
+    { tenant: string; id: string; data: AIRateLimitSimulateRequest },
     TContext
   >;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof simulateAIRateLimit>>,
   TError,
-  { tenant: string; id: string; data?: AIRateLimitSimulateRequest },
+  { tenant: string; id: string; data: AIRateLimitSimulateRequest },
   TContext
 > => {
   const mutationOptions = getSimulateAIRateLimitMutationOptions(options);
