@@ -89,6 +89,12 @@ jobs:
         run: cd packages/web && pnpm exec playwright install-deps
 
       - name: Start sandbox
+        env:
+          # Pin the root password so the Playwright + smoke tests can
+          # log in deterministically. Without this, start.sh generates
+          # a random password and the test fixtures (which hardcode
+          # 'TestRoot1234!') get 401s.
+          SANDBOX_ROOT_PASSWORD: TestRoot1234!
         run: make sandbox
 
       - name: Run smoke tests
@@ -118,14 +124,6 @@ jobs:
         run: make test-integration
 
       - name: Run Playwright E2E tests (shard ${{ matrix.shard }}/4)
-        # Non-blocking for now. The Playwright suite has tests that
-        # call /api/v1/bootstrap which only returns 200 on a fresh
-        # daemon; once init has run (which `make sandbox` does first)
-        # bootstrap returns 401 and ~20 tests systematically retry +
-        # fail. Tests still run, results upload as artifacts, just
-        # don't gate merges. Tracking issue: switch from bootstrap
-        # call to a normal login helper.
-        continue-on-error: true
         run: cd packages/web && pnpm exec playwright test --shard=${{ matrix.shard }}/4 --reporter=line
 
       - name: Upload Playwright report on failure
