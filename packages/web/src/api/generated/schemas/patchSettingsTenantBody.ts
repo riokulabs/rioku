@@ -22,6 +22,7 @@ Conventions:
  * OpenAPI spec version: 0.1.0
  */
 import type { PatchSettingsTenantBodyDefaultTheme } from './patchSettingsTenantBodyDefaultTheme';
+import type { PatchSettingsTenantBodyUrlMode } from './patchSettingsTenantBodyUrlMode';
 
 export type PatchSettingsTenantBody = {
   defaultTheme?: PatchSettingsTenantBodyDefaultTheme;
@@ -29,4 +30,8 @@ export type PatchSettingsTenantBody = {
   logoUrl?: string;
   name?: string;
   parentDomain?: string;
+  /** Tenant addressing mode. Switching invalidates all
+existing sessions; clients must re-authenticate.
+ */
+  urlMode?: PatchSettingsTenantBodyUrlMode;
 };

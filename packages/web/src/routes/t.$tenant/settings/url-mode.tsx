@@ -10,13 +10,15 @@
  *   - Parent domain text input — shown only when subdomain mode is selected
  *   - Warning banner when mode differs from current: "Re-auth required after
  *     switch; existing sessions will be invalidated"
- *   - Submit saves both url_mode and parent_domain atomically
+ *   - Submit saves both url_mode and parent_domain atomically via the
+ *     `/api/v1/t/{tenant}/settings/tenant` PATCH endpoint.
  *
  * Permission guard: tenant:write for mutations; tenant:switch for read.
  *
- * Plan 12 Task 1
+ * Plan 12 Task 1 (originally mock-store-backed); rewired to the real
+ * settings/tenant endpoint as part of plan 16a part 2.
  */
-import { useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   Alert,
@@ -24,6 +26,7 @@ import {
   Button,
   Divider,
   Group,
+  Loader,
   SegmentedControl,
   Stack,
   Text,
@@ -36,7 +39,10 @@ import { IconAlertTriangle, IconArrowLeft, IconInfoCircle } from '@tabler/icons-
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import { updateTenantUrlModeWithDomain, useCurrentTenant } from '@/features/settings/api';
+import {
+  useGetSettingsTenant,
+  usePatchSettingsTenant,
+} from '@/api/generated/settings/settings';
 
 // ─── URL mode options ─────────────────────────────────────────────────────────
 
@@ -47,44 +53,88 @@ const URL_MODE_DATA: { label: string; value: string }[] = [
 
 // ─── Form values ──────────────────────────────────────────────────────────────
 
+type UrlMode = 'path' | 'subdomain';
+
 interface UrlModeFormValues {
-  url_mode: 'path' | 'subdomain';
+  url_mode: UrlMode;
   parent_domain: string;
+}
+
+interface SettingsTenantShape {
+  slug?: string;
+  urlMode?: string;
+  parentDomain?: string;
+}
+
+// The Orval mutator wraps responses as { data, status, headers }; pull
+// the `data` field if present, otherwise treat the payload as already
+// unwrapped.
+function unwrapTenant(payload: unknown): SettingsTenantShape | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  if ('data' in payload) {
+    return (payload as { data: SettingsTenantShape }).data;
+  }
+  return payload as SettingsTenantShape;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function UrlModeSettingsPage() {
   const { tenant: tenantSlug } = Route.useParams();
-  const tenantRecord = useCurrentTenant();
-  const tenantId = tenantRecord?.id ?? tenantSlug;
   const canWrite = usePermission('tenant:write');
 
-  const [loading, setLoading] = useState(false);
+  const query = useGetSettingsTenant(tenantSlug);
+  const patch = usePatchSettingsTenant();
+
+  const tenantRecord = unwrapTenant(query.data);
+
   const [error, setError] = useState<string | null>(null);
+  const hydratedRef = useRef(false);
 
   const form = useForm<UrlModeFormValues>({
     initialValues: {
-      url_mode: tenantRecord?.url_mode ?? 'path',
-      parent_domain: tenantRecord?.parent_domain ?? 'localhost',
+      url_mode: 'path',
+      parent_domain: 'localhost',
     },
   });
 
+  // Hydrate the form once when the GET completes. Subsequent edits are
+  // owned by the user; do not trample them. We track `hydrated` via a
+  // ref rather than state to avoid the lint against setState-in-effect:
+  // the form library mutation is the external system being synchronized
+  // here, and we never need to re-render purely on the hydration flag.
+  useEffect(() => {
+    if (!tenantRecord || hydratedRef.current) return;
+    form.setValues({
+      url_mode: (tenantRecord.urlMode as UrlMode | undefined) ?? 'path',
+      parent_domain: tenantRecord.parentDomain ?? 'localhost',
+    });
+    form.resetDirty();
+    hydratedRef.current = true;
+  }, [tenantRecord, form]);
+
   // Warn when the user has changed the mode from the persisted value.
-  const modeChanging =
-    tenantRecord !== undefined && form.values.url_mode !== tenantRecord.url_mode;
+  // We only flag the change when the data has loaded AND the user has
+  // dirtied the form — that combination is enough; we don't need the
+  // hydration ref at render time.
+  const persistedMode = (tenantRecord?.urlMode as UrlMode | undefined) ?? 'path';
+  const modeChanging = !!tenantRecord && form.isDirty('url_mode') && form.values.url_mode !== persistedMode;
 
   const handleSubmit = useCallback(
     async (values: UrlModeFormValues) => {
-      if (!tenantRecord) return;
-      setLoading(true);
       setError(null);
       try {
-        await updateTenantUrlModeWithDomain(
-          tenantId,
-          values.url_mode,
-          values.url_mode === 'subdomain' ? values.parent_domain : undefined,
-        );
+        await patch.mutateAsync({
+          tenant: tenantSlug,
+          data: {
+            urlMode: values.url_mode,
+            // Only push parentDomain on subdomain mode; merge-patch
+            // semantics: omitted keys preserve existing server value.
+            ...(values.url_mode === 'subdomain'
+              ? { parentDomain: values.parent_domain }
+              : {}),
+          },
+        });
         notify.success(
           'URL mode updated',
           values.url_mode === 'subdomain'
@@ -92,23 +142,38 @@ function UrlModeSettingsPage() {
             : 'Path mode enabled.',
         );
         form.resetDirty(values);
+        await query.refetch();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to update URL mode';
         setError(msg);
-      } finally {
-        setLoading(false);
       }
     },
-    [tenantRecord, tenantId, form],
+    [tenantSlug, patch, form, query],
   );
 
+  if (query.isLoading) {
+    return (
+      <Stack align="center" py="xl" data-testid="url-mode-loading">
+        <Loader />
+      </Stack>
+    );
+  }
+  if (query.isError) {
+    return (
+      <Alert color="red" data-testid="url-mode-load-error">
+        Failed to load tenant: {(query.error as Error).message}
+      </Alert>
+    );
+  }
   if (!tenantRecord) {
     return (
-      <Text size="sm" c="var(--mantine-color-gray-7)" data-testid="url-mode-loading">
-        Loading tenant…
+      <Text size="sm" c="var(--mantine-color-gray-7)" data-testid="url-mode-empty">
+        Tenant not found.
       </Text>
     );
   }
+
+  const slug = tenantRecord.slug ?? tenantSlug;
 
   return (
     <Stack gap="md" p="md" data-testid="url-mode-page">
@@ -118,7 +183,7 @@ function UrlModeSettingsPage() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           component={Link as any}
           to="/t/$tenant/settings"
-          params={{ tenant: tenantRecord.slug }}
+          params={{ tenant: slug }}
           size="sm"
           data-testid="url-mode-back"
         >
@@ -164,9 +229,9 @@ function UrlModeSettingsPage() {
         data-testid="url-mode-current-info"
       >
         <Text size="sm">
-          Current mode: <strong>{tenantRecord.url_mode === 'path' ? 'Path' : 'Subdomain'}</strong>
-          {tenantRecord.url_mode === 'subdomain' && tenantRecord.parent_domain && (
-            <> — parent domain: <strong>{tenantRecord.parent_domain}</strong></>
+          Current mode: <strong>{persistedMode === 'path' ? 'Path' : 'Subdomain'}</strong>
+          {persistedMode === 'subdomain' && tenantRecord.parentDomain && (
+            <> — parent domain: <strong>{tenantRecord.parentDomain}</strong></>
           )}
         </Text>
       </Alert>
@@ -230,7 +295,7 @@ function UrlModeSettingsPage() {
                 <span>
                   <Button
                     type="submit"
-                    loading={loading}
+                    loading={patch.isPending}
                     disabled={!canWrite}
                     data-testid="url-mode-save"
                   >
@@ -240,7 +305,7 @@ function UrlModeSettingsPage() {
               </Tooltip>
               <Button
                 variant="default"
-                disabled={loading}
+                disabled={patch.isPending}
                 onClick={() => {
                   form.reset();
                   setError(null);

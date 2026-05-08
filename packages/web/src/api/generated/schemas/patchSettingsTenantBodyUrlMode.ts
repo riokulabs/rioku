@@ -21,20 +21,17 @@ Conventions:
 
  * OpenAPI spec version: 0.1.0
  */
-import type { SettingsTenantDefaultTheme } from './settingsTenantDefaultTheme';
-import type { SettingsTenantUrlMode } from './settingsTenantUrlMode';
 
-export interface SettingsTenant {
-  createdAt?: string;
-  defaultTheme?: SettingsTenantDefaultTheme;
-  description?: string;
-  id?: string;
-  logoUrl?: string;
-  name?: string;
-  parentDomain?: string;
-  /** Read-only after creation. */
-  slug?: string;
-  updatedAt?: string;
-  /** Tenant addressing mode (path or subdomain). */
-  urlMode?: SettingsTenantUrlMode;
-}
+/**
+ * Tenant addressing mode. Switching invalidates all
+existing sessions; clients must re-authenticate.
+
+ */
+export type PatchSettingsTenantBodyUrlMode =
+  (typeof PatchSettingsTenantBodyUrlMode)[keyof typeof PatchSettingsTenantBodyUrlMode];
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const PatchSettingsTenantBodyUrlMode = {
+  path: 'path',
+  subdomain: 'subdomain',
+} as const;

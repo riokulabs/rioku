@@ -561,6 +561,7 @@ export const getSettingsTenantResponse = zod.object({
   parentDomain: zod.string().optional(),
   slug: zod.string().optional(),
   updatedAt: zod.string().datetime().optional(),
+  urlMode: zod.enum(['path', 'subdomain']).optional(),
 });
 
 /**
@@ -576,6 +577,7 @@ export const patchSettingsTenantResponse = zod.object({
   parentDomain: zod.string().optional(),
   slug: zod.string().optional(),
   updatedAt: zod.string().datetime().optional(),
+  urlMode: zod.enum(['path', 'subdomain']).optional(),
 });
 
 /**
