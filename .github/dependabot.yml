@@ -45,6 +45,56 @@ updates:
         applies-to: security-updates
         patterns: ["*"]
 
+  # ─── User docs (Docusaurus, npm) ───────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "docs"
+      include: "scope"
+    groups:
+      docusaurus:
+        patterns: ["@docusaurus/*", "docusaurus*"]
+      mdx:
+        patterns: ["@mdx-js/*", "remark-*", "rehype-*"]
+      types:
+        patterns: ["@types/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # ─── Contributor docs (Docusaurus, npm) ────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/contrib-docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "docs(contrib)"
+      include: "scope"
+    groups:
+      docusaurus:
+        patterns: ["@docusaurus/*", "docusaurus*"]
+      mdx:
+        patterns: ["@mdx-js/*", "remark-*", "rehype-*"]
+      types:
+        patterns: ["@types/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
   # ─── Daemon (gomod) ────────────────────────────────────────────────
   - package-ecosystem: "gomod"
     directory: "/packages/daemon"
