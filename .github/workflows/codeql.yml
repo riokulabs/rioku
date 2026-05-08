@@ -1,20 +1,14 @@
 name: CodeQL
 
-# DISABLED while repo is private. CodeQL needs GitHub Advanced Security
-# on private repos (paid); on public repos it's free. Once the repo is
-# made public, switch the `on:` block to:
-#
-#   pull_request:
-#     branches: [develop, main]
-#   push:
-#     branches: [develop]
-#   schedule:
-#     - cron: '0 3 * * 0'
-#
-# For now the workflow is reachable only via manual dispatch so the
-# config can be smoke-tested without burning Actions minutes on every
-# PR push.
 on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+  schedule:
+    # Weekly Sunday 03:00 UTC for full re-analysis with the latest
+    # query packs.
+    - cron: '0 3 * * 0'
   workflow_dispatch:
 
 concurrency:
