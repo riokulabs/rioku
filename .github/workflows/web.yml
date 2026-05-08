@@ -1,0 +1,43 @@
+name: Web
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (lint + typecheck + unit + bundle)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: packages/web/pnpm-lock.yaml
+      - name: Install web deps
+        run: cd packages/web && pnpm install --frozen-lockfile
+      - name: Lint
+        run: cd packages/web && pnpm lint
+      - name: Typecheck
+        run: cd packages/web && pnpm typecheck
+      - name: Format check
+        run: cd packages/web && pnpm format:check
+      - name: Unit + component tests (Vitest)
+        run: cd packages/web && VITEST_REPORTER=dot pnpm test
+      - name: Build
+        run: cd packages/web && pnpm build
+      - name: Check bundle budgets
+        run: cd packages/web && pnpm check-budgets
+      - name: Check ABI surface (B4)
+        run: cd packages/web && pnpm check-abi

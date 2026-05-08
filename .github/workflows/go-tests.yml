@@ -1,0 +1,63 @@
+name: Go Tests
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: go-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  daemon:
+    name: Test (daemon, race)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/proto/gen/go/go.sum
+      # actions/setup-go caches the module download cache but NOT the build cache.
+      # The gateway package alone has 197 integration tests and benefits enormously
+      # from a warm $GOCACHE on subsequent runs.
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-daemon-${{ runner.os }}-${{ hashFiles('packages/daemon/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-daemon-${{ runner.os }}-${{ hashFiles('packages/daemon/go.sum') }}-
+            go-build-daemon-${{ runner.os }}-
+      - name: Test daemon (race, no stores — store-matrix covers them)
+        run: |
+          cd packages/daemon
+          # Exclude internal/store/* — covered by the store-matrix workflow
+          # against real sqlite/postgres/mysql containers. Re-running them
+          # here would duplicate ~3-5 minutes of work per PR.
+          PKGS=$(go list ./... | grep -v '/internal/store/')
+          go test -tags noadmin -race -count=1 -timeout=1500s $PKGS
+
+  build-service:
+    name: Test (build-service, race)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: packages/build-service/go.sum
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-bs-${{ runner.os }}-${{ hashFiles('packages/build-service/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-bs-${{ runner.os }}-${{ hashFiles('packages/build-service/go.sum') }}-
+            go-build-bs-${{ runner.os }}-
+      - name: Test build-service (race)
+        run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...

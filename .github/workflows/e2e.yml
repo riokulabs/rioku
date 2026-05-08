@@ -1,0 +1,102 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/proto/gen/go/go.sum
+
+      # Each shard rebuilds the daemon as part of `make sandbox`. A warm
+      # build cache turns that from ~2min into ~5s.
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-e2e-${{ runner.os }}-${{ hashFiles('packages/daemon/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-e2e-${{ runner.os }}-${{ hashFiles('packages/daemon/go.sum') }}-
+            go-build-e2e-${{ runner.os }}-
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: packages/web/pnpm-lock.yaml
+
+      - name: Install web dependencies
+        run: cd packages/web && pnpm install --frozen-lockfile
+
+      # Cache Playwright browser binaries (~80MB). Key includes the
+      # Playwright version from pnpm-lock so a Playwright bump invalidates.
+      - name: Resolve Playwright version
+        id: pw
+        run: |
+          VERSION=$(node -p "require('./packages/web/node_modules/playwright/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: cd packages/web && pnpm exec playwright install --with-deps
+
+      - name: Install Playwright system deps (cache hit path)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: cd packages/web && pnpm exec playwright install-deps
+
+      - name: Start sandbox
+        run: make sandbox
+
+      - name: Run smoke tests
+        run: make sandbox-test-smoke
+
+      - name: Run Go integration tests (shard 1 only)
+        if: matrix.shard == 1
+        run: make test-integration
+
+      - name: Run Playwright E2E tests (shard ${{ matrix.shard }}/4)
+        run: cd packages/web && pnpm exec playwright test --shard=${{ matrix.shard }}/4 --reporter=line
+
+      - name: Upload Playwright report on failure
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-shard-${{ matrix.shard }}
+          path: packages/web/playwright-report/
+          retention-days: 7
+
+      - name: Stop sandbox
+        if: always()
+        run: make sandbox-stop

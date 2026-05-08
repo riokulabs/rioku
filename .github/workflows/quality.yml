@@ -1,0 +1,146 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commit-lint:
+    name: Commit Lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Validate commit messages
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          ERRORS=0
+          while IFS= read -r sha; do
+            MSG=$(git log --format=%s -n 1 "$sha")
+            if ! .githooks/lint-commit.sh <(echo "$MSG") 2>&1; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(git rev-list "$BASE".."$HEAD")
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "Found $ERRORS commit(s) with invalid messages."
+            exit 1
+          fi
+
+  spell:
+    name: Spell Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: streetsidesoftware/cspell-action@v8
+        with:
+          config: cspell.config.yaml
+          files: "**/*.{go,md,proto,yaml,yml}"
+
+  proto:
+    name: Proto Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bufbuild/buf-action@v1
+        with:
+          input: packages/proto
+          lint: true
+          breaking: false
+          format: false
+
+  gofmt:
+    name: Go Format Drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/build-service/go.sum
+            packages/proto/gen/go/go.sum
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+      - name: gofmt + goimports drift check
+        run: |
+          set -euo pipefail
+          GO_FILES=$(find packages -type f -name '*.go' -not -path '*/gen/*' -not -path '*/node_modules/*')
+          GOFMT_BAD=$(gofmt -l $GO_FILES || true)
+          if [ -n "$GOFMT_BAD" ]; then
+            echo "gofmt drift in:"
+            echo "$GOFMT_BAD"
+            exit 1
+          fi
+          GOIMPORTS_BAD=$(goimports -l $GO_FILES || true)
+          if [ -n "$GOIMPORTS_BAD" ]; then
+            echo "goimports drift in:"
+            echo "$GOIMPORTS_BAD"
+            exit 1
+          fi
+
+  golangci-lint:
+    name: golangci-lint (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: daemon
+            args: --build-tags noadmin
+          - module: build-service
+            args: ""
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: packages/${{ matrix.module }}/go.sum
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: packages/${{ matrix.module }}
+          args: ${{ matrix.args }}
+
+  codegen-drift:
+    name: Codegen Drift (OpenAPI + Web Types)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/build-service/go.sum
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: packages/web/pnpm-lock.yaml
+      - name: Install web deps
+        run: cd packages/web && pnpm install --frozen-lockfile
+      - name: Verify generated client + canonical OpenAPI are up-to-date
+        run: |
+          make openapi
+          make web-types
+          if [ -n "$(git status --porcelain packages/web/src/api/generated packages/proto/gen/openapi/rioku/v1/api.full.json)" ]; then
+            echo "::error::Generated admin client or canonical OpenAPI is out of date. Run 'make openapi && make web-types' locally and commit."
+            git diff packages/web/src/api/generated packages/proto/gen/openapi/rioku/v1/api.full.json | head -200
+            exit 1
+          fi
