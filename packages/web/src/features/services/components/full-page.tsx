@@ -63,7 +63,7 @@ const EMPTY_AUDIT_FILTER_BASE: Omit<AuditFilter, 'resource_id_handles'> = {
 
 export function ServiceFullPage({ serviceId, tenantId }: ServiceFullPageProps) {
   const service = useServiceDetail(tenantId, serviceId);
-  const routes = useServiceRoutes(serviceId);
+  const routes = useServiceRoutes(tenantId, serviceId);
 
   // Audit scoped to this service via the resource handle convention.
   const auditFilter: AuditFilter = useMemo(

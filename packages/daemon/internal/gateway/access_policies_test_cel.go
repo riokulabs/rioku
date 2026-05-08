@@ -64,7 +64,6 @@ func handleTestAccessPolicyCEL() http.HandlerFunc {
 // returned duration is wall-clock time spent inside `prg.Eval`, in
 // milliseconds; compilation time is excluded so the value reflects what
 // runtime evaluation would cost.
-//
 func evaluateCEL(_ context.Context, expression string, sample map[string]any) (bool, int64, error) {
 	if sample == nil {
 		sample = map[string]any{}
