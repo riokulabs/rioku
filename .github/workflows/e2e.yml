@@ -83,16 +83,21 @@ jobs:
       - name: Start sandbox
         run: make sandbox
 
-      - name: Dump sandbox daemon log if start failed
-        if: failure()
-        run: |
-          echo "=== sandbox/.data/daemon.log ==="
-          tail -200 sandbox/.data/daemon.log 2>/dev/null || echo "(no daemon.log)"
-          echo "=== sandbox/.data/caddy.log ==="
-          tail -200 sandbox/.data/caddy.log 2>/dev/null || echo "(no caddy.log)"
-
       - name: Run smoke tests
+        id: smoke
         run: make sandbox-test-smoke
+
+      - name: Dump sandbox logs on failure
+        if: always() && (steps.smoke.conclusion == 'failure' || steps.smoke.outcome == 'failure')
+        run: |
+          echo "=== daemon.log (last 300) ==="
+          tail -300 sandbox/.data/logs/daemon.log 2>/dev/null || echo "(no daemon.log)"
+          echo
+          echo "=== caddy.log (last 200) ==="
+          tail -200 sandbox/.data/logs/caddy.log 2>/dev/null || echo "(no caddy.log)"
+          echo
+          echo "=== sandbox/.data/logs/ contents ==="
+          ls -la sandbox/.data/logs/ 2>/dev/null || true
 
       - name: Run Go integration tests (shard 1 only)
         if: matrix.shard == 1
