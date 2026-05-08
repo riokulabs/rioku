@@ -1,0 +1,19 @@
+# Lockfile merge drivers (opt-in, local).
+#
+# Register once per clone:
+#   git config merge.npm-merge-driver.name 'pnpm install on conflict'
+#   git config merge.npm-merge-driver.driver \
+#     'cd packages/web && pnpm install --no-frozen-lockfile --ignore-scripts >/dev/null 2>&1 && cd ../.. && cp packages/web/pnpm-lock.yaml %A'
+#   git config merge.go-sum-merge.name 'go mod tidy on conflict'
+#   git config merge.go-sum-merge.driver \
+#     'd=$(dirname %A); (cd "$d" && go mod tidy) && cp "$d/go.sum" %A'
+#
+# Without these registered the entries below are no-ops; contributors
+# who skip the setup get standard Git conflict behaviour.
+packages/web/pnpm-lock.yaml merge=npm-merge-driver
+**/go.sum                   merge=go-sum-merge
+
+# Generated files — collapse in diff views by default.
+packages/proto/gen/**            linguist-generated=true
+packages/web/src/api/generated/** linguist-generated=true
+packages/web/src/routeTree.gen.ts linguist-generated=true
