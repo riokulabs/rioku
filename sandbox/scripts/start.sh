@@ -367,7 +367,7 @@ wait_for_health "products" "http://localhost:${SANDBOX_PORT_PRODUCTS}/health" 15
 wait_for_health "webhooks" "http://localhost:${SANDBOX_PORT_WEBHOOKS}/health" 15 & health_pids+=($!)
 wait_for_health "auth"     "http://localhost:${SANDBOX_PORT_AUTH}/health"     15 & health_pids+=($!)
 wait_for_health "media"    "http://localhost:${SANDBOX_PORT_MEDIA}/health"    15 & health_pids+=($!)
-wait_for_health "daemon"   "${REST_BASE}/api/v1/health"                      20 & health_pids+=($!)
+wait_for_health "daemon"   "${REST_BASE}/api/v1/health"                      60 & health_pids+=($!)
 
 # Wait for each health check
 for pid in "${health_pids[@]}"; do

@@ -83,6 +83,14 @@ jobs:
       - name: Start sandbox
         run: make sandbox
 
+      - name: Dump sandbox daemon log if start failed
+        if: failure()
+        run: |
+          echo "=== sandbox/.data/daemon.log ==="
+          tail -200 sandbox/.data/daemon.log 2>/dev/null || echo "(no daemon.log)"
+          echo "=== sandbox/.data/caddy.log ==="
+          tail -200 sandbox/.data/caddy.log 2>/dev/null || echo "(no caddy.log)"
+
       - name: Run smoke tests
         run: make sandbox-test-smoke
 
