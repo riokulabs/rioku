@@ -44,7 +44,9 @@ func TestOpaqueHandles_register_then_resolve(t *testing.T) {
 	var reg2 struct {
 		Handle string `json:"handle"`
 	}
-	json.NewDecoder(rec2.Body).Decode(&reg2)
+	if err := json.NewDecoder(rec2.Body).Decode(&reg2); err != nil {
+		t.Fatalf("decode reg2: %v", err)
+	}
 	if reg.Handle != reg2.Handle {
 		t.Errorf("idempotency broken: %q != %q", reg.Handle, reg2.Handle)
 	}
@@ -58,7 +60,9 @@ func TestOpaqueHandles_register_then_resolve(t *testing.T) {
 		t.Fatalf("resolve: status = %d, body = %s", rec3.Code, rec3.Body.String())
 	}
 	var resolved map[string]any
-	json.NewDecoder(rec3.Body).Decode(&resolved)
+	if err := json.NewDecoder(rec3.Body).Decode(&resolved); err != nil {
+		t.Fatalf("decode resolved: %v", err)
+	}
 	if resolved["handle"] != reg.Handle {
 		t.Errorf("resolved handle = %v, want %q", resolved["handle"], reg.Handle)
 	}

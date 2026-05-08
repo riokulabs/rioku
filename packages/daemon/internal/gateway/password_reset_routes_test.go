@@ -88,7 +88,7 @@ func setupPasswordResetServer(t *testing.T, mailer auth.Mailer) (*httptest.Serve
 func createTestUserViaBootstrap(t *testing.T, srv *httptest.Server, email, password string) {
 	t.Helper()
 	client := &http.Client{}
-	slug := strings.Replace(strings.Split(email, "@")[0], ".", "-", -1)
+	slug := strings.ReplaceAll(strings.Split(email, "@")[0], ".", "-")
 	body := fmt.Sprintf(`{"email":%q,"password":%q,"tenantSlug":%q,"tenantName":"Test"}`,
 		email, password, slug)
 	resp := bootstrapDo(t, client, http.MethodPost, srv.URL+"/api/v1/auth/bootstrap", body)

@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -205,22 +204,3 @@ func TestBootstrapStatus_returns_not_required_after_user_exists(t *testing.T) {
 	}
 }
 
-// doJSON is shared in auth_routes_test.go; keep this for standalone use in
-// bootstrap tests if auth_routes_test.go is not available.
-func bootstrapPostJSON(t *testing.T, client *http.Client, url string, payload any) *http.Response {
-	t.Helper()
-	b, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(b))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return resp
-}

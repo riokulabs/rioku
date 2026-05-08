@@ -18,8 +18,6 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 )
 
-const inviteTokenTTL = 7 * 24 * time.Hour // 7 days
-
 // RegisterInviteRoutes wires the invite-create and invite-accept endpoints.
 func RegisterInviteRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionManager, mailer auth.Mailer, cfg *config.Config) {
 	baseURL := cfg.Auth.PublicURL

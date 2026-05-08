@@ -36,12 +36,12 @@ func startCaptureSMTP(t *testing.T) *captureSMTP {
 			go handleSMTPConn(conn, c)
 		}
 	}()
-	t.Cleanup(func() { l.Close() })
+	t.Cleanup(func() { _ = l.Close() })
 	return c
 }
 
 func handleSMTPConn(conn net.Conn, c *captureSMTP) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	w := bufio.NewWriter(conn)
 	r := bufio.NewReader(conn)
 

@@ -145,7 +145,7 @@ func handleUploadManualCert(st store.Driver) http.HandlerFunc {
 
 		// New material → ask Caddy to reload so the live listener can
 		// pick the cert up on the next handshake.
-		triggerCaddyReload(r.Context(), "settings.tls.manual")
+		_ = triggerCaddyReload(r.Context(), "settings.tls.manual")
 
 		ref := certRef{
 			ID:        created.ID,
@@ -191,7 +191,7 @@ func handleDeleteManualCert(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "settings.tls.manual")
+		_ = triggerCaddyReload(r.Context(), "settings.tls.manual")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

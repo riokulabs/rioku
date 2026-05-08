@@ -153,7 +153,7 @@ func handleCreateService(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "service.create")
+		_ = triggerCaddyReload(r.Context(), "service.create")
 		writeJSON(w, http.StatusCreated, serviceToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
@@ -249,7 +249,7 @@ func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "service.update")
+		_ = triggerCaddyReload(r.Context(), "service.update")
 		writeJSON(w, http.StatusOK, serviceToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
@@ -277,7 +277,7 @@ func handleDeleteServiceREST(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "service.delete")
+		_ = triggerCaddyReload(r.Context(), "service.delete")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -306,7 +306,7 @@ func handleForceReloadService(st store.Driver) http.HandlerFunc {
 		}
 		// Trigger the registered Caddy reload hook (no-op in production
 		// until decisions-needed.md item 005 wires the real helper).
-		triggerCaddyReload(r.Context(), "service.force-reload")
+		_ = triggerCaddyReload(r.Context(), "service.force-reload")
 		writeJSON(w, http.StatusAccepted, map[string]any{
 			"id":     id,
 			"status": "queued",

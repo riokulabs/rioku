@@ -155,7 +155,7 @@ func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "middleware.create")
+		_ = triggerCaddyReload(r.Context(), "middleware.create")
 		writeJSON(w, http.StatusCreated, middlewareToResponse(created))
 	}
 }
@@ -235,7 +235,7 @@ func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "middleware.update")
+		_ = triggerCaddyReload(r.Context(), "middleware.update")
 		writeJSON(w, http.StatusOK, middlewareToResponse(updated))
 	}
 }
@@ -266,7 +266,7 @@ func handleDeleteMiddleware(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
-		triggerCaddyReload(r.Context(), "middleware.delete")
+		_ = triggerCaddyReload(r.Context(), "middleware.delete")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

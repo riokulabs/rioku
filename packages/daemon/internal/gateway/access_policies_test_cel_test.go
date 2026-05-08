@@ -74,7 +74,7 @@ func TestEvaluateCEL(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			matched, err, durationMs := evaluateCEL(context.Background(), tc.expr, tc.sample)
+			matched, durationMs, err := evaluateCEL(context.Background(), tc.expr, tc.sample)
 			if matched != tc.matched {
 				t.Errorf("matched=%v, want %v (err=%v)", matched, tc.matched, err)
 			}

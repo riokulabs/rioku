@@ -21,7 +21,7 @@ func TestPromQLQuery_returns_401_on_unauthenticated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// RequirePermission short-circuits with 401 because the test request
 	// has no session context. The route IS wired — if it were missing,

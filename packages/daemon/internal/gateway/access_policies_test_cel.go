@@ -44,7 +44,7 @@ func handleTestAccessPolicyCEL() http.HandlerFunc {
 			writeBadRequest(w, r, "invalid JSON body")
 			return
 		}
-		matched, err, durationMs := evaluateCEL(r.Context(), body.Expr, body.Sample)
+		matched, durationMs, err := evaluateCEL(r.Context(), body.Expr, body.Sample)
 		result := testCELResult{
 			Matched:    matched,
 			DurationMs: float64(durationMs),
@@ -65,8 +65,7 @@ func handleTestAccessPolicyCEL() http.HandlerFunc {
 // milliseconds; compilation time is excluded so the value reflects what
 // runtime evaluation would cost.
 //
-//nolint:revive // (matched, err, duration) is the documented contract.
-func evaluateCEL(_ context.Context, expression string, sample map[string]any) (bool, error, int64) {
+func evaluateCEL(_ context.Context, expression string, sample map[string]any) (bool, int64, error) {
 	if sample == nil {
 		sample = map[string]any{}
 	}
@@ -84,15 +83,15 @@ func evaluateCEL(_ context.Context, expression string, sample map[string]any) (b
 	}
 	env, envErr := cel.NewEnv(opts...)
 	if envErr != nil {
-		return false, envErr, 0
+		return false, 0, envErr
 	}
 	ast, issues := env.Compile(expression)
 	if issues != nil && issues.Err() != nil {
-		return false, issues.Err(), 0
+		return false, 0, issues.Err()
 	}
 	prg, prgErr := env.Program(ast)
 	if prgErr != nil {
-		return false, prgErr, 0
+		return false, 0, prgErr
 	}
 	activation := map[string]any{"sample": sample, "envelope": sample}
 	for k, v := range sample {
@@ -105,11 +104,11 @@ func evaluateCEL(_ context.Context, expression string, sample map[string]any) (b
 	result, _, evalErr := prg.Eval(activation)
 	durationMs := time.Since(start).Milliseconds()
 	if evalErr != nil {
-		return false, evalErr, durationMs
+		return false, durationMs, evalErr
 	}
 	boolVal, ok := result.Value().(bool)
 	if !ok {
-		return false, fmt.Errorf("cel: expression must return bool, got %T", result.Value()), durationMs
+		return false, durationMs, fmt.Errorf("cel: expression must return bool, got %T", result.Value())
 	}
-	return boolVal, nil, durationMs
+	return boolVal, durationMs, nil
 }

@@ -31,6 +31,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/riokulabs/rioku/internal/store"
@@ -187,7 +188,7 @@ func validateAST(root parser.Node) error {
 			// surfaces __name__ as an internal matcher with MatchEqual,
 			// so we only reject regex/negative __name__ matchers.
 			for _, m := range n.LabelMatchers {
-				if m.Name == labels.MetricName {
+				if m.Name == model.MetricNameLabel {
 					if m.Type == labels.MatchRegexp || m.Type == labels.MatchNotRegexp || m.Type == labels.MatchNotEqual {
 						rejectErr = fmt.Errorf("query uses a %s matcher on __name__ which can bypass tenant isolation", m.Type.String())
 						return rejectErr

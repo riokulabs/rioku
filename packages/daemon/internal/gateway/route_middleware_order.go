@@ -123,7 +123,7 @@ func handleReorderRouteMiddlewares(st store.Driver) http.HandlerFunc {
 			return
 		}
 
-		triggerCaddyReload(r.Context(), "route.middlewares.reorder")
+		_ = triggerCaddyReload(r.Context(), "route.middlewares.reorder")
 
 		b := links.NewTenantBuilder(tenant.Slug)
 		writeJSON(w, http.StatusOK, map[string]any{

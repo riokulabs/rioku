@@ -17,7 +17,7 @@ func TestOpenAPIJSON_returns_canonical_spec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
@@ -52,7 +52,7 @@ func TestOpenAPIJSON_etag_caching(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	etag := resp.Header.Get("ETag")
 	if etag == "" {
 		t.Fatal("missing ETag")
@@ -64,7 +64,7 @@ func TestOpenAPIJSON_etag_caching(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	if resp2.StatusCode != http.StatusNotModified {
 		t.Errorf("status = %d, want 304 on If-None-Match hit", resp2.StatusCode)
 	}

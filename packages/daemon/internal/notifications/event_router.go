@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -92,10 +91,6 @@ type EventRouter struct {
 	Store      store.Driver
 	Dispatcher *ChannelDispatcher
 	Log        *slog.Logger
-
-	// nowFn is overridable in tests; nil -> real time (only used when
-	// the dispatcher needs it).
-	mu sync.Mutex
 }
 
 // NewEventRouter constructs an EventRouter wired to the given store and
