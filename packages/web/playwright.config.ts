@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 // Stage-2: the SPA is served by the daemon binary at :7778 (go:embed of
@@ -5,7 +8,15 @@ import { defineConfig, devices } from '@playwright/test';
 // not the Vite dev server — `make sandbox` boots the daemon before
 // Playwright runs. Locally, override RIOKU_SPA_BASE to point at a
 // different host while iterating (e.g. running Vite dev separately).
-const SPA_BASE = process.env.RIOKU_SPA_BASE ?? 'http://localhost:7778';
+const SPA_BASE = process.env.RIOKU_DAEMON_BASE ?? process.env.RIOKU_SPA_BASE ?? 'http://localhost:7778';
+
+// Pre-computed root-auth session, written by e2e/global-setup.ts after a
+// successful login probe against the daemon. Falls back to `undefined`
+// when the file doesn't exist (cold checkout, daemon unreachable) so
+// Playwright surfaces a clearer error than a missing-file crash.
+const here = dirname(fileURLToPath(import.meta.url));
+const STORAGE_STATE_PATH = resolve(here, 'e2e/.auth/root-state.json');
+const STORAGE_STATE = existsSync(STORAGE_STATE_PATH) ? STORAGE_STATE_PATH : undefined;
 
 export default defineConfig({
   testDir: './e2e',
@@ -20,6 +31,7 @@ export default defineConfig({
     : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: SPA_BASE,
+    storageState: STORAGE_STATE,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     actionTimeout: 15000,

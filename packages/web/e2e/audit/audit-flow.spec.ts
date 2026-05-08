@@ -2,22 +2,26 @@
  * @isolated — runs against a real sandbox daemon (REST :7778), NOT the
  * dev-server mock store. The flow:
  *
- *   1. Bootstrap-as-admin (POST /api/v1/bootstrap) — creates the root
- *      user the first time and returns a session.
- *   2. Trigger an audited action — create a service via the REST API.
- *   3. Navigate to /t/default/security/audit.
- *   4. See the create-service entry render in the list.
- *   5. Reveal sensitive payload with a reason ≥ 10 chars.
- *   6. Confirm the audit chain still verifies via the admin chain page
+ *   1. Trigger an audited action — create a service via the REST API.
+ *   2. Navigate to /t/default/security/audit.
+ *   3. See the create-service entry render in the list.
+ *   4. Reveal sensitive payload with a reason ≥ 10 chars.
+ *   5. Confirm the audit chain still verifies via the admin chain page
  *      (the reveal must append a follow-up row without breaking the
  *      tamper-evident hash chain).
+ *
+ * Authentication: the root session is precomputed once in
+ * `e2e/global-setup.ts` and persisted to `e2e/.auth/root-state.json`.
+ * Both the page context (via Playwright's `use.storageState`) and the
+ * API context constructed below load it explicitly — `request.newContext`
+ * does NOT inherit `storageState` from the test config automatically.
  *
  * Skip-if-sandbox-unavailable: in CI we expect the sandbox to run; for
  * local dev we skip when neither `CI=1` nor `RIOKU_DAEMON_BASE` is set
  * so a plain `pnpm exec playwright test` doesn't fail noisily on
  * machines that haven't booted the sandbox.
  */
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 // Playwright sets `process` at runtime but the SPA tsconfig deliberately
 // omits @types/node — refer to it through a typed shim.
@@ -25,8 +29,7 @@ const env =
   (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
 const DAEMON_BASE = env.RIOKU_DAEMON_BASE ?? 'http://localhost:7778';
-const ROOT_USERNAME = env.RIOKU_ROOT_USERNAME ?? 'root';
-const ROOT_PASSWORD = env.SANDBOX_ROOT_PASSWORD ?? 'TestRoot1234!';
+const STORAGE_STATE = 'e2e/.auth/root-state.json';
 
 test.describe('@isolated audit flow against the real sandbox', () => {
   test.skip(
@@ -51,38 +54,14 @@ test.describe('@isolated audit flow against the real sandbox', () => {
     }
   });
 
-  async function login(api: APIRequestContext): Promise<void> {
-    const res = await api.post(`${DAEMON_BASE}/api/v1/auth/login`, {
-      data: { username: ROOT_USERNAME, password: ROOT_PASSWORD },
-      failOnStatusCode: false,
-    });
-    if (!res.ok()) {
-      // First-run: bootstrap then login.
-      const boot = await api.post(`${DAEMON_BASE}/api/v1/bootstrap`, {
-        data: { username: ROOT_USERNAME, password: ROOT_PASSWORD },
-        failOnStatusCode: false,
-      });
-      // Bootstrap may 409 if already done — login again either way.
-      if (!boot.ok() && boot.status() !== 409) {
-        throw new Error(`bootstrap failed ${String(boot.status())}: ${await boot.text()}`);
-      }
-      const retry = await api.post(`${DAEMON_BASE}/api/v1/auth/login`, {
-        data: { username: ROOT_USERNAME, password: ROOT_PASSWORD },
-      });
-      if (!retry.ok()) {
-        throw new Error(`login failed ${String(retry.status())}: ${await retry.text()}`);
-      }
-    }
-  }
-
   test('create service → audit row appears → reveal preserves chain', async ({
     playwright,
     page,
   }) => {
-    const api = await playwright.request.newContext();
+    // Pass storageState explicitly: request.newContext() does NOT inherit
+    // the test-level `use.storageState` from playwright.config.ts.
+    const api = await playwright.request.newContext({ storageState: STORAGE_STATE });
     try {
-      await login(api);
-
       // 1. Trigger an audited action: create a service.
       const serviceName = `audit-flow-svc-${String(Date.now())}`;
       const created = await api.post(`${DAEMON_BASE}/api/v1/t/default/services`, {
@@ -158,19 +137,8 @@ test.describe('@isolated audit flow against the real sandbox', () => {
       }
 
       // 5. Navigate the SPA to the audit page and confirm the row
-      //    renders. We can't rely on cookies set by api.context flowing
-      //    into page.context, so log in via the SPA login form.
-      await page.goto('/');
-      // The SPA login route varies; if there's a login screen, fill it.
-      const loginInput = page.getByLabel(/username|email/i).first();
-      if (await loginInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await loginInput.fill(ROOT_USERNAME);
-        await page
-          .getByLabel(/password/i)
-          .first()
-          .fill(ROOT_PASSWORD);
-        await page.getByRole('button', { name: /sign in|log in|submit/i }).click();
-      }
+      //    renders. The page context inherits `storageState` from
+      //    playwright.config.ts → no in-test login dance needed.
       await page.goto('/t/default/security/audit');
       await expect(page.getByRole('heading', { name: /^audit log$/i })).toBeVisible({
         timeout: 15_000,
